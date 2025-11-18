@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ShoppingCart, MessageCircle, Upload, X } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -16,6 +19,9 @@ const ProductDetail = () => {
   const [selectedFlavor, setSelectedFlavor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedDesign, setSelectedDesign] = useState("");
+  const [uploadedImages, setUploadedImages] = useState<File[]>([]);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; message: string }>>([]);
+  const [currentMessage, setCurrentMessage] = useState("");
 
   if (!product) {
     return (
@@ -48,6 +54,37 @@ const ProductDetail = () => {
 
   const currentPrice =
     product.sizes.find((s) => s.name === selectedSize)?.price || product.price;
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setUploadedImages([...uploadedImages, ...newFiles]);
+      toast({
+        title: "Images uploaded!",
+        description: `${newFiles.length} reference image(s) added`,
+      });
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(uploadedImages.filter((_, i) => i !== index));
+  };
+
+  const handleSendMessage = () => {
+    if (!currentMessage.trim()) return;
+    
+    setChatMessages([...chatMessages, { role: "user", message: currentMessage }]);
+    
+    // Simulate AI response
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, { 
+        role: "assistant", 
+        message: "Thanks for your question! Our team will help you customize your perfect bento cake. You can add text, special decorations, or dietary requirements in the notes at checkout!" 
+      }]);
+    }, 1000);
+    
+    setCurrentMessage("");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -174,10 +211,107 @@ const ProductDetail = () => {
               </CardContent>
             </Card>
 
-            <Button size="lg" className="w-full" onClick={handleAddToCart}>
-              <ShoppingCart className="mr-2 h-5 w-5" />
-              Add to Cart - ${currentPrice}
-            </Button>
+            {/* Picture Upload */}
+            <Card>
+              <CardContent className="pt-6">
+                <Label className="text-base font-semibold mb-3 block">
+                  Upload Reference Images
+                </Label>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="flex-1"
+                    />
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  {uploadedImages.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {uploadedImages.map((file, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Reference ${index + 1}`}
+                            className="w-full h-20 object-cover rounded-md border border-border"
+                          />
+                          <button
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload reference images for your custom design
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex gap-3">
+              <Button size="lg" className="flex-1" onClick={handleAddToCart}>
+                <ShoppingCart className="mr-2 h-5 w-5" />
+                Add to Cart - ${currentPrice}
+              </Button>
+              
+              {/* Chatbot */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="lg" variant="outline">
+                    <MessageCircle className="h-5 w-5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Customization Help</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="h-64 overflow-y-auto space-y-3 p-4 bg-muted rounded-lg">
+                      {chatMessages.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center">
+                          Ask us anything about customizing your cake!
+                        </p>
+                      ) : (
+                        chatMessages.map((msg, idx) => (
+                          <div
+                            key={idx}
+                            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                          >
+                            <div
+                              className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                                msg.role === "user"
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-background text-foreground"
+                              }`}
+                            >
+                              {msg.message}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Textarea
+                        placeholder="Ask about flavors, designs, or special requests..."
+                        value={currentMessage}
+                        onChange={(e) => setCurrentMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                        className="min-h-[60px]"
+                      />
+                      <Button onClick={handleSendMessage} size="icon">
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
       </div>
