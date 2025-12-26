@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
@@ -97,6 +97,7 @@ const extras = [
 
 const Customize = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { addItem } = useCart();
   const [currentStep, setCurrentStep] = useState(0);
   const [selections, setSelections] = useState<{
@@ -113,6 +114,14 @@ const Customize = () => {
     extras: [],
   });
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
+
+  // Pre-select style from URL parameter (from catalog)
+  useEffect(() => {
+    const styleParam = searchParams.get("style");
+    if (styleParam && styles.some(s => s.id === styleParam)) {
+      setSelections(prev => ({ ...prev, style: styleParam }));
+    }
+  }, [searchParams]);
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
