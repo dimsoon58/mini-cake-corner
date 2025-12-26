@@ -125,7 +125,8 @@ const Index = () => {
             {sizes.map((size) => (
               <div
                 key={size.name}
-                className="bg-background p-8 text-center shadow-sm rounded-2xl flex flex-col"
+                className="p-8 text-center shadow-sm rounded-2xl flex flex-col"
+                style={{ backgroundColor: '#E8D4F0' }}
               >
                 {size.image && (
                   <img
