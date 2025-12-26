@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import logo from "@/assets/logo.png";
 
 const steps = ["Size", "Shape", "Flavor", "Extras"];
 
@@ -118,8 +119,7 @@ const Customize = () => {
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="text-2xl">🍰</div>
-            <h1 className="text-2xl font-bold text-foreground">Sweet Bento</h1>
+            <img src={logo} alt="Bento Cake Studio" className="h-12" />
           </Link>
           <Button variant="ghost" asChild>
             <Link to="/">
