@@ -131,7 +131,7 @@ const ProductDetail = () => {
               <p className="text-lg text-muted-foreground">{product.description}</p>
             </div>
 
-            <div className="text-3xl font-bold text-primary">${currentPrice}</div>
+            <div className="text-3xl font-bold text-primary">CHF {currentPrice}</div>
 
             {/* Flavor Selection */}
             <Card>
@@ -173,7 +173,7 @@ const ProductDetail = () => {
                           className="cursor-pointer flex-1 flex justify-between"
                         >
                           <span>{size.name}</span>
-                          <span className="font-semibold">${size.price}</span>
+                          <span className="font-semibold">CHF {size.price}</span>
                         </Label>
                       </div>
                     ))}
@@ -257,7 +257,7 @@ const ProductDetail = () => {
             <div className="flex gap-3">
               <Button size="lg" className="flex-1" onClick={handleAddToCart}>
                 <ShoppingCart className="mr-2 h-5 w-5" />
-                Add to Cart - ${currentPrice}
+                Add to Cart - CHF {currentPrice}
               </Button>
               
               {/* Chatbot */}
