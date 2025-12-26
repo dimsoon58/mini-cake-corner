@@ -128,8 +128,8 @@ const Cart = () => {
                     <span className="text-foreground">Total</span>
                     <span className="text-primary">CHF {totalPrice}</span>
                   </div>
-                  <Button className="w-full" size="lg">
-                    Proceed to Checkout
+                  <Button className="w-full" size="lg" asChild>
+                    <Link to="/checkout">Proceed to Checkout</Link>
                   </Button>
                   <Button variant="outline" className="w-full" asChild>
                     <Link to="/customize">Add Another Cake</Link>
