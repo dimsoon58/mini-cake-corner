@@ -13,6 +13,12 @@ import flavorDarkBerrylicious from "@/assets/flavor-dark-berrylicious.png";
 import flavorWhiteBerrylicious from "@/assets/flavor-white-berrylicious.png";
 import flavorSaltedCaramel from "@/assets/flavor-salted-caramel.png";
 import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
+import flavorTiramisu from "@/assets/flavor-tiramisu.png";
+import flavorPraline from "@/assets/flavor-praline.png";
+import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
+import flavorVanillaGF from "@/assets/flavor-vanilla-gf.png";
+import flavorRedVelvetGF from "@/assets/flavor-red-velvet-gf.png";
+import flavorChocolateGF from "@/assets/flavor-chocolate-gf.png";
 
 const steps = ["Size", "Shape", "Flavor", "Extras"];
 
@@ -49,9 +55,12 @@ const flavorCategories = [
   {
     name: "Deluxe Flavors",
     flavors: [
-      { id: "passion-fruit", name: "Passion Fruit", description: "Tropical passion fruit with white chocolate", image: null },
-      { id: "tiramisu", name: "Tiramisu", description: "Coffee-soaked layers with mascarpone cream", image: null },
-      { id: "praline", name: "Praliné", description: "Hazelnut praline with rich buttercream", image: null },
+      { id: "tiramisu", name: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", image: flavorTiramisu },
+      { id: "praline", name: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelized almond, hazelnut and whipped cream", image: flavorPraline },
+      { id: "passion-fruit", name: "Passion Fruit", description: "Fluffy vanilla sponge filled with fresh passion fruit curd and whipped cream", image: flavorPassionFruit },
+      { id: "vanilla-gf", name: "Vanilla Gluten-free", description: "Fluffy gluten-free vanilla sponge with whipped cream", image: flavorVanillaGF },
+      { id: "red-velvet-gf", name: "Red Velvet Gluten-free", description: "Moist red velvet with silky cream cheese icing", image: flavorRedVelvetGF },
+      { id: "chocolate-gf", name: "Chocolate Gluten-free", description: "Fluffy gluten-free chocolate sponge with whipped cream", image: flavorChocolateGF },
     ],
   },
 ];
