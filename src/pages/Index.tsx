@@ -1,79 +1,158 @@
-import { ProductCard } from "@/components/ProductCard";
-import { products } from "@/data/products";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
 import logo from "@/assets/logo.png";
 
+const features = [
+  {
+    title: "Homemade goodness",
+    description:
+      "When you think of warmth, love, and comfort in a bite, think homemade. Our cakes are all about that authentic taste, paired with a cheeky wink.",
+  },
+  {
+    title: "Trendy & personalized",
+    description:
+      "It's modern, it's unique and it's trendy. Ditch that regular cake and get a personalized piece of art, made with love and passion just for you.",
+  },
+  {
+    title: "Fresh ingredients",
+    description:
+      "Because we believe that our cakes should be fresh, nutritious and prepared with care, we only use natural & fresh ingredients with no preservatives.",
+  },
+];
+
+const sizes = [
+  {
+    name: "Mini Bento Cake",
+    size: "10 cm",
+    servings: "2-4 servings",
+    price: "From 40CHF",
+    extra: "+3CHF Heart shape",
+  },
+  {
+    name: "Medium Cake",
+    size: "15 cm",
+    servings: "5-8 servings",
+    price: "From 80CHF",
+    extra: "+5CHF Heart shape",
+  },
+  {
+    name: "Large Cake",
+    size: "20 cm",
+    servings: "12-16 servings",
+    price: "From 160CHF",
+    extra: "+10CHF Heart shape",
+  },
+];
+
 const Index = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const categories = ["All", ...Array.from(new Set(products.map((p) => p.category)))];
-
-  const filteredProducts =
-    selectedCategory === "All"
-      ? products
-      : products.filter((p) => p.category === selectedCategory);
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background font-sans">
       {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src={logo} alt="Bento Cake Studio" className="h-12" />
+      <header className="bg-background py-8">
+        <div className="container mx-auto px-4 flex justify-center">
+          <Link to="/">
+            <img src={logo} alt="Bento Cake Studio" className="h-20 md:h-28" />
           </Link>
-          <Button variant="outline" size="icon">
-            <ShoppingCart className="h-5 w-5" />
-          </Button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-peach via-cream to-mint py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-5xl font-bold text-foreground mb-4">
-            Artisanal Bento Cakes
-          </h2>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Handcrafted miniature cakes, perfect for any celebration. Choose your
-            flavor, size, and design.
+      <section className="relative bg-foreground text-primary-foreground overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 to-foreground/70" />
+        <div className="relative container mx-auto px-4 py-24 md:py-32 text-center">
+          <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-light tracking-wide mb-6">
+            NOT YOUR TRADITIONAL CAKES
+          </h1>
+          <p className="text-lg md:text-xl max-w-3xl mx-auto opacity-90 mb-10 font-light">
+            Combining creativity and personalization to bring you unique cakes
+            that are not only beautiful, but taste just as good.
           </p>
-          <Button size="lg" className="rounded-full" asChild>
+          <Button
+            size="lg"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-none font-medium tracking-wide"
+            asChild
+          >
             <Link to="/customize">Customize Your Cake</Link>
           </Button>
         </div>
       </section>
 
-      {/* Category Filter */}
-      <section className="container mx-auto px-4 py-8">
-        <div className="flex gap-2 flex-wrap justify-center">
-          {categories.map((category) => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? "default" : "outline"}
-              onClick={() => setSelectedCategory(category)}
-              className="rounded-full"
-            >
-              {category}
-            </Button>
-          ))}
+      {/* Features Section */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            {features.map((feature) => (
+              <div key={feature.title} className="text-center">
+                <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-4">
+                  {feature.title}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Products Grid */}
-      <section className="container mx-auto px-4 pb-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+      {/* Sizes Section */}
+      <section className="py-20 bg-cream">
+        <div className="container mx-auto px-4">
+          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
+            SIZES
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {sizes.map((size) => (
+              <div
+                key={size.name}
+                className="bg-background p-8 text-center shadow-sm"
+              >
+                <h3 className="font-serif text-2xl text-foreground mb-4">
+                  {size.name}
+                </h3>
+                <p className="text-muted-foreground mb-1">{size.size}</p>
+                <p className="text-muted-foreground mb-4">{size.servings}</p>
+                <p className="text-xl font-medium text-foreground mb-2">
+                  {size.price}
+                </p>
+                <p className="text-sm text-primary">{size.extra}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="font-serif text-3xl md:text-4xl text-foreground mb-6">
+            Ready to create your perfect cake?
+          </h2>
+          <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Choose your size, shape, flavor, and extras to design a cake that's
+            uniquely yours.
+          </p>
+          <Button
+            size="lg"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-none font-medium tracking-wide"
+            asChild
+          >
+            <Link to="/customize">Customize Your Cake</Link>
+          </Button>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-card border-t border-border py-8">
-        <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>© 2024 Bento Cake Studio. Made with love 💕</p>
+      <footer className="bg-foreground text-primary-foreground py-12">
+        <div className="container mx-auto px-4 text-center">
+          <img
+            src={logo}
+            alt="Bento Cake Studio"
+            className="h-16 mx-auto mb-6 brightness-200"
+          />
+          <p className="text-sm opacity-70">
+            © 2024 Bento Cake Studio. Made with love.
+          </p>
         </div>
       </footer>
     </div>
