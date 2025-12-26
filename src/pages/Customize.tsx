@@ -15,8 +15,8 @@ const sizes = [
 ];
 
 const shapes = [
-  { id: "round", name: "Round" },
-  { id: "heart", name: "Heart" },
+  { id: "round", name: "Round", extraPrice: { bento: 0, medium: 0, large: 0 } },
+  { id: "heart", name: "Heart", extraPrice: { bento: 3, medium: 5, large: 10 } },
 ];
 
 const flavors = [
@@ -110,7 +110,11 @@ const Customize = () => {
       const extra = extras.find((e) => e.id === extraId);
       return acc + (extra?.price || 0);
     }, 0);
-    return sizePrice + extrasPrice;
+    const selectedShape = shapes.find((s) => s.id === selections.shape);
+    const shapeExtra = selectedShape && selections.size 
+      ? selectedShape.extraPrice[selections.size as keyof typeof selectedShape.extraPrice] || 0
+      : 0;
+    return sizePrice + extrasPrice + shapeExtra;
   };
 
   return (
@@ -222,6 +226,11 @@ const Customize = () => {
                   >
                     <CardContent className="p-6 text-center">
                       <h3 className="text-xl font-bold text-foreground">{shape.name}</h3>
+                      {shape.id === "heart" && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          +CHF 3 Bento, +CHF 5 Medium, +CHF 10 Large
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
