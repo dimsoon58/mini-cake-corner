@@ -39,8 +39,8 @@ const Index = () => {
             Handcrafted miniature cakes, perfect for any celebration. Choose your
             flavor, size, and design.
           </p>
-          <Button size="lg" className="rounded-full">
-            Shop Now
+          <Button size="lg" className="rounded-full" asChild>
+            <Link to="/customize">Customize Your Cake</Link>
           </Button>
         </div>
       </section>
