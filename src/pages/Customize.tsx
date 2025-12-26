@@ -36,6 +36,7 @@ const shapes = [
 const flavorCategories = [
   {
     name: "Standard Flavors",
+    extraPrice: { bento: 0, medium: 0, large: 0 },
     flavors: [
       { id: "vanilla", name: "Vanilla", description: "Fluffy vanilla sponge with whipped cream", image: flavorVanilla },
       { id: "red-velvet", name: "Red Velvet", description: "Moist red velvet with silky cream cheese icing", image: flavorRedVelvet },
@@ -44,6 +45,7 @@ const flavorCategories = [
   },
   {
     name: "Special Flavors",
+    extraPrice: { bento: 2, medium: 4, large: 8 },
     flavors: [
       { id: "chocolate-lovers", name: "Chocolate Lovers", description: "Moist chocolate sponge with rich chocolate ganache", image: flavorChocolateLovers },
       { id: "dark-berrylicious", name: "Dark Berrylicious", description: "Fluffy chocolate sponge filled with a generous raspberry coulis and whipped cream", image: flavorDarkBerrylicious },
@@ -54,6 +56,7 @@ const flavorCategories = [
   },
   {
     name: "Deluxe Flavors",
+    extraPrice: { bento: 4, medium: 8, large: 16 },
     flavors: [
       { id: "tiramisu", name: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", image: flavorTiramisu },
       { id: "praline", name: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelized almond, hazelnut and whipped cream", image: flavorPraline },
@@ -135,6 +138,15 @@ const Customize = () => {
     }
   };
 
+  const getFlavorCategoryExtra = () => {
+    if (!selections.flavor || !selections.size) return 0;
+    const category = flavorCategories.find(cat => 
+      cat.flavors.some(f => f.id === selections.flavor)
+    );
+    if (!category) return 0;
+    return category.extraPrice[selections.size as keyof typeof category.extraPrice] || 0;
+  };
+
   const calculateTotal = () => {
     const sizePrice = sizes.find((s) => s.id === selections.size)?.price || 0;
     const extrasPrice = selections.extras.reduce((acc, extraId) => {
@@ -145,7 +157,8 @@ const Customize = () => {
     const shapeExtra = selectedShape && selections.size 
       ? selectedShape.extraPrice[selections.size as keyof typeof selectedShape.extraPrice] || 0
       : 0;
-    return sizePrice + extrasPrice + shapeExtra;
+    const flavorExtra = getFlavorCategoryExtra();
+    return sizePrice + extrasPrice + shapeExtra + flavorExtra;
   };
 
   return (
@@ -280,10 +293,17 @@ const Customize = () => {
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Flavor
               </h2>
-              {flavorCategories.map((category) => (
+              {flavorCategories.map((category) => {
+                const categoryExtra = selections.size 
+                  ? category.extraPrice[selections.size as keyof typeof category.extraPrice] 
+                  : 0;
+                return (
                 <div key={category.name} className="space-y-6">
                   <h3 className="text-xl font-serif text-center text-foreground uppercase tracking-wider">
                     {category.name}
+                    {categoryExtra > 0 && (
+                      <span className="text-primary font-medium"> (+CHF {categoryExtra})</span>
+                    )}
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     {category.flavors.map((flavor) => (
@@ -316,7 +336,8 @@ const Customize = () => {
                     ))}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
