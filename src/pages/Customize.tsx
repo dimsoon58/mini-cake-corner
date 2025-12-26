@@ -193,7 +193,7 @@ const Customize = () => {
                         {size.description}
                       </p>
                       <p className="text-2xl font-bold text-primary mt-3">
-                        ${size.price}
+                        CHF {size.price}
                       </p>
                     </CardContent>
                   </Card>
@@ -283,7 +283,7 @@ const Customize = () => {
                       <h3 className="text-lg font-medium text-foreground">
                         {extra.name}
                       </h3>
-                      <span className="text-primary font-bold">+${extra.price}</span>
+                      <span className="text-primary font-bold">+CHF {extra.price}</span>
                     </CardContent>
                   </Card>
                 ))}
@@ -304,7 +304,7 @@ const Customize = () => {
 
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Estimated Total</p>
-              <p className="text-3xl font-bold text-primary">${calculateTotal()}</p>
+              <p className="text-3xl font-bold text-primary">CHF {calculateTotal()}</p>
             </div>
 
             {currentStep < steps.length - 1 ? (
