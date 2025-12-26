@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
+import heroBg from "@/assets/hero-bg.jpg";
 
 const features = [
   {
@@ -57,8 +58,12 @@ const Index = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative bg-foreground text-primary-foreground overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 to-foreground/70" />
+      <section className="relative text-primary-foreground overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroBg})` }}
+        />
+        <div className="absolute inset-0 bg-foreground/50" />
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center">
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-light tracking-wide mb-6">
             NOT YOUR TRADITIONAL CAKES
@@ -69,7 +74,7 @@ const Index = () => {
           </p>
           <Button
             size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-none font-medium tracking-wide"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-full font-medium tracking-wide"
             asChild
           >
             <Link to="/customize">Customize Your Cake</Link>
