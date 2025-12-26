@@ -14,19 +14,23 @@ const sizes = [
 ];
 
 const shapes = [
-  { id: "round", name: "Round", emoji: "🔴" },
-  { id: "square", name: "Square", emoji: "🟦" },
-  { id: "heart", name: "Heart", emoji: "💗" },
-  { id: "rectangle", name: "Rectangle", emoji: "📦" },
+  { id: "round", name: "Round" },
+  { id: "heart", name: "Heart" },
 ];
 
 const flavors = [
-  { id: "vanilla", name: "Vanilla", color: "bg-cream" },
-  { id: "chocolate", name: "Chocolate", color: "bg-[hsl(30,50%,35%)]" },
-  { id: "strawberry", name: "Strawberry", color: "bg-peach" },
-  { id: "matcha", name: "Matcha", color: "bg-mint" },
-  { id: "lavender", name: "Lavender", color: "bg-lavender" },
-  { id: "red-velvet", name: "Red Velvet", color: "bg-destructive" },
+  { id: "red-velvet", name: "Red Velvet" },
+  { id: "tiramisu", name: "Tiramisu" },
+  { id: "choco-framb", name: "Choco Lover + Framb" },
+  { id: "whiteberrylicious", name: "WhiteBerrylicious" },
+  { id: "chocolate-lover", name: "Chocolate Lover" },
+  { id: "chocolate", name: "Chocolate" },
+  { id: "praline", name: "Praliné" },
+  { id: "dark-berrylicious", name: "Dark Berrylicious" },
+  { id: "vanille", name: "Vanille" },
+  { id: "caramel", name: "Caramel" },
+  { id: "passion-fruit", name: "Passion Fruit" },
+  { id: "lemon-curd", name: "Lemon Curd" },
 ];
 
 const extras = [
@@ -171,7 +175,7 @@ const Customize = () => {
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Size
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
                 {sizes.map((size) => (
                   <Card
                     key={size.id}
@@ -204,7 +208,7 @@ const Customize = () => {
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Shape
               </h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
                 {shapes.map((shape) => (
                   <Card
                     key={shape.id}
@@ -217,7 +221,6 @@ const Customize = () => {
                     onClick={() => handleSelectShape(shape.id)}
                   >
                     <CardContent className="p-6 text-center">
-                      <div className="text-5xl mb-3">{shape.emoji}</div>
                       <h3 className="text-xl font-bold text-foreground">{shape.name}</h3>
                     </CardContent>
                   </Card>
@@ -244,11 +247,8 @@ const Customize = () => {
                     )}
                     onClick={() => handleSelectFlavor(flavor.id)}
                   >
-                    <CardContent className="p-6 flex items-center gap-4">
-                      <div
-                        className={cn("w-12 h-12 rounded-full", flavor.color)}
-                      />
-                      <h3 className="text-xl font-bold text-foreground">
+                    <CardContent className="p-6 text-center">
+                      <h3 className="text-lg font-bold text-foreground">
                         {flavor.name}
                       </h3>
                     </CardContent>
