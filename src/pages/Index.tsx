@@ -7,6 +7,12 @@ import cakeHomemade from "@/assets/cake-homemade.png";
 import cakeFresh from "@/assets/cake-fresh.png";
 import cakeTrendy from "@/assets/cake-trendy.png";
 import cakeMiniBento from "@/assets/cake-mini-bento.png";
+import catalogRetroVintage from "@/assets/catalog-retro-vintage.png";
+import catalogHeartBomb from "@/assets/catalog-heart-bomb.png";
+import catalogShagCake from "@/assets/catalog-shag-cake.png";
+import catalogRainbow from "@/assets/catalog-rainbow.png";
+import catalogRoses from "@/assets/catalog-roses.png";
+import catalogButterfly from "@/assets/catalog-butterfly.png";
 
 const features = [
   {
@@ -53,6 +59,51 @@ const sizes = [
     price: "From CHF 160",
     extra: "+CHF 10 Heart shape",
     image: null,
+  },
+];
+
+const catalog = [
+  {
+    id: "retro-vintage",
+    name: "Retro Vintage",
+    description: "Pastel pink with delicate floral decorations",
+    image: catalogRetroVintage,
+    style: "retro-vintage",
+  },
+  {
+    id: "heart-bomb",
+    name: "Heart Bomb",
+    description: "Covered in dozens of candy hearts",
+    image: catalogHeartBomb,
+    style: "heart-bomb",
+  },
+  {
+    id: "shag-cake",
+    name: "Shag Cake",
+    description: "Fluffy textured frosting in lavender",
+    image: catalogShagCake,
+    style: "shag-cake",
+  },
+  {
+    id: "rainbow",
+    name: "Rainbow Cake",
+    description: "Vibrant rainbow layers and colorful swirls",
+    image: catalogRainbow,
+    style: "rainbow-cake",
+  },
+  {
+    id: "roses",
+    name: "Roses Please",
+    description: "Elegant buttercream roses in soft pink",
+    image: catalogRoses,
+    style: "roses-please",
+  },
+  {
+    id: "butterfly",
+    name: "Butterfly Garden",
+    description: "Whimsical butterflies and spring flowers",
+    image: catalogButterfly,
+    style: "butterfly-garden",
   },
 ];
 
@@ -152,6 +203,47 @@ const Index = () => {
                     Choose option
                   </Button>
                 </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Catalog Section */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4">
+          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-6">
+            CATALOG
+          </h2>
+          <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
+            Get inspired by our pre-designed creations. Pick your favorite and customize it to make it yours.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {catalog.map((cake) => (
+              <div
+                key={cake.id}
+                className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
+              >
+                <div className="aspect-square overflow-hidden bg-muted/30">
+                  <img
+                    src={cake.image}
+                    alt={cake.name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <div className="p-6 text-center">
+                  <h3 className="font-serif text-xl text-foreground mb-2">
+                    {cake.name}
+                  </h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    {cake.description}
+                  </p>
+                  <Link to={`/customize?style=${cake.style}`}>
+                    <Button variant="outline" className="w-full rounded-full border-foreground text-foreground hover:bg-foreground hover:text-background">
+                      Choose this style
+                    </Button>
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
