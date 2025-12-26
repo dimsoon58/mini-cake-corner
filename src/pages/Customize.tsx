@@ -213,27 +213,32 @@ const Customize = () => {
                 Choose Your Shape
               </h2>
               <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
-                {shapes.map((shape) => (
-                  <Card
-                    key={shape.id}
-                    className={cn(
-                      "cursor-pointer transition-all hover:shadow-lg",
-                      selections.shape === shape.id
-                        ? "ring-2 ring-primary bg-secondary"
-                        : "hover:bg-muted/50"
-                    )}
-                    onClick={() => handleSelectShape(shape.id)}
-                  >
-                    <CardContent className="p-6 text-center">
-                      <h3 className="text-xl font-bold text-foreground">{shape.name}</h3>
-                      {shape.id === "heart" && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          +CHF 3 Bento, +CHF 5 Medium, +CHF 10 Large
-                        </p>
+                {shapes.map((shape) => {
+                  const heartExtra = selections.size 
+                    ? shape.extraPrice[selections.size as keyof typeof shape.extraPrice] 
+                    : 0;
+                  return (
+                    <Card
+                      key={shape.id}
+                      className={cn(
+                        "cursor-pointer transition-all hover:shadow-lg",
+                        selections.shape === shape.id
+                          ? "ring-2 ring-primary bg-secondary"
+                          : "hover:bg-muted/50"
                       )}
-                    </CardContent>
-                  </Card>
-                ))}
+                      onClick={() => handleSelectShape(shape.id)}
+                    >
+                      <CardContent className="p-6 text-center">
+                        <h3 className="text-xl font-bold text-foreground">{shape.name}</h3>
+                        {shape.id === "heart" && heartExtra > 0 && (
+                          <p className="text-sm text-primary mt-2 font-medium">
+                            +CHF {heartExtra}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}
