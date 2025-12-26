@@ -182,7 +182,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background font-sans">
       {/* Header */}
-      <header className="bg-background py-8">
+      <header className="bg-background py-6">
         <div className="container mx-auto px-4 flex items-center justify-between">
           <div className="w-12" /> {/* Spacer for centering */}
           <Link to="/">
@@ -190,6 +190,26 @@ const Index = () => {
           </Link>
           <CartIcon />
         </div>
+        
+        {/* Navigation Bar */}
+        <nav className="flex justify-center gap-8 mt-6 border-b border-border/30 pb-4">
+          <a 
+            href="#top" 
+            onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            className="text-foreground/80 hover:text-foreground transition-colors font-medium cursor-pointer"
+          >
+            Home
+          </a>
+          <Link to="/customize" className="text-foreground/80 hover:text-foreground transition-colors font-medium">
+            Custom
+          </Link>
+          <Link to="/faq" className="text-foreground/80 hover:text-foreground transition-colors font-medium">
+            FAQ
+          </Link>
+          <Link to="/contact" className="text-foreground/80 hover:text-foreground transition-colors font-medium">
+            Contact
+          </Link>
+        </nav>
       </header>
 
       {/* Hero Section */}
