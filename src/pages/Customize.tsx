@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
-import { ArrowLeft, ArrowRight, Check, ShoppingBag } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ShoppingBag, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import CartIcon from "@/components/CartIcon";
@@ -481,8 +481,28 @@ const Customize = () => {
           </SheetHeader>
           
           <div className="flex-1 py-6 space-y-4">
-            <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
-              <p className="font-medium text-foreground">
+            <div className="bg-secondary/50 rounded-lg p-4 space-y-2 relative">
+              <div className="absolute top-3 right-3 flex gap-2">
+                <button
+                  onClick={() => setCartSheetOpen(false)}
+                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  title="Edit order"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    setCartSheetOpen(false);
+                    setSelections({ size: null, shape: null, flavor: null, extras: [] });
+                    setCurrentStep(0);
+                  }}
+                  className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Delete and start over"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="font-medium text-foreground pr-16">
                 {sizes.find(s => s.id === selections.size)?.name} {shapes.find(s => s.id === selections.shape)?.name} Cake
               </p>
               <p className="text-sm text-muted-foreground">
