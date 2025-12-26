@@ -388,6 +388,38 @@ const Customize = () => {
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Estimated Total</p>
               <p className="text-3xl font-bold text-primary">CHF {calculateTotal()}</p>
+              
+              {/* Price Breakdown */}
+              {selections.size && (
+                <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
+                  {/* Size */}
+                  {selections.size && (
+                    <p>{sizes.find(s => s.id === selections.size)?.name}: CHF {sizes.find(s => s.id === selections.size)?.price}</p>
+                  )}
+                  {/* Shape extra */}
+                  {selections.shape && (() => {
+                    const shape = shapes.find(s => s.id === selections.shape);
+                    const shapeExtra = shape && selections.size 
+                      ? shape.extraPrice[selections.size as keyof typeof shape.extraPrice] 
+                      : 0;
+                    return shapeExtra > 0 ? <p>{shape?.name} shape: +CHF {shapeExtra}</p> : null;
+                  })()}
+                  {/* Flavor extra */}
+                  {selections.flavor && (() => {
+                    const category = flavorCategories.find(cat => cat.flavors.some(f => f.id === selections.flavor));
+                    const flavor = category?.flavors.find(f => f.id === selections.flavor);
+                    const flavorExtra = category && selections.size 
+                      ? category.extraPrice[selections.size as keyof typeof category.extraPrice] 
+                      : 0;
+                    return flavorExtra > 0 ? <p>{flavor?.name} ({category?.name}): +CHF {flavorExtra}</p> : null;
+                  })()}
+                  {/* Extras */}
+                  {selections.extras.map(extraId => {
+                    const extra = extras.find(e => e.id === extraId);
+                    return extra ? <p key={extraId}>{extra.name}: +CHF {extra.price}</p> : null;
+                  })}
+                </div>
+              )}
             </div>
 
             {currentStep < steps.length - 1 ? (
