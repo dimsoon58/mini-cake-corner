@@ -23,7 +23,7 @@ import flavorVanillaGF from "@/assets/flavor-vanilla-gf.png";
 import flavorRedVelvetGF from "@/assets/flavor-red-velvet-gf.png";
 import flavorChocolateGF from "@/assets/flavor-chocolate-gf.png";
 
-const steps = ["Size", "Shape", "Flavor", "Extras"];
+const steps = ["Size", "Shape", "Flavor", "Style", "Extras"];
 
 const sizes = [
   { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 45 },
@@ -71,6 +71,21 @@ const flavorCategories = [
   },
 ];
 
+const styles = [
+  { id: "retro-vintage", name: "Retro / Vintage" },
+  { id: "heart-bomb", name: "Heart Bomb" },
+  { id: "shag-cake", name: "Shag Cake" },
+  { id: "rainbow-cake", name: "Rainbow Cake" },
+  { id: "roses-please", name: "Roses Please" },
+  { id: "butterfly-garden", name: "Butterfly Garden" },
+  { id: "custom-drawing", name: "Custom Drawing" },
+  { id: "printed-picture", name: "Printed Picture" },
+  { id: "gold-leaves", name: "Gold Leaves" },
+  { id: "glitter-cake", name: "Glitter Cake" },
+  { id: "glitter-in-the-air", name: "Glitter in the Air Cake" },
+  { id: "gender-reveal", name: "Gender Reveal" },
+];
+
 const extras = [
   { id: "sprinkles", name: "Sprinkles", price: 3 },
   { id: "fresh-fruit", name: "Fresh Fruit", price: 5 },
@@ -88,11 +103,13 @@ const Customize = () => {
     size: string | null;
     shape: string | null;
     flavor: string | null;
+    style: string | null;
     extras: string[];
   }>({
     size: null,
     shape: null,
     flavor: null,
+    style: null,
     extras: [],
   });
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
@@ -121,6 +138,10 @@ const Customize = () => {
     setSelections({ ...selections, flavor: flavorId });
   };
 
+  const handleSelectStyle = (styleId: string) => {
+    setSelections({ ...selections, style: styleId });
+  };
+
   const handleToggleExtra = (extraId: string) => {
     const newExtras = selections.extras.includes(extraId)
       ? selections.extras.filter((e) => e !== extraId)
@@ -137,6 +158,8 @@ const Customize = () => {
       case 2:
         return selections.flavor !== null;
       case 3:
+        return selections.style !== null;
+      case 4:
         return true;
       default:
         return false;
@@ -371,8 +394,37 @@ const Customize = () => {
             </div>
           )}
 
-          {/* Extras Selection */}
+          {/* Style Selection */}
           {currentStep === 3 && (
+            <div className="space-y-6">
+              <h2 className="text-3xl font-bold text-center text-foreground">
+                Choose Your Style
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {styles.map((style) => (
+                  <Card
+                    key={style.id}
+                    className={cn(
+                      "cursor-pointer transition-all hover:shadow-lg",
+                      selections.style === style.id
+                        ? "ring-2 ring-primary bg-secondary"
+                        : "hover:bg-muted/50"
+                    )}
+                    onClick={() => handleSelectStyle(style.id)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <h3 className="text-sm font-medium text-foreground">
+                        {style.name}
+                      </h3>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Extras Selection */}
+          {currentStep === 4 && (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Add Extras
@@ -493,7 +545,7 @@ const Customize = () => {
                 <button
                   onClick={() => {
                     setCartSheetOpen(false);
-                    setSelections({ size: null, shape: null, flavor: null, extras: [] });
+                    setSelections({ size: null, shape: null, flavor: null, style: null, extras: [] });
                     setCurrentStep(0);
                   }}
                   className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
