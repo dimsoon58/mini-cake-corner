@@ -5,6 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo.png";
+import flavorVanilla from "@/assets/flavor-vanilla.png";
+import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
+import flavorChocolate from "@/assets/flavor-chocolate.png";
 
 const steps = ["Size", "Shape", "Flavor", "Extras"];
 
@@ -19,19 +22,31 @@ const shapes = [
   { id: "heart", name: "Heart", extraPrice: { bento: 3, medium: 5, large: 10 } },
 ];
 
-const flavors = [
-  { id: "red-velvet", name: "Red Velvet" },
-  { id: "tiramisu", name: "Tiramisu" },
-  { id: "choco-framb", name: "Choco Lover + Framb" },
-  { id: "whiteberrylicious", name: "WhiteBerrylicious" },
-  { id: "chocolate-lover", name: "Chocolate Lover" },
-  { id: "chocolate", name: "Chocolate" },
-  { id: "praline", name: "Praliné" },
-  { id: "dark-berrylicious", name: "Dark Berrylicious" },
-  { id: "vanille", name: "Vanille" },
-  { id: "caramel", name: "Caramel" },
-  { id: "passion-fruit", name: "Passion Fruit" },
-  { id: "lemon-curd", name: "Lemon Curd" },
+const flavorCategories = [
+  {
+    name: "Standard Flavors",
+    flavors: [
+      { id: "vanilla", name: "Vanilla", description: "Fluffy vanilla sponge with whipped cream", image: flavorVanilla },
+      { id: "red-velvet", name: "Red Velvet", description: "Moist red velvet with silky cream cheese icing", image: flavorRedVelvet },
+      { id: "chocolate", name: "Chocolate", description: "Fluffy chocolate sponge with whipped cream", image: flavorChocolate },
+    ],
+  },
+  {
+    name: "Special Flavors",
+    flavors: [
+      { id: "tiramisu", name: "Tiramisu", description: "Coffee-soaked layers with mascarpone cream", image: null },
+      { id: "praline", name: "Praliné", description: "Hazelnut praline with rich buttercream", image: null },
+      { id: "caramel", name: "Caramel", description: "Salted caramel with vanilla sponge", image: null },
+    ],
+  },
+  {
+    name: "Deluxe Flavors",
+    flavors: [
+      { id: "passion-fruit", name: "Passion Fruit", description: "Tropical passion fruit with white chocolate", image: null },
+      { id: "lemon-curd", name: "Lemon Curd", description: "Zesty lemon curd with light meringue", image: null },
+      { id: "dark-berrylicious", name: "Dark Berrylicious", description: "Mixed berries with dark chocolate ganache", image: null },
+    ],
+  },
 ];
 
 const extras = [
@@ -245,30 +260,47 @@ const Customize = () => {
 
           {/* Flavor Selection */}
           {currentStep === 2 && (
-            <div className="space-y-6">
+            <div className="space-y-10">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Flavor
               </h2>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                {flavors.map((flavor) => (
-                  <Card
-                    key={flavor.id}
-                    className={cn(
-                      "cursor-pointer transition-all hover:shadow-lg",
-                      selections.flavor === flavor.id
-                        ? "ring-2 ring-primary bg-secondary"
-                        : "hover:bg-muted/50"
-                    )}
-                    onClick={() => handleSelectFlavor(flavor.id)}
-                  >
-                    <CardContent className="p-6 text-center">
-                      <h3 className="text-lg font-bold text-foreground">
-                        {flavor.name}
-                      </h3>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              {flavorCategories.map((category) => (
+                <div key={category.name} className="space-y-6">
+                  <h3 className="text-xl font-serif text-center text-foreground uppercase tracking-wider">
+                    {category.name}
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    {category.flavors.map((flavor) => (
+                      <Card
+                        key={flavor.id}
+                        className={cn(
+                          "cursor-pointer transition-all hover:shadow-lg",
+                          selections.flavor === flavor.id
+                            ? "ring-2 ring-primary bg-secondary"
+                            : "hover:bg-muted/50"
+                        )}
+                        onClick={() => handleSelectFlavor(flavor.id)}
+                      >
+                        <CardContent className="p-6 text-center">
+                          {flavor.image && (
+                            <img
+                              src={flavor.image}
+                              alt={flavor.name}
+                              className="h-24 mx-auto mb-4 object-contain"
+                            />
+                          )}
+                          <h4 className="text-lg font-serif text-primary mb-2">
+                            {flavor.name}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            {flavor.description}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
