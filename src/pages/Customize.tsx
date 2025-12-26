@@ -8,6 +8,11 @@ import logo from "@/assets/logo.png";
 import flavorVanilla from "@/assets/flavor-vanilla.png";
 import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
 import flavorChocolate from "@/assets/flavor-chocolate.png";
+import flavorChocolateLovers from "@/assets/flavor-chocolate-lovers.png";
+import flavorDarkBerrylicious from "@/assets/flavor-dark-berrylicious.png";
+import flavorWhiteBerrylicious from "@/assets/flavor-white-berrylicious.png";
+import flavorSaltedCaramel from "@/assets/flavor-salted-caramel.png";
+import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
 
 const steps = ["Size", "Shape", "Flavor", "Extras"];
 
@@ -34,17 +39,19 @@ const flavorCategories = [
   {
     name: "Special Flavors",
     flavors: [
-      { id: "tiramisu", name: "Tiramisu", description: "Coffee-soaked layers with mascarpone cream", image: null },
-      { id: "praline", name: "Praliné", description: "Hazelnut praline with rich buttercream", image: null },
-      { id: "caramel", name: "Caramel", description: "Salted caramel with vanilla sponge", image: null },
+      { id: "chocolate-lovers", name: "Chocolate Lovers", description: "Moist chocolate sponge with rich chocolate ganache", image: flavorChocolateLovers },
+      { id: "dark-berrylicious", name: "Dark Berrylicious", description: "Fluffy chocolate sponge filled with a generous raspberry coulis and whipped cream", image: flavorDarkBerrylicious },
+      { id: "white-berrylicious", name: "White Berrylicious", description: "Fluffy vanilla sponge filled with a generous raspberry coulis and whipped cream", image: flavorWhiteBerrylicious },
+      { id: "salted-caramel", name: "Salted Butter Caramel", description: "Fluffy vanilla sponge filled with caramel and whipped cream", image: flavorSaltedCaramel },
+      { id: "lemon-curd", name: "Lemon Curd", description: "Fluffy vanilla sponge filled with lemon curd and whipped cream", image: flavorLemonCurd },
     ],
   },
   {
     name: "Deluxe Flavors",
     flavors: [
       { id: "passion-fruit", name: "Passion Fruit", description: "Tropical passion fruit with white chocolate", image: null },
-      { id: "lemon-curd", name: "Lemon Curd", description: "Zesty lemon curd with light meringue", image: null },
-      { id: "dark-berrylicious", name: "Dark Berrylicious", description: "Mixed berries with dark chocolate ganache", image: null },
+      { id: "tiramisu", name: "Tiramisu", description: "Coffee-soaked layers with mascarpone cream", image: null },
+      { id: "praline", name: "Praliné", description: "Hazelnut praline with rich buttercream", image: null },
     ],
   },
 ];
