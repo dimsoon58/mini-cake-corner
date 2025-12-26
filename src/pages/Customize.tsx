@@ -9,9 +9,9 @@ import logo from "@/assets/logo.png";
 const steps = ["Size", "Shape", "Flavor", "Extras"];
 
 const sizes = [
-  { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 28 },
-  { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 42 },
-  { id: "large", name: "Large", description: "Ideal for up to 16 people", price: 58 },
+  { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 45 },
+  { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 65 },
+  { id: "large", name: "Large", description: "Ideal for up to 16 people", price: 160 },
 ];
 
 const shapes = [
