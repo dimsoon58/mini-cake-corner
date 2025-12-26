@@ -121,7 +121,7 @@ const Index = () => {
             {sizes.map((size) => (
               <div
                 key={size.name}
-                className="bg-background p-8 text-center shadow-sm"
+                className="bg-background p-8 text-center shadow-sm rounded-2xl flex flex-col"
               >
                 <h3 className="font-serif text-2xl text-foreground mb-4">
                   {size.name}
@@ -131,7 +131,12 @@ const Index = () => {
                 <p className="text-xl font-medium text-foreground mb-2">
                   {size.price}
                 </p>
-                <p className="text-sm text-primary">{size.extra}</p>
+                <p className="text-sm text-primary mb-6">{size.extra}</p>
+                <Link to="/customize">
+                  <Button variant="outline" className="w-full rounded-full border-foreground text-foreground hover:bg-foreground hover:text-background">
+                    Choose option
+                  </Button>
+                </Link>
               </div>
             ))}
           </div>
