@@ -5,6 +5,7 @@ import heroBg from "@/assets/hero-bg.jpg";
 import cakeHomemade from "@/assets/cake-homemade.png";
 import cakeFresh from "@/assets/cake-fresh.png";
 import cakeTrendy from "@/assets/cake-trendy.png";
+import cakeMiniBento from "@/assets/cake-mini-bento.png";
 
 const features = [
   {
@@ -34,6 +35,7 @@ const sizes = [
     servings: "2-4 servings",
     price: "From 40CHF",
     extra: "+3CHF Heart shape",
+    image: cakeMiniBento,
   },
   {
     name: "Medium Cake",
@@ -41,6 +43,7 @@ const sizes = [
     servings: "5-8 servings",
     price: "From 80CHF",
     extra: "+5CHF Heart shape",
+    image: null,
   },
   {
     name: "Large Cake",
@@ -48,6 +51,7 @@ const sizes = [
     servings: "12-16 servings",
     price: "From 160CHF",
     extra: "+10CHF Heart shape",
+    image: null,
   },
 ];
 
@@ -123,6 +127,13 @@ const Index = () => {
                 key={size.name}
                 className="bg-background p-8 text-center shadow-sm rounded-2xl flex flex-col"
               >
+                {size.image && (
+                  <img
+                    src={size.image}
+                    alt={size.name}
+                    className="h-32 md:h-40 mx-auto mb-4 object-contain"
+                  />
+                )}
                 <h3 className="font-serif text-2xl text-foreground mb-4">
                   {size.name}
                 </h3>
