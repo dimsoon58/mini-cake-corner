@@ -196,17 +196,17 @@ const Index = () => {
           <a 
             href="#top" 
             onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            className="text-foreground/80 hover:text-foreground transition-colors font-medium cursor-pointer"
+            className="text-foreground/80 hover:text-primary transition-colors font-medium cursor-pointer"
           >
             Home
           </a>
-          <Link to="/customize" className="text-foreground/80 hover:text-foreground transition-colors font-medium">
+          <Link to="/customize" className="text-foreground/80 hover:text-primary transition-colors font-medium">
             Custom
           </Link>
-          <Link to="/faq" className="text-foreground/80 hover:text-foreground transition-colors font-medium">
+          <Link to="/faq" className="text-foreground/80 hover:text-primary transition-colors font-medium">
             FAQ
           </Link>
-          <Link to="/contact" className="text-foreground/80 hover:text-foreground transition-colors font-medium">
+          <Link to="/contact" className="text-foreground/80 hover:text-primary transition-colors font-medium">
             Contact
           </Link>
         </nav>
