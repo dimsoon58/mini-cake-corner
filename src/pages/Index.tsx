@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ShoppingBag } from "lucide-react";
-import CartIcon from "@/components/CartIcon";
+import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import logo from "@/assets/logo.png";
 import heroBg from "@/assets/hero-bg.jpg";
@@ -180,38 +180,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background font-sans">
-      {/* Header */}
-      <header className="bg-background py-6">
-        <div className="container mx-auto px-4 flex items-center justify-between">
-          <div className="w-12" /> {/* Spacer for centering */}
-          <Link to="/">
-            <img src={logo} alt="Bento Cake Studio" className="h-20 md:h-28" />
-          </Link>
-          <CartIcon />
-        </div>
-        
-        {/* Navigation Bar */}
-        <nav className="flex justify-center gap-8 mt-6 border-b border-border/30 pb-4">
-          <a 
-            href="#top" 
-            onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            className="text-foreground/80 hover:text-primary transition-colors font-medium cursor-pointer"
-          >
-            Home
-          </a>
-          <Link to="/customize" className="text-foreground/80 hover:text-primary transition-colors font-medium">
-            Custom
-          </Link>
-          <Link to="/faq" className="text-foreground/80 hover:text-primary transition-colors font-medium">
-            FAQ
-          </Link>
-          <Link to="/contact" className="text-foreground/80 hover:text-primary transition-colors font-medium">
-            Contact
-          </Link>
-        </nav>
-      </header>
-
+    <Layout>
       {/* Hero Section */}
       <section className="relative text-primary-foreground overflow-hidden">
         <div
@@ -448,7 +417,7 @@ const Index = () => {
           </p>
         </div>
       </footer>
-    </div>
+    </Layout>
   );
 };
 

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCart } from "@/context/CartContext";
 import { ShoppingBag, Trash2, ArrowLeft } from "lucide-react";
-import logo from "@/assets/logo.png";
+import Layout from "@/components/Layout";
 
 const Cart = () => {
   const { items, removeItem, clearCart, itemCount } = useCart();
@@ -11,12 +11,15 @@ const Cart = () => {
   const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
 
   return (
-    <div className="min-h-screen bg-background font-sans">
-      {/* Header */}
-      <header className="bg-background py-8 border-b border-border">
-        <div className="container mx-auto px-4 flex items-center justify-between">
-          <Link to="/">
-            <img src={logo} alt="Bento Cake Studio" className="h-16 md:h-20" />
+    <Layout>
+      <main className="container mx-auto px-4 py-12">
+        <div className="flex items-center justify-between mb-8">
+          <Link
+            to="/"
+            className="inline-flex items-center text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Continue Shopping
           </Link>
           <div className="flex items-center gap-2">
             <ShoppingBag className="h-6 w-6 text-primary" />
@@ -25,16 +28,6 @@ const Cart = () => {
             </span>
           </div>
         </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-12">
-        <Link
-          to="/"
-          className="inline-flex items-center text-muted-foreground hover:text-foreground mb-8"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Continue Shopping
-        </Link>
 
         {items.length === 0 ? (
           <div className="text-center py-20">
@@ -140,7 +133,7 @@ const Cart = () => {
           </div>
         )}
       </main>
-    </div>
+    </Layout>
   );
 };
 

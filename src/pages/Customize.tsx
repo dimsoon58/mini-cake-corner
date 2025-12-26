@@ -6,8 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetCl
 import { ArrowLeft, ArrowRight, Check, ShoppingBag, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
-import CartIcon from "@/components/CartIcon";
-import logo from "@/assets/logo.png";
+import Layout from "@/components/Layout";
 import flavorVanilla from "@/assets/flavor-vanilla.png";
 import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
 import flavorChocolate from "@/assets/flavor-chocolate.png";
@@ -224,25 +223,7 @@ const Customize = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src={logo} alt="Bento Cake Studio" className="h-12" />
-          </Link>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link to="/">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Shop
-              </Link>
-            </Button>
-            <CartIcon />
-          </div>
-        </div>
-      </header>
-
+    <Layout hideNav>
       {/* Progress Steps */}
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center gap-2 mb-8">
@@ -425,9 +406,7 @@ const Customize = () => {
                     onClick={() => handleSelectStyle(style.id)}
                   >
                     <CardContent className="p-4 text-center">
-                      <h3 className="text-sm font-medium text-foreground">
-                        {style.name}
-                      </h3>
+                      <h3 className="font-medium text-foreground">{style.name}</h3>
                     </CardContent>
                   </Card>
                 ))}
@@ -439,12 +418,9 @@ const Customize = () => {
           {currentStep === 4 && (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-center text-foreground">
-                Add Extras
+                Add Extras (Optional)
               </h2>
-              <p className="text-center text-muted-foreground">
-                Optional — select as many as you like!
-              </p>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
                 {extras.map((extra) => (
                   <Card
                     key={extra.id}
@@ -456,11 +432,9 @@ const Customize = () => {
                     )}
                     onClick={() => handleToggleExtra(extra.id)}
                   >
-                    <CardContent className="p-6 flex items-center justify-between">
-                      <h3 className="text-lg font-medium text-foreground">
-                        {extra.name}
-                      </h3>
-                      <span className="text-primary font-bold">+CHF {extra.price}</span>
+                    <CardContent className="p-4 text-center">
+                      <h3 className="font-medium text-foreground">{extra.name}</h3>
+                      <p className="text-primary font-bold mt-1">+CHF {extra.price}</p>
                     </CardContent>
                   </Card>
                 ))}
@@ -468,8 +442,8 @@ const Customize = () => {
             </div>
           )}
 
-          {/* Navigation & Summary */}
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border pt-6">
+          {/* Navigation Buttons */}
+          <div className="flex justify-between items-center mt-12 max-w-2xl mx-auto">
             <Button
               variant="outline"
               onClick={handleBack}
@@ -481,39 +455,7 @@ const Customize = () => {
 
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Estimated Total</p>
-              <p className="text-3xl font-bold text-primary">CHF {calculateTotal()}</p>
-              
-              {/* Price Breakdown */}
-              {selections.size && (
-                <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
-                  {/* Size */}
-                  {selections.size && (
-                    <p>{sizes.find(s => s.id === selections.size)?.name}: CHF {sizes.find(s => s.id === selections.size)?.price}</p>
-                  )}
-                  {/* Shape extra */}
-                  {selections.shape && (() => {
-                    const shape = shapes.find(s => s.id === selections.shape);
-                    const shapeExtra = shape && selections.size 
-                      ? shape.extraPrice[selections.size as keyof typeof shape.extraPrice] 
-                      : 0;
-                    return shapeExtra > 0 ? <p>{shape?.name} shape: +CHF {shapeExtra}</p> : null;
-                  })()}
-                  {/* Flavor extra */}
-                  {selections.flavor && (() => {
-                    const category = flavorCategories.find(cat => cat.flavors.some(f => f.id === selections.flavor));
-                    const flavor = category?.flavors.find(f => f.id === selections.flavor);
-                    const flavorExtra = category && selections.size 
-                      ? category.extraPrice[selections.size as keyof typeof category.extraPrice] 
-                      : 0;
-                    return flavorExtra > 0 ? <p>{flavor?.name} ({category?.name}): +CHF {flavorExtra}</p> : null;
-                  })()}
-                  {/* Extras */}
-                  {selections.extras.map(extraId => {
-                    const extra = extras.find(e => e.id === extraId);
-                    return extra ? <p key={extraId}>{extra.name}: +CHF {extra.price}</p> : null;
-                  })}
-                </div>
-              )}
+              <p className="text-2xl font-bold text-primary">CHF {calculateTotal()}</p>
             </div>
 
             {currentStep < steps.length - 1 ? (
@@ -522,78 +464,66 @@ const Customize = () => {
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={handleAddToCart} disabled={!canProceed()}>
+              <Button 
+                onClick={handleAddToCart}
+                disabled={!canProceed()}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <ShoppingBag className="h-4 w-4 mr-2" />
                 Add to Cart
-                <Check className="h-4 w-4 ml-2" />
               </Button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Cart Added Sheet */}
+      {/* Cart Confirmation Sheet */}
       <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
-        <SheetContent side="right" className="flex flex-col">
+        <SheetContent className="w-full sm:max-w-md">
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-primary" />
-              Added to Basket
+            <SheetTitle className="flex items-center gap-2 text-primary">
+              <Check className="h-6 w-6" />
+              Added to Cart!
             </SheetTitle>
             <SheetDescription>
-              Your order has been added to the basket!
+              Your custom cake has been added to your basket.
             </SheetDescription>
           </SheetHeader>
           
-          <div className="flex-1 py-6 space-y-4">
-            <div className="bg-secondary/50 rounded-lg p-4 space-y-2 relative">
-              <div className="absolute top-3 right-3 flex gap-2">
-                <button
-                  onClick={() => setCartSheetOpen(false)}
-                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                  title="Edit order"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    setCartSheetOpen(false);
-                    setSelections({ size: null, shape: null, flavor: null, style: null, extras: [] });
-                    setCurrentStep(0);
-                  }}
-                  className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Delete and start over"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-              <p className="font-medium text-foreground pr-16">
-                {sizes.find(s => s.id === selections.size)?.name} {shapes.find(s => s.id === selections.shape)?.name} Cake
+          <div className="mt-6 space-y-4">
+            <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+              <p className="font-medium text-foreground">
+                {sizes.find(s => s.id === selections.size)?.name}{" "}
+                {shapes.find(s => s.id === selections.shape)?.name} Cake
               </p>
               <p className="text-sm text-muted-foreground">
-                {flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor)?.name}
+                Flavor: {flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor)?.name}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Style: {styles.find(s => s.id === selections.style)?.name}
               </p>
               {selections.extras.length > 0 && (
                 <p className="text-sm text-muted-foreground">
-                  + {selections.extras.map(id => extras.find(e => e.id === id)?.name).join(", ")}
+                  Extras: {selections.extras.map(id => extras.find(e => e.id === id)?.name).join(", ")}
                 </p>
               )}
-              <p className="text-lg font-bold text-primary mt-2">CHF {calculateTotal()}</p>
+              <p className="text-lg font-bold text-primary mt-2">
+                CHF {calculateTotal()}
+              </p>
             </div>
-          </div>
 
-          <div className="space-y-3">
-            <Button className="w-full" onClick={() => navigate("/cart")}>
-              View Basket
-            </Button>
-            <SheetClose asChild>
-              <Button variant="outline" className="w-full" onClick={() => navigate("/")}>
-                Continue Shopping
+            <div className="flex flex-col gap-3 pt-4">
+              <Button asChild className="w-full">
+                <Link to="/cart">View Basket</Link>
               </Button>
-            </SheetClose>
+              <Button variant="outline" asChild className="w-full">
+                <Link to="/">Continue Shopping</Link>
+              </Button>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+    </Layout>
   );
 };
 

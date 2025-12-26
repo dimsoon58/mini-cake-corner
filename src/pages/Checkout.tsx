@@ -15,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
-import logo from "@/assets/logo.png";
+import Layout from "@/components/Layout";
 
 const WHATSAPP_NUMBER = "41799531317";
 
@@ -80,18 +80,7 @@ Option: ${deliveryOption === "pickup" ? "Pickup" : "Delivery"}
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card shadow-sm py-4">
-        <div className="container mx-auto px-4 flex items-center justify-between">
-          <Link to="/">
-            <img src={logo} alt="Sweet Delights Logo" className="h-16" />
-          </Link>
-          <h1 className="text-2xl font-serif text-foreground">Checkout</h1>
-          <div className="w-16" />
-        </div>
-      </header>
-
+    <Layout>
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <Link
           to="/cart"
@@ -240,7 +229,7 @@ Option: ${deliveryOption === "pickup" ? "Pickup" : "Delivery"}
           </form>
         </div>
       </main>
-    </div>
+    </Layout>
   );
 };
 
