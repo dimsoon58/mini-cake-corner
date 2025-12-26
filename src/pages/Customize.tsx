@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
+import { ArrowLeft, ArrowRight, Check, ShoppingBag, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo.png";
 import flavorVanilla from "@/assets/flavor-vanilla.png";
@@ -91,6 +92,7 @@ const Customize = () => {
     flavor: null,
     extras: [],
   });
+  const [cartSheetOpen, setCartSheetOpen] = useState(false);
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -428,7 +430,7 @@ const Customize = () => {
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={() => navigate("/")} disabled={!canProceed()}>
+              <Button onClick={() => setCartSheetOpen(true)} disabled={!canProceed()}>
                 Add to Cart
                 <Check className="h-4 w-4 ml-2" />
               </Button>
@@ -436,6 +438,49 @@ const Customize = () => {
           </div>
         </div>
       </div>
+
+      {/* Cart Added Sheet */}
+      <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
+        <SheetContent side="right" className="flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5 text-primary" />
+              Added to Basket
+            </SheetTitle>
+            <SheetDescription>
+              Your order has been added to the basket!
+            </SheetDescription>
+          </SheetHeader>
+          
+          <div className="flex-1 py-6 space-y-4">
+            <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+              <p className="font-medium text-foreground">
+                {sizes.find(s => s.id === selections.size)?.name} {shapes.find(s => s.id === selections.shape)?.name} Cake
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor)?.name}
+              </p>
+              {selections.extras.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  + {selections.extras.map(id => extras.find(e => e.id === id)?.name).join(", ")}
+                </p>
+              )}
+              <p className="text-lg font-bold text-primary mt-2">CHF {calculateTotal()}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Button className="w-full" onClick={() => navigate("/")}>
+              View Basket
+            </Button>
+            <SheetClose asChild>
+              <Button variant="outline" className="w-full">
+                Continue Customizing
+              </Button>
+            </SheetClose>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
