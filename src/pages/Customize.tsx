@@ -502,8 +502,8 @@ const Customize = () => {
               View Basket
             </Button>
             <SheetClose asChild>
-              <Button variant="outline" className="w-full">
-                Continue Customizing
+              <Button variant="outline" className="w-full" onClick={() => navigate("/")}>
+                Continue Shopping
               </Button>
             </SheetClose>
           </div>
