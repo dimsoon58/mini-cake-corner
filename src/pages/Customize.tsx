@@ -202,6 +202,7 @@ const Customize = () => {
     const size = sizes.find(s => s.id === selections.size);
     const shape = shapes.find(s => s.id === selections.shape);
     const flavor = flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor);
+    const style = styles.find(s => s.id === selections.style);
     const extrasNames = selections.extras.map(id => extras.find(e => e.id === id)?.name || "");
     
     addItem({
@@ -212,6 +213,8 @@ const Customize = () => {
       shapeName: shape?.name || "",
       flavor: selections.flavor || "",
       flavorName: flavor?.name || "",
+      style: selections.style || "",
+      styleName: style?.name || "",
       extras: selections.extras,
       extrasNames,
       total: calculateTotal(),
