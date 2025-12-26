@@ -290,10 +290,10 @@ const Customize = () => {
                       <Card
                         key={flavor.id}
                         className={cn(
-                          "cursor-pointer transition-all hover:shadow-lg",
+                          "cursor-pointer transition-all hover:shadow-lg bg-transparent border-transparent",
                           selections.flavor === flavor.id
-                            ? "ring-2 ring-primary bg-secondary"
-                            : "hover:bg-muted/50"
+                            ? "ring-2 ring-primary"
+                            : "hover:bg-muted/30"
                         )}
                         onClick={() => handleSelectFlavor(flavor.id)}
                       >
@@ -302,7 +302,7 @@ const Customize = () => {
                             <img
                               src={flavor.image}
                               alt={flavor.name}
-                              className="h-24 mx-auto mb-4 object-contain"
+                              className="h-28 mx-auto mb-4 object-contain"
                             />
                           )}
                           <h4 className="text-lg font-serif text-primary mb-2">
