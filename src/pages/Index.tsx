@@ -126,7 +126,7 @@ const Index = () => {
               <div
                 key={size.name}
                 className="p-8 text-center shadow-sm rounded-2xl flex flex-col"
-                style={{ backgroundColor: '#E8D4F0' }}
+                style={{ backgroundColor: '#C9A8D3' }}
               >
                 {size.image && (
                   <img
