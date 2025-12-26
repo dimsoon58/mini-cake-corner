@@ -8,10 +8,9 @@ import { cn } from "@/lib/utils";
 const steps = ["Size", "Shape", "Flavor", "Extras"];
 
 const sizes = [
-  { id: "mini", name: "Mini", description: "Perfect for 1-2 people", price: 18 },
-  { id: "small", name: "Small", description: "Great for 2-4 people", price: 28 },
-  { id: "medium", name: "Medium", description: "Ideal for 4-6 people", price: 38 },
-  { id: "large", name: "Large", description: "Best for 6-8 people", price: 48 },
+  { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 28 },
+  { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 42 },
+  { id: "large", name: "Large", description: "Ideal for up to 16 people", price: 58 },
 ];
 
 const shapes = [
