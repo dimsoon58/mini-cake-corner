@@ -14,10 +14,14 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
+import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 
+const WHATSAPP_NUMBER = "41799531317";
+
 const Checkout = () => {
-  const { items } = useCart();
+  const { items, clearCart } = useCart();
+  const { toast } = useToast();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -29,14 +33,49 @@ const Checkout = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Handle form submission
-    console.log({
-      firstName,
-      lastName,
-      phone,
-      email,
-      deliveryDate,
-      deliveryOption,
+
+    if (!deliveryDate) {
+      toast({
+        title: "Please select a delivery date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Build order details message
+    const orderItems = items
+      .map(
+        (item) =>
+          `- ${item.sizeName} ${item.shapeName} Cake (${item.flavorName}${item.styleName ? `, ${item.styleName}` : ""}${item.extrasNames.length > 0 ? `, Extras: ${item.extrasNames.join(", ")}` : ""}) - CHF ${item.total}`
+      )
+      .join("\n");
+
+    const message = `🎂 *New Cake Order*
+
+*Customer Information:*
+Name: ${firstName} ${lastName}
+Phone: ${phone}
+Email: ${email}
+
+*Order Details:*
+${orderItems}
+
+*Delivery:*
+Date: ${format(deliveryDate, "PPP")}
+Option: ${deliveryOption === "pickup" ? "Pickup" : "Delivery"}
+
+*Total: CHF ${totalPrice}*`;
+
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
+
+    // Open WhatsApp
+    window.open(whatsappUrl, "_blank");
+
+    toast({
+      title: "Order sent!",
+      description: "WhatsApp will open with your order details.",
     });
   };
 
