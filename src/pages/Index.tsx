@@ -4,7 +4,7 @@ import logo from "@/assets/logo.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import cakeHomemade from "@/assets/cake-homemade.png";
 import cakeFresh from "@/assets/cake-fresh.png";
-import cakeIcons from "@/assets/cake-icons.png";
+import cakeTrendy from "@/assets/cake-trendy.png";
 
 const features = [
   {
@@ -17,7 +17,7 @@ const features = [
     title: "Trendy & personalized",
     description:
       "It's modern, it's unique and it's trendy. Ditch that regular cake and get a personalized piece of art, made with love and passion just for you.",
-    image: cakeIcons,
+    image: cakeTrendy,
   },
   {
     title: "Fresh ingredients",
