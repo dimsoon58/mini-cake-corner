@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import logo from "@/assets/logo.png";
 
 const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -20,8 +21,7 @@ const Index = () => {
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="text-2xl">🍰</div>
-            <h1 className="text-2xl font-bold text-foreground">Sweet Bento</h1>
+            <img src={logo} alt="Bento Cake Studio" className="h-12" />
           </Link>
           <Button variant="outline" size="icon">
             <ShoppingCart className="h-5 w-5" />
@@ -73,7 +73,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="bg-card border-t border-border py-8">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>© 2024 Sweet Bento. Made with love 💕</p>
+          <p>© 2024 Bento Cake Studio. Made with love 💕</p>
         </div>
       </footer>
     </div>
