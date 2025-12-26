@@ -2,22 +2,28 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import heroBg from "@/assets/hero-bg.jpg";
+import cakeHomemade from "@/assets/cake-homemade.png";
+import cakeFresh from "@/assets/cake-fresh.png";
+import cakeIcons from "@/assets/cake-icons.png";
 
 const features = [
   {
     title: "Homemade goodness",
     description:
       "When you think of warmth, love, and comfort in a bite, think homemade. Our cakes are all about that authentic taste, paired with a cheeky wink.",
+    image: cakeHomemade,
   },
   {
     title: "Trendy & personalized",
     description:
       "It's modern, it's unique and it's trendy. Ditch that regular cake and get a personalized piece of art, made with love and passion just for you.",
+    image: cakeIcons,
   },
   {
     title: "Fresh ingredients",
     description:
       "Because we believe that our cakes should be fresh, nutritious and prepared with care, we only use natural & fresh ingredients with no preservatives.",
+    image: cakeFresh,
   },
 ];
 
@@ -88,6 +94,11 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {features.map((feature) => (
               <div key={feature.title} className="text-center">
+                <img
+                  src={feature.image}
+                  alt={feature.title}
+                  className="h-32 md:h-40 mx-auto mb-6 object-contain"
+                />
                 <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-4">
                   {feature.title}
                 </h3>
