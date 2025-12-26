@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import CartIcon from "@/components/CartIcon";
 import logo from "@/assets/logo.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import cakeHomemade from "@/assets/cake-homemade.png";
@@ -60,10 +61,12 @@ const Index = () => {
     <div className="min-h-screen bg-background font-sans">
       {/* Header */}
       <header className="bg-background py-8">
-        <div className="container mx-auto px-4 flex justify-center">
+        <div className="container mx-auto px-4 flex items-center justify-between">
+          <div className="w-12" /> {/* Spacer for centering */}
           <Link to="/">
             <img src={logo} alt="Bento Cake Studio" className="h-20 md:h-28" />
           </Link>
+          <CartIcon />
         </div>
       </header>
 

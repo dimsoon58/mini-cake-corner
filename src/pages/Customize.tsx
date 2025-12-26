@@ -3,8 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
-import { ArrowLeft, ArrowRight, Check, ShoppingBag, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCart } from "@/context/CartContext";
+import CartIcon from "@/components/CartIcon";
 import logo from "@/assets/logo.png";
 import flavorVanilla from "@/assets/flavor-vanilla.png";
 import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
@@ -80,6 +82,7 @@ const extras = [
 
 const Customize = () => {
   const navigate = useNavigate();
+  const { addItem } = useCart();
   const [currentStep, setCurrentStep] = useState(0);
   const [selections, setSelections] = useState<{
     size: string | null;
@@ -163,6 +166,28 @@ const Customize = () => {
     return sizePrice + extrasPrice + shapeExtra + flavorExtra;
   };
 
+  const handleAddToCart = () => {
+    const size = sizes.find(s => s.id === selections.size);
+    const shape = shapes.find(s => s.id === selections.shape);
+    const flavor = flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor);
+    const extrasNames = selections.extras.map(id => extras.find(e => e.id === id)?.name || "");
+    
+    addItem({
+      id: "",
+      size: selections.size || "",
+      sizeName: size?.name || "",
+      shape: selections.shape || "",
+      shapeName: shape?.name || "",
+      flavor: selections.flavor || "",
+      flavorName: flavor?.name || "",
+      extras: selections.extras,
+      extrasNames,
+      total: calculateTotal(),
+    });
+    
+    setCartSheetOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -171,12 +196,15 @@ const Customize = () => {
           <Link to="/" className="flex items-center gap-2">
             <img src={logo} alt="Bento Cake Studio" className="h-12" />
           </Link>
-          <Button variant="ghost" asChild>
-            <Link to="/">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Shop
-            </Link>
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" asChild>
+              <Link to="/">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Shop
+              </Link>
+            </Button>
+            <CartIcon />
+          </div>
         </div>
       </header>
 
@@ -430,7 +458,7 @@ const Customize = () => {
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={() => setCartSheetOpen(true)} disabled={!canProceed()}>
+              <Button onClick={handleAddToCart} disabled={!canProceed()}>
                 Add to Cart
                 <Check className="h-4 w-4 ml-2" />
               </Button>
@@ -470,7 +498,7 @@ const Customize = () => {
           </div>
 
           <div className="space-y-3">
-            <Button className="w-full" onClick={() => navigate("/")}>
+            <Button className="w-full" onClick={() => navigate("/cart")}>
               View Basket
             </Button>
             <SheetClose asChild>
