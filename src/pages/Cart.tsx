@@ -118,7 +118,7 @@ const Cart = () => {
                         className="flex justify-between text-sm"
                       >
                         <span className="text-muted-foreground">
-                          Cake {index + 1}
+                          {item.sizeName} {item.shapeName} Cake
                         </span>
                         <span className="text-foreground">CHF {item.total}</span>
                       </div>
