@@ -8,6 +8,8 @@ export interface CartItem {
   shapeName: string;
   flavor: string;
   flavorName: string;
+  style: string;
+  styleName: string;
   extras: string[];
   extrasNames: string[];
   total: number;

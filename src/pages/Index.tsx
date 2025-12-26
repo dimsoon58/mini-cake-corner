@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { ShoppingBag } from "lucide-react";
 import CartIcon from "@/components/CartIcon";
+import { useCart } from "@/context/CartContext";
 import logo from "@/assets/logo.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import cakeHomemade from "@/assets/cake-homemade.png";
@@ -69,6 +73,8 @@ const catalog = [
     description: "Pastel pink with delicate floral decorations",
     image: catalogRetroVintage,
     style: "retro-vintage",
+    presets: { size: "medium", shape: "round", flavor: "white-berrylicious", style: "Retro / Vintage" },
+    price: 69, // medium 65 + special flavor 4
   },
   {
     id: "heart-bomb",
@@ -76,6 +82,8 @@ const catalog = [
     description: "Covered in dozens of candy hearts",
     image: catalogHeartBomb,
     style: "heart-bomb",
+    presets: { size: "bento", shape: "heart", flavor: "red-velvet", style: "Heart Bomb" },
+    price: 48, // bento 45 + heart 3
   },
   {
     id: "shag-cake",
@@ -83,6 +91,8 @@ const catalog = [
     description: "Fluffy textured frosting in lavender",
     image: catalogShagCake,
     style: "shag-cake",
+    presets: { size: "medium", shape: "round", flavor: "vanilla", style: "Shag Cake" },
+    price: 65, // medium 65
   },
   {
     id: "rainbow",
@@ -90,6 +100,8 @@ const catalog = [
     description: "Vibrant rainbow layers and colorful swirls",
     image: catalogRainbow,
     style: "rainbow-cake",
+    presets: { size: "large", shape: "round", flavor: "vanilla", style: "Rainbow Cake" },
+    price: 160, // large 160
   },
   {
     id: "roses",
@@ -97,6 +109,8 @@ const catalog = [
     description: "Elegant buttercream roses in soft pink",
     image: catalogRoses,
     style: "roses-please",
+    presets: { size: "medium", shape: "heart", flavor: "salted-caramel", style: "Roses Please" },
+    price: 74, // medium 65 + heart 5 + special 4
   },
   {
     id: "butterfly",
@@ -104,10 +118,67 @@ const catalog = [
     description: "Whimsical butterflies and spring flowers",
     image: catalogButterfly,
     style: "butterfly-garden",
+    presets: { size: "bento", shape: "round", flavor: "lemon-curd", style: "Butterfly Garden" },
+    price: 47, // bento 45 + special 2
   },
 ];
 
+const sizeLabels: Record<string, string> = {
+  bento: "Bento",
+  medium: "Medium",
+  large: "Large",
+};
+
+const shapeLabels: Record<string, string> = {
+  round: "Round",
+  heart: "Heart",
+};
+
+const flavorLabels: Record<string, string> = {
+  vanilla: "Vanilla",
+  "red-velvet": "Red Velvet",
+  chocolate: "Chocolate",
+  "chocolate-lovers": "Chocolate Lovers",
+  "dark-berrylicious": "Dark Berrylicious",
+  "white-berrylicious": "White Berrylicious",
+  "salted-caramel": "Salted Butter Caramel",
+  "lemon-curd": "Lemon Curd",
+  tiramisu: "Tiramisu",
+  praline: "Praline Obsession",
+  "passion-fruit": "Passion Fruit",
+};
+
 const Index = () => {
+  const { addItem } = useCart();
+  const [selectedCatalogCake, setSelectedCatalogCake] = useState<typeof catalog[0] | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const handleSelectCatalogCake = (cake: typeof catalog[0]) => {
+    setSelectedCatalogCake(cake);
+    setSheetOpen(true);
+  };
+
+  const handleAddToCart = () => {
+    if (!selectedCatalogCake) return;
+    
+    addItem({
+      id: "",
+      size: selectedCatalogCake.presets.size,
+      sizeName: sizeLabels[selectedCatalogCake.presets.size],
+      shape: selectedCatalogCake.presets.shape,
+      shapeName: shapeLabels[selectedCatalogCake.presets.shape],
+      flavor: selectedCatalogCake.presets.flavor,
+      flavorName: flavorLabels[selectedCatalogCake.presets.flavor],
+      style: selectedCatalogCake.style,
+      styleName: selectedCatalogCake.presets.style,
+      extras: [],
+      extrasNames: [],
+      total: selectedCatalogCake.price,
+    });
+    setSheetOpen(false);
+    setSelectedCatalogCake(null);
+  };
+
   return (
     <div className="min-h-screen bg-background font-sans">
       {/* Header */}
@@ -238,17 +309,91 @@ const Index = () => {
                   <p className="text-muted-foreground text-sm mb-4">
                     {cake.description}
                   </p>
-                  <Link to={`/customize?style=${cake.style}`}>
-                    <Button variant="outline" className="w-full rounded-full border-foreground text-foreground hover:bg-foreground hover:text-background">
-                      Choose this style
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="outline" 
+                    className="w-full rounded-full border-foreground text-foreground hover:bg-foreground hover:text-background"
+                    onClick={() => handleSelectCatalogCake(cake)}
+                  >
+                    Choose this style
+                  </Button>
                 </div>
               </div>
             ))}
           </div>
         </div>
       </section>
+
+      {/* Catalog Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="font-serif text-2xl">
+              {selectedCatalogCake?.name}
+            </SheetTitle>
+            <SheetDescription>
+              Pre-designed cake with all options included
+            </SheetDescription>
+          </SheetHeader>
+          
+          {selectedCatalogCake && (
+            <div className="mt-6 space-y-6">
+              {/* Cake Image */}
+              <div className="aspect-square rounded-lg overflow-hidden bg-muted/30">
+                <img
+                  src={selectedCatalogCake.image}
+                  alt={selectedCatalogCake.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Cake Details */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-3 border-b border-border">
+                  <span className="text-muted-foreground">Size</span>
+                  <span className="font-medium text-foreground">
+                    {sizeLabels[selectedCatalogCake.presets.size]}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-border">
+                  <span className="text-muted-foreground">Shape</span>
+                  <span className="font-medium text-foreground">
+                    {shapeLabels[selectedCatalogCake.presets.shape]}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-border">
+                  <span className="text-muted-foreground">Flavor</span>
+                  <span className="font-medium text-foreground">
+                    {flavorLabels[selectedCatalogCake.presets.flavor]}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-border">
+                  <span className="text-muted-foreground">Style</span>
+                  <span className="font-medium text-foreground">
+                    {selectedCatalogCake.presets.style}
+                  </span>
+                </div>
+              </div>
+
+              {/* Total Price */}
+              <div className="flex justify-between items-center py-4 bg-secondary/50 rounded-lg px-4">
+                <span className="font-medium text-foreground">Total</span>
+                <span className="text-xl font-bold text-primary">
+                  CHF {selectedCatalogCake.price}
+                </span>
+              </div>
+
+              {/* Add to Cart Button */}
+              <Button
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg rounded-full"
+                onClick={handleAddToCart}
+              >
+                <ShoppingBag className="w-5 h-5 mr-2" />
+                Add to Cart
+              </Button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* CTA Section */}
       <section className="py-20 bg-background">
