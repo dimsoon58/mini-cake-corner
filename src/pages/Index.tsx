@@ -163,6 +163,7 @@ const Index = () => {
     
     addItem({
       id: "",
+      orderDate: "",
       size: selectedCatalogCake.presets.size,
       sizeName: sizeLabels[selectedCatalogCake.presets.size],
       shape: selectedCatalogCake.presets.shape,

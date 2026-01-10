@@ -3,10 +3,12 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
-import { ArrowLeft, ArrowRight, Check, ShoppingBag, Pencil, Trash2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { ArrowLeft, ArrowRight, Check, ShoppingBag, Pencil, Trash2, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import Layout from "@/components/Layout";
+import { format, addDays } from "date-fns";
 import flavorVanilla from "@/assets/flavor-vanilla.png";
 import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
 import flavorChocolate from "@/assets/flavor-chocolate.png";
@@ -22,7 +24,7 @@ import flavorVanillaGF from "@/assets/flavor-vanilla-gf.png";
 import flavorRedVelvetGF from "@/assets/flavor-red-velvet-gf.png";
 import flavorChocolateGF from "@/assets/flavor-chocolate-gf.png";
 
-const steps = ["Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras"];
+const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras"];
 
 const textColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -122,6 +124,7 @@ const Customize = () => {
   const { addItem } = useCart();
   const [currentStep, setCurrentStep] = useState(0);
   const [selections, setSelections] = useState<{
+    orderDate: Date | null;
     size: string | null;
     shape: string | null;
     flavor: string | null;
@@ -131,6 +134,7 @@ const Customize = () => {
     textColor: string | null;
     extras: string[];
   }>({
+    orderDate: null,
     size: null,
     shape: null,
     flavor: null,
@@ -200,16 +204,18 @@ const Customize = () => {
   const canProceed = () => {
     switch (currentStep) {
       case 0:
-        return selections.size !== null;
+        return selections.orderDate !== null;
       case 1:
-        return selections.shape !== null;
+        return selections.size !== null;
       case 2:
-        return selections.flavor !== null;
+        return selections.shape !== null;
       case 3:
-        return selections.style !== null;
+        return selections.flavor !== null;
       case 4:
-        return true; // Text/Phrase is optional
+        return selections.style !== null;
       case 5:
+        return true; // Text/Phrase is optional
+      case 6:
         return true;
       default:
         return false;
@@ -250,6 +256,7 @@ const Customize = () => {
     
     addItem({
       id: "",
+      orderDate: selections.orderDate ? format(selections.orderDate, "yyyy-MM-dd") : "",
       size: selections.size || "",
       sizeName: size?.name || "",
       shape: selections.shape || "",
@@ -312,8 +319,37 @@ const Customize = () => {
 
         {/* Step Content */}
         <div className="max-w-4xl mx-auto">
-          {/* Size Selection */}
+          {/* Date Selection */}
           {currentStep === 0 && (
+            <div className="space-y-6">
+              <h2 className="text-3xl font-bold text-center text-foreground">
+                Choose Your Date
+              </h2>
+              <p className="text-center text-muted-foreground">
+                Select your preferred pickup or delivery date
+              </p>
+              <div className="flex justify-center">
+                <Card className="p-4">
+                  <Calendar
+                    mode="single"
+                    selected={selections.orderDate || undefined}
+                    onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
+                    disabled={(date) => date < addDays(new Date(), 2)}
+                    initialFocus
+                    className="rounded-md"
+                  />
+                </Card>
+              </div>
+              {selections.orderDate && (
+                <p className="text-center text-lg font-medium text-primary">
+                  Selected: {format(selections.orderDate, "EEEE, MMMM d, yyyy")}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Size Selection */}
+          {currentStep === 1 && (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Size
@@ -346,7 +382,7 @@ const Customize = () => {
           )}
 
           {/* Shape Selection */}
-          {currentStep === 1 && (
+          {currentStep === 2 && (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Shape
@@ -383,7 +419,7 @@ const Customize = () => {
           )}
 
           {/* Flavor Selection */}
-          {currentStep === 2 && (
+          {currentStep === 3 && (
             <div className="space-y-10">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Flavor
@@ -437,7 +473,7 @@ const Customize = () => {
           )}
 
           {/* Style Selection */}
-          {currentStep === 3 && (
+          {currentStep === 4 && (
             <div className="space-y-8">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Style
@@ -491,7 +527,7 @@ const Customize = () => {
           )}
 
           {/* Text/Phrase Selection */}
-          {currentStep === 4 && (
+          {currentStep === 5 && (
             <div className="space-y-8">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Add Text / Phrase (Optional)
@@ -548,7 +584,7 @@ const Customize = () => {
           )}
 
           {/* Extras Selection */}
-          {currentStep === 5 && (
+          {currentStep === 6 && (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Add Extras (Optional)
@@ -629,6 +665,11 @@ const Customize = () => {
                 {sizes.find(s => s.id === selections.size)?.name}{" "}
                 {shapes.find(s => s.id === selections.shape)?.name} Cake
               </p>
+              {selections.orderDate && (
+                <p className="text-sm text-muted-foreground">
+                  Date: {format(selections.orderDate, "EEEE, MMMM d, yyyy")}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground">
                 Flavor: {flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor)?.name}
               </p>
