@@ -108,6 +108,7 @@ const Catalog = () => {
     
     addItem({
       id: "",
+      orderDate: "",
       size: selectedCake.presets.size,
       sizeName: sizeLabels[selectedCake.presets.size],
       shape: selectedCake.presets.shape,
