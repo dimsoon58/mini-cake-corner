@@ -124,6 +124,10 @@ const Catalog = () => {
       textColorName: "",
       extras: [],
       extrasNames: [],
+      ribbonColor: "",
+      ribbonColorName: "",
+      butterflyColor: "",
+      butterflyColorName: "",
       total: selectedCake.price,
     });
     setSheetOpen(false);

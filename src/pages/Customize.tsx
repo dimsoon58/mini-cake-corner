@@ -118,6 +118,24 @@ const extras = [
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 } },
 ];
 
+const ribbonColors = [
+  { id: "baby-pink", name: "Baby Pink", color: "#F4C2C2" },
+  { id: "pink", name: "Pink", color: "#FFC0CB" },
+  { id: "orange", name: "Orange", color: "#FFA500" },
+  { id: "red", name: "Red", color: "#EF4444" },
+  { id: "wine-red", name: "Wine Red", color: "#722F37" },
+  { id: "white", name: "White", color: "#FFFFFF" },
+  { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
+  { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
+  { id: "black", name: "Black", color: "#000000" },
+];
+
+const butterflyColors = [
+  { id: "pink", name: "Pink", color: "#FFC0CB" },
+  { id: "blue", name: "Blue", color: "#3B82F6" },
+  { id: "gold", name: "Gold", color: "#D4AF37" },
+];
+
 const Customize = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -133,6 +151,8 @@ const Customize = () => {
     cakeText: string;
     textColor: string | null;
     extras: string[];
+    ribbonColor: string | null;
+    butterflyColor: string | null;
   }>({
     orderDate: null,
     size: null,
@@ -143,6 +163,8 @@ const Customize = () => {
     cakeText: "",
     textColor: null,
     extras: [],
+    ribbonColor: null,
+    butterflyColor: null,
   });
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
 
@@ -259,6 +281,9 @@ const Customize = () => {
     const selectedTextColor = textColors.find(c => c.id === selections.textColor);
     const extrasNames = selections.extras.map(id => extras.find(e => e.id === id)?.name || "");
     
+    const selectedRibbonColor = ribbonColors.find(c => c.id === selections.ribbonColor);
+    const selectedButterflyColor = butterflyColors.find(c => c.id === selections.butterflyColor);
+    
     addItem({
       id: "",
       orderDate: selections.orderDate ? format(selections.orderDate, "yyyy-MM-dd") : "",
@@ -277,6 +302,10 @@ const Customize = () => {
       textColorName: selectedTextColor?.name || "",
       extras: selections.extras,
       extrasNames,
+      ribbonColor: selections.ribbonColor || "",
+      ribbonColorName: selectedRibbonColor?.name || "",
+      butterflyColor: selections.butterflyColor || "",
+      butterflyColorName: selectedButterflyColor?.name || "",
       total: calculateTotal(),
     });
     
@@ -613,6 +642,64 @@ const Customize = () => {
                   </Card>
                 ))}
               </div>
+
+              {/* Ribbon Color Selection */}
+              {selections.extras.includes("ribbons") && (
+                <div className="space-y-4 mt-8">
+                  <h3 className="text-xl font-semibold text-center text-foreground">
+                    Choose Ribbon Color
+                  </h3>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {ribbonColors.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => setSelections({ ...selections, ribbonColor: color.id })}
+                        className={cn(
+                          "flex flex-col items-center gap-1 p-2 rounded-lg transition-all",
+                          selections.ribbonColor === color.id
+                            ? "ring-2 ring-primary bg-secondary"
+                            : "hover:bg-muted/50"
+                        )}
+                      >
+                        <div
+                          className="w-10 h-10 rounded-full border-2 border-muted"
+                          style={{ backgroundColor: color.color }}
+                        />
+                        <span className="text-xs text-foreground">{color.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Butterfly Color Selection */}
+              {selections.extras.includes("butterfly") && (
+                <div className="space-y-4 mt-8">
+                  <h3 className="text-xl font-semibold text-center text-foreground">
+                    Choose Butterfly Color
+                  </h3>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {butterflyColors.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => setSelections({ ...selections, butterflyColor: color.id })}
+                        className={cn(
+                          "flex flex-col items-center gap-1 p-2 rounded-lg transition-all",
+                          selections.butterflyColor === color.id
+                            ? "ring-2 ring-primary bg-secondary"
+                            : "hover:bg-muted/50"
+                        )}
+                      >
+                        <div
+                          className="w-10 h-10 rounded-full border-2 border-muted"
+                          style={{ backgroundColor: color.color }}
+                        />
+                        <span className="text-xs text-foreground">{color.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -179,6 +179,10 @@ const Index = () => {
       textColorName: "",
       extras: [],
       extrasNames: [],
+      ribbonColor: "",
+      ribbonColorName: "",
+      butterflyColor: "",
+      butterflyColorName: "",
       total: selectedCatalogCake.price,
     });
     setSheetOpen(false);
