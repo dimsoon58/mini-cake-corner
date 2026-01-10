@@ -22,7 +22,18 @@ import flavorVanillaGF from "@/assets/flavor-vanilla-gf.png";
 import flavorRedVelvetGF from "@/assets/flavor-red-velvet-gf.png";
 import flavorChocolateGF from "@/assets/flavor-chocolate-gf.png";
 
-const steps = ["Size", "Shape", "Flavor", "Style", "Extras"];
+const steps = ["Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras"];
+
+const textColors = [
+  { id: "white", name: "White", color: "#FFFFFF" },
+  { id: "black", name: "Black", color: "#000000" },
+  { id: "pink", name: "Pink", color: "#F472B6" },
+  { id: "red", name: "Red", color: "#EF4444" },
+  { id: "gold", name: "Gold", color: "#D4AF37" },
+  { id: "blue", name: "Blue", color: "#3B82F6" },
+  { id: "purple", name: "Purple", color: "#A855F7" },
+  { id: "green", name: "Green", color: "#22C55E" },
+];
 
 const sizes = [
   { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 40 },
@@ -104,12 +115,16 @@ const Customize = () => {
     shape: string | null;
     flavor: string | null;
     style: string | null;
+    cakeText: string;
+    textColor: string | null;
     extras: string[];
   }>({
     size: null,
     shape: null,
     flavor: null,
     style: null,
+    cakeText: "",
+    textColor: null,
     extras: [],
   });
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
@@ -150,6 +165,14 @@ const Customize = () => {
     setSelections({ ...selections, style: styleId });
   };
 
+  const handleCakeTextChange = (text: string) => {
+    setSelections({ ...selections, cakeText: text });
+  };
+
+  const handleSelectTextColor = (colorId: string) => {
+    setSelections({ ...selections, textColor: colorId });
+  };
+
   const handleToggleExtra = (extraId: string) => {
     const newExtras = selections.extras.includes(extraId)
       ? selections.extras.filter((e) => e !== extraId)
@@ -168,6 +191,8 @@ const Customize = () => {
       case 3:
         return selections.style !== null;
       case 4:
+        return true; // Text/Phrase is optional
+      case 5:
         return true;
       default:
         return false;
@@ -202,6 +227,7 @@ const Customize = () => {
     const shape = shapes.find(s => s.id === selections.shape);
     const flavor = flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor);
     const style = styles.find(s => s.id === selections.style);
+    const selectedTextColor = textColors.find(c => c.id === selections.textColor);
     const extrasNames = selections.extras.map(id => extras.find(e => e.id === id)?.name || "");
     
     addItem({
@@ -214,6 +240,9 @@ const Customize = () => {
       flavorName: flavor?.name || "",
       style: selections.style || "",
       styleName: style?.name || "",
+      cakeText: selections.cakeText,
+      textColor: selections.textColor || "",
+      textColorName: selectedTextColor?.name || "",
       extras: selections.extras,
       extrasNames,
       total: calculateTotal(),
@@ -414,8 +443,65 @@ const Customize = () => {
             </div>
           )}
 
-          {/* Extras Selection */}
+          {/* Text/Phrase Selection */}
           {currentStep === 4 && (
+            <div className="space-y-8">
+              <h2 className="text-3xl font-bold text-center text-foreground">
+                Add Text / Phrase (Optional)
+              </h2>
+              
+              <div className="max-w-md mx-auto space-y-6">
+                <div className="space-y-2">
+                  <label htmlFor="cakeText" className="block text-sm font-medium text-foreground">
+                    Your Message
+                  </label>
+                  <input
+                    type="text"
+                    id="cakeText"
+                    value={selections.cakeText}
+                    onChange={(e) => handleCakeTextChange(e.target.value)}
+                    placeholder="e.g., Happy Birthday Sarah!"
+                    maxLength={50}
+                    className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {selections.cakeText.length}/50 characters
+                  </p>
+                </div>
+
+                {selections.cakeText.length > 0 && (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-foreground">
+                      Text Color
+                    </label>
+                    <div className="grid grid-cols-4 gap-3">
+                      {textColors.map((color) => (
+                        <button
+                          key={color.id}
+                          onClick={() => handleSelectTextColor(color.id)}
+                          className={cn(
+                            "flex flex-col items-center gap-2 p-3 rounded-lg border transition-all",
+                            selections.textColor === color.id
+                              ? "ring-2 ring-primary border-primary"
+                              : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          <div
+                            className="w-8 h-8 rounded-full border border-border"
+                            style={{ backgroundColor: color.color }}
+                          />
+                          <span className="text-xs text-foreground">{color.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Extras Selection */}
+          {currentStep === 5 && (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Add Extras (Optional)
@@ -502,6 +588,11 @@ const Customize = () => {
               <p className="text-sm text-muted-foreground">
                 Style: {styles.find(s => s.id === selections.style)?.name}
               </p>
+              {selections.cakeText && (
+                <p className="text-sm text-muted-foreground">
+                  Text: "{selections.cakeText}" ({textColors.find(c => c.id === selections.textColor)?.name || "No color"})
+                </p>
+              )}
               {selections.extras.length > 0 && (
                 <p className="text-sm text-muted-foreground">
                   Extras: {selections.extras.map(id => extras.find(e => e.id === id)?.name).join(", ")}
