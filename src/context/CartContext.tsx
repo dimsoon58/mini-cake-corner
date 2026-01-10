@@ -18,6 +18,10 @@ export interface CartItem {
   textColorName: string;
   extras: string[];
   extrasNames: string[];
+  ribbonColor: string;
+  ribbonColorName: string;
+  butterflyColor: string;
+  butterflyColorName: string;
   total: number;
 }
 
