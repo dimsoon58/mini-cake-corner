@@ -11,6 +11,8 @@ interface LayoutProps {
 const navLinks = [
   { to: "/", label: "Home", isHome: true },
   { to: "/customize", label: "Custom" },
+  { to: "/community-press", label: "Community & Press" },
+  { to: "/catalog", label: "Catalog" },
   { to: "/faq", label: "FAQ" },
   { to: "/contact", label: "Contact" },
 ];

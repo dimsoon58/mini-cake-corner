@@ -11,6 +11,8 @@ import Cart from "./pages/Cart";
 import FAQ from "./pages/FAQ";
 import Contact from "./pages/Contact";
 import Checkout from "./pages/Checkout";
+import CommunityPress from "./pages/CommunityPress";
+import Catalog from "./pages/Catalog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +28,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/customize" element={<Customize />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/community-press" element={<CommunityPress />} />
+            <Route path="/catalog" element={<Catalog />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/checkout" element={<Checkout />} />
