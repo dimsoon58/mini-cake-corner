@@ -110,12 +110,12 @@ const styles = [
 ];
 
 const extras = [
-  { id: "sprinkles", name: "Sprinkles", price: 3 },
-  { id: "fresh-fruit", name: "Fresh Fruit", price: 5 },
-  { id: "gold-leaf", name: "Gold Leaf", price: 8 },
-  { id: "custom-message", name: "Custom Message", price: 4 },
-  { id: "candles", name: "Candles", price: 2 },
-  { id: "macarons", name: "Macarons", price: 6 },
+  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, medium: 4, large: 6 } },
+  { id: "cherries", name: "Cherries", price: { bento: 4, medium: 8, large: 12 } },
+  { id: "glitter-cherries", name: "Glitter Cherries", price: { bento: 6, medium: 10, large: 15 } },
+  { id: "ribbons", name: "Ribbons", price: { bento: 10, medium: 20, large: 30 } },
+  { id: "butterfly", name: "Butterfly", price: { bento: 7, medium: 15, large: 20 } },
+  { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 } },
 ];
 
 const Customize = () => {
@@ -231,11 +231,16 @@ const Customize = () => {
     return category.extraPrice[selections.size as keyof typeof category.extraPrice] || 0;
   };
 
+  const getExtraPrice = (extra: typeof extras[0]) => {
+    if (!selections.size) return 0;
+    return extra.price[selections.size as keyof typeof extra.price] || 0;
+  };
+
   const calculateTotal = () => {
     const sizePrice = sizes.find((s) => s.id === selections.size)?.price || 0;
     const extrasPrice = selections.extras.reduce((acc, extraId) => {
       const extra = extras.find((e) => e.id === extraId);
-      return acc + (extra?.price || 0);
+      return acc + (extra ? getExtraPrice(extra) : 0);
     }, 0);
     const selectedShape = shapes.find((s) => s.id === selections.shape);
     const shapeExtra = selectedShape && selections.size 
@@ -603,7 +608,7 @@ const Customize = () => {
                   >
                     <CardContent className="p-4 text-center">
                       <h3 className="font-medium text-foreground">{extra.name}</h3>
-                      <p className="text-primary font-bold mt-1">+CHF {extra.price}</p>
+                      <p className="text-primary font-bold mt-1">+CHF {getExtraPrice(extra)}</p>
                     </CardContent>
                   </Card>
                 ))}
