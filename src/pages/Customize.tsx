@@ -25,8 +25,8 @@ import flavorChocolateGF from "@/assets/flavor-chocolate-gf.png";
 const steps = ["Size", "Shape", "Flavor", "Style", "Extras"];
 
 const sizes = [
-  { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 45 },
-  { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 65 },
+  { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 40 },
+  { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 80 },
   { id: "large", name: "Large", description: "Ideal for up to 16 people", price: 160 },
 ];
 

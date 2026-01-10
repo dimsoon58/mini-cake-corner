@@ -44,7 +44,7 @@ const sizes = [
     name: "Mini Bento Cake",
     size: "10 cm",
     servings: "2-4 servings",
-    price: "From CHF 45",
+    price: "From CHF 40",
     extra: "+CHF 3 Heart shape",
     image: cakeMiniBento,
   },
@@ -52,7 +52,7 @@ const sizes = [
     name: "Medium Cake",
     size: "15 cm",
     servings: "5-8 servings",
-    price: "From CHF 65",
+    price: "From CHF 80",
     extra: "+CHF 5 Heart shape",
     image: null,
   },
@@ -74,7 +74,7 @@ const catalog = [
     image: catalogRetroVintage,
     style: "retro-vintage",
     presets: { size: "medium", shape: "round", flavor: "white-berrylicious", style: "Retro / Vintage" },
-    price: 69, // medium 65 + special flavor 4
+    price: 84, // medium 80 + special flavor 4
   },
   {
     id: "heart-bomb",
@@ -83,7 +83,7 @@ const catalog = [
     image: catalogHeartBomb,
     style: "heart-bomb",
     presets: { size: "bento", shape: "heart", flavor: "red-velvet", style: "Heart Bomb" },
-    price: 48, // bento 45 + heart 3
+    price: 43, // bento 40 + heart 3
   },
   {
     id: "shag-cake",
@@ -92,7 +92,7 @@ const catalog = [
     image: catalogShagCake,
     style: "shag-cake",
     presets: { size: "medium", shape: "round", flavor: "vanilla", style: "Shag Cake" },
-    price: 65, // medium 65
+    price: 80, // medium 80
   },
   {
     id: "rainbow",
@@ -110,7 +110,7 @@ const catalog = [
     image: catalogRoses,
     style: "roses-please",
     presets: { size: "medium", shape: "heart", flavor: "salted-caramel", style: "Roses Please" },
-    price: 74, // medium 65 + heart 5 + special 4
+    price: 89, // medium 80 + heart 5 + special 4
   },
   {
     id: "butterfly",
@@ -119,7 +119,7 @@ const catalog = [
     image: catalogButterfly,
     style: "butterfly-garden",
     presets: { size: "bento", shape: "round", flavor: "lemon-curd", style: "Butterfly Garden" },
-    price: 47, // bento 45 + special 2
+    price: 42, // bento 40 + special 2
   },
 ];
 
