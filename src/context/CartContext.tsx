@@ -10,6 +10,9 @@ export interface CartItem {
   flavorName: string;
   style: string;
   styleName: string;
+  cakeText: string;
+  textColor: string;
+  textColorName: string;
   extras: string[];
   extrasNames: string[];
   total: number;
