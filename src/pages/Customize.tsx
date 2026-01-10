@@ -35,6 +35,17 @@ const textColors = [
   { id: "green", name: "Green", color: "#22C55E" },
 ];
 
+const baseColors = [
+  { id: "white", name: "White", color: "#FFFFFF" },
+  { id: "cream", name: "Cream", color: "#FFFDD0" },
+  { id: "pink", name: "Pink", color: "#FFC0CB" },
+  { id: "baby-blue", name: "Baby Blue", color: "#89CFF0" },
+  { id: "lavender", name: "Lavender", color: "#E6E6FA" },
+  { id: "mint", name: "Mint", color: "#98FF98" },
+  { id: "peach", name: "Peach", color: "#FFCBA4" },
+  { id: "chocolate", name: "Chocolate", color: "#7B3F00" },
+];
+
 const sizes = [
   { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 40 },
   { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 80 },
@@ -115,6 +126,7 @@ const Customize = () => {
     shape: string | null;
     flavor: string | null;
     style: string | null;
+    baseColor: string | null;
     cakeText: string;
     textColor: string | null;
     extras: string[];
@@ -123,6 +135,7 @@ const Customize = () => {
     shape: null,
     flavor: null,
     style: null,
+    baseColor: null,
     cakeText: "",
     textColor: null,
     extras: [],
@@ -163,6 +176,10 @@ const Customize = () => {
 
   const handleSelectStyle = (styleId: string) => {
     setSelections({ ...selections, style: styleId });
+  };
+
+  const handleSelectBaseColor = (colorId: string) => {
+    setSelections({ ...selections, baseColor: colorId });
   };
 
   const handleCakeTextChange = (text: string) => {
@@ -227,6 +244,7 @@ const Customize = () => {
     const shape = shapes.find(s => s.id === selections.shape);
     const flavor = flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor);
     const style = styles.find(s => s.id === selections.style);
+    const selectedBaseColor = baseColors.find(c => c.id === selections.baseColor);
     const selectedTextColor = textColors.find(c => c.id === selections.textColor);
     const extrasNames = selections.extras.map(id => extras.find(e => e.id === id)?.name || "");
     
@@ -240,6 +258,8 @@ const Customize = () => {
       flavorName: flavor?.name || "",
       style: selections.style || "",
       styleName: style?.name || "",
+      baseColor: selections.baseColor || "",
+      baseColorName: selectedBaseColor?.name || "",
       cakeText: selections.cakeText,
       textColor: selections.textColor || "",
       textColorName: selectedTextColor?.name || "",
@@ -418,7 +438,7 @@ const Customize = () => {
 
           {/* Style Selection */}
           {currentStep === 3 && (
-            <div className="space-y-6">
+            <div className="space-y-8">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Style
               </h2>
@@ -439,6 +459,33 @@ const Customize = () => {
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+
+              {/* Base Color Selection */}
+              <div className="space-y-4 pt-6 border-t border-border">
+                <h3 className="text-xl font-semibold text-center text-foreground">
+                  Choose Your Base Color
+                </h3>
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-3 max-w-2xl mx-auto">
+                  {baseColors.map((color) => (
+                    <button
+                      key={color.id}
+                      onClick={() => handleSelectBaseColor(color.id)}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-3 rounded-lg border transition-all",
+                        selections.baseColor === color.id
+                          ? "ring-2 ring-primary border-primary"
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-full border border-border"
+                        style={{ backgroundColor: color.color }}
+                      />
+                      <span className="text-xs text-foreground">{color.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -588,6 +635,11 @@ const Customize = () => {
               <p className="text-sm text-muted-foreground">
                 Style: {styles.find(s => s.id === selections.style)?.name}
               </p>
+              {selections.baseColor && (
+                <p className="text-sm text-muted-foreground">
+                  Base Color: {baseColors.find(c => c.id === selections.baseColor)?.name}
+                </p>
+              )}
               {selections.cakeText && (
                 <p className="text-sm text-muted-foreground">
                   Text: "{selections.cakeText}" ({textColors.find(c => c.id === selections.textColor)?.name || "No color"})

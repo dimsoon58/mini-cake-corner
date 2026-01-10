@@ -116,6 +116,8 @@ const Catalog = () => {
       flavorName: flavorLabels[selectedCake.presets.flavor],
       style: selectedCake.style,
       styleName: selectedCake.presets.style,
+      baseColor: "",
+      baseColorName: "",
       cakeText: "",
       textColor: "",
       textColorName: "",

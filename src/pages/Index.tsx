@@ -171,6 +171,8 @@ const Index = () => {
       flavorName: flavorLabels[selectedCatalogCake.presets.flavor],
       style: selectedCatalogCake.style,
       styleName: selectedCatalogCake.presets.style,
+      baseColor: "",
+      baseColorName: "",
       cakeText: "",
       textColor: "",
       textColorName: "",
