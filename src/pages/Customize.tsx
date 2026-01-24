@@ -264,7 +264,9 @@ const Customize = () => {
       case 5:
         return true; // Text/Phrase is optional
       case 6:
-        return true;
+        return true; // Candles is optional
+      case 7:
+        return true; // Extras is optional
       default:
         return false;
     }
