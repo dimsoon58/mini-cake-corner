@@ -664,8 +664,41 @@ const Customize = () => {
             </div>
           )}
 
-          {/* Extras Selection */}
+          {/* Candles Selection */}
           {currentStep === 6 && (
+            <div className="space-y-6">
+              <h2 className="text-3xl font-bold text-center text-foreground">
+                Choose Candles (Optional)
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto">
+                {candles.map((candle) => (
+                  <Card
+                    key={candle.id}
+                    className={cn(
+                      "cursor-pointer transition-all hover:shadow-lg",
+                      selections.candles.includes(candle.id)
+                        ? "ring-2 ring-primary bg-secondary"
+                        : "hover:bg-muted/50"
+                    )}
+                    onClick={() => handleToggleCandle(candle.id)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <img
+                        src={candle.image}
+                        alt={candle.name}
+                        className="h-32 w-full object-contain mb-3"
+                      />
+                      <h3 className="font-medium text-foreground">{candle.name}</h3>
+                      <p className="text-primary font-bold mt-1">+CHF {getCandlePrice(candle)}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Extras Selection */}
+          {currentStep === 7 && (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Add Extras (Optional)
