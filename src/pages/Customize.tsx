@@ -95,18 +95,16 @@ const flavorCategories = [
 ];
 
 const styles = [
-  { id: "retro-vintage", name: "Retro / Vintage" },
-  { id: "heart-bomb", name: "Heart Bomb" },
-  { id: "shag-cake", name: "Shag Cake" },
-  { id: "rainbow-cake", name: "Rainbow Cake" },
-  { id: "roses-please", name: "Roses Please" },
-  { id: "butterfly-garden", name: "Butterfly Garden" },
-  { id: "custom-drawing", name: "Custom Drawing" },
-  { id: "printed-picture", name: "Printed Picture" },
-  { id: "gold-leaves", name: "Gold Leaves" },
-  { id: "glitter-cake", name: "Glitter Cake" },
-  { id: "glitter-in-the-air", name: "Glitter in the Air Cake" },
-  { id: "gender-reveal", name: "Gender Reveal" },
+  { id: "retro-vintage", name: "Retro / Vintage", price: { bento: 5, medium: 15, large: 20 } },
+  { id: "heart-bomb", name: "Heart Bomb", price: { bento: 5, medium: 10, large: 15 } },
+  { id: "shag-cake", name: "Shag Cake", price: { bento: 8, medium: 20, large: 30 } },
+  { id: "rainbow-cake", name: "Rainbow Cake", price: { bento: 7, medium: 17, large: 30 } },
+  { id: "roses-please", name: "Roses Please", price: { bento: 7, medium: 15, large: 20 } },
+  { id: "butterfly-garden", name: "Butterfly Garden", price: { bento: 7, medium: 15, large: 20 } },
+  { id: "custom-drawing", name: "Custom Drawing", price: { bento: 5, medium: 5, large: 5 } },
+  { id: "printed-picture", name: "Printed Picture", price: { bento: 20, medium: 20, large: 20 } },
+  { id: "glitter-cake", name: "Glitter Cake", price: { bento: 6, medium: 8, large: 12 } },
+  { id: "gender-reveal", name: "Gender Reveal", price: { bento: 5, medium: 10, large: 20 } },
 ];
 
 const extras = [
@@ -258,6 +256,11 @@ const Customize = () => {
     return extra.price[selections.size as keyof typeof extra.price] || 0;
   };
 
+  const getStylePrice = (style: typeof styles[0]) => {
+    if (!selections.size) return 0;
+    return style.price[selections.size as keyof typeof style.price] || 0;
+  };
+
   const calculateTotal = () => {
     const sizePrice = sizes.find((s) => s.id === selections.size)?.price || 0;
     const extrasPrice = selections.extras.reduce((acc, extraId) => {
@@ -269,7 +272,9 @@ const Customize = () => {
       ? selectedShape.extraPrice[selections.size as keyof typeof selectedShape.extraPrice] || 0
       : 0;
     const flavorExtra = getFlavorCategoryExtra();
-    return sizePrice + extrasPrice + shapeExtra + flavorExtra;
+    const selectedStyle = styles.find((s) => s.id === selections.style);
+    const styleExtra = selectedStyle ? getStylePrice(selectedStyle) : 0;
+    return sizePrice + extrasPrice + shapeExtra + flavorExtra + styleExtra;
   };
 
   const handleAddToCart = () => {
@@ -513,22 +518,30 @@ const Customize = () => {
                 Choose Your Style
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {styles.map((style) => (
-                  <Card
-                    key={style.id}
-                    className={cn(
-                      "cursor-pointer transition-all hover:shadow-lg",
-                      selections.style === style.id
-                        ? "ring-2 ring-primary bg-secondary"
-                        : "hover:bg-muted/50"
-                    )}
-                    onClick={() => handleSelectStyle(style.id)}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <h3 className="font-medium text-foreground">{style.name}</h3>
-                    </CardContent>
-                  </Card>
-                ))}
+                {styles.map((style) => {
+                  const stylePrice = getStylePrice(style);
+                  return (
+                    <Card
+                      key={style.id}
+                      className={cn(
+                        "cursor-pointer transition-all hover:shadow-lg",
+                        selections.style === style.id
+                          ? "ring-2 ring-primary bg-secondary"
+                          : "hover:bg-muted/50"
+                      )}
+                      onClick={() => handleSelectStyle(style.id)}
+                    >
+                      <CardContent className="p-4 text-center">
+                        <h3 className="font-medium text-foreground">{style.name}</h3>
+                        {selections.size && (
+                          <p className="text-sm text-primary font-medium mt-1">
+                            +CHF {stylePrice}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
 
               {/* Base Color Selection */}
