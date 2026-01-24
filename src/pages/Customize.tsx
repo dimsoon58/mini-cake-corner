@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, ArrowRight, Check, ShoppingBag, Pencil, Trash2, CalendarIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ShoppingBag, Pencil, Trash2, CalendarIcon, Upload, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import Layout from "@/components/Layout";
@@ -118,7 +119,8 @@ const flavorCategories = [
 ];
 
 const styles = [
-  { id: "normal", name: "Normal", price: { bento: 0, medium: 0, large: 0 } },
+  { id: "normal-with-border", name: "Normal with border", price: { bento: 0, medium: 0, large: 0 } },
+  { id: "normal-without-border", name: "Normal without border", price: { bento: 0, medium: 0, large: 0 } },
   { id: "retro-vintage", name: "Retro / Vintage", price: { bento: 5, medium: 15, large: 20 } },
   { id: "heart-bomb", name: "Heart Bomb", price: { bento: 5, medium: 10, large: 15 } },
   { id: "shag-cake", name: "Shag Cake", price: { bento: 8, medium: 20, large: 30 } },
@@ -127,7 +129,9 @@ const styles = [
   { id: "butterfly-garden", name: "Butterfly Garden", price: { bento: 7, medium: 15, large: 20 } },
   { id: "custom-drawing", name: "Custom Drawing", price: { bento: 5, medium: 5, large: 5 } },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 20, medium: 20, large: 20 } },
+  { id: "gold-leaves-style", name: "Gold Leaves", price: { bento: 2, medium: 4, large: 6 } },
   { id: "glitter-cake", name: "Glitter Cake", price: { bento: 6, medium: 8, large: 12 } },
+  { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 5, medium: 7, large: 10 } },
   { id: "gender-reveal", name: "Gender Reveal", price: { bento: 5, medium: 10, large: 20 } },
 ];
 
@@ -216,6 +220,8 @@ const Customize = () => {
     butterflyColor: string | null;
     glitterColor: string | null;
     glitterCherriesColor: string | null;
+    extraComment: string;
+    extraImages: File[];
   }>({
     orderDate: null,
     size: null,
@@ -232,6 +238,8 @@ const Customize = () => {
     butterflyColor: null,
     glitterColor: null,
     glitterCherriesColor: null,
+    extraComment: "",
+    extraImages: [],
   });
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
 
@@ -971,6 +979,77 @@ const Customize = () => {
                   </div>
                 </div>
               )}
+
+              {/* Comment & Image Upload Section */}
+              <div className="space-y-4 mt-8 pt-6 border-t border-border">
+                <h3 className="text-xl font-semibold text-center text-foreground">
+                  Additional Comments & Images (Optional)
+                </h3>
+                <p className="text-sm text-muted-foreground text-center">
+                  Describe your vision or upload reference images
+                </p>
+                
+                <div className="max-w-lg mx-auto space-y-4">
+                  <Textarea
+                    placeholder="Explain what you want for your cake, share any specific requests or ideas..."
+                    value={selections.extraComment}
+                    onChange={(e) => setSelections({ ...selections, extraComment: e.target.value })}
+                    className="min-h-[120px] resize-none"
+                  />
+                  
+                  {/* Image Upload */}
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-foreground">
+                      Upload Reference Images
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      {/* Display uploaded images */}
+                      {selections.extraImages.map((file, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Reference ${index + 1}`}
+                            className="w-20 h-20 object-cover rounded-lg border border-border"
+                          />
+                          <button
+                            onClick={() => {
+                              const newImages = selections.extraImages.filter((_, i) => i !== index);
+                              setSelections({ ...selections, extraImages: newImages });
+                            }}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      {/* Upload button */}
+                      {selections.extraImages.length < 5 && (
+                        <label className="w-20 h-20 border-2 border-dashed border-muted-foreground/30 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
+                          <Upload className="w-5 h-5 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground mt-1">Upload</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              const remainingSlots = 5 - selections.extraImages.length;
+                              const newFiles = files.slice(0, remainingSlots);
+                              setSelections({ ...selections, extraImages: [...selections.extraImages, ...newFiles] });
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Max 5 images. Accepted formats: JPG, PNG, WEBP
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
