@@ -41,7 +41,7 @@ import candleBlueCar from "@/assets/candle-blue-car.png";
 import candleYellowCar from "@/assets/candle-yellow-car.png";
 import candleHeart from "@/assets/candle-heart.png";
 
-const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Candles", "Extras"];
+const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras", "Candles"];
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -135,9 +135,26 @@ const extras = [
   { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, medium: 4, large: 6 } },
   { id: "cherries", name: "Cherries", price: { bento: 4, medium: 8, large: 12 } },
   { id: "glitter-cherries", name: "Glitter Cherries", price: { bento: 6, medium: 10, large: 15 } },
+  { id: "glitter", name: "Glitter", price: { bento: 3, medium: 5, large: 8 } },
   { id: "ribbons", name: "Ribbons", price: { bento: 10, medium: 20, large: 30 } },
   { id: "butterfly", name: "Butterfly", price: { bento: 7, medium: 15, large: 20 } },
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 } },
+];
+
+const glitterColors = [
+  { id: "white", name: "White", color: "#FFFFFF" },
+  { id: "gold", name: "Gold", color: "#D4AF37" },
+  { id: "pink", name: "Pink", color: "#FFC0CB" },
+  { id: "red", name: "Red", color: "#EF4444" },
+  { id: "blue", name: "Blue", color: "#3B82F6" },
+];
+
+const glitterCherriesColors = [
+  { id: "white", name: "White", color: "#FFFFFF" },
+  { id: "gold", name: "Gold", color: "#D4AF37" },
+  { id: "pink", name: "Pink", color: "#FFC0CB" },
+  { id: "red", name: "Red", color: "#EF4444" },
+  { id: "blue", name: "Blue", color: "#3B82F6" },
 ];
 
 const candles = [
@@ -197,6 +214,8 @@ const Customize = () => {
     extras: string[];
     ribbonColor: string | null;
     butterflyColor: string | null;
+    glitterColor: string | null;
+    glitterCherriesColor: string | null;
   }>({
     orderDate: null,
     size: null,
@@ -211,6 +230,8 @@ const Customize = () => {
     extras: [],
     ribbonColor: null,
     butterflyColor: null,
+    glitterColor: null,
+    glitterCherriesColor: null,
   });
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
 
@@ -338,12 +359,13 @@ const Customize = () => {
       case 4:
         return selections.style !== null && selections.baseColor !== null;
       case 5:
-        // If user wants text, they must write something
-        return !selections.wantsText || (selections.wantsText && selections.cakeText.trim().length > 0);
+        // If user wants text, they must write something AND select a text color
+        if (!selections.wantsText) return true;
+        return selections.cakeText.trim().length > 0 && selections.textColor !== null;
       case 6:
-        return true; // Candles is optional
-      case 7:
         return true; // Extras is optional
+      case 7:
+        return true; // Candles is optional
       default:
         return false;
     }
@@ -761,25 +783,33 @@ const Customize = () => {
                     {selections.cakeText.length > 0 && (
                       <div className="space-y-3">
                         <label className="block text-sm font-medium text-foreground">
-                          Text Color
+                          Text Color <span className="text-destructive">*</span>
                         </label>
-                        <div className="grid grid-cols-4 gap-3">
+                        {selections.wantsText && selections.cakeText.trim().length > 0 && !selections.textColor && (
+                          <p className="text-xs text-destructive">Please select a text color</p>
+                        )}
+                        <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-3">
                           {textColors.map((color) => (
                             <button
                               key={color.id}
                               onClick={() => handleSelectTextColor(color.id)}
                               className={cn(
-                                "flex flex-col items-center gap-2 p-3 rounded-lg border transition-all",
+                                "flex flex-col items-center gap-2 p-2 rounded-lg border transition-all",
                                 selections.textColor === color.id
-                                  ? "ring-2 ring-primary border-primary"
+                                  ? "ring-2 ring-primary border-primary bg-secondary"
                                   : "border-border hover:border-primary/50"
                               )}
                             >
                               <div
-                                className="w-8 h-8 rounded-full border border-border"
+                                className={cn(
+                                  "w-8 h-8 rounded-full border-2",
+                                  color.id === "white" || color.id === "cream"
+                                    ? "border-muted-foreground/30"
+                                    : "border-transparent"
+                                )}
                                 style={{ backgroundColor: color.color }}
                               />
-                              <span className="text-xs text-foreground">{color.name}</span>
+                              <span className="text-xs text-foreground text-center leading-tight">{color.name}</span>
                             </button>
                           ))}
                         </div>
@@ -791,8 +821,161 @@ const Customize = () => {
             </div>
           )}
 
-          {/* Candles Selection */}
+          {/* Extras Selection */}
           {currentStep === 6 && (
+            <div className="space-y-6">
+              <h2 className="text-3xl font-bold text-center text-foreground">
+                Add Extras (Optional)
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
+                {extras.map((extra) => (
+                  <Card
+                    key={extra.id}
+                    className={cn(
+                      "cursor-pointer transition-all hover:shadow-lg",
+                      selections.extras.includes(extra.id)
+                        ? "ring-2 ring-primary bg-secondary"
+                        : "hover:bg-muted/50"
+                    )}
+                    onClick={() => handleToggleExtra(extra.id)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <h3 className="font-medium text-foreground">{extra.name}</h3>
+                      <p className="text-primary font-bold mt-1">+CHF {getExtraPrice(extra)}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Glitter Color Selection */}
+              {selections.extras.includes("glitter") && (
+                <div className="space-y-4 mt-8">
+                  <h3 className="text-xl font-semibold text-center text-foreground">
+                    Choose Glitter Color
+                  </h3>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {glitterColors.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => setSelections({ ...selections, glitterColor: color.id })}
+                        className={cn(
+                          "flex flex-col items-center gap-1 p-2 rounded-lg transition-all",
+                          selections.glitterColor === color.id
+                            ? "ring-2 ring-primary bg-secondary"
+                            : "hover:bg-muted/50"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-full border-2",
+                            color.id === "white" ? "border-muted-foreground/30" : "border-muted"
+                          )}
+                          style={{ backgroundColor: color.color }}
+                        />
+                        <span className="text-xs text-foreground">{color.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Glitter Cherries Color Selection */}
+              {selections.extras.includes("glitter-cherries") && (
+                <div className="space-y-4 mt-8">
+                  <h3 className="text-xl font-semibold text-center text-foreground">
+                    Choose Glitter Cherries Color
+                  </h3>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {glitterCherriesColors.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => setSelections({ ...selections, glitterCherriesColor: color.id })}
+                        className={cn(
+                          "flex flex-col items-center gap-1 p-2 rounded-lg transition-all",
+                          selections.glitterCherriesColor === color.id
+                            ? "ring-2 ring-primary bg-secondary"
+                            : "hover:bg-muted/50"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-full border-2",
+                            color.id === "white" ? "border-muted-foreground/30" : "border-muted"
+                          )}
+                          style={{ backgroundColor: color.color }}
+                        />
+                        <span className="text-xs text-foreground">{color.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Ribbon Color Selection */}
+              {selections.extras.includes("ribbons") && (
+                <div className="space-y-4 mt-8">
+                  <h3 className="text-xl font-semibold text-center text-foreground">
+                    Choose Ribbon Color
+                  </h3>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {ribbonColors.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => setSelections({ ...selections, ribbonColor: color.id })}
+                        className={cn(
+                          "flex flex-col items-center gap-1 p-2 rounded-lg transition-all",
+                          selections.ribbonColor === color.id
+                            ? "ring-2 ring-primary bg-secondary"
+                            : "hover:bg-muted/50"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-full border-2",
+                            color.id === "white" ? "border-muted-foreground/30" : "border-muted"
+                          )}
+                          style={{ backgroundColor: color.color }}
+                        />
+                        <span className="text-xs text-foreground">{color.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Butterfly Color Selection */}
+              {selections.extras.includes("butterfly") && (
+                <div className="space-y-4 mt-8">
+                  <h3 className="text-xl font-semibold text-center text-foreground">
+                    Choose Butterfly Color
+                  </h3>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {butterflyColors.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => setSelections({ ...selections, butterflyColor: color.id })}
+                        className={cn(
+                          "flex flex-col items-center gap-1 p-2 rounded-lg transition-all",
+                          selections.butterflyColor === color.id
+                            ? "ring-2 ring-primary bg-secondary"
+                            : "hover:bg-muted/50"
+                        )}
+                      >
+                        <div
+                          className="w-10 h-10 rounded-full border-2 border-muted"
+                          style={{ backgroundColor: color.color }}
+                        />
+                        <span className="text-xs text-foreground">{color.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Candles Selection */}
+          {currentStep === 7 && (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Candles (Optional)
@@ -864,92 +1047,6 @@ const Customize = () => {
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {/* Extras Selection */}
-          {currentStep === 7 && (
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold text-center text-foreground">
-                Add Extras (Optional)
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
-                {extras.map((extra) => (
-                  <Card
-                    key={extra.id}
-                    className={cn(
-                      "cursor-pointer transition-all hover:shadow-lg",
-                      selections.extras.includes(extra.id)
-                        ? "ring-2 ring-primary bg-secondary"
-                        : "hover:bg-muted/50"
-                    )}
-                    onClick={() => handleToggleExtra(extra.id)}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <h3 className="font-medium text-foreground">{extra.name}</h3>
-                      <p className="text-primary font-bold mt-1">+CHF {getExtraPrice(extra)}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Ribbon Color Selection */}
-              {selections.extras.includes("ribbons") && (
-                <div className="space-y-4 mt-8">
-                  <h3 className="text-xl font-semibold text-center text-foreground">
-                    Choose Ribbon Color
-                  </h3>
-                  <div className="flex flex-wrap justify-center gap-3">
-                    {ribbonColors.map((color) => (
-                      <button
-                        key={color.id}
-                        onClick={() => setSelections({ ...selections, ribbonColor: color.id })}
-                        className={cn(
-                          "flex flex-col items-center gap-1 p-2 rounded-lg transition-all",
-                          selections.ribbonColor === color.id
-                            ? "ring-2 ring-primary bg-secondary"
-                            : "hover:bg-muted/50"
-                        )}
-                      >
-                        <div
-                          className="w-10 h-10 rounded-full border-2 border-muted"
-                          style={{ backgroundColor: color.color }}
-                        />
-                        <span className="text-xs text-foreground">{color.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Butterfly Color Selection */}
-              {selections.extras.includes("butterfly") && (
-                <div className="space-y-4 mt-8">
-                  <h3 className="text-xl font-semibold text-center text-foreground">
-                    Choose Butterfly Color
-                  </h3>
-                  <div className="flex flex-wrap justify-center gap-3">
-                    {butterflyColors.map((color) => (
-                      <button
-                        key={color.id}
-                        onClick={() => setSelections({ ...selections, butterflyColor: color.id })}
-                        className={cn(
-                          "flex flex-col items-center gap-1 p-2 rounded-lg transition-all",
-                          selections.butterflyColor === color.id
-                            ? "ring-2 ring-primary bg-secondary"
-                            : "hover:bg-muted/50"
-                        )}
-                      >
-                        <div
-                          className="w-10 h-10 rounded-full border-2 border-muted"
-                          style={{ backgroundColor: color.color }}
-                        />
-                        <span className="text-xs text-foreground">{color.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
