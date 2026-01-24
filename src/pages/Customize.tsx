@@ -237,6 +237,18 @@ const Customize = () => {
     setSelections({ ...selections, extras: newExtras });
   };
 
+  const handleToggleCandle = (candleId: string) => {
+    const newCandles = selections.candles.includes(candleId)
+      ? selections.candles.filter((c) => c !== candleId)
+      : [...selections.candles, candleId];
+    setSelections({ ...selections, candles: newCandles });
+  };
+
+  const getCandlePrice = (candle: typeof candles[0]) => {
+    if (!selections.size) return 0;
+    return candle.price[selections.size as keyof typeof candle.price] || 0;
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 0:
