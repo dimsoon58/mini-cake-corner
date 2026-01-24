@@ -43,45 +43,33 @@ import candleHeart from "@/assets/candle-heart.png";
 
 const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Candles", "Extras"];
 
-const textColors = [
-  { id: "white", name: "White", color: "#FFFFFF" },
-  { id: "black", name: "Black", color: "#000000" },
-  { id: "pink", name: "Pink", color: "#F472B6" },
-  { id: "red", name: "Red", color: "#EF4444" },
-  { id: "gold", name: "Gold", color: "#D4AF37" },
-  { id: "blue", name: "Blue", color: "#3B82F6" },
-  { id: "purple", name: "Purple", color: "#A855F7" },
-  { id: "green", name: "Green", color: "#22C55E" },
-];
-
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
-  { id: "cream", name: "Cream", color: "#FFFDD0" },
-  { id: "beige", name: "Beige", color: "#F5F5DC" },
-  { id: "pastel-pink", name: "Pastel Pink", color: "#FFD1DC" },
+  { id: "cream", name: "Cream", color: "#FFF8E7" },
+  { id: "pastel-pink", name: "Pastel Pink", color: "#FFE4EC" },
   { id: "pink", name: "Pink", color: "#FFC0CB" },
   { id: "dark-pink", name: "Dark Pink", color: "#E75480" },
-  { id: "light-red", name: "Light Red", color: "#FF6B6B" },
   { id: "dark-red", name: "Dark Red", color: "#DC143C" },
   { id: "burgundy", name: "Burgundy", color: "#800020" },
   { id: "pastel-yellow", name: "Pastel Yellow", color: "#FDFD96" },
   { id: "yellow", name: "Yellow", color: "#FFD700" },
   { id: "orange", name: "Orange", color: "#FFA500" },
   { id: "pastel-orange", name: "Pastel Orange", color: "#FFB347" },
-  { id: "pastel-green", name: "Pastel Green", color: "#98FB98" },
+  { id: "mint-green", name: "Mint Green", color: "#B8F5C8" },
   { id: "green", name: "Green", color: "#3CB371" },
   { id: "forest-green", name: "Forest Green", color: "#228B22" },
-  { id: "pastel-blue", name: "Pastel Blue", color: "#AEC6CF" },
+  { id: "baby-blue", name: "Baby Blue", color: "#D4F1F9" },
   { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
-  { id: "teal-blue", name: "Teal Blue", color: "#008080" },
   { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
   { id: "lavender", name: "Lavender", color: "#E6E6FA" },
-  { id: "mauve", name: "Mauve", color: "#E0B0FF" },
   { id: "plum", name: "Plum", color: "#8E4585" },
   { id: "light-brown", name: "Light Brown", color: "#C4A484" },
   { id: "dark-brown", name: "Dark Brown", color: "#654321" },
   { id: "black", name: "Black", color: "#000000" },
 ];
+
+// Text colors use the same palette as base colors
+const textColors = baseColors;
 
 const sizes = [
   { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 40 },
