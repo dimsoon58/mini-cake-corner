@@ -15,9 +15,9 @@ import flavorChocolate from "@/assets/flavor-chocolate.png";
 import flavorChocolateLovers from "@/assets/flavor-chocolate-lovers.png";
 import flavorDarkBerrylicious from "@/assets/flavor-dark-berrylicious.png";
 import flavorWhiteBerrylicious from "@/assets/flavor-white-berrylicious.png";
-import flavorSaltedCaramel from "@/assets/flavor-salted-caramel.png";
+import flavorSaltedCaramel from "@/assets/flavor-salted-caramel-new.png";
 import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
-import flavorTiramisu from "@/assets/flavor-tiramisu.png";
+import flavorTiramisu from "@/assets/flavor-tiramisu-new.png";
 import flavorPraline from "@/assets/flavor-praline.png";
 import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
 // Gluten-free flavors use the same images as regular ones
