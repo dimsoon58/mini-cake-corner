@@ -487,11 +487,8 @@ const Catalog = () => {
                 <h3 className="font-serif text-xl text-foreground mb-2">
                   {cake.name}
                 </h3>
-                <p className="text-muted-foreground text-sm mb-2">
+                <p className="text-muted-foreground text-sm mb-4">
                   {cake.description}
-                </p>
-                <p className="text-xs text-primary mb-4">
-                  +CHF {cake.stylePrice.bento} mini / +CHF {cake.stylePrice.medium} medium / +CHF {cake.stylePrice.large} large
                 </p>
                 <Button 
                   variant="outline" 
@@ -592,6 +589,17 @@ const Catalog = () => {
                     })}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Design Display */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Design</label>
+                <div className="bg-secondary/50 rounded-lg p-4">
+                  <p className="font-medium text-foreground">{selectedCake.styleName}</p>
+                  <p className="text-sm text-primary mt-1">
+                    +CHF {selectedCake.stylePrice[selections.size as keyof typeof selectedCake.stylePrice]}
+                  </p>
+                </div>
               </div>
 
               {/* Base Color Selection */}
