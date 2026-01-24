@@ -13,6 +13,8 @@ export interface CartItem {
   styleName: string;
   baseColor: string;
   baseColorName: string;
+  decorationColor: string;
+  decorationColorName: string;
   cakeText: string;
   textColor: string;
   textColorName: string;
