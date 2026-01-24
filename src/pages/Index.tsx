@@ -683,7 +683,7 @@ const Index = () => {
             className="h-16 mx-auto mb-6 brightness-200"
           />
           <p className="text-sm opacity-70">
-            © 2024 Bento Cake Studio. Made with love.
+            © 2026 Bento Cake Studio. Made with love.
           </p>
         </div>
       </footer>
