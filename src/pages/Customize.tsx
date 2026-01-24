@@ -25,7 +25,13 @@ const flavorVanillaGF = flavorVanilla;
 const flavorRedVelvetGF = flavorRedVelvet;
 const flavorChocolateGF = flavorChocolate;
 
-const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras"];
+// Candle images
+import candlePuppy from "@/assets/candle-puppy.png";
+import candleCar from "@/assets/candle-car.png";
+import candleSoccer from "@/assets/candle-soccer.png";
+import candleCherry from "@/assets/candle-cherry.png";
+
+const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Candles", "Extras"];
 
 const textColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -117,6 +123,13 @@ const extras = [
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 } },
 ];
 
+const candles = [
+  { id: "puppy", name: "Puppy", image: candlePuppy, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "car", name: "Pink Car", image: candleCar, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "soccer", name: "Soccer Ball", image: candleSoccer, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "cherry", name: "Cherry", image: candleCherry, price: { bento: 5, medium: 5, large: 5 } },
+];
+
 const ribbonColors = [
   { id: "baby-pink", name: "Baby Pink", color: "#F4C2C2" },
   { id: "pink", name: "Pink", color: "#FFC0CB" },
@@ -149,6 +162,7 @@ const Customize = () => {
     baseColor: string | null;
     cakeText: string;
     textColor: string | null;
+    candles: string[];
     extras: string[];
     ribbonColor: string | null;
     butterflyColor: string | null;
@@ -161,6 +175,7 @@ const Customize = () => {
     baseColor: null,
     cakeText: "",
     textColor: null,
+    candles: [],
     extras: [],
     ribbonColor: null,
     butterflyColor: null,
@@ -222,6 +237,18 @@ const Customize = () => {
     setSelections({ ...selections, extras: newExtras });
   };
 
+  const handleToggleCandle = (candleId: string) => {
+    const newCandles = selections.candles.includes(candleId)
+      ? selections.candles.filter((c) => c !== candleId)
+      : [...selections.candles, candleId];
+    setSelections({ ...selections, candles: newCandles });
+  };
+
+  const getCandlePrice = (candle: typeof candles[0]) => {
+    if (!selections.size) return 0;
+    return candle.price[selections.size as keyof typeof candle.price] || 0;
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 0:
@@ -237,7 +264,9 @@ const Customize = () => {
       case 5:
         return true; // Text/Phrase is optional
       case 6:
-        return true;
+        return true; // Candles is optional
+      case 7:
+        return true; // Extras is optional
       default:
         return false;
     }
@@ -268,6 +297,10 @@ const Customize = () => {
       const extra = extras.find((e) => e.id === extraId);
       return acc + (extra ? getExtraPrice(extra) : 0);
     }, 0);
+    const candlesPrice = selections.candles.reduce((acc, candleId) => {
+      const candle = candles.find((c) => c.id === candleId);
+      return acc + (candle ? getCandlePrice(candle) : 0);
+    }, 0);
     const selectedShape = shapes.find((s) => s.id === selections.shape);
     const shapeExtra = selectedShape && selections.size 
       ? selectedShape.extraPrice[selections.size as keyof typeof selectedShape.extraPrice] || 0
@@ -275,7 +308,7 @@ const Customize = () => {
     const flavorExtra = getFlavorCategoryExtra();
     const selectedStyle = styles.find((s) => s.id === selections.style);
     const styleExtra = selectedStyle ? getStylePrice(selectedStyle) : 0;
-    return sizePrice + extrasPrice + shapeExtra + flavorExtra + styleExtra;
+    return sizePrice + extrasPrice + candlesPrice + shapeExtra + flavorExtra + styleExtra;
   };
 
   const handleAddToCart = () => {
@@ -631,8 +664,41 @@ const Customize = () => {
             </div>
           )}
 
-          {/* Extras Selection */}
+          {/* Candles Selection */}
           {currentStep === 6 && (
+            <div className="space-y-6">
+              <h2 className="text-3xl font-bold text-center text-foreground">
+                Choose Candles (Optional)
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto">
+                {candles.map((candle) => (
+                  <Card
+                    key={candle.id}
+                    className={cn(
+                      "cursor-pointer transition-all hover:shadow-lg",
+                      selections.candles.includes(candle.id)
+                        ? "ring-2 ring-primary bg-secondary"
+                        : "hover:bg-muted/50"
+                    )}
+                    onClick={() => handleToggleCandle(candle.id)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <img
+                        src={candle.image}
+                        alt={candle.name}
+                        className="h-32 w-full object-contain mb-3"
+                      />
+                      <h3 className="font-medium text-foreground">{candle.name}</h3>
+                      <p className="text-primary font-bold mt-1">+CHF {getCandlePrice(candle)}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Extras Selection */}
+          {currentStep === 7 && (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Add Extras (Optional)
@@ -786,6 +852,19 @@ const Customize = () => {
                         </div>
                       ) : null;
                     })()}
+                    
+                    {/* Candles */}
+                    {selections.candles.length > 0 && selections.candles.map(candleId => {
+                      const candle = candles.find(c => c.id === candleId);
+                      if (!candle) return null;
+                      const candlePrice = getCandlePrice(candle);
+                      return (
+                        <div key={candleId} className="flex justify-between">
+                          <span className="text-muted-foreground">{candle.name} (candle)</span>
+                          <span className="text-foreground font-medium">+CHF {candlePrice}</span>
+                        </div>
+                      );
+                    })}
                     
                     {/* Extras */}
                     {selections.extras.length > 0 && selections.extras.map(extraId => {
