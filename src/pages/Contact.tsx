@@ -18,17 +18,39 @@ const Contact = () => {
             If the cake is minimal in the design, the price will remain the same as the starting price. You can send us your idea for customization and we will happily quote you the price.
           </p>
           
-          <p className="font-semibold">
-            We take orders by insta DM or by Whatsapp:{" "}
-            <a 
-              href="https://wa.me/41799531317" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              +41 79 953 13 17
-            </a>
-          </p>
+          <div className="space-y-2">
+            <p className="font-semibold">
+              We take orders by insta DM or by Whatsapp:{" "}
+              <a 
+                href="https://wa.me/41799531317" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                +41 79 953 13 17
+              </a>
+            </p>
+            <p className="font-semibold">
+              Instagram:{" "}
+              <a 
+                href="https://instagram.com/bentocakestudio" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                @bentocakestudio
+              </a>
+            </p>
+            <p className="font-semibold">
+              Email:{" "}
+              <a 
+                href="mailto:contact@bentocakestudio.ch"
+                className="text-primary hover:underline"
+              >
+                contact@bentocakestudio.ch
+              </a>
+            </p>
+          </div>
           
           <p className="text-justify">
             All of our cakes are made fresh upon orders, which means we don't have any ready cakes. To ensure your order, please order{" "}
