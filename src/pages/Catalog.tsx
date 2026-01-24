@@ -1,11 +1,27 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, Upload, X, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
+
+// Candle images
+import candlePuppy from "@/assets/candle-puppy.png";
+import candleCar from "@/assets/candle-car.png";
+import candleSoccer from "@/assets/candle-soccer.png";
+import candleCherry from "@/assets/candle-cherry.png";
+import candleTeddyBear from "@/assets/candle-teddy-bear.png";
+import candlePinkOmbre from "@/assets/candle-pink-ombre.png";
+import candleBlueOmbre from "@/assets/candle-blue-ombre.png";
+import candleThickSpiral from "@/assets/candle-thick-spiral.png";
+import candleSpiralPastel from "@/assets/candle-spiral-pastel.png";
+import candleShinySpiral from "@/assets/candle-shiny-spiral.png";
+import candleRedCar from "@/assets/candle-red-car.png";
+import candleBlueCar from "@/assets/candle-blue-car.png";
+import candleYellowCar from "@/assets/candle-yellow-car.png";
+import candleHeart from "@/assets/candle-heart.png";
 import catalogRetroVintage from "@/assets/catalog-retro-vintage.png";
 import catalogHeartBomb from "@/assets/catalog-heart-bomb.png";
 import catalogShagCake from "@/assets/catalog-shag-cake.png";
@@ -61,6 +77,26 @@ const flavors = [
   { id: "tiramisu", name: "Tiramisu", extraPrice: { bento: 4, medium: 8, large: 16 } },
   { id: "praline", name: "Praline Obsession", extraPrice: { bento: 4, medium: 8, large: 16 } },
   { id: "passion-fruit", name: "Passion Fruit", extraPrice: { bento: 4, medium: 8, large: 16 } },
+];
+
+const candles = [
+  // Figurines - unit only
+  { id: "puppy", name: "Puppy", image: candlePuppy, unitPrice: 2, hasPack: false },
+  { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, unitPrice: 2, hasPack: false },
+  { id: "cherry", name: "Cherry", image: candleCherry, unitPrice: 2, hasPack: false },
+  { id: "heart", name: "Red Heart", image: candleHeart, unitPrice: 2, hasPack: false },
+  { id: "soccer", name: "Footy Flame", image: candleSoccer, unitPrice: 2, hasPack: false },
+  { id: "pink-car", name: "Pink Car", image: candleCar, unitPrice: 2, hasPack: false },
+  { id: "red-car", name: "Red Car", image: candleRedCar, unitPrice: 2, hasPack: false },
+  { id: "blue-car", name: "Blue Car", image: candleBlueCar, unitPrice: 2, hasPack: false },
+  { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, unitPrice: 2, hasPack: false },
+  // Ombré - unit + pack (6)
+  { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  // Spirals - unit + pack (6)
+  { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
+  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
 ];
 
 const catalog = [
@@ -228,6 +264,12 @@ const catalog = [
   },
 ];
 
+interface CandleSelection {
+  id: string;
+  quantity: number;
+  hasPack: boolean;
+}
+
 interface CakeSelections {
   size: string;
   shape: string;
@@ -237,12 +279,15 @@ interface CakeSelections {
   wantsText: boolean;
   cakeText: string;
   textColor: string;
+  candles: CandleSelection[];
+  printedImage: File | null;
 }
 
 const Catalog = () => {
   const { addItem } = useCart();
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selections, setSelections] = useState<CakeSelections>({
     size: "bento",
     shape: "round",
@@ -252,6 +297,8 @@ const Catalog = () => {
     wantsText: false,
     cakeText: "",
     textColor: "",
+    candles: [],
+    printedImage: null,
   });
 
   const handleSelectCake = (cake: typeof catalog[0]) => {
@@ -265,8 +312,84 @@ const Catalog = () => {
       wantsText: false,
       cakeText: "",
       textColor: "",
+      candles: [],
+      printedImage: null,
     });
     setSheetOpen(true);
+  };
+
+  // Candle helpers
+  const handleCandleQuantityChange = (candleId: string, delta: number) => {
+    const existingIndex = selections.candles.findIndex((c) => c.id === candleId && !c.hasPack);
+    let newCandles = [...selections.candles];
+    
+    if (existingIndex >= 0) {
+      const newQty = newCandles[existingIndex].quantity + delta;
+      if (newQty <= 0) {
+        newCandles = newCandles.filter((_, i) => i !== existingIndex);
+      } else {
+        newCandles[existingIndex] = { ...newCandles[existingIndex], quantity: newQty };
+      }
+    } else if (delta > 0) {
+      newCandles.push({ id: candleId, quantity: 1, hasPack: false });
+    }
+    setSelections({ ...selections, candles: newCandles });
+  };
+
+  const handleToggleCandlePack = (candleId: string) => {
+    const existingIndex = selections.candles.findIndex((c) => c.id === candleId && c.hasPack);
+    let newCandles = [...selections.candles];
+    
+    if (existingIndex >= 0) {
+      newCandles = newCandles.filter((_, i) => i !== existingIndex);
+    } else {
+      newCandles.push({ id: candleId, quantity: 1, hasPack: true });
+    }
+    setSelections({ ...selections, candles: newCandles });
+  };
+
+  const getCandleUnitQuantity = (candleId: string) => {
+    const selection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
+    return selection?.quantity || 0;
+  };
+
+  const isCandlePackSelected = (candleId: string) => {
+    return selections.candles.some((c) => c.id === candleId && c.hasPack);
+  };
+
+  const getCandleTotalPrice = (candleId: string) => {
+    const candle = candles.find((c) => c.id === candleId);
+    if (!candle) return 0;
+    
+    let total = 0;
+    const unitSelection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
+    if (unitSelection) {
+      total += candle.unitPrice * unitSelection.quantity;
+    }
+    const packSelection = selections.candles.find((c) => c.id === candleId && c.hasPack);
+    if (packSelection && candle.hasPack) {
+      total += candle.packPrice || 0;
+    }
+    return total;
+  };
+
+  const getTotalCandlesPrice = () => {
+    return candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id), 0);
+  };
+
+  // Image upload helpers
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelections({ ...selections, printedImage: file });
+    }
+  };
+
+  const removeImage = () => {
+    setSelections({ ...selections, printedImage: null });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const calculatePrice = () => {
@@ -280,8 +403,9 @@ const Catalog = () => {
     const shapeExtra = shapeObj?.extraPrice[selections.size as keyof typeof shapeObj.extraPrice] || 0;
     const flavorExtra = flavorObj?.extraPrice[selections.size as keyof typeof flavorObj.extraPrice] || 0;
     const styleExtra = selectedCake.stylePrice[selections.size as keyof typeof selectedCake.stylePrice] || 0;
+    const candlesTotal = getTotalCandlesPrice();
     
-    return basePrice + shapeExtra + flavorExtra + styleExtra;
+    return basePrice + shapeExtra + flavorExtra + styleExtra + candlesTotal;
   };
 
   const handleAddToCart = () => {
@@ -594,6 +718,123 @@ const Catalog = () => {
                   </div>
                 </>
               )}
+
+              {/* Printed Picture Upload - only for printed-picture style */}
+              {selectedCake?.styleId === "printed-picture" && (
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-foreground">Upload Your Image</label>
+                  <p className="text-xs text-muted-foreground">
+                    Upload the image or logo you want printed on your cake (JPG, PNG, WEBP)
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  {!selections.printedImage ? (
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full border-2 border-dashed border-border rounded-lg p-6 flex flex-col items-center gap-2 hover:border-primary/50 transition-colors"
+                    >
+                      <Upload className="w-8 h-8 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Click to upload image</span>
+                    </button>
+                  ) : (
+                    <div className="relative">
+                      <img
+                        src={URL.createObjectURL(selections.printedImage)}
+                        alt="Uploaded preview"
+                        className="w-full h-32 object-contain rounded-lg bg-muted/30"
+                      />
+                      <button
+                        onClick={removeImage}
+                        className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/80"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">{selections.printedImage.name}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Candles Section */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">🕯️ Candles (Optional)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {candles.map((candle) => {
+                    const unitQty = getCandleUnitQuantity(candle.id);
+                    const packSelected = isCandlePackSelected(candle.id);
+                    const totalPrice = getCandleTotalPrice(candle.id);
+                    
+                    return (
+                      <div
+                        key={candle.id}
+                        className={cn(
+                          "border rounded-lg p-3 transition-all",
+                          (unitQty > 0 || packSelected) ? "border-primary bg-primary/5" : "border-border"
+                        )}
+                      >
+                        <div className="flex gap-2 items-start mb-2">
+                          <img
+                            src={candle.image}
+                            alt={candle.name}
+                            className="w-10 h-10 object-contain rounded"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate">{candle.name}</p>
+                            <p className="text-xs text-muted-foreground">CHF {candle.unitPrice}/unit</p>
+                          </div>
+                        </div>
+                        
+                        {/* Unit quantity */}
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs text-muted-foreground">Units:</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleCandleQuantityChange(candle.id, -1)}
+                              disabled={unitQty === 0}
+                              className="w-6 h-6 flex items-center justify-center rounded bg-muted hover:bg-muted/80 disabled:opacity-50"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-6 text-center text-xs font-medium">{unitQty}</span>
+                            <button
+                              onClick={() => handleCandleQuantityChange(candle.id, 1)}
+                              className="w-6 h-6 flex items-center justify-center rounded bg-muted hover:bg-muted/80"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {/* Pack option */}
+                        {candle.hasPack && (
+                          <button
+                            onClick={() => handleToggleCandlePack(candle.id)}
+                            className={cn(
+                              "w-full text-xs py-1.5 rounded transition-all",
+                              packSelected
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            )}
+                          >
+                            Pack of {candle.packSize} - CHF {candle.packPrice}
+                          </button>
+                        )}
+                        
+                        {totalPrice > 0 && (
+                          <p className="text-xs text-primary font-medium mt-2 text-right">
+                            +CHF {totalPrice}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
               {/* Price */}
               <div className="flex justify-between items-center py-4 bg-secondary/50 rounded-lg px-4">
