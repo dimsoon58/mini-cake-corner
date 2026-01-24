@@ -25,7 +25,13 @@ const flavorVanillaGF = flavorVanilla;
 const flavorRedVelvetGF = flavorRedVelvet;
 const flavorChocolateGF = flavorChocolate;
 
-const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras"];
+// Candle images
+import candlePuppy from "@/assets/candle-puppy.png";
+import candleCar from "@/assets/candle-car.png";
+import candleSoccer from "@/assets/candle-soccer.png";
+import candleCherry from "@/assets/candle-cherry.png";
+
+const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Candles", "Extras"];
 
 const textColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -117,6 +123,13 @@ const extras = [
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 } },
 ];
 
+const candles = [
+  { id: "puppy", name: "Puppy", image: candlePuppy, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "car", name: "Pink Car", image: candleCar, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "soccer", name: "Soccer Ball", image: candleSoccer, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "cherry", name: "Cherry", image: candleCherry, price: { bento: 5, medium: 5, large: 5 } },
+];
+
 const ribbonColors = [
   { id: "baby-pink", name: "Baby Pink", color: "#F4C2C2" },
   { id: "pink", name: "Pink", color: "#FFC0CB" },
@@ -149,6 +162,7 @@ const Customize = () => {
     baseColor: string | null;
     cakeText: string;
     textColor: string | null;
+    candles: string[];
     extras: string[];
     ribbonColor: string | null;
     butterflyColor: string | null;
@@ -161,6 +175,7 @@ const Customize = () => {
     baseColor: null,
     cakeText: "",
     textColor: null,
+    candles: [],
     extras: [],
     ribbonColor: null,
     butterflyColor: null,
