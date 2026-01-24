@@ -727,9 +727,88 @@ const Customize = () => {
               Back
             </Button>
 
-            <div className="text-center">
+            <div className="text-center flex-1 mx-4">
               <p className="text-sm text-muted-foreground">Estimated Total</p>
               <p className="text-2xl font-bold text-primary">CHF {calculateTotal()}</p>
+              
+              {/* Price Breakdown Summary */}
+              {selections.size && (
+                <div className="mt-4 text-left bg-secondary/30 rounded-lg p-4 max-w-sm mx-auto">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Price Breakdown</p>
+                  <div className="space-y-1 text-sm">
+                    {/* Size */}
+                    {selections.size && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          {sizes.find(s => s.id === selections.size)?.name}
+                        </span>
+                        <span className="text-foreground font-medium">
+                          CHF {sizes.find(s => s.id === selections.size)?.price || 0}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Shape Extra */}
+                    {selections.shape && (() => {
+                      const shape = shapes.find(s => s.id === selections.shape);
+                      const shapeExtra = shape && selections.size 
+                        ? shape.extraPrice[selections.size as keyof typeof shape.extraPrice] || 0
+                        : 0;
+                      return shapeExtra > 0 ? (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{shape?.name} (shape)</span>
+                          <span className="text-foreground font-medium">+CHF {shapeExtra}</span>
+                        </div>
+                      ) : null;
+                    })()}
+                    
+                    {/* Flavor Extra */}
+                    {selections.flavor && (() => {
+                      const flavorExtra = getFlavorCategoryExtra();
+                      const flavorName = flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor)?.name;
+                      return flavorExtra > 0 ? (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{flavorName} (flavor)</span>
+                          <span className="text-foreground font-medium">+CHF {flavorExtra}</span>
+                        </div>
+                      ) : null;
+                    })()}
+                    
+                    {/* Style Extra */}
+                    {selections.style && (() => {
+                      const style = styles.find(s => s.id === selections.style);
+                      const styleExtra = style ? getStylePrice(style) : 0;
+                      return styleExtra > 0 ? (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{style?.name} (style)</span>
+                          <span className="text-foreground font-medium">+CHF {styleExtra}</span>
+                        </div>
+                      ) : null;
+                    })()}
+                    
+                    {/* Extras */}
+                    {selections.extras.length > 0 && selections.extras.map(extraId => {
+                      const extra = extras.find(e => e.id === extraId);
+                      if (!extra) return null;
+                      const extraPrice = getExtraPrice(extra);
+                      return (
+                        <div key={extraId} className="flex justify-between">
+                          <span className="text-muted-foreground">{extra.name}</span>
+                          <span className="text-foreground font-medium">+CHF {extraPrice}</span>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Divider and Total */}
+                    <div className="border-t border-muted pt-2 mt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span className="text-foreground">Total</span>
+                        <span className="text-primary">CHF {calculateTotal()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {currentStep < steps.length - 1 ? (
