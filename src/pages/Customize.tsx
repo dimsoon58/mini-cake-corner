@@ -57,12 +57,30 @@ const textColors = [
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
   { id: "cream", name: "Cream", color: "#FFFDD0" },
+  { id: "beige", name: "Beige", color: "#F5F5DC" },
+  { id: "pastel-pink", name: "Pastel Pink", color: "#FFD1DC" },
   { id: "pink", name: "Pink", color: "#FFC0CB" },
-  { id: "baby-blue", name: "Baby Blue", color: "#89CFF0" },
+  { id: "dark-pink", name: "Dark Pink", color: "#E75480" },
+  { id: "light-red", name: "Light Red", color: "#FF6B6B" },
+  { id: "dark-red", name: "Dark Red", color: "#DC143C" },
+  { id: "burgundy", name: "Burgundy", color: "#800020" },
+  { id: "pastel-yellow", name: "Pastel Yellow", color: "#FDFD96" },
+  { id: "yellow", name: "Yellow", color: "#FFD700" },
+  { id: "orange", name: "Orange", color: "#FFA500" },
+  { id: "pastel-orange", name: "Pastel Orange", color: "#FFB347" },
+  { id: "pastel-green", name: "Pastel Green", color: "#98FB98" },
+  { id: "green", name: "Green", color: "#3CB371" },
+  { id: "forest-green", name: "Forest Green", color: "#228B22" },
+  { id: "pastel-blue", name: "Pastel Blue", color: "#AEC6CF" },
+  { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
+  { id: "teal-blue", name: "Teal Blue", color: "#008080" },
+  { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
   { id: "lavender", name: "Lavender", color: "#E6E6FA" },
-  { id: "mint", name: "Mint", color: "#98FF98" },
-  { id: "peach", name: "Peach", color: "#FFCBA4" },
-  { id: "chocolate", name: "Chocolate", color: "#7B3F00" },
+  { id: "mauve", name: "Mauve", color: "#E0B0FF" },
+  { id: "plum", name: "Plum", color: "#8E4585" },
+  { id: "light-brown", name: "Light Brown", color: "#C4A484" },
+  { id: "dark-brown", name: "Dark Brown", color: "#654321" },
+  { id: "black", name: "Black", color: "#000000" },
 ];
 
 const sizes = [
@@ -112,6 +130,7 @@ const flavorCategories = [
 ];
 
 const styles = [
+  { id: "normal", name: "Normal", price: { bento: 0, medium: 0, large: 0 } },
   { id: "retro-vintage", name: "Retro / Vintage", price: { bento: 5, medium: 15, large: 20 } },
   { id: "heart-bomb", name: "Heart Bomb", price: { bento: 5, medium: 10, large: 15 } },
   { id: "shag-cake", name: "Shag Cake", price: { bento: 8, medium: 20, large: 30 } },
@@ -183,6 +202,7 @@ const Customize = () => {
     flavor: string | null;
     style: string | null;
     baseColor: string | null;
+    wantsText: boolean;
     cakeText: string;
     textColor: string | null;
     candles: { id: string; quantity: number; hasPack: boolean }[];
@@ -196,6 +216,7 @@ const Customize = () => {
     flavor: null,
     style: null,
     baseColor: null,
+    wantsText: false,
     cakeText: "",
     textColor: null,
     candles: [],
@@ -327,9 +348,10 @@ const Customize = () => {
       case 3:
         return selections.flavor !== null;
       case 4:
-        return selections.style !== null;
+        return selections.style !== null && selections.baseColor !== null;
       case 5:
-        return true; // Text/Phrase is optional
+        // If user wants text, they must write something
+        return !selections.wantsText || (selections.wantsText && selections.cakeText.trim().length > 0);
       case 6:
         return true; // Candles is optional
       case 7:
@@ -652,25 +674,31 @@ const Customize = () => {
               {/* Base Color Selection */}
               <div className="space-y-4 pt-6 border-t border-border">
                 <h3 className="text-xl font-semibold text-center text-foreground">
-                  Choose Your Base Color
+                  Choose Your Base Color <span className="text-destructive">*</span>
                 </h3>
-                <div className="grid grid-cols-4 sm:grid-cols-8 gap-3 max-w-2xl mx-auto">
+                <p className="text-sm text-muted-foreground text-center">Required to continue</p>
+                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-9 gap-3 max-w-4xl mx-auto">
                   {baseColors.map((color) => (
                     <button
                       key={color.id}
                       onClick={() => handleSelectBaseColor(color.id)}
                       className={cn(
-                        "flex flex-col items-center gap-2 p-3 rounded-lg border transition-all",
+                        "flex flex-col items-center gap-2 p-2 rounded-lg border transition-all",
                         selections.baseColor === color.id
-                          ? "ring-2 ring-primary border-primary"
+                          ? "ring-2 ring-primary border-primary bg-secondary"
                           : "border-border hover:border-primary/50"
                       )}
                     >
                       <div
-                        className="w-10 h-10 rounded-full border border-border"
+                        className={cn(
+                          "w-10 h-10 rounded-full border-2",
+                          color.id === "white" || color.id === "cream" || color.id === "beige"
+                            ? "border-muted-foreground/30"
+                            : "border-transparent"
+                        )}
                         style={{ backgroundColor: color.color }}
                       />
-                      <span className="text-xs text-foreground">{color.name}</span>
+                      <span className="text-xs text-foreground text-center leading-tight">{color.name}</span>
                     </button>
                   ))}
                 </div>
@@ -682,54 +710,94 @@ const Customize = () => {
           {currentStep === 5 && (
             <div className="space-y-8">
               <h2 className="text-3xl font-bold text-center text-foreground">
-                Add Text / Phrase (Optional)
+                Add Text / Phrase
               </h2>
               
               <div className="max-w-md mx-auto space-y-6">
-                <div className="space-y-2">
-                  <label htmlFor="cakeText" className="block text-sm font-medium text-foreground">
-                    Your Message
-                  </label>
-                  <input
-                    type="text"
-                    id="cakeText"
-                    value={selections.cakeText}
-                    onChange={(e) => handleCakeTextChange(e.target.value)}
-                    placeholder="e.g., Happy Birthday Sarah!"
-                    maxLength={50}
-                    className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <p className="text-xs text-muted-foreground text-right">
-                    {selections.cakeText.length}/50 characters
-                  </p>
+                {/* Toggle for No Text / Add Text */}
+                <div className="flex justify-center gap-4">
+                  <button
+                    onClick={() => setSelections({ ...selections, wantsText: false, cakeText: "", textColor: null })}
+                    className={cn(
+                      "px-6 py-3 rounded-lg font-medium transition-all",
+                      !selections.wantsText
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    )}
+                  >
+                    No Text
+                  </button>
+                  <button
+                    onClick={() => setSelections({ ...selections, wantsText: true })}
+                    className={cn(
+                      "px-6 py-3 rounded-lg font-medium transition-all",
+                      selections.wantsText
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    )}
+                  >
+                    Add Text
+                  </button>
                 </div>
 
-                {selections.cakeText.length > 0 && (
-                  <div className="space-y-3">
-                    <label className="block text-sm font-medium text-foreground">
-                      Text Color
-                    </label>
-                    <div className="grid grid-cols-4 gap-3">
-                      {textColors.map((color) => (
-                        <button
-                          key={color.id}
-                          onClick={() => handleSelectTextColor(color.id)}
-                          className={cn(
-                            "flex flex-col items-center gap-2 p-3 rounded-lg border transition-all",
-                            selections.textColor === color.id
-                              ? "ring-2 ring-primary border-primary"
-                              : "border-border hover:border-primary/50"
-                          )}
-                        >
-                          <div
-                            className="w-8 h-8 rounded-full border border-border"
-                            style={{ backgroundColor: color.color }}
-                          />
-                          <span className="text-xs text-foreground">{color.name}</span>
-                        </button>
-                      ))}
+                {selections.wantsText && (
+                  <>
+                    <div className="space-y-2">
+                      <label htmlFor="cakeText" className="block text-sm font-medium text-foreground">
+                        Your Message <span className="text-destructive">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="cakeText"
+                        value={selections.cakeText}
+                        onChange={(e) => handleCakeTextChange(e.target.value)}
+                        placeholder="e.g., Happy Birthday Sarah!"
+                        maxLength={30}
+                        className={cn(
+                          "w-full px-4 py-3 border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary",
+                          selections.wantsText && selections.cakeText.trim().length === 0
+                            ? "border-destructive"
+                            : "border-border"
+                        )}
+                      />
+                      <div className="flex justify-between">
+                        {selections.wantsText && selections.cakeText.trim().length === 0 && (
+                          <p className="text-xs text-destructive">Please enter your message</p>
+                        )}
+                        <p className="text-xs text-muted-foreground ml-auto">
+                          {selections.cakeText.length}/30 characters
+                        </p>
+                      </div>
                     </div>
-                  </div>
+
+                    {selections.cakeText.length > 0 && (
+                      <div className="space-y-3">
+                        <label className="block text-sm font-medium text-foreground">
+                          Text Color
+                        </label>
+                        <div className="grid grid-cols-4 gap-3">
+                          {textColors.map((color) => (
+                            <button
+                              key={color.id}
+                              onClick={() => handleSelectTextColor(color.id)}
+                              className={cn(
+                                "flex flex-col items-center gap-2 p-3 rounded-lg border transition-all",
+                                selections.textColor === color.id
+                                  ? "ring-2 ring-primary border-primary"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                            >
+                              <div
+                                className="w-8 h-8 rounded-full border border-border"
+                                style={{ backgroundColor: color.color }}
+                              />
+                              <span className="text-xs text-foreground">{color.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
