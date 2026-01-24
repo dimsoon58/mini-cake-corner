@@ -20,9 +20,10 @@ import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
 import flavorTiramisu from "@/assets/flavor-tiramisu.png";
 import flavorPraline from "@/assets/flavor-praline.png";
 import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
-import flavorVanillaGF from "@/assets/flavor-vanilla-gf.png";
-import flavorRedVelvetGF from "@/assets/flavor-red-velvet-gf.png";
-import flavorChocolateGF from "@/assets/flavor-chocolate-gf.png";
+// Gluten-free flavors use the same images as regular ones
+const flavorVanillaGF = flavorVanilla;
+const flavorRedVelvetGF = flavorRedVelvet;
+const flavorChocolateGF = flavorChocolate;
 
 const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras"];
 
