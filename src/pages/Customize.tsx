@@ -211,6 +211,7 @@ const Customize = () => {
     flavor: string | null;
     style: string | null;
     baseColor: string | null;
+    decorationColor: string | null;
     wantsText: boolean;
     cakeText: string;
     textColor: string | null;
@@ -229,6 +230,7 @@ const Customize = () => {
     flavor: null,
     style: null,
     baseColor: null,
+    decorationColor: null,
     wantsText: false,
     cakeText: "",
     textColor: null,
@@ -281,6 +283,10 @@ const Customize = () => {
 
   const handleSelectBaseColor = (colorId: string) => {
     setSelections({ ...selections, baseColor: colorId });
+  };
+
+  const handleSelectDecorationColor = (colorId: string) => {
+    setSelections({ ...selections, decorationColor: colorId });
   };
 
   const handleCakeTextChange = (text: string) => {
@@ -428,6 +434,7 @@ const Customize = () => {
     const flavor = flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor);
     const style = styles.find(s => s.id === selections.style);
     const selectedBaseColor = baseColors.find(c => c.id === selections.baseColor);
+    const selectedDecorationColor = baseColors.find(c => c.id === selections.decorationColor);
     const selectedTextColor = textColors.find(c => c.id === selections.textColor);
     const extrasNames = selections.extras.map(id => extras.find(e => e.id === id)?.name || "");
     
@@ -447,6 +454,8 @@ const Customize = () => {
       styleName: style?.name || "",
       baseColor: selections.baseColor || "",
       baseColorName: selectedBaseColor?.name || "",
+      decorationColor: selections.decorationColor || "",
+      decorationColorName: selectedDecorationColor?.name || "",
       cakeText: selections.cakeText,
       textColor: selections.textColor || "",
       textColorName: selectedTextColor?.name || "",
@@ -703,6 +712,39 @@ const Customize = () => {
                       className={cn(
                         "flex flex-col items-center gap-2 p-2 rounded-lg border transition-all",
                         selections.baseColor === color.id
+                          ? "ring-2 ring-primary border-primary bg-secondary"
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "w-10 h-10 rounded-full border-2",
+                          color.id === "white" || color.id === "cream" || color.id === "beige"
+                            ? "border-muted-foreground/30"
+                            : "border-transparent"
+                        )}
+                        style={{ backgroundColor: color.color }}
+                      />
+                      <span className="text-xs text-foreground text-center leading-tight">{color.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Decoration Color Selection */}
+              <div className="space-y-4 pt-6 border-t border-border">
+                <h3 className="text-xl font-semibold text-center text-foreground">
+                  Choose Your Decoration Color
+                </h3>
+                <p className="text-sm text-muted-foreground text-center">Optional - for decorations like piping, flowers, etc.</p>
+                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-9 gap-3 max-w-4xl mx-auto">
+                  {baseColors.map((color) => (
+                    <button
+                      key={color.id}
+                      onClick={() => handleSelectDecorationColor(color.id)}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-2 rounded-lg border transition-all",
+                        selections.decorationColor === color.id
                           ? "ring-2 ring-primary border-primary bg-secondary"
                           : "border-border hover:border-primary/50"
                       )}
