@@ -297,6 +297,10 @@ const Customize = () => {
       const extra = extras.find((e) => e.id === extraId);
       return acc + (extra ? getExtraPrice(extra) : 0);
     }, 0);
+    const candlesPrice = selections.candles.reduce((acc, candleId) => {
+      const candle = candles.find((c) => c.id === candleId);
+      return acc + (candle ? getCandlePrice(candle) : 0);
+    }, 0);
     const selectedShape = shapes.find((s) => s.id === selections.shape);
     const shapeExtra = selectedShape && selections.size 
       ? selectedShape.extraPrice[selections.size as keyof typeof selectedShape.extraPrice] || 0
@@ -304,7 +308,7 @@ const Customize = () => {
     const flavorExtra = getFlavorCategoryExtra();
     const selectedStyle = styles.find((s) => s.id === selections.style);
     const styleExtra = selectedStyle ? getStylePrice(selectedStyle) : 0;
-    return sizePrice + extrasPrice + shapeExtra + flavorExtra + styleExtra;
+    return sizePrice + extrasPrice + candlesPrice + shapeExtra + flavorExtra + styleExtra;
   };
 
   const handleAddToCart = () => {
