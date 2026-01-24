@@ -853,6 +853,19 @@ const Customize = () => {
                       ) : null;
                     })()}
                     
+                    {/* Candles */}
+                    {selections.candles.length > 0 && selections.candles.map(candleId => {
+                      const candle = candles.find(c => c.id === candleId);
+                      if (!candle) return null;
+                      const candlePrice = getCandlePrice(candle);
+                      return (
+                        <div key={candleId} className="flex justify-between">
+                          <span className="text-muted-foreground">{candle.name} (candle)</span>
+                          <span className="text-foreground font-medium">+CHF {candlePrice}</span>
+                        </div>
+                      );
+                    })}
+                    
                     {/* Extras */}
                     {selections.extras.length > 0 && selections.extras.map(extraId => {
                       const extra = extras.find(e => e.id === extraId);
