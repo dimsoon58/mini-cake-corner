@@ -134,20 +134,23 @@ const extras = [
 ];
 
 const candles = [
-  { id: "puppy", name: "Puppy", image: candlePuppy, price: { bento: 2, medium: 2, large: 2 } },
-  { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, price: { bento: 2, medium: 2, large: 2 } },
-  { id: "cherry", name: "Cherry", image: candleCherry, price: { bento: 2, medium: 2, large: 2 } },
-  { id: "heart", name: "Red Heart", image: candleHeart, price: { bento: 2, medium: 2, large: 2 } },
-  { id: "soccer", name: "Footy Flame", image: candleSoccer, price: { bento: 2, medium: 2, large: 2 } },
-  { id: "pink-car", name: "Pink Car", image: candleCar, price: { bento: 2, medium: 2, large: 2 } },
-  { id: "red-car", name: "Red Car", image: candleRedCar, price: { bento: 2, medium: 2, large: 2 } },
-  { id: "blue-car", name: "Blue Car", image: candleBlueCar, price: { bento: 2, medium: 2, large: 2 } },
-  { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, price: { bento: 2, medium: 2, large: 2 } },
-  { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, price: { bento: 1, medium: 1, large: 1 } },
-  { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, price: { bento: 1, medium: 1, large: 1 } },
-  { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, price: { bento: 1, medium: 1, large: 1 } },
-  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, price: { bento: 2, medium: 2, large: 2 } },
-  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, price: { bento: 1, medium: 1, large: 1 } },
+  // Figurines - unit only
+  { id: "puppy", name: "Puppy", image: candlePuppy, unitPrice: 2, hasPack: false },
+  { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, unitPrice: 2, hasPack: false },
+  { id: "cherry", name: "Cherry", image: candleCherry, unitPrice: 2, hasPack: false },
+  { id: "heart", name: "Red Heart", image: candleHeart, unitPrice: 2, hasPack: false },
+  { id: "soccer", name: "Footy Flame", image: candleSoccer, unitPrice: 2, hasPack: false },
+  { id: "pink-car", name: "Pink Car", image: candleCar, unitPrice: 2, hasPack: false },
+  { id: "red-car", name: "Red Car", image: candleRedCar, unitPrice: 2, hasPack: false },
+  { id: "blue-car", name: "Blue Car", image: candleBlueCar, unitPrice: 2, hasPack: false },
+  { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, unitPrice: 2, hasPack: false },
+  // Ombré - unit + pack (6)
+  { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  // Spirals - unit + pack (6)
+  { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
+  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
 ];
 
 const ribbonColors = [
@@ -182,7 +185,7 @@ const Customize = () => {
     baseColor: string | null;
     cakeText: string;
     textColor: string | null;
-    candles: string[];
+    candles: { id: string; isPack: boolean }[];
     extras: string[];
     ribbonColor: string | null;
     butterflyColor: string | null;
@@ -257,16 +260,39 @@ const Customize = () => {
     setSelections({ ...selections, extras: newExtras });
   };
 
-  const handleToggleCandle = (candleId: string) => {
-    const newCandles = selections.candles.includes(candleId)
-      ? selections.candles.filter((c) => c !== candleId)
-      : [...selections.candles, candleId];
+  const handleSelectCandle = (candleId: string, isPack: boolean) => {
+    const existingIndex = selections.candles.findIndex((c) => c.id === candleId);
+    let newCandles;
+    
+    if (existingIndex >= 0) {
+      const existing = selections.candles[existingIndex];
+      if (existing.isPack === isPack) {
+        // Same option clicked - remove it
+        newCandles = selections.candles.filter((c) => c.id !== candleId);
+      } else {
+        // Different option - update it
+        newCandles = [...selections.candles];
+        newCandles[existingIndex] = { id: candleId, isPack };
+      }
+    } else {
+      // Add new selection
+      newCandles = [...selections.candles, { id: candleId, isPack }];
+    }
     setSelections({ ...selections, candles: newCandles });
   };
 
-  const getCandlePrice = (candle: typeof candles[0]) => {
-    if (!selections.size) return 0;
-    return candle.price[selections.size as keyof typeof candle.price] || 0;
+  const getCandlePrice = (candleId: string) => {
+    const selection = selections.candles.find((c) => c.id === candleId);
+    const candle = candles.find((c) => c.id === candleId);
+    if (!candle) return 0;
+    if (selection?.isPack && candle.hasPack) {
+      return candle.packPrice || 0;
+    }
+    return candle.unitPrice;
+  };
+
+  const isCandleSelected = (candleId: string, isPack: boolean) => {
+    return selections.candles.some((c) => c.id === candleId && c.isPack === isPack);
   };
 
   const canProceed = () => {
@@ -317,9 +343,8 @@ const Customize = () => {
       const extra = extras.find((e) => e.id === extraId);
       return acc + (extra ? getExtraPrice(extra) : 0);
     }, 0);
-    const candlesPrice = selections.candles.reduce((acc, candleId) => {
-      const candle = candles.find((c) => c.id === candleId);
-      return acc + (candle ? getCandlePrice(candle) : 0);
+    const candlesPrice = selections.candles.reduce((acc, candleSelection) => {
+      return acc + getCandlePrice(candleSelection.id);
     }, 0);
     const selectedShape = shapes.find((s) => s.id === selections.shape);
     const shapeExtra = selectedShape && selections.size 
@@ -690,29 +715,61 @@ const Customize = () => {
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Candles (Optional)
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto">
-                {candles.map((candle) => (
-                  <Card
-                    key={candle.id}
-                    className={cn(
-                      "cursor-pointer transition-all hover:shadow-lg",
-                      selections.candles.includes(candle.id)
-                        ? "ring-2 ring-primary bg-secondary"
-                        : "hover:bg-muted/50"
-                    )}
-                    onClick={() => handleToggleCandle(candle.id)}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <img
-                        src={candle.image}
-                        alt={candle.name}
-                        className="h-32 w-full object-contain mb-3"
-                      />
-                      <h3 className="font-medium text-foreground">{candle.name}</h3>
-                      <p className="text-primary font-bold mt-1">+CHF {getCandlePrice(candle)}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
+                {candles.map((candle) => {
+                  const isUnitSelected = isCandleSelected(candle.id, false);
+                  const isPackSelected = candle.hasPack && isCandleSelected(candle.id, true);
+                  const isAnySelected = isUnitSelected || isPackSelected;
+                  
+                  return (
+                    <Card
+                      key={candle.id}
+                      className={cn(
+                        "transition-all hover:shadow-lg",
+                        isAnySelected
+                          ? "ring-2 ring-primary bg-secondary"
+                          : "hover:bg-muted/50"
+                      )}
+                    >
+                      <CardContent className="p-4 text-center">
+                        <img
+                          src={candle.image}
+                          alt={candle.name}
+                          className="h-28 w-full object-contain mb-3"
+                        />
+                        <h3 className="font-medium text-foreground mb-2">{candle.name}</h3>
+                        
+                        {/* Unit selection */}
+                        <button
+                          onClick={() => handleSelectCandle(candle.id, false)}
+                          className={cn(
+                            "w-full py-1.5 px-2 rounded text-sm transition-all mb-1",
+                            isUnitSelected
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted hover:bg-muted/80 text-foreground"
+                          )}
+                        >
+                          +CHF {candle.unitPrice} / pièce
+                        </button>
+                        
+                        {/* Pack selection (if available) */}
+                        {candle.hasPack && (
+                          <button
+                            onClick={() => handleSelectCandle(candle.id, true)}
+                            className={cn(
+                              "w-full py-1.5 px-2 rounded text-sm transition-all",
+                              isPackSelected
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted hover:bg-muted/80 text-foreground"
+                            )}
+                          >
+                            +CHF {candle.packPrice} / Pack ({candle.packSize})
+                          </button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -874,13 +931,16 @@ const Customize = () => {
                     })()}
                     
                     {/* Candles */}
-                    {selections.candles.length > 0 && selections.candles.map(candleId => {
-                      const candle = candles.find(c => c.id === candleId);
+                    {selections.candles.length > 0 && selections.candles.map(candleSelection => {
+                      const candle = candles.find(c => c.id === candleSelection.id);
                       if (!candle) return null;
-                      const candlePrice = getCandlePrice(candle);
+                      const candlePrice = getCandlePrice(candleSelection.id);
+                      const label = candleSelection.isPack && candle.hasPack 
+                        ? `${candle.name} (Pack ${candle.packSize})` 
+                        : `${candle.name} (pièce)`;
                       return (
-                        <div key={candleId} className="flex justify-between">
-                          <span className="text-muted-foreground">{candle.name} (candle)</span>
+                        <div key={`${candleSelection.id}-${candleSelection.isPack}`} className="flex justify-between">
+                          <span className="text-muted-foreground">{label}</span>
                           <span className="text-foreground font-medium">+CHF {candlePrice}</span>
                         </div>
                       );
