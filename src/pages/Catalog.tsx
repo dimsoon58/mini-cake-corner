@@ -22,12 +22,24 @@ import candleRedCar from "@/assets/candle-red-car.png";
 import candleBlueCar from "@/assets/candle-blue-car.png";
 import candleYellowCar from "@/assets/candle-yellow-car.png";
 import candleHeart from "@/assets/candle-heart.png";
-import catalogRetroVintage from "@/assets/catalog-retro-vintage.png";
-import catalogHeartBomb from "@/assets/catalog-heart-bomb.png";
-import catalogShagCake from "@/assets/catalog-shag-cake.png";
-import catalogRainbow from "@/assets/catalog-rainbow.png";
-import catalogRoses from "@/assets/catalog-roses.png";
-import catalogButterfly from "@/assets/catalog-butterfly.png";
+import designRetroCake from "@/assets/design-retro-cake.png";
+import designRainbowCake from "@/assets/design-rainbow-cake.png";
+import designShagCake from "@/assets/design-shag-cake.png";
+import designGoldLeaves from "@/assets/design-gold-leaves.png";
+import designScatteredPearls from "@/assets/design-scattered-pearls.png";
+import designPearlBorders from "@/assets/design-pearl-borders.png";
+import designCherries from "@/assets/design-cherries.png";
+import designGlitterCherries from "@/assets/design-glitter-cherries.png";
+import designRibbons from "@/assets/design-ribbons.png";
+import designGlitterCake from "@/assets/design-glitter-cake.png";
+import designGlitterInAir from "@/assets/design-glitter-in-air.png";
+import designHeartBomb from "@/assets/design-heart-bomb.png";
+import designGenderReveal from "@/assets/design-gender-reveal.png";
+import designPrintedPicture from "@/assets/design-printed-picture.png";
+import designDrawing from "@/assets/design-drawing.png";
+import designRosesPlease from "@/assets/design-roses-please.png";
+import designButterflyGarden from "@/assets/design-butterfly-garden.png";
+import designPearlNumber from "@/assets/design-pearl-number.png";
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -101,10 +113,10 @@ const candles = [
 
 const catalog = [
   {
-    id: "retro-vintage",
+    id: "retro-cake",
     name: "Retro Cake",
     description: "Vintage style with elegant decorations",
-    image: catalogRetroVintage,
+    image: designRetroCake,
     styleId: "retro-vintage",
     styleName: "Retro / Vintage",
     stylePrice: { bento: 5, medium: 15, large: 20 },
@@ -113,7 +125,7 @@ const catalog = [
     id: "rainbow-cake",
     name: "Rainbow Cake",
     description: "Vibrant rainbow layers and colorful swirls",
-    image: catalogRainbow,
+    image: designRainbowCake,
     styleId: "rainbow-cake",
     styleName: "Rainbow Cake",
     stylePrice: { bento: 7, medium: 17, large: 30 },
@@ -122,7 +134,7 @@ const catalog = [
     id: "shag-cake",
     name: "Shag Cake",
     description: "Fluffy textured frosting",
-    image: catalogShagCake,
+    image: designShagCake,
     styleId: "shag-cake",
     styleName: "Shag Cake",
     stylePrice: { bento: 8, medium: 20, large: 30 },
@@ -131,7 +143,7 @@ const catalog = [
     id: "gold-leaves",
     name: "Gold Leaves",
     description: "Elegant cake with gold leaf accents",
-    image: catalogRetroVintage,
+    image: designGoldLeaves,
     styleId: "gold-leaves-style",
     styleName: "Gold Leaves",
     stylePrice: { bento: 2, medium: 4, large: 6 },
@@ -140,7 +152,7 @@ const catalog = [
     id: "scattered-pearls",
     name: "Scattered Pearls",
     description: "Delicate pearls scattered across the cake",
-    image: catalogHeartBomb,
+    image: designScatteredPearls,
     styleId: "scattered-pearls",
     styleName: "Scattered Pearls",
     stylePrice: { bento: 2, medium: 5, large: 7 },
@@ -149,7 +161,7 @@ const catalog = [
     id: "pearl-borders",
     name: "Pearl Borders",
     description: "Elegant pearl border decoration",
-    image: catalogRoses,
+    image: designPearlBorders,
     styleId: "pearl-borders",
     styleName: "Pearl Borders",
     stylePrice: { bento: 8, medium: 15, large: 20 },
@@ -158,7 +170,7 @@ const catalog = [
     id: "cherries",
     name: "Cherries",
     description: "Fresh cherry decorations",
-    image: catalogButterfly,
+    image: designCherries,
     styleId: "cherries-style",
     styleName: "Cherries",
     stylePrice: { bento: 4, medium: 8, large: 12 },
@@ -167,7 +179,7 @@ const catalog = [
     id: "glitter-cherries",
     name: "Glitter Cherries",
     description: "Sparkling cherry decorations",
-    image: catalogButterfly,
+    image: designGlitterCherries,
     styleId: "glitter-cherries-style",
     styleName: "Glitter Cherries",
     stylePrice: { bento: 6, medium: 10, large: 15 },
@@ -176,7 +188,7 @@ const catalog = [
     id: "ribbons",
     name: "Ribbons",
     description: "Beautiful ribbon decorations",
-    image: catalogRoses,
+    image: designRibbons,
     styleId: "ribbons-style",
     styleName: "Ribbons",
     stylePrice: { bento: 10, medium: 20, large: 30 },
@@ -185,7 +197,7 @@ const catalog = [
     id: "glitter-cake",
     name: "Glitter Cake",
     description: "Sparkly glitter finish",
-    image: catalogShagCake,
+    image: designGlitterCake,
     styleId: "glitter-cake",
     styleName: "Glitter Cake",
     stylePrice: { bento: 6, medium: 8, large: 12 },
@@ -194,7 +206,7 @@ const catalog = [
     id: "glitter-in-the-air",
     name: "Glitter in the Air",
     description: "Floating glitter effect",
-    image: catalogRainbow,
+    image: designGlitterInAir,
     styleId: "glitter-in-the-air",
     styleName: "Glitter in the Air",
     stylePrice: { bento: 5, medium: 7, large: 10 },
@@ -203,7 +215,7 @@ const catalog = [
     id: "heart-bomb",
     name: "Heart Bomb",
     description: "Covered in dozens of candy hearts",
-    image: catalogHeartBomb,
+    image: designHeartBomb,
     styleId: "heart-bomb",
     styleName: "Heart Bomb",
     stylePrice: { bento: 5, medium: 10, large: 15 },
@@ -212,7 +224,7 @@ const catalog = [
     id: "gender-reveal",
     name: "Gender Reveal",
     description: "Perfect for your special announcement",
-    image: catalogRetroVintage,
+    image: designGenderReveal,
     styleId: "gender-reveal",
     styleName: "Gender Reveal",
     stylePrice: { bento: 5, medium: 10, large: 20 },
@@ -221,16 +233,16 @@ const catalog = [
     id: "printed-picture",
     name: "Printed Pictures / Logo",
     description: "Custom printed image or logo",
-    image: catalogRainbow,
+    image: designPrintedPicture,
     styleId: "printed-picture",
     styleName: "Printed Picture",
     stylePrice: { bento: 20, medium: 20, large: 20 },
   },
   {
-    id: "custom-drawing",
+    id: "drawing",
     name: "Drawing",
     description: "Hand-drawn custom design",
-    image: catalogButterfly,
+    image: designDrawing,
     styleId: "custom-drawing",
     styleName: "Custom Drawing",
     stylePrice: { bento: 5, medium: 5, large: 5 },
@@ -239,7 +251,7 @@ const catalog = [
     id: "roses-please",
     name: "Roses Please",
     description: "Elegant buttercream roses",
-    image: catalogRoses,
+    image: designRosesPlease,
     styleId: "roses-please",
     styleName: "Roses Please",
     stylePrice: { bento: 7, medium: 15, large: 20 },
@@ -248,7 +260,7 @@ const catalog = [
     id: "butterfly-garden",
     name: "Butterfly Garden",
     description: "Whimsical butterflies and spring flowers",
-    image: catalogButterfly,
+    image: designButterflyGarden,
     styleId: "butterfly-garden",
     styleName: "Butterfly Garden",
     stylePrice: { bento: 7, medium: 15, large: 20 },
@@ -257,7 +269,7 @@ const catalog = [
     id: "pearl-number",
     name: "Pearl Number",
     description: "Numbers decorated with pearls",
-    image: catalogHeartBomb,
+    image: designPearlNumber,
     styleId: "pearl-number",
     styleName: "Pearl Number",
     stylePrice: { bento: 5, medium: 5, large: 5 },
