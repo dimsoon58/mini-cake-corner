@@ -14,6 +14,9 @@ import corporateEvent6 from "@/assets/corporate-event-6.png";
 import corporateEvent7 from "@/assets/corporate-event-7.png";
 import corporateEvent8 from "@/assets/corporate-event-8.png";
 import corporateEvent9 from "@/assets/corporate-event-9.png";
+import corporateEvent10 from "@/assets/corporate-event-10.png";
+import corporateEvent11 from "@/assets/corporate-event-11.png";
+import corporateEvent12 from "@/assets/corporate-event-12.png";
 
 const pressArticles = [
   {
@@ -107,6 +110,24 @@ const corporateEvents = [
     image: corporateEvent9,
     title: "Collection Corporate",
     description: "Assortiment de gâteaux personnalisés pour événement de marque"
+  },
+  {
+    id: 10,
+    image: corporateEvent10,
+    title: "Surya Children Event",
+    description: "Gâteau bleu élégant personnalisé pour événement caritatif"
+  },
+  {
+    id: 11,
+    image: corporateEvent11,
+    title: "Atelier Cake Decorating",
+    description: "Workshop de décoration de gâteaux pour team building corporate"
+  },
+  {
+    id: 12,
+    image: corporateEvent12,
+    title: "Gâteau Baroque Bleu",
+    description: "Création artistique avec détails vintage pour événement prestigieux"
   }
 ];
 
