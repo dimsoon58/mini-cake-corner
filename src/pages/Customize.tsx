@@ -185,7 +185,7 @@ const Customize = () => {
     baseColor: string | null;
     cakeText: string;
     textColor: string | null;
-    candles: { id: string; isPack: boolean }[];
+    candles: { id: string; quantity: number; hasPack: boolean }[];
     extras: string[];
     ribbonColor: string | null;
     butterflyColor: string | null;
@@ -260,39 +260,60 @@ const Customize = () => {
     setSelections({ ...selections, extras: newExtras });
   };
 
-  const handleSelectCandle = (candleId: string, isPack: boolean) => {
-    const existingIndex = selections.candles.findIndex((c) => c.id === candleId);
-    let newCandles;
+  const handleCandleQuantityChange = (candleId: string, delta: number) => {
+    const existingIndex = selections.candles.findIndex((c) => c.id === candleId && !c.hasPack);
+    let newCandles = [...selections.candles];
     
     if (existingIndex >= 0) {
-      const existing = selections.candles[existingIndex];
-      if (existing.isPack === isPack) {
-        // Same option clicked - remove it
-        newCandles = selections.candles.filter((c) => c.id !== candleId);
+      const newQty = newCandles[existingIndex].quantity + delta;
+      if (newQty <= 0) {
+        newCandles = newCandles.filter((_, i) => i !== existingIndex);
       } else {
-        // Different option - update it
-        newCandles = [...selections.candles];
-        newCandles[existingIndex] = { id: candleId, isPack };
+        newCandles[existingIndex] = { ...newCandles[existingIndex], quantity: newQty };
       }
-    } else {
-      // Add new selection
-      newCandles = [...selections.candles, { id: candleId, isPack }];
+    } else if (delta > 0) {
+      newCandles.push({ id: candleId, quantity: 1, hasPack: false });
     }
     setSelections({ ...selections, candles: newCandles });
   };
 
-  const getCandlePrice = (candleId: string) => {
-    const selection = selections.candles.find((c) => c.id === candleId);
-    const candle = candles.find((c) => c.id === candleId);
-    if (!candle) return 0;
-    if (selection?.isPack && candle.hasPack) {
-      return candle.packPrice || 0;
+  const handleToggleCandlePack = (candleId: string) => {
+    const existingIndex = selections.candles.findIndex((c) => c.id === candleId && c.hasPack);
+    let newCandles = [...selections.candles];
+    
+    if (existingIndex >= 0) {
+      // Remove pack
+      newCandles = newCandles.filter((_, i) => i !== existingIndex);
+    } else {
+      // Add pack
+      newCandles.push({ id: candleId, quantity: 1, hasPack: true });
     }
-    return candle.unitPrice;
+    setSelections({ ...selections, candles: newCandles });
   };
 
-  const isCandleSelected = (candleId: string, isPack: boolean) => {
-    return selections.candles.some((c) => c.id === candleId && c.isPack === isPack);
+  const getCandleUnitQuantity = (candleId: string) => {
+    const selection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
+    return selection?.quantity || 0;
+  };
+
+  const isCandlePackSelected = (candleId: string) => {
+    return selections.candles.some((c) => c.id === candleId && c.hasPack);
+  };
+
+  const getCandleTotalPrice = (candleId: string) => {
+    const candle = candles.find((c) => c.id === candleId);
+    if (!candle) return 0;
+    
+    let total = 0;
+    const unitSelection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
+    if (unitSelection) {
+      total += candle.unitPrice * unitSelection.quantity;
+    }
+    const packSelection = selections.candles.find((c) => c.id === candleId && c.hasPack);
+    if (packSelection && candle.hasPack) {
+      total += candle.packPrice || 0;
+    }
+    return total;
   };
 
   const canProceed = () => {
@@ -344,7 +365,12 @@ const Customize = () => {
       return acc + (extra ? getExtraPrice(extra) : 0);
     }, 0);
     const candlesPrice = selections.candles.reduce((acc, candleSelection) => {
-      return acc + getCandlePrice(candleSelection.id);
+      const candle = candles.find((c) => c.id === candleSelection.id);
+      if (!candle) return acc;
+      if (candleSelection.hasPack && candle.hasPack) {
+        return acc + (candle.packPrice || 0);
+      }
+      return acc + candle.unitPrice * candleSelection.quantity;
     }, 0);
     const selectedShape = shapes.find((s) => s.id === selections.shape);
     const shapeExtra = selectedShape && selections.size 
@@ -717,9 +743,9 @@ const Customize = () => {
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
                 {candles.map((candle) => {
-                  const isUnitSelected = isCandleSelected(candle.id, false);
-                  const isPackSelected = candle.hasPack && isCandleSelected(candle.id, true);
-                  const isAnySelected = isUnitSelected || isPackSelected;
+                  const unitQty = getCandleUnitQuantity(candle.id);
+                  const isPackSelected = candle.hasPack && isCandlePackSelected(candle.id);
+                  const isAnySelected = unitQty > 0 || isPackSelected;
                   
                   return (
                     <Card
@@ -738,32 +764,43 @@ const Customize = () => {
                           className="h-28 w-full object-contain mb-3"
                         />
                         <h3 className="font-medium text-foreground mb-2">{candle.name}</h3>
+                        <p className="text-xs text-muted-foreground mb-3">CHF {candle.unitPrice} / pièce</p>
                         
-                        {/* Unit selection */}
-                        <button
-                          onClick={() => handleSelectCandle(candle.id, false)}
-                          className={cn(
-                            "w-full py-1.5 px-2 rounded text-sm transition-all mb-1",
-                            isUnitSelected
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted hover:bg-muted/80 text-foreground"
-                          )}
-                        >
-                          +CHF {candle.unitPrice} / pièce
-                        </button>
+                        {/* Quantity selector for units */}
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <button
+                            onClick={() => handleCandleQuantityChange(candle.id, -1)}
+                            disabled={unitQty === 0}
+                            className={cn(
+                              "w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-all",
+                              unitQty === 0
+                                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}
+                          >
+                            −
+                          </button>
+                          <span className="w-8 text-center font-medium text-foreground">{unitQty}</span>
+                          <button
+                            onClick={() => handleCandleQuantityChange(candle.id, 1)}
+                            className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-lg font-bold hover:bg-primary/90 transition-all"
+                          >
+                            +
+                          </button>
+                        </div>
                         
-                        {/* Pack selection (if available) */}
+                        {/* Pack button (if available) */}
                         {candle.hasPack && (
                           <button
-                            onClick={() => handleSelectCandle(candle.id, true)}
+                            onClick={() => handleToggleCandlePack(candle.id)}
                             className={cn(
-                              "w-full py-1.5 px-2 rounded text-sm transition-all",
+                              "w-full py-1.5 px-2 rounded text-sm transition-all mt-2",
                               isPackSelected
                                 ? "bg-primary text-primary-foreground"
                                 : "bg-muted hover:bg-muted/80 text-foreground"
                             )}
                           >
-                            +CHF {candle.packPrice} / Pack ({candle.packSize})
+                            {isPackSelected ? "✓ " : ""}Pack ({candle.packSize}) — CHF {candle.packPrice}
                           </button>
                         )}
                       </CardContent>
@@ -934,12 +971,17 @@ const Customize = () => {
                     {selections.candles.length > 0 && selections.candles.map(candleSelection => {
                       const candle = candles.find(c => c.id === candleSelection.id);
                       if (!candle) return null;
-                      const candlePrice = getCandlePrice(candleSelection.id);
-                      const label = candleSelection.isPack && candle.hasPack 
-                        ? `${candle.name} (Pack ${candle.packSize})` 
-                        : `${candle.name} (pièce)`;
+                      let candlePrice: number;
+                      let label: string;
+                      if (candleSelection.hasPack && candle.hasPack) {
+                        candlePrice = candle.packPrice || 0;
+                        label = `${candle.name} (Pack ${candle.packSize})`;
+                      } else {
+                        candlePrice = candle.unitPrice * candleSelection.quantity;
+                        label = `${candle.name} x${candleSelection.quantity}`;
+                      }
                       return (
-                        <div key={`${candleSelection.id}-${candleSelection.isPack}`} className="flex justify-between">
+                        <div key={`${candleSelection.id}-${candleSelection.hasPack}`} className="flex justify-between">
                           <span className="text-muted-foreground">{label}</span>
                           <span className="text-foreground font-medium">+CHF {candlePrice}</span>
                         </div>
