@@ -30,6 +30,16 @@ import candlePuppy from "@/assets/candle-puppy.png";
 import candleCar from "@/assets/candle-car.png";
 import candleSoccer from "@/assets/candle-soccer.png";
 import candleCherry from "@/assets/candle-cherry.png";
+import candleTeddyBear from "@/assets/candle-teddy-bear.png";
+import candlePinkOmbre from "@/assets/candle-pink-ombre.png";
+import candleBlueOmbre from "@/assets/candle-blue-ombre.png";
+import candleThickSpiral from "@/assets/candle-thick-spiral.png";
+import candleSpiralPastel from "@/assets/candle-spiral-pastel.png";
+import candleShinySpiral from "@/assets/candle-shiny-spiral.png";
+import candleRedCar from "@/assets/candle-red-car.png";
+import candleBlueCar from "@/assets/candle-blue-car.png";
+import candleYellowCar from "@/assets/candle-yellow-car.png";
+import candleHeart from "@/assets/candle-heart.png";
 
 const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Candles", "Extras"];
 
@@ -125,9 +135,19 @@ const extras = [
 
 const candles = [
   { id: "puppy", name: "Puppy", image: candlePuppy, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "car", name: "Pink Car", image: candleCar, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "soccer", name: "Soccer Ball", image: candleSoccer, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, price: { bento: 5, medium: 5, large: 5 } },
   { id: "cherry", name: "Cherry", image: candleCherry, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "heart", name: "Heart", image: candleHeart, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "soccer", name: "Soccer Ball", image: candleSoccer, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "pink-car", name: "Pink Car", image: candleCar, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "red-car", name: "Red Car", image: candleRedCar, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "blue-car", name: "Blue Car", image: candleBlueCar, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "spiral-pastel", name: "Spiral Pastel", image: candleSpiralPastel, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, price: { bento: 5, medium: 5, large: 5 } },
 ];
 
 const ribbonColors = [
