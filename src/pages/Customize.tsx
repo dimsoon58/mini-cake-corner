@@ -134,20 +134,20 @@ const extras = [
 ];
 
 const candles = [
-  { id: "puppy", name: "Puppy", image: candlePuppy, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "cherry", name: "Cherry", image: candleCherry, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "heart", name: "Heart", image: candleHeart, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "soccer", name: "Soccer Ball", image: candleSoccer, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "pink-car", name: "Pink Car", image: candleCar, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "red-car", name: "Red Car", image: candleRedCar, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "blue-car", name: "Blue Car", image: candleBlueCar, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "spiral-pastel", name: "Spiral Pastel", image: candleSpiralPastel, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, price: { bento: 5, medium: 5, large: 5 } },
-  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, price: { bento: 5, medium: 5, large: 5 } },
+  { id: "puppy", name: "Puppy", image: candlePuppy, price: { bento: 2, medium: 2, large: 2 } },
+  { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, price: { bento: 2, medium: 2, large: 2 } },
+  { id: "cherry", name: "Cherry", image: candleCherry, price: { bento: 2, medium: 2, large: 2 } },
+  { id: "heart", name: "Red Heart", image: candleHeart, price: { bento: 2, medium: 2, large: 2 } },
+  { id: "soccer", name: "Footy Flame", image: candleSoccer, price: { bento: 2, medium: 2, large: 2 } },
+  { id: "pink-car", name: "Pink Car", image: candleCar, price: { bento: 2, medium: 2, large: 2 } },
+  { id: "red-car", name: "Red Car", image: candleRedCar, price: { bento: 2, medium: 2, large: 2 } },
+  { id: "blue-car", name: "Blue Car", image: candleBlueCar, price: { bento: 2, medium: 2, large: 2 } },
+  { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, price: { bento: 2, medium: 2, large: 2 } },
+  { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, price: { bento: 1, medium: 1, large: 1 } },
+  { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, price: { bento: 1, medium: 1, large: 1 } },
+  { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, price: { bento: 1, medium: 1, large: 1 } },
+  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, price: { bento: 2, medium: 2, large: 2 } },
+  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, price: { bento: 1, medium: 1, large: 1 } },
 ];
 
 const ribbonColors = [
