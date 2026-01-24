@@ -41,6 +41,8 @@ const features = [
   },
 ];
 
+import sizesBanner from "@/assets/sizes-banner.png";
+
 const homeSizes = [
   {
     name: "Mini Bento Cake",
@@ -48,7 +50,6 @@ const homeSizes = [
     servings: "2-4 servings",
     price: "From CHF 40",
     extra: "+CHF 3 Heart shape",
-    image: cakeMiniBento,
   },
   {
     name: "Medium Cake",
@@ -56,7 +57,6 @@ const homeSizes = [
     servings: "5-8 servings",
     price: "From CHF 80",
     extra: "+CHF 5 Heart shape",
-    image: null,
   },
   {
     name: "Large Cake",
@@ -64,7 +64,6 @@ const homeSizes = [
     servings: "12-16 servings",
     price: "From CHF 160",
     extra: "+CHF 10 Heart shape",
-    image: null,
   },
 ];
 
@@ -324,23 +323,26 @@ const Index = () => {
       {/* Sizes Section */}
       <section className="py-20 bg-cream">
         <div className="container mx-auto px-4">
-          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
+          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-8">
             SIZES
           </h2>
+          
+          {/* Banner Image */}
+          <div className="max-w-4xl mx-auto mb-12">
+            <img
+              src={sizesBanner}
+              alt="Cake sizes illustration"
+              className="w-full h-auto object-contain rounded-2xl"
+            />
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {homeSizes.map((size) => (
               <div
                 key={size.name}
                 className="p-8 text-center shadow-sm rounded-2xl flex flex-col"
-                style={{ backgroundColor: '#C9A8D3' }}
+                style={{ backgroundColor: '#FFE4EC' }}
               >
-                {size.image && (
-                  <img
-                    src={size.image}
-                    alt={size.name}
-                    className="h-32 md:h-40 mx-auto mb-4 object-contain"
-                  />
-                )}
                 <h3 className="font-serif text-2xl text-foreground mb-4">
                   {size.name}
                 </h3>
