@@ -12,6 +12,7 @@ const navLinks = [
   { to: "/", label: "Home", isHome: true },
   { to: "/customize", label: "Custom" },
   { to: "/catalog", label: "Catalog" },
+  { to: "/inspiration", label: "Inspiration" },
   { to: "/community-press", label: "Community & Press" },
   { to: "/faq", label: "FAQ" },
   { to: "/contact", label: "Contact" },
