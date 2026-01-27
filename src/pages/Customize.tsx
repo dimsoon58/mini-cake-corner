@@ -643,13 +643,11 @@ const Customize = () => {
                       >
                         <CardContent className="p-6 text-center">
                           {flavor.image && (
-                            <div className="h-28 w-28 mx-auto mb-4 bg-white rounded-xl flex items-center justify-center">
-                              <img
-                                src={flavor.image}
-                                alt={flavor.name}
-                                className="h-24 object-contain"
-                              />
-                            </div>
+                            <img
+                              src={flavor.image}
+                              alt={flavor.name}
+                              className="h-28 mx-auto mb-4 object-contain"
+                            />
                           )}
                           <h4 className="text-lg font-serif text-primary mb-2">
                             {flavor.name}
