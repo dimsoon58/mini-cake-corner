@@ -42,8 +42,8 @@ const features = [
 ];
 
 import sizeBento from "@/assets/size-bento.png";
-import sizeMedium from "@/assets/size-medium.png";
-import sizeLarge from "@/assets/size-large.png";
+import sizeMediumHeart from "@/assets/size-medium-heart.png";
+import sizeLargeRound from "@/assets/size-large-round.png";
 
 const homeSizes = [
   {
@@ -60,7 +60,7 @@ const homeSizes = [
     servings: "5-8 servings",
     price: "From CHF 80",
     extra: "+CHF 5 Heart shape",
-    image: sizeMedium,
+    image: sizeMediumHeart,
   },
   {
     name: "Large Cake",
@@ -68,7 +68,7 @@ const homeSizes = [
     servings: "12-16 servings",
     price: "From CHF 160",
     extra: "+CHF 10 Heart shape",
-    image: sizeLarge,
+    image: sizeLargeRound,
   },
 ];
 
