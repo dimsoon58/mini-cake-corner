@@ -57,10 +57,11 @@ const pressArticles = [
 ];
 
 const corporateEvents = [
+  // Célébration d'entreprise (3 premiers)
   {
     id: 1,
     image: corporateEvent1,
-    title: "Événement Corporate",
+    title: "Célébration d'entreprise",
     description: "Gâteau personnalisé avec logo d'entreprise et cierges magiques"
   },
   {
@@ -72,13 +73,14 @@ const corporateEvents = [
   {
     id: 3,
     image: corporateEvent3,
-    title: "Branding Événementiel",
+    title: "Célébration d'entreprise",
     description: "Gâteau avec logo imprimé pour lancement de marque"
   },
+  // Réception VIP (3 suivants)
   {
     id: 4,
     image: corporateEvent4,
-    title: "Buffet Corporate",
+    title: "Réception VIP",
     description: "Gâteau personnalisé avec illustration pour événement d'entreprise"
   },
   {
@@ -90,9 +92,10 @@ const corporateEvents = [
   {
     id: 6,
     image: corporateEvent6,
-    title: "Événement de Lancement",
+    title: "Réception VIP",
     description: "Gâteau avec design artistique personnalisé"
   },
+  // Collaboration Yuh & Coffrets Cadeaux (3 suivants)
   {
     id: 7,
     image: corporateEvent7,
@@ -108,9 +111,10 @@ const corporateEvents = [
   {
     id: 9,
     image: corporateEvent9,
-    title: "Collection Corporate",
+    title: "Coffrets Cadeaux Corporate",
     description: "Assortiment de gâteaux personnalisés pour événement de marque"
   },
+  // Surya Children Event (3 derniers)
   {
     id: 10,
     image: corporateEvent10,
@@ -120,13 +124,13 @@ const corporateEvents = [
   {
     id: 11,
     image: corporateEvent11,
-    title: "Atelier Cake Decorating",
+    title: "Surya Children Event",
     description: "Workshop de décoration de gâteaux pour team building corporate"
   },
   {
     id: 12,
     image: corporateEvent12,
-    title: "Gâteau Baroque Bleu",
+    title: "Surya Children Event",
     description: "Création artistique avec détails vintage pour événement prestigieux"
   }
 ];
