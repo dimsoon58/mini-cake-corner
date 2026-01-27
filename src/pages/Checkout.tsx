@@ -20,42 +20,50 @@ import Layout from "@/components/Layout";
 
 const WHATSAPP_NUMBER = "41799531317";
 
-// Delivery zones configuration with keywords for auto-detection
+// Delivery zones configuration with postal codes for auto-detection
 const DELIVERY_ZONES = [
   {
     id: "zone1",
     name: "Zone 1 (≤ 5 km)",
     price: 15,
-    keywords: ["eaux-vives", "eaux vives", "champel", "florissant", "malagnou", "chêne-bourg", "chene-bourg", "chêne-bougeries", "chene-bougeries", "cologny"],
+    postalCodes: ["1207", "1206", "1208", "1225", "1224", "1223"],
   },
   {
     id: "zone2",
     name: "Zone 2 (5-10 km)",
     price: 20,
-    keywords: ["carouge", "thônex", "thonex", "plainpalais", "jonction", "centre-ville", "center", "centre ville"],
+    postalCodes: ["1227", "1226", "1205", "1201", "1204"],
   },
   {
     id: "zone3",
     name: "Zone 3 (10-15 km)",
     price: 25,
-    keywords: ["pâquis", "paquis", "cornavin", "saint-gervais", "st-gervais", "servette", "nations", "petit-saconnex", "petit saconnex"],
+    postalCodes: ["1203", "1202", "1209"],
   },
   {
     id: "zone4",
     name: "Zone 4 (15-20 km)",
     price: 35,
-    keywords: ["annemasse", "gaillard", "ville-la-grand", "étrembières", "etrembieres", "meyrin", "vernier", "lancy"],
+    postalCodes: ["74100", "74240", "1217", "1214", "1219", "1212"],
+  },
+  {
+    id: "zone5",
+    name: "Zone 5 (20+ km)",
+    price: 40,
+    postalCodes: ["1213", "1228", "1233", "1234", "1232", "1290", "1292", "1293", "1294"],
   },
 ];
 
-// Function to detect zone from address
+// Function to detect zone from address using postal codes
 const detectZoneFromAddress = (address: string): typeof DELIVERY_ZONES[0] | null => {
-  const normalizedAddress = address.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // Extract potential postal codes from the address (4-5 digit numbers)
+  const postalCodeMatches = address.match(/\b\d{4,5}\b/g);
   
-  for (const zone of DELIVERY_ZONES) {
-    for (const keyword of zone.keywords) {
-      const normalizedKeyword = keyword.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      if (normalizedAddress.includes(normalizedKeyword)) {
+  if (!postalCodeMatches) return null;
+  
+  for (const postalCode of postalCodeMatches) {
+    for (const zone of DELIVERY_ZONES) {
+      if (zone.postalCodes.includes(postalCode)) {
         return zone;
       }
     }
