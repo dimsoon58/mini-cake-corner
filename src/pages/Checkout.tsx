@@ -382,7 +382,7 @@ ${deliveryInfo}
                     id="deliveryComment"
                     value={deliveryComment}
                     onChange={(e) => setDeliveryComment(e.target.value)}
-                    placeholder="e.g., Between 2pm and 4pm, ring doorbell twice, code: 1234..."
+                    placeholder="e.g., Between 2pm and 4pm, 3rd floor, ring doorbell twice, code: 1234..."
                     rows={2}
                   />
                 </div>
