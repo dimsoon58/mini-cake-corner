@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
@@ -98,6 +99,8 @@ const Checkout = () => {
   const [deliveryOption, setDeliveryOption] = useState("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryComment, setDeliveryComment] = useState("");
+  const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
+  const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
 
   const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
   
@@ -111,6 +114,15 @@ const Checkout = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!acceptPrivacyPolicy) {
+      toast({
+        title: "Politique de confidentialité requise",
+        description: "Veuillez accepter la politique de confidentialité pour continuer.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (!deliveryDate) {
       toast({
@@ -151,6 +163,8 @@ const Checkout = () => {
 Address: ${deliveryAddress}
 Zone: ${detectedZone?.name} (+CHF ${detectedZone?.price})${deliveryComment ? `\nNotes: ${deliveryComment}` : ""}`;
 
+    const newsletterInfo = subscribeNewsletter ? "\n\n📧 *Newsletter:* Yes, subscribed" : "";
+
     const message = `🎂 *New Cake Order*
 
 *Customer Information:*
@@ -166,7 +180,7 @@ Date: ${format(deliveryDate, "PPP")}${deliveryTime ? ` at ${deliveryTime}` : ""}
 ${deliveryInfo}
 
 *Subtotal: CHF ${itemsTotal}*${deliveryPrice > 0 && deliveryOption === "delivery" ? `\n*Delivery Fee: CHF ${deliveryPrice}*` : ""}
-*Total: CHF ${totalPrice}*`;
+*Total: CHF ${totalPrice}*${newsletterInfo}`;
 
     // Encode message for URL
     const encodedMessage = encodeURIComponent(message);
@@ -409,8 +423,48 @@ ${deliveryInfo}
               </div>
             </div>
 
+            {/* Privacy Policy & Newsletter */}
+            <div className="space-y-4 border-t border-border pt-6">
+              <h3 className="font-medium text-foreground">Politique de confidentialité</h3>
+              
+              {/* Privacy Policy Checkbox - Required */}
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="privacyPolicy"
+                  checked={acceptPrivacyPolicy}
+                  onCheckedChange={(checked) => setAcceptPrivacyPolicy(checked === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="privacyPolicy" className="text-sm cursor-pointer leading-relaxed">
+                  J'ai lu et j'accepte la{" "}
+                  <a
+                    href="/privacy-policy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline hover:text-primary/80"
+                  >
+                    politique de confidentialité
+                  </a>
+                  <span className="text-destructive ml-1">*</span>
+                </Label>
+              </div>
+
+              {/* Newsletter Checkbox - Optional */}
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="newsletter"
+                  checked={subscribeNewsletter}
+                  onCheckedChange={(checked) => setSubscribeNewsletter(checked === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
+                  Je souhaite m'inscrire à la newsletter
+                </Label>
+              </div>
+            </div>
+
             {/* Submit Button */}
-            <Button type="submit" className="w-full" size="lg">
+            <Button type="submit" className="w-full" size="lg" disabled={!acceptPrivacyPolicy}>
               Place Order
             </Button>
           </form>
