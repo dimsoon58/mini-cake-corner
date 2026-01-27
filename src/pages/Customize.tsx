@@ -634,10 +634,10 @@ const Customize = () => {
                       <Card
                         key={flavor.id}
                         className={cn(
-                          "cursor-pointer transition-all hover:shadow-lg bg-transparent border-transparent",
+                          "cursor-pointer transition-all hover:shadow-lg !bg-transparent border-transparent shadow-none",
                           selections.flavor === flavor.id
                             ? "ring-2 ring-primary"
-                            : "hover:bg-muted/30"
+                            : ""
                         )}
                         onClick={() => handleSelectFlavor(flavor.id)}
                       >
