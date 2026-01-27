@@ -541,7 +541,7 @@ const KitBentoCake = () => {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             A bento cake ready to decorate at home.
             <br />
-            Choose the flavor, shape, base color and the colors for the piping bags that represent you!
+            Choose the flavor, shape and colors to create your own bento cake.
           </p>
         </div>
 
