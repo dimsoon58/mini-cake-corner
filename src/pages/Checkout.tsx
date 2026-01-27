@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
@@ -12,12 +12,48 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 
 const WHATSAPP_NUMBER = "41799531317";
+
+// Delivery zones configuration
+const DELIVERY_ZONES = [
+  {
+    id: "zone1",
+    name: "Zone 1 - Eaux-Vives et alentours (≤ 5 km)",
+    price: 15,
+    areas: "Eaux-Vives, Champel, Florissant, Malagnou, Chêne-Bourg, Chêne-Bougeries, Cologny",
+  },
+  {
+    id: "zone2",
+    name: "Zone 2 - Genève rive gauche (5-10 km)",
+    price: 20,
+    areas: "Carouge, Thônex, Plainpalais, Jonction, Centre-ville",
+  },
+  {
+    id: "zone3",
+    name: "Zone 3 - Genève centre & proche périphérie (10-15 km)",
+    price: 25,
+    areas: "Pâquis, Cornavin, Saint-Gervais, Servette, Nations, Petit-Saconnex",
+  },
+  {
+    id: "zone4",
+    name: "Zone 4 - France voisine & grande périphérie (15-20 km)",
+    price: 35,
+    areas: "Annemasse, Gaillard, Ville-la-Grand, Étrembières, Meyrin, Vernier, Lancy",
+  },
+];
 
 const Checkout = () => {
   const { items, clearCart } = useCart();
@@ -28,8 +64,19 @@ const Checkout = () => {
   const [email, setEmail] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<Date>();
   const [deliveryOption, setDeliveryOption] = useState("pickup");
+  const [deliveryZone, setDeliveryZone] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryTimeComment, setDeliveryTimeComment] = useState("");
 
-  const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
+  const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
+  
+  const deliveryPrice = useMemo(() => {
+    if (deliveryOption !== "delivery" || !deliveryZone) return 0;
+    const zone = DELIVERY_ZONES.find((z) => z.id === deliveryZone);
+    return zone?.price || 0;
+  }, [deliveryOption, deliveryZone]);
+
+  const totalPrice = itemsTotal + deliveryPrice;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +84,22 @@ const Checkout = () => {
     if (!deliveryDate) {
       toast({
         title: "Please select a delivery date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (deliveryOption === "delivery" && !deliveryZone) {
+      toast({
+        title: "Please select a delivery zone",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (deliveryOption === "delivery" && !deliveryAddress.trim()) {
+      toast({
+        title: "Please enter your delivery address",
         variant: "destructive",
       });
       return;
@@ -50,6 +113,14 @@ const Checkout = () => {
       )
       .join("\n");
 
+    const selectedZone = DELIVERY_ZONES.find((z) => z.id === deliveryZone);
+
+    const deliveryInfo = deliveryOption === "pickup" 
+      ? "Option: Pickup"
+      : `Option: Delivery
+Address: ${deliveryAddress}
+Zone: ${selectedZone?.name} (+CHF ${selectedZone?.price})${deliveryTimeComment ? `\nPreferred Time: ${deliveryTimeComment}` : ""}`;
+
     const message = `🎂 *New Cake Order*
 
 *Customer Information:*
@@ -62,8 +133,9 @@ ${orderItems}
 
 *Delivery:*
 Date: ${format(deliveryDate, "PPP")}
-Option: ${deliveryOption === "pickup" ? "Pickup" : "Delivery"}
+${deliveryInfo}
 
+*Subtotal: CHF ${itemsTotal}*${deliveryPrice > 0 ? `\n*Delivery Fee: CHF ${deliveryPrice}*` : ""}
 *Total: CHF ${totalPrice}*`;
 
     // Encode message for URL
@@ -184,7 +256,14 @@ Option: ${deliveryOption === "pickup" ? "Pickup" : "Delivery"}
               <Label>Delivery Option</Label>
               <RadioGroup
                 value={deliveryOption}
-                onValueChange={setDeliveryOption}
+                onValueChange={(value) => {
+                  setDeliveryOption(value);
+                  if (value === "pickup") {
+                    setDeliveryZone("");
+                    setDeliveryAddress("");
+                    setDeliveryTimeComment("");
+                  }
+                }}
                 className="flex flex-col space-y-2"
               >
                 <div className="flex items-center space-x-3 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer">
@@ -208,15 +287,76 @@ Option: ${deliveryOption === "pickup" ? "Pickup" : "Delivery"}
               </RadioGroup>
             </div>
 
+            {/* Delivery Details - Only shown when delivery is selected */}
+            {deliveryOption === "delivery" && (
+              <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+                <h3 className="font-medium text-foreground">Delivery Details</h3>
+                
+                {/* Zone Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryZone">Select your zone</Label>
+                  <Select value={deliveryZone} onValueChange={setDeliveryZone}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Choose a delivery zone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DELIVERY_ZONES.map((zone) => (
+                        <SelectItem key={zone.id} value={zone.id}>
+                          <div className="flex flex-col">
+                            <span>{zone.name} - CHF {zone.price}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {deliveryZone && (
+                    <p className="text-xs text-muted-foreground">
+                      {DELIVERY_ZONES.find((z) => z.id === deliveryZone)?.areas}
+                    </p>
+                  )}
+                </div>
+
+                {/* Address Input */}
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryAddress">Delivery Address</Label>
+                  <Input
+                    id="deliveryAddress"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    placeholder="Enter your full address"
+                    required={deliveryOption === "delivery"}
+                  />
+                </div>
+
+                {/* Preferred Delivery Time Comment */}
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryTimeComment">Preferred Delivery Time (optional)</Label>
+                  <Textarea
+                    id="deliveryTimeComment"
+                    value={deliveryTimeComment}
+                    onChange={(e) => setDeliveryTimeComment(e.target.value)}
+                    placeholder="e.g., Between 2pm and 4pm"
+                    rows={2}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Order Summary */}
             <div className="border-t border-border pt-6 mt-6">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-2">
                 <span className="text-muted-foreground">
                   Items ({items.length})
                 </span>
-                <span className="font-medium">CHF {totalPrice}</span>
+                <span className="font-medium">CHF {itemsTotal}</span>
               </div>
-              <div className="flex justify-between items-center text-lg font-semibold">
+              {deliveryOption === "delivery" && deliveryPrice > 0 && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">Delivery Fee</span>
+                  <span className="font-medium">CHF {deliveryPrice}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center text-lg font-semibold pt-2 border-t border-border">
                 <span>Total</span>
                 <span className="text-primary">CHF {totalPrice}</span>
               </div>
