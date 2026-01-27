@@ -5,6 +5,7 @@ import pressLesVoiles from "@/assets/press-cote-les-voiles.jpeg";
 import pressGaultMillau1 from "@/assets/press-gault-millau-1.png";
 import pressGaultMillau2 from "@/assets/press-gault-millau-2.png";
 import pressGaultMillau3 from "@/assets/press-gault-millau-3.png";
+import pressGaultMillau4 from "@/assets/press-gault-millau-4.png";
 import corporateEvent1 from "@/assets/corporate-event-1.png";
 import corporateEvent2 from "@/assets/corporate-event-2.png";
 import corporateEvent3 from "@/assets/corporate-event-3.png";
@@ -53,6 +54,13 @@ const pressArticles = [
     title: "Gault & Millau",
     subtitle: "Valentine's Day Feature",
     description: "Personnalisables, ils peuvent être adaptés à toutes les occasions. De quoi célébrer la fête des amoureux avec gourmandise."
+  },
+  {
+    id: 6,
+    image: pressGaultMillau4,
+    title: "Gault & Millau",
+    subtitle: "Trois douceurs pour la Saint-Valentin",
+    description: "La folie du bento cake, un gâteau voluptueux venu de Corée, est arrivée jusqu'en terres genevoises. Diplômées de l'EHL, Catherine Khidasheli et Melodie Nagle ont lancé Bento Cake Studio."
   }
 ];
 
