@@ -682,8 +682,35 @@ const Index = () => {
             alt="Bento Cake Studio"
             className="h-16 mx-auto mb-6 brightness-200"
           />
-          <p className="text-sm opacity-70">
-            © 2026 Bento Cake Studio. Made with love.
+          <p className="text-sm opacity-90 mb-4">
+            © 2026 Bento Cake Studio SNC. All rights reserved.
+          </p>
+          <p className="text-sm opacity-70 mb-4">
+            See our{" "}
+            <Link to="/terms-and-conditions" className="underline hover:opacity-100">
+              terms and conditions
+            </Link>{" "}
+            and{" "}
+            <Link to="/privacy-policy" className="underline hover:opacity-100">
+              privacy policy
+            </Link>
+            .
+          </p>
+          <p className="text-sm opacity-70 mb-6">
+            <Link to="/newsletter" className="underline hover:opacity-100">
+              Subscribe to newsletter
+            </Link>
+          </p>
+          <p className="text-xs opacity-50">
+            Website powered by{" "}
+            <a 
+              href="https://lovable.dev" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="underline hover:opacity-100"
+            >
+              Lovable
+            </a>
           </p>
         </div>
       </footer>
