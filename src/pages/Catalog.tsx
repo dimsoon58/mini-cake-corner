@@ -6,6 +6,7 @@ import { ShoppingBag, Upload, X, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
+import { useToast } from "@/hooks/use-toast";
 
 // Candle images
 import candlePuppy from "@/assets/candle-puppy.png";
@@ -297,6 +298,7 @@ interface CakeSelections {
 
 const Catalog = () => {
   const { addItem } = useCart();
+  const { toast } = useToast();
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -422,6 +424,55 @@ const Catalog = () => {
 
   const handleAddToCart = () => {
     if (!selectedCake) return;
+    
+    // Validate required color selections
+    if (!selections.baseColor) {
+      toast({
+        title: "Base Color required",
+        description: "Please select a base color for your cake.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!selections.decorationColor) {
+      toast({
+        title: "Decoration Color required",
+        description: "Please select a decoration color for your cake.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate text color if text is selected
+    if (selections.wantsText && !selections.textColor) {
+      toast({
+        title: "Text Color required",
+        description: "Please select a color for your text.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate text message if text is selected
+    if (selections.wantsText && !selections.cakeText.trim()) {
+      toast({
+        title: "Text message required",
+        description: "Please enter your message.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate printed image for printed-picture style
+    if (selectedCake.styleId === "printed-picture" && !selections.printedImage) {
+      toast({
+        title: "Image required",
+        description: "Please upload an image for your printed picture cake.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     const sizeObj = sizes.find(s => s.id === selections.size);
     const shapeObj = shapes.find(s => s.id === selections.shape);
@@ -604,7 +655,9 @@ const Catalog = () => {
 
               {/* Base Color Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Base Color</label>
+                <label className="text-sm font-medium text-foreground">
+                  Base Color <span className="text-destructive">*</span>
+                </label>
                 <div className="grid grid-cols-6 gap-2">
                   {baseColors.map((color) => (
                     <button
@@ -634,7 +687,9 @@ const Catalog = () => {
 
               {/* Decoration Color Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Decoration Color</label>
+                <label className="text-sm font-medium text-foreground">
+                  Decoration Color <span className="text-destructive">*</span>
+                </label>
                 <div className="grid grid-cols-6 gap-2">
                   {baseColors.map((color) => (
                     <button
