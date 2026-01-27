@@ -89,7 +89,7 @@ const flavorCategories = [
     extraPrice: { bento: 0, medium: 0, large: 0 },
     flavors: [
       { id: "vanilla", name: "Vanilla", description: "Fluffy vanilla sponge with whipped cream", image: flavorVanilla },
-      { id: "red-velvet", name: "Red Velvet", description: "Moist red velvet with silky cream cheese icing", image: flavorRedVelvet },
+      { id: "red-velvet", name: "Red Velvet", description: "Fluffy vanilla and chocolate sponge with whipped cream", image: flavorRedVelvet },
       { id: "chocolate", name: "Chocolate", description: "Fluffy chocolate sponge with whipped cream", image: flavorChocolate },
     ],
   },
