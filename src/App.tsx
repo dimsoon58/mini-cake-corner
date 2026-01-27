@@ -14,6 +14,7 @@ import Checkout from "./pages/Checkout";
 import CommunityPress from "./pages/CommunityPress";
 import Catalog from "./pages/Catalog";
 import Inspiration from "./pages/Inspiration";
+import KitBentoCake from "./pages/KitBentoCake";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/cart" element={<Cart />} />
             <Route path="/community-press" element={<CommunityPress />} />
             <Route path="/catalog" element={<Catalog />} />
+            <Route path="/kit-bento-cake" element={<KitBentoCake />} />
             <Route path="/inspiration" element={<Inspiration />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/contact" element={<Contact />} />
