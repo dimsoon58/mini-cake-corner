@@ -2,7 +2,6 @@ import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import pressCotemag2022 from "@/assets/press-cote-magazine-2022.png";
 import pressLesVoiles from "@/assets/press-cote-les-voiles.jpeg";
-import pressGaultMillau1 from "@/assets/press-gault-millau-1.png";
 import pressGaultMillau2 from "@/assets/press-gault-millau-2.png";
 import pressGaultMillau3 from "@/assets/press-gault-millau-3.png";
 import pressGaultMillau4 from "@/assets/press-gault-millau-4.png";
@@ -33,13 +32,6 @@ const pressArticles = [
     title: "Les Voiles x COTE",
     subtitle: "Food",
     description: "Bento Cake Studio - Les gâteaux coréens aux messages singuliers. Korean cakes with unique messages."
-  },
-  {
-    id: 3,
-    image: pressGaultMillau1,
-    title: "Gault & Millau",
-    subtitle: "Trois douceurs pour la Saint-Valentin",
-    description: "La folie du bento cake, un gâteau voluptueux venu de Corée, est arrivée jusqu'en terres genevoises."
   },
   {
     id: 4,
