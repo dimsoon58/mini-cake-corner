@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { CalendarIcon, ArrowLeft } from "lucide-react";
+import { CalendarIcon, ArrowLeft, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,10 +13,25 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
+
+// Generate time slots from 10:00 to 18:30 in 30-minute intervals
+const generateTimeSlots = () => {
+  const slots: string[] = [];
+  for (let hour = 10; hour <= 18; hour++) {
+    slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    if (hour < 18 || (hour === 18 && slots[slots.length - 1] !== "18:30")) {
+      slots.push(`${hour.toString().padStart(2, '0')}:30`);
+    }
+  }
+  return slots;
+};
+
+const TIME_SLOTS = generateTimeSlots();
 
 const WHATSAPP_NUMBER = "41799531317";
 
@@ -79,6 +94,7 @@ const Checkout = () => {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<Date>();
+  const [deliveryTime, setDeliveryTime] = useState<string>("");
   const [deliveryOption, setDeliveryOption] = useState("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryComment, setDeliveryComment] = useState("");
@@ -146,7 +162,7 @@ Email: ${email}
 ${orderItems}
 
 *Delivery:*
-Date: ${format(deliveryDate, "PPP")}
+Date: ${format(deliveryDate, "PPP")}${deliveryTime ? ` at ${deliveryTime}` : ""}
 ${deliveryInfo}
 
 *Subtotal: CHF ${itemsTotal}*${deliveryPrice > 0 && deliveryOption === "delivery" ? `\n*Delivery Fee: CHF ${deliveryPrice}*` : ""}
@@ -232,9 +248,9 @@ ${deliveryInfo}
               />
             </div>
 
-            {/* Delivery Date */}
+            {/* Delivery Date & Time */}
             <div className="space-y-2">
-              <Label>Desired Delivery Date</Label>
+              <Label>Desired Delivery Date & Time</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -246,21 +262,50 @@ ${deliveryInfo}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {deliveryDate ? (
-                      format(deliveryDate, "PPP")
+                      <>
+                        {format(deliveryDate, "PPP")}
+                        {deliveryTime && ` at ${deliveryTime}`}
+                      </>
                     ) : (
-                      <span>Pick a date</span>
+                      <span>Pick a date & time</span>
                     )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={deliveryDate}
-                    onSelect={setDeliveryDate}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
+                  <div className="flex">
+                    <Calendar
+                      mode="single"
+                      selected={deliveryDate}
+                      onSelect={setDeliveryDate}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                    <div className="border-l border-border p-3">
+                      <div className="flex items-center gap-2 mb-3 px-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Time</span>
+                      </div>
+                      <ScrollArea className="h-[280px] w-[100px]">
+                        <div className="flex flex-col gap-1 pr-4">
+                          {TIME_SLOTS.map((time) => (
+                            <Button
+                              key={time}
+                              variant={deliveryTime === time ? "default" : "ghost"}
+                              size="sm"
+                              className={cn(
+                                "w-full justify-center",
+                                deliveryTime === time && "bg-primary text-primary-foreground"
+                              )}
+                              onClick={() => setDeliveryTime(time)}
+                            >
+                              {time}
+                            </Button>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </div>
                 </PopoverContent>
               </Popover>
             </div>
