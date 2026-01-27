@@ -53,7 +53,6 @@ const homeSizes = [
     price: "From CHF 40",
     extra: "+CHF 3 Heart shape",
     image: sizeBento,
-    imageSize: "h-24 md:h-28",
   },
   {
     name: "Medium Cake",
@@ -62,7 +61,6 @@ const homeSizes = [
     price: "From CHF 80",
     extra: "+CHF 5 Heart shape",
     image: sizeMediumHeart,
-    imageSize: "h-32 md:h-40",
   },
   {
     name: "Large Cake",
@@ -71,7 +69,6 @@ const homeSizes = [
     price: "From CHF 160",
     extra: "+CHF 10 Heart shape",
     image: sizeLargeRound,
-    imageSize: "h-40 md:h-52",
   },
 ];
 
@@ -345,7 +342,7 @@ const Index = () => {
                 <img
                   src={size.image}
                   alt={size.name}
-                  className={`${size.imageSize} mx-auto mb-4 object-contain`}
+                  className="h-32 md:h-40 mx-auto mb-4 object-contain"
                 />
                 <h3 className="font-serif text-2xl text-foreground mb-4">
                   {size.name}
