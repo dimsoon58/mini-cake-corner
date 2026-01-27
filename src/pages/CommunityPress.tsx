@@ -57,81 +57,81 @@ const pressArticles = [
 ];
 
 const corporateEvents = [
-  // Célébration d'entreprise (3 premiers)
+  // Corporate Celebration (first 3)
   {
     id: 1,
     image: corporateEvent1,
-    title: "Célébration d'entreprise",
-    description: "Gâteau personnalisé avec logo d'entreprise et cierges magiques"
+    title: "Corporate Celebration",
+    description: "Custom cake with company logo and sparklers"
   },
   {
     id: 2,
     image: corporateEvent2,
-    title: "Célébration d'entreprise",
-    description: "Gâteau Red Velvet personnalisé pour événement corporate"
+    title: "Corporate Celebration",
+    description: "Custom Red Velvet cake for corporate event"
   },
   {
     id: 3,
     image: corporateEvent3,
-    title: "Célébration d'entreprise",
-    description: "Gâteau avec logo imprimé pour lancement de marque"
+    title: "Corporate Celebration",
+    description: "Cake with printed logo for brand launch"
   },
-  // Réception VIP (3 suivants)
+  // VIP Reception (next 3)
   {
     id: 4,
     image: corporateEvent4,
-    title: "Réception VIP",
-    description: "Gâteau personnalisé avec illustration pour événement d'entreprise"
+    title: "VIP Reception",
+    description: "Custom cake with illustration for corporate event"
   },
   {
     id: 5,
     image: corporateEvent5,
-    title: "Réception VIP",
-    description: "Service traiteur avec gâteau personnalisé lors d'une réception"
+    title: "VIP Reception",
+    description: "Catering service with custom cake at a reception"
   },
   {
     id: 6,
     image: corporateEvent6,
-    title: "Réception VIP",
-    description: "Gâteau avec design artistique personnalisé"
+    title: "VIP Reception",
+    description: "Cake with custom artistic design"
   },
-  // Collaboration Yuh & Coffrets Cadeaux (3 suivants)
+  // Yuh Collaboration & Corporate Gift Boxes (next 3)
   {
     id: 7,
     image: corporateEvent7,
-    title: "Collaboration Yuh",
-    description: "Gâteaux colorés personnalisés pour partenariat de marque"
+    title: "Yuh Collaboration",
+    description: "Colorful custom cakes for brand partnership"
   },
   {
     id: 8,
     image: corporateEvent8,
-    title: "Coffrets Cadeaux Corporate",
-    description: "Packaging élégant avec ruban pour cadeaux d'entreprise"
+    title: "Corporate Gift Boxes",
+    description: "Elegant packaging with ribbon for corporate gifts"
   },
   {
     id: 9,
     image: corporateEvent9,
-    title: "Coffrets Cadeaux Corporate",
-    description: "Assortiment de gâteaux personnalisés pour événement de marque"
+    title: "Corporate Gift Boxes",
+    description: "Assortment of custom cakes for brand event"
   },
-  // Surya Children Event (3 derniers)
+  // Surya Children Event (last 3)
   {
     id: 10,
     image: corporateEvent10,
     title: "Surya Children Event",
-    description: "Gâteau bleu élégant personnalisé pour événement caritatif"
+    description: "Elegant blue cake for charity event"
   },
   {
     id: 11,
     image: corporateEvent11,
     title: "Surya Children Event",
-    description: "Workshop de décoration de gâteaux pour team building corporate"
+    description: "Cake decorating workshop for corporate team building"
   },
   {
     id: 12,
     image: corporateEvent12,
     title: "Surya Children Event",
-    description: "Création artistique avec détails vintage pour événement prestigieux"
+    description: "Artistic creation with vintage details for prestigious event"
   }
 ];
 
@@ -203,10 +203,10 @@ const CommunityPress = () => {
             {/* Corporate Events Section */}
             <section>
               <h2 className="font-serif text-2xl md:text-3xl text-center text-foreground mb-4">
-                Événements Corporate
+                Corporate Events
               </h2>
               <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-12">
-                Nous créons des gâteaux personnalisés pour vos événements d'entreprise, lancements de produits, et célébrations corporate.
+                We create custom cakes for your corporate events, product launches, and business celebrations.
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -237,16 +237,16 @@ const CommunityPress = () => {
               {/* Contact CTA */}
               <div className="mt-16 text-center bg-muted/50 rounded-2xl p-8">
                 <h3 className="font-serif text-2xl text-foreground mb-4">
-                  Intéressé par nos services corporate ?
+                  Interested in our corporate services?
                 </h3>
                 <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-                  Contactez-nous pour discuter de votre prochain événement d'entreprise et découvrir comment nous pouvons créer des gâteaux uniques à votre image.
+                  Contact us to discuss your next corporate event and discover how we can create unique cakes tailored to your brand.
                 </p>
                 <a 
                   href="/contact"
                   className="inline-flex items-center justify-center px-8 py-3 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-colors"
                 >
-                  Nous Contacter
+                  Contact Us
                 </a>
               </div>
             </section>
