@@ -14,13 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      orders: {
+        Row: {
+          created_at: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string | null
+          delivery_option: string
+          id: string
+          newsletter_subscription: boolean | null
+          order_date: string
+          total_amount: number
+        }
+        Insert: {
+          created_at?: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          delivery_address?: string | null
+          delivery_option: string
+          id?: string
+          newsletter_subscription?: boolean | null
+          order_date: string
+          total_amount: number
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string
+          delivery_address?: string | null
+          delivery_option?: string
+          id?: string
+          newsletter_subscription?: boolean | null
+          order_date?: string
+          total_amount?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_fully_booked_dates: {
+        Args: never
+        Returns: {
+          booked_date: string
+        }[]
+      }
+      get_order_count_for_date: {
+        Args: { target_date: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
