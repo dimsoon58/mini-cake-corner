@@ -112,8 +112,8 @@ const baseColors = [
 ];
 
 const pipingBagOptions = [
-  { id: "2-bags", name: "2 Piping Bags", count: 2, price: 8 },
-  { id: "3-bags", name: "3 Piping Bags", count: 3, price: 12 },
+  { id: "2-bags", name: "2 Piping Bags", count: 2, price: 0 },
+  { id: "3-bags", name: "3 Piping Bags", count: 3, price: 2 },
 ];
 
 const candles = [
@@ -539,7 +539,9 @@ const KitBentoCake = () => {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4">Kit Bento Cake</h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            👉 A bento cake ready to decorate at home. Choose the flavor, shape, base color and the colors that represent you!
+            A bento cake ready to decorate at home.
+            <br />
+            Choose the flavor, shape, base color and the colors for the piping bags that represent you!
           </p>
         </div>
 
