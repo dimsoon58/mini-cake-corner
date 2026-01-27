@@ -34,6 +34,13 @@ const pressArticles = [
     description: "Bento Cake Studio - Les gâteaux coréens aux messages singuliers. Korean cakes with unique messages."
   },
   {
+    id: 3,
+    image: pressGaultMillau4,
+    title: "Gault & Millau",
+    subtitle: "Trois douceurs pour la Saint-Valentin",
+    description: "La folie du bento cake, un gâteau voluptueux venu de Corée, est arrivée jusqu'en terres genevoises. Diplômées de l'EHL, Catherine Khidasheli et Melodie Nagle ont lancé Bento Cake Studio."
+  },
+  {
     id: 4,
     image: pressGaultMillau2,
     title: "Gault & Millau",
@@ -46,13 +53,6 @@ const pressArticles = [
     title: "Gault & Millau",
     subtitle: "Valentine's Day Feature",
     description: "Personnalisables, ils peuvent être adaptés à toutes les occasions. De quoi célébrer la fête des amoureux avec gourmandise."
-  },
-  {
-    id: 6,
-    image: pressGaultMillau4,
-    title: "Gault & Millau",
-    subtitle: "Trois douceurs pour la Saint-Valentin",
-    description: "La folie du bento cake, un gâteau voluptueux venu de Corée, est arrivée jusqu'en terres genevoises. Diplômées de l'EHL, Catherine Khidasheli et Melodie Nagle ont lancé Bento Cake Studio."
   }
 ];
 
