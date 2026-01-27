@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft, Clock } from "lucide-react";
@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
+import { supabase } from "@/integrations/supabase/client";
 
 // Generate time slots from 10:00 to 18:30 in 30-minute intervals
 const generateTimeSlots = () => {
@@ -101,6 +102,19 @@ const Checkout = () => {
   const [deliveryComment, setDeliveryComment] = useState("");
   const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
+  const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch fully booked dates on mount
+  useEffect(() => {
+    const fetchBookedDates = async () => {
+      const { data, error } = await supabase.rpc('get_fully_booked_dates');
+      if (!error && data) {
+        setFullyBookedDates(data.map((d: { booked_date: string }) => new Date(d.booked_date)));
+      }
+    };
+    fetchBookedDates();
+  }, []);
 
   const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
   
@@ -112,13 +126,13 @@ const Checkout = () => {
   const deliveryPrice = detectedZone?.price || 0;
   const totalPrice = itemsTotal + (deliveryOption === "delivery" ? deliveryPrice : 0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!acceptPrivacyPolicy) {
       toast({
-        title: "Politique de confidentialité requise",
-        description: "Veuillez accepter la politique de confidentialité pour continuer.",
+        title: "Privacy Policy required",
+        description: "Please accept the privacy policy to continue.",
         variant: "destructive",
       });
       return;
@@ -146,6 +160,51 @@ const Checkout = () => {
         description: "Please make sure your address includes a recognized area name (e.g., Carouge, Champel, Meyrin...)",
         variant: "destructive",
       });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // Check if date is still available (max 5 orders)
+    const formattedDate = format(deliveryDate, "yyyy-MM-dd");
+    const { data: orderCount } = await supabase.rpc('get_order_count_for_date', { 
+      target_date: formattedDate 
+    });
+
+    if (orderCount && orderCount >= 5) {
+      toast({
+        title: "Date fully booked",
+        description: "This date has reached the maximum number of orders. Please select another date.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      // Refresh booked dates
+      const { data } = await supabase.rpc('get_fully_booked_dates');
+      if (data) {
+        setFullyBookedDates(data.map((d: { booked_date: string }) => new Date(d.booked_date)));
+      }
+      return;
+    }
+
+    // Save order to database
+    const { error: insertError } = await supabase.from('orders').insert({
+      order_date: formattedDate,
+      customer_name: `${firstName} ${lastName}`,
+      customer_email: email,
+      customer_phone: phone,
+      total_amount: totalPrice,
+      delivery_option: deliveryOption,
+      delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
+      newsletter_subscription: subscribeNewsletter,
+    });
+
+    if (insertError) {
+      toast({
+        title: "Error saving order",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
       return;
     }
 
@@ -193,6 +252,8 @@ ${deliveryInfo}
       title: "Order sent!",
       description: "WhatsApp will open with your order details.",
     });
+
+    setIsSubmitting(false);
   };
 
   return (
@@ -299,7 +360,15 @@ ${deliveryInfo}
                       mode="single"
                       selected={deliveryDate}
                       onSelect={setDeliveryDate}
-                      disabled={(date) => date < new Date()}
+                      disabled={(date) => {
+                        // Disable past dates
+                        if (date < new Date()) return true;
+                        // Disable fully booked dates
+                        return fullyBookedDates.some(
+                          (bookedDate) => 
+                            bookedDate.toDateString() === date.toDateString()
+                        );
+                      }}
                       initialFocus
                       className={cn("p-3 pointer-events-auto")}
                     />
@@ -433,7 +502,7 @@ ${deliveryInfo}
 
             {/* Privacy Policy & Newsletter */}
             <div className="space-y-4 border-t border-border pt-6">
-              <h3 className="font-medium text-foreground">Politique de confidentialité</h3>
+              <h3 className="font-medium text-foreground">Privacy Policy</h3>
               
               {/* Privacy Policy Checkbox - Required */}
               <div className="flex items-start space-x-3">
@@ -444,14 +513,14 @@ ${deliveryInfo}
                   className="mt-0.5"
                 />
                 <Label htmlFor="privacyPolicy" className="text-sm cursor-pointer leading-relaxed">
-                  J'ai lu et j'accepte la{" "}
+                  I have read and accept the{" "}
                   <a
                     href="/privacy-policy"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary underline hover:text-primary/80"
                   >
-                    politique de confidentialité
+                    privacy policy
                   </a>
                   <span className="text-destructive ml-1">*</span>
                 </Label>
@@ -466,14 +535,14 @@ ${deliveryInfo}
                   className="mt-0.5"
                 />
                 <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
-                  Je souhaite m'inscrire à la newsletter
+                  I would like to subscribe to the newsletter
                 </Label>
               </div>
             </div>
 
             {/* Submit Button */}
-            <Button type="submit" className="w-full" size="lg" disabled={!acceptPrivacyPolicy}>
-              Place Order
+            <Button type="submit" className="w-full" size="lg" disabled={!acceptPrivacyPolicy || isSubmitting}>
+              {isSubmitting ? "Processing..." : "Place Order"}
             </Button>
           </form>
         </div>
