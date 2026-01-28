@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import Layout from "@/components/Layout";
+import CakeVisualizer from "@/components/CakeVisualizer";
 import { format, addDays } from "date-fns";
 import flavorVanilla from "@/assets/flavor-vanilla.png";
 import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
@@ -515,45 +516,65 @@ const Customize = () => {
 
   return (
     <Layout hideNav>
-      {/* Progress Steps */}
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {steps.map((step, index) => (
-            <div key={step} className="flex items-center">
-              <div
-                className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
-                  index < currentStep
-                    ? "bg-primary text-primary-foreground"
-                    : index === currentStep
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                {index < currentStep ? <Check className="h-5 w-5" /> : index + 1}
-              </div>
-              <span
-                className={cn(
-                  "ml-2 text-sm font-medium hidden sm:block",
-                  index === currentStep ? "text-foreground" : "text-muted-foreground"
-                )}
-              >
-                {step}
-              </span>
-              {index < steps.length - 1 && (
-                <div
-                  className={cn(
-                    "w-8 sm:w-16 h-1 mx-2 rounded-full",
-                    index < currentStep ? "bg-primary" : "bg-muted"
-                  )}
-                />
-              )}
-            </div>
-          ))}
-        </div>
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Cake Visualizer - Sidebar on desktop, top on mobile */}
+          <div className="lg:w-80 lg:sticky lg:top-4 lg:self-start order-first lg:order-none">
+            <CakeVisualizer
+              size={selections.size}
+              shape={selections.shape}
+              baseColor={selections.baseColor}
+              decorationColor={selections.decorationColor}
+              style={selections.style}
+              wantsText={selections.wantsText}
+              cakeText={selections.cakeText}
+              textColor={selections.textColor}
+              extras={selections.extras}
+              candles={selections.candles}
+              currentStep={currentStep}
+            />
+          </div>
 
-        {/* Step Content */}
-        <div className="max-w-4xl mx-auto">
+          {/* Main Content */}
+          <div className="flex-1">
+            {/* Progress Steps */}
+            <div className="flex items-center justify-center gap-2 mb-8">
+              {steps.map((step, index) => (
+                <div key={step} className="flex items-center">
+                  <div
+                    className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
+                      index < currentStep
+                        ? "bg-primary text-primary-foreground"
+                        : index === currentStep
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {index < currentStep ? <Check className="h-5 w-5" /> : index + 1}
+                  </div>
+                  <span
+                    className={cn(
+                      "ml-2 text-sm font-medium hidden sm:block",
+                      index === currentStep ? "text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    {step}
+                  </span>
+                  {index < steps.length - 1 && (
+                    <div
+                      className={cn(
+                        "w-8 sm:w-16 h-1 mx-2 rounded-full",
+                        index < currentStep ? "bg-primary" : "bg-muted"
+                      )}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Step Content */}
+            <div className="max-w-4xl mx-auto">
           {/* Date Selection */}
           {currentStep === 0 && (
             <div className="space-y-6">
@@ -1413,6 +1434,8 @@ const Customize = () => {
                 Add to Cart
               </Button>
             )}
+          </div>
+            </div>
           </div>
         </div>
       </div>
