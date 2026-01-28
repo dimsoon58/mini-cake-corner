@@ -245,6 +245,7 @@ const Customize = () => {
     wantsText: boolean;
     cakeText: string;
     textColor: string | null;
+    textStyle: "normal" | "uppercase" | "cursive";
     candles: { id: string; quantity: number; hasPack: boolean }[];
     extras: string[];
     ribbonColor: string | null;
@@ -264,6 +265,7 @@ const Customize = () => {
     wantsText: false,
     cakeText: "",
     textColor: null,
+    textStyle: "normal",
     candles: [],
     extras: [],
     ribbonColor: null,
@@ -529,6 +531,7 @@ const Customize = () => {
               wantsText={selections.wantsText}
               cakeText={selections.cakeText}
               textColor={selections.textColor}
+              textStyle={selections.textStyle}
               extras={selections.extras}
               candles={selections.candles}
               currentStep={currentStep}
@@ -903,39 +906,85 @@ const Customize = () => {
                     </div>
 
                     {selections.cakeText.length > 0 && (
-                      <div className="space-y-3">
-                        <label className="block text-sm font-medium text-foreground">
-                          Text Color <span className="text-destructive">*</span>
-                        </label>
-                        {selections.wantsText && selections.cakeText.trim().length > 0 && !selections.textColor && (
-                          <p className="text-xs text-destructive">Please select a text color</p>
-                        )}
-                        <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-3">
-                          {textColors.map((color) => (
+                      <>
+                        {/* Text Style Selection */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-foreground">
+                            Text Style
+                          </label>
+                          <div className="flex justify-center gap-3">
                             <button
-                              key={color.id}
-                              onClick={() => handleSelectTextColor(color.id)}
+                              onClick={() => setSelections({ ...selections, textStyle: "normal" })}
                               className={cn(
-                                "flex flex-col items-center gap-2 p-2 rounded-lg border transition-all",
-                                selections.textColor === color.id
-                                  ? "ring-2 ring-primary border-primary bg-secondary"
-                                  : "border-border hover:border-primary/50"
+                                "px-4 py-2 rounded-lg font-medium transition-all text-sm",
+                                selections.textStyle === "normal"
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
                               )}
                             >
-                              <div
-                                className={cn(
-                                  "w-8 h-8 rounded-full border-2",
-                                  color.id === "white" || color.id === "cream"
-                                    ? "border-muted-foreground/30"
-                                    : "border-transparent"
-                                )}
-                                style={{ backgroundColor: color.color }}
-                              />
-                              <span className="text-xs text-foreground text-center leading-tight">{color.name}</span>
+                              Normal
                             </button>
-                          ))}
+                            <button
+                              onClick={() => setSelections({ ...selections, textStyle: "uppercase" })}
+                              className={cn(
+                                "px-4 py-2 rounded-lg font-medium transition-all text-sm uppercase",
+                                selections.textStyle === "uppercase"
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              )}
+                            >
+                              MAJUSCULE
+                            </button>
+                            <button
+                              onClick={() => setSelections({ ...selections, textStyle: "cursive" })}
+                              className={cn(
+                                "px-4 py-2 rounded-lg font-medium transition-all text-sm italic",
+                                selections.textStyle === "cursive"
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              )}
+                              style={{ fontFamily: "cursive" }}
+                            >
+                              Attaché
+                            </button>
+                          </div>
                         </div>
-                      </div>
+
+                        {/* Text Color Selection */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-foreground">
+                            Text Color <span className="text-destructive">*</span>
+                          </label>
+                          {selections.wantsText && selections.cakeText.trim().length > 0 && !selections.textColor && (
+                            <p className="text-xs text-destructive">Please select a text color</p>
+                          )}
+                          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-3">
+                            {textColors.map((color) => (
+                              <button
+                                key={color.id}
+                                onClick={() => handleSelectTextColor(color.id)}
+                                className={cn(
+                                  "flex flex-col items-center gap-2 p-2 rounded-lg border transition-all",
+                                  selections.textColor === color.id
+                                    ? "ring-2 ring-primary border-primary bg-secondary"
+                                    : "border-border hover:border-primary/50"
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    "w-8 h-8 rounded-full border-2",
+                                    color.id === "white" || color.id === "cream"
+                                      ? "border-muted-foreground/30"
+                                      : "border-transparent"
+                                  )}
+                                  style={{ backgroundColor: color.color }}
+                                />
+                                <span className="text-xs text-foreground text-center leading-tight">{color.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
                     )}
                   </>
                 )}
