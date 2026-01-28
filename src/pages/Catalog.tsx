@@ -24,23 +24,23 @@ import candleBlueCar from "@/assets/candle-blue-car.png";
 import candleYellowCar from "@/assets/candle-yellow-car.png";
 import candleHeart from "@/assets/candle-heart.png";
 import designRetroCake from "@/assets/design-retro-cake.png";
-import designRainbowCake from "@/assets/design-rainbow-cake.png";
-import designShagCake from "@/assets/design-shag-cake.png";
+import designRainbowCake from "@/assets/design-rainbow-cake-new.jpg";
+import designShagCake from "@/assets/design-shag-cake-new.jpg";
 import designGoldLeaves from "@/assets/design-gold-leaves.png";
 import designScatteredPearls from "@/assets/design-scattered-pearls.png";
-import designPearlBorders from "@/assets/design-pearl-borders.png";
+import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
 import designCherries from "@/assets/design-cherries.png";
 import designGlitterCherries from "@/assets/design-glitter-cherries.png";
 import designRibbons from "@/assets/design-ribbons.png";
 import designGlitterCake from "@/assets/design-glitter-cake.png";
 import designGlitterInAir from "@/assets/design-glitter-in-air.png";
-import designHeartBomb from "@/assets/design-heart-bomb.png";
+import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
 import designGenderReveal from "@/assets/design-gender-reveal.png";
 import designPrintedPicture from "@/assets/design-printed-picture.png";
 import designDrawing from "@/assets/design-drawing.png";
-import designRosesPlease from "@/assets/design-roses-please.png";
+import designRosesPlease from "@/assets/design-roses-please-new.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden.png";
-import designPearlNumber from "@/assets/design-pearl-number.png";
+import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },

@@ -42,6 +42,22 @@ import candleBlueCar from "@/assets/candle-blue-car.png";
 import candleYellowCar from "@/assets/candle-yellow-car.png";
 import candleHeart from "@/assets/candle-heart.png";
 
+// Style images
+import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
+import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
+import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
+import designRainbowCake from "@/assets/design-rainbow-cake-new.jpg";
+import designRosesPlease from "@/assets/design-roses-please-new.jpg";
+import designShagCake from "@/assets/design-shag-cake-new.jpg";
+import designRetroCake from "@/assets/design-retro-cake.png";
+import designButterflyGarden from "@/assets/design-butterfly-garden.png";
+import designDrawing from "@/assets/design-drawing.png";
+import designPrintedPicture from "@/assets/design-printed-picture.png";
+import designGoldLeaves from "@/assets/design-gold-leaves.png";
+import designGlitterCake from "@/assets/design-glitter-cake.png";
+import designGlitterInAir from "@/assets/design-glitter-in-air.png";
+import designGenderReveal from "@/assets/design-gender-reveal.png";
+
 const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras", "Candles"];
 
 const baseColors = [
@@ -119,20 +135,23 @@ const flavorCategories = [
 ];
 
 const styles = [
-  { id: "normal-with-border", name: "Normal with border", price: { bento: 0, medium: 0, large: 0 } },
-  { id: "normal-without-border", name: "Normal without border", price: { bento: 0, medium: 0, large: 0 } },
-  { id: "retro-vintage", name: "Retro / Vintage", price: { bento: 5, medium: 15, large: 20 } },
-  { id: "heart-bomb", name: "Heart Bomb", price: { bento: 5, medium: 10, large: 15 } },
-  { id: "shag-cake", name: "Shag Cake", price: { bento: 8, medium: 20, large: 30 } },
-  { id: "rainbow-cake", name: "Rainbow Cake", price: { bento: 7, medium: 17, large: 30 } },
-  { id: "roses-please", name: "Roses Please", price: { bento: 7, medium: 15, large: 20 } },
-  { id: "butterfly-garden", name: "Butterfly Garden", price: { bento: 7, medium: 15, large: 20 } },
-  { id: "custom-drawing", name: "Custom Drawing", price: { bento: 5, medium: 5, large: 5 } },
-  { id: "printed-picture", name: "Printed Picture", price: { bento: 20, medium: 20, large: 20 } },
-  { id: "gold-leaves-style", name: "Gold Leaves", price: { bento: 2, medium: 4, large: 6 } },
-  { id: "glitter-cake", name: "Glitter Cake", price: { bento: 6, medium: 8, large: 12 } },
-  { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 5, medium: 7, large: 10 } },
-  { id: "gender-reveal", name: "Gender Reveal", price: { bento: 5, medium: 10, large: 20 } },
+  { id: "normal-with-border", name: "Normal with border", price: { bento: 0, medium: 0, large: 0 }, image: null },
+  { id: "normal-without-border", name: "Normal without border", price: { bento: 0, medium: 0, large: 0 }, image: null },
+  { id: "retro-vintage", name: "Retro / Vintage", price: { bento: 5, medium: 15, large: 20 }, image: designRetroCake },
+  { id: "heart-bomb", name: "Heart Bomb", price: { bento: 5, medium: 10, large: 15 }, image: designHeartBomb },
+  { id: "shag-cake", name: "Shag Cake", price: { bento: 8, medium: 20, large: 30 }, image: designShagCake },
+  { id: "rainbow-cake", name: "Rainbow Cake", price: { bento: 7, medium: 17, large: 30 }, image: designRainbowCake },
+  { id: "roses-please", name: "Roses Please", price: { bento: 7, medium: 15, large: 20 }, image: designRosesPlease },
+  { id: "butterfly-garden", name: "Butterfly Garden", price: { bento: 7, medium: 15, large: 20 }, image: designButterflyGarden },
+  { id: "custom-drawing", name: "Custom Drawing", price: { bento: 5, medium: 5, large: 5 }, image: designDrawing },
+  { id: "printed-picture", name: "Printed Picture", price: { bento: 20, medium: 20, large: 20 }, image: designPrintedPicture },
+  { id: "gold-leaves-style", name: "Gold Leaves", price: { bento: 2, medium: 4, large: 6 }, image: designGoldLeaves },
+  { id: "glitter-cake", name: "Glitter Cake", price: { bento: 6, medium: 8, large: 12 }, image: designGlitterCake },
+  { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 5, medium: 7, large: 10 }, image: designGlitterInAir },
+  { id: "gender-reveal", name: "Gender Reveal", price: { bento: 5, medium: 10, large: 20 }, image: designGenderReveal },
+  { id: "scattered-pearls", name: "Scattered Pearls", price: { bento: 2, medium: 5, large: 7 }, image: null },
+  { id: "pearl-borders", name: "Pearl Borders", price: { bento: 8, medium: 15, large: 20 }, image: designPearlBorders },
+  { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 }, image: designPearlNumber },
 ];
 
 const extras = [
@@ -678,14 +697,23 @@ const Customize = () => {
                     <Card
                       key={style.id}
                       className={cn(
-                        "cursor-pointer transition-all hover:shadow-lg",
+                        "cursor-pointer transition-all hover:shadow-lg overflow-hidden",
                         selections.style === style.id
                           ? "ring-2 ring-primary bg-secondary"
                           : "hover:bg-muted/50"
                       )}
                       onClick={() => handleSelectStyle(style.id)}
                     >
-                      <CardContent className="p-4 text-center">
+                      {style.image && (
+                        <div className="aspect-square overflow-hidden">
+                          <img
+                            src={style.image}
+                            alt={style.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <CardContent className={cn("p-4 text-center", !style.image && "py-8")}>
                         <h3 className="font-medium text-foreground">{style.name}</h3>
                         {selections.size && (
                           <p className="text-sm text-primary font-medium mt-1">
