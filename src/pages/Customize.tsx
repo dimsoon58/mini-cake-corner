@@ -27,20 +27,21 @@ const flavorRedVelvetGF = flavorRedVelvet;
 const flavorChocolateGF = flavorChocolate;
 
 // Candle images
-import candlePuppy from "@/assets/candle-puppy.png";
-import candleCar from "@/assets/candle-car.png";
+import candlePuppy from "@/assets/candle-puppy-new.png";
+import candlePinkCar from "@/assets/candle-pink-car.png";
 import candleSoccer from "@/assets/candle-soccer.png";
-import candleCherry from "@/assets/candle-cherry.png";
+import candleCherry from "@/assets/candle-cherry-new.png";
 import candleTeddyBear from "@/assets/candle-teddy-bear.png";
-import candlePinkOmbre from "@/assets/candle-pink-ombre.png";
-import candleBlueOmbre from "@/assets/candle-blue-ombre.png";
+import candleDaisy from "@/assets/candle-daisy.png";
+import candlePinkOmbre from "@/assets/candle-pink-ombre-new.png";
+import candleBlueOmbre from "@/assets/candle-blue-ombre-new.png";
 import candleThickSpiral from "@/assets/candle-thick-spiral.png";
 import candleSpiralPastel from "@/assets/candle-spiral-pastel.png";
 import candleShinySpiral from "@/assets/candle-shiny-spiral.png";
-import candleRedCar from "@/assets/candle-red-car.png";
-import candleBlueCar from "@/assets/candle-blue-car.png";
-import candleYellowCar from "@/assets/candle-yellow-car.png";
-import candleHeart from "@/assets/candle-heart.png";
+import candleRainbow from "@/assets/candle-rainbow.png";
+import candleRedCar from "@/assets/candle-red-car-new.png";
+import candleBlueCar from "@/assets/candle-blue-car-new.png";
+import candleHeart from "@/assets/candle-heart-new.png";
 
 // Style images
 import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
@@ -191,14 +192,15 @@ const candles = [
   { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, unitPrice: 2, hasPack: false },
   { id: "cherry", name: "Cherry", image: candleCherry, unitPrice: 2, hasPack: false },
   { id: "heart", name: "Red Heart", image: candleHeart, unitPrice: 2, hasPack: false },
+  { id: "daisy", name: "Daisy", image: candleDaisy, unitPrice: 2, hasPack: false },
   { id: "soccer", name: "Footy Flame", image: candleSoccer, unitPrice: 2, hasPack: false },
-  { id: "pink-car", name: "Pink Car", image: candleCar, unitPrice: 2, hasPack: false },
+  { id: "pink-car", name: "Pink Car", image: candlePinkCar, unitPrice: 2, hasPack: false },
   { id: "red-car", name: "Red Car", image: candleRedCar, unitPrice: 2, hasPack: false },
   { id: "blue-car", name: "Blue Car", image: candleBlueCar, unitPrice: 2, hasPack: false },
-  { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, unitPrice: 2, hasPack: false },
   // Ombré & Spirals - unit + pack (6) - grouped together
   { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "rainbow", name: "Rainbow", image: candleRainbow, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
