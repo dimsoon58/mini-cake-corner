@@ -1163,7 +1163,7 @@ const Customize = () => {
                         <img
                           src={candle.image}
                           alt={candle.name}
-                          className="h-28 w-full object-contain mb-3"
+                          className="h-40 w-full object-contain mb-3"
                         />
                         <h3 className="font-medium text-foreground mb-2">{candle.name}</h3>
                         <p className="text-xs text-muted-foreground mb-3">CHF {candle.unitPrice} / pièce</p>
