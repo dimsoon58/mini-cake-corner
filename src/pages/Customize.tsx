@@ -196,13 +196,12 @@ const candles = [
   { id: "red-car", name: "Red Car", image: candleRedCar, unitPrice: 2, hasPack: false },
   { id: "blue-car", name: "Blue Car", image: candleBlueCar, unitPrice: 2, hasPack: false },
   { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, unitPrice: 2, hasPack: false },
-  // Ombré - unit + pack (6)
+  // Ombré & Spirals - unit + pack (6) - grouped together
   { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  // Spirals - unit + pack (6)
   { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
 ];
 
 const ribbonColors = [
@@ -374,10 +373,18 @@ const Customize = () => {
     
     let total = 0;
     const unitSelection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
-    if (unitSelection) {
+    const packSelection = selections.candles.find((c) => c.id === candleId && c.hasPack);
+    
+    // If candle has pack option and user selected exactly 6 units (or more in multiples of 6), apply pack pricing
+    if (unitSelection && candle.hasPack && candle.packSize) {
+      const packs = Math.floor(unitSelection.quantity / candle.packSize);
+      const remainder = unitSelection.quantity % candle.packSize;
+      total += packs * (candle.packPrice || 0) + remainder * candle.unitPrice;
+    } else if (unitSelection) {
       total += candle.unitPrice * unitSelection.quantity;
     }
-    const packSelection = selections.candles.find((c) => c.id === candleId && c.hasPack);
+    
+    // Add explicit pack selection if any
     if (packSelection && candle.hasPack) {
       total += candle.packPrice || 0;
     }
