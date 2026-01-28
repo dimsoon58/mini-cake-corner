@@ -170,14 +170,53 @@ const HeartCake = ({
   const heartShape = useMemo(() => {
     const shape = new THREE.Shape();
     const s = scale;
-    // Heart shape - pointed at bottom, lobes at top
-    shape.moveTo(0, -1.2 * s);
-    shape.bezierCurveTo(0.1 * s, -1 * s, 0.5 * s, -0.8 * s, 0.8 * s, -0.4 * s);
-    shape.bezierCurveTo(1.1 * s, 0, 1 * s, 0.5 * s, 0.5 * s, 0.8 * s);
-    shape.bezierCurveTo(0.25 * s, 1 * s, 0, 0.9 * s, 0, 0.7 * s);
-    shape.bezierCurveTo(0, 0.9 * s, -0.25 * s, 1 * s, -0.5 * s, 0.8 * s);
-    shape.bezierCurveTo(-1 * s, 0.5 * s, -1.1 * s, 0, -0.8 * s, -0.4 * s);
-    shape.bezierCurveTo(-0.5 * s, -0.8 * s, -0.1 * s, -1 * s, 0, -1.2 * s);
+    
+    // Beautiful heart shape - more defined curves
+    // Start at bottom point
+    shape.moveTo(0, -1.4 * s);
+    
+    // Right side curve going up
+    shape.bezierCurveTo(
+      0.05 * s, -1.2 * s,   // control point 1
+      0.4 * s, -1.0 * s,    // control point 2
+      0.8 * s, -0.5 * s     // end point
+    );
+    
+    // Right lobe (top right curve)
+    shape.bezierCurveTo(
+      1.2 * s, 0,           // control point 1
+      1.2 * s, 0.6 * s,     // control point 2
+      0.8 * s, 0.9 * s      // end point
+    );
+    
+    // Top right to center dip
+    shape.bezierCurveTo(
+      0.5 * s, 1.1 * s,     // control point 1
+      0.2 * s, 0.9 * s,     // control point 2
+      0, 0.6 * s            // center dip
+    );
+    
+    // Center dip to top left
+    shape.bezierCurveTo(
+      -0.2 * s, 0.9 * s,    // control point 1
+      -0.5 * s, 1.1 * s,    // control point 2
+      -0.8 * s, 0.9 * s     // end point
+    );
+    
+    // Left lobe (top left curve)
+    shape.bezierCurveTo(
+      -1.2 * s, 0.6 * s,    // control point 1
+      -1.2 * s, 0,          // control point 2
+      -0.8 * s, -0.5 * s    // end point
+    );
+    
+    // Left side curve going down to bottom point
+    shape.bezierCurveTo(
+      -0.4 * s, -1.0 * s,   // control point 1
+      -0.05 * s, -1.2 * s,  // control point 2
+      0, -1.4 * s           // back to start
+    );
+    
     return shape;
   }, [scale]);
 
@@ -385,11 +424,11 @@ const CakeScene = ({
   const fillColor = baseColor ? colorMap[baseColor] || "#FFC0CB" : "#FFC0CB";
   const decoColor = decorationColor ? colorMap[decorationColor] || "#E75480" : "#E75480";
 
-  // Size dimensions
+  // Size dimensions - larger differences between sizes
   const sizeConfig = {
-    bento: { radius: 0.8, height: 0.6 },
-    medium: { radius: 1.2, height: 0.8 },
-    large: { radius: 1.6, height: 1.0 },
+    bento: { radius: 0.7, height: 0.5 },
+    medium: { radius: 1.1, height: 0.75 },
+    large: { radius: 1.8, height: 1.1 },
   };
 
   const currentSize = size ? sizeConfig[size as keyof typeof sizeConfig] : sizeConfig.medium;
