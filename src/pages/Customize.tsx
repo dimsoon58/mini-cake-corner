@@ -49,14 +49,16 @@ import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 import designRainbowCake from "@/assets/design-rainbow-cake-new.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
 import designShagCake from "@/assets/design-shag-cake-new.jpg";
-import designRetroCake from "@/assets/design-retro-cake.png";
-import designButterflyGarden from "@/assets/design-butterfly-garden.png";
-import designDrawing from "@/assets/design-drawing.png";
-import designPrintedPicture from "@/assets/design-printed-picture.png";
+import designRetroCake from "@/assets/design-retro-cake-new.jpg";
+import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
+import designDrawing from "@/assets/design-drawing-new.jpg";
+import designPrintedPicture from "@/assets/design-printed-picture-new.jpg";
 import designGoldLeaves from "@/assets/design-gold-leaves.png";
-import designGlitterCake from "@/assets/design-glitter-cake.png";
-import designGlitterInAir from "@/assets/design-glitter-in-air.png";
+import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
+import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designGenderReveal from "@/assets/design-gender-reveal.png";
+import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
+import designRibbons from "@/assets/design-ribbons-new.jpg";
 
 const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras", "Candles"];
 
@@ -149,9 +151,10 @@ const styles = [
   { id: "glitter-cake", name: "Glitter Cake", price: { bento: 6, medium: 8, large: 12 }, image: designGlitterCake },
   { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 5, medium: 7, large: 10 }, image: designGlitterInAir },
   { id: "gender-reveal", name: "Gender Reveal", price: { bento: 5, medium: 10, large: 20 }, image: designGenderReveal },
-  { id: "scattered-pearls", name: "Scattered Pearls", price: { bento: 2, medium: 5, large: 7 }, image: null },
+  { id: "scattered-pearls", name: "Scattered Pearls", price: { bento: 2, medium: 5, large: 7 }, image: designScatteredPearls },
   { id: "pearl-borders", name: "Pearl Borders", price: { bento: 8, medium: 15, large: 20 }, image: designPearlBorders },
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 }, image: designPearlNumber },
+  { id: "ribbons", name: "Ribbons", price: { bento: 10, medium: 20, large: 30 }, image: designRibbons },
 ];
 
 const extras = [
