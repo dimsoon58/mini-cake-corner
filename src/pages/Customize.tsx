@@ -31,16 +31,18 @@ import candlePuppy from "@/assets/candle-puppy-new.png";
 import candlePinkCar from "@/assets/candle-pink-car.png";
 import candleSoccer from "@/assets/candle-soccer.png";
 import candleCherry from "@/assets/candle-cherry-new.png";
-import candleTeddyBear from "@/assets/candle-teddy-bear.png";
+import candleTeddyBear from "@/assets/candle-teddy-bear-new.png";
 import candleDaisy from "@/assets/candle-daisy.png";
+import candleRibbon from "@/assets/candle-ribbon.png";
 import candlePinkOmbre from "@/assets/candle-pink-ombre-new.png";
 import candleBlueOmbre from "@/assets/candle-blue-ombre-new.png";
-import candleThickSpiral from "@/assets/candle-thick-spiral.png";
-import candleSpiralPastel from "@/assets/candle-spiral-pastel.png";
-import candleShinySpiral from "@/assets/candle-shiny-spiral.png";
+import candleThickSpiral from "@/assets/candle-thick-spiral-new.png";
+import candleSpiralPastel from "@/assets/candle-spiral-pastel-new.png";
+import candleShinySpiral from "@/assets/candle-shiny-spiral-new.png";
 import candleRainbow from "@/assets/candle-rainbow.png";
 import candleRedCar from "@/assets/candle-red-car-new.png";
 import candleBlueCar from "@/assets/candle-blue-car-new.png";
+import candleYellowCar from "@/assets/candle-yellow-car-new.png";
 import candleHeart from "@/assets/candle-heart-new.png";
 
 // Style images
@@ -193,10 +195,12 @@ const candles = [
   { id: "cherry", name: "Cherry", image: candleCherry, unitPrice: 2, hasPack: false },
   { id: "heart", name: "Red Heart", image: candleHeart, unitPrice: 2, hasPack: false },
   { id: "daisy", name: "Daisy", image: candleDaisy, unitPrice: 2, hasPack: false },
+  { id: "ribbon", name: "Ribbon", image: candleRibbon, unitPrice: 2, hasPack: false },
   { id: "soccer", name: "Footy Flame", image: candleSoccer, unitPrice: 2, hasPack: false },
   { id: "pink-car", name: "Pink Car", image: candlePinkCar, unitPrice: 2, hasPack: false },
   { id: "red-car", name: "Red Car", image: candleRedCar, unitPrice: 2, hasPack: false },
   { id: "blue-car", name: "Blue Car", image: candleBlueCar, unitPrice: 2, hasPack: false },
+  { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, unitPrice: 2, hasPack: false },
   // Ombré & Spirals - unit + pack (6) - grouped together
   { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
@@ -1167,11 +1171,11 @@ const Customize = () => {
                     const isAnySelected = unitQty > 0;
                     
                     return (
-                      <div key={candle.id} className="flex flex-col items-center w-32 sm:w-36">
+                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
                         <img
                           src={candle.image}
                           alt={candle.name}
-                          className="h-28 w-28 object-contain mb-2"
+                          className="h-56 w-56 object-contain mb-2"
                         />
                         <Card
                           className={cn(
@@ -1221,11 +1225,11 @@ const Customize = () => {
                     const isAnySelected = unitQty > 0 || isPackSelected;
                     
                     return (
-                      <div key={candle.id} className="flex flex-col items-center w-32 sm:w-36">
+                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
                         <img
                           src={candle.image}
                           alt={candle.name}
-                          className="h-28 w-28 object-contain mb-2"
+                          className="h-56 w-56 object-contain mb-2"
                         />
                         <Card
                           className={cn(
