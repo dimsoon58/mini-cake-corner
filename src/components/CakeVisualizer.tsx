@@ -46,8 +46,8 @@ const colorMap: Record<string, string> = {
 // Plate component
 const Plate = () => {
   return (
-    <mesh position={[0, -0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      <cylinderGeometry args={[2.2, 2.2, 0.1, 64]} />
+    <mesh position={[0, -0.05, 0]}>
+      <cylinderGeometry args={[2.2, 2.4, 0.1, 64]} />
       <meshStandardMaterial color="#E8E0D8" metalness={0.1} roughness={0.8} />
     </mesh>
   );
