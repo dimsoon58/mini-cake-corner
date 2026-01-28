@@ -1139,23 +1139,23 @@ const Customize = () => {
 
           {/* Candles Selection */}
           {currentStep === 7 && (
-            <div className="space-y-6">
+            <div className="space-y-6 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Candles (Optional)
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
+              <div className="flex flex-wrap justify-center gap-6 max-w-5xl mx-auto">
                 {candles.map((candle) => {
                   const unitQty = getCandleUnitQuantity(candle.id);
                   const isPackSelected = candle.hasPack && isCandlePackSelected(candle.id);
                   const isAnySelected = unitQty > 0 || isPackSelected;
                   
                   return (
-                    <div key={candle.id} className="flex flex-col items-center">
+                    <div key={candle.id} className="flex flex-col items-center w-36 sm:w-40">
                       {/* Large image above */}
                       <img
                         src={candle.image}
                         alt={candle.name}
-                        className="h-48 w-full object-contain mb-3"
+                        className="h-32 w-32 object-contain mb-2"
                       />
                       
                       {/* Info card below */}
@@ -1163,21 +1163,21 @@ const Customize = () => {
                         className={cn(
                           "w-full transition-all",
                           isAnySelected
-                            ? "ring-2 ring-primary bg-secondary"
-                            : "bg-card"
+                            ? "ring-2 ring-primary bg-white/80"
+                            : "bg-white/60"
                         )}
                       >
-                        <CardContent className="p-3 text-center">
-                          <h3 className="font-medium text-foreground text-sm mb-1">{candle.name}</h3>
-                          <p className="text-xs text-muted-foreground mb-2">CHF {candle.unitPrice} / pièce</p>
+                        <CardContent className="p-2 text-center">
+                          <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                          <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
                           
                           {/* Quantity selector for units */}
-                          <div className="flex items-center justify-center gap-2 mb-2">
+                          <div className="flex items-center justify-center gap-1.5 mb-1.5">
                             <button
                               onClick={() => handleCandleQuantityChange(candle.id, -1)}
                               disabled={unitQty === 0}
                               className={cn(
-                                "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold transition-all",
+                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
                                 unitQty === 0
                                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                                   : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -1185,10 +1185,10 @@ const Customize = () => {
                             >
                               −
                             </button>
-                            <span className="w-6 text-center font-medium text-foreground">{unitQty}</span>
+                            <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
                             <button
                               onClick={() => handleCandleQuantityChange(candle.id, 1)}
-                              className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
+                              className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
                             >
                               +
                             </button>
@@ -1199,7 +1199,7 @@ const Customize = () => {
                             <button
                               onClick={() => handleToggleCandlePack(candle.id)}
                               className={cn(
-                                "w-full py-1 px-2 rounded text-xs transition-all",
+                                "w-full py-0.5 px-1 rounded text-[10px] transition-all",
                                 isPackSelected
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-muted hover:bg-muted/80 text-foreground"
