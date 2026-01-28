@@ -637,7 +637,7 @@ const Customize = () => {
 
           {/* Flavor Selection */}
           {currentStep === 3 && (
-            <div className="space-y-10">
+            <div className="space-y-10 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Flavor
               </h2>
