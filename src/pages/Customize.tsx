@@ -60,6 +60,7 @@ import designGenderReveal from "@/assets/design-gender-reveal-new.jpg";
 import designCherries from "@/assets/design-cherries-new.png";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
+import designGlitterCherries from "@/assets/design-glitter-cherries-new.jpg";
 
 const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras", "Candles"];
 
@@ -159,13 +160,13 @@ const styles = [
 ];
 
 const extras = [
-  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, medium: 4, large: 6 } },
-  { id: "cherries", name: "Cherries", price: { bento: 4, medium: 8, large: 12 } },
-  { id: "glitter-cherries", name: "Glitter Cherries", price: { bento: 6, medium: 10, large: 15 } },
-  { id: "glitter", name: "Glitter", price: { bento: 3, medium: 5, large: 8 } },
-  { id: "ribbons", name: "Ribbons", price: { bento: 10, medium: 20, large: 30 } },
-  { id: "butterfly", name: "Butterfly", price: { bento: 7, medium: 15, large: 20 } },
-  { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 } },
+  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, medium: 4, large: 6 }, image: designGoldLeaves },
+  { id: "cherries", name: "Cherries", price: { bento: 4, medium: 8, large: 12 }, image: designCherries },
+  { id: "glitter-cherries", name: "Glitter Cherries", price: { bento: 6, medium: 10, large: 15 }, image: designGlitterCherries },
+  { id: "glitter", name: "Glitter", price: { bento: 3, medium: 5, large: 8 }, image: designGlitterCake },
+  { id: "ribbons", name: "Ribbons", price: { bento: 10, medium: 20, large: 30 }, image: designRibbons },
+  { id: "butterfly", name: "Butterfly", price: { bento: 7, medium: 15, large: 20 }, image: designButterflyGarden },
+  { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 }, image: designPearlNumber },
 ];
 
 const glitterColors = [
@@ -914,14 +915,23 @@ const Customize = () => {
                   <Card
                     key={extra.id}
                     className={cn(
-                      "cursor-pointer transition-all hover:shadow-lg",
+                      "cursor-pointer transition-all hover:shadow-lg overflow-hidden",
                       selections.extras.includes(extra.id)
                         ? "ring-2 ring-primary bg-secondary"
                         : "hover:bg-muted/50"
                     )}
                     onClick={() => handleToggleExtra(extra.id)}
                   >
-                    <CardContent className="p-4 text-center">
+                    {extra.image && (
+                      <div className="aspect-square overflow-hidden">
+                        <img
+                          src={extra.image}
+                          alt={extra.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <CardContent className={cn("p-4 text-center", !extra.image && "py-8")}>
                       <h3 className="font-medium text-foreground">{extra.name}</h3>
                       <p className="text-primary font-bold mt-1">+CHF {getExtraPrice(extra)}</p>
                     </CardContent>
