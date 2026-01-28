@@ -29,7 +29,7 @@ const flavorChocolateGF = flavorChocolate;
 // Candle images
 import candlePuppy from "@/assets/candle-puppy-new.png";
 import candlePinkCar from "@/assets/candle-pink-car.png";
-import candleSoccer from "@/assets/candle-soccer.png";
+import candleSoccer from "@/assets/candle-soccer-new.png";
 import candleCherry from "@/assets/candle-cherry-new.png";
 import candleTeddyBear from "@/assets/candle-teddy-bear-new.png";
 import candleDaisy from "@/assets/candle-daisy.png";
