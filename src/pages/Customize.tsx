@@ -53,10 +53,11 @@ import designRetroCake from "@/assets/design-retro-cake-new.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designDrawing from "@/assets/design-drawing-new.jpg";
 import designPrintedPicture from "@/assets/design-printed-picture-new.jpg";
-import designGoldLeaves from "@/assets/design-gold-leaves.png";
+import designGoldLeaves from "@/assets/design-gold-leaves-new.png";
 import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
-import designGenderReveal from "@/assets/design-gender-reveal.png";
+import designGenderReveal from "@/assets/design-gender-reveal-new.jpg";
+import designCherries from "@/assets/design-cherries-new.png";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 
