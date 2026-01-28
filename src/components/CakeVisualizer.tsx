@@ -1,6 +1,6 @@
 import { Suspense, useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text3D, Center, Environment, Float } from "@react-three/drei";
+import { OrbitControls, Text, Environment, Float } from "@react-three/drei";
 import * as THREE from "three";
 
 interface CakeVisualizerProps {
@@ -12,6 +12,7 @@ interface CakeVisualizerProps {
   wantsText: boolean;
   cakeText: string;
   textColor: string | null;
+  textStyle?: "normal" | "uppercase" | "cursive";
   extras: string[];
   candles: { id: string; quantity: number; hasPack: boolean }[];
   currentStep: number;
@@ -397,6 +398,40 @@ const Ribbon = ({ position, color }: { position: [number, number, number]; color
   );
 };
 
+// Cake Text component
+const CakeText = ({ 
+  text, 
+  color, 
+  textStyle,
+  height,
+  radius 
+}: { 
+  text: string; 
+  color: string; 
+  textStyle: "normal" | "uppercase" | "cursive";
+  height: number;
+  radius: number;
+}) => {
+  const displayText = textStyle === "uppercase" ? text.toUpperCase() : text;
+  const fontSize = text.length > 15 ? 0.12 : text.length > 10 ? 0.15 : 0.18;
+  
+  return (
+    <Text
+      position={[0, height + 0.02, 0]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      font={textStyle === "cursive" ? "/fonts/cursive.woff" : undefined}
+      fontStyle={textStyle === "cursive" ? "italic" : "normal"}
+      maxWidth={radius * 1.5}
+    >
+      {displayText}
+    </Text>
+  );
+};
+
 // Main 3D Scene
 const CakeScene = ({
   size,
@@ -407,6 +442,7 @@ const CakeScene = ({
   wantsText,
   cakeText,
   textColor,
+  textStyle = "normal",
   extras,
   candles,
   currentStep,
@@ -423,6 +459,7 @@ const CakeScene = ({
   // Get actual colors
   const fillColor = baseColor ? colorMap[baseColor] || "#FFC0CB" : "#FFC0CB";
   const decoColor = decorationColor ? colorMap[decorationColor] || "#E75480" : "#E75480";
+  const txtColor = textColor ? colorMap[textColor] || "#654321" : "#654321";
 
   // Size dimensions - taller cakes
   const sizeConfig = {
@@ -437,6 +474,7 @@ const CakeScene = ({
   const showCake = currentStep >= 1;
   const showBaseColor = currentStep >= 4;
   const showStyle = currentStep >= 4;
+  const showText = currentStep >= 5 && wantsText && cakeText.length > 0;
   const showExtras = currentStep >= 6;
   const showCandles = currentStep >= 7;
 
@@ -514,6 +552,17 @@ const CakeScene = ({
             <Ribbon 
               position={[0, cakeHeight * 0.3, currentSize.radius + 0.1]}
               color={decoColor}
+            />
+          )}
+
+          {/* Cake Text */}
+          {showText && (
+            <CakeText 
+              text={cakeText}
+              color={txtColor}
+              textStyle={textStyle}
+              height={cakeHeight}
+              radius={currentSize.radius}
             />
           )}
 
