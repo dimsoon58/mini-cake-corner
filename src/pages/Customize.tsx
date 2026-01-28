@@ -375,13 +375,18 @@ const Customize = () => {
     const unitSelection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
     const packSelection = selections.candles.find((c) => c.id === candleId && c.hasPack);
     
-    // If candle has pack option and user selected exactly 6 units (or more in multiples of 6), apply pack pricing
-    if (unitSelection && candle.hasPack && candle.packSize) {
-      const packs = Math.floor(unitSelection.quantity / candle.packSize);
-      const remainder = unitSelection.quantity % candle.packSize;
-      total += packs * (candle.packPrice || 0) + remainder * candle.unitPrice;
-    } else if (unitSelection) {
-      total += candle.unitPrice * unitSelection.quantity;
+    if (unitSelection) {
+      // For candles with pack option, always use the cheaper option (pack price vs unit price)
+      if (candle.hasPack && candle.packSize && candle.packPrice) {
+        const unitTotal = candle.unitPrice * unitSelection.quantity;
+        // If unit total >= pack price, just charge pack price for every 6 (or partial group)
+        const packsNeeded = Math.ceil(unitSelection.quantity / candle.packSize);
+        const packTotal = packsNeeded * candle.packPrice;
+        // Use whichever is cheaper
+        total += Math.min(unitTotal, packTotal);
+      } else {
+        total += candle.unitPrice * unitSelection.quantity;
+      }
     }
     
     // Add explicit pack selection if any
@@ -1146,63 +1151,110 @@ const Customize = () => {
 
           {/* Candles Selection */}
           {currentStep === 7 && (
-            <div className="space-y-6 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+            <div className="space-y-8 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Candles (Optional)
               </h2>
-              <div className="flex flex-wrap justify-center gap-6 max-w-5xl mx-auto">
-                {candles.map((candle) => {
-                  const unitQty = getCandleUnitQuantity(candle.id);
-                  const isPackSelected = candle.hasPack && isCandlePackSelected(candle.id);
-                  const isAnySelected = unitQty > 0 || isPackSelected;
-                  
-                  return (
-                    <div key={candle.id} className="flex flex-col items-center w-36 sm:w-40">
-                      {/* Large image above */}
-                      <img
-                        src={candle.image}
-                        alt={candle.name}
-                        className="h-32 w-32 object-contain mb-2"
-                      />
-                      
-                      {/* Info card below */}
-                      <Card
-                        className={cn(
-                          "w-full transition-all",
-                          isAnySelected
-                            ? "ring-2 ring-primary bg-white/80"
-                            : "bg-white/60"
-                        )}
-                      >
-                        <CardContent className="p-2 text-center">
-                          <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
-                          <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
-                          
-                          {/* Quantity selector for units */}
-                          <div className="flex items-center justify-center gap-1.5 mb-1.5">
-                            <button
-                              onClick={() => handleCandleQuantityChange(candle.id, -1)}
-                              disabled={unitQty === 0}
-                              className={cn(
-                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-                                unitQty === 0
-                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                  : "bg-primary text-primary-foreground hover:bg-primary/90"
-                              )}
-                            >
-                              −
-                            </button>
-                            <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
-                            <button
-                              onClick={() => handleCandleQuantityChange(candle.id, 1)}
-                              className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
-                            >
-                              +
-                            </button>
-                          </div>
-                          
-                          {/* Pack button (if available) */}
-                          {candle.hasPack && (
+              
+              {/* Figurines Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-center text-foreground/80">Figurines</h3>
+                <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
+                  {candles.filter(c => !c.hasPack).map((candle) => {
+                    const unitQty = getCandleUnitQuantity(candle.id);
+                    const isAnySelected = unitQty > 0;
+                    
+                    return (
+                      <div key={candle.id} className="flex flex-col items-center w-32 sm:w-36">
+                        <img
+                          src={candle.image}
+                          alt={candle.name}
+                          className="h-28 w-28 object-contain mb-2"
+                        />
+                        <Card
+                          className={cn(
+                            "w-full transition-all",
+                            isAnySelected ? "ring-2 ring-primary bg-white/80" : "bg-white/60"
+                          )}
+                        >
+                          <CardContent className="p-2 text-center">
+                            <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                            <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleCandleQuantityChange(candle.id, -1)}
+                                disabled={unitQty === 0}
+                                className={cn(
+                                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                  unitQty === 0
+                                    ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                )}
+                              >
+                                −
+                              </button>
+                              <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
+                              <button
+                                onClick={() => handleCandleQuantityChange(candle.id, 1)}
+                                className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Packs Section - Ombré & Spirals */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-center text-foreground/80">Ombré & Spirales (Pack de 6 disponible)</h3>
+                <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
+                  {candles.filter(c => c.hasPack).map((candle) => {
+                    const unitQty = getCandleUnitQuantity(candle.id);
+                    const isPackSelected = isCandlePackSelected(candle.id);
+                    const isAnySelected = unitQty > 0 || isPackSelected;
+                    
+                    return (
+                      <div key={candle.id} className="flex flex-col items-center w-32 sm:w-36">
+                        <img
+                          src={candle.image}
+                          alt={candle.name}
+                          className="h-28 w-28 object-contain mb-2"
+                        />
+                        <Card
+                          className={cn(
+                            "w-full transition-all",
+                            isAnySelected ? "ring-2 ring-primary bg-white/80" : "bg-white/60"
+                          )}
+                        >
+                          <CardContent className="p-2 text-center">
+                            <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                            <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce ou CHF {candle.packPrice}/pack</p>
+                            <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                              <button
+                                onClick={() => handleCandleQuantityChange(candle.id, -1)}
+                                disabled={unitQty === 0}
+                                className={cn(
+                                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                  unitQty === 0
+                                    ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                )}
+                              >
+                                −
+                              </button>
+                              <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
+                              <button
+                                onClick={() => handleCandleQuantityChange(candle.id, 1)}
+                                className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                              >
+                                +
+                              </button>
+                            </div>
                             <button
                               onClick={() => handleToggleCandlePack(candle.id)}
                               className={cn(
@@ -1214,12 +1266,12 @@ const Customize = () => {
                             >
                               {isPackSelected ? "✓ " : ""}Pack ({candle.packSize}) — CHF {candle.packPrice}
                             </button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  );
-                })}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
