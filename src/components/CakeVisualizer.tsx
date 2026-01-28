@@ -156,23 +156,28 @@ const HeartCake = ({
   color,
   decoColor,
   hasBorder,
+  hasHearts,
+  hasPearls,
 }: { 
   scale: number; 
   height: number; 
   color: string;
   decoColor: string;
   hasBorder: boolean;
+  hasHearts: boolean;
+  hasPearls: boolean;
 }) => {
   const heartShape = useMemo(() => {
     const shape = new THREE.Shape();
-    const x = 0, y = 0;
-    shape.moveTo(x, y + 0.5 * scale);
-    shape.bezierCurveTo(x, y + 0.5 * scale, x - 0.1 * scale, y, x - 0.5 * scale, y);
-    shape.bezierCurveTo(x - 1 * scale, y, x - 1 * scale, y + 0.7 * scale, x - 1 * scale, y + 0.7 * scale);
-    shape.bezierCurveTo(x - 1 * scale, y + 1.1 * scale, x - 0.5 * scale, y + 1.5 * scale, x, y + 1.9 * scale);
-    shape.bezierCurveTo(x + 0.5 * scale, y + 1.5 * scale, x + 1 * scale, y + 1.1 * scale, x + 1 * scale, y + 0.7 * scale);
-    shape.bezierCurveTo(x + 1 * scale, y + 0.7 * scale, x + 1 * scale, y, x + 0.5 * scale, y);
-    shape.bezierCurveTo(x + 0.1 * scale, y, x, y + 0.5 * scale, x, y + 0.5 * scale);
+    const s = scale;
+    // Heart shape - pointed at bottom, lobes at top
+    shape.moveTo(0, -1.2 * s);
+    shape.bezierCurveTo(0.1 * s, -1 * s, 0.5 * s, -0.8 * s, 0.8 * s, -0.4 * s);
+    shape.bezierCurveTo(1.1 * s, 0, 1 * s, 0.5 * s, 0.5 * s, 0.8 * s);
+    shape.bezierCurveTo(0.25 * s, 1 * s, 0, 0.9 * s, 0, 0.7 * s);
+    shape.bezierCurveTo(0, 0.9 * s, -0.25 * s, 1 * s, -0.5 * s, 0.8 * s);
+    shape.bezierCurveTo(-1 * s, 0.5 * s, -1.1 * s, 0, -0.8 * s, -0.4 * s);
+    shape.bezierCurveTo(-0.5 * s, -0.8 * s, -0.1 * s, -1 * s, 0, -1.2 * s);
     return shape;
   }, [scale]);
 
@@ -180,26 +185,67 @@ const HeartCake = ({
     steps: 2,
     depth: height,
     bevelEnabled: true,
-    bevelThickness: 0.05,
-    bevelSize: 0.05,
+    bevelThickness: 0.08,
+    bevelSize: 0.08,
     bevelOffset: 0,
-    bevelSegments: 3,
+    bevelSegments: 5,
   };
 
   return (
-    <group rotation={[Math.PI / 2, Math.PI, 0]} position={[0, height / 2, 0.8 * scale]}>
-      <mesh>
-        <extrudeGeometry args={[heartShape, extrudeSettings]} />
-        <meshStandardMaterial color={color} roughness={0.4} metalness={0.1} />
-      </mesh>
+    <group>
+      {/* Heart cake body - rotated to lay flat with extrusion going UP */}
+      <group rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+        <mesh>
+          <extrudeGeometry args={[heartShape, extrudeSettings]} />
+          <meshStandardMaterial color={color} roughness={0.4} metalness={0.1} />
+        </mesh>
+      </group>
       
-      {/* Border on top */}
+      {/* Border decoration on top */}
       {hasBorder && (
-        <mesh position={[0, 1 * scale, height + 0.1]}>
-          <torusGeometry args={[0.5 * scale, 0.05, 16, 32]} />
+        <mesh position={[0, height + 0.05, 0]} rotation={[0, 0, 0]}>
+          <torusGeometry args={[0.7 * scale, 0.05, 16, 32]} />
           <meshStandardMaterial color={decoColor} roughness={0.4} />
         </mesh>
       )}
+
+      {/* Hearts decoration around the cake */}
+      {hasHearts && [...Array(6)].map((_, i) => {
+        const angle = (i / 6) * Math.PI * 2;
+        const r = scale * 0.9;
+        return (
+          <mesh 
+            key={i} 
+            position={[
+              Math.cos(angle) * r,
+              height + 0.15,
+              Math.sin(angle) * r
+            ]}
+          >
+            <sphereGeometry args={[0.1, 16, 16]} />
+            <meshStandardMaterial color="#FF6B8A" roughness={0.3} />
+          </mesh>
+        );
+      })}
+
+      {/* Pearls around base */}
+      {hasPearls && [...Array(12)].map((_, i) => {
+        const angle = (i / 12) * Math.PI * 2;
+        const r = scale * 1.05;
+        return (
+          <mesh 
+            key={i} 
+            position={[
+              Math.cos(angle) * r,
+              0.1,
+              Math.sin(angle) * r
+            ]}
+          >
+            <sphereGeometry args={[0.08, 16, 16]} />
+            <meshStandardMaterial color="#F5F5F5" roughness={0.2} metalness={0.3} />
+          </mesh>
+        );
+      })}
     </group>
   );
 };
@@ -388,6 +434,8 @@ const CakeScene = ({
               color={cakeColor}
               decoColor={decoColor}
               hasBorder={hasBorder && showStyle}
+              hasHearts={hasHearts && showStyle}
+              hasPearls={hasPearls && showStyle}
             />
           ) : (
             <RoundCake 
