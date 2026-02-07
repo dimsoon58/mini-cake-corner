@@ -225,8 +225,8 @@ const Checkout = () => {
           newsletter_subscription: subscribeNewsletter,
         });
 
-        // Redirect to Stripe Checkout
-        window.location.href = data.url;
+        // Open Stripe Checkout in new tab (required for iframe preview)
+        window.open(data.url, "_blank");
       } else {
         throw new Error("No checkout URL received");
       }
