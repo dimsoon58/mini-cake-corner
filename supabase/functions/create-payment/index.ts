@@ -114,13 +114,13 @@ serve(async (req) => {
       customerId = newCustomer.id;
     }
 
-    // Create checkout session
+    // Create checkout session with embedded mode for in-page payment
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: lineItems,
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/checkout`,
+      ui_mode: "embedded",
+      return_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       metadata: {
         customer_name: customerName,
         customer_phone: customerPhone,
@@ -129,9 +129,9 @@ serve(async (req) => {
       },
     });
 
-    console.log("Checkout session created:", session.id);
+    console.log("Embedded checkout session created:", session.id);
 
-    return new Response(JSON.stringify({ url: session.url }), {
+    return new Response(JSON.stringify({ clientSecret: session.client_secret }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
