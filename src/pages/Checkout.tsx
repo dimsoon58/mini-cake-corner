@@ -186,74 +186,59 @@ const Checkout = () => {
       return;
     }
 
-    // Save order to database
-    const { error: insertError } = await supabase.from('orders').insert({
-      order_date: formattedDate,
-      customer_name: `${firstName} ${lastName}`,
-      customer_email: email,
-      customer_phone: phone,
-      total_amount: totalPrice,
-      delivery_option: deliveryOption,
-      delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
-      newsletter_subscription: subscribeNewsletter,
-    });
+    try {
+      // Call Stripe payment edge function
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          items: items.map(item => ({
+            sizeName: item.sizeName,
+            shapeName: item.shapeName,
+            flavorName: item.flavorName,
+            styleName: item.styleName,
+            extrasNames: item.extrasNames,
+            total: item.total,
+          })),
+          customerEmail: email,
+          customerName: `${firstName} ${lastName}`,
+          customerPhone: phone,
+          deliveryOption,
+          deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
+          deliveryFee: deliveryPrice,
+          totalAmount: totalPrice,
+        },
+      });
 
-    if (insertError) {
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.url) {
+        // Save order to database before redirecting
+        await supabase.from('orders').insert({
+          order_date: formattedDate,
+          customer_name: `${firstName} ${lastName}`,
+          customer_email: email,
+          customer_phone: phone,
+          total_amount: totalPrice,
+          delivery_option: deliveryOption,
+          delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
+          newsletter_subscription: subscribeNewsletter,
+        });
+
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
       toast({
-        title: "Error saving order",
-        description: "Please try again.",
+        title: "Erreur de paiement",
+        description: error instanceof Error ? error.message : "Une erreur est survenue. Veuillez réessayer.",
         variant: "destructive",
       });
       setIsSubmitting(false);
-      return;
     }
-
-    // Build order details message
-    const orderItems = items
-      .map(
-        (item) =>
-          `- ${item.sizeName} ${item.shapeName} Cake (${item.flavorName}${item.styleName ? `, ${item.styleName}` : ""}${item.extrasNames.length > 0 ? `, Extras: ${item.extrasNames.join(", ")}` : ""}) - CHF ${item.total}`
-      )
-      .join("\n");
-
-    const deliveryInfo = deliveryOption === "pickup" 
-      ? "Option: Pickup"
-      : `Option: Delivery
-Address: ${deliveryAddress}
-Zone: ${detectedZone?.name} (+CHF ${detectedZone?.price})${deliveryComment ? `\nNotes: ${deliveryComment}` : ""}`;
-
-    const newsletterInfo = subscribeNewsletter ? "\n\n📧 *Newsletter:* Yes, subscribed" : "";
-
-    const message = `🎂 *New Cake Order*
-
-*Customer Information:*
-Name: ${firstName} ${lastName}
-Phone: ${phone}
-Email: ${email}
-
-*Order Details:*
-${orderItems}
-
-*Delivery:*
-Date: ${format(deliveryDate, "PPP")}${deliveryTime ? ` at ${deliveryTime}` : ""}
-${deliveryInfo}
-
-*Subtotal: CHF ${itemsTotal}*${deliveryPrice > 0 && deliveryOption === "delivery" ? `\n*Delivery Fee: CHF ${deliveryPrice}*` : ""}
-*Total: CHF ${totalPrice}*${newsletterInfo}`;
-
-    // Encode message for URL
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
-
-    // Open WhatsApp
-    window.open(whatsappUrl, "_blank");
-
-    toast({
-      title: "Order sent!",
-      description: "WhatsApp will open with your order details.",
-    });
-
-    setIsSubmitting(false);
   };
 
   return (
