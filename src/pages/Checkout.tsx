@@ -20,6 +20,7 @@ import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import EmbeddedCheckoutForm from "@/components/EmbeddedCheckoutForm";
 
 // Generate time slots from 10:00 to 18:30 in 30-minute intervals
 const generateTimeSlots = () => {
@@ -104,6 +105,8 @@ const Checkout = () => {
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [validatedOrderDate, setValidatedOrderDate] = useState<string>("");
 
   // Fetch fully booked dates on mount
   useEffect(() => {
@@ -186,59 +189,19 @@ const Checkout = () => {
       return;
     }
 
-    try {
-      // Call Stripe payment edge function
-      const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: {
-          items: items.map(item => ({
-            sizeName: item.sizeName,
-            shapeName: item.shapeName,
-            flavorName: item.flavorName,
-            styleName: item.styleName,
-            extrasNames: item.extrasNames,
-            total: item.total,
-          })),
-          customerEmail: email,
-          customerName: `${firstName} ${lastName}`,
-          customerPhone: phone,
-          deliveryOption,
-          deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
-          deliveryFee: deliveryPrice,
-          totalAmount: totalPrice,
-        },
-      });
+    // Store validated order date and show payment form
+    setValidatedOrderDate(formattedDate);
+    setShowPayment(true);
+    setIsSubmitting(false);
+  };
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.url) {
-        // Save order to database before redirecting
-        await supabase.from('orders').insert({
-          order_date: formattedDate,
-          customer_name: `${firstName} ${lastName}`,
-          customer_email: email,
-          customer_phone: phone,
-          total_amount: totalPrice,
-          delivery_option: deliveryOption,
-          delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
-          newsletter_subscription: subscribeNewsletter,
-        });
-
-        // Open Stripe Checkout in new tab (required for iframe preview)
-        window.open(data.url, "_blank");
-      } else {
-        throw new Error("No checkout URL received");
-      }
-    } catch (error) {
-      console.error("Payment error:", error);
-      toast({
-        title: "Erreur de paiement",
-        description: error instanceof Error ? error.message : "Une erreur est survenue. Veuillez réessayer.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-    }
+  const handlePaymentError = (error: string) => {
+    toast({
+      title: "Erreur de paiement",
+      description: error,
+      variant: "destructive",
+    });
+    setShowPayment(false);
   };
 
   return (
@@ -525,10 +488,29 @@ const Checkout = () => {
               </div>
             </div>
 
-            {/* Submit Button */}
-            <Button type="submit" className="w-full" size="lg" disabled={!acceptPrivacyPolicy || isSubmitting}>
-              {isSubmitting ? "Processing..." : "Place Order"}
-            </Button>
+            {/* Submit Button or Payment Form */}
+            {!showPayment ? (
+              <Button type="submit" className="w-full" size="lg" disabled={!acceptPrivacyPolicy || isSubmitting}>
+                {isSubmitting ? "Vérification..." : "Procéder au paiement"}
+              </Button>
+            ) : (
+              <div className="border-t border-border pt-6">
+                <h3 className="text-lg font-medium mb-4">Paiement sécurisé</h3>
+                <EmbeddedCheckoutForm
+                  items={items}
+                  customerEmail={email}
+                  customerName={`${firstName} ${lastName}`}
+                  customerPhone={phone}
+                  deliveryOption={deliveryOption}
+                  deliveryAddress={deliveryOption === "delivery" ? deliveryAddress : undefined}
+                  deliveryFee={deliveryPrice}
+                  totalAmount={totalPrice}
+                  orderDate={validatedOrderDate}
+                  subscribeNewsletter={subscribeNewsletter}
+                  onError={handlePaymentError}
+                />
+              </div>
+            )}
           </form>
         </div>
       </main>
