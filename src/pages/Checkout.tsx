@@ -129,6 +129,15 @@ const Checkout = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (items.length === 0) {
+      toast({
+        title: "Panier vide",
+        description: "Ajoutez au moins un gâteau avant de procéder au paiement.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!acceptPrivacyPolicy) {
       toast({
         title: "Privacy Policy required",
@@ -261,6 +270,22 @@ const Checkout = () => {
           <h2 className="text-xl font-serif text-foreground mb-6">
             Contact Information
           </h2>
+
+          {items.length === 0 && (
+            <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4">
+              <p className="text-sm text-muted-foreground">
+                Votre panier est vide. Ajoutez un gâteau avant de procéder au paiement.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button asChild variant="default">
+                  <Link to="/cart">Aller au panier</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/catalog">Voir le catalogue</Link>
+                </Button>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Name Fields */}
@@ -531,8 +556,17 @@ const Checkout = () => {
             </div>
 
             {/* Submit Button */}
-            <Button type="submit" className="w-full" size="lg" disabled={!acceptPrivacyPolicy || isSubmitting}>
-              {isSubmitting ? "Redirection vers le paiement..." : "Procéder au paiement"}
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={!acceptPrivacyPolicy || isSubmitting || items.length === 0}
+            >
+              {items.length === 0
+                ? "Panier vide"
+                : isSubmitting
+                  ? "Redirection vers le paiement..."
+                  : "Procéder au paiement"}
             </Button>
           </form>
         </div>
