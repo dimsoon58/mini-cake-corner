@@ -43,13 +43,16 @@ import customer19 from "@/assets/customer-19.jpg";
 import customer20 from "@/assets/customer-20.jpg";
 import customer21 from "@/assets/customer-21.jpg";
 import customer22 from "@/assets/customer-22.jpg";
+import customer23 from "@/assets/customer-23.jpg";
+import customer24 from "@/assets/customer-24.jpg";
+import customer25 from "@/assets/customer-25.jpg";
 
 const customerPhotos = [
   customer1, customer2, customer3, customer4, customer5,
   customer6, customer7, customer8, customer9, customer10,
   customer11, customer12, customer13, customer14, customer15,
   customer16, customer17, customer18, customer19, customer20,
-  customer21, customer22,
+  customer21, customer22, customer23, customer24, customer25,
 ];
 
 const features = [
