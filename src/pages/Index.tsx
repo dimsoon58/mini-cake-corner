@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
@@ -21,6 +21,21 @@ import catalogRoses from "@/assets/design-roses-please-new.jpg";
 import catalogButterfly from "@/assets/design-butterfly-garden-new.jpg";
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
+import customer1 from "@/assets/customer-1.jpg";
+import customer2 from "@/assets/customer-2.jpg";
+import customer3 from "@/assets/customer-3.jpg";
+import customer4 from "@/assets/customer-4.jpg";
+import customer5 from "@/assets/customer-5.jpg";
+import customer6 from "@/assets/customer-6.jpg";
+import customer7 from "@/assets/customer-7.jpg";
+import customer8 from "@/assets/customer-8.jpg";
+import customer9 from "@/assets/customer-9.jpg";
+import customer10 from "@/assets/customer-10.jpg";
+
+const customerPhotos = [
+  customer1, customer2, customer3, customer4, customer5,
+  customer6, customer7, customer8, customer9, customer10,
+];
 
 const features = [
   {
@@ -209,6 +224,54 @@ interface CakeSelections {
   cakeText: string;
   textColor: string;
 }
+
+const CustomerCarousel = () => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: "left" | "right") => {
+    if (!scrollRef.current) return;
+    const scrollAmount = 320;
+    scrollRef.current.scrollBy({
+      left: direction === "left" ? -scrollAmount : scrollAmount,
+      behavior: "smooth",
+    });
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => scroll("left")}
+        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-full p-2 shadow-md -ml-4"
+      >
+        <ChevronLeft className="h-6 w-6 text-foreground" />
+      </button>
+      <div
+        ref={scrollRef}
+        className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-4"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        {customerPhotos.map((photo, index) => (
+          <div
+            key={index}
+            className="flex-shrink-0 w-72 h-80 rounded-2xl overflow-hidden"
+          >
+            <img
+              src={photo}
+              alt={`Happy customer ${index + 1}`}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={() => scroll("right")}
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-full p-2 shadow-md -mr-4"
+      >
+        <ChevronRight className="h-6 w-6 text-foreground" />
+      </button>
+    </div>
+  );
+};
 
 const Index = () => {
   const { addItem } = useCart();
@@ -434,6 +497,16 @@ const Index = () => {
               </Button>
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* Customers Section */}
+      <section className="py-20 bg-cream">
+        <div className="container mx-auto px-4">
+          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
+            OUR CUSTOMERS
+          </h2>
+          <CustomerCarousel />
         </div>
       </section>
 
