@@ -24,6 +24,7 @@ interface PaymentRequest {
   deliveryAddress?: string;
   deliveryFee: number;
   totalAmount: number;
+  embedded?: boolean;
 }
 
 serve(async (req) => {
@@ -45,7 +46,7 @@ serve(async (req) => {
     const body: PaymentRequest = await req.json();
     console.log("Payment request received:", JSON.stringify(body));
 
-    const { items, customerEmail, customerName, customerPhone, deliveryOption, deliveryAddress, deliveryFee, totalAmount } = body;
+    const { items, customerEmail, customerName, customerPhone, deliveryOption, deliveryAddress, deliveryFee, totalAmount, embedded } = body;
 
     if (!items || items.length === 0) {
       throw new Error("No items in cart");
@@ -114,22 +115,39 @@ serve(async (req) => {
       customerId = newCustomer.id;
     }
 
-    // Create checkout session with full-page redirect (required for TWINT)
-    const session = await stripe.checkout.sessions.create({
+    // Create checkout session - embedded mode or redirect mode
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       line_items: lineItems,
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/checkout`,
       metadata: {
         customer_name: customerName,
         customer_phone: customerPhone,
         delivery_option: deliveryOption,
         delivery_address: deliveryAddress || "",
       },
-    });
+    };
 
-    console.log("Checkout session created:", session.id);
+    if (embedded) {
+      // Embedded checkout mode
+      sessionParams.ui_mode = "embedded";
+      sessionParams.return_url = `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
+    } else {
+      // Redirect mode (required for TWINT)
+      sessionParams.success_url = `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
+      sessionParams.cancel_url = `${req.headers.get("origin")}/checkout`;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    console.log("Checkout session created:", session.id, "embedded:", !!embedded);
+
+    if (embedded) {
+      return new Response(JSON.stringify({ clientSecret: session.client_secret }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
