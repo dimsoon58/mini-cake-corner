@@ -557,13 +557,29 @@ const Checkout = () => {
               </div>
 
               {items.length > 0 && (
-                <div className="mb-4 space-y-2">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {item.sizeName} {item.shapeName} • {item.flavorName}
-                      </span>
-                      <span className="text-foreground">CHF {item.total}</span>
+                <div className="mb-4 space-y-3">
+                  {items.map((item, index) => (
+                    <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
+                      <div className="flex justify-between items-start">
+                        <span className="font-medium text-sm text-foreground">
+                          {item.sizeName} {item.shapeName} Cake
+                        </span>
+                        <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        <p>Flavor: {item.flavorName}</p>
+                        {item.styleName && <p>Style: {item.styleName}</p>}
+                        {item.baseColorName && <p>Base Color: {item.baseColorName}</p>}
+                        {item.decorationColorName && <p>Decoration Color: {item.decorationColorName}</p>}
+                        {item.cakeText && (
+                          <p>Text: "{item.cakeText}"{item.textColorName ? ` (${item.textColorName})` : ""}</p>
+                        )}
+                        {item.extrasNames.length > 0 && (
+                          <p>Extras: {item.extrasNames.join(", ")}</p>
+                        )}
+                        {item.ribbonColorName && <p>Ribbon: {item.ribbonColorName}</p>}
+                        {item.butterflyColorName && <p>Butterfly: {item.butterflyColorName}</p>}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -643,9 +659,12 @@ const Checkout = () => {
           {/* Embedded Stripe Checkout */}
           {showEmbeddedCheckout && checkoutPayload && (
             <div className="mt-8 pt-6 border-t border-border">
-              <h3 className="text-lg font-serif text-foreground mb-4">
+              <h3 className="text-lg font-serif text-foreground mb-2">
                 Complete Your Payment
               </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Please complete your payment below to confirm your order. All transactions are secured by Stripe.
+              </p>
               <EmbeddedStripeCheckout payload={checkoutPayload} />
             </div>
           )}
