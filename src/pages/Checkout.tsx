@@ -267,7 +267,7 @@ const Checkout = () => {
         })),
         customerEmail: email,
         customerName: `${firstName} ${lastName}`,
-        customerPhone: phone,
+        customerPhone: `+41${phone.replace(/^0+/, '')}`,
         deliveryOption,
         deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
         deliveryFee: deliveryPrice,
@@ -405,14 +405,19 @@ const Checkout = () => {
               <Label htmlFor="phone">
                 Phone Number <span className="text-destructive">*</span>
               </Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Enter your phone number"
-                required
-              />
+              <div className="flex gap-2">
+                <div className="flex items-center justify-center rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground shrink-0">
+                  +41
+                </div>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="79 123 45 67"
+                  required
+                />
+              </div>
             </div>
 
             {/* Email */}
@@ -460,8 +465,11 @@ const Checkout = () => {
                       selected={deliveryDate}
                       onSelect={setDeliveryDate}
                       disabled={(date) => {
-                        // Disable past dates
-                        if (date < new Date()) return true;
+                        // Disable dates less than 4 days from now
+                        const minDate = new Date();
+                        minDate.setDate(minDate.getDate() + 4);
+                        minDate.setHours(0, 0, 0, 0);
+                        if (date < minDate) return true;
                         // Disable fully booked dates
                         return fullyBookedDates.some(
                           (bookedDate) => 
@@ -661,10 +669,10 @@ const Checkout = () => {
               disabled={!acceptPrivacyPolicy || isSubmitting || items.length === 0}
             >
               {items.length === 0
-                ? "Panier vide"
+                ? "Empty cart"
                 : isSubmitting
-                  ? "Redirection vers le paiement..."
-                  : "Procéder au paiement"}
+                  ? "Redirecting to payment..."
+                  : "Proceed to Payment"}
             </Button>
           </form>
         </div>

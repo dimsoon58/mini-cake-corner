@@ -13,12 +13,12 @@ import cakeHomemade from "@/assets/cake-homemade.png";
 import cakeFresh from "@/assets/cake-fresh.png";
 import cakeTrendy from "@/assets/cake-trendy.png";
 import cakeMiniBento from "@/assets/cake-mini-bento.png";
-import catalogRetroVintage from "@/assets/catalog-retro-vintage.png";
-import catalogHeartBomb from "@/assets/catalog-heart-bomb.png";
-import catalogShagCake from "@/assets/catalog-shag-cake.png";
-import catalogRainbow from "@/assets/catalog-rainbow.png";
-import catalogRoses from "@/assets/catalog-roses.png";
-import catalogButterfly from "@/assets/catalog-butterfly.png";
+import catalogRetroVintage from "@/assets/design-retro-cake-new.jpg";
+import catalogHeartBomb from "@/assets/design-heart-bomb-new.jpg";
+import catalogShagCake from "@/assets/design-shag-cake-new.jpg";
+import catalogRainbow from "@/assets/design-rainbow-cake-new.jpg";
+import catalogRoses from "@/assets/design-roses-please-new.jpg";
+import catalogButterfly from "@/assets/design-butterfly-garden-new.jpg";
 
 const features = [
   {
