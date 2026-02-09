@@ -166,7 +166,8 @@ const Checkout = () => {
     if (deliveryOption === "delivery" && !detectedZone) {
       toast({
         title: "Delivery zone not recognized",
-        description: "Please make sure your address includes a recognized area name (e.g., Carouge, Champel, Meyrin...)",
+        description:
+          "Please make sure your address includes a recognized area name (e.g., Carouge, Champel, Meyrin...)",
         variant: "destructive",
       });
       return;
@@ -174,46 +175,58 @@ const Checkout = () => {
 
     setIsSubmitting(true);
 
-    // Check if date is still available (max 5 orders)
-    const formattedDate = format(deliveryDate, "yyyy-MM-dd");
-    const { data: orderCount } = await supabase.rpc('get_order_count_for_date', { 
-      target_date: formattedDate 
-    });
+    let redirected = false;
 
-    if (orderCount && orderCount >= 5) {
-      toast({
-        title: "Date fully booked",
-        description: "This date has reached the maximum number of orders. Please select another date.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-      // Refresh booked dates
-      const { data } = await supabase.rpc('get_fully_booked_dates');
-      if (data) {
-        setFullyBookedDates(data.map((d: { booked_date: string }) => new Date(d.booked_date)));
+    try {
+      // Check if date is still available (max 5 orders)
+      const formattedDate = format(deliveryDate, "yyyy-MM-dd");
+      const { data: orderCount, error: orderCountError } = await supabase.rpc(
+        "get_order_count_for_date",
+        {
+          target_date: formattedDate,
+        },
+      );
+
+      if (orderCountError) {
+        console.error("Order count error:", orderCountError);
       }
-      return;
-    }
 
-    // Save order to database
-    const { error: orderError } = await supabase.from("orders").insert({
-      order_date: formattedDate,
-      customer_name: `${firstName} ${lastName}`,
-      customer_email: email,
-      customer_phone: phone,
-      total_amount: totalPrice,
-      delivery_option: deliveryOption,
-      delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
-      newsletter_subscription: subscribeNewsletter,
-    });
+      if (orderCount && orderCount >= 5) {
+        toast({
+          title: "Date fully booked",
+          description:
+            "This date has reached the maximum number of orders. Please select another date.",
+          variant: "destructive",
+        });
 
-    if (orderError) {
-      console.error("Order save error:", orderError);
-    }
+        // Refresh booked dates
+        const { data } = await supabase.rpc("get_fully_booked_dates");
+        if (data) {
+          setFullyBookedDates(
+            data.map((d: { booked_date: string }) => new Date(d.booked_date)),
+          );
+        }
+        return;
+      }
 
-    // Call Stripe payment edge function
-    const { data, error } = await supabase.functions.invoke("create-payment", {
-      body: {
+      // Save order to database
+      const { error: orderError } = await supabase.from("orders").insert({
+        order_date: formattedDate,
+        customer_name: `${firstName} ${lastName}`,
+        customer_email: email,
+        customer_phone: phone,
+        total_amount: totalPrice,
+        delivery_option: deliveryOption,
+        delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
+        newsletter_subscription: subscribeNewsletter,
+      });
+
+      if (orderError) {
+        console.error("Order save error:", orderError);
+      }
+
+      // Call payment function
+      const payload = {
         items: items.map((item) => ({
           sizeName: item.sizeName,
           shapeName: item.shapeName,
@@ -229,29 +242,52 @@ const Checkout = () => {
         deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
         deliveryFee: deliveryPrice,
         totalAmount: totalPrice,
-      },
-    });
+      };
 
-    if (error) {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
+      console.log("Invoking create-payment with:", {
+        itemCount: payload.items.length,
+        totalAmount: payload.totalAmount,
+        deliveryOption: payload.deliveryOption,
       });
-      setIsSubmitting(false);
-      return;
-    }
 
-    if (data?.url) {
-      // Redirect to Stripe Checkout (full page - required for TWINT)
-      window.location.href = data.url;
-    } else {
+      const { data, error } = await supabase.functions.invoke("create-payment", {
+        body: payload,
+      });
+
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data?.url) {
+        redirected = true;
+        // Full-page redirect (required for TWINT). Using assign() is slightly more robust than href in some browsers.
+        window.location.assign(data.url);
+        return;
+      }
+
       toast({
         title: "Erreur",
         description: "Une erreur est survenue lors de la création du paiement",
         variant: "destructive",
       });
-      setIsSubmitting(false);
+    } catch (err) {
+      console.error("Checkout submit error:", err);
+      toast({
+        title: "Erreur",
+        description:
+          err instanceof Error
+            ? err.message
+            : "Une erreur inattendue est survenue.",
+        variant: "destructive",
+      });
+    } finally {
+      // If we redirected, the page will unload, but keep UI consistent if redirect fails.
+      if (!redirected) setIsSubmitting(false);
     }
   };
 
@@ -469,11 +505,11 @@ const Checkout = () => {
                   {deliveryAddress.trim() && (
                     <div className="text-sm">
                       {detectedZone ? (
-                        <p className="text-green-600">
+                        <p className="text-primary">
                           ✓ {detectedZone.name} detected - Delivery fee: CHF {detectedZone.price}
                         </p>
                       ) : (
-                        <p className="text-amber-600">
+                        <p className="text-destructive">
                           Zone not detected. Please include area name (e.g., Carouge, Champel, Meyrin...)
                         </p>
                       )}
@@ -498,14 +534,28 @@ const Checkout = () => {
             {/* Order Summary */}
             <div className="border-t border-border pt-6 mt-6">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-muted-foreground">
-                  Items ({items.length})
-                </span>
+                <span className="text-muted-foreground">Items ({items.length})</span>
                 <span className="font-medium">CHF {itemsTotal}</span>
               </div>
+
+              {items.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {item.sizeName} {item.shapeName} • {item.flavorName}
+                      </span>
+                      <span className="text-foreground">CHF {item.total}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {deliveryOption === "delivery" && deliveryPrice > 0 && (
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-muted-foreground">Delivery Fee ({detectedZone?.name})</span>
+                  <span className="text-muted-foreground">
+                    Delivery Fee ({detectedZone?.name})
+                  </span>
                   <span className="font-medium">CHF {deliveryPrice}</span>
                 </div>
               )}
