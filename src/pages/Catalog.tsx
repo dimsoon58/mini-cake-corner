@@ -41,6 +41,8 @@ import designDrawing from "@/assets/design-drawing-new.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
+import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
+import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -113,6 +115,24 @@ const candles = [
 ];
 
 const catalog = [
+  {
+    id: "normal-with-border",
+    name: "Normal with Border",
+    description: "Classic cake with elegant piped border",
+    image: styleNormalWithBorder,
+    styleId: "normal-with-border",
+    styleName: "Normal with border",
+    stylePrice: { bento: 0, medium: 0, large: 0 },
+  },
+  {
+    id: "normal-without-border",
+    name: "Normal without Border",
+    description: "Clean and simple smooth finish",
+    image: styleNormalWithoutBorder,
+    styleId: "normal-without-border",
+    styleName: "Normal without border",
+    stylePrice: { bento: 0, medium: 0, large: 0 },
+  },
   {
     id: "retro-cake",
     name: "Retro Cake",
