@@ -116,7 +116,13 @@ const Checkout = () => {
   const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [deliveryDate, setDeliveryDate] = useState<Date>();
+  const [deliveryDate, setDeliveryDate] = useState<Date>(() => {
+    if (items.length > 0 && items[0].orderDate) {
+      const parsed = new Date(items[0].orderDate);
+      return isNaN(parsed.getTime()) ? undefined as unknown as Date : parsed;
+    }
+    return undefined as unknown as Date;
+  });
   const [deliveryTime, setDeliveryTime] = useState<string>("");
   const [deliveryOption, setDeliveryOption] = useState("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState("");
