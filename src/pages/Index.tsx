@@ -19,6 +19,8 @@ import catalogShagCake from "@/assets/design-shag-cake-new.jpg";
 import catalogRainbow from "@/assets/design-rainbow-cake-new.jpg";
 import catalogRoses from "@/assets/design-roses-please-new.jpg";
 import catalogButterfly from "@/assets/design-butterfly-garden-new.jpg";
+import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
+import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
 
 const features = [
   {
@@ -123,6 +125,24 @@ const flavors = [
 ];
 
 const catalog = [
+  {
+    id: "normal-with-border",
+    name: "Normal with Border",
+    description: "Classic cake with elegant piped border",
+    image: styleNormalWithBorder,
+    styleId: "normal-with-border",
+    styleName: "Normal with border",
+    stylePrice: { bento: 0, medium: 0, large: 0 },
+  },
+  {
+    id: "normal-without-border",
+    name: "Normal without Border",
+    description: "Clean and simple smooth finish",
+    image: styleNormalWithoutBorder,
+    styleId: "normal-without-border",
+    styleName: "Normal without border",
+    stylePrice: { bento: 0, medium: 0, large: 0 },
+  },
   {
     id: "retro-vintage",
     name: "Retro Cake",
