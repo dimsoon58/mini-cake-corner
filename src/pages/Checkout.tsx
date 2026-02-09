@@ -12,6 +12,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,6 +27,22 @@ import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { EmbeddedStripeCheckout } from "@/components/EmbeddedCheckout";
+
+// Country codes
+const COUNTRY_CODES = [
+  { code: "+41", country: "CH", flag: "🇨🇭" },
+  { code: "+33", country: "FR", flag: "🇫🇷" },
+  { code: "+49", country: "DE", flag: "🇩🇪" },
+  { code: "+39", country: "IT", flag: "🇮🇹" },
+  { code: "+43", country: "AT", flag: "🇦🇹" },
+  { code: "+32", country: "BE", flag: "🇧🇪" },
+  { code: "+44", country: "UK", flag: "🇬🇧" },
+  { code: "+34", country: "ES", flag: "🇪🇸" },
+  { code: "+351", country: "PT", flag: "🇵🇹" },
+  { code: "+31", country: "NL", flag: "🇳🇱" },
+  { code: "+1", country: "US", flag: "🇺🇸" },
+];
 
 // Generate time slots from 10:00 to 18:30 in 30-minute intervals
 const generateTimeSlots = () => {
@@ -34,8 +57,6 @@ const generateTimeSlots = () => {
 };
 
 const TIME_SLOTS = generateTimeSlots();
-
-const WHATSAPP_NUMBER = "41799531317";
 
 // Delivery zones configuration with postal codes for auto-detection
 const DELIVERY_ZONES = [
@@ -73,7 +94,6 @@ const DELIVERY_ZONES = [
 
 // Function to detect zone from address using postal codes
 const detectZoneFromAddress = (address: string): typeof DELIVERY_ZONES[0] | null => {
-  // Extract potential postal codes from the address (4-5 digit numbers)
   const postalCodeMatches = address.match(/\b\d{4,5}\b/g);
   
   if (!postalCodeMatches) return null;
@@ -93,6 +113,7 @@ const Checkout = () => {
   const { toast } = useToast();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<Date>();
@@ -104,7 +125,8 @@ const Checkout = () => {
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
+  const [checkoutPayload, setCheckoutPayload] = useState<any>(null);
 
   // Fetch fully booked dates on mount
   useEffect(() => {
@@ -127,33 +149,8 @@ const Checkout = () => {
   const deliveryPrice = detectedZone?.price || 0;
   const totalPrice = itemsTotal + (deliveryOption === "delivery" ? deliveryPrice : 0);
 
-  const openStripeCheckout = (url: string) => {
-    setPaymentUrl(null);
-
-    let isInIframe = false;
-    try {
-      isInIframe = window.self !== window.top;
-    } catch {
-      isInIframe = true;
-    }
-
-    if (isInIframe) {
-      const win = window.open(url, "_blank", "noopener,noreferrer");
-      if (!win) {
-        // Popup blocked -> show a manual button
-        setPaymentUrl(url);
-        toast({
-          title: "Popup bloqué",
-          description:
-            "Votre navigateur a bloqué l’ouverture du paiement. Cliquez sur le bouton pour ouvrir Stripe.",
-          variant: "destructive",
-        });
-      }
-      return;
-    }
-
-    window.location.assign(url);
-  };
+  // Build phone number with country code
+  const fullPhoneNumber = `${countryCode}${phone.replace(/^0+/, '')}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,10 +199,8 @@ const Checkout = () => {
       return;
     }
 
-    setPaymentUrl(null);
+    setShowEmbeddedCheckout(false);
     setIsSubmitting(true);
-
-    let redirected = false;
 
     try {
       // Check if date is still available (max 5 orders)
@@ -244,7 +239,7 @@ const Checkout = () => {
         order_date: formattedDate,
         customer_name: `${firstName} ${lastName}`,
         customer_email: email,
-        customer_phone: phone,
+        customer_phone: fullPhoneNumber,
         total_amount: totalPrice,
         delivery_option: deliveryOption,
         delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
@@ -255,7 +250,7 @@ const Checkout = () => {
         console.error("Order save error:", orderError);
       }
 
-      // Call payment function
+      // Build payload for embedded checkout
       const payload = {
         items: items.map((item) => ({
           sizeName: item.sizeName,
@@ -267,43 +262,21 @@ const Checkout = () => {
         })),
         customerEmail: email,
         customerName: `${firstName} ${lastName}`,
-        customerPhone: `+41${phone.replace(/^0+/, '')}`,
+        customerPhone: fullPhoneNumber,
         deliveryOption,
         deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
         deliveryFee: deliveryPrice,
         totalAmount: totalPrice,
       };
 
-      console.log("Invoking create-payment with:", {
+      console.log("Setting up embedded checkout with:", {
         itemCount: payload.items.length,
         totalAmount: payload.totalAmount,
         deliveryOption: payload.deliveryOption,
       });
 
-      const { data, error } = await supabase.functions.invoke("create-payment", {
-        body: payload,
-      });
-
-      if (error) {
-        toast({
-          title: "Erreur",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data?.url) {
-        redirected = true;
-        openStripeCheckout(data.url);
-        return;
-      }
-
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la création du paiement",
-        variant: "destructive",
-      });
+      setCheckoutPayload(payload);
+      setShowEmbeddedCheckout(true);
     } catch (err) {
       console.error("Checkout submit error:", err);
       toast({
@@ -315,8 +288,7 @@ const Checkout = () => {
         variant: "destructive",
       });
     } finally {
-      // If we redirected, the page will unload, but keep UI consistent if redirect fails.
-      if (!redirected) setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -335,25 +307,6 @@ const Checkout = () => {
           <h2 className="text-xl font-serif text-foreground mb-6">
             Contact Information
           </h2>
-
-          {paymentUrl && (
-            <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4">
-              <p className="text-sm text-muted-foreground">
-                Le paiement Stripe ne peut pas s’ouvrir automatiquement dans cette fenêtre. Ouvrez-le
-                dans un nouvel onglet :
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button asChild>
-                  <a href={paymentUrl} target="_blank" rel="noopener noreferrer">
-                    Ouvrir le paiement
-                  </a>
-                </Button>
-                <Button variant="outline" onClick={() => setPaymentUrl(null)}>
-                  Fermer
-                </Button>
-              </div>
-            </div>
-          )}
 
           {items.length === 0 && (
             <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4">
@@ -406,9 +359,18 @@ const Checkout = () => {
                 Phone Number <span className="text-destructive">*</span>
               </Label>
               <div className="flex gap-2">
-                <div className="flex items-center justify-center rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground shrink-0">
-                  +41
-                </div>
+                <Select value={countryCode} onValueChange={setCountryCode}>
+                  <SelectTrigger className="w-[100px] shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRY_CODES.map((cc) => (
+                      <SelectItem key={cc.code} value={cc.code}>
+                        {cc.flag} {cc.code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Input
                   id="phone"
                   type="tel"
@@ -666,15 +628,27 @@ const Checkout = () => {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={!acceptPrivacyPolicy || isSubmitting || items.length === 0}
+              disabled={!acceptPrivacyPolicy || isSubmitting || items.length === 0 || showEmbeddedCheckout}
             >
               {items.length === 0
                 ? "Empty cart"
                 : isSubmitting
-                  ? "Redirecting to payment..."
-                  : "Proceed to Payment"}
+                  ? "Loading..."
+                  : showEmbeddedCheckout
+                    ? "Complete payment below"
+                    : "Proceed to Payment"}
             </Button>
           </form>
+
+          {/* Embedded Stripe Checkout */}
+          {showEmbeddedCheckout && checkoutPayload && (
+            <div className="mt-8 pt-6 border-t border-border">
+              <h3 className="text-lg font-serif text-foreground mb-4">
+                Complete Your Payment
+              </h3>
+              <EmbeddedStripeCheckout payload={checkoutPayload} />
+            </div>
+          )}
         </div>
       </main>
     </Layout>
