@@ -31,10 +31,22 @@ import customer7 from "@/assets/customer-7.jpg";
 import customer8 from "@/assets/customer-8.jpg";
 import customer9 from "@/assets/customer-9.jpg";
 import customer10 from "@/assets/customer-10.jpg";
+import customer11 from "@/assets/customer-11.jpg";
+import customer12 from "@/assets/customer-12.jpg";
+import customer13 from "@/assets/customer-13.jpg";
+import customer14 from "@/assets/customer-14.jpg";
+import customer15 from "@/assets/customer-15.jpg";
+import customer16 from "@/assets/customer-16.jpg";
+import customer17 from "@/assets/customer-17.jpg";
+import customer18 from "@/assets/customer-18.jpg";
+import customer19 from "@/assets/customer-19.jpg";
+import customer20 from "@/assets/customer-20.jpg";
 
 const customerPhotos = [
   customer1, customer2, customer3, customer4, customer5,
   customer6, customer7, customer8, customer9, customer10,
+  customer11, customer12, customer13, customer14, customer15,
+  customer16, customer17, customer18, customer19, customer20,
 ];
 
 const features = [
