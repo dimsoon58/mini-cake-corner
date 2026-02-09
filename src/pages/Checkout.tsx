@@ -104,6 +104,7 @@ const Checkout = () => {
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
   // Fetch fully booked dates on mount
   useEffect(() => {
@@ -125,6 +126,34 @@ const Checkout = () => {
 
   const deliveryPrice = detectedZone?.price || 0;
   const totalPrice = itemsTotal + (deliveryOption === "delivery" ? deliveryPrice : 0);
+
+  const openStripeCheckout = (url: string) => {
+    setPaymentUrl(null);
+
+    let isInIframe = false;
+    try {
+      isInIframe = window.self !== window.top;
+    } catch {
+      isInIframe = true;
+    }
+
+    if (isInIframe) {
+      const win = window.open(url, "_blank", "noopener,noreferrer");
+      if (!win) {
+        // Popup blocked -> show a manual button
+        setPaymentUrl(url);
+        toast({
+          title: "Popup bloqué",
+          description:
+            "Votre navigateur a bloqué l’ouverture du paiement. Cliquez sur le bouton pour ouvrir Stripe.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    window.location.assign(url);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,6 +202,7 @@ const Checkout = () => {
       return;
     }
 
+    setPaymentUrl(null);
     setIsSubmitting(true);
 
     let redirected = false;
@@ -265,8 +295,7 @@ const Checkout = () => {
 
       if (data?.url) {
         redirected = true;
-        // Full-page redirect (required for TWINT). Using assign() is slightly more robust than href in some browsers.
-        window.location.assign(data.url);
+        openStripeCheckout(data.url);
         return;
       }
 
@@ -306,6 +335,25 @@ const Checkout = () => {
           <h2 className="text-xl font-serif text-foreground mb-6">
             Contact Information
           </h2>
+
+          {paymentUrl && (
+            <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4">
+              <p className="text-sm text-muted-foreground">
+                Le paiement Stripe ne peut pas s’ouvrir automatiquement dans cette fenêtre. Ouvrez-le
+                dans un nouvel onglet :
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button asChild>
+                  <a href={paymentUrl} target="_blank" rel="noopener noreferrer">
+                    Ouvrir le paiement
+                  </a>
+                </Button>
+                <Button variant="outline" onClick={() => setPaymentUrl(null)}>
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          )}
 
           {items.length === 0 && (
             <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4">
