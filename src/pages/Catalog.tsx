@@ -149,7 +149,7 @@ const catalog = [
   {
     id: "rainbow-cake",
     name: "Rainbow Cake",
-    description: "Vibrant rainbow layers and colorful swirls",
+    description: "A fun retro-style cake with pastel rainbows, sprinkles, and piped borders",
     image: designRainbowCake,
     styleId: "rainbow-cake",
     styleName: "Rainbow Cake",
@@ -159,7 +159,7 @@ const catalog = [
   {
     id: "shag-cake",
     name: "Shag Cake",
-    description: "Fluffy textured frosting",
+    description: "A retro inspired shag cake with rich texture and colorful details",
     image: designShagCake,
     styleId: "shag-cake",
     styleName: "Shag Cake",
@@ -169,7 +169,7 @@ const catalog = [
   {
     id: "gold-leaves",
     name: "Gold Leaves",
-    description: "Elegant cake with gold leaf accents",
+    description: "Elegant cake with gold leaf border",
     image: designGoldLeaves,
     styleId: "gold-leaves-style",
     styleName: "Gold Leaves",
@@ -198,7 +198,7 @@ const catalog = [
   },
   {
     id: "glitter-cherries-retro",
-    name: "Glitter Cherries on a Retro Cake",
+    name: "Glitter Cherries x Retro Cake",
     description: "Sparkling cherry decorations on a retro cake",
     image: designGlitterCherries,
     styleId: "glitter-cherries-retro",
@@ -208,8 +208,8 @@ const catalog = [
   },
   {
     id: "cherries-retro",
-    name: "Cherries on a Retro Cake",
-    description: "Fresh cherry decorations on a retro cake",
+    name: "Cherries x Retro Cake",
+    description: "Retro cake topped with cherries",
     image: designCherries,
     styleId: "cherries-retro",
     styleName: "Cherries on a Retro Cake",
@@ -249,7 +249,7 @@ const catalog = [
   {
     id: "retro-ribbons-glitter",
     name: "Retro × Ribbons Glitter in the Air",
-    description: "A retro cake with ribbons and glitter in the center, blow on it and the glitter flies into the air.",
+    description: "A retro cake with ribbons and glitter in the center, blow on it and the glitter flies into the air",
     image: designGlitterInAir,
     styleId: "retro-ribbons-glitter",
     styleName: "Retro × Ribbons Glitter in the Air",
@@ -259,7 +259,7 @@ const catalog = [
   {
     id: "gender-reveal",
     name: "Gender Reveal",
-    description: "Choose the inside color. Perfect for your special announcement.",
+    description: "Choose the inside color. Perfect for your special announcement",
     image: designGenderReveal,
     styleId: "gender-reveal",
     styleName: "Gender Reveal",
@@ -269,7 +269,7 @@ const catalog = [
   {
     id: "printed-picture",
     name: "Printed Pictures / Logo",
-    description: "Add a personal touch with a printed photo or logo on the cake.",
+    description: "Add a personal touch with a printed photo or logo on the cake",
     image: designPrintedPicture,
     styleId: "printed-picture",
     styleName: "Printed Picture",
@@ -289,7 +289,7 @@ const catalog = [
   {
     id: "butterfly-garden",
     name: "Butterfly Garden",
-    description: "A beautiful gradient cake adorned with pearls and edible butterfly.",
+    description: "A beautiful gradient cake adorned with pearls and edible butterfly",
     image: designButterflyGarden,
     styleId: "butterfly-garden",
     styleName: "Butterfly Garden",
@@ -566,7 +566,7 @@ const Catalog = () => {
                 />
               </div>
               <div className="p-6 text-center">
-                <h3 className="font-serif text-xl text-foreground mb-2">
+                <h3 className="font-serif text-xl font-bold text-foreground mb-2">
                   {cake.name}
                 </h3>
                 <p className="text-muted-foreground text-sm mb-4">

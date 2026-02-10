@@ -192,7 +192,7 @@ const catalog = [
   {
     id: "rainbow-cake",
     name: "Rainbow Cake",
-    description: "Vibrant rainbow layers and colorful swirls",
+    description: "A fun retro-style cake with pastel rainbows, sprinkles, and piped borders",
     image: catalogRainbow,
     styleId: "rainbow-cake",
     styleName: "Rainbow Cake",
@@ -202,7 +202,7 @@ const catalog = [
   {
     id: "shag-cake",
     name: "Shag Cake",
-    description: "Fluffy textured frosting",
+    description: "A retro inspired shag cake with rich texture and colorful details",
     image: catalogShagCake,
     styleId: "shag-cake",
     styleName: "Shag Cake",
@@ -212,7 +212,7 @@ const catalog = [
   {
     id: "gold-leaves",
     name: "Gold Leaves",
-    description: "Elegant cake with gold leaf accents",
+    description: "Elegant cake with gold leaf border",
     image: catalogGoldLeaves,
     styleId: "gold-leaves-style",
     styleName: "Gold Leaves",
@@ -497,7 +497,7 @@ const Index = () => {
                   />
                 </div>
                 <div className="p-6 text-center">
-                  <h3 className="font-serif text-xl text-foreground mb-2">
+                  <h3 className="font-serif text-xl font-bold text-foreground mb-2">
                     {cake.name}
                   </h3>
                   <p className="text-muted-foreground text-sm mb-4">
