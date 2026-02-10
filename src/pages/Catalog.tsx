@@ -244,7 +244,7 @@ const catalog = [
     image: designGlitterCake,
     styleId: "glitter-base",
     styleName: "Glitter Base",
-    stylePrice: { bento: 7, retro: 2, medium: 10, large: 12 },
+    stylePrice: { bento: 7, retro: 9, medium: 10, large: 12 },
     disableText: false,
   },
   {
@@ -284,7 +284,7 @@ const catalog = [
     image: designDrawing,
     styleId: "custom-drawing",
     styleName: "Custom Drawing",
-    stylePrice: { bento: 5, retro: 2, medium: 10, large: 15 },
+    stylePrice: { bento: 5, retro: 7, medium: 10, large: 15 },
     disableText: false,
   },
   {
