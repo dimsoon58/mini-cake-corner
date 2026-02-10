@@ -134,7 +134,7 @@ const baseColors = [
 
 const sizes = [
   { id: "bento", name: "Bento", price: 40 },
-  { id: "retro", name: "Retro Box", price: 50 },
+  { id: "retro", name: "Retro Box", price: 40 },
   { id: "medium", name: "Medium", price: 80 },
   { id: "large", name: "Large", price: 160 },
 ];
@@ -176,7 +176,7 @@ const catalog = [
     image: styleNormalWithBorder,
     styleId: "normal-with-border",
     styleName: "Normal with border",
-    stylePrice: { bento: 0, retro: 5, medium: 80, large: 170 },
+    stylePrice: { bento: 0, retro: 3, medium: 80, large: 170 },
     disableText: false,
   },
   {
