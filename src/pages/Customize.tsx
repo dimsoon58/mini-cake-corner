@@ -167,11 +167,11 @@ const styles = [
 
 const extras = [
   { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, medium: 4, large: 6 }, image: designGoldLeaves },
-  { id: "cherries", name: "Cherries", price: { bento: 4, medium: 8, large: 12 }, image: designCherries },
-  { id: "glitter-cherries", name: "Glitter Cherries", price: { bento: 6, medium: 10, large: 15 }, image: designGlitterCherries },
-  { id: "glitter", name: "Glitter", price: { bento: 3, medium: 5, large: 8 }, image: designGlitterCake },
-  { id: "ribbons", name: "Ribbons", price: { bento: 10, medium: 20, large: 30 }, image: designRibbons },
-  { id: "butterfly", name: "Butterfly", price: { bento: 7, medium: 15, large: 20 }, image: designButterflyGarden },
+  { id: "cherries", name: "Cherries", price: { bento: 4, medium: 8, large: 10 }, image: designCherries },
+  { id: "glitter-cherries", name: "Glitter Cherries", price: { bento: 6, medium: 9, large: 12 }, image: designGlitterCherries },
+  { id: "glitter", name: "Glitter", price: { bento: 6, medium: 8, large: 12 }, image: designGlitterCake },
+  { id: "ribbons", name: "Ribbons", price: { bento: 5, medium: 5, large: 5 }, image: designRibbons },
+  { id: "butterfly", name: "Butterfly", price: { bento: 5, medium: 5, large: 5 }, image: designButterflyGarden },
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 }, image: designPearlNumber },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 20, medium: 20, large: 20 }, image: designPrintedPicture },
 ];
