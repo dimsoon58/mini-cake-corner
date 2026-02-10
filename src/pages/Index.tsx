@@ -176,7 +176,7 @@ const catalog = [
     image: styleNormalWithBorder,
     styleId: "normal-with-border",
     styleName: "Normal with border",
-    stylePrice: { bento: 0, retro: 5, medium: 0, large: 10 },
+    stylePrice: { bento: 0, retro: 5, medium: 80, large: 170 },
     disableText: false,
   },
   {
@@ -186,7 +186,7 @@ const catalog = [
     image: catalogRetroVintage,
     styleId: "retro-vintage",
     styleName: "Retro / Vintage",
-    stylePrice: { bento: 5, retro: 5, medium: 15, large: 20 },
+    stylePrice: { bento: 5, medium: 15, large: 20 },
     disableText: false,
   },
   {
@@ -196,7 +196,7 @@ const catalog = [
     image: catalogRainbow,
     styleId: "rainbow-cake",
     styleName: "Rainbow Cake",
-    stylePrice: { bento: 7, retro: 7, medium: 17, large: 30 },
+    stylePrice: { bento: 7, medium: 17, large: 30 },
     disableText: false,
   },
   {
@@ -206,7 +206,7 @@ const catalog = [
     image: catalogShagCake,
     styleId: "shag-cake",
     styleName: "Shag Cake",
-    stylePrice: { bento: 8, retro: 8, medium: 20, large: 30 },
+    stylePrice: { bento: 8, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -226,7 +226,7 @@ const catalog = [
     image: catalogScatteredPearls,
     styleId: "scattered-retro-pearls",
     styleName: "Scattered Retro Pearls",
-    stylePrice: { bento: 15, retro: 15, medium: 30, large: 45 },
+    stylePrice: { bento: 15, medium: 30, large: 45 },
     disableText: false,
   },
   {
@@ -236,7 +236,7 @@ const catalog = [
     image: catalogPearlBorders,
     styleId: "pearl-border-retro",
     styleName: "Pearl Border × Retro Decoration",
-    stylePrice: { bento: 25, retro: 25, medium: 50, large: 65 },
+    stylePrice: { bento: 25, medium: 50, large: 65 },
     disableText: false,
   },
 ];
@@ -571,7 +571,7 @@ const Index = () => {
                     <SelectValue placeholder="Select size" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sizes.map((size) => (
+                    {sizes.filter((size) => selectedCatalogCake && size.id in selectedCatalogCake.stylePrice).map((size) => (
                       <SelectItem key={size.id} value={size.id}>
                         {size.name} - CHF {size.price}
                       </SelectItem>
