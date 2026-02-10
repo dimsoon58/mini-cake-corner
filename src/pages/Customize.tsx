@@ -67,6 +67,7 @@ import designCherries from "@/assets/design-cherries-new.png";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 import designGlitterCherries from "@/assets/design-glitter-cherries-new.jpg";
+import extraSprinkles from "@/assets/extra-sprinkles.jpg";
 
 const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text", "Extras", "Candles"];
 
@@ -174,6 +175,7 @@ const extras = [
   { id: "butterfly", name: "Butterfly", price: { bento: 5, medium: 5, large: 5 }, image: designButterflyGarden },
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 }, image: designPearlNumber },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 20, medium: 20, large: 20 }, image: designPrintedPicture },
+  { id: "sprinkles", name: "Sprinkles", price: { bento: 2, medium: 2, large: 2 }, image: extraSprinkles },
 ];
 
 const glitterColors = [
@@ -462,13 +464,8 @@ const Customize = () => {
       const extra = extras.find((e) => e.id === extraId);
       return acc + (extra ? getExtraPrice(extra) : 0);
     }, 0);
-    const candlesPrice = selections.candles.reduce((acc, candleSelection) => {
-      const candle = candles.find((c) => c.id === candleSelection.id);
-      if (!candle) return acc;
-      if (candleSelection.hasPack && candle.hasPack) {
-        return acc + (candle.packPrice || 0);
-      }
-      return acc + candle.unitPrice * candleSelection.quantity;
+    const candlesPrice = candles.reduce((acc, candle) => {
+      return acc + getCandleTotalPrice(candle.id);
     }, 0);
     const selectedShape = shapes.find((s) => s.id === selections.shape);
     const shapeExtra = selectedShape && selections.size 
