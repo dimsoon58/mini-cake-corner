@@ -14,11 +14,11 @@ import cakeFresh from "@/assets/cake-fresh.png";
 import cakeTrendy from "@/assets/cake-trendy.png";
 import cakeMiniBento from "@/assets/cake-mini-bento.png";
 import catalogRetroVintage from "@/assets/design-retro-cake-new.jpg";
-import catalogHeartBomb from "@/assets/design-heart-bomb-new.jpg";
-import catalogShagCake from "@/assets/design-shag-cake-new.jpg";
 import catalogRainbow from "@/assets/design-rainbow-cake-new.jpg";
-import catalogRoses from "@/assets/design-roses-please-new.jpg";
-import catalogButterfly from "@/assets/design-butterfly-garden-new.jpg";
+import catalogShagCake from "@/assets/design-shag-cake-new.jpg";
+import catalogGoldLeaves from "@/assets/design-gold-leaves-new.png";
+import catalogScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
+import catalogPearlBorders from "@/assets/design-pearl-borders-new.jpg";
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
 import customer1 from "@/assets/customer-1.jpg";
@@ -134,39 +134,31 @@ const baseColors = [
 
 const sizes = [
   { id: "bento", name: "Bento", price: 40 },
+  { id: "retro", name: "Retro Box", price: 50 },
   { id: "medium", name: "Medium", price: 80 },
   { id: "large", name: "Large", price: 160 },
 ];
 
 const shapes = [
-  { id: "round", name: "Round", extraPrice: { bento: 0, medium: 0, large: 0 } },
-  { id: "heart", name: "Heart", extraPrice: { bento: 3, medium: 5, large: 10 } },
+  { id: "round", name: "Round", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "heart", name: "Heart", extraPrice: { bento: 3, retro: 3, medium: 5, large: 10 } },
 ];
 
 const flavors = [
-  { id: "vanilla", name: "Vanilla", extraPrice: { bento: 0, medium: 0, large: 0 } },
-  { id: "red-velvet", name: "Red Velvet", extraPrice: { bento: 0, medium: 0, large: 0 } },
-  { id: "chocolate", name: "Chocolate", extraPrice: { bento: 0, medium: 0, large: 0 } },
-  { id: "chocolate-lovers", name: "Chocolate Lovers", extraPrice: { bento: 2, medium: 4, large: 8 } },
-  { id: "dark-berrylicious", name: "Dark Berrylicious", extraPrice: { bento: 2, medium: 4, large: 8 } },
-  { id: "white-berrylicious", name: "White Berrylicious", extraPrice: { bento: 2, medium: 4, large: 8 } },
-  { id: "salted-caramel", name: "Salted Butter Caramel", extraPrice: { bento: 2, medium: 4, large: 8 } },
-  { id: "lemon-curd", name: "Lemon Curd", extraPrice: { bento: 2, medium: 4, large: 8 } },
-  { id: "tiramisu", name: "Tiramisu", extraPrice: { bento: 4, medium: 8, large: 16 } },
-  { id: "praline", name: "Praline Obsession", extraPrice: { bento: 4, medium: 8, large: 16 } },
-  { id: "passion-fruit", name: "Passion Fruit", extraPrice: { bento: 4, medium: 8, large: 16 } },
+  { id: "vanilla", name: "Vanilla", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "red-velvet", name: "Red Velvet", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "chocolate", name: "Chocolate", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "chocolate-lovers", name: "Chocolate Lovers", extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "dark-berrylicious", name: "Dark Berrylicious", extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "white-berrylicious", name: "White Berrylicious", extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "salted-caramel", name: "Salted Butter Caramel", extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "lemon-curd", name: "Lemon Curd", extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "tiramisu", name: "Tiramisu", extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
+  { id: "praline", name: "Praline Obsession", extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
+  { id: "passion-fruit", name: "Passion Fruit", extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
 ];
 
 const catalog = [
-  {
-    id: "normal-with-border",
-    name: "Normal with Border",
-    description: "Classic cake with elegant piped border",
-    image: styleNormalWithBorder,
-    styleId: "normal-with-border",
-    styleName: "Normal with border",
-    stylePrice: { bento: 0, medium: 0, large: 0 },
-  },
   {
     id: "normal-without-border",
     name: "Normal without Border",
@@ -174,16 +166,28 @@ const catalog = [
     image: styleNormalWithoutBorder,
     styleId: "normal-without-border",
     styleName: "Normal without border",
-    stylePrice: { bento: 0, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+    disableText: false,
   },
   {
-    id: "retro-vintage",
+    id: "normal-with-border",
+    name: "Normal with Border",
+    description: "Classic cake with elegant piped border",
+    image: styleNormalWithBorder,
+    styleId: "normal-with-border",
+    styleName: "Normal with border",
+    stylePrice: { bento: 0, retro: 5, medium: 0, large: 10 },
+    disableText: false,
+  },
+  {
+    id: "retro-cake",
     name: "Retro Cake",
     description: "Vintage style with elegant decorations",
     image: catalogRetroVintage,
     styleId: "retro-vintage",
     styleName: "Retro / Vintage",
-    stylePrice: { bento: 5, medium: 15, large: 20 },
+    stylePrice: { bento: 5, retro: 5, medium: 15, large: 20 },
+    disableText: false,
   },
   {
     id: "rainbow-cake",
@@ -192,7 +196,8 @@ const catalog = [
     image: catalogRainbow,
     styleId: "rainbow-cake",
     styleName: "Rainbow Cake",
-    stylePrice: { bento: 7, medium: 17, large: 30 },
+    stylePrice: { bento: 7, retro: 7, medium: 17, large: 30 },
+    disableText: false,
   },
   {
     id: "shag-cake",
@@ -201,34 +206,38 @@ const catalog = [
     image: catalogShagCake,
     styleId: "shag-cake",
     styleName: "Shag Cake",
-    stylePrice: { bento: 8, medium: 20, large: 30 },
+    stylePrice: { bento: 8, retro: 8, medium: 20, large: 30 },
+    disableText: false,
   },
   {
-    id: "heart-bomb",
-    name: "Heart Bomb",
-    description: "Covered in dozens of candy hearts",
-    image: catalogHeartBomb,
-    styleId: "heart-bomb",
-    styleName: "Heart Bomb",
-    stylePrice: { bento: 5, medium: 10, large: 15 },
+    id: "gold-leaves",
+    name: "Gold Leaves",
+    description: "Elegant cake with gold leaf accents",
+    image: catalogGoldLeaves,
+    styleId: "gold-leaves-style",
+    styleName: "Gold Leaves",
+    stylePrice: { bento: 2, retro: 3, medium: 5, large: 8 },
+    disableText: false,
   },
   {
-    id: "roses-please",
-    name: "Roses Please",
-    description: "Elegant buttercream roses",
-    image: catalogRoses,
-    styleId: "roses-please",
-    styleName: "Roses Please",
-    stylePrice: { bento: 7, medium: 15, large: 20 },
+    id: "scattered-retro-pearls",
+    name: "Scattered Retro Pearls",
+    description: "Delicate pearls scattered across the cake, with a pearl border and retro decoration",
+    image: catalogScatteredPearls,
+    styleId: "scattered-retro-pearls",
+    styleName: "Scattered Retro Pearls",
+    stylePrice: { bento: 15, retro: 15, medium: 30, large: 45 },
+    disableText: false,
   },
   {
-    id: "butterfly-garden",
-    name: "Butterfly Garden",
-    description: "Whimsical butterflies and spring flowers",
-    image: catalogButterfly,
-    styleId: "butterfly-garden",
-    styleName: "Butterfly Garden",
-    stylePrice: { bento: 7, medium: 15, large: 20 },
+    id: "pearl-border-retro",
+    name: "Pearl Border × Retro Decoration",
+    description: "Three elegant pearl borders with a retro decoration",
+    image: catalogPearlBorders,
+    styleId: "pearl-border-retro",
+    styleName: "Pearl Border × Retro Decoration",
+    stylePrice: { bento: 25, retro: 25, medium: 50, large: 65 },
+    disableText: false,
   },
 ];
 
@@ -677,7 +686,8 @@ const Index = () => {
                 </div>
               </div>
 
-              {/* Text Toggle */}
+              {/* Text Toggle - hidden for printed-picture */}
+              {!selectedCatalogCake?.disableText && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Add Text?</label>
                 <div className="flex gap-2">
@@ -705,6 +715,7 @@ const Index = () => {
                   </button>
                 </div>
               </div>
+              )}
 
               {selections.wantsText && (
                 <>
