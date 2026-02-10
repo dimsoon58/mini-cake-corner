@@ -124,7 +124,7 @@ const catalog = [
     image: styleNormalWithoutBorder,
     styleId: "normal-without-border",
     styleName: "Normal without border",
-    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 2, medium: 0, large: 0 },
     disableText: false,
   },
   {
@@ -134,7 +134,7 @@ const catalog = [
     image: styleNormalWithBorder,
     styleId: "normal-with-border",
     styleName: "Normal with border",
-    stylePrice: { bento: 0, retro: 3, medium: 80, large: 170 },
+    stylePrice: { bento: 0, retro: 2, medium: 80, large: 170 },
     disableText: false,
   },
   {
@@ -174,7 +174,7 @@ const catalog = [
     image: designGoldLeaves,
     styleId: "gold-leaves-style",
     styleName: "Gold Leaves",
-    stylePrice: { bento: 2, retro: 3, medium: 5, large: 8 },
+    stylePrice: { bento: 2, retro: 2, medium: 5, large: 8 },
     disableText: false,
   },
   {
@@ -244,7 +244,7 @@ const catalog = [
     image: designGlitterCake,
     styleId: "glitter-base",
     styleName: "Glitter Base",
-    stylePrice: { bento: 7, medium: 10, large: 12 },
+    stylePrice: { bento: 7, retro: 2, medium: 10, large: 12 },
     disableText: false,
   },
   {
@@ -284,7 +284,7 @@ const catalog = [
     image: designDrawing,
     styleId: "custom-drawing",
     styleName: "Custom Drawing",
-    stylePrice: { bento: 5, retro: 0, medium: 10, large: 15 },
+    stylePrice: { bento: 5, retro: 2, medium: 10, large: 15 },
     disableText: false,
   },
   {

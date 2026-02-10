@@ -166,7 +166,7 @@ const catalog = [
     image: styleNormalWithoutBorder,
     styleId: "normal-without-border",
     styleName: "Normal without border",
-    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 2, medium: 0, large: 0 },
     disableText: false,
   },
   {
@@ -176,7 +176,7 @@ const catalog = [
     image: styleNormalWithBorder,
     styleId: "normal-with-border",
     styleName: "Normal with border",
-    stylePrice: { bento: 0, retro: 3, medium: 80, large: 170 },
+    stylePrice: { bento: 0, retro: 2, medium: 80, large: 170 },
     disableText: false,
   },
   {
@@ -216,7 +216,7 @@ const catalog = [
     image: catalogGoldLeaves,
     styleId: "gold-leaves-style",
     styleName: "Gold Leaves",
-    stylePrice: { bento: 2, retro: 3, medium: 5, large: 8 },
+    stylePrice: { bento: 2, retro: 2, medium: 5, large: 8 },
     disableText: false,
   },
   {
