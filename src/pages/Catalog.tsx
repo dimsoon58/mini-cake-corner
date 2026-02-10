@@ -47,6 +47,7 @@ import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
+import extraSprinkles from "@/assets/extra-sprinkles.jpg";
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -179,7 +180,7 @@ const catalog = [
     image: designGoldLeaves,
     styleId: "gold-leaves-style",
     styleName: "Gold Leaves",
-    stylePrice: { bento: 2, retro: 2, medium: 5, large: 8 },
+    stylePrice: { bento: 2, retro: 4, medium: 5, large: 8 },
     disableText: false,
   },
   {
