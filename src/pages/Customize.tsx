@@ -68,7 +68,7 @@ import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 import designGlitterCherries from "@/assets/design-glitter-cherries-new.jpg";
 
-const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text/Phrase", "Extras", "Candles"];
+const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text", "Extras", "Candles"];
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
