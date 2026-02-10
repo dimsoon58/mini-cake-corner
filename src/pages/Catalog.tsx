@@ -24,6 +24,7 @@ import candleBlueCar from "@/assets/candle-blue-car.png";
 import candleYellowCar from "@/assets/candle-yellow-car.png";
 import candleHeart from "@/assets/candle-heart.png";
 import designRetroCake from "@/assets/design-retro-cake-new.jpg";
+import designRetroGlitter from "@/assets/design-retro-glitter-new.jpg";
 import designRainbowCake from "@/assets/design-rainbow-cake-new.jpg";
 import designShagCake from "@/assets/design-shag-cake-new.jpg";
 import designGoldLeaves from "@/assets/design-gold-leaves-new.png";
@@ -230,7 +231,7 @@ const catalog = [
     id: "retro-glitter-cake",
     name: "Retro Glitter Cake",
     description: "Sparkly glitter finish on a retro cake",
-    image: designRetroCake,
+    image: designRetroGlitter,
     styleId: "retro-glitter-cake",
     styleName: "Retro Glitter Cake",
     stylePrice: { bento: 10, medium: 20, large: 30 },
