@@ -173,6 +173,7 @@ const extras = [
   { id: "ribbons", name: "Ribbons", price: { bento: 10, medium: 20, large: 30 }, image: designRibbons },
   { id: "butterfly", name: "Butterfly", price: { bento: 7, medium: 15, large: 20 }, image: designButterflyGarden },
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, medium: 5, large: 5 }, image: designPearlNumber },
+  { id: "printed-picture", name: "Printed Picture", price: { bento: 20, medium: 20, large: 20 }, image: designPrintedPicture },
 ];
 
 const glitterColors = [
@@ -312,7 +313,11 @@ const Customize = () => {
   };
 
   const handleSelectStyle = (styleId: string) => {
-    setSelections({ ...selections, style: styleId });
+    if (styleId === "printed-picture") {
+      setSelections({ ...selections, style: styleId, wantsText: false, cakeText: "", textColor: null });
+    } else {
+      setSelections({ ...selections, style: styleId });
+    }
   };
 
   const handleSelectBaseColor = (colorId: string) => {
@@ -843,12 +848,21 @@ const Customize = () => {
             </div>
           )}
 
-          {/* Text/Phrase Selection */}
+          {/* Text Selection */}
           {currentStep === 5 && (
             <div className="space-y-8">
               <h2 className="text-3xl font-bold text-center text-foreground">
-                Add Text / Phrase
+                Add Text
               </h2>
+              
+              {selections.style === "printed-picture" ? (
+                <div className="max-w-md mx-auto text-center space-y-4">
+                  <p className="text-muted-foreground">Text is not available for the Printed Picture style</p>
+                  <div className="inline-block px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium">
+                    No Text
+                  </div>
+                </div>
+              ) : (
               
               <div className="max-w-md mx-auto space-y-6">
                 {/* Toggle for No Text / Add Text */}
@@ -991,6 +1005,7 @@ const Customize = () => {
                   </>
                 )}
               </div>
+              )}
             </div>
           )}
 

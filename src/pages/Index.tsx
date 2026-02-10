@@ -63,37 +63,6 @@ const features = [
   },
 ];
 
-import sizeBento from "@/assets/size-bento.png";
-import sizeMediumHeart from "@/assets/size-medium-heart.png";
-import sizeLargeRound from "@/assets/size-large-round.png";
-
-const homeSizes = [
-  {
-    name: "Mini Bento Cake",
-    size: "10 cm",
-    servings: "2-4 servings",
-    price: "From CHF 40",
-    extra: "+CHF 3 Heart shape",
-    image: sizeBento,
-  },
-  {
-    name: "Medium Cake",
-    size: "15 cm",
-    servings: "5-8 servings",
-    price: "From CHF 80",
-    extra: "+CHF 5 Heart shape",
-    image: sizeMediumHeart,
-  },
-  {
-    name: "Large Cake",
-    size: "20 cm",
-    servings: "12-16 servings",
-    price: "From CHF 160",
-    extra: "+CHF 10 Heart shape",
-    image: sizeLargeRound,
-  },
-];
-
 const CustomerCarousel = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -194,7 +163,7 @@ const Index = () => {
       </section>
 
       {/* How to Order Section */}
-      <section className="py-20 bg-background">
+      <section className="py-20" style={{ backgroundColor: '#FFE4EC' }}>
         <div className="container mx-auto px-4 max-w-3xl">
           <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
             HOW TO ORDER
@@ -204,93 +173,55 @@ const Index = () => {
               <span className="text-2xl">①</span>
               <div>
                 <h3 className="font-medium text-foreground text-lg">Choose your date</h3>
-                <p className="text-muted-foreground">Select your pickup date (minimum 4 days in advance).</p>
+                <p className="text-muted-foreground">Select your pickup date (minimum 4 days in advance)</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
               <span className="text-2xl">②</span>
               <div>
                 <h3 className="font-medium text-foreground text-lg">Choose size, shape & flavor</h3>
-                <p className="text-muted-foreground">Pick the cake size, shape, and flavor.</p>
+                <p className="text-muted-foreground">Pick the cake size, shape, and flavor</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
               <span className="text-2xl">③</span>
               <div>
                 <h3 className="font-medium text-foreground text-lg">Choose a cake style</h3>
-                <p className="text-muted-foreground">This is a base style — you can upload a reference image later.</p>
+                <p className="text-muted-foreground">This is a base style — you can upload a reference image later</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
               <span className="text-2xl">④</span>
               <div>
                 <h3 className="font-medium text-foreground text-lg">Add text (optional)</h3>
-                <p className="text-muted-foreground">Choose your message, font, and color.</p>
+                <p className="text-muted-foreground">Choose your message, font, and color</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
               <span className="text-2xl">⑤</span>
               <div>
                 <h3 className="font-medium text-foreground text-lg">Add extras ✨</h3>
-                <p className="text-muted-foreground">Customize with extra details and candles.</p>
+                <p className="text-muted-foreground">Customize with extra details and candles</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
               <span className="text-2xl">⑥</span>
               <div>
                 <h3 className="font-medium text-foreground text-lg">Leave a note 💬</h3>
-                <p className="text-muted-foreground">Tell us anything important about your order.</p>
+                <p className="text-muted-foreground">Tell us anything important about your order</p>
               </div>
             </div>
           </div>
-          <div className="mt-10 p-6 bg-secondary/50 rounded-2xl">
+          <div className="mt-10 p-6 bg-background/50 rounded-2xl">
             <h3 className="font-medium text-foreground mb-3">Good to know</h3>
             <ul className="text-muted-foreground space-y-2 text-sm">
-              <li>Fully booked dates cannot be selected.</li>
-              <li>Complex designs may require additional fees.</li>
+              <li>Fully booked dates cannot be selected</li>
+              <li>Complex designs may require additional fees</li>
             </ul>
           </div>
         </div>
       </section>
 
-      {/* Sizes Section */}
-      <section className="py-20 bg-cream">
-        <div className="container mx-auto px-4">
-          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
-            SIZES
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {homeSizes.map((size) => (
-              <div
-                key={size.name}
-                className="p-8 text-center shadow-sm rounded-2xl flex flex-col"
-                style={{ backgroundColor: '#FFE4EC' }}
-              >
-                <img
-                  src={size.image}
-                  alt={size.name}
-                  className="h-32 md:h-40 mx-auto mb-4 object-contain"
-                />
-                <h3 className="font-serif text-2xl text-foreground mb-4">
-                  {size.name}
-                </h3>
-                <p className="text-muted-foreground mb-1">{size.size}</p>
-                <p className="text-muted-foreground mb-4">{size.servings}</p>
-                <p className="text-xl font-medium text-foreground mb-2">
-                  {size.price}
-                </p>
-                <p className="text-sm text-primary mb-6">{size.extra}</p>
-                <Link to="/customize">
-                  <Button variant="outline" className="w-full rounded-full border-foreground text-foreground hover:bg-foreground hover:text-background">
-                    Choose option
-                  </Button>
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Customers Section */}
       <section className="py-20 bg-cream">
