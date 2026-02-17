@@ -29,20 +29,24 @@ import flavorVanillaGF from "@/assets/flavor-vanilla-gf.png";
 import flavorRedVelvetGF from "@/assets/flavor-red-velvet-gf.png";
 import flavorChocolateGF from "@/assets/flavor-chocolate-gf.png";
 
-// Candle images
-import candlePuppy from "@/assets/candle-puppy.png";
-import candleTeddyBear from "@/assets/candle-teddy-bear.png";
-import candleCherry from "@/assets/candle-cherry.png";
-import candleHeart from "@/assets/candle-heart.png";
-import candleSoccer from "@/assets/candle-soccer.png";
-import candleBlueCar from "@/assets/candle-blue-car.png";
-import candleRedCar from "@/assets/candle-red-car.png";
-import candleYellowCar from "@/assets/candle-yellow-car.png";
-import candleBlueOmbre from "@/assets/candle-blue-ombre.png";
-import candlePinkOmbre from "@/assets/candle-pink-ombre.png";
-import candleSpiralPastel from "@/assets/candle-spiral-pastel.png";
-import candleShinySpiral from "@/assets/candle-shiny-spiral.png";
-import candleThickSpiral from "@/assets/candle-thick-spiral.png";
+// Candle images (same as Custom page)
+import candlePuppy from "@/assets/candle-puppy-new.png";
+import candleTeddyBear from "@/assets/candle-teddy-bear-new.png";
+import candleCherry from "@/assets/candle-cherry-new.png";
+import candleHeart from "@/assets/candle-heart-new.png";
+import candleSoccer from "@/assets/candle-soccer-new.png";
+import candleBlueCar from "@/assets/candle-blue-car-new.png";
+import candleRedCar from "@/assets/candle-red-car-new.png";
+import candleYellowCar from "@/assets/candle-yellow-car-new.png";
+import candleBlueOmbre from "@/assets/candle-blue-ombre-new.png";
+import candlePinkOmbre from "@/assets/candle-pink-ombre-new.png";
+import candleSpiralPastel from "@/assets/candle-spiral-pastel-new.png";
+import candleShinySpiral from "@/assets/candle-shiny-spiral-new.png";
+import candleThickSpiral from "@/assets/candle-thick-spiral-new.png";
+import candleDaisy from "@/assets/candle-daisy.png";
+import candleRibbon from "@/assets/candle-ribbon.png";
+import candlePinkCar from "@/assets/candle-pink-car.png";
+import candleRainbow from "@/assets/candle-rainbow.png";
 
 const BASE_PRICE = 40;
 
@@ -117,19 +121,25 @@ const pipingBagOptions = [
 ];
 
 const candles = [
+  // Figurines
   { id: "puppy", name: "Puppy", image: candlePuppy, unitPrice: 2, hasPack: false },
   { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, unitPrice: 2, hasPack: false },
   { id: "cherry", name: "Cherry", image: candleCherry, unitPrice: 2, hasPack: false },
   { id: "heart", name: "Red Heart", image: candleHeart, unitPrice: 2, hasPack: false },
-  { id: "soccer", name: "Soccer Ball", image: candleSoccer, unitPrice: 2, hasPack: false },
+  { id: "soccer", name: "Footy Flame", image: candleSoccer, unitPrice: 2, hasPack: false },
   { id: "blue-car", name: "Blue Car", image: candleBlueCar, unitPrice: 2, hasPack: false },
   { id: "red-car", name: "Red Car", image: candleRedCar, unitPrice: 2, hasPack: false },
   { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, unitPrice: 2, hasPack: false },
-  { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "pink-car", name: "Pink Car", image: candlePinkCar, unitPrice: 2, hasPack: false },
+  { id: "daisy", name: "Daisy", image: candleDaisy, unitPrice: 2, hasPack: false },
+  { id: "ribbon", name: "Ribbon", image: candleRibbon, unitPrice: 2, hasPack: false },
+  // Ombré & Spirals
   { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "spiral-pastel", name: "Spiral Pastel", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packPrice: 10, packSize: 12 },
-  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packPrice: 10, packSize: 12 },
-  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 1, hasPack: true, packPrice: 10, packSize: 12 },
+  { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "rainbow", name: "Rainbow", image: candleRainbow, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "spiral-pastel", name: "Spiral Pastel", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 1, hasPack: true, packPrice: 10, packSize: 6 },
 ];
 
 type Step = "date" | "shape" | "flavor" | "baseColor" | "pipingBags" | "candles";
@@ -479,50 +489,128 @@ const KitBentoCake = () => {
 
       case "candles":
         return (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-semibold text-center">Add Candles (Optional)</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {candles.map((candle) => {
-                const selection = candleSelections[candle.id] || { units: 0, packs: 0 };
-                return (
-                  <Card key={candle.id} className="overflow-hidden">
-                    <CardContent className="p-3">
-                      <img src={candle.image} alt={candle.name} className="w-full h-20 object-contain mb-2" />
-                      <p className="font-medium text-sm text-center mb-2">{candle.name}</p>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs">Unit (CHF {candle.unitPrice})</span>
-                          <div className="flex items-center gap-2">
-                            <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => handleCandleUnitChange(candle.id, -1)}>
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="w-6 text-center text-sm">{selection.units}</span>
-                            <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => handleCandleUnitChange(candle.id, 1)}>
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        {candle.hasPack && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs">Pack of {candle.packSize} (CHF {candle.packPrice})</span>
-                            <div className="flex items-center gap-2">
-                              <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => handleCandlePackChange(candle.id, -1)}>
-                                <Minus className="h-3 w-3" />
-                              </Button>
-                              <span className="w-6 text-center text-sm">{selection.packs}</span>
-                              <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => handleCandlePackChange(candle.id, 1)}>
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
+          <div className="space-y-8 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+            <h2 className="text-3xl font-bold text-center text-foreground">
+              Add Candles (Optional)
+            </h2>
+            
+            {/* Figurines Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-center text-foreground/80">Figurines</h3>
+              <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
+                {candles.filter(c => !c.hasPack).map((candle) => {
+                  const selection = candleSelections[candle.id] || { units: 0, packs: 0 };
+                  const unitQty = selection.units;
+                  const isAnySelected = unitQty > 0;
+                  
+                  return (
+                    <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
+                      <img
+                        src={candle.image}
+                        alt={candle.name}
+                        className="h-56 w-56 object-contain mb-2"
+                      />
+                      <Card
+                        className={cn(
+                          "w-full transition-all",
+                          isAnySelected ? "ring-2 ring-primary bg-white/80" : "bg-white/60"
                         )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                      >
+                        <CardContent className="p-2 text-center">
+                          <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                          <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleCandleUnitChange(candle.id, -1)}
+                              disabled={unitQty === 0}
+                              className={cn(
+                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                unitQty === 0
+                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+                              )}
+                            >
+                              −
+                            </button>
+                            <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
+                            <button
+                              onClick={() => handleCandleUnitChange(candle.id, 1)}
+                              className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Ombré & Spirals Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-center text-foreground/80">Ombré & Spirales (Pack de 6 disponible)</h3>
+              <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
+                {candles.filter(c => c.hasPack).map((candle) => {
+                  const selection = candleSelections[candle.id] || { units: 0, packs: 0 };
+                  const unitQty = selection.units;
+                  const isAnySelected = unitQty > 0 || selection.packs > 0;
+                  
+                  return (
+                    <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
+                      <img
+                        src={candle.image}
+                        alt={candle.name}
+                        className="h-56 w-56 object-contain mb-2"
+                      />
+                      <Card
+                        className={cn(
+                          "w-full transition-all",
+                          isAnySelected ? "ring-2 ring-primary bg-white/80" : "bg-white/60"
+                        )}
+                      >
+                        <CardContent className="p-2 text-center">
+                          <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                          <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce ou CHF {candle.packPrice}/pack</p>
+                          <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                            <button
+                              onClick={() => handleCandleUnitChange(candle.id, -1)}
+                              disabled={unitQty === 0}
+                              className={cn(
+                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                unitQty === 0
+                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+                              )}
+                            >
+                              −
+                            </button>
+                            <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
+                            <button
+                              onClick={() => handleCandleUnitChange(candle.id, 1)}
+                              className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => handleCandlePackChange(candle.id, selection.packs > 0 ? -1 : 1)}
+                            className={cn(
+                              "w-full py-0.5 px-1 rounded text-[10px] transition-all",
+                              selection.packs > 0
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted hover:bg-muted/80 text-foreground"
+                            )}
+                          >
+                            {selection.packs > 0 ? "✓ " : ""}Pack ({candle.packSize}) — CHF {candle.packPrice}
+                          </button>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         );

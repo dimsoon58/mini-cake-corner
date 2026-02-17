@@ -10,8 +10,8 @@ interface LayoutProps {
 
 const navLinks = [
   { to: "/", label: "Home", isHome: true },
-  { to: "/customize", label: "Custom" },
   { to: "/catalog", label: "Catalog" },
+  { to: "/customize", label: "Custom" },
   { to: "/kit-bento-cake", label: "Kit Bento Cake" },
   { to: "/inspiration", label: "Inspiration" },
   { to: "/community-press", label: "Community & Press" },
