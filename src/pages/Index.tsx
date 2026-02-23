@@ -165,56 +165,56 @@ const Index = () => {
       {/* How to Order Section */}
       <section className="py-20" style={{ backgroundColor: '#FFE4EC' }}>
         <div className="container mx-auto px-4 max-w-3xl">
-          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
+          <h2 className="font-serif text-4xl md:text-5xl text-center font-bold mb-16" style={{ color: '#78020E' }}>
             HOW TO ORDER
           </h2>
           <div className="space-y-6">
             <div className="flex items-start gap-4">
-              <span className="text-2xl">①</span>
+              <span className="text-2xl" style={{ color: '#78020E' }}>①</span>
               <div>
-                <h3 className="font-medium text-foreground text-lg">Choose your date</h3>
-                <p className="text-muted-foreground">Select your pickup date (minimum 4 days in advance)</p>
+                <h3 className="font-medium text-lg" style={{ color: '#78020E' }}>Choose your date</h3>
+                <p style={{ color: '#78020E' }} className="opacity-80">Select your pickup date (minimum 4 days in advance)</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <span className="text-2xl">②</span>
+              <span className="text-2xl" style={{ color: '#78020E' }}>②</span>
               <div>
-                <h3 className="font-medium text-foreground text-lg">Choose size, shape & flavor</h3>
-                <p className="text-muted-foreground">Pick the cake size, shape, and flavor</p>
+                <h3 className="font-medium text-lg" style={{ color: '#78020E' }}>Choose size, shape & flavor</h3>
+                <p style={{ color: '#78020E' }} className="opacity-80">Pick the cake size, shape, and flavor</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <span className="text-2xl">③</span>
+              <span className="text-2xl" style={{ color: '#78020E' }}>③</span>
               <div>
-                <h3 className="font-medium text-foreground text-lg">Choose a cake style</h3>
-                <p className="text-muted-foreground">This is a base style — you can upload a reference image later</p>
+                <h3 className="font-medium text-lg" style={{ color: '#78020E' }}>Choose a cake style</h3>
+                <p style={{ color: '#78020E' }} className="opacity-80">This is a base style — you can upload a reference image later</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <span className="text-2xl">④</span>
+              <span className="text-2xl" style={{ color: '#78020E' }}>④</span>
               <div>
-                <h3 className="font-medium text-foreground text-lg">Add text (optional)</h3>
-                <p className="text-muted-foreground">Choose your message, font, and color</p>
+                <h3 className="font-medium text-lg" style={{ color: '#78020E' }}>Add text (optional)</h3>
+                <p style={{ color: '#78020E' }} className="opacity-80">Choose your message, font, and color</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <span className="text-2xl">⑤</span>
+              <span className="text-2xl" style={{ color: '#78020E' }}>⑤</span>
               <div>
-                <h3 className="font-medium text-foreground text-lg">Add extras ✨</h3>
-                <p className="text-muted-foreground">Customize with extra details and candles</p>
+                <h3 className="font-medium text-lg" style={{ color: '#78020E' }}>Add extras ✨</h3>
+                <p style={{ color: '#78020E' }} className="opacity-80">Customize with extra details and candles</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <span className="text-2xl">⑥</span>
+              <span className="text-2xl" style={{ color: '#78020E' }}>⑥</span>
               <div>
-                <h3 className="font-medium text-foreground text-lg">Leave a note 💬</h3>
-                <p className="text-muted-foreground">Tell us anything important about your order</p>
+                <h3 className="font-medium text-lg" style={{ color: '#78020E' }}>Leave a note 💬</h3>
+                <p style={{ color: '#78020E' }} className="opacity-80">Tell us anything important about your order</p>
               </div>
             </div>
           </div>
           <div className="mt-10 p-6 bg-background/50 rounded-2xl">
-            <h3 className="font-medium text-foreground mb-3">Good to know</h3>
-            <ul className="text-muted-foreground space-y-2 text-sm">
+            <h3 className="font-medium mb-3" style={{ color: '#78020E' }}>Good to know</h3>
+            <ul className="space-y-2 text-sm" style={{ color: '#78020E' }}>
               <li>Fully booked dates cannot be selected</li>
               <li>Complex designs may require additional fees</li>
             </ul>
