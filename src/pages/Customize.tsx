@@ -685,10 +685,10 @@ const Customize = () => {
                   : 0;
                 return (
                 <div key={category.name} className="space-y-6">
-                  <h3 className="text-xl font-serif text-center uppercase tracking-wider" style={{ color: '#78020E' }}>
+                  <h3 className="text-xl font-serif font-bold text-center uppercase tracking-wider" style={{ color: '#78020E' }}>
                     {category.name}
                     {categoryExtra > 0 && (
-                      <span className="text-primary font-medium"> (+CHF {categoryExtra})</span>
+                      <span style={{ color: '#78020E' }} className="font-medium"> (+CHF {categoryExtra})</span>
                     )}
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -715,7 +715,7 @@ const Customize = () => {
                           <h4 className="text-lg font-bold font-serif mb-2" style={{ color: '#78020E' }}>
                             {flavor.name}
                           </h4>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm" style={{ color: '#78020E' }}>
                             {flavor.description}
                           </p>
                         </CardContent>
