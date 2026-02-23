@@ -696,11 +696,12 @@ const Customize = () => {
                       <Card
                         key={flavor.id}
                         className={cn(
-                          "cursor-pointer transition-all hover:shadow-lg !bg-transparent border-transparent shadow-none",
+                          "cursor-pointer transition-all hover:shadow-lg border-transparent shadow-none",
                           selections.flavor === flavor.id
                             ? "ring-2 ring-primary"
                             : ""
                         )}
+                        style={{ backgroundColor: '#CFE8FF' }}
                         onClick={() => handleSelectFlavor(flavor.id)}
                       >
                         <CardContent className="p-6 text-center">
@@ -711,7 +712,7 @@ const Customize = () => {
                               className="h-28 mx-auto mb-4 object-contain"
                             />
                           )}
-                          <h4 className="text-lg font-serif text-primary mb-2">
+                          <h4 className="text-lg font-bold font-serif mb-2" style={{ color: '#78020E' }}>
                             {flavor.name}
                           </h4>
                           <p className="text-sm text-muted-foreground">
