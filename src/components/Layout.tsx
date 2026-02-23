@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import CartIcon from "@/components/CartIcon";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo-new.png";
 
 interface LayoutProps {
   children: React.ReactNode;

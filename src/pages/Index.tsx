@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo-new.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import cakeHomemade from "@/assets/cake-homemade.png";
 import cakeFresh from "@/assets/cake-fresh.png";
