@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, ArrowRight, Check, ShoppingBag, Pencil, Trash2, CalendarIcon, Upload, X } from "lucide-react";
+import { Check, ShoppingBag, Upload, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
@@ -238,7 +238,6 @@ const Customize = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { addItem } = useCart();
-  const [currentStep, setCurrentStep] = useState(0);
   const [selections, setSelections] = useState<{
     orderDate: Date | null;
     size: string | null;
@@ -282,6 +281,30 @@ const Customize = () => {
   });
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
 
+  // Continuous scroll: compute which steps should be visible
+  const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
+  
+  const maxVisibleStep = useMemo(() => {
+    if (!selections.orderDate) return 0;
+    if (!selections.size) return 1;
+    if (!selections.shape) return 2;
+    if (!selections.flavor) return 3;
+    if (!selections.style || !selections.baseColor) return 4;
+    if (selections.wantsText && (!selections.cakeText.trim() || !selections.textColor)) return 5;
+    return 7;
+  }, [selections.orderDate, selections.size, selections.shape, selections.flavor, selections.style, selections.baseColor, selections.wantsText, selections.cakeText, selections.textColor]);
+
+  const prevMaxStep = useRef(0);
+  useEffect(() => {
+    if (maxVisibleStep > prevMaxStep.current) {
+      const scrollTarget = maxVisibleStep === 7 ? 5 : maxVisibleStep;
+      setTimeout(() => {
+        stepRefs.current[scrollTarget]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+    prevMaxStep.current = maxVisibleStep;
+  }, [maxVisibleStep]);
+
   // Pre-select style from URL parameter (from catalog)
   useEffect(() => {
     const styleParam = searchParams.get("style");
@@ -290,17 +313,7 @@ const Customize = () => {
     }
   }, [searchParams]);
 
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+  // handleNext and handleBack removed - continuous scroll flow
 
   const handleSelectSize = (sizeId: string) => {
     setSelections({ ...selections, size: sizeId });
@@ -414,29 +427,8 @@ const Customize = () => {
     return total;
   };
 
-  const canProceed = () => {
-    switch (currentStep) {
-      case 0:
-        return selections.orderDate !== null;
-      case 1:
-        return selections.size !== null;
-      case 2:
-        return selections.shape !== null;
-      case 3:
-        return selections.flavor !== null;
-      case 4:
-        return selections.style !== null && selections.baseColor !== null;
-      case 5:
-        // If user wants text, they must write something AND select a text color
-        if (!selections.wantsText) return true;
-        return selections.cakeText.trim().length > 0 && selections.textColor !== null;
-      case 6:
-        return true; // Extras is optional
-      case 7:
-        return true; // Candles is optional
-      default:
-        return false;
-    }
+  const canAddToCart = () => {
+    return selections.orderDate !== null && selections.size !== null && selections.shape !== null && selections.flavor !== null && selections.style !== null && selections.baseColor !== null;
   };
 
   const getFlavorCategoryExtra = () => {
@@ -538,7 +530,7 @@ const Customize = () => {
               textStyle={selections.textStyle}
               extras={selections.extras}
               candles={selections.candles}
-              currentStep={currentStep}
+              currentStep={maxVisibleStep}
             />
           </div>
 
@@ -551,19 +543,19 @@ const Customize = () => {
                   <div
                     className={cn(
                       "w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
-                      index < currentStep
+                      index < maxVisibleStep
                         ? "bg-primary text-primary-foreground"
-                        : index === currentStep
+                        : index === maxVisibleStep
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground"
                     )}
                   >
-                    {index < currentStep ? <Check className="h-5 w-5" /> : index + 1}
+                    {index < maxVisibleStep ? <Check className="h-5 w-5" /> : index + 1}
                   </div>
                   <span
                     className={cn(
                       "ml-2 text-sm font-medium hidden sm:block",
-                      index === currentStep ? "text-foreground" : "text-muted-foreground"
+                      index <= maxVisibleStep ? "text-foreground" : "text-muted-foreground"
                     )}
                   >
                     {step}
@@ -572,7 +564,7 @@ const Customize = () => {
                     <div
                       className={cn(
                         "w-8 sm:w-16 h-1 mx-2 rounded-full",
-                        index < currentStep ? "bg-primary" : "bg-muted"
+                        index < maxVisibleStep ? "bg-primary" : "bg-muted"
                       )}
                     />
                   )}
@@ -583,8 +575,8 @@ const Customize = () => {
             {/* Step Content */}
             <div className="max-w-4xl mx-auto">
           {/* Date Selection */}
-          {currentStep === 0 && (
-            <div className="space-y-6">
+          {maxVisibleStep >= 0 && (
+            <div ref={el => stepRefs.current[0] = el} className="scroll-mt-20 space-y-6">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Date
               </h2>
@@ -612,8 +604,8 @@ const Customize = () => {
           )}
 
           {/* Size Selection */}
-          {currentStep === 1 && (
-            <div className="space-y-6">
+          {maxVisibleStep >= 1 && (
+            <div ref={el => stepRefs.current[1] = el} className="scroll-mt-20 space-y-6 pt-12 border-t border-border mt-12">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Size
               </h2>
@@ -645,8 +637,8 @@ const Customize = () => {
           )}
 
           {/* Shape Selection */}
-          {currentStep === 2 && (
-            <div className="space-y-6">
+          {maxVisibleStep >= 2 && (
+            <div ref={el => stepRefs.current[2] = el} className="scroll-mt-20 space-y-6 pt-12 border-t border-border mt-12">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Shape
               </h2>
@@ -682,8 +674,8 @@ const Customize = () => {
           )}
 
           {/* Flavor Selection */}
-          {currentStep === 3 && (
-            <div className="space-y-10 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          {maxVisibleStep >= 3 && (
+            <div ref={el => stepRefs.current[3] = el} className="scroll-mt-20 pt-12 border-t border-border mt-12 space-y-10 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Flavor
               </h2>
@@ -736,8 +728,8 @@ const Customize = () => {
           )}
 
           {/* Style Selection */}
-          {currentStep === 4 && (
-            <div className="space-y-8">
+          {maxVisibleStep >= 4 && (
+            <div ref={el => stepRefs.current[4] = el} className="scroll-mt-20 space-y-8 pt-12 border-t border-border mt-12">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Your Style
               </h2>
@@ -846,8 +838,8 @@ const Customize = () => {
           )}
 
           {/* Text Selection */}
-          {currentStep === 5 && (
-            <div className="space-y-8">
+          {maxVisibleStep >= 5 && (
+            <div ref={el => stepRefs.current[5] = el} className="scroll-mt-20 space-y-8 pt-12 border-t border-border mt-12">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Add Text
               </h2>
@@ -1007,8 +999,8 @@ const Customize = () => {
           )}
 
           {/* Extras Selection */}
-          {currentStep === 6 && (
-            <div className="space-y-6">
+          {maxVisibleStep >= 6 && (
+            <div ref={el => stepRefs.current[6] = el} className="scroll-mt-20 space-y-6 pt-12 border-t border-border mt-12">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Add Extras (Optional)
               </h2>
@@ -1240,8 +1232,8 @@ const Customize = () => {
           )}
 
           {/* Candles Selection */}
-          {currentStep === 7 && (
-            <div className="space-y-8 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          {maxVisibleStep >= 7 && (
+            <div ref={el => stepRefs.current[7] = el} className="scroll-mt-20 space-y-8 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 mt-12">
               <h2 className="text-3xl font-bold text-center text-foreground">
                 Choose Candles (Optional)
               </h2>
@@ -1366,18 +1358,10 @@ const Customize = () => {
             </div>
           )}
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between items-center mt-12 max-w-2xl mx-auto">
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentStep === 0}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-
-            <div className="text-center flex-1 mx-4">
+          {/* Add to Cart & Price Summary */}
+          {maxVisibleStep >= 5 && (
+          <div className="mt-12 max-w-2xl mx-auto">
+            <div className="text-center">
               <p className="text-sm text-muted-foreground">Estimated Total</p>
               <p className="text-2xl font-bold text-primary">CHF {calculateTotal()}</p>
               
@@ -1386,7 +1370,6 @@ const Customize = () => {
                 <div className="mt-4 text-left bg-secondary/30 rounded-lg p-4 max-w-sm mx-auto">
                   <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Price Breakdown</p>
                   <div className="space-y-1 text-sm">
-                    {/* Size */}
                     {selections.size && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">
@@ -1398,7 +1381,6 @@ const Customize = () => {
                       </div>
                     )}
                     
-                    {/* Shape Extra */}
                     {selections.shape && (() => {
                       const shape = shapes.find(s => s.id === selections.shape);
                       const shapeExtra = shape && selections.size 
@@ -1412,7 +1394,6 @@ const Customize = () => {
                       ) : null;
                     })()}
                     
-                    {/* Flavor Extra */}
                     {selections.flavor && (() => {
                       const flavorExtra = getFlavorCategoryExtra();
                       const flavorName = flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor)?.name;
@@ -1424,7 +1405,6 @@ const Customize = () => {
                       ) : null;
                     })()}
                     
-                    {/* Style Extra */}
                     {selections.style && (() => {
                       const style = styles.find(s => s.id === selections.style);
                       const styleExtra = style ? getStylePrice(style) : 0;
@@ -1436,7 +1416,6 @@ const Customize = () => {
                       ) : null;
                     })()}
                     
-                    {/* Candles */}
                     {selections.candles.length > 0 && selections.candles.map(candleSelection => {
                       const candle = candles.find(c => c.id === candleSelection.id);
                       if (!candle) return null;
@@ -1457,7 +1436,6 @@ const Customize = () => {
                       );
                     })}
                     
-                    {/* Extras */}
                     {selections.extras.length > 0 && selections.extras.map(extraId => {
                       const extra = extras.find(e => e.id === extraId);
                       if (!extra) return null;
@@ -1470,7 +1448,6 @@ const Customize = () => {
                       );
                     })}
                     
-                    {/* Divider and Total */}
                     <div className="border-t border-muted pt-2 mt-2">
                       <div className="flex justify-between font-semibold">
                         <span className="text-foreground">Total</span>
@@ -1480,24 +1457,19 @@ const Customize = () => {
                   </div>
                 </div>
               )}
-            </div>
 
-            {currentStep < steps.length - 1 ? (
-              <Button onClick={handleNext} disabled={!canProceed()}>
-                Next
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            ) : (
               <Button 
                 onClick={handleAddToCart}
-                disabled={!canProceed()}
-                className="bg-primary hover:bg-primary/90"
+                disabled={!canAddToCart()}
+                className="bg-primary hover:bg-primary/90 mt-6"
+                size="lg"
               >
                 <ShoppingBag className="h-4 w-4 mr-2" />
                 Add to Cart
               </Button>
-            )}
+            </div>
           </div>
+          )}
             </div>
           </div>
         </div>
