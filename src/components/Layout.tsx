@@ -51,9 +51,10 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
                   className={cn(
                     "transition-colors font-medium",
                     isActive(link.to)
-                      ? "text-primary"
-                      : "text-foreground/80 hover:text-primary"
+                      ? "font-semibold"
+                      : "hover:opacity-70"
                   )}
+                  style={{ color: '#78020E' }}
                 >
                   {link.label}
                 </Link>
@@ -69,9 +70,10 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
                   className={cn(
                     "text-sm font-medium transition-colors",
                     isActive(link.to)
-                      ? "text-primary"
-                      : "text-foreground/80 hover:text-primary"
+                      ? "font-semibold"
+                      : "hover:opacity-70"
                   )}
+                  style={{ color: '#78020E' }}
                 >
                   {link.label}
                 </Link>
