@@ -675,8 +675,8 @@ const Customize = () => {
 
           {/* Flavor Selection */}
           {maxVisibleStep >= 3 && (
-            <div ref={el => stepRefs.current[3] = el} className="scroll-mt-20 pt-12 border-t border-border mt-12 space-y-10 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-              <h2 className="text-3xl font-bold text-center text-foreground">
+            <div ref={el => stepRefs.current[3] = el} className="scroll-mt-20 pt-12 border-t border-border mt-12 space-y-10 -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8" style={{ backgroundColor: '#CFE8FF' }}>
+              <h2 className="text-3xl font-bold text-center" style={{ color: '#78020E' }}>
                 Choose Your Flavor
               </h2>
               {flavorCategories.map((category) => {
@@ -685,7 +685,7 @@ const Customize = () => {
                   : 0;
                 return (
                 <div key={category.name} className="space-y-6">
-                  <h3 className="text-xl font-serif text-center text-foreground uppercase tracking-wider">
+                  <h3 className="text-xl font-serif text-center uppercase tracking-wider" style={{ color: '#78020E' }}>
                     {category.name}
                     {categoryExtra > 0 && (
                       <span className="text-primary font-medium"> (+CHF {categoryExtra})</span>
