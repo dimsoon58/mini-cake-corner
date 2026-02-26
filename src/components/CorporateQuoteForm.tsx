@@ -27,7 +27,7 @@ import {
 const quoteSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
   lastName: z.string().trim().min(1, "Last name is required").max(100),
-  companyName: z.string().trim().min(1, "Company name is required").max(200),
+  companyName: z.string().trim().max(200).optional(),
   phone: z.string().trim().min(1, "Phone number is required").max(30),
   email: z.string().trim().email("Invalid email address").max(255),
   eventDate: z.date().optional(),
@@ -133,9 +133,7 @@ const CorporateQuoteForm = ({ open, onOpenChange }: CorporateQuoteFormProps) => 
 
           {/* Company */}
           <div className="space-y-1.5">
-            <Label htmlFor="companyName">
-              Company Name <span className="text-destructive">*</span>
-            </Label>
+            <Label htmlFor="companyName">Company Name</Label>
             <Input id="companyName" {...register("companyName")} />
             {errors.companyName && (
               <p className="text-sm text-destructive">{errors.companyName.message}</p>
