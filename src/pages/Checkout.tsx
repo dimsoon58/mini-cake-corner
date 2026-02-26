@@ -405,7 +405,7 @@ const Checkout = () => {
 
             {/* Delivery Date & Time */}
             <div className="space-y-2">
-              <Label>Desired Delivery Date & Time</Label>
+              <Label>Pick-up / Delivery Date & Time</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
