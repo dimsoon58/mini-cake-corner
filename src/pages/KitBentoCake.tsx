@@ -138,7 +138,7 @@ const candles = [
   { id: "rainbow", name: "Rainbow", image: candleRainbow, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "spiral-pastel", name: "Spiral Pastel", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 1, hasPack: true, packPrice: 10, packSize: 6 },
+  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packPrice: 10, packSize: 6 },
 ];
 
 const KitBentoCake = () => {
@@ -151,7 +151,7 @@ const KitBentoCake = () => {
   const [selectedBaseColor, setSelectedBaseColor] = useState("");
   const [selectedPipingOption, setSelectedPipingOption] = useState("");
   const [pipingColors, setPipingColors] = useState<string[]>([]);
-  const [candleSelections, setCandleSelections] = useState<{ [key: string]: { units: number; packs: number } }>({});
+  const [candleSelections, setCandleSelections] = useState<{ [key: string]: number }>({});
   const [showCartSheet, setShowCartSheet] = useState(false);
 
   const minDate = addDays(new Date(), 2);
@@ -212,16 +212,21 @@ const KitBentoCake = () => {
   const getShapePrice = () => shapes.find(s => s.id === selectedShape)?.extraPrice || 0;
   const getPipingPrice = () => pipingBagOptions.find(p => p.id === selectedPipingOption)?.price || 0;
 
+  const getCandlePrice = (candleId: string, qty: number) => {
+    const candle = candles.find(c => c.id === candleId);
+    if (!candle || qty === 0) return 0;
+    if (candle.hasPack && candle.packPrice && candle.packSize) {
+      const packs = Math.floor(qty / candle.packSize);
+      const remainder = qty % candle.packSize;
+      return packs * candle.packPrice + remainder * candle.unitPrice;
+    }
+    return qty * candle.unitPrice;
+  };
+
   const getCandlesTotal = () => {
     let total = 0;
-    Object.entries(candleSelections).forEach(([candleId, selection]) => {
-      const candle = candles.find(c => c.id === candleId);
-      if (candle) {
-        total += selection.units * candle.unitPrice;
-        if (candle.hasPack && candle.packPrice) {
-          total += selection.packs * candle.packPrice;
-        }
-      }
+    Object.entries(candleSelections).forEach(([candleId, qty]) => {
+      total += getCandlePrice(candleId, qty);
     });
     return total;
   };
@@ -230,27 +235,15 @@ const KitBentoCake = () => {
     return BASE_PRICE + getShapePrice() + getFlavorCategoryPrice() + getPipingPrice() + getCandlesTotal();
   }, [selectedShape, selectedFlavor, selectedPipingOption, candleSelections]);
 
-  const handleCandleUnitChange = (candleId: string, delta: number) => {
+  const handleCandleQtyChange = (candleId: string, delta: number) => {
     setCandleSelections(prev => {
-      const current = prev[candleId] || { units: 0, packs: 0 };
-      const newUnits = Math.max(0, current.units + delta);
-      if (newUnits === 0 && current.packs === 0) {
+      const current = prev[candleId] || 0;
+      const newQty = Math.max(0, current + delta);
+      if (newQty === 0) {
         const { [candleId]: _, ...rest } = prev;
         return rest;
       }
-      return { ...prev, [candleId]: { ...current, units: newUnits } };
-    });
-  };
-
-  const handleCandlePackChange = (candleId: string, delta: number) => {
-    setCandleSelections(prev => {
-      const current = prev[candleId] || { units: 0, packs: 0 };
-      const newPacks = Math.max(0, current.packs + delta);
-      if (newPacks === 0 && current.units === 0) {
-        const { [candleId]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [candleId]: { ...current, packs: newPacks } };
+      return { ...prev, [candleId]: newQty };
     });
   };
 
@@ -277,13 +270,10 @@ const KitBentoCake = () => {
 
     const pipingColorNames = pipingColors.map(id => baseColors.find(c => c.id === id)?.name || "").join(", ");
     const candleDetails = Object.entries(candleSelections)
-      .filter(([_, sel]) => sel.units > 0 || sel.packs > 0)
-      .map(([id, sel]) => {
+      .filter(([_, qty]) => qty > 0)
+      .map(([id, qty]) => {
         const candle = candles.find(c => c.id === id);
-        const parts = [];
-        if (sel.units > 0) parts.push(`${sel.units}x ${candle?.name}`);
-        if (sel.packs > 0) parts.push(`${sel.packs} pack(s) ${candle?.name}`);
-        return parts.join(", ");
+        return `${qty}x ${candle?.name}`;
       })
       .join("; ");
 
@@ -516,24 +506,22 @@ const KitBentoCake = () => {
                 <h3 className="text-lg font-semibold text-center text-foreground/80">Figurines</h3>
                 <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
                   {candles.filter(c => !c.hasPack).map((candle) => {
-                    const selection = candleSelections[candle.id] || { units: 0, packs: 0 };
-                    const unitQty = selection.units;
-                    const isAnySelected = unitQty > 0;
+                    const qty = candleSelections[candle.id] || 0;
 
                     return (
                       <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
                         <img src={candle.image} alt={candle.name} className="h-56 w-56 object-contain mb-2" />
-                        <Card className={cn("w-full transition-all", isAnySelected ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                        <Card className={cn("w-full transition-all", qty > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
                           <CardContent className="p-2 text-center">
                             <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
                             <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
                             <div className="flex items-center justify-center gap-1.5">
-                              <button onClick={() => handleCandleUnitChange(candle.id, -1)} disabled={unitQty === 0}
+                              <button onClick={() => handleCandleQtyChange(candle.id, -1)} disabled={qty === 0}
                                 className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-                                  unitQty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  qty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                                 )}>−</button>
-                              <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
-                              <button onClick={() => handleCandleUnitChange(candle.id, 1)}
+                              <span className="w-5 text-center font-medium text-foreground text-sm">{qty}</span>
+                              <button onClick={() => handleCandleQtyChange(candle.id, 1)}
                                 className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
                             </div>
                           </CardContent>
@@ -549,34 +537,31 @@ const KitBentoCake = () => {
                 <h3 className="text-lg font-semibold text-center text-foreground/80">Ombré & Spirales (Pack de 6 disponible)</h3>
                 <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
                   {candles.filter(c => c.hasPack).map((candle) => {
-                    const selection = candleSelections[candle.id] || { units: 0, packs: 0 };
-                    const unitQty = selection.units;
-                    const isAnySelected = unitQty > 0 || selection.packs > 0;
+                    const qty = candleSelections[candle.id] || 0;
+                    const price = getCandlePrice(candle.id, qty);
+                    const hasPackApplied = candle.packSize && qty >= candle.packSize;
 
                     return (
                       <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
                         <img src={candle.image} alt={candle.name} className="h-56 w-56 object-contain mb-2" />
-                        <Card className={cn("w-full transition-all", isAnySelected ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                        <Card className={cn("w-full transition-all", qty > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
                           <CardContent className="p-2 text-center">
                             <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
-                            <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce ou CHF {candle.packPrice}/pack</p>
-                            <div className="flex items-center justify-center gap-1.5 mb-1.5">
-                              <button onClick={() => handleCandleUnitChange(candle.id, -1)} disabled={unitQty === 0}
+                            <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce · Pack {candle.packSize}: CHF {candle.packPrice}</p>
+                            <div className="flex items-center justify-center gap-1.5 mb-1">
+                              <button onClick={() => handleCandleQtyChange(candle.id, -1)} disabled={qty === 0}
                                 className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-                                  unitQty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  qty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                                 )}>−</button>
-                              <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
-                              <button onClick={() => handleCandleUnitChange(candle.id, 1)}
+                              <span className="w-5 text-center font-medium text-foreground text-sm">{qty}</span>
+                              <button onClick={() => handleCandleQtyChange(candle.id, 1)}
                                 className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
                             </div>
-                            <button
-                              onClick={() => handleCandlePackChange(candle.id, selection.packs > 0 ? -1 : 1)}
-                              className={cn("w-full py-1 px-2 rounded-md text-[11px] font-medium transition-all border-2",
-                                selection.packs > 0 ? "bg-primary text-primary-foreground border-primary" : "bg-white border-foreground text-foreground hover:bg-primary/10"
-                              )}
-                            >
-                              {selection.packs > 0 ? "✓ " : ""}Pack ({candle.packSize}) — CHF {candle.packPrice}
-                            </button>
+                            {qty > 0 && (
+                              <p className={cn("text-[10px] font-medium", hasPackApplied ? "text-green-700" : "text-muted-foreground")}>
+                                {hasPackApplied ? `✓ Pack price applied — CHF ${price}` : `CHF ${price}`}
+                              </p>
+                            )}
                           </CardContent>
                         </Card>
                       </div>
