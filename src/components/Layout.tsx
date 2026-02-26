@@ -14,7 +14,8 @@ const navLinks = [
   { to: "/customize", label: "Custom" },
   { to: "/kit-bento-cake", label: "Kit Bento Cake" },
   { to: "/inspiration", label: "Inspiration" },
-  { to: "/community-press", label: "Community & Press" },
+  { to: "/community-press", label: "Press" },
+  { to: "/corporate-event", label: "Corporate Event" },
   { to: "/faq", label: "FAQ" },
   { to: "/contact", label: "Contact" },
 ];
