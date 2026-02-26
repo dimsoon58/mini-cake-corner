@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,10 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { format, addDays } from "date-fns";
-import { CalendarIcon, ChevronRight, Check, Minus, Plus, ShoppingCart } from "lucide-react";
+import { CalendarIcon, Check, ShoppingCart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useNavigate } from "react-router-dom";
 import { AllergenDisplay } from "@/data/allergens";
+import { toast } from "sonner";
 
 // Flavor images
 import flavorVanilla from "@/assets/flavor-vanilla.png";
@@ -26,11 +27,8 @@ import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
 import flavorTiramisu from "@/assets/flavor-tiramisu-new.png";
 import flavorPraline from "@/assets/flavor-praline.png";
 import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
-import flavorVanillaGF from "@/assets/flavor-vanilla-gf.png";
-import flavorRedVelvetGF from "@/assets/flavor-red-velvet-gf.png";
-import flavorChocolateGF from "@/assets/flavor-chocolate-gf.png";
 
-// Candle images (same as Custom page)
+// Candle images
 import candlePuppy from "@/assets/candle-puppy-new.png";
 import candleTeddyBear from "@/assets/candle-teddy-bear-new.png";
 import candleCherry from "@/assets/candle-cherry-new.png";
@@ -143,22 +141,10 @@ const candles = [
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 1, hasPack: true, packPrice: 10, packSize: 6 },
 ];
 
-type Step = "date" | "shape" | "flavor" | "baseColor" | "pipingBags" | "candles";
-
-const steps: { id: Step; label: string }[] = [
-  { id: "date", label: "Date" },
-  { id: "shape", label: "Shape" },
-  { id: "flavor", label: "Flavor" },
-  { id: "baseColor", label: "Base Color" },
-  { id: "pipingBags", label: "Piping Bags" },
-  { id: "candles", label: "Candles" },
-];
-
 const KitBentoCake = () => {
   const { addItem } = useCart();
   const navigate = useNavigate();
-  
-  const [currentStep, setCurrentStep] = useState<Step>("date");
+
   const [orderDate, setOrderDate] = useState<Date | undefined>();
   const [selectedShape, setSelectedShape] = useState("");
   const [selectedFlavor, setSelectedFlavor] = useState("");
@@ -170,11 +156,47 @@ const KitBentoCake = () => {
 
   const minDate = addDays(new Date(), 2);
 
+  // Refs for auto-scroll
+  const shapeRef = useRef<HTMLDivElement>(null);
+  const flavorRef = useRef<HTMLDivElement>(null);
+  const baseColorRef = useRef<HTMLDivElement>(null);
+  const pipingRef = useRef<HTMLDivElement>(null);
+  const candlesRef = useRef<HTMLDivElement>(null);
+
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement>) => {
+    setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+  };
+
+  // Auto-scroll on selection
+  useEffect(() => { if (orderDate) scrollToRef(shapeRef); }, [orderDate]);
+  useEffect(() => { if (selectedShape) scrollToRef(flavorRef); }, [selectedShape]);
+  useEffect(() => { if (selectedFlavor) scrollToRef(baseColorRef); }, [selectedFlavor]);
+  useEffect(() => { if (selectedBaseColor) scrollToRef(pipingRef); }, [selectedBaseColor]);
+
+  // Auto-scroll when piping is fully selected
+  useEffect(() => {
+    const option = pipingBagOptions.find(p => p.id === selectedPipingOption);
+    if (option && pipingColors.length === option.count) {
+      scrollToRef(candlesRef);
+    }
+  }, [pipingColors, selectedPipingOption]);
+
+  // Visibility flags
+  const showShape = !!orderDate;
+  const showFlavor = showShape && !!selectedShape;
+  const showBaseColor = showFlavor && !!selectedFlavor;
+  const showPiping = showBaseColor && !!selectedBaseColor;
+  const pipingComplete = (() => {
+    const option = pipingBagOptions.find(p => p.id === selectedPipingOption);
+    return !!selectedPipingOption && pipingColors.length === (option?.count || 0);
+  })();
+  const showCandles = showPiping && pipingComplete;
+
   const getFlavorCategoryPrice = () => {
     for (const category of flavorCategories) {
-      if (category.flavors.some(f => f.id === selectedFlavor)) {
-        return category.extraPrice;
-      }
+      if (category.flavors.some(f => f.id === selectedFlavor)) return category.extraPrice;
     }
     return 0;
   };
@@ -187,13 +209,8 @@ const KitBentoCake = () => {
     return "";
   };
 
-  const getShapePrice = () => {
-    return shapes.find(s => s.id === selectedShape)?.extraPrice || 0;
-  };
-
-  const getPipingPrice = () => {
-    return pipingBagOptions.find(p => p.id === selectedPipingOption)?.price || 0;
-  };
+  const getShapePrice = () => shapes.find(s => s.id === selectedShape)?.extraPrice || 0;
+  const getPipingPrice = () => pipingBagOptions.find(p => p.id === selectedPipingOption)?.price || 0;
 
   const getCandlesTotal = () => {
     let total = 0;
@@ -212,35 +229,6 @@ const KitBentoCake = () => {
   const totalPrice = useMemo(() => {
     return BASE_PRICE + getShapePrice() + getFlavorCategoryPrice() + getPipingPrice() + getCandlesTotal();
   }, [selectedShape, selectedFlavor, selectedPipingOption, candleSelections]);
-
-  const canProceed = () => {
-    switch (currentStep) {
-      case "date": return !!orderDate;
-      case "shape": return !!selectedShape;
-      case "flavor": return !!selectedFlavor;
-      case "baseColor": return !!selectedBaseColor;
-      case "pipingBags": {
-        const option = pipingBagOptions.find(p => p.id === selectedPipingOption);
-        return !!selectedPipingOption && pipingColors.length === (option?.count || 0);
-      }
-      case "candles": return true;
-      default: return false;
-    }
-  };
-
-  const goToNextStep = () => {
-    const currentIndex = steps.findIndex(s => s.id === currentStep);
-    if (currentIndex < steps.length - 1) {
-      setCurrentStep(steps[currentIndex + 1].id);
-    }
-  };
-
-  const goToPrevStep = () => {
-    const currentIndex = steps.findIndex(s => s.id === currentStep);
-    if (currentIndex > 0) {
-      setCurrentStep(steps[currentIndex - 1].id);
-    }
-  };
 
   const handleCandleUnitChange = (candleId: string, delta: number) => {
     setCandleSelections(prev => {
@@ -269,19 +257,24 @@ const KitBentoCake = () => {
   const handlePipingColorToggle = (colorId: string) => {
     const option = pipingBagOptions.find(p => p.id === selectedPipingOption);
     const maxColors = option?.count || 0;
-    
+
     setPipingColors(prev => {
-      if (prev.includes(colorId)) {
-        return prev.filter(c => c !== colorId);
-      }
-      if (prev.length < maxColors) {
-        return [...prev, colorId];
-      }
+      if (prev.includes(colorId)) return prev.filter(c => c !== colorId);
+      if (prev.length < maxColors) return [...prev, colorId];
       return prev;
     });
   };
 
+  const isFormComplete = () => {
+    return !!orderDate && !!selectedShape && !!selectedFlavor && !!selectedBaseColor && pipingComplete;
+  };
+
   const handleAddToCart = () => {
+    if (!isFormComplete()) {
+      toast.error("Please complete all required selections before proceeding.");
+      return;
+    }
+
     const pipingColorNames = pipingColors.map(id => baseColors.find(c => c.id === id)?.name || "").join(", ");
     const candleDetails = Object.entries(candleSelections)
       .filter(([_, sel]) => sel.units > 0 || sel.packs > 0)
@@ -328,12 +321,30 @@ const KitBentoCake = () => {
     setShowCartSheet(true);
   };
 
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case "date":
-        return (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-semibold text-center">Choose Your Pickup Date</h2>
+  const RequiredBadge = () => (
+    <span className="text-destructive ml-1">*</span>
+  );
+
+  return (
+    <Layout>
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold mb-4">Kit Bento Cake</h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            A bento cake ready to decorate at home.
+            <br />
+            Choose the flavor, shape and colors to create your own bento cake.
+          </p>
+          <p className="text-sm text-muted-foreground mt-4">
+            <span className="text-destructive">*</span> Required fields
+          </p>
+        </div>
+
+        <div className="max-w-4xl mx-auto space-y-12">
+          {/* Step 1: Date */}
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold text-center">Choose Your Pickup Date<RequiredBadge /></h2>
             <p className="text-muted-foreground text-center">Minimum 2 days notice required</p>
             <div className="flex justify-center">
               <Popover>
@@ -361,331 +372,233 @@ const KitBentoCake = () => {
                 </PopoverContent>
               </Popover>
             </div>
-          </div>
-        );
+          </section>
 
-      case "shape":
-        return (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-semibold text-center">Choose Shape</h2>
-            <RadioGroup value={selectedShape} onValueChange={setSelectedShape} className="flex justify-center gap-6">
-              {shapes.map((shape) => (
-                <div key={shape.id} className="flex items-center space-x-2">
-                  <RadioGroupItem value={shape.id} id={shape.id} />
-                  <Label htmlFor={shape.id} className="cursor-pointer">
-                    {shape.name} {shape.extraPrice > 0 && <span className="text-muted-foreground">(+CHF {shape.extraPrice})</span>}
-                  </Label>
+          {/* Step 2: Shape */}
+          {showShape && (
+            <section ref={shapeRef} className="space-y-4">
+              <h2 className="text-2xl font-semibold text-center">Choose Shape<RequiredBadge /></h2>
+              <RadioGroup value={selectedShape} onValueChange={setSelectedShape} className="flex justify-center gap-6">
+                {shapes.map((shape) => (
+                  <div key={shape.id} className="flex items-center space-x-2">
+                    <RadioGroupItem value={shape.id} id={`shape-${shape.id}`} />
+                    <Label htmlFor={`shape-${shape.id}`} className="cursor-pointer">
+                      {shape.name} {shape.extraPrice > 0 && <span className="text-muted-foreground">(+CHF {shape.extraPrice})</span>}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </section>
+          )}
+
+          {/* Step 3: Flavor */}
+          {showFlavor && (
+            <section ref={flavorRef} className="space-y-6">
+              <h2 className="text-2xl font-semibold text-center">Choose Flavor<RequiredBadge /></h2>
+              {flavorCategories.map((category) => (
+                <div key={category.name} className="space-y-3">
+                  <h3 className="text-lg font-medium">
+                    {category.name}
+                    {category.extraPrice > 0 && <span className="text-muted-foreground ml-2">(+CHF {category.extraPrice})</span>}
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {category.flavors.map((flavor) => (
+                      <Card
+                        key={flavor.id}
+                        className={cn(
+                          "cursor-pointer transition-all hover:shadow-md",
+                          selectedFlavor === flavor.id && "ring-2 ring-primary"
+                        )}
+                        onClick={() => setSelectedFlavor(flavor.id)}
+                      >
+                        <CardContent className="p-3">
+                          <img src={flavor.image} alt={flavor.name} className="w-full h-24 object-contain mb-2" />
+                          <p className="font-medium text-sm text-center">{flavor.name}</p>
+                          <AllergenDisplay flavorId={flavor.id} />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               ))}
-            </RadioGroup>
-          </div>
-        );
+            </section>
+          )}
 
-      case "flavor":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-semibold text-center">Choose Flavor</h2>
-            {flavorCategories.map((category) => (
-              <div key={category.name} className="space-y-3">
-                <h3 className="text-lg font-medium">
-                  {category.name}
-                  {category.extraPrice > 0 && <span className="text-muted-foreground ml-2">(+CHF {category.extraPrice})</span>}
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {category.flavors.map((flavor) => (
-                    <Card
-                      key={flavor.id}
-                      className={cn(
-                        "cursor-pointer transition-all hover:shadow-md",
-                        selectedFlavor === flavor.id && "ring-2 ring-primary"
-                      )}
-                      onClick={() => setSelectedFlavor(flavor.id)}
-                    >
-                      <CardContent className="p-3">
-                        <img src={flavor.image} alt={flavor.name} className="w-full h-24 object-contain mb-2" />
-                        <p className="font-medium text-sm text-center">{flavor.name}</p>
-                        <AllergenDisplay flavorId={flavor.id} />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+          {/* Step 4: Base Color */}
+          {showBaseColor && (
+            <section ref={baseColorRef} className="space-y-4">
+              <h2 className="text-2xl font-semibold text-center">Choose Base Color<RequiredBadge /></h2>
+              <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
+                {baseColors.map((color) => (
+                  <button
+                    key={color.id}
+                    onClick={() => setSelectedBaseColor(color.id)}
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-2 rounded-lg transition-all",
+                      selectedBaseColor === color.id && "ring-2 ring-primary bg-secondary"
+                    )}
+                  >
+                    <div
+                      className="w-10 h-10 rounded-full border-2 border-border shadow-sm"
+                      style={{ backgroundColor: color.color }}
+                    />
+                    <span className="text-xs text-center">{color.name}</span>
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
-        );
+            </section>
+          )}
 
-      case "baseColor":
-        return (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-semibold text-center">Choose Base Color</h2>
-            <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
-              {baseColors.map((color) => (
-                <button
-                  key={color.id}
-                  onClick={() => setSelectedBaseColor(color.id)}
-                  className={cn(
-                    "flex flex-col items-center gap-2 p-2 rounded-lg transition-all",
-                    selectedBaseColor === color.id && "ring-2 ring-primary bg-secondary"
-                  )}
-                >
-                  <div
-                    className="w-10 h-10 rounded-full border-2 border-border shadow-sm"
-                    style={{ backgroundColor: color.color }}
-                  />
-                  <span className="text-xs text-center">{color.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-
-      case "pipingBags":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-semibold text-center">Choose Piping Bags</h2>
-            
-            <RadioGroup value={selectedPipingOption} onValueChange={(val) => { setSelectedPipingOption(val); setPipingColors([]); }} className="flex justify-center gap-6">
-              {pipingBagOptions.map((option) => (
-                <div key={option.id} className="flex items-center space-x-2">
-                  <RadioGroupItem value={option.id} id={option.id} />
-                  <Label htmlFor={option.id} className="cursor-pointer">
-                    {option.name} <span className="text-muted-foreground">(CHF {option.price})</span>
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-
-            {selectedPipingOption && (
-              <div className="space-y-3">
-                <p className="text-center text-muted-foreground">
-                  Select {pipingBagOptions.find(p => p.id === selectedPipingOption)?.count} colors for your piping bags
+          {/* Step 5: Piping Bags */}
+          {showPiping && (
+            <section ref={pipingRef} className="space-y-6">
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-semibold">Choose Piping Bags<RequiredBadge /></h2>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  The piping bag is a pastry bag filled with buttercream, used to decorate your cake.
                 </p>
-                <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
-                  {baseColors.map((color) => (
-                    <button
-                      key={color.id}
-                      onClick={() => handlePipingColorToggle(color.id)}
-                      className={cn(
-                        "flex flex-col items-center gap-2 p-2 rounded-lg transition-all relative",
-                        pipingColors.includes(color.id) && "ring-2 ring-primary bg-secondary"
-                      )}
-                    >
-                      <div
-                        className="w-10 h-10 rounded-full border-2 border-border shadow-sm relative"
-                        style={{ backgroundColor: color.color }}
-                      >
-                        {pipingColors.includes(color.id) && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Check className={cn("w-5 h-5", color.id === "white" || color.id === "cream" || color.id === "pastel-yellow" ? "text-foreground" : "text-white")} />
-                          </div>
+              </div>
+
+              <RadioGroup value={selectedPipingOption} onValueChange={(val) => { setSelectedPipingOption(val); setPipingColors([]); }} className="flex justify-center gap-6">
+                {pipingBagOptions.map((option) => (
+                  <div key={option.id} className="flex items-center space-x-2">
+                    <RadioGroupItem value={option.id} id={option.id} />
+                    <Label htmlFor={option.id} className="cursor-pointer">
+                      {option.name} <span className="text-muted-foreground">(CHF {option.price})</span>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+
+              {selectedPipingOption && (
+                <div className="space-y-3">
+                  <p className="text-center text-muted-foreground">
+                    Select {pipingBagOptions.find(p => p.id === selectedPipingOption)?.count} colors for your piping bags
+                  </p>
+                  <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
+                    {baseColors.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => handlePipingColorToggle(color.id)}
+                        className={cn(
+                          "flex flex-col items-center gap-2 p-2 rounded-lg transition-all relative",
+                          pipingColors.includes(color.id) && "ring-2 ring-primary bg-secondary"
                         )}
+                      >
+                        <div
+                          className="w-10 h-10 rounded-full border-2 border-border shadow-sm relative"
+                          style={{ backgroundColor: color.color }}
+                        >
+                          {pipingColors.includes(color.id) && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Check className={cn("w-5 h-5", color.id === "white" || color.id === "cream" || color.id === "pastel-yellow" ? "text-foreground" : "text-white")} />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-xs text-center">{color.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Step 6: Candles (Optional) */}
+          {showCandles && (
+            <section ref={candlesRef} className="space-y-8 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+              <h2 className="text-3xl font-bold text-center text-foreground">
+                Add Candles (Optional)
+              </h2>
+
+              {/* Figurines Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-center text-foreground/80">Figurines</h3>
+                <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
+                  {candles.filter(c => !c.hasPack).map((candle) => {
+                    const selection = candleSelections[candle.id] || { units: 0, packs: 0 };
+                    const unitQty = selection.units;
+                    const isAnySelected = unitQty > 0;
+
+                    return (
+                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
+                        <img src={candle.image} alt={candle.name} className="h-56 w-56 object-contain mb-2" />
+                        <Card className={cn("w-full transition-all", isAnySelected ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                          <CardContent className="p-2 text-center">
+                            <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                            <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button onClick={() => handleCandleUnitChange(candle.id, -1)} disabled={unitQty === 0}
+                                className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                  unitQty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                )}>−</button>
+                              <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
+                              <button onClick={() => handleCandleUnitChange(candle.id, 1)}
+                                className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
+                            </div>
+                          </CardContent>
+                        </Card>
                       </div>
-                      <span className="text-xs text-center">{color.name}</span>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
-            )}
-          </div>
-        );
 
-      case "candles":
-        return (
-          <div className="space-y-8 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-            <h2 className="text-3xl font-bold text-center text-foreground">
-              Add Candles (Optional)
-            </h2>
-            
-            {/* Figurines Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-center text-foreground/80">Figurines</h3>
-              <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
-                {candles.filter(c => !c.hasPack).map((candle) => {
-                  const selection = candleSelections[candle.id] || { units: 0, packs: 0 };
-                  const unitQty = selection.units;
-                  const isAnySelected = unitQty > 0;
-                  
-                  return (
-                    <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
-                      <img
-                        src={candle.image}
-                        alt={candle.name}
-                        className="h-56 w-56 object-contain mb-2"
-                      />
-                      <Card
-                        className={cn(
-                          "w-full transition-all",
-                          isAnySelected ? "ring-2 ring-primary bg-white/80" : "bg-white/60"
-                        )}
-                      >
-                        <CardContent className="p-2 text-center">
-                          <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
-                          <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
-                          <div className="flex items-center justify-center gap-1.5">
+              {/* Ombré & Spirals Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-center text-foreground/80">Ombré & Spirales (Pack de 6 disponible)</h3>
+                <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
+                  {candles.filter(c => c.hasPack).map((candle) => {
+                    const selection = candleSelections[candle.id] || { units: 0, packs: 0 };
+                    const unitQty = selection.units;
+                    const isAnySelected = unitQty > 0 || selection.packs > 0;
+
+                    return (
+                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
+                        <img src={candle.image} alt={candle.name} className="h-56 w-56 object-contain mb-2" />
+                        <Card className={cn("w-full transition-all", isAnySelected ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                          <CardContent className="p-2 text-center">
+                            <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                            <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce ou CHF {candle.packPrice}/pack</p>
+                            <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                              <button onClick={() => handleCandleUnitChange(candle.id, -1)} disabled={unitQty === 0}
+                                className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                  unitQty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                )}>−</button>
+                              <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
+                              <button onClick={() => handleCandleUnitChange(candle.id, 1)}
+                                className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
+                            </div>
                             <button
-                              onClick={() => handleCandleUnitChange(candle.id, -1)}
-                              disabled={unitQty === 0}
-                              className={cn(
-                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-                                unitQty === 0
-                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+                              onClick={() => handleCandlePackChange(candle.id, selection.packs > 0 ? -1 : 1)}
+                              className={cn("w-full py-0.5 px-1 rounded text-[10px] transition-all",
+                                selection.packs > 0 ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80 text-foreground"
                               )}
                             >
-                              −
+                              {selection.packs > 0 ? "✓ " : ""}Pack ({candle.packSize}) — CHF {candle.packPrice}
                             </button>
-                            <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
-                            <button
-                              onClick={() => handleCandleUnitChange(candle.id, 1)}
-                              className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  );
-                })}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-
-            {/* Ombré & Spirals Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-center text-foreground/80">Ombré & Spirales (Pack de 6 disponible)</h3>
-              <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
-                {candles.filter(c => c.hasPack).map((candle) => {
-                  const selection = candleSelections[candle.id] || { units: 0, packs: 0 };
-                  const unitQty = selection.units;
-                  const isAnySelected = unitQty > 0 || selection.packs > 0;
-                  
-                  return (
-                    <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
-                      <img
-                        src={candle.image}
-                        alt={candle.name}
-                        className="h-56 w-56 object-contain mb-2"
-                      />
-                      <Card
-                        className={cn(
-                          "w-full transition-all",
-                          isAnySelected ? "ring-2 ring-primary bg-white/80" : "bg-white/60"
-                        )}
-                      >
-                        <CardContent className="p-2 text-center">
-                          <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
-                          <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce ou CHF {candle.packPrice}/pack</p>
-                          <div className="flex items-center justify-center gap-1.5 mb-1.5">
-                            <button
-                              onClick={() => handleCandleUnitChange(candle.id, -1)}
-                              disabled={unitQty === 0}
-                              className={cn(
-                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-                                unitQty === 0
-                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                  : "bg-primary text-primary-foreground hover:bg-primary/90"
-                              )}
-                            >
-                              −
-                            </button>
-                            <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
-                            <button
-                              onClick={() => handleCandleUnitChange(candle.id, 1)}
-                              className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
-                            >
-                              +
-                            </button>
-                          </div>
-                          <button
-                            onClick={() => handleCandlePackChange(candle.id, selection.packs > 0 ? -1 : 1)}
-                            className={cn(
-                              "w-full py-0.5 px-1 rounded text-[10px] transition-all",
-                              selection.packs > 0
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted hover:bg-muted/80 text-foreground"
-                            )}
-                          >
-                            {selection.packs > 0 ? "✓ " : ""}Pack ({candle.packSize}) — CHF {candle.packPrice}
-                          </button>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <Layout>
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4">Kit Bento Cake</h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            A bento cake ready to decorate at home.
-            <br />
-            Choose the flavor, shape and colors to create your own bento cake.
-          </p>
+            </section>
+          )}
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex justify-center mb-8 overflow-x-auto pb-2">
-          <div className="flex items-center gap-2">
-            {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center">
-                <button
-                  onClick={() => setCurrentStep(step.id)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                    currentStep === step.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                  )}
-                >
-                  {step.label}
-                </button>
-                {index < steps.length - 1 && <ChevronRight className="w-4 h-4 text-muted-foreground mx-1" />}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Step Content */}
-        <div className="max-w-4xl mx-auto mb-8">
-          {renderStepContent()}
-        </div>
-
-        {/* Price Summary & Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 shadow-lg">
+        {/* Fixed Bottom Bar */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 shadow-lg z-50">
           <div className="container mx-auto flex items-center justify-between max-w-4xl">
             <div>
               <p className="text-sm text-muted-foreground">Estimated Total</p>
               <p className="text-2xl font-bold">CHF {totalPrice}</p>
             </div>
-            <div className="flex gap-3">
-              {currentStep !== "date" && (
-                <Button variant="outline" onClick={goToPrevStep}>
-                  Back
-                </Button>
-              )}
-              {currentStep !== "candles" ? (
-                <Button onClick={goToNextStep} disabled={!canProceed()}>
-                  Next
-                </Button>
-              ) : (
-                <Button onClick={handleAddToCart} className="gap-2">
-                  <ShoppingCart className="w-4 h-4" />
-                  Add to Cart
-                </Button>
-              )}
-            </div>
+            <Button onClick={handleAddToCart} className="gap-2" size="lg">
+              <ShoppingCart className="w-4 h-4" />
+              Add to Cart
+            </Button>
           </div>
         </div>
 
