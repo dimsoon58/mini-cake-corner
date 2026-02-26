@@ -806,7 +806,8 @@ const Customize = () => {
                 </div>
               </div>
 
-              {/* Decoration Color Selection */}
+              {/* Decoration Color Selection - hidden for normal-without-border */}
+              {selections.style !== "normal-without-border" && (
               <div className="space-y-4 pt-6 border-t border-border">
                 <h3 className="text-xl font-semibold text-center text-foreground">
                   Choose Your Decoration Color
@@ -838,6 +839,7 @@ const Customize = () => {
                   ))}
                 </div>
               </div>
+              )}
             </div>
           )}
 
