@@ -13,6 +13,7 @@ import FAQ from "./pages/FAQ";
 import Contact from "./pages/Contact";
 import Checkout from "./pages/Checkout";
 import CommunityPress from "./pages/CommunityPress";
+import CorporateEvent from "./pages/CorporateEvent";
 import Catalog from "./pages/Catalog";
 import Inspiration from "./pages/Inspiration";
 import KitBentoCake from "./pages/KitBentoCake";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/customize" element={<Customize />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/community-press" element={<CommunityPress />} />
+            <Route path="/corporate-event" element={<CorporateEvent />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/kit-bento-cake" element={<KitBentoCake />} />
             <Route path="/inspiration" element={<Inspiration />} />
