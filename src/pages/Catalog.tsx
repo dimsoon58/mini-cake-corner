@@ -496,7 +496,7 @@ const Catalog = () => {
       return;
     }
     
-    if (!selections.decorationColor) {
+    if (!selections.decorationColor && selectedCake.styleId !== "normal-without-border") {
       toast({
         title: "Decoration Color required",
         description: "Please select a decoration color for your cake.",
@@ -764,7 +764,8 @@ const Catalog = () => {
                 </div>
               </div>
 
-              {/* Decoration Color Selection */}
+              {/* Decoration Color Selection - hidden for normal-without-border */}
+              {selectedCake?.styleId !== "normal-without-border" && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
                   Decoration Color <span className="text-destructive">*</span>
@@ -795,6 +796,7 @@ const Catalog = () => {
                   ))}
                 </div>
               </div>
+              )}
 
               {/* Text Toggle - hidden for printed-picture */}
               {!selectedCake?.disableText && (
