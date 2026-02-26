@@ -683,7 +683,13 @@ const Catalog = () => {
                         <SelectItem key={flavor.id} value={flavor.id}>
                           <div>
                             <span>{flavor.name} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
-                            {info && (
+                            {info && flavor.id.endsWith("-gf") ? (
+                              <div className="text-[10px] text-muted-foreground leading-tight mt-0.5 space-y-0.5">
+                                <p><span className="font-medium">Contains:</span> Eggs, Milk</p>
+                                <p><span className="font-medium">May contain:</span> Gluten, Nuts</p>
+                                <p className="text-muted-foreground/70 italic">Prepared in a kitchen that processes gluten.</p>
+                              </div>
+                            ) : info && (
                               <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
                                 {info.warning && <span className="text-destructive font-medium">⚠️ {info.warning} · </span>}
                                 Contains: {info.contains}
