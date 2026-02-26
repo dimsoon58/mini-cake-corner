@@ -24,15 +24,19 @@ const PaymentSuccess = () => {
           <CheckCircle className="w-16 h-16 text-primary mx-auto mb-6" />
           
           <h1 className="text-2xl font-serif text-foreground mb-4">
-            Paiement réussi !
+            Thank you so much for ordering from Bento Cake Studio! 🤍
           </h1>
           
           <p className="text-muted-foreground mb-6">
-            Merci pour votre commande. Vous recevrez un email de confirmation avec les détails de votre commande.
+            We truly appreciate your support and are so excited to create something special just for you.
           </p>
 
-          <p className="text-sm text-muted-foreground mb-8">
-            Nous vous contacterons bientôt pour confirmer la date et l'heure de livraison/retrait.
+          <p className="text-muted-foreground mb-4">
+            You will receive a confirmation message within the next 24 hours with the details of your pickup or delivery date and time.
+          </p>
+
+          <p className="text-muted-foreground mb-8">
+            We can't wait for you to enjoy your cake! 🎂✨
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
