@@ -1,4 +1,6 @@
+import { useState } from "react";
 import Layout from "@/components/Layout";
+import CorporateQuoteForm from "@/components/CorporateQuoteForm";
 import corporateEvent1 from "@/assets/corporate-event-1.png";
 import corporateEvent2 from "@/assets/corporate-event-2.png";
 import corporateEvent3 from "@/assets/corporate-event-3.png";
@@ -28,6 +30,8 @@ const corporateEvents = [
 ];
 
 const CorporateEvent = () => {
+  const [quoteOpen, setQuoteOpen] = useState(false);
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-16">
@@ -70,14 +74,16 @@ const CorporateEvent = () => {
           <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
             Contact us to discuss your next corporate event and discover how we can create unique cakes tailored to your brand.
           </p>
-          <a
-            href="/contact"
+          <button
+            onClick={() => setQuoteOpen(true)}
             className="inline-flex items-center justify-center px-8 py-3 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-colors"
           >
-            Contact Us
-          </a>
+            Get a Quote
+          </button>
         </div>
       </div>
+
+      <CorporateQuoteForm open={quoteOpen} onOpenChange={setQuoteOpen} />
     </Layout>
   );
 };
