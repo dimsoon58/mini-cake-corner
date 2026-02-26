@@ -592,7 +592,7 @@ const Catalog = () => {
                 <img
                   src={cake.image}
                   alt={cake.name}
-                  className="w-full h-full object-cover object-bottom hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                 />
               </div>
               <div className="p-6 text-center">
