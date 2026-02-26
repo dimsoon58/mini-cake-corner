@@ -6,47 +6,13 @@ import { Button } from "@/components/ui/button";
 const PINTEREST_URL = "https://ch.pinterest.com/bentocakestudiosnc/_saved/";
 const IMAGES_PER_PAGE = 12;
 
-import img1 from "@/assets/customer-1.jpg";
-import img2 from "@/assets/customer-2.jpg";
-import img3 from "@/assets/customer-3.jpg";
-import img4 from "@/assets/customer-4.jpg";
-import img5 from "@/assets/customer-5.jpg";
-import img6 from "@/assets/customer-6.jpg";
-import img7 from "@/assets/customer-7.jpg";
-import img8 from "@/assets/customer-8.jpg";
-import img9 from "@/assets/customer-9.jpg";
-import img10 from "@/assets/customer-10.jpg";
-import img11 from "@/assets/customer-11.jpg";
-import img12 from "@/assets/customer-12.jpg";
-import img13 from "@/assets/customer-13.jpg";
-import img14 from "@/assets/customer-14.jpg";
-import img15 from "@/assets/customer-15.jpg";
-import img16 from "@/assets/customer-16.jpg";
-import img17 from "@/assets/customer-17.jpg";
-import img18 from "@/assets/customer-18.jpg";
-import img19 from "@/assets/customer-19.jpg";
-import img20 from "@/assets/customer-20.jpg";
-import img21 from "@/assets/customer-21.jpg";
-import img22 from "@/assets/customer-22.jpg";
-import img23 from "@/assets/customer-23.jpg";
-import img24 from "@/assets/customer-24.jpg";
-import img25 from "@/assets/customer-25.jpg";
-import img26 from "@/assets/customer-26.jpg";
-import img27 from "@/assets/customer-27.jpg";
-import img28 from "@/assets/customer-28.jpg";
-import img29 from "@/assets/customer-29.jpg";
-import img30 from "@/assets/customer-30.jpg";
-import img31 from "@/assets/customer-31.jpg";
-import img32 from "@/assets/customer-32.jpg";
-import img33 from "@/assets/customer-33.jpg";
-import img34 from "@/assets/customer-34.jpg";
+import img1 from "@/assets/inspiration-1.jpg";
+import img2 from "@/assets/inspiration-2.jpg";
+import img3 from "@/assets/inspiration-3.jpg";
+import img4 from "@/assets/inspiration-4.jpg";
+import img5 from "@/assets/inspiration-5.jpg";
 
-const ALL_IMAGES = [
-  img1, img2, img3, img4, img5, img6, img7, img8, img9, img10,
-  img11, img12, img13, img14, img15, img16, img17, img18, img19, img20,
-  img21, img22, img23, img24, img25, img26, img27, img28, img29, img30,
-  img31, img32, img33, img34,
-];
+const ALL_IMAGES = [img1, img2, img3, img4, img5];
 
 const LazyImage = ({ src, index }: { src: string; index: number }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -137,28 +103,25 @@ const Inspiration = () => {
           </a>
         </div>
 
-        {/* Gallery Grid - 4 columns on desktop, smaller images */}
+        {/* Gallery Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {visibleImages.map((src, i) => (
             <LazyImage key={i} src={src} index={i} />
           ))}
         </div>
 
-        {/* Load More */}
-        {hasMore && (
+        {/* Load More / View on Pinterest */}
+        {hasMore ? (
           <div className="flex justify-center mt-12">
             <Button
               onClick={loadMore}
               size="lg"
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-10"
             >
-              View on Pinterest
+              Load More
             </Button>
           </div>
-        )}
-
-        {/* Show Pinterest link when all loaded */}
-        {!hasMore && (
+        ) : (
           <div className="flex justify-center mt-12">
             <a href={PINTEREST_URL} target="_blank" rel="noopener noreferrer">
               <Button
