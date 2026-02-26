@@ -71,9 +71,6 @@ const CorporateEvent = () => {
           <h3 className="font-serif text-2xl text-foreground mb-4">
             Interested in our corporate services?
           </h3>
-          <p className="text-muted-foreground mb-2 max-w-xl mx-auto">
-            Contact us to discuss your next corporate event and discover how we can create unique cakes tailored to your brand.
-          </p>
           <p className="font-serif text-lg text-foreground mb-6">
             Let's create something special for your next corporate event.
           </p>
