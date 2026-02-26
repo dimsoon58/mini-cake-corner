@@ -30,8 +30,8 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
   return (
     <div className="min-h-screen bg-background font-sans">
       {/* Header */}
-      <header className="bg-background py-6">
-        <div className="container mx-auto px-4 flex items-center justify-between">
+      <header className="bg-background pt-6 pb-0">
+        <div className="container mx-auto px-4 flex items-center justify-between pb-0">
           <div className="w-12" /> {/* Spacer for centering */}
           <Link to="/">
             <img src={logo} alt="Bento Cake Studio" className="h-44 md:h-64" style={{ mixBlendMode: 'multiply' }} />
