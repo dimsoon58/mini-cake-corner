@@ -21,7 +21,11 @@ const FAQ = () => {
         },
         {
           question: "How many days can a cake be kept?",
-          answer: "The cake can be kept for 2 to 3 days. Please note that when dark and light colors are combined, slight color transfer may occur over time."
+          answer: "The cake can be kept for 2 days. Please note that when dark and light colors are combined, slight color transfer may occur over time."
+        },
+        {
+          question: "How should I store my cake?",
+          answer: "Please keep your cake refrigerated between 0°C and 4°C.\nFor optimal freshness and texture, we recommend enjoying it within 48 hours.\nAvoid prolonged exposure to room temperature."
         },
         {
           question: "How long can the cake stay outside?",
