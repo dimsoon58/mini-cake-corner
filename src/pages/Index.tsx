@@ -49,7 +49,7 @@ const customerPhotos = [
   customer16, customer17, customer18, customer19, customer20,
   customer21, customer22, customer23, customer24, customer25,
   customer26, customer27, customer28, customer29,
-  customer30, customer31, customer32, customer33,
+  customer30, customer32, customer33,
 ];
 
 const features = [
