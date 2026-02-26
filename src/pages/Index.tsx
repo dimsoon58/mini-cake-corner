@@ -126,9 +126,9 @@ const Index = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="relative text-primary-foreground overflow-hidden">
+      <section className="relative text-primary-foreground overflow-hidden min-h-[80vh]">
         <div
-          className="absolute inset-0 bg-contain bg-center bg-no-repeat"
+          className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${heroBg})` }}
         />
         <div className="absolute inset-0 bg-foreground/20" />
