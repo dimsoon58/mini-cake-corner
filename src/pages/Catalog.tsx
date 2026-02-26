@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ShoppingBag, Upload, X, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
+import { allergenMap } from "@/data/allergens";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -674,9 +675,18 @@ const Catalog = () => {
                   <SelectContent>
                     {flavors.map((flavor) => {
                       const extra = flavor.extraPrice[selections.size as keyof typeof flavor.extraPrice] || 0;
+                      const info = allergenMap[flavor.id];
                       return (
                         <SelectItem key={flavor.id} value={flavor.id}>
-                          {flavor.name} {extra > 0 ? `(+CHF ${extra})` : ""}
+                          <div>
+                            <span>{flavor.name} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
+                            {info && (
+                              <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                                {info.warning && <span className="text-destructive font-medium">⚠️ {info.warning} · </span>}
+                                Contains: {info.contains}
+                              </div>
+                            )}
+                          </div>
                         </SelectItem>
                       );
                     })}

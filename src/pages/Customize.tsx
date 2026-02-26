@@ -11,6 +11,7 @@ import { useCart } from "@/context/CartContext";
 import Layout from "@/components/Layout";
 import CakeVisualizer from "@/components/CakeVisualizer";
 import { format, addDays } from "date-fns";
+import { AllergenDisplay } from "@/data/allergens";
 import flavorVanilla from "@/assets/flavor-vanilla.png";
 import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
 import flavorChocolate from "@/assets/flavor-chocolate.png";
@@ -718,6 +719,7 @@ const Customize = () => {
                           <p className="text-sm" style={{ color: '#78020E' }}>
                             {flavor.description}
                           </p>
+                          <AllergenDisplay flavorId={flavor.id} />
                         </CardContent>
                       </Card>
                     ))}

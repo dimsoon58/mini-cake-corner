@@ -12,6 +12,7 @@ import { format, addDays } from "date-fns";
 import { CalendarIcon, ChevronRight, Check, Minus, Plus, ShoppingCart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useNavigate } from "react-router-dom";
+import { AllergenDisplay } from "@/data/allergens";
 
 // Flavor images
 import flavorVanilla from "@/assets/flavor-vanilla.png";
@@ -403,6 +404,7 @@ const KitBentoCake = () => {
                       <CardContent className="p-3">
                         <img src={flavor.image} alt={flavor.name} className="w-full h-24 object-contain mb-2" />
                         <p className="font-medium text-sm text-center">{flavor.name}</p>
+                        <AllergenDisplay flavorId={flavor.id} />
                       </CardContent>
                     </Card>
                   ))}
