@@ -72,16 +72,35 @@ export const AllergenDisplay = ({ flavorId }: { flavorId: string }) => {
   const info = allergenMap[flavorId];
   if (!info) return null;
 
+  const isGlutenFree = flavorId.endsWith("-gf");
+
+  if (isGlutenFree) {
+    return (
+      <div className="text-[10px] leading-tight mt-1 space-y-0.5">
+        <p className="text-muted-foreground">
+          <span className="font-medium">Contains:</span> 🥚 Eggs, 🥛 Milk
+        </p>
+        <p className="text-muted-foreground">
+          <span className="font-medium">May contain:</span> 🌾 Gluten, 🌰 Nuts
+        </p>
+        <p className="text-muted-foreground/70 italic">
+          Prepared in a kitchen that processes gluten.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="text-[10px] leading-tight mt-1 space-y-0.5">
       {info.warning && (
         <p className="font-semibold text-destructive">⚠️ {info.warning}</p>
       )}
       <p className="text-muted-foreground">
-        <span className="font-medium">Contains:</span> {info.contains}
+        <span className="font-medium">Allergens:</span> 🌾 Gluten 🥚 Eggs 🥛 Milk
+        {flavorId === "praline" && " 🌰 Nuts (almond, hazelnut)"}
       </p>
       <p className="text-muted-foreground">
-        <span className="font-medium">May contain:</span> {info.mayContain}
+        (May contain 🌰 Nuts)
       </p>
     </div>
   );
