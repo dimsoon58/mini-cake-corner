@@ -571,8 +571,8 @@ const KitBentoCake = () => {
                             </div>
                             <button
                               onClick={() => handleCandlePackChange(candle.id, selection.packs > 0 ? -1 : 1)}
-                              className={cn("w-full py-0.5 px-1 rounded text-[10px] transition-all",
-                                selection.packs > 0 ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80 text-foreground"
+                              className={cn("w-full py-1 px-2 rounded-md text-[11px] font-medium transition-all border-2",
+                                selection.packs > 0 ? "bg-primary text-primary-foreground border-primary" : "bg-white border-foreground text-foreground hover:bg-primary/10"
                               )}
                             >
                               {selection.packs > 0 ? "✓ " : ""}Pack ({candle.packSize}) — CHF {candle.packPrice}
