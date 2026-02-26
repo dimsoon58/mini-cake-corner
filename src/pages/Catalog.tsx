@@ -50,6 +50,19 @@ import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
 import extraSprinkles from "@/assets/extra-sprinkles.jpg";
 
+// Flavor images
+import flavorVanilla from "@/assets/flavor-vanilla.png";
+import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
+import flavorChocolate from "@/assets/flavor-chocolate.png";
+import flavorChocolateLovers from "@/assets/flavor-chocolate-lovers.png";
+import flavorDarkBerrylicious from "@/assets/flavor-dark-berrylicious.png";
+import flavorWhiteBerrylicious from "@/assets/flavor-white-berrylicious.png";
+import flavorSaltedCaramel from "@/assets/flavor-salted-caramel-new.png";
+import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
+import flavorTiramisu from "@/assets/flavor-tiramisu-new.png";
+import flavorPraline from "@/assets/flavor-praline.png";
+import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
+
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
   { id: "cream", name: "Cream", color: "#FFF8E7" },
@@ -88,20 +101,20 @@ const shapes = [
 ];
 
 const flavors = [
-  { id: "vanilla", name: "Vanilla", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "red-velvet", name: "Red Velvet", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "chocolate", name: "Chocolate", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "chocolate-lovers", name: "Chocolate Lovers", extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "dark-berrylicious", name: "Dark Berrylicious", extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "white-berrylicious", name: "White Berrylicious", extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "salted-caramel", name: "Salted Butter Caramel", extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "lemon-curd", name: "Lemon Curd", extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "tiramisu", name: "Tiramisu", extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
-  { id: "praline", name: "Praline Obsession", extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
-  { id: "passion-fruit", name: "Passion Fruit", extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
-  { id: "vanilla-gf", name: "Vanilla Gluten-Free", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "chocolate-gf", name: "Chocolate Gluten-Free", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "vanilla", name: "Vanilla", image: flavorVanilla, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "red-velvet", name: "Red Velvet", image: flavorRedVelvet, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "chocolate", name: "Chocolate", image: flavorChocolate, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "chocolate-lovers", name: "Chocolate Lovers", image: flavorChocolateLovers, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "dark-berrylicious", name: "Dark Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "white-berrylicious", name: "White Berrylicious", image: flavorWhiteBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "salted-caramel", name: "Salted Butter Caramel", image: flavorSaltedCaramel, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "lemon-curd", name: "Lemon Curd", image: flavorLemonCurd, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "tiramisu", name: "Tiramisu", image: flavorTiramisu, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
+  { id: "praline", name: "Praline Obsession", image: flavorPraline, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
+  { id: "passion-fruit", name: "Passion Fruit", image: flavorPassionFruit, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
+  { id: "vanilla-gf", name: "Vanilla Gluten-Free", image: flavorVanilla, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", image: flavorRedVelvet, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "chocolate-gf", name: "Chocolate Gluten-Free", image: flavorChocolate, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
 ];
 
 const candles = [
@@ -681,7 +694,9 @@ const Catalog = () => {
                       const info = allergenMap[flavor.id];
                       return (
                         <SelectItem key={flavor.id} value={flavor.id}>
-                          <div>
+                          <div className="flex items-start gap-2">
+                            <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
+                            <div>
                             <span>{flavor.name} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
                             {info && flavor.id.endsWith("-gf") ? (
                               <div className="text-[10px] text-muted-foreground leading-tight mt-0.5 space-y-0.5">
@@ -695,6 +710,7 @@ const Catalog = () => {
                                 Contains: {info.contains}
                               </div>
                             )}
+                            </div>
                           </div>
                         </SelectItem>
                       );
