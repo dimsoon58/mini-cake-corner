@@ -1,9 +1,105 @@
+import { useState, useRef, useEffect, useCallback } from "react";
 import Layout from "@/components/Layout";
 import { ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const PINTEREST_URL = "https://ch.pinterest.com/bentocakestudiosnc/_saved/";
+const IMAGES_PER_PAGE = 12;
+
+// Import all gallery images
+import img1 from "@/assets/customer-1.jpg";
+import img2 from "@/assets/customer-2.jpg";
+import img3 from "@/assets/customer-3.jpg";
+import img4 from "@/assets/customer-4.jpg";
+import img5 from "@/assets/customer-5.jpg";
+import img6 from "@/assets/customer-6.jpg";
+import img7 from "@/assets/customer-7.jpg";
+import img8 from "@/assets/customer-8.jpg";
+import img9 from "@/assets/customer-9.jpg";
+import img10 from "@/assets/customer-10.jpg";
+import img11 from "@/assets/customer-11.jpg";
+import img12 from "@/assets/customer-12.jpg";
+import img13 from "@/assets/customer-13.jpg";
+import img14 from "@/assets/customer-14.jpg";
+import img15 from "@/assets/customer-15.jpg";
+import img16 from "@/assets/customer-16.jpg";
+import img17 from "@/assets/customer-17.jpg";
+import img18 from "@/assets/customer-18.jpg";
+import img19 from "@/assets/customer-19.jpg";
+import img20 from "@/assets/customer-20.jpg";
+import img21 from "@/assets/customer-21.jpg";
+import img22 from "@/assets/customer-22.jpg";
+import img23 from "@/assets/customer-23.jpg";
+import img24 from "@/assets/customer-24.jpg";
+import img25 from "@/assets/customer-25.jpg";
+import img26 from "@/assets/customer-26.jpg";
+import img27 from "@/assets/customer-27.jpg";
+import img28 from "@/assets/customer-28.jpg";
+import img29 from "@/assets/customer-29.jpg";
+import img30 from "@/assets/customer-30.jpg";
+import img31 from "@/assets/customer-31.jpg";
+import img32 from "@/assets/customer-32.jpg";
+import img33 from "@/assets/customer-33.jpg";
+import img34 from "@/assets/customer-34.jpg";
+
+const ALL_IMAGES = [
+  img1, img2, img3, img4, img5, img6, img7, img8, img9, img10,
+  img11, img12, img13, img14, img15, img16, img17, img18, img19, img20,
+  img21, img22, img23, img24, img25, img26, img27, img28, img29, img30,
+  img31, img32, img33, img34,
+];
+
+const LazyImage = ({ src, index }: { src: string; index: number }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="aspect-square rounded-lg overflow-hidden bg-muted"
+    >
+      {isVisible && (
+        <img
+          src={src}
+          alt={`Création Bento Cake ${index + 1}`}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          className={`w-full h-full object-cover transition-all duration-500 hover:scale-105 ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      )}
+    </div>
+  );
+};
 
 const Inspiration = () => {
+  const [visibleCount, setVisibleCount] = useState(IMAGES_PER_PAGE);
+  const visibleImages = ALL_IMAGES.slice(0, visibleCount);
+  const hasMore = visibleCount < ALL_IMAGES.length;
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((prev) => Math.min(prev + IMAGES_PER_PAGE, ALL_IMAGES.length));
+  }, []);
+
   return (
     <Layout>
       <main className="container mx-auto px-4 py-16">
@@ -12,11 +108,33 @@ const Inspiration = () => {
             Inspiration
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Explorez nos créations et inspirations sur Pinterest
+            Explorez nos créations et trouvez l'inspiration pour votre prochain gâteau
           </p>
         </div>
 
-        <div className="flex justify-center my-12">
+        {/* Gallery Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          {visibleImages.map((src, i) => (
+            <LazyImage key={i} src={src} index={i} />
+          ))}
+        </div>
+
+        {/* Load More */}
+        {hasMore && (
+          <div className="flex justify-center mt-12">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={loadMore}
+              className="px-10"
+            >
+              Voir plus
+            </Button>
+          </div>
+        )}
+
+        {/* Pinterest Link */}
+        <div className="flex justify-center mt-16 mb-4">
           <a
             href={PINTEREST_URL}
             target="_blank"
