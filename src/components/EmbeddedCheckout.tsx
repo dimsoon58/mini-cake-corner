@@ -110,7 +110,7 @@ export const EmbeddedStripeCheckout = ({ payload, onComplete }: EmbeddedCheckout
     return (
       <div className="rounded-lg border border-border bg-muted/30 p-6 text-center space-y-4">
         <p className="text-sm text-muted-foreground">
-          Le paiement s'ouvre dans un nouvel onglet pour assurer la compatibilité avec toutes les méthodes de paiement (TWINT, etc.).
+          Payment opens in a new tab to ensure compatibility with all payment methods (TWINT, etc.).
         </p>
         {redirectUrl ? (
           <Button asChild size="lg" className="w-full">
