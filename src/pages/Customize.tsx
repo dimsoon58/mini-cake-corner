@@ -751,31 +751,13 @@ const Customize = () => {
                       )}
                       onClick={() => handleSelectStyle(style.id)}
                     >
-                      {style.image && !style.secondImage && (
+                      {style.image && (
                         <div className="aspect-square overflow-hidden">
                           <img
                             src={style.image}
                             alt={style.name}
                             className="w-full h-full object-cover"
                           />
-                        </div>
-                      )}
-                      {style.image && style.secondImage && (
-                        <div className="grid grid-cols-2 gap-0.5 bg-muted/30">
-                          <div className="aspect-square overflow-hidden">
-                            <img
-                              src={style.image}
-                              alt={style.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="aspect-square overflow-hidden">
-                            <img
-                              src={style.secondImage}
-                              alt={`${style.name} - 2`}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
                         </div>
                       )}
                       <CardContent className={cn("p-4 text-center", !style.image && "py-8")}>

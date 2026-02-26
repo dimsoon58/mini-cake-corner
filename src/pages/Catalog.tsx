@@ -588,23 +588,12 @@ const Catalog = () => {
               key={cake.id}
               className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
             >
-              <div className={cake.secondImage ? "grid grid-cols-2 gap-0.5 bg-muted/30" : "aspect-square overflow-hidden bg-muted/30"}>
-                <div className={cake.secondImage ? "aspect-square overflow-hidden" : "w-full h-full"}>
-                  <img
-                    src={cake.image}
-                    alt={cake.name}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                {cake.secondImage && (
-                  <div className="aspect-square overflow-hidden">
-                    <img
-                      src={cake.secondImage}
-                      alt={`${cake.name} - 2`}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                )}
+              <div className="aspect-square overflow-hidden bg-muted/30">
+                <img
+                  src={cake.image}
+                  alt={cake.name}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
               </div>
               <div className="p-6 text-center">
                 <h3 className="font-serif text-xl font-bold text-foreground mb-2">
