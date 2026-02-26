@@ -54,7 +54,7 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
                       ? "font-semibold"
                       : "hover:opacity-70"
                   )}
-                  style={{ color: '#78020E' }}
+                  style={{ color: '#000000' }}
                 >
                   {link.label}
                 </Link>
@@ -73,7 +73,7 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
                       ? "font-semibold"
                       : "hover:opacity-70"
                   )}
-                  style={{ color: '#78020E' }}
+                  style={{ color: '#000000' }}
                 >
                   {link.label}
                 </Link>
