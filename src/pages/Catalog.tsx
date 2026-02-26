@@ -31,6 +31,7 @@ import designRetroCake from "@/assets/design-retro-cake-new.jpg";
 import designRetroGlitter from "@/assets/design-retro-glitter-new.jpg";
 import designRainbowCake from "@/assets/design-rainbow-cake-new.jpg";
 import designShagCake from "@/assets/design-shag-cake-new.jpg";
+import designShagCake2 from "@/assets/design-shag-cake-2.jpg";
 import designGoldLeaves from "@/assets/design-gold-leaves-new.png";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
@@ -185,6 +186,7 @@ const catalog = [
     name: "Shag Cake",
     description: "A retro inspired shag cake with rich texture and colorful details",
     image: designShagCake,
+    secondImage: designShagCake2,
     styleId: "shag-cake",
     styleName: "Shag Cake",
     stylePrice: { bento: 8, medium: 20, large: 30 },
@@ -586,12 +588,23 @@ const Catalog = () => {
               key={cake.id}
               className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
             >
-              <div className="aspect-square overflow-hidden bg-muted/30">
-                <img
-                  src={cake.image}
-                  alt={cake.name}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                />
+              <div className={cake.secondImage ? "grid grid-cols-2 gap-0.5 bg-muted/30" : "aspect-square overflow-hidden bg-muted/30"}>
+                <div className={cake.secondImage ? "aspect-square overflow-hidden" : "w-full h-full"}>
+                  <img
+                    src={cake.image}
+                    alt={cake.name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                {cake.secondImage && (
+                  <div className="aspect-square overflow-hidden">
+                    <img
+                      src={cake.secondImage}
+                      alt={`${cake.name} - 2`}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                )}
               </div>
               <div className="p-6 text-center">
                 <h3 className="font-serif text-xl font-bold text-foreground mb-2">
