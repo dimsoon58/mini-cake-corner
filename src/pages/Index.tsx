@@ -137,8 +137,7 @@ const Index = () => {
             NOT YOUR TRADITIONAL CAKES
           </h1>
           <p className="text-lg md:text-xl max-w-3xl mx-auto opacity-90 mb-10 font-light">
-            Combining creativity and personalization to bring you unique cakes
-            that are not only beautiful, but taste just as good.
+            Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
