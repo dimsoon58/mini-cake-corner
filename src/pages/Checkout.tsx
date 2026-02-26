@@ -62,33 +62,33 @@ const TIME_SLOTS = generateTimeSlots();
 const DELIVERY_ZONES = [
   {
     id: "zone1",
-    name: "Zone 1 (≤ 5 km)",
+    name: "Zone 1 – Eaux-Vives & alentours",
     price: 15,
     postalCodes: ["1207", "1206", "1208", "1225", "1224", "1223"],
   },
   {
     id: "zone2",
-    name: "Zone 2 (5-10 km)",
+    name: "Zone 2 – Carouge, Thônex, Plainpalais",
     price: 20,
     postalCodes: ["1227", "1226", "1205", "1201", "1204"],
   },
   {
     id: "zone3",
-    name: "Zone 3 (10-15 km)",
+    name: "Zone 3 – Pâquis, Servette, Nations",
     price: 25,
     postalCodes: ["1203", "1202", "1209"],
   },
   {
     id: "zone4",
-    name: "Zone 4 (15-20 km)",
+    name: "Zone 4 – Meyrin, Vernier, Lancy",
     price: 35,
-    postalCodes: ["74100", "74240", "1217", "1214", "1219", "1212"],
+    postalCodes: ["1217", "1214", "1219", "1212", "1213", "1228"],
   },
   {
     id: "zone5",
-    name: "Zone 5 (20+ km)",
+    name: "Zone 5 – Bernex, Versoix, Bellevue…",
     price: 40,
-    postalCodes: ["1213", "1228", "1233", "1234", "1232", "1290", "1292", "1293", "1294"],
+    postalCodes: ["1233", "1234", "1232", "1290", "1292", "1293", "1294"],
   },
 ];
 
