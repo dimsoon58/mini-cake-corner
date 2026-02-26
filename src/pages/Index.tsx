@@ -128,7 +128,7 @@ const Index = () => {
       {/* Hero Section */}
       <section className="relative text-primary-foreground overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-bottom"
+          className="absolute inset-0 bg-contain bg-center bg-no-repeat"
           style={{ backgroundImage: `url(${heroBg})` }}
         />
         <div className="absolute inset-0 bg-foreground/20" />
