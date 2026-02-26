@@ -99,6 +99,9 @@ const flavors = [
   { id: "tiramisu", name: "Tiramisu", extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
   { id: "praline", name: "Praline Obsession", extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
   { id: "passion-fruit", name: "Passion Fruit", extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
+  { id: "vanilla-gf", name: "Vanilla Gluten-Free", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "chocolate-gf", name: "Chocolate Gluten-Free", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
 ];
 
 const candles = [
