@@ -34,7 +34,7 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
         <div className="container mx-auto px-4 flex items-center justify-between">
           <div className="w-12" /> {/* Spacer for centering */}
           <Link to="/">
-            <img src={logo} alt="Bento Cake Studio" className="h-28 md:h-40" style={{ mixBlendMode: 'multiply' }} />
+            <img src={logo} alt="Bento Cake Studio" className="h-36 md:h-52" style={{ mixBlendMode: 'multiply' }} />
           </Link>
           <CartIcon />
         </div>
