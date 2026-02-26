@@ -120,7 +120,7 @@ const Index = () => {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${heroBg})` }}
         />
-        <div className="absolute inset-0 bg-foreground/50" />
+        <div className="absolute inset-0 bg-foreground/20" />
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center">
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-light tracking-wide mb-6">
             NOT YOUR TRADITIONAL CAKES
