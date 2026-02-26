@@ -43,7 +43,7 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
         {!hideNav && (
           <>
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex justify-center gap-8 mt-6 border-b border-border/30 pb-4">
+            <nav className="hidden md:flex justify-center gap-8 mt-3 border-b border-border/30 pb-4">
               {navLinks.map((link) => (
                 <Link
                   key={link.to}
@@ -62,7 +62,7 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
             </nav>
 
             {/* Mobile Navigation */}
-            <nav className="md:hidden flex justify-center gap-6 mt-4 pb-4 border-b border-border/30">
+            <nav className="md:hidden flex justify-center gap-6 mt-2 pb-4 border-b border-border/30">
               {navLinks.map((link) => (
                 <Link
                   key={link.to}
