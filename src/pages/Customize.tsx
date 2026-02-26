@@ -56,6 +56,7 @@ import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 import designRainbowCake from "@/assets/design-rainbow-cake-new.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
 import designShagCake from "@/assets/design-shag-cake-new.jpg";
+import designShagCake2 from "@/assets/design-shag-cake-2.jpg";
 import designRetroCake from "@/assets/design-retro-cake-new.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designDrawing from "@/assets/design-drawing-new.jpg";
@@ -151,7 +152,7 @@ const styles = [
   { id: "normal-without-border", name: "Normal without border", price: { bento: 0, medium: 0, large: 0 }, image: styleNormalWithoutBorder },
   { id: "retro-vintage", name: "Retro / Vintage", price: { bento: 5, medium: 15, large: 20 }, image: designRetroCake },
   { id: "heart-bomb", name: "Heart Bomb", price: { bento: 5, medium: 10, large: 15 }, image: designHeartBomb },
-  { id: "shag-cake", name: "Shag Cake", price: { bento: 8, medium: 20, large: 30 }, image: designShagCake },
+  { id: "shag-cake", name: "Shag Cake", price: { bento: 8, medium: 20, large: 30 }, image: designShagCake, secondImage: designShagCake2 },
   { id: "rainbow-cake", name: "Rainbow Cake", price: { bento: 7, medium: 17, large: 30 }, image: designRainbowCake },
   { id: "roses-please", name: "Roses Please", price: { bento: 7, medium: 15, large: 20 }, image: designRosesPlease },
   { id: "butterfly-garden", name: "Butterfly Garden", price: { bento: 7, medium: 15, large: 20 }, image: designButterflyGarden },
@@ -750,13 +751,31 @@ const Customize = () => {
                       )}
                       onClick={() => handleSelectStyle(style.id)}
                     >
-                      {style.image && (
+                      {style.image && !style.secondImage && (
                         <div className="aspect-square overflow-hidden">
                           <img
                             src={style.image}
                             alt={style.name}
                             className="w-full h-full object-cover"
                           />
+                        </div>
+                      )}
+                      {style.image && style.secondImage && (
+                        <div className="grid grid-cols-2 gap-0.5 bg-muted/30">
+                          <div className="aspect-square overflow-hidden">
+                            <img
+                              src={style.image}
+                              alt={style.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="aspect-square overflow-hidden">
+                            <img
+                              src={style.secondImage}
+                              alt={`${style.name} - 2`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
                         </div>
                       )}
                       <CardContent className={cn("p-4 text-center", !style.image && "py-8")}>
