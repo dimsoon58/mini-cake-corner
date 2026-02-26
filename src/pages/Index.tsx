@@ -40,8 +40,8 @@ import customer29 from "@/assets/customer-29.jpg";
 
 const customerPhotos = [
   customer3, customer4, customer5,
-  customer6, customer7, customer9, customer10,
-  customer11, customer12, customer13, customer14, customer15,
+  customer7, customer9, customer10,
+  customer11, customer12, customer13, customer15,
   customer16, customer17, customer18, customer19, customer20,
   customer21, customer22, customer23, customer24, customer25,
   customer26, customer27, customer28, customer29,
