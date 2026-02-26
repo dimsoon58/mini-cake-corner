@@ -265,15 +265,9 @@ const Index = () => {
             © 2026 Bento Cake Studio SNC. All rights reserved.
           </p>
           <p className="text-sm opacity-70 mb-4">
-            See our{" "}
-            <Link to="/terms-and-conditions" className="underline hover:opacity-100">
-              terms and conditions
-            </Link>{" "}
-            and{" "}
-            <Link to="/privacy-policy" className="underline hover:opacity-100">
-              privacy policy
+            <Link to="/legal" className="underline hover:opacity-100">
+              Terms and Conditions & Privacy Policy
             </Link>
-            .
           </p>
           <p className="text-sm opacity-70 mb-6">
             <Link to="/newsletter" className="underline hover:opacity-100">
