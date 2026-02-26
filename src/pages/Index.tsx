@@ -278,7 +278,7 @@ const Index = () => {
           <img
             src={logo}
             alt="Bento Cake Studio"
-            className="h-32 mx-auto mb-6 brightness-200"
+            className="h-32 mx-auto mb-6 brightness-0 invert"
           />
           <p className="text-sm opacity-90 mb-4">
             © 2026 Bento Cake Studio SNC. All rights reserved.
