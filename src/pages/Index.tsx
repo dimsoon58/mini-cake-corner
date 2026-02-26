@@ -41,6 +41,7 @@ import customer30 from "@/assets/customer-30.jpg";
 import customer31 from "@/assets/customer-31.jpg";
 import customer32 from "@/assets/customer-32.jpg";
 import customer33 from "@/assets/customer-33.jpg";
+import customer34 from "@/assets/customer-34.jpg";
 
 const customerPhotos = [
   customer3, customer4, customer5,
@@ -49,7 +50,7 @@ const customerPhotos = [
   customer16, customer17, customer18, customer19, customer20,
   customer21, customer22, customer23, customer24, customer25,
   customer26, customer27, customer28, customer29,
-  customer30, customer32, customer33,
+  customer30, customer32, customer33, customer34,
 ];
 
 const features = [
