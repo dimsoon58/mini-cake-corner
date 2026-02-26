@@ -128,8 +128,8 @@ const Index = () => {
       {/* Hero Section */}
       <section className="relative text-primary-foreground overflow-hidden min-h-[80vh]">
         <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${heroBg})` }}
+          className="absolute inset-0 bg-cover"
+          style={{ backgroundImage: `url(${heroBg})`, backgroundPosition: 'center 40%' }}
         />
         <div className="absolute inset-0 bg-foreground/20" />
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center">
