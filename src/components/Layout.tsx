@@ -33,13 +33,8 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
       <header className="bg-background pt-6 pb-0">
         <div className="container mx-auto px-4 flex items-center justify-between pb-0">
           <div className="w-12" /> {/* Spacer for centering */}
-          <Link to="/" className="block w-64 md:w-[26rem] h-24 md:h-32 overflow-hidden">
-            <img
-              src={logo}
-              alt="Bento Cake Studio"
-              className="w-full h-full object-cover object-center"
-              style={{ mixBlendMode: "multiply" }}
-            />
+          <Link to="/">
+            <img src={logo} alt="Bento Cake Studio" className="h-44 md:h-64" style={{ mixBlendMode: 'multiply' }} />
           </Link>
           <CartIcon />
         </div>
