@@ -920,7 +920,6 @@ const Catalog = () => {
                 
                 {/* Figurines */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-foreground/70 text-center">Figurines</p>
                   <div className="flex flex-wrap justify-center gap-3">
                     {candles.filter(c => !c.hasPack).slice(0, showAllCandles ? undefined : 4).map((candle) => {
                       const unitQty = getCandleUnitQuantity(candle.id);
