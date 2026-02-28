@@ -63,7 +63,7 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
             </nav>
 
             {/* Mobile Navigation */}
-            <nav className="md:hidden flex overflow-x-auto gap-4 mt-2 pb-4 px-4 border-b border-border/30" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+            <nav className="md:hidden flex justify-center gap-6 mt-2 pb-4 border-b border-border/30">
               {navLinks.map((link) => (
                 <Link
                   key={link.to}
