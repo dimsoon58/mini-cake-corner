@@ -80,6 +80,15 @@ import img71 from "@/assets/inspiration-71.jpg";
 import img72 from "@/assets/inspiration-72.jpg";
 import img73 from "@/assets/inspiration-73.jpg";
 import img74 from "@/assets/inspiration-74.jpg";
+import img75 from "@/assets/inspiration-75.jpg";
+import img76 from "@/assets/inspiration-76.jpg";
+import img77 from "@/assets/inspiration-77.jpg";
+import img78 from "@/assets/inspiration-78.jpg";
+import img79 from "@/assets/inspiration-79.jpg";
+import img80 from "@/assets/inspiration-80.jpg";
+import img81 from "@/assets/inspiration-81.jpg";
+import img82 from "@/assets/inspiration-82.jpg";
+import img83 from "@/assets/inspiration-83.jpg";
 
 const ALL_IMAGES = [
   img1, img2, img3, img4, img5, img6, img7, img8,
@@ -91,7 +100,8 @@ const ALL_IMAGES = [
   img45, img46, img47, img48, img49, img50, img51, img52,
   img53, img54, img55, img56, img57, img58, img59, img60,
   img61, img62, img63, img64, img65, img66, img67, img68,
-  img69, img70, img71, img72, img73, img74,
+  img69, img70, img71, img72, img73, img74, img75, img76,
+  img77, img78, img79, img80, img81, img82, img83,
 ];
 
 const LazyImage = ({ src, index }: { src: string; index: number }) => {
