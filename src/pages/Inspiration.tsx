@@ -50,6 +50,16 @@ import img41 from "@/assets/inspiration-41.jpg";
 import img42 from "@/assets/inspiration-42.jpg";
 import img43 from "@/assets/inspiration-43.jpg";
 import img44 from "@/assets/inspiration-44.jpg";
+import img45 from "@/assets/inspiration-45.jpg";
+import img46 from "@/assets/inspiration-46.jpg";
+import img47 from "@/assets/inspiration-47.jpg";
+import img48 from "@/assets/inspiration-48.jpg";
+import img49 from "@/assets/inspiration-49.jpg";
+import img50 from "@/assets/inspiration-50.jpg";
+import img51 from "@/assets/inspiration-51.jpg";
+import img52 from "@/assets/inspiration-52.jpg";
+import img53 from "@/assets/inspiration-53.jpg";
+import img54 from "@/assets/inspiration-54.jpg";
 
 const ALL_IMAGES = [
   img1, img2, img3, img4, img5, img6, img7, img8,
@@ -58,6 +68,8 @@ const ALL_IMAGES = [
   img23, img24, img25, img26, img27, img28, img29,
   img30, img31, img32, img33, img34, img35, img36,
   img37, img38, img39, img40, img41, img42, img43, img44,
+  img45, img46, img47, img48, img49, img50, img51, img52,
+  img53, img54,
 ];
 
 const LazyImage = ({ src, index }: { src: string; index: number }) => {
