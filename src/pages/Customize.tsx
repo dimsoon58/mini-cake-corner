@@ -404,29 +404,19 @@ const Customize = () => {
     const candle = candles.find((c) => c.id === candleId);
     if (!candle) return 0;
     
-    let total = 0;
     const unitSelection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
-    const packSelection = selections.candles.find((c) => c.id === candleId && c.hasPack);
+    const unitQty = unitSelection?.quantity || 0;
     
-    if (unitSelection) {
-      // For candles with pack option, always use the cheaper option (pack price vs unit price)
-      if (candle.hasPack && candle.packSize && candle.packPrice) {
-        const unitTotal = candle.unitPrice * unitSelection.quantity;
-        // If unit total >= pack price, just charge pack price for every 6 (or partial group)
-        const packsNeeded = Math.ceil(unitSelection.quantity / candle.packSize);
-        const packTotal = packsNeeded * candle.packPrice;
-        // Use whichever is cheaper
-        total += Math.min(unitTotal, packTotal);
-      } else {
-        total += candle.unitPrice * unitSelection.quantity;
-      }
+    if (unitQty === 0) return 0;
+    
+    // Auto-apply pack pricing when 6+ candles
+    if (candle.hasPack && unitQty >= (candle.packSize || 6)) {
+      const packs = Math.floor(unitQty / (candle.packSize || 6));
+      const remaining = unitQty % (candle.packSize || 6);
+      return packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
     }
     
-    // Add explicit pack selection if any
-    if (packSelection && candle.hasPack) {
-      total += candle.packPrice || 0;
-    }
-    return total;
+    return candle.unitPrice * unitQty;
   };
 
   const canAddToCart = () => {
@@ -1244,12 +1234,12 @@ const Customize = () => {
                 Choose Candles (Optional)
               </h2>
               
-              {/* Figurines Section */}
+              {/* Figurines Section - no label */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-center text-foreground/80">Figurines</h3>
                 <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
                   {candles.filter(c => !c.hasPack).map((candle) => {
                     const unitQty = getCandleUnitQuantity(candle.id);
+                    const totalPrice = getCandleTotalPrice(candle.id);
                     const isAnySelected = unitQty > 0;
                     
                     return (
@@ -1289,6 +1279,9 @@ const Customize = () => {
                                 +
                               </button>
                             </div>
+                            {totalPrice > 0 && (
+                              <p className="text-[10px] text-primary font-medium mt-1">+CHF {totalPrice}</p>
+                            )}
                           </CardContent>
                         </Card>
                       </div>
@@ -1299,12 +1292,14 @@ const Customize = () => {
 
               {/* Packs Section - Ombré & Spirals */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-center text-foreground/80">Ombré & Spirales (Pack de 6 disponible)</h3>
+                <h3 className="text-lg font-semibold text-center text-foreground/80">Ombré & Spirales</h3>
+                <p className="text-[10px] text-center text-muted-foreground">Pack auto à partir de 6 bougies</p>
                 <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
                   {candles.filter(c => c.hasPack).map((candle) => {
                     const unitQty = getCandleUnitQuantity(candle.id);
-                    const isPackSelected = isCandlePackSelected(candle.id);
-                    const isAnySelected = unitQty > 0 || isPackSelected;
+                    const totalPrice = getCandleTotalPrice(candle.id);
+                    const isPackApplied = candle.hasPack && unitQty >= (candle.packSize || 6);
+                    const isAnySelected = unitQty > 0;
                     
                     return (
                       <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
@@ -1321,8 +1316,8 @@ const Customize = () => {
                         >
                           <CardContent className="p-2 text-center">
                             <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
-                            <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce ou CHF {candle.packPrice}/pack</p>
-                            <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                            <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce · Pack {candle.packSize} = CHF {candle.packPrice}</p>
+                            <div className="flex items-center justify-center gap-1.5">
                               <button
                                 onClick={() => handleCandleQuantityChange(candle.id, -1)}
                                 disabled={unitQty === 0}
@@ -1343,17 +1338,12 @@ const Customize = () => {
                                 +
                               </button>
                             </div>
-                            <button
-                              onClick={() => handleToggleCandlePack(candle.id)}
-                              className={cn(
-                                "w-full py-0.5 px-1 rounded text-[10px] transition-all",
-                                isPackSelected
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted hover:bg-muted/80 text-foreground"
-                              )}
-                            >
-                              {isPackSelected ? "✓ " : ""}Pack ({candle.packSize}) — CHF {candle.packPrice}
-                            </button>
+                            {isPackApplied && (
+                              <p className="text-[10px] text-primary font-semibold mt-1">✓ Pack appliqué</p>
+                            )}
+                            {totalPrice > 0 && (
+                              <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {totalPrice}</p>
+                            )}
                           </CardContent>
                         </Card>
                       </div>
