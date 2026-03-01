@@ -239,7 +239,13 @@ export const getExtraPrice = (extraId: string, sizeId: string): number => {
   return extra.price[sizeId as keyof typeof extra.price] || 0;
 };
 
+const flavorPriceOverrides: Record<string, Record<string, number>> = {
+  "chocolate-lover-berrylicious": { bento: 3, retro: 3, medium: 6, large: 10 },
+};
+
 export const getFlavorCategoryExtra = (flavorId: string, sizeId: string): number => {
+  const override = flavorPriceOverrides[flavorId];
+  if (override && sizeId) return override[sizeId] || 0;
   const category = flavorCategories.find(cat =>
     cat.flavors.some(f => f.id === flavorId)
   );
