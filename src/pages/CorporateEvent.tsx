@@ -111,8 +111,11 @@ const CorporateEvent = () => {
 
         {/* CTA Section */}
         <div className="text-center mb-12 max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-lg mb-2">
+            Interested in our corporate services?
+          </p>
           <p className="text-muted-foreground text-lg mb-6">
-            Interested in our corporate services? Let's create something special for your next corporate event.
+            Let's create something special for your next corporate event.
           </p>
           <button
             onClick={() => setQuoteOpen(true)}
