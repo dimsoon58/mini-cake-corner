@@ -21,6 +21,7 @@ import flavorVanilla from "@/assets/flavor-vanilla.png";
 import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
 import flavorChocolate from "@/assets/flavor-chocolate.png";
 import flavorChocolateLovers from "@/assets/flavor-chocolate-lovers.png";
+import flavorChocolateLoverBerrylicious from "@/assets/flavor-chocolate-lover-berrylicious.png";
 import flavorDarkBerrylicious from "@/assets/flavor-dark-berrylicious.png";
 import flavorWhiteBerrylicious from "@/assets/flavor-white-berrylicious.png";
 import flavorSaltedCaramel from "@/assets/flavor-salted-caramel-new.png";
@@ -70,6 +71,7 @@ const flavorCategories = [
     extraPrice: 2,
     flavors: [
       { id: "chocolate-lovers", name: "Chocolate Lovers", description: "Moist chocolate sponge with rich chocolate ganache", image: flavorChocolateLovers },
+      { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", image: flavorChocolateLoverBerrylicious },
       { id: "dark-berrylicious", name: "Dark Berrylicious", description: "Fluffy chocolate sponge filled with a generous raspberry coulis and whipped cream", image: flavorDarkBerrylicious },
       { id: "white-berrylicious", name: "White Berrylicious", description: "Fluffy vanilla sponge filled with a generous raspberry coulis and whipped cream", image: flavorWhiteBerrylicious },
       { id: "salted-caramel", name: "Salted Butter Caramel", description: "Fluffy vanilla sponge filled with caramel and whipped cream", image: flavorSaltedCaramel },
