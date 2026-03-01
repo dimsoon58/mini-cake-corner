@@ -87,10 +87,7 @@ const CommunityPress = () => {
 
         {/* Community Section */}
         <section className="text-center">
-          <h2 className="font-serif text-2xl md:text-3xl text-foreground mb-4">
-            💖 Our Community
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
             Follow us on Instagram{" "}
             <a
               href="https://www.instagram.com/bentocakestudio"
@@ -100,7 +97,7 @@ const CommunityPress = () => {
             >
               @bentocakestudio
             </a>{" "}
-            to discover creations from our community!
+            to discover our creations.
           </p>
         </section>
       </div>
