@@ -59,6 +59,8 @@ import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
 import designGenderReveal from "@/assets/design-gender-reveal-new.jpg";
 import designPrintedPicture from "@/assets/design-printed-picture-new.jpg";
+import printedPicture1 from "@/assets/printed-picture-1.jpg";
+import printedPicture2 from "@/assets/printed-picture-2.jpg";
 import designDrawing from "@/assets/design-drawing-new.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
@@ -379,6 +381,7 @@ const catalog = [
     name: "Printed Pictures / Logo",
     description: "Add a personal touch with a printed photo or logo on the cake",
     image: designPrintedPicture,
+    images: [designPrintedPicture, printedPicture1, printedPicture2],
     styleId: "printed-picture",
     styleName: "Printed Picture",
     stylePrice: { bento: 20, medium: 20, large: 20 },
