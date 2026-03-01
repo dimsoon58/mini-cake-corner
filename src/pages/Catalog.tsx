@@ -862,7 +862,17 @@ const Catalog = () => {
 
               {/* Size Selection with box images */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Size</label>
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                  Size <span className="text-destructive">*</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs max-w-[200px]">Choose the size of your cake.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <Select
                   value={selections.size}
                   onValueChange={(value) => setSelections({ ...selections, size: value })}
