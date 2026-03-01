@@ -58,6 +58,7 @@ import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
 import extraSprinkles from "@/assets/extra-sprinkles.jpg";
+import designSprinklesWithBorder from "@/assets/design-sprinkles-with-border.jpg";
 
 // Flavor images
 import flavorVanilla from "@/assets/flavor-vanilla.png";
@@ -221,6 +222,16 @@ const catalog = [
     styleId: "normal-with-border",
     styleName: "Normal with border",
     stylePrice: { bento: 0, retro: 2, medium: 80, large: 170 },
+    disableText: false,
+  },
+  {
+    id: "sprinkles-with-border",
+    name: "Sprinkles with Border",
+    description: "A classic cake with decorative borders and colorful sprinkles",
+    image: designSprinklesWithBorder,
+    styleId: "sprinkles-with-border",
+    styleName: "Sprinkles with Border",
+    stylePrice: { bento: 2, retro: 4, medium: 4, large: 6 },
     disableText: false,
   },
   {
