@@ -6,10 +6,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { format, addDays } from "date-fns";
-import { CalendarIcon, Check, ShoppingCart } from "lucide-react";
+import { CalendarIcon, Check, ShoppingCart, ChevronDown, ChevronUp } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useNavigate } from "react-router-dom";
 import { AllergenDisplay } from "@/data/allergens";
@@ -141,6 +142,14 @@ const candles = [
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packPrice: 10, packSize: 6 },
 ];
 
+const tooltipTexts: Record<string, string> = {
+  date: "Date required to schedule the preparation of your order (minimum 4 days in advance).",
+  shape: "Choose the shape of your cake.",
+  flavor: "Please select the flavor of your cake.",
+  baseColor: "The base color is essential to personalize your cake.",
+  piping: "Choose the number of piping bags you would like with your cake.",
+};
+
 const KitBentoCake = () => {
   const { addItem } = useCart();
   const navigate = useNavigate();
@@ -153,8 +162,9 @@ const KitBentoCake = () => {
   const [pipingColors, setPipingColors] = useState<string[]>([]);
   const [candleSelections, setCandleSelections] = useState<{ [key: string]: number }>({});
   const [showCartSheet, setShowCartSheet] = useState(false);
+  const [showAllCandles, setShowAllCandles] = useState(false);
 
-  const minDate = addDays(new Date(), 2);
+  const minDate = addDays(new Date(), 4);
 
   // Refs for auto-scroll
   const shapeRef = useRef<HTMLDivElement>(null);
@@ -282,7 +292,7 @@ const KitBentoCake = () => {
       orderDate: orderDate ? format(orderDate, "PPP") : "",
       orderTime: "",
       size: "kit-bento",
-      sizeName: "Kit Bento Cake",
+      sizeName: "DIY Kit",
       shape: selectedShape,
       shapeName: shapes.find(s => s.id === selectedShape)?.name || "",
       flavor: selectedFlavor,
@@ -312,38 +322,54 @@ const KitBentoCake = () => {
     setShowCartSheet(true);
   };
 
-  const RequiredBadge = () => (
-    <span className="text-destructive ml-1">*</span>
+  const RequiredAsterisk = ({ tooltipKey }: { tooltipKey: string }) => (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="text-destructive ml-1 cursor-help">*</span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs">
+          {tooltipTexts[tooltipKey]}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
+
+  // Candles split: packs first, then individual
+  const packCandles = candles.filter(c => c.hasPack);
+  const individualCandles = candles.filter(c => !c.hasPack);
+  const INITIAL_CANDLES_SHOWN = 4;
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Kit Bento Cake</h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            A bento cake ready to decorate at home.
-            <br />
-            Choose the flavor, shape and colors to create your own bento cake.
-          </p>
-          <p className="text-sm text-muted-foreground mt-4">
-            <span className="text-destructive">*</span> Required fields
-          </p>
-        </div>
+      <div className="container mx-auto px-4 py-16">
+        {/* Header - Catalog style */}
+        <h1 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-6">
+          DIY KIT
+        </h1>
+        <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
+          A bento cake ready to decorate at home.
+          <br />
+          Choose the flavor, shape and colors to create your own bento cake.
+        </p>
+        <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto text-sm">
+          Starting from <span className="font-semibold text-foreground">CHF {BASE_PRICE}</span>
+        </p>
 
         <div className="max-w-4xl mx-auto space-y-12">
           {/* Step 1: Date */}
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold text-center">Choose Your Pickup Date<RequiredBadge /></h2>
-            <p className="text-muted-foreground text-center">Minimum 2 days notice required</p>
+            <h2 className="font-serif text-2xl font-semibold text-center">
+              Choose Your Pickup Date<RequiredAsterisk tooltipKey="date" />
+            </h2>
+            <p className="text-muted-foreground text-center text-sm">Minimum 4 days notice required</p>
             <div className="flex justify-center">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-[280px] justify-start text-left font-normal",
+                      "w-[280px] justify-start text-left font-normal rounded-full",
                       !orderDate && "text-muted-foreground"
                     )}
                   >
@@ -368,7 +394,9 @@ const KitBentoCake = () => {
           {/* Step 2: Shape */}
           {showShape && (
             <section ref={shapeRef} className="space-y-4">
-              <h2 className="text-2xl font-semibold text-center">Choose Shape<RequiredBadge /></h2>
+              <h2 className="font-serif text-2xl font-semibold text-center">
+                Choose Shape<RequiredAsterisk tooltipKey="shape" />
+              </h2>
               <RadioGroup value={selectedShape} onValueChange={setSelectedShape} className="flex justify-center gap-6">
                 {shapes.map((shape) => (
                   <div key={shape.id} className="flex items-center space-x-2">
@@ -385,7 +413,9 @@ const KitBentoCake = () => {
           {/* Step 3: Flavor */}
           {showFlavor && (
             <section ref={flavorRef} className="space-y-6">
-              <h2 className="text-2xl font-semibold text-center">Choose Flavor<RequiredBadge /></h2>
+              <h2 className="font-serif text-2xl font-semibold text-center">
+                Choose Flavor<RequiredAsterisk tooltipKey="flavor" />
+              </h2>
               {flavorCategories.map((category) => (
                 <div key={category.name} className="space-y-3">
                   <h3 className="text-lg font-medium">
@@ -394,20 +424,22 @@ const KitBentoCake = () => {
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {category.flavors.map((flavor) => (
-                      <Card
+                      <div
                         key={flavor.id}
                         className={cn(
-                          "cursor-pointer transition-all hover:shadow-md",
+                          "bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer",
                           selectedFlavor === flavor.id && "ring-2 ring-primary"
                         )}
                         onClick={() => setSelectedFlavor(flavor.id)}
                       >
-                        <CardContent className="p-3">
-                          <img src={flavor.image} alt={flavor.name} className="w-full h-24 object-contain mb-2" />
-                          <p className="font-medium text-sm text-center">{flavor.name}</p>
+                        <div className="aspect-square overflow-hidden bg-muted/30 p-4">
+                          <img src={flavor.image} alt={flavor.name} className="w-full h-full object-contain" />
+                        </div>
+                        <div className="p-3 text-center">
+                          <p className="font-serif font-medium text-sm">{flavor.name}</p>
                           <AllergenDisplay flavorId={flavor.id} />
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -418,7 +450,9 @@ const KitBentoCake = () => {
           {/* Step 4: Base Color */}
           {showBaseColor && (
             <section ref={baseColorRef} className="space-y-4">
-              <h2 className="text-2xl font-semibold text-center">Choose Base Color<RequiredBadge /></h2>
+              <h2 className="font-serif text-2xl font-semibold text-center">
+                Choose Base Color<RequiredAsterisk tooltipKey="baseColor" />
+              </h2>
               <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
                 {baseColors.map((color) => (
                   <button
@@ -444,7 +478,9 @@ const KitBentoCake = () => {
           {showPiping && (
             <section ref={pipingRef} className="space-y-6">
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-semibold">Choose Piping Bags<RequiredBadge /></h2>
+                <h2 className="font-serif text-2xl font-semibold">
+                  Choose Piping Bags<RequiredAsterisk tooltipKey="piping" />
+                </h2>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
                   The piping bag is a pastry bag filled with buttercream, used to decorate your cake.
                 </p>
@@ -495,49 +531,18 @@ const KitBentoCake = () => {
             </section>
           )}
 
-          {/* Step 6: Candles (Optional) */}
+          {/* Step 6: Candles (Optional) - Packs first, then individual */}
           {showCandles && (
             <section ref={candlesRef} className="space-y-8 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-              <h2 className="text-3xl font-bold text-center text-foreground">
+              <h2 className="font-serif text-3xl font-bold text-center text-foreground">
                 Add Candles (Optional)
               </h2>
 
-              {/* Figurines Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-center text-foreground/80">Figurines</h3>
-                <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
-                  {candles.filter(c => !c.hasPack).map((candle) => {
-                    const qty = candleSelections[candle.id] || 0;
-
-                    return (
-                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
-                        <img src={candle.image} alt={candle.name} className="h-56 w-56 object-contain mb-2" />
-                        <Card className={cn("w-full transition-all", qty > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
-                          <CardContent className="p-2 text-center">
-                            <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
-                            <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button onClick={() => handleCandleQtyChange(candle.id, -1)} disabled={qty === 0}
-                                className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-                                  qty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
-                                )}>−</button>
-                              <span className="w-5 text-center font-medium text-foreground text-sm">{qty}</span>
-                              <button onClick={() => handleCandleQtyChange(candle.id, 1)}
-                                className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Ombré & Spirals Section */}
+              {/* Ombré & Spirals Section (Packs) - shown FIRST */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-center text-foreground/80">Ombré & Spirales (Pack de 6 disponible)</h3>
                 <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
-                  {candles.filter(c => c.hasPack).map((candle) => {
+                  {packCandles.slice(0, showAllCandles ? undefined : INITIAL_CANDLES_SHOWN).map((candle) => {
                     const qty = candleSelections[candle.id] || 0;
                     const price = getCandlePrice(candle.id, qty);
                     const hasPackApplied = candle.packSize && qty >= candle.packSize;
@@ -570,6 +575,51 @@ const KitBentoCake = () => {
                   })}
                 </div>
               </div>
+
+              {/* Individual Candles Section - shown SECOND */}
+              {showAllCandles && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-center text-foreground/80">Individual Candles</h3>
+                  <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
+                    {individualCandles.map((candle) => {
+                      const qty = candleSelections[candle.id] || 0;
+
+                      return (
+                        <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
+                          <img src={candle.image} alt={candle.name} className="h-56 w-56 object-contain mb-2" />
+                          <Card className={cn("w-full transition-all", qty > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                            <CardContent className="p-2 text-center">
+                              <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                              <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button onClick={() => handleCandleQtyChange(candle.id, -1)} disabled={qty === 0}
+                                  className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                    qty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  )}>−</button>
+                                <span className="w-5 text-center font-medium text-foreground text-sm">{qty}</span>
+                                <button onClick={() => handleCandleQtyChange(candle.id, 1)}
+                                  className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* See more / See less toggle */}
+              <button
+                onClick={() => setShowAllCandles(!showAllCandles)}
+                className="w-full flex items-center justify-center gap-1 text-sm text-primary font-medium py-2 hover:underline"
+              >
+                {showAllCandles ? (
+                  <>See less <ChevronUp className="w-4 h-4" /></>
+                ) : (
+                  <>See more candles <ChevronDown className="w-4 h-4" /></>
+                )}
+              </button>
             </section>
           )}
         </div>
@@ -581,7 +631,7 @@ const KitBentoCake = () => {
               <p className="text-sm text-muted-foreground">Estimated Total</p>
               <p className="text-2xl font-bold">CHF {totalPrice}</p>
             </div>
-            <Button onClick={handleAddToCart} className="gap-2" size="lg">
+            <Button onClick={handleAddToCart} className="gap-2 rounded-full" size="lg">
               <ShoppingCart className="w-4 h-4" />
               Add to Cart
             </Button>
@@ -600,7 +650,7 @@ const KitBentoCake = () => {
           </SheetHeader>
           <div className="mt-6 space-y-4">
             <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
-              <p><strong>Kit Bento Cake</strong></p>
+              <p><strong>DIY Kit</strong></p>
               <p className="text-sm text-muted-foreground">Date: {orderDate ? format(orderDate, "PPP") : ""}</p>
               <p className="text-sm text-muted-foreground">Shape: {shapes.find(s => s.id === selectedShape)?.name}</p>
               <p className="text-sm text-muted-foreground">Flavor: {getFlavorName()}</p>
@@ -611,8 +661,8 @@ const KitBentoCake = () => {
               <p className="text-lg font-semibold mt-4">Total: CHF {totalPrice}</p>
             </div>
             <div className="flex flex-col gap-3">
-              <Button onClick={() => navigate("/cart")}>View Basket</Button>
-              <Button variant="outline" onClick={() => { setShowCartSheet(false); navigate("/"); }}>
+              <Button onClick={() => navigate("/cart")} className="rounded-full">View Basket</Button>
+              <Button variant="outline" className="rounded-full" onClick={() => { setShowCartSheet(false); navigate("/"); }}>
                 Continue Shopping
               </Button>
             </div>
