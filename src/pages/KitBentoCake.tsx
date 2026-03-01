@@ -316,6 +316,8 @@ const KitBentoCake = () => {
       butterflyColor: "",
       butterflyColorName: "",
       candles: [],
+      comment: "",
+      textStyle: "normal",
       total: totalPrice,
     };
 

@@ -500,6 +500,8 @@ const Customize = () => {
       butterflyColor: selections.butterflyColor || "",
       butterflyColorName: selectedButterflyColor?.name || "",
       candles: selections.candles,
+      comment: "",
+      textStyle: "normal",
       total: calculateTotal(),
     });
     

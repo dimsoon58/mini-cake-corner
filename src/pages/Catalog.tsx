@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
 import { ShoppingBag, Upload, X, Plus, Minus, ChevronDown, ChevronUp, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
@@ -12,8 +13,10 @@ import { allergenMap } from "@/data/allergens";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+// @ts-ignore
+import "@fontsource/dancing-script";
 
-// Candle images - using same images as customization page
+// Candle images
 import candlePuppy from "@/assets/candle-puppy-new.png";
 import candlePinkCar from "@/assets/candle-pink-car.png";
 import candleSoccer from "@/assets/candle-soccer-new.png";
@@ -68,6 +71,12 @@ import flavorTiramisu from "@/assets/flavor-tiramisu-new.png";
 import flavorPraline from "@/assets/flavor-praline.png";
 import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
 
+// Box images
+import boxBento from "@/assets/box-bento.png";
+import boxRetro from "@/assets/box-retro.png";
+import boxMedium from "@/assets/box-medium.png";
+import boxLarge from "@/assets/box-large.png";
+
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
   { id: "cream", name: "Cream", color: "#FFF8E7" },
@@ -94,10 +103,10 @@ const baseColors = [
 ];
 
 const sizes = [
-  { id: "bento", name: "Bento", price: 40 },
-  { id: "retro", name: "Retro Box", price: 40 },
-  { id: "medium", name: "Medium", price: 80 },
-  { id: "large", name: "Large", price: 160 },
+  { id: "bento", name: "Bento", price: 40, image: boxBento },
+  { id: "retro", name: "Retro Box", price: 40, image: boxRetro },
+  { id: "medium", name: "Medium", price: 80, image: boxMedium },
+  { id: "large", name: "Large", price: 160, image: boxLarge },
 ];
 
 const shapes = [
@@ -110,6 +119,7 @@ const flavors = [
   { id: "red-velvet", name: "Red Velvet", image: flavorRedVelvet, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
   { id: "chocolate", name: "Chocolate", image: flavorChocolate, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
   { id: "chocolate-lovers", name: "Chocolate Lovers", image: flavorChocolateLovers, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
   { id: "dark-berrylicious", name: "Dark Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
   { id: "white-berrylicious", name: "White Berrylicious", image: flavorWhiteBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
   { id: "salted-caramel", name: "Salted Butter Caramel", image: flavorSaltedCaramel, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
@@ -123,7 +133,14 @@ const flavors = [
 ];
 
 const candles = [
-  // Figurines - unit only
+  // Ombré & Spirals - packs first
+  { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "rainbow", name: "Rainbow", image: candleRainbow, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
+  // Individual candles
   { id: "puppy", name: "Puppy", image: candlePuppy, unitPrice: 2, hasPack: false },
   { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, unitPrice: 2, hasPack: false },
   { id: "cherry", name: "Cherry", image: candleCherry, unitPrice: 2, hasPack: false },
@@ -135,13 +152,6 @@ const candles = [
   { id: "red-car", name: "Red Car", image: candleRedCar, unitPrice: 2, hasPack: false },
   { id: "blue-car", name: "Blue Car", image: candleBlueCar, unitPrice: 2, hasPack: false },
   { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, unitPrice: 2, hasPack: false },
-  // Ombré & Spirals - unit + pack (6)
-  { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "rainbow", name: "Rainbow", image: candleRainbow, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
 ];
 
 const catalog = [
@@ -355,8 +365,11 @@ interface CakeSelections {
   wantsText: boolean;
   cakeText: string;
   textColor: string;
+  textStyle: string;
   candles: CandleSelection[];
   printedImage: File | null;
+  comment: string;
+  commentImages: File[];
 }
 
 // Generate time slots from 10:00 to 18:30 in 30-minute intervals
@@ -373,12 +386,19 @@ const generateTimeSlots = () => {
 
 const TIME_SLOTS = generateTimeSlots();
 
+const textStyles = [
+  { id: "normal", name: "Normal" },
+  { id: "uppercase", name: "UPPERCASE" },
+  { id: "cursive", name: "Cursive" },
+];
+
 const Catalog = () => {
   const { addItem } = useCart();
   const { toast } = useToast();
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [selections, setSelections] = useState<CakeSelections>({
@@ -392,8 +412,11 @@ const Catalog = () => {
     wantsText: false,
     cakeText: "",
     textColor: "",
+    textStyle: "normal",
     candles: [],
     printedImage: null,
+    comment: "",
+    commentImages: [],
   });
 
   // Fetch fully booked dates
@@ -420,8 +443,11 @@ const Catalog = () => {
       wantsText: false,
       cakeText: "",
       textColor: "",
+      textStyle: "normal",
       candles: [],
       printedImage: null,
+      comment: "",
+      commentImages: [],
     });
     setSheetOpen(true);
   };
@@ -474,7 +500,6 @@ const Catalog = () => {
     
     if (unitQty === 0) return 0;
     
-    // Auto-apply pack pricing when 6+ candles
     if (candle.hasPack && unitQty >= (candle.packSize || 6)) {
       const packs = Math.floor(unitQty / (candle.packSize || 6));
       const remaining = unitQty % (candle.packSize || 6);
@@ -503,6 +528,40 @@ const Catalog = () => {
     }
   };
 
+  // Comment image upload helpers
+  const handleCommentImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + selections.commentImages.length > 5) {
+      toast({
+        title: "Maximum 5 images",
+        description: "You can upload up to 5 reference images.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelections({ ...selections, commentImages: [...selections.commentImages, ...files] });
+    if (commentFileInputRef.current) commentFileInputRef.current.value = "";
+  };
+
+  const removeCommentImage = (index: number) => {
+    setSelections({
+      ...selections,
+      commentImages: selections.commentImages.filter((_, i) => i !== index),
+    });
+  };
+
+  const getDisplayText = () => {
+    if (!selections.cakeText) return "";
+    switch (selections.textStyle) {
+      case "uppercase":
+        return selections.cakeText.toUpperCase();
+      case "cursive":
+        return selections.cakeText;
+      default:
+        return selections.cakeText;
+    }
+  };
+
   const calculatePrice = () => {
     if (!selectedCake) return 0;
     
@@ -522,63 +581,33 @@ const Catalog = () => {
   const handleAddToCart = () => {
     if (!selectedCake) return;
     
-    // Validate date selection
     if (!selections.orderDate) {
-      toast({
-        title: "Date required",
-        description: "Please select a pickup/delivery date.",
-        variant: "destructive",
-      });
+      toast({ title: "Date required", description: "Please select a pickup/delivery date.", variant: "destructive" });
       return;
     }
 
-    
-    // Validate required color selections
     if (!selections.baseColor) {
-      toast({
-        title: "Base Color required",
-        description: "Please select a base color for your cake.",
-        variant: "destructive",
-      });
+      toast({ title: "Base Color required", description: "Please select a base color for your cake.", variant: "destructive" });
       return;
     }
     
     if (!selections.decorationColor && selectedCake.styleId !== "normal-without-border") {
-      toast({
-        title: "Decoration Color required",
-        description: "Please select a decoration color for your cake.",
-        variant: "destructive",
-      });
+      toast({ title: "Decoration Color required", description: "Please select a decoration color for your cake.", variant: "destructive" });
       return;
     }
 
-    // Validate text color if text is selected
     if (selections.wantsText && !selections.textColor) {
-      toast({
-        title: "Text Color required",
-        description: "Please select a color for your text.",
-        variant: "destructive",
-      });
+      toast({ title: "Text Color required", description: "Please select a color for your text.", variant: "destructive" });
       return;
     }
 
-    // Validate text message if text is selected
     if (selections.wantsText && !selections.cakeText.trim()) {
-      toast({
-        title: "Text message required",
-        description: "Please enter your message.",
-        variant: "destructive",
-      });
+      toast({ title: "Text message required", description: "Please enter your message.", variant: "destructive" });
       return;
     }
 
-    // Validate printed image for printed-picture style
     if (selectedCake.styleId === "printed-picture" && !selections.printedImage) {
-      toast({
-        title: "Image required",
-        description: "Please upload an image for your printed picture cake.",
-        variant: "destructive",
-      });
+      toast({ title: "Image required", description: "Please upload an image for your printed picture cake.", variant: "destructive" });
       return;
     }
     
@@ -588,6 +617,12 @@ const Catalog = () => {
     const baseColorObj = baseColors.find(c => c.id === selections.baseColor);
     const decoColorObj = baseColors.find(c => c.id === selections.decorationColor);
     const textColorObj = baseColors.find(c => c.id === selections.textColor);
+
+    // Format the cake text according to style
+    let finalText = selections.cakeText;
+    if (selections.textStyle === "uppercase") {
+      finalText = selections.cakeText.toUpperCase();
+    }
     
     addItem({
       id: "",
@@ -605,9 +640,10 @@ const Catalog = () => {
       baseColorName: baseColorObj?.name || "",
       decorationColor: selections.decorationColor,
       decorationColorName: decoColorObj?.name || "",
-      cakeText: selections.cakeText,
+      cakeText: finalText,
       textColor: selections.textColor,
       textColorName: textColorObj?.name || "",
+      textStyle: selections.textStyle,
       extras: [],
       extrasNames: [],
       ribbonColor: "",
@@ -615,11 +651,16 @@ const Catalog = () => {
       butterflyColor: "",
       butterflyColorName: "",
       candles: [],
+      comment: selections.comment,
       total: calculatePrice(),
     });
     setSheetOpen(false);
     setSelectedCake(null);
   };
+
+  // Split candles into packs and individuals
+  const packCandles = candles.filter(c => c.hasPack);
+  const individualCandles = candles.filter(c => !c.hasPack);
 
   return (
     <Layout>
@@ -728,7 +769,7 @@ const Catalog = () => {
                 </Popover>
               </div>
 
-              {/* Size Selection */}
+              {/* Size Selection with box images */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Size</label>
                 <Select
@@ -741,7 +782,10 @@ const Catalog = () => {
                   <SelectContent>
                     {sizes.filter((size) => selectedCake && size.id in selectedCake.stylePrice).map((size) => (
                       <SelectItem key={size.id} value={size.id}>
-                        {size.name} - CHF {size.price}
+                        <div className="flex items-center gap-2">
+                          <img src={size.image} alt={size.name} className="w-8 h-8 object-contain flex-shrink-0" />
+                          <span>{size.name} - CHF {size.price}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -895,7 +939,7 @@ const Catalog = () => {
                 <label className="text-sm font-medium text-foreground">Add Text?</label>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setSelections({ ...selections, wantsText: false, cakeText: "", textColor: "" })}
+                    onClick={() => setSelections({ ...selections, wantsText: false, cakeText: "", textColor: "", textStyle: "normal" })}
                     className={cn(
                       "flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all",
                       !selections.wantsText
@@ -922,6 +966,29 @@ const Catalog = () => {
 
               {selections.wantsText && (
                 <>
+                  {/* Text Style Selection */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Text Style</label>
+                    <div className="flex gap-2">
+                      {textStyles.map((style) => (
+                        <button
+                          key={style.id}
+                          onClick={() => setSelections({ ...selections, textStyle: style.id })}
+                          className={cn(
+                            "flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                            selections.textStyle === style.id
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80",
+                            style.id === "cursive" && "font-normal",
+                          )}
+                          style={style.id === "cursive" ? { fontFamily: "'Dancing Script', cursive" } : undefined}
+                        >
+                          {style.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Text Input */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Your Message</label>
@@ -934,6 +1001,21 @@ const Catalog = () => {
                       className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                     <p className="text-xs text-muted-foreground text-right">{selections.cakeText.length}/30</p>
+                    {/* Live text preview */}
+                    {selections.cakeText && (
+                      <div className="bg-muted/30 rounded-lg p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Preview:</p>
+                        <p
+                          className={cn(
+                            "text-lg text-foreground",
+                            selections.textStyle === "cursive" ? "" : "font-medium"
+                          )}
+                          style={selections.textStyle === "cursive" ? { fontFamily: "'Dancing Script', cursive", fontSize: "1.25rem" } : undefined}
+                        >
+                          {getDisplayText()}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Text Color Selection */}
@@ -1009,16 +1091,71 @@ const Catalog = () => {
                 </div>
               )}
 
-              {/* Candles Section */}
+              {/* Comment & Image Upload Section */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">💬 Additional Instructions (Optional)</label>
+                <Textarea
+                  value={selections.comment}
+                  onChange={(e) => setSelections({ ...selections, comment: e.target.value })}
+                  placeholder="Any special requests or details about your cake..."
+                  className="min-h-[80px]"
+                />
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Upload reference images (max 5 — JPG, PNG, WEBP)
+                  </p>
+                  <input
+                    ref={commentFileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    onChange={handleCommentImageUpload}
+                    className="hidden"
+                  />
+                  {selections.commentImages.length < 5 && (
+                    <button
+                      onClick={() => commentFileInputRef.current?.click()}
+                      className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center gap-1 hover:border-primary/50 transition-colors"
+                    >
+                      <Upload className="w-6 h-6 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Click to upload images</span>
+                    </button>
+                  )}
+                  {selections.commentImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selections.commentImages.map((file, index) => (
+                        <div key={index} className="relative w-16 h-16">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Reference ${index + 1}`}
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                          <button
+                            onClick={() => removeCommentImage(index)}
+                            className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/80"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Candles Section - Packs first, then individual */}
               <div className="space-y-3 rounded-xl p-4" style={{ backgroundColor: '#FFE4EC' }}>
                 <label className="text-sm font-medium text-foreground">🕯️ Candles (Optional)</label>
                 
-                {/* Figurines */}
+                {/* Ombré & Spirals (Packs) - shown first */}
                 <div className="space-y-2">
+                  <p className="text-xs font-semibold text-foreground/70 text-center">Ombré & Spirals</p>
+                  <p className="text-[10px] text-center text-muted-foreground">Pack auto à partir de 6 bougies</p>
                   <div className="flex flex-wrap justify-center gap-3">
-                    {candles.filter(c => !c.hasPack).slice(0, showAllCandles ? undefined : 4).map((candle) => {
+                    {packCandles.slice(0, showAllCandles ? undefined : 4).map((candle) => {
                       const unitQty = getCandleUnitQuantity(candle.id);
                       const totalPrice = getCandleTotalPrice(candle.id);
+                      const isPackApplied = candle.hasPack && unitQty >= (candle.packSize || 6);
                       
                       return (
                         <div key={candle.id} className="flex flex-col items-center w-[calc(50%-6px)]">
@@ -1032,7 +1169,7 @@ const Catalog = () => {
                             unitQty > 0 ? "bg-white/90 ring-2 ring-primary" : "bg-white/60"
                           )}>
                             <p className="text-xs font-medium text-foreground">{candle.name}</p>
-                            <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice} / pièce</p>
+                            <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce · Pack {candle.packSize} = CHF {candle.packPrice}</p>
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 onClick={() => handleCandleQuantityChange(candle.id, -1)}
@@ -1050,8 +1187,11 @@ const Catalog = () => {
                                 className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
                               >+</button>
                             </div>
+                            {isPackApplied && (
+                              <p className="text-[10px] text-primary font-semibold mt-1">✓ Pack appliqué</p>
+                            )}
                             {totalPrice > 0 && (
-                              <p className="text-[10px] text-primary font-medium mt-1">+CHF {totalPrice}</p>
+                              <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {totalPrice}</p>
                             )}
                           </div>
                         </div>
@@ -1060,16 +1200,14 @@ const Catalog = () => {
                   </div>
                 </div>
 
-                {/* Ombré & Spirales */}
+                {/* Individual candles - shown after packs */}
                 {showAllCandles && (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-foreground/70 text-center">Ombré & Spirales</p>
-                    <p className="text-[10px] text-center text-muted-foreground">Pack auto à partir de 6 bougies</p>
+                    <p className="text-xs font-semibold text-foreground/70 text-center mt-3">Individual Candles</p>
                     <div className="flex flex-wrap justify-center gap-3">
-                      {candles.filter(c => c.hasPack).map((candle) => {
+                      {individualCandles.map((candle) => {
                         const unitQty = getCandleUnitQuantity(candle.id);
                         const totalPrice = getCandleTotalPrice(candle.id);
-                        const isPackApplied = candle.hasPack && unitQty >= (candle.packSize || 6);
                         
                         return (
                           <div key={candle.id} className="flex flex-col items-center w-[calc(50%-6px)]">
@@ -1083,7 +1221,7 @@ const Catalog = () => {
                               unitQty > 0 ? "bg-white/90 ring-2 ring-primary" : "bg-white/60"
                             )}>
                               <p className="text-xs font-medium text-foreground">{candle.name}</p>
-                              <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce · Pack {candle.packSize} = CHF {candle.packPrice}</p>
+                              <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice} / pièce</p>
                               <div className="flex items-center justify-center gap-1.5">
                                 <button
                                   onClick={() => handleCandleQuantityChange(candle.id, -1)}
@@ -1101,11 +1239,8 @@ const Catalog = () => {
                                   className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
                                 >+</button>
                               </div>
-                              {isPackApplied && (
-                                <p className="text-[10px] text-primary font-semibold mt-1">✓ Pack appliqué</p>
-                              )}
                               {totalPrice > 0 && (
-                                <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {totalPrice}</p>
+                                <p className="text-[10px] text-primary font-medium mt-1">+CHF {totalPrice}</p>
                               )}
                             </div>
                           </div>

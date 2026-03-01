@@ -25,6 +25,7 @@ export interface CartItem {
   cakeText: string;
   textColor: string;
   textColorName: string;
+  textStyle: string;
   extras: string[];
   extrasNames: string[];
   ribbonColor: string;
@@ -32,6 +33,7 @@ export interface CartItem {
   butterflyColor: string;
   butterflyColorName: string;
   candles: CandleCartItem[];
+  comment: string;
   total: number;
 }
 
