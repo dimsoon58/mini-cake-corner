@@ -515,7 +515,7 @@ interface CakeSelections {
   shape: string;
   flavor: string;
   baseColor: string;
-  decorationColor: string;
+  decorationColors: string[];
   wantsText: boolean;
   cakeText: string;
   textColor: string;
@@ -568,7 +568,7 @@ const Catalog = () => {
     shape: "round",
     flavor: "vanilla",
     baseColor: "",
-    decorationColor: "",
+    decorationColors: [],
     wantsText: false,
     cakeText: "",
     textColor: "",
@@ -605,7 +605,7 @@ const Catalog = () => {
       shape: "round",
       flavor: "vanilla",
       baseColor: "",
-      decorationColor: "",
+      decorationColors: [],
       wantsText: false,
       cakeText: "",
       textColor: "",
@@ -783,8 +783,8 @@ const Catalog = () => {
       return;
     }
     
-    if (!selections.decorationColor && selectedCake.styleId !== "normal-without-border") {
-      toast({ title: "Decoration Color required", description: "Please select a decoration color for your cake.", variant: "destructive" });
+    if (selections.decorationColors.length === 0 && selectedCake.styleId !== "normal-without-border") {
+      toast({ title: "Decoration Color required", description: "Please select at least one decoration color for your cake.", variant: "destructive" });
       return;
     }
 
@@ -807,7 +807,7 @@ const Catalog = () => {
     const shapeObj = shapes.find(s => s.id === selections.shape);
     const flavorObj = flavors.find(f => f.id === selections.flavor);
     const baseColorObj = baseColors.find(c => c.id === selections.baseColor);
-    const decoColorObj = baseColors.find(c => c.id === selections.decorationColor);
+    const decoColorNames = selections.decorationColors.map(id => baseColors.find(c => c.id === id)?.name || "").filter(Boolean);
     const textColorObj = baseColors.find(c => c.id === selections.textColor);
 
     // Format the cake text according to style
@@ -834,8 +834,8 @@ const Catalog = () => {
       styleName: selectedCake.styleName,
       baseColor: selections.baseColor,
       baseColorName: baseColorObj?.name || "",
-      decorationColor: selections.decorationColor,
-      decorationColorName: decoColorObj?.name || "",
+      decorationColor: selections.decorationColors.join(", "),
+      decorationColorName: decoColorNames.join(", "),
       cakeText: finalText,
       textColor: selections.textColor,
       textColorName: textColorObj?.name || "",
@@ -1162,21 +1162,47 @@ const Catalog = () => {
               </div>
 
               {/* Decoration Color Selection - hidden for normal-without-border */}
-              {selectedCake?.styleId !== "normal-without-border" && (
+              {selectedCake?.styleId !== "normal-without-border" && (() => {
+                const maxColors = (selectedCake?.styleId === "roses-please" || selectedCake?.styleId === "shag-cake") ? 4 : 3;
+                return (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Decoration Color <span className="text-destructive">*</span>
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                  Decoration Color <span className="text-destructive cursor-help">
+                    <Tooltip>
+                      <TooltipTrigger asChild><span>*</span></TooltipTrigger>
+                      <TooltipContent><p className="text-xs max-w-[200px]">Select up to {maxColors} decoration colors for your design.</p></TooltipContent>
+                    </Tooltip>
+                  </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[200px]">Choose the colors for the decorative elements of your cake.</p></TooltipContent>
+                  </Tooltip>
                 </label>
+                <p className="text-xs text-muted-foreground">
+                  You can choose up to {maxColors} colors for your design decorations. You can also explain how you would like them to be arranged in the comment section.
+                </p>
                 <div className="grid grid-cols-6 gap-2">
-                  {baseColors.map((color) => (
+                  {baseColors.map((color) => {
+                    const isSelected = selections.decorationColors.includes(color.id);
+                    const isDisabled = !isSelected && selections.decorationColors.length >= maxColors;
+                    return (
                     <button
                       key={color.id}
-                      onClick={() => setSelections({ ...selections, decorationColor: color.id })}
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelections({ ...selections, decorationColors: selections.decorationColors.filter(c => c !== color.id) });
+                        } else if (!isDisabled) {
+                          setSelections({ ...selections, decorationColors: [...selections.decorationColors, color.id] });
+                        }
+                      }}
+                      disabled={isDisabled}
                       className={cn(
                         "flex flex-col items-center gap-1 p-1 rounded-lg border transition-all",
-                        selections.decorationColor === color.id
+                        isSelected
                           ? "ring-2 ring-primary border-primary"
-                          : "border-border hover:border-primary/50"
+                          : isDisabled
+                            ? "border-border opacity-40 cursor-not-allowed"
+                            : "border-border hover:border-primary/50"
                       )}
                     >
                       <div
@@ -1190,10 +1216,15 @@ const Catalog = () => {
                       />
                       <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{color.name}</span>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
+                {selections.decorationColors.length > 0 && (
+                  <p className="text-xs text-primary font-medium">{selections.decorationColors.length}/{maxColors} colors selected</p>
+                )}
               </div>
-              )}
+                );
+              })()}
 
               {/* Text Toggle - hidden for printed-picture */}
               {!selectedCake?.disableText && (
