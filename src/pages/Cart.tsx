@@ -6,9 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCart } from "@/context/CartContext";
-import { ShoppingBag, Trash2, ArrowLeft, Pencil, CalendarIcon, Clock, Check, X } from "lucide-react";
+import { ShoppingBag, Trash2, ArrowLeft, Pencil, CalendarIcon, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,18 +37,6 @@ const flavors = [
   { id: "chocolate-gf", name: "Chocolate Gluten-Free" },
 ];
 
-const generateTimeSlots = () => {
-  const slots: string[] = [];
-  for (let hour = 10; hour <= 18; hour++) {
-    slots.push(`${hour.toString().padStart(2, '0')}:00`);
-    if (hour < 18 || (hour === 18 && slots[slots.length - 1] !== "18:30")) {
-      slots.push(`${hour.toString().padStart(2, '0')}:30`);
-    }
-  }
-  return slots;
-};
-
-const TIME_SLOTS = generateTimeSlots();
 
 const Cart = () => {
   const { items, removeItem, updateItem, clearCart, itemCount } = useCart();
@@ -172,7 +159,7 @@ const Cart = () => {
                         <div className="space-y-4">
                           {/* Date & Time */}
                           <div className="space-y-1">
-                            <label className="text-xs font-medium text-muted-foreground">Date & Time</label>
+                            <label className="text-xs font-medium text-muted-foreground">Pickup Date</label>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <Button
@@ -184,61 +171,32 @@ const Cart = () => {
                                 >
                                   <CalendarIcon className="mr-2 h-4 w-4" />
                                   {item.orderDate ? (
-                                    <>
-                                      {format(new Date(item.orderDate), "PPP")}
-                                      {item.orderTime && ` at ${item.orderTime}`}
-                                    </>
+                                    format(new Date(item.orderDate), "PPP")
                                   ) : (
-                                    <span>Pick a date & time</span>
+                                    <span>Pick a date</span>
                                   )}
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="start">
-                                <div className="flex">
-                                  <Calendar
-                                    mode="single"
-                                    selected={item.orderDate ? new Date(item.orderDate) : undefined}
-                                    onSelect={(date) => {
-                                      if (date) {
-                                        updateItem(item.id, { orderDate: format(date, "yyyy-MM-dd") });
-                                      }
-                                    }}
-                                    disabled={(date) => {
-                                      const minDate = addDays(new Date(), 4);
-                                      minDate.setHours(0, 0, 0, 0);
-                                      if (date < minDate) return true;
-                                      return fullyBookedDates.some(
-                                        (bookedDate) => bookedDate.toDateString() === date.toDateString()
-                                      );
-                                    }}
-                                    initialFocus
-                                    className={cn("p-3 pointer-events-auto")}
-                                  />
-                                  <div className="border-l border-border p-3">
-                                    <div className="flex items-center gap-2 mb-3 px-2">
-                                      <Clock className="h-4 w-4 text-muted-foreground" />
-                                      <span className="text-sm font-medium">Time</span>
-                                    </div>
-                                    <ScrollArea className="h-[280px] w-[100px]">
-                                      <div className="flex flex-col gap-1 pr-4">
-                                        {TIME_SLOTS.map((time) => (
-                                          <Button
-                                            key={time}
-                                            variant={item.orderTime === time ? "default" : "ghost"}
-                                            size="sm"
-                                            className={cn(
-                                              "w-full justify-center",
-                                              item.orderTime === time && "bg-primary text-primary-foreground"
-                                            )}
-                                            onClick={() => updateItem(item.id, { orderTime: time })}
-                                          >
-                                            {time}
-                                          </Button>
-                                        ))}
-                                      </div>
-                                    </ScrollArea>
-                                  </div>
-                                </div>
+                                <Calendar
+                                  mode="single"
+                                  selected={item.orderDate ? new Date(item.orderDate) : undefined}
+                                  onSelect={(date) => {
+                                    if (date) {
+                                      updateItem(item.id, { orderDate: format(date, "yyyy-MM-dd") });
+                                    }
+                                  }}
+                                  disabled={(date) => {
+                                    const minDate = addDays(new Date(), 4);
+                                    minDate.setHours(0, 0, 0, 0);
+                                    if (date < minDate) return true;
+                                    return fullyBookedDates.some(
+                                      (bookedDate) => bookedDate.toDateString() === date.toDateString()
+                                    );
+                                  }}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
                               </PopoverContent>
                             </Popover>
                           </div>
@@ -299,7 +257,6 @@ const Cart = () => {
                           {item.orderDate && (
                             <p className="text-sm text-muted-foreground">
                               📅 {format(new Date(item.orderDate), "PPP")}
-                              {item.orderTime && ` at ${item.orderTime}`}
                             </p>
                           )}
                           <p className="text-muted-foreground">

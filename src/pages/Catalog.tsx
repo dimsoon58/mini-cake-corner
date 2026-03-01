@@ -5,8 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ShoppingBag, Upload, X, Plus, Minus, ChevronDown, ChevronUp, CalendarIcon, Clock } from "lucide-react";
+import { ShoppingBag, Upload, X, Plus, Minus, ChevronDown, ChevronUp, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { allergenMap } from "@/data/allergens";
@@ -533,14 +532,6 @@ const Catalog = () => {
       return;
     }
 
-    if (!selections.orderTime) {
-      toast({
-        title: "Time required",
-        description: "Please select a pickup/delivery time.",
-        variant: "destructive",
-      });
-      return;
-    }
     
     // Validate required color selections
     if (!selections.baseColor) {
@@ -601,7 +592,7 @@ const Catalog = () => {
     addItem({
       id: "",
       orderDate: selections.orderDate ? format(selections.orderDate, "yyyy-MM-dd") : "",
-      orderTime: selections.orderTime,
+      orderTime: "",
       size: selections.size,
       sizeName: sizeObj?.name || "",
       shape: selections.shape,
@@ -694,10 +685,10 @@ const Catalog = () => {
                 />
               </div>
 
-              {/* Date & Time Selection */}
+              {/* Pickup Date Selection */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
-                  Date & Time <span className="text-destructive">*</span>
+                  Pickup Date <span className="text-destructive">*</span>
                 </label>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -710,57 +701,28 @@ const Catalog = () => {
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {selections.orderDate ? (
-                        <>
-                          {format(selections.orderDate, "PPP")}
-                          {selections.orderTime && ` at ${selections.orderTime}`}
-                        </>
+                        format(selections.orderDate, "PPP")
                       ) : (
-                        <span>Pick a date & time</span>
+                        <span>Pick a date</span>
                       )}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <div className="flex">
-                      <Calendar
-                        mode="single"
-                        selected={selections.orderDate || undefined}
-                        onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
-                        disabled={(date) => {
-                          const minDate = addDays(new Date(), 4);
-                          minDate.setHours(0, 0, 0, 0);
-                          if (date < minDate) return true;
-                          return fullyBookedDates.some(
-                            (bookedDate) => bookedDate.toDateString() === date.toDateString()
-                          );
-                        }}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
-                      />
-                      <div className="border-l border-border p-3">
-                        <div className="flex items-center gap-2 mb-3 px-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">Time</span>
-                        </div>
-                        <ScrollArea className="h-[280px] w-[100px]">
-                          <div className="flex flex-col gap-1 pr-4">
-                            {TIME_SLOTS.map((time) => (
-                              <Button
-                                key={time}
-                                variant={selections.orderTime === time ? "default" : "ghost"}
-                                size="sm"
-                                className={cn(
-                                  "w-full justify-center",
-                                  selections.orderTime === time && "bg-primary text-primary-foreground"
-                                )}
-                                onClick={() => setSelections({ ...selections, orderTime: time })}
-                              >
-                                {time}
-                              </Button>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </div>
-                    </div>
+                    <Calendar
+                      mode="single"
+                      selected={selections.orderDate || undefined}
+                      onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
+                      disabled={(date) => {
+                        const minDate = addDays(new Date(), 4);
+                        minDate.setHours(0, 0, 0, 0);
+                        if (date < minDate) return true;
+                        return fullyBookedDates.some(
+                          (bookedDate) => bookedDate.toDateString() === date.toDateString()
+                        );
+                      }}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
