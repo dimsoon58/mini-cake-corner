@@ -53,6 +53,9 @@ const customerPhotos = [
   customer30, customer32, customer33, customer34,
 ];
 
+// Placeholder array for customer comment images — add imports here later
+const customerCommentPhotos: string[] = [];
+
 const features = [
   {
     title: "Homemade goodness",
@@ -74,7 +77,7 @@ const features = [
   },
 ];
 
-const CustomerCarousel = () => {
+const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: string }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: "left" | "right") => {
@@ -85,6 +88,12 @@ const CustomerCarousel = () => {
       behavior: "smooth",
     });
   };
+
+  if (photos.length === 0) {
+    return (
+      <p className="text-center text-muted-foreground italic">Coming soon...</p>
+    );
+  }
 
   return (
     <div className="relative">
@@ -99,14 +108,14 @@ const CustomerCarousel = () => {
         className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-4"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        {customerPhotos.map((photo, index) => (
+        {photos.map((photo, index) => (
           <div
             key={index}
             className="flex-shrink-0 w-72 h-80 rounded-2xl overflow-hidden"
           >
             <img
               src={photo}
-              alt={`Happy customer ${index + 1}`}
+              alt={`${altPrefix} ${index + 1}`}
               className="w-full h-full object-cover"
             />
           </div>
@@ -248,7 +257,17 @@ const Index = () => {
           <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
             OUR CUSTOMERS
           </h2>
-          <CustomerCarousel />
+          <PhotoCarousel photos={customerPhotos} altPrefix="Happy customer" />
+        </div>
+      </section>
+
+      {/* Customer Comments Section */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4">
+          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
+            CUSTOMER COMMENTS
+          </h2>
+          <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" />
         </div>
       </section>
 
