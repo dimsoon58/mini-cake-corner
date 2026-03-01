@@ -54,6 +54,8 @@ import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
 import designCherries from "@/assets/design-cherries-new.png";
 import designGlitterCherries from "@/assets/design-glitter-cherries-new.jpg";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
+import retroRibbons1 from "@/assets/retro-ribbons-1.jpg";
+import retroRibbons2 from "@/assets/retro-ribbons-2.jpg";
 import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
@@ -335,6 +337,7 @@ const catalog = [
     name: "Retro × Ribbons",
     description: "Beautiful ribbon decorations on a retro cake",
     image: designRibbons,
+    images: [designRibbons, retroRibbons1, retroRibbons2],
     styleId: "retro-ribbons",
     styleName: "Retro × Ribbons",
     stylePrice: { bento: 10, medium: 20, large: 30 },
