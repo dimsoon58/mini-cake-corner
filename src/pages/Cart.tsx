@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCart, CandleCartItem } from "@/context/CartContext";
-import { ShoppingBag, Trash2, ArrowLeft, Pencil, CalendarIcon, Check, Plus, Minus } from "lucide-react";
+import { ShoppingBag, Trash2, ArrowLeft, Pencil, CalendarIcon, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,14 +20,58 @@ import {
   flavorCategories,
   styles,
   extras,
-  candles,
+  candles as customizationCandles,
   baseColors,
   textColors,
   ribbonColors,
   butterflyColors,
+  glitterColors,
+  glitterCherriesColors,
   calculateCartItemTotal,
   CandleSelection,
 } from "@/data/customization";
+
+// Import images for catalogExtras
+import designGoldLeaves from "@/assets/design-gold-leaves-new.png";
+import designCherries from "@/assets/design-cherries-new.png";
+import designGlitterCherries from "@/assets/design-glitter-cherries-new.jpg";
+import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
+import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
+import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
+import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
+import designRetroCake from "@/assets/design-retro-cake-new.jpg";
+import designRibbons from "@/assets/design-ribbons-new.jpg";
+import designDrawing from "@/assets/design-drawing-new.jpg";
+import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
+import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
+import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
+import designPrintedPicture from "@/assets/design-printed-picture-new.jpg";
+import extraSprinkles from "@/assets/extra-sprinkles.jpg";
+
+const catalogExtras = [
+  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 4, large: 6 }, image: designGoldLeaves },
+  { id: "cherries", name: "Cherries", price: { bento: 4, retro: 4, medium: 8, large: 10 }, image: designCherries },
+  { id: "glitter-cherries", name: "Glitter Cherries", price: { bento: 6, retro: 6, medium: 9, large: 12 }, image: designGlitterCherries },
+  { id: "scattered-pearl", name: "Scattered Pearl", price: { bento: 2, retro: 2, medium: 5, large: 7 }, image: designScatteredPearls },
+  { id: "glitter", name: "Glitter", price: { bento: 4, retro: 4, medium: 8, large: 10 }, image: designGlitterCake },
+  { id: "glitter-base", name: "Glitter Base", price: { bento: 6, retro: 6, medium: 8, large: 12 }, image: designGlitterCake },
+  { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 2, retro: 2, medium: 5, large: 7 }, image: designGlitterInAir },
+  { id: "pearl-border", name: "Pearl Border", price: { bento: 8, retro: 8, medium: 15, large: 20 }, image: designPearlBorders },
+  { id: "retro", name: "Retro", price: { bento: 5, retro: 5, medium: 15, large: 20 }, image: designRetroCake },
+  { id: "ribbons", name: "Ribbons", price: { bento: 5, retro: 5, medium: 6, large: 8 }, image: designRibbons },
+  { id: "drawing", name: "Drawing", price: { bento: 5, retro: 5, medium: 7, large: 10 }, image: designDrawing },
+  { id: "heart", name: "Heart", price: { bento: 2, retro: 2, medium: 4, large: 8 }, image: designHeartBomb },
+  { id: "butterfly", name: "Butterfly", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designButterflyGarden },
+  { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designPearlNumber },
+  { id: "printed-picture", name: "Printed Picture", price: { bento: 20, retro: 20, medium: 20, large: 20 }, image: designPrintedPicture },
+  { id: "sprinkles", name: "Sprinkles", price: { bento: 2, retro: 2, medium: 2, large: 2 }, image: extraSprinkles },
+];
+
+// Candles reordered: packs first, then individuals
+const cartCandles = [
+  ...customizationCandles.filter(c => c.hasPack),
+  ...customizationCandles.filter(c => !c.hasPack),
+];
 
 const Cart = () => {
   const { items, removeItem, updateItem, clearCart, itemCount } = useCart();
@@ -48,10 +94,16 @@ const Cart = () => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
     const merged = { ...item, ...updates };
+    // Calculate extras price from catalogExtras
+    const extrasPrice = (merged.extras || []).reduce((acc: number, extraId: string) => {
+      const extra = catalogExtras.find(e => e.id === extraId);
+      if (!extra) return acc;
+      return acc + (extra.price[merged.size as keyof typeof extra.price] || 0);
+    }, 0);
     const newTotal = calculateCartItemTotal(
       merged.size, merged.shape, merged.flavor, merged.style,
-      merged.extras, merged.candles || []
-    );
+      [], merged.candles || []
+    ) + extrasPrice;
     updateItem(itemId, { ...updates, total: newTotal });
   };
 
@@ -99,6 +151,51 @@ const Cart = () => {
     recalcAndUpdate(itemId, { textColor: colorId, textColorName: colorObj?.name || "" });
   };
 
+  const handleToggleExtra = (itemId: string, extraId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    const currentExtras = item.extras || [];
+    let newExtras: string[];
+    let newExtrasNames: string[];
+    if (currentExtras.includes(extraId)) {
+      newExtras = currentExtras.filter(e => e !== extraId);
+      newExtrasNames = newExtras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
+      const updates: Record<string, any> = { extras: newExtras, extrasNames: newExtrasNames };
+      // Clear related color selections when deselecting
+      if (extraId === "glitter") updates.glitterColor = "";
+      if (extraId === "ribbons") { updates.ribbonColor = ""; updates.ribbonColorName = ""; }
+      if (extraId === "butterfly") { updates.butterflyColor = ""; updates.butterflyColorName = ""; }
+      if (extraId === "glitter-cherries") updates.glitterCherriesColor = "";
+      recalcAndUpdate(itemId, updates);
+    } else {
+      newExtras = [...currentExtras, extraId];
+      newExtrasNames = newExtras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
+      recalcAndUpdate(itemId, { extras: newExtras, extrasNames: newExtrasNames });
+    }
+  };
+
+  const handleRibbonColorChange = (itemId: string, colorId: string) => {
+    const colorObj = ribbonColors.find(c => c.id === colorId);
+    recalcAndUpdate(itemId, { ribbonColor: colorId, ribbonColorName: colorObj?.name || "" });
+  };
+
+  const handleButterflyColorChange = (itemId: string, colorId: string) => {
+    const colorObj = butterflyColors.find(c => c.id === colorId);
+    recalcAndUpdate(itemId, { butterflyColor: colorId, butterflyColorName: colorObj?.name || "" });
+  };
+
+  const handleGlitterColorChange = (itemId: string, colorId: string) => {
+    recalcAndUpdate(itemId, { glitterColor: colorId });
+  };
+
+  const handleGlitterCherriesColorChange = (itemId: string, colorId: string) => {
+    recalcAndUpdate(itemId, { glitterCherriesColor: colorId });
+  };
+
+  const handleCommentChange = (itemId: string, comment: string) => {
+    updateItem(itemId, { comment });
+  };
+
   const handleCandleQuantityChange = (itemId: string, candleId: string, delta: number) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
@@ -123,7 +220,7 @@ const Cart = () => {
   };
 
   const getCandleItemPrice = (candleId: string, itemCandles: CandleCartItem[]) => {
-    const candle = candles.find(c => c.id === candleId);
+    const candle = cartCandles.find(c => c.id === candleId);
     if (!candle) return 0;
     const unitQty = (itemCandles || []).find(c => c.id === candleId && !c.hasPack)?.quantity || 0;
     if (unitQty === 0) return 0;
@@ -194,6 +291,12 @@ const Cart = () => {
                           onDecoColorChange={(v) => handleDecoColorChange(item.id, v)}
                           onTextChange={(v) => handleTextChange(item.id, v)}
                           onTextColorChange={(v) => handleTextColorChange(item.id, v)}
+                          onToggleExtra={(extraId) => handleToggleExtra(item.id, extraId)}
+                          onRibbonColorChange={(v) => handleRibbonColorChange(item.id, v)}
+                          onButterflyColorChange={(v) => handleButterflyColorChange(item.id, v)}
+                          onGlitterColorChange={(v) => handleGlitterColorChange(item.id, v)}
+                          onGlitterCherriesColorChange={(v) => handleGlitterCherriesColorChange(item.id, v)}
+                          onCommentChange={(v) => handleCommentChange(item.id, v)}
                           onCandleQtyChange={(candleId, delta) => handleCandleQuantityChange(item.id, candleId, delta)}
                           getCandleUnitQty={(candleId) => getCandleUnitQty(item, candleId)}
                           getCandleItemPrice={(candleId) => getCandleItemPrice(candleId, item.candles || [])}
@@ -237,11 +340,11 @@ const Cart = () => {
 };
 
 /* ---------- Summary (read-only view) ---------- */
-const CartItemSummary = ({ item }: { item: typeof import("@/context/CartContext").CartProvider extends never ? never : any }) => {
+const CartItemSummary = ({ item }: { item: any }) => {
   const candleNames = (item.candles || [])
     .filter((c: CandleCartItem) => c.quantity > 0)
     .map((c: CandleCartItem) => {
-      const candle = candles.find(x => x.id === c.id);
+      const candle = cartCandles.find(x => x.id === c.id);
       return candle ? `${candle.name} ×${c.quantity}` : "";
     })
     .filter(Boolean);
@@ -258,7 +361,8 @@ const CartItemSummary = ({ item }: { item: typeof import("@/context/CartContext"
         </p>
       )}
       {item.cakeText && <p className="text-sm text-muted-foreground">Text: "{item.cakeText}"</p>}
-      {item.extrasNames.length > 0 && <p className="text-sm text-muted-foreground">Extras: {item.extrasNames.join(", ")}</p>}
+      {item.extrasNames && item.extrasNames.length > 0 && <p className="text-sm text-muted-foreground">Extras: {item.extrasNames.join(", ")}</p>}
+      {item.comment && <p className="text-sm text-muted-foreground">Comment: {item.comment}</p>}
       {candleNames.length > 0 && <p className="text-sm text-muted-foreground">Candles: {candleNames.join(", ")}</p>}
       <p className="text-xl font-bold text-primary text-right">CHF {item.total}</p>
     </div>
@@ -277,6 +381,12 @@ interface CartItemEditorProps {
   onDecoColorChange: (v: string) => void;
   onTextChange: (v: string) => void;
   onTextColorChange: (v: string) => void;
+  onToggleExtra: (extraId: string) => void;
+  onRibbonColorChange: (v: string) => void;
+  onButterflyColorChange: (v: string) => void;
+  onGlitterColorChange: (v: string) => void;
+  onGlitterCherriesColorChange: (v: string) => void;
+  onCommentChange: (v: string) => void;
   onCandleQtyChange: (candleId: string, delta: number) => void;
   getCandleUnitQty: (candleId: string) => number;
   getCandleItemPrice: (candleId: string) => number;
@@ -286,15 +396,36 @@ const CartItemEditor = ({
   item, fullyBookedDates,
   onDateChange, onSizeChange, onFlavorChange, onStyleChange,
   onBaseColorChange, onDecoColorChange, onTextChange, onTextColorChange,
+  onToggleExtra, onRibbonColorChange, onButterflyColorChange,
+  onGlitterColorChange, onGlitterCherriesColorChange,
+  onCommentChange,
   onCandleQtyChange, getCandleUnitQty, getCandleItemPrice,
 }: CartItemEditorProps) => {
   const showDecoColor = item.style !== "normal-without-border";
   const showText = item.style !== "printed-picture";
+  const commentFileInputRef = useRef<HTMLInputElement>(null);
+  const [commentImages, setCommentImages] = useState<File[]>([]);
+
+  const handleCommentImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + commentImages.length > 5) return;
+    setCommentImages(prev => [...prev, ...files]);
+    if (commentFileInputRef.current) commentFileInputRef.current.value = "";
+  };
+
+  const removeCommentImage = (index: number) => {
+    setCommentImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const getExtraPriceForSize = (extra: typeof catalogExtras[0]) => {
+    return extra.price[item.size as keyof typeof extra.price] || 0;
+  };
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="space-y-6">
       {/* Date */}
-      <EditSection label="Pickup Date">
+      <EditSection label="Pickup Date" tooltip="Order preparation date (minimum 4 days in advance)" required>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !item.orderDate && "text-muted-foreground")}>
@@ -321,7 +452,7 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Size with box images */}
-      <EditSection label="Size">
+      <EditSection label="Size" tooltip="Choose the size of your cake." required>
         <div className="grid grid-cols-1 gap-2">
           {sizes.map((size) => (
             <button
@@ -344,7 +475,7 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Flavor with images */}
-      <EditSection label="Flavor">
+      <EditSection label="Flavor" tooltip="Please select the flavor of your cake." required>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {flavorCategories.map(cat => cat.flavors.map(flavor => (
             <button
@@ -363,7 +494,7 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Design */}
-      <EditSection label="Design">
+      <EditSection label="Design" tooltip="You can select any design. You can also add extras and/or inspiration pictures in the next steps.">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {styles.map((style) => (
             <button
@@ -385,20 +516,20 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Base Color */}
-      <EditSection label="Base Color">
+      <EditSection label="Base Color" tooltip="The base color is essential to personalize your cake." required>
         <ColorPicker colors={baseColors} selected={item.baseColor} onSelect={onBaseColorChange} />
       </EditSection>
 
       {/* Decoration Color */}
       {showDecoColor && (
-        <EditSection label="Decoration Color">
+        <EditSection label="Decoration Color" tooltip="Choose the colors for the decorative elements of your cake." required>
           <ColorPicker colors={baseColors} selected={item.decorationColor} onSelect={onDecoColorChange} />
         </EditSection>
       )}
 
       {/* Text */}
       {showText && (
-        <EditSection label="Cake Text">
+        <EditSection label="Cake Text" tooltip="If you would like to add text, you can choose the typography.">
           <Input
             placeholder="Enter text for your cake (max 30 chars)"
             value={item.cakeText || ""}
@@ -414,10 +545,184 @@ const CartItemEditor = ({
         </EditSection>
       )}
 
-      {/* Candles */}
-      <EditSection label="Candles">
+      {/* Extras */}
+      <EditSection label="✨ Extra" tooltip="You can add any additional elements to personalize your design.">
+        <div className="grid grid-cols-2 gap-2">
+          {catalogExtras.map((extra) => {
+            const isSelected = (item.extras || []).includes(extra.id);
+            const price = getExtraPriceForSize(extra);
+            return (
+              <button
+                key={extra.id}
+                onClick={() => onToggleExtra(extra.id)}
+                className={cn(
+                  "flex items-center gap-2 p-2 rounded-lg border transition-all text-left",
+                  isSelected
+                    ? "ring-2 ring-primary border-primary bg-secondary/50"
+                    : "border-border hover:border-primary/50"
+                )}
+              >
+                <img src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">{extra.name}</p>
+                  <p className="text-[10px] text-primary">+CHF {price}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Glitter Color */}
+        {(item.extras || []).includes("glitter") && (
+          <div className="space-y-2 mt-3">
+            <p className="text-xs font-medium text-foreground">Glitter Color <span className="text-destructive">*</span></p>
+            <div className="flex flex-wrap gap-2">
+              {glitterColors.map((color) => (
+                <button
+                  key={color.id}
+                  onClick={() => onGlitterColorChange(color.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                    (item as any).glitterColor === color.id ? "ring-2 ring-primary" : ""
+                  )}
+                >
+                  <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                  <span className="text-[10px] text-foreground">{color.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Glitter Cherries Color */}
+        {(item.extras || []).includes("glitter-cherries") && (
+          <div className="space-y-2 mt-3">
+            <p className="text-xs font-medium text-foreground">Glitter Cherries Color</p>
+            <div className="flex flex-wrap gap-2">
+              {glitterCherriesColors.map((color) => (
+                <button
+                  key={color.id}
+                  onClick={() => onGlitterCherriesColorChange(color.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                    (item as any).glitterCherriesColor === color.id ? "ring-2 ring-primary" : ""
+                  )}
+                >
+                  <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                  <span className="text-[10px] text-foreground">{color.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Ribbon Color */}
+        {(item.extras || []).includes("ribbons") && (
+          <div className="space-y-2 mt-3">
+            <p className="text-xs font-medium text-foreground">Ribbon Color <span className="text-destructive">*</span></p>
+            <div className="flex flex-wrap gap-2">
+              {ribbonColors.map((color) => (
+                <button
+                  key={color.id}
+                  onClick={() => onRibbonColorChange(color.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                    item.ribbonColor === color.id ? "ring-2 ring-primary" : ""
+                  )}
+                >
+                  <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                  <span className="text-[10px] text-foreground">{color.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Butterfly Color */}
+        {(item.extras || []).includes("butterfly") && (
+          <div className="space-y-2 mt-3">
+            <p className="text-xs font-medium text-foreground">Butterfly Color <span className="text-destructive">*</span></p>
+            <div className="flex flex-wrap gap-2">
+              {butterflyColors.map((color) => (
+                <button
+                  key={color.id}
+                  onClick={() => onButterflyColorChange(color.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                    item.butterflyColor === color.id ? "ring-2 ring-primary" : ""
+                  )}
+                >
+                  <div className="w-6 h-6 rounded-full border border-muted" style={{ backgroundColor: color.color }} />
+                  <span className="text-[10px] text-foreground">{color.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </EditSection>
+
+      {/* Comment */}
+      <EditSection label="💬 Comment" tooltip="Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.">
+        <Textarea
+          value={item.comment || ""}
+          onChange={(e) => onCommentChange(e.target.value)}
+          placeholder="Any special requests or details about your cake..."
+          className="min-h-[80px]"
+        />
+      </EditSection>
+
+      {/* Upload */}
+      <EditSection label="Upload" tooltip="Upload an inspiration picture if you would like.">
+        <p className="text-xs text-muted-foreground mb-2">
+          Upload reference images (max 5 — JPG, PNG, WEBP)
+        </p>
+        <input
+          ref={commentFileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          onChange={handleCommentImageUpload}
+          className="hidden"
+        />
+        {commentImages.length < 5 && (
+          <button
+            onClick={() => commentFileInputRef.current?.click()}
+            className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center gap-1 hover:border-primary/50 transition-colors"
+          >
+            <Upload className="w-6 h-6 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Click to upload images</span>
+          </button>
+        )}
+        {commentImages.length > 0 && (
+          <>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {commentImages.map((file, index) => (
+                <div key={index} className="relative w-16 h-16">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt={`Reference ${index + 1}`}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={() => removeCommentImage(index)}
+                    className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/80"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground/80 italic mt-2 leading-tight">
+              When a client provides an inspiration photo, it is for reference only. Bento Cake Studio SNC will create a design inspired by it and aim to respect the colors and style, but an identical reproduction is not guaranteed.
+            </p>
+          </>
+        )}
+      </EditSection>
+
+      {/* Candles - packs first, then individual */}
+      <EditSection label="🕯️ Candles">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {candles.map((candle) => {
+          {cartCandles.map((candle) => {
             const qty = getCandleUnitQty(candle.id);
             const price = getCandleItemPrice(candle.id);
             const isPackApplied = candle.hasPack && qty >= (candle.packSize || 6);
@@ -432,6 +737,9 @@ const CartItemEditor = ({
                 <img src={candle.image} alt={candle.name} className="h-16 w-16 object-contain mb-1" />
                 <span className="text-xs font-medium text-foreground text-center">{candle.name}</span>
                 <span className="text-xs text-muted-foreground">CHF {candle.unitPrice}/ea</span>
+                {candle.hasPack && (
+                  <span className="text-[10px] text-muted-foreground">Pack {candle.packSize} = CHF {candle.packPrice}</span>
+                )}
                 <div className="flex items-center gap-2 mt-2">
                   <button
                     onClick={() => onCandleQtyChange(candle.id, -1)}
@@ -456,13 +764,23 @@ const CartItemEditor = ({
         </div>
       </EditSection>
     </div>
+    </TooltipProvider>
   );
 };
 
 /* ---------- Shared sub-components ---------- */
-const EditSection = ({ label, children }: { label: string; children: React.ReactNode }) => (
+const EditSection = ({ label, children, tooltip, required }: { label: string; children: React.ReactNode; tooltip?: string; required?: boolean }) => (
   <div className="space-y-2">
-    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
+    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+      {label}
+      {required && <span className="text-destructive">*</span>}
+      {tooltip && (
+        <Tooltip>
+          <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+          <TooltipContent><p className="text-xs max-w-[200px]">{tooltip}</p></TooltipContent>
+        </Tooltip>
+      )}
+    </label>
     {children}
   </div>
 );
