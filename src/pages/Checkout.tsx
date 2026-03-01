@@ -123,7 +123,12 @@ const Checkout = () => {
     }
     return undefined as unknown as Date;
   });
-  const [deliveryTime, setDeliveryTime] = useState<string>("");
+  const [deliveryTime, setDeliveryTime] = useState<string>(() => {
+    if (items.length > 0 && items[0].orderTime) {
+      return items[0].orderTime;
+    }
+    return "";
+  });
   const [deliveryOption, setDeliveryOption] = useState("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryComment, setDeliveryComment] = useState("");

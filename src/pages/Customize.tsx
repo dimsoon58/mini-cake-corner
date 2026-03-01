@@ -477,6 +477,7 @@ const Customize = () => {
     addItem({
       id: "",
       orderDate: selections.orderDate ? format(selections.orderDate, "yyyy-MM-dd") : "",
+      orderTime: "",
       size: selections.size || "",
       sizeName: size?.name || "",
       shape: selections.shape || "",

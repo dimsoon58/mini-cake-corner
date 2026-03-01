@@ -1,13 +1,18 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingBag, Upload, X, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ShoppingBag, Upload, X, Plus, Minus, ChevronDown, ChevronUp, CalendarIcon, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { allergenMap } from "@/data/allergens";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // Candle images - using same images as customization page
 import candlePuppy from "@/assets/candle-puppy-new.png";
@@ -341,6 +346,8 @@ interface CandleSelection {
 }
 
 interface CakeSelections {
+  orderDate: Date | null;
+  orderTime: string;
   size: string;
   shape: string;
   flavor: string;
@@ -353,6 +360,20 @@ interface CakeSelections {
   printedImage: File | null;
 }
 
+// Generate time slots from 10:00 to 18:30 in 30-minute intervals
+const generateTimeSlots = () => {
+  const slots: string[] = [];
+  for (let hour = 10; hour <= 18; hour++) {
+    slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    if (hour < 18 || (hour === 18 && slots[slots.length - 1] !== "18:30")) {
+      slots.push(`${hour.toString().padStart(2, '0')}:30`);
+    }
+  }
+  return slots;
+};
+
+const TIME_SLOTS = generateTimeSlots();
+
 const Catalog = () => {
   const { addItem } = useCart();
   const { toast } = useToast();
@@ -360,7 +381,10 @@ const Catalog = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
+  const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [selections, setSelections] = useState<CakeSelections>({
+    orderDate: null,
+    orderTime: "",
     size: "bento",
     shape: "round",
     flavor: "vanilla",
@@ -373,9 +397,22 @@ const Catalog = () => {
     printedImage: null,
   });
 
+  // Fetch fully booked dates
+  useEffect(() => {
+    const fetchBookedDates = async () => {
+      const { data, error } = await supabase.rpc('get_fully_booked_dates');
+      if (!error && data) {
+        setFullyBookedDates(data.map((d: { booked_date: string }) => new Date(d.booked_date)));
+      }
+    };
+    fetchBookedDates();
+  }, []);
+
   const handleSelectCake = (cake: typeof catalog[0]) => {
     setSelectedCake(cake);
     setSelections({
+      orderDate: null,
+      orderTime: "",
       size: "bento",
       shape: "round",
       flavor: "vanilla",
@@ -486,6 +523,25 @@ const Catalog = () => {
   const handleAddToCart = () => {
     if (!selectedCake) return;
     
+    // Validate date selection
+    if (!selections.orderDate) {
+      toast({
+        title: "Date required",
+        description: "Please select a pickup/delivery date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selections.orderTime) {
+      toast({
+        title: "Time required",
+        description: "Please select a pickup/delivery time.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Validate required color selections
     if (!selections.baseColor) {
       toast({
@@ -544,7 +600,8 @@ const Catalog = () => {
     
     addItem({
       id: "",
-      orderDate: "",
+      orderDate: selections.orderDate ? format(selections.orderDate, "yyyy-MM-dd") : "",
+      orderTime: selections.orderTime,
       size: selections.size,
       sizeName: sizeObj?.name || "",
       shape: selections.shape,
@@ -635,6 +692,77 @@ const Catalog = () => {
                   alt={selectedCake.name}
                   className="w-full h-full object-cover"
                 />
+              </div>
+
+              {/* Date & Time Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Date & Time <span className="text-destructive">*</span>
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !selections.orderDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selections.orderDate ? (
+                        <>
+                          {format(selections.orderDate, "PPP")}
+                          {selections.orderTime && ` at ${selections.orderTime}`}
+                        </>
+                      ) : (
+                        <span>Pick a date & time</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="flex">
+                      <Calendar
+                        mode="single"
+                        selected={selections.orderDate || undefined}
+                        onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
+                        disabled={(date) => {
+                          const minDate = addDays(new Date(), 4);
+                          minDate.setHours(0, 0, 0, 0);
+                          if (date < minDate) return true;
+                          return fullyBookedDates.some(
+                            (bookedDate) => bookedDate.toDateString() === date.toDateString()
+                          );
+                        }}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                      <div className="border-l border-border p-3">
+                        <div className="flex items-center gap-2 mb-3 px-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Time</span>
+                        </div>
+                        <ScrollArea className="h-[280px] w-[100px]">
+                          <div className="flex flex-col gap-1 pr-4">
+                            {TIME_SLOTS.map((time) => (
+                              <Button
+                                key={time}
+                                variant={selections.orderTime === time ? "default" : "ghost"}
+                                size="sm"
+                                className={cn(
+                                  "w-full justify-center",
+                                  selections.orderTime === time && "bg-primary text-primary-foreground"
+                                )}
+                                onClick={() => setSelections({ ...selections, orderTime: time })}
+                              >
+                                {time}
+                              </Button>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Size Selection */}
