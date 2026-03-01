@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+// @ts-ignore
+import "@fontsource/dancing-script";
 import { Link } from "react-router-dom";
 import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -151,6 +153,10 @@ const Cart = () => {
     recalcAndUpdate(itemId, { textColor: colorId, textColorName: colorObj?.name || "" });
   };
 
+  const handleTextStyleChange = (itemId: string, styleId: string) => {
+    recalcAndUpdate(itemId, { textStyle: styleId });
+  };
+
   const handleToggleExtra = (itemId: string, extraId: string) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
@@ -291,6 +297,7 @@ const Cart = () => {
                           onDecoColorChange={(v) => handleDecoColorChange(item.id, v)}
                           onTextChange={(v) => handleTextChange(item.id, v)}
                           onTextColorChange={(v) => handleTextColorChange(item.id, v)}
+                          onTextStyleChange={(v) => handleTextStyleChange(item.id, v)}
                           onToggleExtra={(extraId) => handleToggleExtra(item.id, extraId)}
                           onRibbonColorChange={(v) => handleRibbonColorChange(item.id, v)}
                           onButterflyColorChange={(v) => handleButterflyColorChange(item.id, v)}
@@ -381,6 +388,7 @@ interface CartItemEditorProps {
   onDecoColorChange: (v: string) => void;
   onTextChange: (v: string) => void;
   onTextColorChange: (v: string) => void;
+  onTextStyleChange: (v: string) => void;
   onToggleExtra: (extraId: string) => void;
   onRibbonColorChange: (v: string) => void;
   onButterflyColorChange: (v: string) => void;
@@ -395,7 +403,7 @@ interface CartItemEditorProps {
 const CartItemEditor = ({
   item, fullyBookedDates,
   onDateChange, onSizeChange, onFlavorChange, onStyleChange,
-  onBaseColorChange, onDecoColorChange, onTextChange, onTextColorChange,
+  onBaseColorChange, onDecoColorChange, onTextChange, onTextColorChange, onTextStyleChange,
   onToggleExtra, onRibbonColorChange, onButterflyColorChange,
   onGlitterColorChange, onGlitterCherriesColorChange,
   onCommentChange,
@@ -530,12 +538,57 @@ const CartItemEditor = ({
       {/* Text */}
       {showText && (
         <EditSection label="Cake Text" tooltip="If you would like to add text, you can choose the typography.">
+          {/* Text Style Selection */}
+          <div className="space-y-2 mb-3">
+            <p className="text-xs font-medium text-muted-foreground">Text Style</p>
+            <div className="flex gap-2">
+              {[
+                { id: "normal", name: "Normal" },
+                { id: "uppercase", name: "Uppercase" },
+                { id: "cursive", name: "Cursive" },
+              ].map((style) => (
+                <button
+                  key={style.id}
+                  onClick={() => onTextStyleChange(style.id)}
+                  className={cn(
+                    "flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                    (item.textStyle || "normal") === style.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    style.id === "cursive" && "font-normal",
+                  )}
+                  style={style.id === "cursive" ? { fontFamily: "'Dancing Script', cursive" } : undefined}
+                >
+                  {style.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <Input
             placeholder="Enter text for your cake (max 30 chars)"
             value={item.cakeText || ""}
             onChange={(e) => onTextChange(e.target.value.slice(0, 30))}
             maxLength={30}
           />
+          <p className="text-xs text-muted-foreground text-right">{(item.cakeText || "").length}/30</p>
+
+          {/* Live text preview */}
+          {item.cakeText && (
+            <div className="bg-muted/30 rounded-lg p-3 text-center mt-1">
+              <p className="text-xs text-muted-foreground mb-1">Preview:</p>
+              <p
+                className={cn(
+                  "text-lg text-foreground",
+                  (item.textStyle || "normal") !== "cursive" && "font-medium"
+                )}
+                style={(item.textStyle || "normal") === "cursive" ? { fontFamily: "'Dancing Script', cursive", fontSize: "1.25rem" } : undefined}
+              >
+                {(item.textStyle || "normal") === "uppercase" ? (item.cakeText || "").toUpperCase() : item.cakeText}
+              </p>
+            </div>
+          )}
+
           {item.cakeText && (
             <div className="mt-2">
               <p className="text-xs font-medium text-muted-foreground mb-1">Text Color</p>
