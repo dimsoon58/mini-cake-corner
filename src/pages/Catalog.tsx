@@ -64,6 +64,7 @@ import flavorVanilla from "@/assets/flavor-vanilla.png";
 import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
 import flavorChocolate from "@/assets/flavor-chocolate.png";
 import flavorChocolateLovers from "@/assets/flavor-chocolate-lovers.png";
+import flavorChocolateLoverBerrylicious from "@/assets/flavor-chocolate-lover-berrylicious.png";
 import flavorDarkBerrylicious from "@/assets/flavor-dark-berrylicious.png";
 import flavorWhiteBerrylicious from "@/assets/flavor-white-berrylicious.png";
 import flavorSaltedCaramel from "@/assets/flavor-salted-caramel-new.png";
@@ -120,7 +121,7 @@ const flavors = [
   { id: "red-velvet", name: "Red Velvet", image: flavorRedVelvet, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
   { id: "chocolate", name: "Chocolate", image: flavorChocolate, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
   { id: "chocolate-lovers", name: "Chocolate Lovers", image: flavorChocolateLovers, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
+  { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", image: flavorChocolateLoverBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
   { id: "dark-berrylicious", name: "Dark Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
   { id: "white-berrylicious", name: "White Berrylicious", image: flavorWhiteBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
   { id: "salted-caramel", name: "Salted Butter Caramel", image: flavorSaltedCaramel, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
