@@ -161,7 +161,7 @@ const Index = () => {
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-full font-medium tracking-wide"
               asChild
             >
-              <Link to="/customize">Customize Your Cake</Link>
+              <Link to="/catalog">Customize Your Cake</Link>
             </Button>
           </div>
         </div>
@@ -286,7 +286,7 @@ const Index = () => {
             className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-none font-medium tracking-wide"
             asChild
           >
-            <Link to="/customize">Customize Your Cake</Link>
+            <Link to="/catalog">Customize Your Cake</Link>
           </Button>
         </div>
       </section>
