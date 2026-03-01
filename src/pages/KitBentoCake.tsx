@@ -315,6 +315,7 @@ const KitBentoCake = () => {
       ribbonColorName: "",
       butterflyColor: "",
       butterflyColorName: "",
+      candles: [],
       total: totalPrice,
     };
 

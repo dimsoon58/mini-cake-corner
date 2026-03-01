@@ -614,6 +614,7 @@ const Catalog = () => {
       ribbonColorName: "",
       butterflyColor: "",
       butterflyColorName: "",
+      candles: [],
       total: calculatePrice(),
     });
     setSheetOpen(false);
