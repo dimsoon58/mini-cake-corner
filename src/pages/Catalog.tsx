@@ -1134,6 +1134,9 @@ const Catalog = () => {
                     <TooltipContent><p className="text-xs max-w-[200px]">The base color is essential to personalize your cake.</p></TooltipContent>
                   </Tooltip>
                 </label>
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
+                  <span>⚠️</span> We recommend choosing light colors, as dark colors may temporarily stain lips.
+                </p>
                 <div className="grid grid-cols-6 gap-2">
                   {baseColors.map((color) => (
                     <button
@@ -1180,6 +1183,9 @@ const Catalog = () => {
                 </label>
                 <p className="text-xs text-muted-foreground">
                   You can choose up to {maxColors} colors for your design decorations. You can also explain how you would like them to be arranged in the comment section.
+                </p>
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
+                  <span>⚠️</span> We recommend choosing light colors, as dark colors may temporarily stain lips.
                 </p>
                 <div className="grid grid-cols-6 gap-2">
                   {baseColors.map((color) => {
