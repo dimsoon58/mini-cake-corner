@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { ShoppingBag, Upload, X, Plus, Minus, ChevronDown, ChevronUp, CalendarIcon } from "lucide-react";
+import { ShoppingBag, Upload, X, Plus, Minus, ChevronDown, ChevronUp, CalendarIcon, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
 import { allergenMap } from "@/data/allergens";
 import { useCart } from "@/context/CartContext";
@@ -791,6 +792,7 @@ const Catalog = () => {
       </div>
 
       {/* Catalog Sheet */}
+      <TooltipProvider delayDuration={200}>
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
@@ -814,8 +816,12 @@ const Catalog = () => {
 
               {/* Pickup Date Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
                   Pickup Date <span className="text-destructive">*</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[200px]">Order preparation date (minimum 4 days in advance)</p></TooltipContent>
+                  </Tooltip>
                 </label>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -879,7 +885,13 @@ const Catalog = () => {
 
               {/* Shape Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Shape</label>
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                  Shape <span className="text-destructive">*</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[200px]">Choose the shape of your cake.</p></TooltipContent>
+                  </Tooltip>
+                </label>
                 <Select
                   value={selections.shape}
                   onValueChange={(value) => setSelections({ ...selections, shape: value })}
@@ -902,7 +914,13 @@ const Catalog = () => {
 
               {/* Flavor Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Flavor</label>
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                  Flavor <span className="text-destructive">*</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[200px]">Please select the flavor of your cake.</p></TooltipContent>
+                  </Tooltip>
+                </label>
                 <Select
                   value={selections.flavor}
                   onValueChange={(value) => setSelections({ ...selections, flavor: value })}
@@ -943,7 +961,13 @@ const Catalog = () => {
 
               {/* Design Display */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Design</label>
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                  Design
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[220px]">You can select any design. You can also add extras and/or inspiration pictures in the next steps.</p></TooltipContent>
+                  </Tooltip>
+                </label>
                 <div className="bg-secondary/50 rounded-lg p-4">
                   <p className="font-medium text-foreground">{selectedCake.styleName}</p>
                   <p className="text-sm text-primary mt-1">
@@ -954,8 +978,12 @@ const Catalog = () => {
 
               {/* Base Color Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
                   Base Color <span className="text-destructive">*</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[200px]">The base color is essential to personalize your cake.</p></TooltipContent>
+                  </Tooltip>
                 </label>
                 <div className="grid grid-cols-6 gap-2">
                   {baseColors.map((color) => (
@@ -1021,7 +1049,13 @@ const Catalog = () => {
               {/* Text Toggle - hidden for printed-picture */}
               {!selectedCake?.disableText && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Add Text?</label>
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                  Add Text
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[220px]">If you would like to add text, you can choose the typography.</p></TooltipContent>
+                  </Tooltip>
+                </label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelections({ ...selections, wantsText: false, cakeText: "", textColor: "", textStyle: "normal" })}
@@ -1137,7 +1171,13 @@ const Catalog = () => {
 
               {/* Extras Section */}
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">✨ Extras (Optional)</label>
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                  ✨ Extra
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[220px]">You can add any additional elements to personalize your design.</p></TooltipContent>
+                  </Tooltip>
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   {catalogExtras.map((extra) => {
                     const isSelected = selections.extras.includes(extra.id);
@@ -1295,7 +1335,13 @@ const Catalog = () => {
 
               {/* Comment & Image Upload Section */}
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">💬 Additional Instructions (Optional)</label>
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                  💬 Comment
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[240px]">Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.</p></TooltipContent>
+                  </Tooltip>
+                </label>
                 <Textarea
                   value={selections.comment}
                   onChange={(e) => setSelections({ ...selections, comment: e.target.value })}
@@ -1303,6 +1349,13 @@ const Catalog = () => {
                   className="min-h-[80px]"
                 />
                 <div>
+                  <label className="text-xs font-medium text-foreground flex items-center gap-1 mb-2">
+                    Upload
+                    <Tooltip>
+                      <TooltipTrigger asChild><Info className="w-3 h-3 text-muted-foreground cursor-help" /></TooltipTrigger>
+                      <TooltipContent><p className="text-xs max-w-[200px]">Upload an inspiration picture if you would like.</p></TooltipContent>
+                    </Tooltip>
+                  </label>
                   <p className="text-xs text-muted-foreground mb-2">
                     Upload reference images (max 5 — JPG, PNG, WEBP)
                   </p>
@@ -1324,23 +1377,28 @@ const Catalog = () => {
                     </button>
                   )}
                   {selections.commentImages.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {selections.commentImages.map((file, index) => (
-                        <div key={index} className="relative w-16 h-16">
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt={`Reference ${index + 1}`}
-                            className="w-full h-full object-cover rounded-lg"
-                          />
-                          <button
-                            onClick={() => removeCommentImage(index)}
-                            className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/80"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                    <>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selections.commentImages.map((file, index) => (
+                          <div key={index} className="relative w-16 h-16">
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={`Reference ${index + 1}`}
+                              className="w-full h-full object-cover rounded-lg"
+                            />
+                            <button
+                              onClick={() => removeCommentImage(index)}
+                              className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/80"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground/80 italic mt-2 leading-tight">
+                        When a client provides an inspiration photo, it is for reference only. Bento Cake Studio SNC will create a design inspired by it and aim to respect the colors and style, but an identical reproduction is not guaranteed.
+                      </p>
+                    </>
                   )}
                 </div>
               </div>
@@ -1482,6 +1540,7 @@ const Catalog = () => {
           )}
         </SheetContent>
       </Sheet>
+      </TooltipProvider>
     </Layout>
   );
 };
