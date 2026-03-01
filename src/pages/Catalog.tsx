@@ -369,6 +369,7 @@ const catalog = [
     name: "Retro × Ribbons Glitter in the Air",
     description: "A retro cake with ribbons and glitter in the center, blow on it and the glitter flies into the air",
     image: designGlitterInAir,
+    imagePosition: "object-[center_70%]",
     styleId: "retro-ribbons-glitter",
     styleName: "Retro × Ribbons Glitter in the Air",
     stylePrice: { bento: 20, medium: 30, large: 40 },
