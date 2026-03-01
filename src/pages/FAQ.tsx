@@ -106,7 +106,7 @@ const FAQ = () => {
       questions: [
         {
           question: "How can we contact you?",
-          answer: "You can contact us via Instagram @bentocakestudio or on WhatsApp at +41 79 953 13 17."
+          answer: "contact-section"
         }
       ]
     }
@@ -129,8 +129,17 @@ const FAQ = () => {
                     <AccordionTrigger className="text-left text-foreground hover:text-primary">
                       {item.question}
                     </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground leading-relaxed">
-                      {item.answer}
+                    <AccordionContent className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                      {item.answer === "contact-section" ? (
+                        <p>
+                          You can contact us via Instagram{" "}
+                          <a href="https://www.instagram.com/bentocakestudio/" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">@bentocakestudio</a>
+                          , on WhatsApp at +41 79 953 13 17, or by email at{" "}
+                          <a href="mailto:contact@bentocakestudio.ch" className="text-primary underline hover:text-primary/80">contact@bentocakestudio.ch</a>.
+                        </p>
+                      ) : (
+                        item.answer
+                      )}
                     </AccordionContent>
                   </AccordionItem>
                 ))}
