@@ -338,7 +338,7 @@ const catalog = [
     name: "Retro × Ribbons",
     description: "Beautiful ribbon decorations on a retro cake",
     image: designRibbons,
-    images: [retroRibbons1, retroRibbons2],
+    images: [retroRibbons2, retroRibbons1],
     styleId: "retro-ribbons",
     styleName: "Retro × Ribbons",
     stylePrice: { bento: 10, medium: 20, large: 30 },
