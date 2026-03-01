@@ -327,6 +327,7 @@ const catalog = [
     name: "Cherries x Retro Cake",
     description: "Retro cake topped with cherries",
     image: designCherries,
+    imagePosition: "object-[center_70%]",
     styleId: "cherries-retro",
     styleName: "Cherries on a Retro Cake",
     stylePrice: { bento: 9, medium: 20, large: 30 },
@@ -338,6 +339,7 @@ const catalog = [
     description: "Beautiful ribbon decorations on a retro cake",
     image: designRibbons,
     images: [designRibbons, retroRibbons1, retroRibbons2],
+    imagePositions: ["object-[center_70%]"],
     styleId: "retro-ribbons",
     styleName: "Retro × Ribbons",
     stylePrice: { bento: 10, medium: 20, large: 30 },
@@ -434,7 +436,7 @@ interface CandleSelection {
 }
 
 // Carousel component for catalog cards with multiple images
-const CatalogCarousel = ({ images, name }: { images: string[]; name: string }) => {
+const CatalogCarousel = ({ images, name, imagePositions }: { images: string[]; name: string; imagePositions?: string[] }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -456,7 +458,7 @@ const CatalogCarousel = ({ images, name }: { images: string[]; name: string }) =
         <div className="flex h-full">
           {images.map((img, i) => (
             <div key={i} className="flex-[0_0_100%] min-w-0 h-full">
-              <img src={img} alt={`${name} ${i + 1}`} className="w-full h-full object-cover" />
+              <img src={img} alt={`${name} ${i + 1}`} className={cn("w-full h-full object-cover", imagePositions?.[i])} />
             </div>
           ))}
         </div>
@@ -855,13 +857,13 @@ const Catalog = () => {
               className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
             >
               {cake.images && cake.images.length > 1 ? (
-                <CatalogCarousel images={cake.images} name={cake.name} />
+                <CatalogCarousel images={cake.images} name={cake.name} imagePositions={cake.imagePositions} />
               ) : (
                 <div className="aspect-square overflow-hidden bg-muted/30">
                   <img
                     src={cake.image}
                     alt={cake.name}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    className={cn("w-full h-full object-cover hover:scale-105 transition-transform duration-300", cake.imagePosition)}
                   />
                 </div>
               )}
