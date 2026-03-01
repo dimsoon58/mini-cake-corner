@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import CorporateQuoteForm from "@/components/CorporateQuoteForm";
+
 import corporateEvent1 from "@/assets/corporate-event-1.png";
 import corporateEvent2 from "@/assets/corporate-event-2.png";
 import corporateEvent3 from "@/assets/corporate-event-3.png";
@@ -14,20 +16,88 @@ import corporateEvent10 from "@/assets/corporate-event-10.png";
 import corporateEvent11 from "@/assets/corporate-event-11.png";
 import corporateEvent12 from "@/assets/corporate-event-12.png";
 
-const corporateEvents = [
-  { id: 1, image: corporateEvent1, title: "Corporate Celebration", description: "Custom cake with company logo and sparklers" },
-  { id: 2, image: corporateEvent2, title: "Corporate Celebration", description: "Custom Red Velvet cake for corporate event" },
-  { id: 3, image: corporateEvent3, title: "Corporate Celebration", description: "Cake with printed logo for brand launch" },
-  { id: 4, image: corporateEvent4, title: "VIP Reception", description: "Custom cake with illustration for corporate event" },
-  { id: 5, image: corporateEvent5, title: "VIP Reception", description: "Catering service with custom cake at a reception" },
-  { id: 6, image: corporateEvent6, title: "VIP Reception", description: "Cake with custom artistic design" },
-  { id: 7, image: corporateEvent7, title: "Yuh Collaboration", description: "Colorful custom cakes for brand partnership" },
-  { id: 8, image: corporateEvent8, title: "Corporate Gift Boxes", description: "Elegant packaging with ribbon for corporate gifts" },
-  { id: 9, image: corporateEvent9, title: "Corporate Gift Boxes", description: "Assortment of custom cakes for brand event" },
-  { id: 10, image: corporateEvent10, title: "Surya Children Event", description: "Elegant blue cake for charity event" },
-  { id: 11, image: corporateEvent11, title: "Surya Children Event", description: "Cake decorating workshop for corporate team building" },
-  { id: 12, image: corporateEvent12, title: "Surya Children Event", description: "Artistic creation with vintage details for prestigious event" },
+const sections = [
+  {
+    title: "VIP Reception",
+    images: [
+      { src: corporateEvent4, alt: "Custom cake with illustration for VIP reception" },
+      { src: corporateEvent5, alt: "Catering service with custom cake at a reception" },
+      { src: corporateEvent6, alt: "Cake with custom artistic design" },
+    ],
+  },
+  {
+    title: "Corporate Celebration",
+    images: [
+      { src: corporateEvent1, alt: "Custom cake with company logo and sparklers" },
+      { src: corporateEvent2, alt: "Custom Red Velvet cake for corporate event" },
+      { src: corporateEvent3, alt: "Cake with printed logo for brand launch" },
+    ],
+  },
+  {
+    title: "Charity Event",
+    images: [
+      { src: corporateEvent10, alt: "Elegant blue cake for charity event" },
+      { src: corporateEvent11, alt: "Cake decorating workshop for team building" },
+      { src: corporateEvent12, alt: "Artistic creation with vintage details for prestigious event" },
+    ],
+  },
+  {
+    title: "Corporate Gift",
+    images: [
+      { src: corporateEvent8, alt: "Elegant packaging with ribbon for corporate gifts" },
+      { src: corporateEvent9, alt: "Assortment of custom cakes for brand event" },
+      { src: corporateEvent7, alt: "Colorful custom cakes for Yuh brand partnership" },
+    ],
+  },
 ];
+
+const ImageCarousel = ({ images }: { images: { src: string; alt: string }[] }) => {
+  const [current, setCurrent] = useState(0);
+
+  const prev = () => setCurrent((c) => (c === 0 ? images.length - 1 : c - 1));
+  const next = () => setCurrent((c) => (c === images.length - 1 ? 0 : c + 1));
+
+  return (
+    <div className="relative group">
+      <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
+        <img
+          src={images[current].src}
+          alt={images[current].alt}
+          className="w-full h-full object-cover transition-all duration-500"
+        />
+      </div>
+
+      <button
+        onClick={prev}
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+        aria-label="Previous image"
+      >
+        <ChevronLeft className="w-5 h-5" />
+      </button>
+      <button
+        onClick={next}
+        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+        aria-label="Next image"
+      >
+        <ChevronRight className="w-5 h-5" />
+      </button>
+
+      {/* Dots */}
+      <div className="flex justify-center gap-2 mt-3">
+        {images.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrent(i)}
+            className={`w-2 h-2 rounded-full transition-all ${
+              i === current ? "bg-primary w-6" : "bg-muted-foreground/30"
+            }`}
+            aria-label={`Go to image ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const CorporateEvent = () => {
   const [quoteOpen, setQuoteOpen] = useState(false);
@@ -38,41 +108,11 @@ const CorporateEvent = () => {
         <h1 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-4">
           Corporate Events
         </h1>
-        <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-12">
-          We create custom cakes for your corporate events, product launches, and business celebrations.
-        </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {corporateEvents.map((event) => (
-            <div
-              key={event.id}
-              className="group bg-card rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-border"
-            >
-              <div className="aspect-square overflow-hidden">
-                <img
-                  src={event.image}
-                  alt={event.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-              <div className="p-5">
-                <h3 className="font-serif text-lg font-semibold text-foreground mb-2">
-                  {event.title}
-                </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {event.description}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-16 text-center bg-muted/50 rounded-2xl p-8">
-          <h3 className="font-serif text-2xl text-foreground mb-4">
-            Interested in our corporate services?
-          </h3>
-          <p className="font-serif text-lg text-foreground mb-6">
-            Let's create something special for your next corporate event.
+        {/* CTA Section */}
+        <div className="text-center mb-12 max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-lg mb-6">
+            Interested in our corporate services? Let's create something special for your next corporate event.
           </p>
           <button
             onClick={() => setQuoteOpen(true)}
@@ -80,6 +120,18 @@ const CorporateEvent = () => {
           >
             Get a Quote
           </button>
+        </div>
+
+        {/* Carousel sections */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          {sections.map((section) => (
+            <div key={section.title}>
+              <h2 className="font-serif text-2xl text-foreground mb-4 text-center">
+                {section.title}
+              </h2>
+              <ImageCarousel images={section.images} />
+            </div>
+          ))}
         </div>
       </div>
 
