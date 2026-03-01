@@ -89,6 +89,19 @@ const FAQ = () => {
       ]
     },
     {
+      title: "Refund",
+      questions: [
+        {
+          question: "Complain about an order?",
+          answer: "Please note that the images you submit are for inspiration purposes only.\nVariations in color, writing, decoration, and accessories may occur.\nIf you are not satisfied with your order, you must contact us within 48 hours after pickup.\nPlease provide clear photos of the cake to support your complaint.\nAfter this 48-hour period, we will no longer be able to process any claims or refunds."
+        },
+        {
+          question: "How to get a refund if you want to cancel your order?",
+          answer: "To request a refund, please send us an email at contact@bentocakestudio.ch at least 5 days before your scheduled pickup date.\nNo refunds will be eligible after this deadline."
+        }
+      ]
+    },
+    {
       title: "Contact",
       questions: [
         {
