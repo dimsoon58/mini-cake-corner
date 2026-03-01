@@ -207,6 +207,7 @@ const KitBentoCake = () => {
   const showCandles = showPiping && pipingComplete;
 
   const getFlavorCategoryPrice = () => {
+    if (selectedFlavor === "chocolate-lover-berrylicious") return 3;
     for (const category of flavorCategories) {
       if (category.flavors.some(f => f.id === selectedFlavor)) return category.extraPrice;
     }

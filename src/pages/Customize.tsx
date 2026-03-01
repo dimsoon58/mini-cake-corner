@@ -427,6 +427,11 @@ const Customize = () => {
 
   const getFlavorCategoryExtra = () => {
     if (!selections.flavor || !selections.size) return 0;
+    const flavorOverrides: Record<string, Record<string, number>> = {
+      "chocolate-lover-berrylicious": { bento: 3, retro: 3, medium: 6, large: 10 },
+    };
+    const override = flavorOverrides[selections.flavor];
+    if (override) return override[selections.size] || 0;
     const category = flavorCategories.find(cat => 
       cat.flavors.some(f => f.id === selections.flavor)
     );
