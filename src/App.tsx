@@ -7,7 +7,7 @@ import { CartProvider } from "@/context/CartContext";
 import CookieConsent from "@/components/CookieConsent";
 import Index from "./pages/Index";
 import ProductDetail from "./pages/ProductDetail";
-import Customize from "./pages/Customize";
+
 import Cart from "./pages/Cart";
 import FAQ from "./pages/FAQ";
 import Contact from "./pages/Contact";
@@ -32,7 +32,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/customize" element={<Customize />} />
+            
             <Route path="/cart" element={<Cart />} />
             <Route path="/community-press" element={<CommunityPress />} />
             <Route path="/corporate-event" element={<CorporateEvent />} />

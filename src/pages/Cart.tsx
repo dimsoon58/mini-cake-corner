@@ -154,7 +154,7 @@ const Cart = () => {
             <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
             <h2 className="font-serif text-3xl text-foreground mb-4">Your basket is empty</h2>
             <p className="text-muted-foreground mb-8">Start customizing your perfect cake!</p>
-            <Button asChild><Link to="/customize">Customize Your Cake</Link></Button>
+            <Button asChild><Link to="/catalog">Customize Your Cake</Link></Button>
           </div>
         ) : (
           <div className="grid lg:grid-cols-3 gap-8">
@@ -225,7 +225,7 @@ const Cart = () => {
                     <span className="text-primary">CHF {totalPrice}</span>
                   </div>
                   <Button className="w-full" size="lg" asChild><Link to="/checkout">Proceed to Checkout</Link></Button>
-                  <Button variant="outline" className="w-full" asChild><Link to="/customize">Add Another Cake</Link></Button>
+                  <Button variant="outline" className="w-full" asChild><Link to="/catalog">Add Another Cake</Link></Button>
                 </CardContent>
               </Card>
             </div>
