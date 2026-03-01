@@ -280,6 +280,7 @@ const KitBentoCake = () => {
     const cartItem = {
       id: "",
       orderDate: orderDate ? format(orderDate, "PPP") : "",
+      orderTime: "",
       size: "kit-bento",
       sizeName: "Kit Bento Cake",
       shape: selectedShape,

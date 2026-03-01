@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 export interface CartItem {
   id: string;
   orderDate: string;
+  orderTime: string;
   size: string;
   sizeName: string;
   shape: string;
@@ -30,6 +31,7 @@ export interface CartItem {
 interface CartContextType {
   items: CartItem[];
   addItem: (item: CartItem) => void;
+  updateItem: (id: string, updates: Partial<CartItem>) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   itemCount: number;
@@ -54,6 +56,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems((prev) => [...prev, newItem]);
   };
 
+  const updateItem = (id: string, updates: Partial<CartItem>) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
+    );
+  };
+
   const removeItem = (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
@@ -67,6 +75,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       value={{
         items,
         addItem,
+        updateItem,
         removeItem,
         clearCart,
         itemCount: items.length,
