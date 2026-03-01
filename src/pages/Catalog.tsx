@@ -338,8 +338,7 @@ const catalog = [
     name: "Retro × Ribbons",
     description: "Beautiful ribbon decorations on a retro cake",
     image: designRibbons,
-    images: [designRibbons, retroRibbons1, retroRibbons2],
-    imagePositions: ["object-[center_70%]"],
+    images: [retroRibbons1, retroRibbons2],
     styleId: "retro-ribbons",
     styleName: "Retro × Ribbons",
     stylePrice: { bento: 10, medium: 20, large: 30 },
@@ -857,7 +856,7 @@ const Catalog = () => {
               className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
             >
               {cake.images && cake.images.length > 1 ? (
-                <CatalogCarousel images={cake.images} name={cake.name} imagePositions={cake.imagePositions} />
+                <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
               ) : (
                 <div className="aspect-square overflow-hidden bg-muted/30">
                   <img
