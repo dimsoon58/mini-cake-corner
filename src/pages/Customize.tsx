@@ -499,6 +499,7 @@ const Customize = () => {
       ribbonColorName: selectedRibbonColor?.name || "",
       butterflyColor: selections.butterflyColor || "",
       butterflyColorName: selectedButterflyColor?.name || "",
+      candles: selections.candles,
       total: calculateTotal(),
     });
     

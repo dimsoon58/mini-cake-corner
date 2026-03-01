@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
+export interface CandleCartItem {
+  id: string;
+  quantity: number;
+  hasPack: boolean;
+}
+
 export interface CartItem {
   id: string;
   orderDate: string;
@@ -25,6 +31,7 @@ export interface CartItem {
   ribbonColorName: string;
   butterflyColor: string;
   butterflyColorName: string;
+  candles: CandleCartItem[];
   total: number;
 }
 
