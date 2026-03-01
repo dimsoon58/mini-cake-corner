@@ -41,10 +41,10 @@ const PaymentSuccess = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild>
-              <Link to="/">Retour à l'accueil</Link>
+              <Link to="/">Back to Home</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/customize">Nouvelle commande</Link>
+              <Link to="/customize">New Order</Link>
             </Button>
           </div>
         </div>
