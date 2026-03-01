@@ -943,12 +943,12 @@ const Customize = () => {
                             <button
                               onClick={() => setSelections({ ...selections, textStyle: "cursive" })}
                               className={cn(
-                                "px-4 py-2 rounded-lg font-medium transition-all text-sm italic",
+                                "px-4 py-2 rounded-lg transition-all text-sm",
                                 selections.textStyle === "cursive"
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-muted text-muted-foreground hover:bg-muted/80"
                               )}
-                              style={{ fontFamily: "cursive" }}
+                              style={{ fontFamily: "'Dancing Script', cursive" }}
                             >
                               Attaché
                             </button>
