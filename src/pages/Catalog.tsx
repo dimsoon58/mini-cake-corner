@@ -154,6 +154,52 @@ const candles = [
   { id: "yellow-car", name: "Yellow Car", image: candleYellowCar, unitPrice: 2, hasPack: false },
 ];
 
+const catalogExtras = [
+  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 4, large: 6 }, image: designGoldLeaves },
+  { id: "cherries", name: "Cherries", price: { bento: 4, retro: 4, medium: 8, large: 10 }, image: designCherries },
+  { id: "glitter-cherries", name: "Glitter Cherries", price: { bento: 6, retro: 6, medium: 9, large: 12 }, image: designGlitterCherries },
+  { id: "glitter", name: "Glitter", price: { bento: 6, retro: 6, medium: 8, large: 12 }, image: designGlitterCake },
+  { id: "ribbons", name: "Ribbons", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designRibbons },
+  { id: "butterfly", name: "Butterfly", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designButterflyGarden },
+  { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designPearlNumber },
+  { id: "printed-picture", name: "Printed Picture", price: { bento: 20, retro: 20, medium: 20, large: 20 }, image: designPrintedPicture },
+  { id: "sprinkles", name: "Sprinkles", price: { bento: 2, retro: 2, medium: 2, large: 2 }, image: extraSprinkles },
+];
+
+const ribbonColors = [
+  { id: "baby-pink", name: "Baby Pink", color: "#F4C2C2" },
+  { id: "pink", name: "Pink", color: "#FFC0CB" },
+  { id: "orange", name: "Orange", color: "#FFA500" },
+  { id: "red", name: "Red", color: "#EF4444" },
+  { id: "wine-red", name: "Wine Red", color: "#722F37" },
+  { id: "white", name: "White", color: "#FFFFFF" },
+  { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
+  { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
+  { id: "black", name: "Black", color: "#000000" },
+];
+
+const butterflyColors = [
+  { id: "pink", name: "Pink", color: "#FFC0CB" },
+  { id: "blue", name: "Blue", color: "#3B82F6" },
+  { id: "gold", name: "Gold", color: "#D4AF37" },
+];
+
+const glitterColors = [
+  { id: "white", name: "White", color: "#FFFFFF" },
+  { id: "gold", name: "Gold", color: "#D4AF37" },
+  { id: "pink", name: "Pink", color: "#FFC0CB" },
+  { id: "red", name: "Red", color: "#EF4444" },
+  { id: "blue", name: "Blue", color: "#3B82F6" },
+];
+
+const glitterCherriesColors = [
+  { id: "white", name: "White", color: "#FFFFFF" },
+  { id: "gold", name: "Gold", color: "#D4AF37" },
+  { id: "pink", name: "Pink", color: "#FFC0CB" },
+  { id: "red", name: "Red", color: "#EF4444" },
+  { id: "blue", name: "Blue", color: "#3B82F6" },
+];
+
 const catalog = [
   {
     id: "normal-without-border",
@@ -370,6 +416,11 @@ interface CakeSelections {
   printedImage: File | null;
   comment: string;
   commentImages: File[];
+  extras: string[];
+  ribbonColor: string;
+  butterflyColor: string;
+  glitterColor: string;
+  glitterCherriesColor: string;
 }
 
 // Generate time slots from 10:00 to 18:30 in 30-minute intervals
@@ -417,6 +468,11 @@ const Catalog = () => {
     printedImage: null,
     comment: "",
     commentImages: [],
+    extras: [],
+    ribbonColor: "",
+    butterflyColor: "",
+    glitterColor: "",
+    glitterCherriesColor: "",
   });
 
   // Fetch fully booked dates
@@ -448,6 +504,11 @@ const Catalog = () => {
       printedImage: null,
       comment: "",
       commentImages: [],
+      extras: [],
+      ribbonColor: "",
+      butterflyColor: "",
+      glitterColor: "",
+      glitterCherriesColor: "",
     });
     setSheetOpen(true);
   };
@@ -513,6 +574,25 @@ const Catalog = () => {
     return candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id), 0);
   };
 
+  const handleToggleExtra = (extraId: string) => {
+    const newExtras = selections.extras.includes(extraId)
+      ? selections.extras.filter((e) => e !== extraId)
+      : [...selections.extras, extraId];
+    setSelections({ ...selections, extras: newExtras });
+  };
+
+  const getExtraPriceForSize = (extra: typeof catalogExtras[0]) => {
+    return extra.price[selections.size as keyof typeof extra.price] || 0;
+  };
+
+  const getTotalExtrasPrice = () => {
+    return selections.extras.reduce((acc, extraId) => {
+      const extra = catalogExtras.find(e => e.id === extraId);
+      if (!extra) return acc;
+      return acc + getExtraPriceForSize(extra);
+    }, 0);
+  };
+
   // Image upload helpers
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -574,8 +654,9 @@ const Catalog = () => {
     const flavorExtra = flavorObj?.extraPrice[selections.size as keyof typeof flavorObj.extraPrice] || 0;
     const styleExtra = selectedCake.stylePrice[selections.size as keyof typeof selectedCake.stylePrice] || 0;
     const candlesTotal = getTotalCandlesPrice();
+    const extrasTotal = getTotalExtrasPrice();
     
-    return basePrice + shapeExtra + flavorExtra + styleExtra + candlesTotal;
+    return basePrice + shapeExtra + flavorExtra + styleExtra + candlesTotal + extrasTotal;
   };
 
   const handleAddToCart = () => {
@@ -624,6 +705,10 @@ const Catalog = () => {
       finalText = selections.cakeText.toUpperCase();
     }
     
+    const extrasNames = selections.extras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
+    const selectedRibbonColor = ribbonColors.find(c => c.id === selections.ribbonColor);
+    const selectedButterflyColor = butterflyColors.find(c => c.id === selections.butterflyColor);
+
     addItem({
       id: "",
       orderDate: selections.orderDate ? format(selections.orderDate, "yyyy-MM-dd") : "",
@@ -644,13 +729,13 @@ const Catalog = () => {
       textColor: selections.textColor,
       textColorName: textColorObj?.name || "",
       textStyle: selections.textStyle,
-      extras: [],
-      extrasNames: [],
-      ribbonColor: "",
-      ribbonColorName: "",
-      butterflyColor: "",
-      butterflyColorName: "",
-      candles: [],
+      extras: selections.extras,
+      extrasNames,
+      ribbonColor: selections.ribbonColor,
+      ribbonColorName: selectedRibbonColor?.name || "",
+      butterflyColor: selections.butterflyColor,
+      butterflyColorName: selectedButterflyColor?.name || "",
+      candles: selections.candles,
       comment: selections.comment,
       total: calculatePrice(),
     });
@@ -1048,9 +1133,126 @@ const Catalog = () => {
                     </div>
                   </div>
                 </>
-              )}
+               )}
 
-              {/* Printed Picture Upload - only for printed-picture style */}
+              {/* Extras Section */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">✨ Extras (Optional)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {catalogExtras.map((extra) => {
+                    const isSelected = selections.extras.includes(extra.id);
+                    const price = getExtraPriceForSize(extra);
+                    return (
+                      <button
+                        key={extra.id}
+                        onClick={() => handleToggleExtra(extra.id)}
+                        className={cn(
+                          "flex items-center gap-2 p-2 rounded-lg border transition-all text-left",
+                          isSelected
+                            ? "ring-2 ring-primary border-primary bg-secondary/50"
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <img src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">{extra.name}</p>
+                          <p className="text-[10px] text-primary">+CHF {price}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Glitter Color */}
+                {selections.extras.includes("glitter") && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">Glitter Color</p>
+                    <div className="flex flex-wrap gap-2">
+                      {glitterColors.map((color) => (
+                        <button
+                          key={color.id}
+                          onClick={() => setSelections({ ...selections, glitterColor: color.id })}
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                            selections.glitterColor === color.id ? "ring-2 ring-primary" : ""
+                          )}
+                        >
+                          <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                          <span className="text-[10px] text-foreground">{color.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Glitter Cherries Color */}
+                {selections.extras.includes("glitter-cherries") && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">Glitter Cherries Color</p>
+                    <div className="flex flex-wrap gap-2">
+                      {glitterCherriesColors.map((color) => (
+                        <button
+                          key={color.id}
+                          onClick={() => setSelections({ ...selections, glitterCherriesColor: color.id })}
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                            selections.glitterCherriesColor === color.id ? "ring-2 ring-primary" : ""
+                          )}
+                        >
+                          <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                          <span className="text-[10px] text-foreground">{color.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Ribbon Color */}
+                {selections.extras.includes("ribbons") && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">Ribbon Color</p>
+                    <div className="flex flex-wrap gap-2">
+                      {ribbonColors.map((color) => (
+                        <button
+                          key={color.id}
+                          onClick={() => setSelections({ ...selections, ribbonColor: color.id })}
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                            selections.ribbonColor === color.id ? "ring-2 ring-primary" : ""
+                          )}
+                        >
+                          <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                          <span className="text-[10px] text-foreground">{color.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Butterfly Color */}
+                {selections.extras.includes("butterfly") && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">Butterfly Color</p>
+                    <div className="flex flex-wrap gap-2">
+                      {butterflyColors.map((color) => (
+                        <button
+                          key={color.id}
+                          onClick={() => setSelections({ ...selections, butterflyColor: color.id })}
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                            selections.butterflyColor === color.id ? "ring-2 ring-primary" : ""
+                          )}
+                        >
+                          <div className="w-6 h-6 rounded-full border border-muted" style={{ backgroundColor: color.color }} />
+                          <span className="text-[10px] text-foreground">{color.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+               {/* Printed Picture Upload - only for printed-picture style */}
               {selectedCake?.styleId === "printed-picture" && (
                 <div className="space-y-3">
                   <label className="text-sm font-medium text-foreground">Upload Your Image</label>
@@ -1149,8 +1351,6 @@ const Catalog = () => {
                 
                 {/* Ombré & Spirals (Packs) - shown first */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-foreground/70 text-center">Ombré & Spirals</p>
-                  <p className="text-[10px] text-center text-muted-foreground">Pack auto à partir de 6 bougies</p>
                   <div className="flex flex-wrap justify-center gap-3">
                     {packCandles.slice(0, showAllCandles ? undefined : 4).map((candle) => {
                       const unitQty = getCandleUnitQuantity(candle.id);
