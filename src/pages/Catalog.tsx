@@ -1,5 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { format, addDays } from "date-fns";
+import useEmblaCarousel from "embla-carousel-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,6 +42,9 @@ import designRetroGlitter from "@/assets/design-retro-glitter-new.jpg";
 import designRainbowCake from "@/assets/design-rainbow-cake-new.jpg";
 import designShagCake from "@/assets/design-shag-cake-new.jpg";
 import designShagCake2 from "@/assets/design-shag-cake-2.jpg";
+import shagCake1 from "@/assets/shag-cake-1.jpg";
+import shagCake2 from "@/assets/shag-cake-2.jpg";
+import shagCake3 from "@/assets/shag-cake-3.jpg";
 import designGoldLeaves from "@/assets/design-gold-leaves-new.png";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
@@ -259,7 +264,7 @@ const catalog = [
     name: "Shag Cake",
     description: "A retro inspired shag cake with rich texture and colorful details",
     image: designShagCake,
-    secondImage: designShagCake2,
+    images: [designShagCake, shagCake1, shagCake2, shagCake3],
     styleId: "shag-cake",
     styleName: "Shag Cake",
     stylePrice: { bento: 8, medium: 20, large: 30 },
@@ -413,6 +418,59 @@ interface CandleSelection {
   hasPack: boolean;
 }
 
+// Carousel component for catalog cards with multiple images
+const CatalogCarousel = ({ images, name }: { images: string[]; name: string }) => {
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on("select", onSelect);
+    return () => { emblaApi.off("select", onSelect); };
+  }, [emblaApi, onSelect]);
+
+  return (
+    <div className="aspect-square overflow-hidden bg-muted/30 relative group">
+      <div ref={emblaRef} className="overflow-hidden h-full">
+        <div className="flex h-full">
+          {images.map((img, i) => (
+            <div key={i} className="flex-[0_0_100%] min-w-0 h-full">
+              <img src={img} alt={`${name} ${i + 1}`} className="w-full h-full object-cover" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); emblaApi?.scrollPrev(); }}
+        className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); emblaApi?.scrollNext(); }}
+        className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+        {images.map((_, i) => (
+          <button
+            key={i}
+            onClick={(e) => { e.stopPropagation(); emblaApi?.scrollTo(i); }}
+            className={cn("w-2 h-2 rounded-full transition-colors", i === selectedIndex ? "bg-foreground" : "bg-foreground/40")}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 interface CakeSelections {
   orderDate: Date | null;
   orderTime: string;
@@ -434,6 +492,7 @@ interface CakeSelections {
   butterflyColor: string;
   glitterColor: string;
   glitterCherriesColor: string;
+  shagDesignPreference: number;
 }
 
 // Generate time slots from 10:00 to 18:30 in 30-minute intervals
@@ -486,6 +545,7 @@ const Catalog = () => {
     butterflyColor: "",
     glitterColor: "",
     glitterCherriesColor: "",
+    shagDesignPreference: 0,
   });
 
   // Fetch fully booked dates
@@ -522,6 +582,7 @@ const Catalog = () => {
       butterflyColor: "",
       glitterColor: "",
       glitterCherriesColor: "",
+      shagDesignPreference: 0,
     });
     setSheetOpen(true);
   };
@@ -749,7 +810,9 @@ const Catalog = () => {
       butterflyColor: selections.butterflyColor,
       butterflyColorName: selectedButterflyColor?.name || "",
       candles: selections.candles,
-      comment: selections.comment,
+      comment: selectedCake.images && selectedCake.images.length > 1
+        ? `[Preferred design: Option ${selections.shagDesignPreference + 1}]${selections.comment ? " " + selections.comment : ""}`
+        : selections.comment,
       total: calculatePrice(),
     });
     setSheetOpen(false);
@@ -776,13 +839,17 @@ const Catalog = () => {
               key={cake.id}
               className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
             >
-              <div className="aspect-square overflow-hidden bg-muted/30">
-                <img
-                  src={cake.image}
-                  alt={cake.name}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                />
-              </div>
+              {cake.images && cake.images.length > 1 ? (
+                <CatalogCarousel images={cake.images} name={cake.name} />
+              ) : (
+                <div className="aspect-square overflow-hidden bg-muted/30">
+                  <img
+                    src={cake.image}
+                    alt={cake.name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+              )}
               <div className="p-6 text-center">
                 <h3 className="font-serif text-xl font-bold text-foreground mb-2">
                   {cake.name}
@@ -997,6 +1064,29 @@ const Catalog = () => {
                   </p>
                 </div>
               </div>
+
+              {/* Shag Cake Design Preference */}
+              {selectedCake?.images && selectedCake.images.length > 1 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Choose your preferred design</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {selectedCake.images.map((img, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setSelections(prev => ({ ...prev, shagDesignPreference: i }))}
+                        className={cn(
+                          "rounded-lg overflow-hidden border-2 transition-all aspect-square",
+                          selections.shagDesignPreference === i
+                            ? "border-primary ring-2 ring-primary/30"
+                            : "border-transparent hover:border-muted-foreground/30"
+                        )}
+                      >
+                        <img src={img} alt={`Design option ${i + 1}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Base Color Selection */}
               <div className="space-y-2">
