@@ -805,8 +805,23 @@ const Catalog = () => {
       return;
     }
 
-    if (selectedCake.styleId === "printed-picture" && !selections.printedImage) {
+    if ((selectedCake.styleId === "printed-picture" || selections.extras.includes("printed-picture")) && !selections.printedImage) {
       toast({ title: "Image required", description: "Please upload an image for your printed picture cake.", variant: "destructive" });
+      return;
+    }
+
+    if (selections.extras.includes("glitter") && !selections.glitterColor) {
+      toast({ title: "Glitter Color required", description: "Please select a color for your glitter.", variant: "destructive" });
+      return;
+    }
+
+    if (selections.extras.includes("ribbons") && !selections.ribbonColor) {
+      toast({ title: "Ribbon Color required", description: "Please select a color for your ribbons.", variant: "destructive" });
+      return;
+    }
+
+    if (selections.extras.includes("butterfly") && !selections.butterflyColor) {
+      toast({ title: "Butterfly Color required", description: "Please select a color for your butterfly.", variant: "destructive" });
       return;
     }
     
@@ -1399,7 +1414,7 @@ const Catalog = () => {
                 {/* Glitter Color */}
                 {selections.extras.includes("glitter") && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Glitter Color</p>
+                    <p className="text-xs font-medium text-foreground">Glitter Color <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {glitterColors.map((color) => (
                         <button
@@ -1443,7 +1458,7 @@ const Catalog = () => {
                 {/* Ribbon Color */}
                 {selections.extras.includes("ribbons") && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Ribbon Color</p>
+                    <p className="text-xs font-medium text-foreground">Ribbon Color <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {ribbonColors.map((color) => (
                         <button
@@ -1465,7 +1480,7 @@ const Catalog = () => {
                 {/* Butterfly Color */}
                 {selections.extras.includes("butterfly") && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Butterfly Color</p>
+                    <p className="text-xs font-medium text-foreground">Butterfly Color <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {butterflyColors.map((color) => (
                         <button
@@ -1485,8 +1500,8 @@ const Catalog = () => {
                 )}
               </div>
 
-               {/* Printed Picture Upload - only for printed-picture style */}
-              {selectedCake?.styleId === "printed-picture" && (
+               {/* Printed Picture Upload - for printed-picture style or extra */}
+              {(selectedCake?.styleId === "printed-picture" || selections.extras.includes("printed-picture")) && (
                 <div className="space-y-3">
                   <label className="text-sm font-medium text-foreground">Upload Your Image</label>
                   <p className="text-xs text-muted-foreground">
