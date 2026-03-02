@@ -41,6 +41,7 @@ import designRetroCake from "@/assets/design-retro-cake-new.jpg";
 import retroCake1 from "@/assets/retro-cake-1.jpg";
 import retroCake2 from "@/assets/retro-cake-2.jpg";
 import retroCake3 from "@/assets/retro-cake-3.jpg";
+import retroCake4 from "@/assets/retro-cake-4.jpg";
 import designRetroGlitter from "@/assets/design-retro-glitter-new.jpg";
 import designRainbowCake from "@/assets/design-rainbow-cake-new.jpg";
 import designShagCake from "@/assets/design-shag-cake-new.jpg";
@@ -262,7 +263,7 @@ const catalog = [
     name: "Retro Cake",
     description: "Vintage style with elegant decorations",
     image: designRetroCake,
-    images: [designRetroCake, retroCake1, retroCake2, retroCake3],
+    images: [designRetroCake, retroCake1, retroCake2, retroCake3, retroCake4],
     styleId: "retro-vintage",
     styleName: "Retro / Vintage",
     stylePrice: { bento: 5, medium: 15, large: 20 },
