@@ -246,7 +246,7 @@ const catalog = [
     image: styleNormalWithBorder,
     styleId: "normal-with-border",
     styleName: "Normal with border",
-    stylePrice: { bento: 0, retro: 2, medium: 80, large: 170 },
+    stylePrice: { bento: 0, retro: 2, medium: 0, large: 0 },
     disableText: false,
   },
   {
@@ -267,7 +267,7 @@ const catalog = [
     images: [designRetroCake, retroCake1, retroCake2, retroCake3, retroCake4],
     styleId: "retro-vintage",
     styleName: "Retro / Vintage",
-    stylePrice: { bento: 5, medium: 15, large: 20 },
+    stylePrice: { retro: 5, medium: 15, large: 20 },
     disableText: false,
   },
   {
@@ -277,7 +277,7 @@ const catalog = [
     image: designRainbowCake,
     styleId: "rainbow-cake",
     styleName: "Rainbow Cake",
-    stylePrice: { bento: 7, medium: 17, large: 30 },
+    stylePrice: { retro: 10, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -288,7 +288,7 @@ const catalog = [
     images: [designShagCake, shagCake1, shagCake2, shagCake3],
     styleId: "shag-cake",
     styleName: "Shag Cake",
-    stylePrice: { bento: 8, medium: 20, large: 30 },
+    stylePrice: { retro: 10, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -308,7 +308,7 @@ const catalog = [
     image: designScatteredPearls,
     styleId: "scattered-retro-pearls",
     styleName: "Scattered Retro Pearls",
-    stylePrice: { bento: 15, medium: 30, large: 45 },
+    stylePrice: { retro: 15, medium: 30, large: 45 },
     disableText: false,
   },
   {
@@ -318,7 +318,7 @@ const catalog = [
     image: designPearlBorders,
     styleId: "pearl-border-retro",
     styleName: "Pearl Border × Retro Decoration",
-    stylePrice: { bento: 25, medium: 50, large: 65 },
+    stylePrice: { retro: 25, medium: 50, large: 75 },
     disableText: false,
   },
   {
@@ -328,7 +328,7 @@ const catalog = [
     image: designGlitterCherries,
     styleId: "glitter-cherries-retro",
     styleName: "Glitter Cherries on a Retro Cake",
-    stylePrice: { bento: 12, medium: 25, large: 35 },
+    stylePrice: { retro: 12, medium: 25, large: 35 },
     disableText: false,
   },
   {
@@ -339,7 +339,7 @@ const catalog = [
     imagePosition: "object-[center_70%]",
     styleId: "cherries-retro",
     styleName: "Cherries on a Retro Cake",
-    stylePrice: { bento: 9, medium: 20, large: 30 },
+    stylePrice: { retro: 8, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -350,7 +350,7 @@ const catalog = [
     images: [retroRibbons2, retroRibbons1],
     styleId: "retro-ribbons",
     styleName: "Retro × Ribbons",
-    stylePrice: { bento: 10, medium: 20, large: 30 },
+    stylePrice: { retro: 10, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -360,7 +360,7 @@ const catalog = [
     image: designRetroGlitter,
     styleId: "retro-glitter-cake",
     styleName: "Retro Glitter Cake",
-    stylePrice: { bento: 10, medium: 20, large: 30 },
+    stylePrice: { bento: 10, retro: 12, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -370,7 +370,7 @@ const catalog = [
     image: designGlitterCake,
     styleId: "glitter-base",
     styleName: "Glitter Base",
-    stylePrice: { bento: 7, retro: 9, medium: 10, large: 12 },
+    stylePrice: { bento: 8, retro: 10, medium: 12, large: 14 },
     disableText: false,
   },
   {
@@ -381,7 +381,7 @@ const catalog = [
     imagePosition: "object-[center_70%]",
     styleId: "retro-ribbons-glitter",
     styleName: "Retro × Ribbons Glitter in the Air",
-    stylePrice: { bento: 20, medium: 30, large: 40 },
+    stylePrice: { retro: 20, medium: 30, large: 40 },
     disableText: false,
   },
   {
@@ -391,7 +391,7 @@ const catalog = [
     image: designGenderReveal,
     styleId: "gender-reveal",
     styleName: "Gender Reveal",
-    stylePrice: { bento: 5, medium: 10, large: 20 },
+    stylePrice: { bento: 5, retro: 7, medium: 10, large: 20 },
     disableText: false,
   },
   {
@@ -402,7 +402,7 @@ const catalog = [
     images: [designPrintedPicture, printedPicture1, printedPicture2],
     styleId: "printed-picture",
     styleName: "Printed Picture",
-    stylePrice: { bento: 20, medium: 20, large: 20 },
+    stylePrice: { bento: 15, retro: 17, medium: 15, large: 15 },
     disableText: true,
   },
   {
@@ -413,7 +413,7 @@ const catalog = [
     images: [designDrawing, drawing1, drawing2, drawing3, drawing4],
     styleId: "custom-drawing",
     styleName: "Custom Drawing",
-    stylePrice: { bento: 5, retro: 7, medium: 10, large: 15 },
+    stylePrice: { bento: 5, retro: 6, medium: 8, large: 10 },
     disableText: false,
   },
   {
@@ -423,7 +423,7 @@ const catalog = [
     image: designButterflyGarden,
     styleId: "butterfly-garden",
     styleName: "Butterfly Garden",
-    stylePrice: { bento: 7, medium: 15, large: 20 },
+    stylePrice: { bento: 6, retro: 8, medium: 15, large: 20 },
     disableText: false,
   },
   {
@@ -433,7 +433,7 @@ const catalog = [
     image: designRosesPlease,
     styleId: "roses-please",
     styleName: "Roses Please",
-    stylePrice: { bento: 7, medium: 15, large: 20 },
+    stylePrice: { retro: 7, medium: 15, large: 20 },
     disableText: false,
   },
   {
@@ -443,7 +443,7 @@ const catalog = [
     image: designHeartBomb,
     styleId: "heart-bomb",
     styleName: "Heart Bomb",
-    stylePrice: { bento: 5, medium: 10, large: 15 },
+    stylePrice: { bento: 3, retro: 5, medium: 10, large: 15 },
     disableText: false,
   },
   {
@@ -453,7 +453,7 @@ const catalog = [
     image: designPearlNumber,
     styleId: "pearl-number",
     styleName: "Pearl Number",
-    stylePrice: { bento: 5, medium: 5, large: 5 },
+    stylePrice: { bento: 5, retro: 7, medium: 5, large: 5 },
     disableText: false,
   },
 ];
@@ -607,10 +607,13 @@ const Catalog = () => {
 
   const handleSelectCake = (cake: typeof catalog[0]) => {
     setSelectedCake(cake);
+    // Pick the first available size for this design
+    const availableSizeIds = Object.keys(cake.stylePrice);
+    const defaultSize = availableSizeIds.includes("bento") ? "bento" : availableSizeIds[0] || "bento";
     setSelections({
       orderDate: null,
       orderTime: "",
-      size: "bento",
+      size: defaultSize,
       shape: "round",
       flavor: "vanilla",
       baseColor: "",
