@@ -170,11 +170,11 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {features.map((feature) => (
               <div key={feature.title} className="text-center flex flex-col items-center">
-                <div className="h-56 md:h-72 flex items-center justify-center mb-6">
+                <div className="h-64 md:h-80 flex items-center justify-center mb-6">
                   <img
                     src={feature.image}
                     alt={feature.title}
-                    className="mx-auto object-contain h-52 md:h-64"
+                    className="mx-auto object-contain h-60 md:h-76 max-w-full"
                   />
                 </div>
                 <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-4 whitespace-nowrap">
