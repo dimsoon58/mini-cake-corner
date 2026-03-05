@@ -61,16 +61,19 @@ const features = [
     title: "Personalized",
     description: "Your perfect cake, from flavors to decoration.",
     image: cakeTrendy,
+    scaleClass: "scale-100",
   },
   {
     title: "Whipped Cream Cakes",
     description: "Light, fluffy and delicious.",
     image: cakeWhippedCream,
+    scaleClass: "scale-[2.2]",
   },
   {
     title: "Fresh ingredients",
     description: "No preservatives. Only the best.",
     image: cakeFresh,
+    scaleClass: "scale-[1.8]",
   },
 ];
 
@@ -170,11 +173,11 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {features.map((feature) => (
               <div key={feature.title} className="text-center flex flex-col items-center">
-                <div className="w-[300px] h-[300px] flex items-center justify-center mb-6">
+                <div className="w-[240px] h-[240px] flex items-center justify-center mb-6 overflow-hidden">
                   <img
                     src={feature.image}
                     alt={feature.title}
-                    className="max-w-full max-h-full object-contain"
+                    className={`max-w-full max-h-full object-contain ${feature.scaleClass}`}
                   />
                 </div>
                 <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-4 whitespace-nowrap min-h-[3rem] flex items-center justify-center">
