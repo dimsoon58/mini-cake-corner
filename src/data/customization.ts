@@ -52,6 +52,8 @@ import extraHeart from "@/assets/extra-heart.png";
 import extraRetro from "@/assets/extra-retro.png";
 import extraDrawing from "@/assets/extra-drawing.png";
 import extraPrintedPicture from "@/assets/extra-printed-picture.png";
+import extraButterfly from "@/assets/extra-butterfly.png";
+import extraRibbons from "@/assets/extra-ribbons.png";
 
 // Candle images
 import candlePuppy from "@/assets/candle-puppy-new.png";
@@ -203,10 +205,10 @@ export const extras = [
   { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 12, medium: 15, large: 20 } as Record<string, number>, image: designGlitterInAir },
   { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 8, medium: 15, large: 20 } as Record<string, number>, image: designPearlBorders },
   { id: "retro", name: "Retro", price: { retro: 5, medium: 15, large: 20 } as Record<string, number>, image: extraRetro },
-  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10 } as Record<string, number>, image: designRibbons },
+  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10 } as Record<string, number>, image: extraRibbons },
   { id: "drawing", name: "Drawing", price: { bento: 5, retro: 5, medium: 8, large: 10 } as Record<string, number>, image: extraDrawing },
   { id: "heart", name: "Heart", price: { bento: 3, retro: 5, medium: 10, large: 15 } as Record<string, number>, image: extraHeart },
-  { id: "butterfly", name: "Butterfly", price: { bento: 4, retro: 6, medium: 8, large: 10 } as Record<string, number>, image: designButterflyGarden },
+  { id: "butterfly", name: "Butterfly", price: { bento: 4, retro: 6, medium: 8, large: 10 } as Record<string, number>, image: extraButterfly },
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 5, medium: 5, large: 5 } as Record<string, number>, image: designPearlNumber },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 } as Record<string, number>, image: extraPrintedPicture },
   { id: "sprinkles", name: "Sprinkles", price: { bento: 2, retro: 4, medium: 4, large: 6 } as Record<string, number>, image: extraSprinkles },
