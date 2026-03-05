@@ -33,6 +33,7 @@ import {
   CandleSelection,
   getExcludedExtras,
   extraGroups,
+  extraDescriptions,
   getAvailableSizesForStyle,
 } from "@/data/customization";
 
@@ -664,8 +665,20 @@ const CartItemEditor = ({
                       )}
                     >
                       <img src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-foreground truncate">{extra.name}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1">
+                          <p className="text-xs font-medium text-foreground truncate">{extra.name}</p>
+                          {extraDescriptions[extra.id] && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="w-3 h-3 text-muted-foreground cursor-help flex-shrink-0" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p className="text-xs max-w-[200px]">{extraDescriptions[extra.id]}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
                         <p className="text-[10px] text-primary">+CHF {price}</p>
                       </div>
                     </button>
