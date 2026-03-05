@@ -292,3 +292,33 @@ export const calculateCartItemTotal = (
   const candlesPrice = candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id, candleSelections), 0);
   return sizePrice + shapeExtra + flavorExtra + styleExtra + extrasPrice + candlesPrice;
 };
+
+// Design → excluded extra IDs mapping (keyed by styleId)
+export const designExcludedExtras: Record<string, string[]> = {
+  "normal-without-border": [],
+  "normal-with-border": [],
+  "sprinkles-with-border": ["sprinkles"],
+  "retro-vintage": ["retro"],
+  "rainbow-cake": ["retro", "sprinkles"],
+  "shag-cake": ["retro", "heart"],
+  "gold-leaves-style": ["gold-leaves"],
+  "scattered-retro-pearls": ["retro", "scattered-pearl"],
+  "pearl-border-retro": ["retro", "scattered-pearl", "pearl-border"],
+  "glitter-cherries-retro": ["retro", "glitter-cherries"],
+  "cherries-retro": ["retro", "cherries"],
+  "retro-ribbons": ["retro", "ribbons"],
+  "retro-glitter-cake": ["retro", "glitter"],
+  "glitter-base": ["glitter-base"],
+  "retro-ribbons-glitter": ["retro", "ribbons", "glitter-in-the-air"],
+  "printed-picture": ["printed-picture", "glitter-base", "glitter-in-the-air"],
+  "custom-drawing": ["drawing", "glitter-in-the-air"],
+  "butterfly-garden": ["butterfly", "scattered-pearl"],
+  "roses-please": ["retro"],
+  "heart-bomb": ["heart"],
+  "pearl-number": ["pearl-number"],
+  "gender-reveal": [],
+};
+
+export const getExcludedExtras = (styleId: string): string[] => {
+  return designExcludedExtras[styleId] || [];
+};

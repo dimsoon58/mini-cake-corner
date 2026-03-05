@@ -31,6 +31,7 @@ import {
   glitterCherriesColors,
   calculateCartItemTotal,
   CandleSelection,
+  getExcludedExtras,
 } from "@/data/customization";
 
 // Import images for catalogExtras
@@ -130,6 +131,22 @@ const Cart = () => {
     if (styleId === "normal-without-border") {
       updates.decorationColor = "";
       updates.decorationColorName = "";
+    }
+    // Remove incompatible extras when design changes
+    const item = items.find(i => i.id === itemId);
+    if (item) {
+      const excluded = getExcludedExtras(styleId);
+      const currentExtras = item.extras || [];
+      const filteredExtras = currentExtras.filter(e => !excluded.includes(e));
+      if (filteredExtras.length !== currentExtras.length) {
+        updates.extras = filteredExtras;
+        updates.extrasNames = filteredExtras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
+        // Clear color selections for removed extras
+        if (!filteredExtras.includes("glitter")) updates.glitterColor = "";
+        if (!filteredExtras.includes("ribbons")) { updates.ribbonColor = ""; updates.ribbonColorName = ""; }
+        if (!filteredExtras.includes("butterfly")) { updates.butterflyColor = ""; updates.butterflyColorName = ""; }
+        if (!filteredExtras.includes("glitter-cherries")) updates.glitterCherriesColor = "";
+      }
     }
     recalcAndUpdate(itemId, updates);
   };
@@ -411,6 +428,7 @@ const CartItemEditor = ({
 }: CartItemEditorProps) => {
   const showDecoColor = item.style !== "normal-without-border";
   const showText = item.style !== "printed-picture";
+  const excludedExtras = getExcludedExtras(item.style);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [commentImages, setCommentImages] = useState<File[]>([]);
 
@@ -601,7 +619,7 @@ const CartItemEditor = ({
       {/* Extras */}
       <EditSection label="✨ Extra" tooltip="You can add any additional elements to personalize your design.">
         <div className="grid grid-cols-2 gap-2">
-          {catalogExtras.map((extra) => {
+          {catalogExtras.filter(extra => !excludedExtras.includes(extra.id)).map((extra) => {
             const isSelected = (item.extras || []).includes(extra.id);
             const price = getExtraPriceForSize(extra);
             return (
