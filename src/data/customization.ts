@@ -167,6 +167,25 @@ export const styles = [
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 7, medium: 5, large: 5 } as Record<string, number>, image: designPearlNumber },
 ];
 
+export const extraDescriptions: Record<string, string> = {
+  "cherries": "Candied cherries placed on top of the cake.",
+  "glitter-cherries": "Candied cherries covered with edible glitter.",
+  "sprinkles": "Small colorful sprinkles scattered over the cake.",
+  "gold-leaves": "Small pieces of edible gold leaf for a luxury touch.",
+  "heart": "Heart shapes piped on the cake.",
+  "ribbons": "Decorative satin ribbons placed around the cake.",
+  "retro": "Vintage cake piping.",
+  "butterfly": "Edible butterflies placed on the cake.",
+  "scattered-pearl": "Small edible pearls scattered across the cake.",
+  "pearl-border": "A border made of small edible pearls.",
+  "pearl-number": "A number created using edible pearls.",
+  "glitter": "Edible glitter sprinkled all over the cake for a sparkly effect.",
+  "glitter-base": "Glitter covering the top of the cake.",
+  "glitter-in-the-air": "Blow on the cake and the glitter flies.",
+  "drawing": "Hand-drawn design on the cake.",
+  "printed-picture": "Edible printed image placed on top of the cake.",
+};
+
 export const extras = [
   { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 5, large: 8 } as Record<string, number>, image: designGoldLeaves },
   { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 } as Record<string, number>, image: designCherries },
