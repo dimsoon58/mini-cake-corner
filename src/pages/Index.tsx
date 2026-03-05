@@ -42,6 +42,15 @@ import customer31 from "@/assets/customer-31.jpg";
 import customer32 from "@/assets/customer-32.jpg";
 import customer33 from "@/assets/customer-33.jpg";
 import customer34 from "@/assets/customer-34.jpg";
+import comment7 from "@/assets/comment-7.jpg";
+import comment8 from "@/assets/comment-8.jpg";
+import comment9 from "@/assets/comment-9.jpg";
+import comment10 from "@/assets/comment-10.jpg";
+import comment11 from "@/assets/comment-11.jpg";
+import comment12 from "@/assets/comment-12.jpg";
+import comment13 from "@/assets/comment-13.jpg";
+import comment14 from "@/assets/comment-14.jpg";
+import comment15 from "@/assets/comment-15.jpg";
 
 const customerPhotos = [
   customer3, customer4, customer5,
@@ -54,7 +63,10 @@ const customerPhotos = [
 ];
 
 // Placeholder array for customer comment images — add imports here later
-const customerCommentPhotos: string[] = [];
+const customerCommentPhotos: string[] = [
+  comment7, comment8, comment9, comment10, comment11,
+  comment12, comment13, comment14, comment15,
+];
 
 const features = [
   {
