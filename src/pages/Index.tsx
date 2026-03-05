@@ -71,7 +71,7 @@ const features = [
   },
   {
     title: "Fresh ingredients",
-    description: "No preservatives. Only the best.",
+    description: "Made with fresh ingredients. No preservatives.",
     image: cakeFresh,
     scaleClass: "scale-[1.8]",
   },
