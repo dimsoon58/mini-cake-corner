@@ -61,16 +61,19 @@ const features = [
     title: "Personalized",
     description: "Your perfect cake, from flavors to decoration.",
     image: cakeTrendy,
+    largeImage: false,
   },
   {
     title: "Whipped cream",
     description: "Light, fluffy and delicious.",
     image: cakeWhippedCream,
+    largeImage: true,
   },
   {
     title: "Fresh ingredients",
     description: "No preservatives. Only the best.",
     image: cakeFresh,
+    largeImage: true,
   },
 ];
 
@@ -169,12 +172,12 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {features.map((feature) => (
-              <div key={feature.title} className="text-center flex flex-col items-center">
-                <div className="h-64 md:h-80 flex items-center justify-center mb-6">
+              <div key={feature.title} className="text-center flex flex-col items-center overflow-hidden">
+                <div className={`flex items-center justify-center mb-6 ${feature.largeImage ? 'h-[500px] md:h-[600px]' : 'h-64 md:h-80'}`}>
                   <img
                     src={feature.image}
                     alt={feature.title}
-                    className="mx-auto object-contain h-60 md:h-76 max-w-full"
+                    className={`mx-auto object-contain max-w-full ${feature.largeImage ? 'h-[480px] md:h-[580px]' : 'h-60 md:h-76'}`}
                   />
                 </div>
                 <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-4 whitespace-nowrap">
