@@ -58,21 +58,18 @@ const customerCommentPhotos: string[] = [];
 
 const features = [
   {
-    title: "Homemade goodness",
-    description:
-      "When you think of warmth, love, and comfort in a bite, think homemade. Our cakes are all about that authentic taste, paired with a cheeky wink.",
-    image: cakeHomemade,
-  },
-  {
     title: "Trendy & personalized",
-    description:
-      "It's modern, it's unique and it's trendy. Ditch that regular cake and get a personalized piece of art, made with love and passion just for you.",
+    description: "Designed just for your celebration.",
     image: cakeTrendy,
   },
   {
+    title: "Light whipped cream cakes",
+    description: "Light, fluffy and delicious.",
+    image: cakeHomemade,
+  },
+  {
     title: "Fresh ingredients",
-    description:
-      "Because we believe that our cakes should be fresh, nutritious and prepared with care, we only use natural & fresh ingredients with no preservatives.",
+    description: "Made with fresh ingredients. No preservatives.",
     image: cakeFresh,
   },
 ];
