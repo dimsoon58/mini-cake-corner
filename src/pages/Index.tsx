@@ -5,8 +5,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import logo from "@/assets/logo-new.png";
 import heroBg from "@/assets/hero-bg.jpg";
-import cakeHomemade from "@/assets/cake-homemade.png";
-import cakeFresh from "@/assets/cake-fresh.png";
+import cakeWhippedCream from "@/assets/cake-whipped-cream.jpg";
+import cakeFresh from "@/assets/cake-fresh-ingredients.jpg";
 import cakeTrendy from "@/assets/cake-trendy.png";
 import customer1 from "@/assets/customer-1.jpg";
 import customer2 from "@/assets/customer-2.jpg";
@@ -65,7 +65,7 @@ const features = [
   {
     title: "Light whipped cream cakes",
     description: "Light, fluffy and delicious.",
-    image: cakeHomemade,
+    image: cakeWhippedCream,
   },
   {
     title: "Fresh ingredients",
