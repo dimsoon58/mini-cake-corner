@@ -75,7 +75,14 @@ import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
-import extraSprinkles from "@/assets/extra-sprinkles.jpg";
+import extraSprinkles from "@/assets/extra-sprinkles-new.jpg";
+import extraCherries from "@/assets/extra-cherries.png";
+import extraGlitterCherries from "@/assets/extra-glitter-cherries.png";
+import extraGoldLeaves from "@/assets/extra-gold-leaves.png";
+import extraHeart from "@/assets/extra-heart.png";
+import extraRetro from "@/assets/extra-retro.png";
+import extraDrawing from "@/assets/extra-drawing.png";
+import extraPrintedPicture from "@/assets/extra-printed-picture.png";
 import designSprinklesWithBorder from "@/assets/design-sprinkles-with-border.jpg";
 
 // Flavor images
@@ -176,21 +183,21 @@ const candles = [
 ];
 
 const catalogExtras = [
-  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 5, large: 8 }, image: designGoldLeaves },
-  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 }, image: designCherries },
-  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 }, image: designGlitterCherries },
+  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 5, large: 8 }, image: extraGoldLeaves },
+  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 }, image: extraCherries },
+  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 }, image: extraGlitterCherries },
   { id: "scattered-pearl", name: "Scattered Pearl", price: { bento: 2, retro: 4, medium: 5, large: 6 }, image: designScatteredPearls },
   { id: "glitter", name: "Glitter", price: { bento: 4, retro: 4, medium: 8, large: 10 }, image: designGlitterCake },
   { id: "glitter-base", name: "Glitter Base", price: { bento: 6, retro: 8, medium: 10, large: 12 }, image: designGlitterCake },
   { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 12, medium: 15, large: 20 }, image: designGlitterInAir },
   { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 8, medium: 15, large: 20 }, image: designPearlBorders },
-  { id: "retro", name: "Retro", price: { retro: 5, medium: 15, large: 20 }, image: designRetroCake },
+  { id: "retro", name: "Retro", price: { retro: 5, medium: 15, large: 20 }, image: extraRetro },
   { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10 }, image: designRibbons },
-  { id: "drawing", name: "Drawing", price: { bento: 5, retro: 5, medium: 8, large: 10 }, image: designDrawing },
-  { id: "heart", name: "Heart", price: { bento: 3, retro: 5, medium: 10, large: 15 }, image: designHeartBomb },
+  { id: "drawing", name: "Drawing", price: { bento: 5, retro: 5, medium: 8, large: 10 }, image: extraDrawing },
+  { id: "heart", name: "Heart", price: { bento: 3, retro: 5, medium: 10, large: 15 }, image: extraHeart },
   { id: "butterfly", name: "Butterfly", price: { bento: 4, retro: 6, medium: 8, large: 10 }, image: designButterflyGarden },
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designPearlNumber },
-  { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 }, image: designPrintedPicture },
+  { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 }, image: extraPrintedPicture },
   { id: "sprinkles", name: "Sprinkles", price: { bento: 2, retro: 4, medium: 4, large: 6 }, image: extraSprinkles },
 ];
 
