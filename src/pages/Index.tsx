@@ -89,12 +89,12 @@ const features = [
   },
 ];
 
-const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: string }) => {
+const PhotoCarousel = ({ photos, altPrefix, contain }: { photos: string[]; altPrefix: string; contain?: boolean }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: "left" | "right") => {
     if (!scrollRef.current) return;
-    const scrollAmount = 320;
+    const scrollAmount = contain ? scrollRef.current.clientWidth : 320;
     scrollRef.current.scrollBy({
       left: direction === "left" ? -scrollAmount : scrollAmount,
       behavior: "smooth",
@@ -117,20 +117,33 @@ const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: str
       </button>
       <div
         ref={scrollRef}
-        className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-4"
+        className={`flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-4 ${contain ? 'snap-x snap-mandatory' : ''}`}
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {photos.map((photo, index) => (
-          <div
-            key={index}
-            className="flex-shrink-0 w-72 h-80 rounded-2xl overflow-hidden"
-          >
-            <img
-              src={photo}
-              alt={`${altPrefix} ${index + 1}`}
-              className="w-full h-full object-cover"
-            />
-          </div>
+          contain ? (
+            <div
+              key={index}
+              className="flex-shrink-0 w-full flex items-center justify-center snap-center"
+            >
+              <img
+                src={photo}
+                alt={`${altPrefix} ${index + 1}`}
+                className="max-w-full max-h-[500px] object-contain rounded-2xl"
+              />
+            </div>
+          ) : (
+            <div
+              key={index}
+              className="flex-shrink-0 w-72 h-80 rounded-2xl overflow-hidden"
+            >
+              <img
+                src={photo}
+                alt={`${altPrefix} ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )
         ))}
       </div>
       <button
@@ -281,7 +294,7 @@ const Index = () => {
           <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
             CUSTOMER COMMENTS
           </h2>
-          <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" />
+          <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" contain />
         </div>
       </section>
 
