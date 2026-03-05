@@ -301,9 +301,9 @@ const Index = () => {
       </section>
 
       {/* Customer Comments Section */}
-      <section className="py-20 bg-background">
+      <section className="py-10 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
+          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-8">
             CUSTOMER COMMENTS
           </h2>
           <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" contain />
