@@ -51,6 +51,11 @@ import comment12 from "@/assets/comment-12.jpg";
 import comment13 from "@/assets/comment-13.jpg";
 import comment14 from "@/assets/comment-14.jpg";
 import comment15 from "@/assets/comment-15.jpg";
+import comment16 from "@/assets/comment-16.jpg";
+import comment17 from "@/assets/comment-17.jpg";
+import comment18 from "@/assets/comment-18.jpg";
+import comment19 from "@/assets/comment-19.jpg";
+import comment20 from "@/assets/comment-20.jpg";
 
 const customerPhotos = [
   customer3, customer4, customer5,
@@ -66,6 +71,7 @@ const customerPhotos = [
 const customerCommentPhotos: string[] = [
   comment7, comment8, comment9, comment10, comment11,
   comment12, comment13, comment14, comment15,
+  comment16, comment17, comment18, comment19, comment20,
 ];
 
 const features = [
