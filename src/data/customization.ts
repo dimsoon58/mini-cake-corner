@@ -206,6 +206,29 @@ export const candles = [
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
 ];
 
+export const extraGroups = [
+  {
+    label: "Toppings",
+    ids: ["cherries", "glitter-cherries", "sprinkles", "gold-leaves"],
+  },
+  {
+    label: "Decorations",
+    ids: ["heart", "ribbons", "retro", "butterfly"],
+  },
+  {
+    label: "Pearls & Borders",
+    ids: ["scattered-pearl", "pearl-border", "pearl-number"],
+  },
+  {
+    label: "Glitter Effects",
+    ids: ["glitter", "glitter-base", "glitter-in-the-air"],
+  },
+  {
+    label: "Custom Design",
+    ids: ["drawing", "printed-picture"],
+  },
+];
+
 export const ribbonColors = [
   { id: "baby-pink", name: "Baby Pink", color: "#F4C2C2" },
   { id: "pink", name: "Pink", color: "#FFC0CB" },

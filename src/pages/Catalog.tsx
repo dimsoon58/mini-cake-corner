@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
 import { allergenMap } from "@/data/allergens";
-import { getExcludedExtras } from "@/data/customization";
+import { getExcludedExtras, extraGroups } from "@/data/customization";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -1393,30 +1393,41 @@ const Catalog = () => {
                     <TooltipContent><p className="text-xs max-w-[220px]">You can add any additional elements to personalize your design.</p></TooltipContent>
                   </Tooltip>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {catalogExtras.filter(extra => !excludedExtras.includes(extra.id)).map((extra) => {
-                    const isSelected = selections.extras.includes(extra.id);
-                    const price = getExtraPriceForSize(extra);
-                    return (
-                      <button
-                        key={extra.id}
-                        onClick={() => handleToggleExtra(extra.id)}
-                        className={cn(
-                          "flex items-center gap-2 p-2 rounded-lg border transition-all text-left",
-                          isSelected
-                            ? "ring-2 ring-primary border-primary bg-secondary/50"
-                            : "border-border hover:border-primary/50"
-                        )}
-                      >
-                        <img src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-foreground truncate">{extra.name}</p>
-                          <p className="text-[10px] text-primary">+CHF {price}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                {extraGroups.map((group) => {
+                  const visibleExtras = group.ids
+                    .map(id => catalogExtras.find(e => e.id === id))
+                    .filter((extra): extra is typeof catalogExtras[0] => !!extra && !excludedExtras.includes(extra.id));
+                  if (visibleExtras.length === 0) return null;
+                  return (
+                    <div key={group.label} className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{group.label}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {visibleExtras.map((extra) => {
+                          const isSelected = selections.extras.includes(extra.id);
+                          const price = getExtraPriceForSize(extra);
+                          return (
+                            <button
+                              key={extra.id}
+                              onClick={() => handleToggleExtra(extra.id)}
+                              className={cn(
+                                "flex items-center gap-2 p-2 rounded-lg border transition-all text-left",
+                                isSelected
+                                  ? "ring-2 ring-primary border-primary bg-secondary/50"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                            >
+                              <img src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-foreground truncate">{extra.name}</p>
+                                <p className="text-[10px] text-primary">+CHF {price}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
 
                 {/* Glitter Color */}
                 {selections.extras.includes("glitter") && (

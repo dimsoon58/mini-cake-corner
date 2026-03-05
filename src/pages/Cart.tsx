@@ -32,6 +32,7 @@ import {
   calculateCartItemTotal,
   CandleSelection,
   getExcludedExtras,
+  extraGroups,
   getAvailableSizesForStyle,
 } from "@/data/customization";
 
@@ -394,7 +395,18 @@ const CartItemSummary = ({ item }: { item: any }) => {
         </p>
       )}
       {item.cakeText && <p className="text-sm text-muted-foreground">Text: "{item.cakeText}"</p>}
-      {item.extrasNames && item.extrasNames.length > 0 && <p className="text-sm text-muted-foreground">Extras: {item.extrasNames.join(", ")}</p>}
+      {item.extras && item.extras.length > 0 && (
+        <div className="text-sm text-muted-foreground">
+          {extraGroups.map((group) => {
+            const selectedInGroup = group.ids.filter(id => item.extras.includes(id));
+            if (selectedInGroup.length === 0) return null;
+            const names = selectedInGroup.map(id => catalogExtras.find(e => e.id === id)?.name || id);
+            return (
+              <p key={group.label}>{group.label}: {names.join(", ")}</p>
+            );
+          })}
+        </div>
+      )}
       {item.comment && <p className="text-sm text-muted-foreground">Comment: {item.comment}</p>}
       {candleNames.length > 0 && <p className="text-sm text-muted-foreground">Candles: {candleNames.join(", ")}</p>}
       <p className="text-xl font-bold text-primary text-right">CHF {item.total}</p>
@@ -628,30 +640,41 @@ const CartItemEditor = ({
 
       {/* Extras */}
       <EditSection label="✨ Extra" tooltip="You can add any additional elements to personalize your design.">
-        <div className="grid grid-cols-2 gap-2">
-          {catalogExtras.filter(extra => !excludedExtras.includes(extra.id)).map((extra) => {
-            const isSelected = (item.extras || []).includes(extra.id);
-            const price = getExtraPriceForSize(extra);
-            return (
-              <button
-                key={extra.id}
-                onClick={() => onToggleExtra(extra.id)}
-                className={cn(
-                  "flex items-center gap-2 p-2 rounded-lg border transition-all text-left",
-                  isSelected
-                    ? "ring-2 ring-primary border-primary bg-secondary/50"
-                    : "border-border hover:border-primary/50"
-                )}
-              >
-                <img src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-foreground truncate">{extra.name}</p>
-                  <p className="text-[10px] text-primary">+CHF {price}</p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {extraGroups.map((group) => {
+          const visibleExtras = group.ids
+            .map(id => catalogExtras.find(e => e.id === id))
+            .filter((extra): extra is typeof catalogExtras[0] => !!extra && !excludedExtras.includes(extra.id));
+          if (visibleExtras.length === 0) return null;
+          return (
+            <div key={group.label} className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{group.label}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {visibleExtras.map((extra) => {
+                  const isSelected = (item.extras || []).includes(extra.id);
+                  const price = getExtraPriceForSize(extra);
+                  return (
+                    <button
+                      key={extra.id}
+                      onClick={() => onToggleExtra(extra.id)}
+                      className={cn(
+                        "flex items-center gap-2 p-2 rounded-lg border transition-all text-left",
+                        isSelected
+                          ? "ring-2 ring-primary border-primary bg-secondary/50"
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <img src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">{extra.name}</p>
+                        <p className="text-[10px] text-primary">+CHF {price}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
 
         {/* Glitter Color */}
         {(item.extras || []).includes("glitter") && (
