@@ -58,21 +58,19 @@ const customerCommentPhotos: string[] = [];
 
 const features = [
   {
-    title: "Fully personalized",
-    description: "Create your perfect cake, from flavors to final decoration.",
+    title: "Personalized",
+    description: "Your perfect cake, from flavors to decoration.",
     image: cakeTrendy,
   },
   {
-    title: "Whipped cream cakes",
+    title: "Whipped cream",
     description: "Light, fluffy and delicious.",
     image: cakeWhippedCream,
-    largeImage: true,
   },
   {
     title: "Fresh ingredients",
-    description: "Made with fresh ingredients. No preservatives.",
+    description: "No preservatives. Only the best.",
     image: cakeFresh,
-    largeImage: true,
   },
 ];
 
@@ -172,14 +170,14 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {features.map((feature) => (
               <div key={feature.title} className="text-center flex flex-col items-center">
-                <div className="h-48 md:h-56 flex items-center justify-center mb-6">
+                <div className="h-56 md:h-72 flex items-center justify-center mb-6">
                   <img
                     src={feature.image}
                     alt={feature.title}
-                    className={`mx-auto object-contain ${feature.largeImage ? 'h-44 md:h-52' : 'h-32 md:h-40'}`}
+                    className="mx-auto object-contain h-52 md:h-64"
                   />
                 </div>
-                <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-4 min-h-[2.25rem] flex items-center">
+                <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-4 whitespace-nowrap">
                   {feature.title}
                 </h3>
                 <p className="text-muted-foreground leading-relaxed">
