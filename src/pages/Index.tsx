@@ -141,7 +141,7 @@ const PhotoCarousel = ({ photos, altPrefix, contain }: { photos: string[]; altPr
               <img
                 src={photo}
                 alt={`${altPrefix} ${index + 1}`}
-                className="max-w-[350px] max-h-[400px] object-contain rounded-2xl"
+                className="max-w-[500px] w-full h-auto object-contain rounded-2xl"
               />
             </div>
           ) : (
