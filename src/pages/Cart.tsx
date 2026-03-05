@@ -32,6 +32,7 @@ import {
   calculateCartItemTotal,
   CandleSelection,
   getExcludedExtras,
+  getAvailableSizesForStyle,
 } from "@/data/customization";
 
 // Import images for catalogExtras
@@ -132,9 +133,17 @@ const Cart = () => {
       updates.decorationColor = "";
       updates.decorationColorName = "";
     }
-    // Remove incompatible extras when design changes
+    // Reset size if current size is not available for the new style
     const item = items.find(i => i.id === itemId);
     if (item) {
+      const availableSizes = getAvailableSizesForStyle(styleId);
+      if (!availableSizes.includes(item.size)) {
+        const newSizeId = availableSizes[0] || "bento";
+        const newSizeObj = sizes.find(s => s.id === newSizeId);
+        updates.size = newSizeId;
+        updates.sizeName = newSizeObj?.name || "";
+      }
+      // Remove incompatible extras when design changes
       const excluded = getExcludedExtras(styleId);
       const currentExtras = item.extras || [];
       const filteredExtras = currentExtras.filter(e => !excluded.includes(e));
@@ -429,6 +438,7 @@ const CartItemEditor = ({
   const showDecoColor = item.style !== "normal-without-border";
   const showText = item.style !== "printed-picture";
   const excludedExtras = getExcludedExtras(item.style);
+  const availableSizeIds = getAvailableSizesForStyle(item.style);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [commentImages, setCommentImages] = useState<File[]>([]);
 
@@ -480,7 +490,7 @@ const CartItemEditor = ({
       {/* Size with box images */}
       <EditSection label="Size" tooltip="Choose the size of your cake." required>
         <div className="grid grid-cols-1 gap-2">
-          {sizes.map((size) => (
+          {sizes.filter(size => availableSizeIds.includes(size.id)).map((size) => (
             <button
               key={size.id}
               onClick={() => onSizeChange(size.id)}
