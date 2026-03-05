@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
 import { allergenMap } from "@/data/allergens";
+import { getExcludedExtras } from "@/data/customization";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -692,6 +693,8 @@ const Catalog = () => {
   const getTotalCandlesPrice = () => {
     return candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id), 0);
   };
+
+  const excludedExtras = selectedCake ? getExcludedExtras(selectedCake.styleId) : [];
 
   const handleToggleExtra = (extraId: string) => {
     const newExtras = selections.extras.includes(extraId)
@@ -1388,7 +1391,7 @@ const Catalog = () => {
                   </Tooltip>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {catalogExtras.map((extra) => {
+                  {catalogExtras.filter(extra => !excludedExtras.includes(extra.id)).map((extra) => {
                     const isSelected = selections.extras.includes(extra.id);
                     const price = getExtraPriceForSize(extra);
                     return (
