@@ -63,7 +63,7 @@ const features = [
     image: cakeTrendy,
   },
   {
-    title: "Whipped cream",
+    title: "Whipped Cream Cakes",
     description: "Light, fluffy and delicious.",
     image: cakeWhippedCream,
   },
