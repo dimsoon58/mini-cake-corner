@@ -34,6 +34,7 @@ export interface CartItem {
   butterflyColorName: string;
   candles: CandleCartItem[];
   comment: string;
+  imageUrls: string[];
   total: number;
 }
 

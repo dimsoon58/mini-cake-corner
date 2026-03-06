@@ -888,6 +888,7 @@ const Catalog = () => {
       comment: selectedCake.images && selectedCake.images.length > 1
         ? `[Preferred design: Option ${selections.shagDesignPreference + 1}]${selections.comment ? " " + selections.comment : ""}`
         : selections.comment,
+      imageUrls: [],
       total: calculatePrice(),
     });
     setSheetOpen(false);

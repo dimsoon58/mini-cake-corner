@@ -8,6 +8,7 @@ import { Check, ShoppingBag, Upload, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
+import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import CakeVisualizer from "@/components/CakeVisualizer";
 import { format, addDays } from "date-fns";
@@ -468,7 +469,7 @@ const Customize = () => {
     return sizePrice + extrasPrice + candlesPrice + shapeExtra + flavorExtra + styleExtra;
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     const size = sizes.find(s => s.id === selections.size);
     const shape = shapes.find(s => s.id === selections.shape);
     const flavor = flavorCategories.flatMap(c => c.flavors).find(f => f.id === selections.flavor);
@@ -480,6 +481,38 @@ const Customize = () => {
     
     const selectedRibbonColor = ribbonColors.find(c => c.id === selections.ribbonColor);
     const selectedButterflyColor = butterflyColors.find(c => c.id === selections.butterflyColor);
+
+    // Upload reference images to storage bucket
+    let imageUrls: string[] = [];
+    if (selections.extraImages.length > 0) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const tempId = Date.now().toString();
+
+      for (let i = 0; i < selections.extraImages.length; i++) {
+        const file = selections.extraImages[i];
+        const ext = file.name.split(".").pop() || "jpg";
+        const filePath = `${year}/${month}/${tempId}/reference_${i + 1}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("order-images")
+          .upload(filePath, file, { contentType: file.type, upsert: false });
+
+        if (uploadError) {
+          console.error("Image upload error:", uploadError);
+          continue;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from("order-images")
+          .getPublicUrl(filePath);
+
+        if (urlData?.publicUrl) {
+          imageUrls.push(urlData.publicUrl);
+        }
+      }
+    }
     
     addItem({
       id: "",
@@ -507,7 +540,8 @@ const Customize = () => {
       butterflyColor: selections.butterflyColor || "",
       butterflyColorName: selectedButterflyColor?.name || "",
       candles: selections.candles,
-      comment: "",
+      comment: selections.extraComment,
+      imageUrls,
       textStyle: "normal",
       total: calculateTotal(),
     });
