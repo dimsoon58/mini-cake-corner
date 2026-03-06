@@ -261,7 +261,7 @@ const Checkout = () => {
           total: item.total,
         })),
         deliveryComment,
-        pickupTime: items[0]?.orderTime || "",
+        pickupTime: deliveryOption === "pickup" ? pickupTime : "",
       };
 
       // Save order to database with pending status
