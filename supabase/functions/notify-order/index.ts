@@ -8,6 +8,12 @@ const corsHeaders = {
 
 const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
 
+function formatDateCH(dateValue?: string): string {
+  if (!dateValue) return "—";
+  const [year, month, day] = dateValue.split("-");
+  return year && month && day ? `${day}.${month}.${year}` : dateValue;
+}
+
 function row(label: string, value: string | undefined | null): string {
   if (!value) return "";
   return `<tr><td style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
