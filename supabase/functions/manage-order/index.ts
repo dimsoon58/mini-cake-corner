@@ -178,6 +178,31 @@ async function createCalendarEvent(accessToken: string, order: any, paymentMetho
   return data;
 }
 
+async function getPaymentMethodLabel(stripe: Stripe, paymentIntentId: string): Promise<string> {
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+    expand: ["latest_charge"],
+  });
+
+  const latestCharge = paymentIntent.latest_charge && typeof paymentIntent.latest_charge !== "string"
+    ? paymentIntent.latest_charge as Stripe.Charge
+    : null;
+
+  const details = latestCharge?.payment_method_details;
+  if (details?.type === "twint") return "Twint";
+
+  if (details?.type === "card") {
+    const walletType = details.card?.wallet?.type;
+    if (walletType === "apple_pay") return "Apple Pay";
+    return "Card";
+  }
+
+  const fallbackType = paymentIntent.payment_method_types?.[0];
+  if (fallbackType === "twint") return "Twint";
+  if (fallbackType === "card") return "Card";
+
+  return "Card";
+}
+
 // ── Approval confirmation email ─────────────────────────────────────
 
 async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethodLabel: string) {
