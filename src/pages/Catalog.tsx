@@ -638,7 +638,7 @@ const Catalog = () => {
       extras: [],
       ribbonColor: "",
       butterflyColor: "",
-      glitterColor: "",
+      glitterColor: cake.styleId === "retro-ribbons-glitter" ? "pink" : "",
       glitterCherriesColor: "",
       shagDesignPreference: 0,
     });
