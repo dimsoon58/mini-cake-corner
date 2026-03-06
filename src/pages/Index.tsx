@@ -166,7 +166,12 @@ const Index = () => {
           style={{ backgroundImage: `url(${heroBg})`, backgroundPosition: 'center 60%' }}
         />
         <div className="absolute inset-0 bg-foreground/20" />
-        <div className="relative container mx-auto px-4 py-24 md:py-32 text-center">
+        <div className="relative container mx-auto px-4 py-16 md:py-24 flex flex-col items-center text-center">
+          <img
+            src={heroCake}
+            alt="Bento Cake Studio signature cake"
+            className="w-64 md:w-80 lg:w-96 h-auto object-contain mb-8 drop-shadow-2xl"
+          />
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-light tracking-wide mb-6">
             NOT YOUR TRADITIONAL CAKES
           </h1>
