@@ -135,12 +135,12 @@ const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: str
         {photos.map((photo, index) => (
             <div
               key={index}
-              className="flex-shrink-0 w-72 h-80 rounded-2xl overflow-hidden"
+              className="flex-shrink-0 w-72 h-80 rounded-2xl overflow-hidden bg-muted flex items-center justify-center"
             >
               <img
                 src={photo}
                 alt={`${altPrefix} ${index + 1}`}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
             </div>
         ))}
