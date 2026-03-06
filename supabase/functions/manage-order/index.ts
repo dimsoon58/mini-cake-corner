@@ -459,6 +459,16 @@ serve(async (req) => {
           console.error("Calendar error:", e);
         }
       }
+
+      // Send confirmation email to customer
+      const resendKeyApprove = Deno.env.get("RESEND_API_KEY");
+      if (resendKeyApprove) {
+        try {
+          approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order);
+        } catch (e) {
+          console.error("Approval email error:", e);
+        }
+      }
     } else {
       if (!order.stripe_session_id) throw new Error("No Stripe session ID found");
 
