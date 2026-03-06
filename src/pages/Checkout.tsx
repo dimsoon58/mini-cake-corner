@@ -292,9 +292,18 @@ const Checkout = () => {
         return;
       }
 
+      const orderId = crypto.randomUUID();
+
+      const orderItemsWithFinalImageUrls = await Promise.all(
+        items.map(async (item) => ({
+          ...item,
+          imageUrls: await moveImageUrlsToOrderFolder(item.imageUrls || [], orderId),
+        }))
+      );
+
       // Build order details JSON for admin review
       const orderDetailsJson = {
-        items: items.map((item) => ({
+        items: orderItemsWithFinalImageUrls.map((item) => ({
           sizeName: item.sizeName,
           shapeName: item.shapeName,
           flavorName: item.flavorName,
@@ -319,6 +328,7 @@ const Checkout = () => {
 
       // Save order to database with pending status
       const { data: orderData, error: orderError } = await supabase.from("orders").insert({
+        id: orderId,
         order_date: formattedDate,
         customer_name: `${firstName} ${lastName}`,
         customer_email: email,
@@ -333,9 +343,10 @@ const Checkout = () => {
 
       if (orderError) {
         console.error("Order save error:", orderError);
+        throw new Error("Impossible d'enregistrer la commande.");
       }
 
-      const orderId = orderData?.id;
+      const createdOrderId = orderData?.id;
 
       // Build payload for embedded checkout
       const payload = {
