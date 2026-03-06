@@ -125,7 +125,7 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
     const candles = (item.candles || []).filter((c: any) => c.quantity > 0);
     if (candles.length) pushBullet(`Candles: ${candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ")}`);
 
-    pushBullet(`Additional note: ${item.comment?.trim() || "-"}`);
+    if (item.comment?.trim()) pushBullet(`Additional note: ${item.comment.trim()}`);
   });
 
   if (orderImageUrls.length) {
@@ -252,7 +252,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
     if (item.ribbonColorName) rows.push(row("Ribbon color", item.ribbonColorName));
     if (item.butterflyColorName) rows.push(row("Butterfly color", item.butterflyColorName));
     if (candleStr) rows.push(row("Candles", candleStr));
-    rows.push(row("Additional note", item.comment?.trim() || "-"));
+    if (item.comment?.trim()) rows.push(row("Additional note", item.comment.trim()));
 
     return `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
