@@ -44,6 +44,19 @@ const COUNTRY_CODES = [
   { code: "+1", country: "US", flag: "🇺🇸" },
 ];
 
+// Generate time slots from 10:00 to 18:30 in 30-minute intervals
+const generateTimeSlots = () => {
+  const slots: string[] = [];
+  for (let hour = 10; hour <= 18; hour++) {
+    slots.push(`${hour.toString().padStart(2, "0")}:00`);
+    if (hour < 18 || hour === 18) {
+      slots.push(`${hour.toString().padStart(2, "0")}:30`);
+    }
+  }
+  return slots;
+};
+
+const TIME_SLOTS = generateTimeSlots();
 
 // Delivery zones configuration with postal codes for auto-detection
 const DELIVERY_ZONES = [
