@@ -142,7 +142,7 @@ const AdminOrder = () => {
           {/* Pickup / Delivery */}
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
             <h3 className="font-medium text-foreground mb-2">📦 Pickup / Delivery</h3>
-            <DetailRow label="Date" value={order.order_date} />
+            <DetailRow label="Date" value={formatDateFromIso(order.order_date)} />
             <DetailRow label="Time" value={details.pickupTime} />
             <DetailRow label="Option" value={order.delivery_option === "delivery" ? "Delivery" : "Pickup at store"} />
             {order.delivery_option === "delivery" && (
