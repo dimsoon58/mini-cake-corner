@@ -180,7 +180,7 @@ async function createCalendarEvent(accessToken: string, order: any, paymentMetho
 
 // ── Approval confirmation email ─────────────────────────────────────
 
-async function sendApprovalEmail(resendApiKey: string, order: any) {
+async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethodLabel: string) {
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "—";
@@ -211,11 +211,11 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
     if (item.ribbonColorName) rows.push(row("Ribbon color", item.ribbonColorName));
     if (item.butterflyColorName) rows.push(row("Butterfly color", item.butterflyColorName));
     if (candleStr) rows.push(row("Candles", candleStr));
-    if (item.comment) rows.push(row("Additional notes", item.comment));
+    rows.push(row("Additional note", item.comment?.trim() || "-"));
 
     // Reference images
     const imageRows = (item.imageUrls || []).map((url: string, j: number) =>
-      `<tr><td style="padding:6px 8px;color:#888;font-size:14px;">Reference image ${j + 1}</td><td style="padding:6px 8px;"><a href="${url}" style="color:#2563eb;font-size:14px;" target="_blank">View image</a></td></tr>`
+      `<tr><td style="padding:8px;color:#888;font-size:14px;vertical-align:top;">Reference image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#2563eb;font-size:14px;display:inline-block;margin-bottom:6px;" target="_blank">Open image</a><br/><img src="${url}" alt="Reference image ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;" /></td></tr>`
     ).join("");
 
     return `
