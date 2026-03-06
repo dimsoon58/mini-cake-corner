@@ -127,26 +127,43 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "—";
-
-  const itemRows = items.map((item: any, i: number) => {
-    const extras = item.extrasNames?.length ? `<br><span style="color:#888;font-size:12px;">Extras: ${item.extrasNames.join(", ")}</span>` : "";
-    const text = item.cakeText ? `<br><span style="color:#888;font-size:12px;">Text: "${item.cakeText}"</span>` : "";
-    const candles = (item.candles || []).filter((c: any) => c.quantity > 0);
-    const candlesStr = candles.length ? `<br><span style="color:#888;font-size:12px;">Candles: ${candles.map((c: any) => `${c.id} ×${c.quantity}`).join(", ")}</span>` : "";
-    return `
-      <tr>
-        <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">
-          <strong>${item.sizeName} ${item.shapeName}</strong><br>
-          ${item.flavorName}${item.styleName ? ` — ${item.styleName}` : ""}
-          ${extras}${text}${candlesStr}
-        </td>
-        <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
-      </tr>`;
-  }).join("");
+  const orderNumber = order.id.slice(0, 8).toUpperCase();
 
   const deliveryInfo = order.delivery_option === "delivery"
-    ? `🚚 Delivery to: ${order.delivery_address || "—"}`
-    : "🏪 Pickup at store";
+    ? `Delivery to: ${order.delivery_address || "—"}`
+    : "Pickup at store";
+
+  const cakeDetailsRows = items.map((item: any, i: number) => {
+    const candles = (item.candles || []).filter((c: any) => c.quantity > 0);
+    const candleStr = candles.length ? candles.map((c: any) => `${c.id} ×${c.quantity}`).join(", ") : "—";
+    const extras = item.extrasNames?.length ? item.extrasNames.join(", ") : "";
+    const designName = item.styleName || "—";
+    const cakeText = item.cakeText || "—";
+
+    return `
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
+        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">🎂 Cake ${items.length > 1 ? (i + 1) : "details"}</h3>
+        <table style="border-collapse:collapse;width:100%;">
+          <tr><td style="padding:6px 8px;color:#888;font-size:14px;width:40%;">Size</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${item.sizeName || "—"}</td></tr>
+          <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Flavor</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${item.flavorName || "—"}</td></tr>
+          <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Shape</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${item.shapeName || "—"}</td></tr>
+          <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Design</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${designName}</td></tr>
+          ${extras ? `<tr><td style="padding:6px 8px;color:#888;font-size:14px;">Extras</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${extras}</td></tr>` : ""}
+          <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Text on cake</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${cakeText}</td></tr>
+          <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Candle</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${candleStr}</td></tr>
+        </table>
+      </div>`;
+  }).join("");
+
+  const itemSummaryRows = items.map((item: any) => `
+    <tr>
+      <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">
+        ${item.sizeName} ${item.shapeName} — ${item.flavorName}
+      </td>
+      <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
+    </tr>`).join("");
+
+  const logoUrl = "https://mini-cake-corner.lovable.app/logo-new.png";
 
   const html = `
 <!DOCTYPE html>
@@ -156,31 +173,40 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
   <div style="max-width:600px;margin:0 auto;padding:24px;">
     <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
       
-      <div style="background:linear-gradient(135deg,#16a34a,#22c55e);padding:32px;text-align:center;">
-        <h1 style="color:#fff;font-size:24px;margin:0 0 8px;font-weight:700;">✅ Order Confirmed!</h1>
-        <p style="color:rgba(255,255,255,0.9);margin:0;font-size:14px;">Your cake order has been accepted</p>
+      <!-- Logo -->
+      <div style="padding:28px 32px 0;text-align:center;">
+        <img src="${logoUrl}" alt="Bento Cake Studio" style="height:64px;width:auto;" />
       </div>
 
-      <div style="padding:32px;">
-        <h2 style="color:#333;font-size:20px;margin:0 0 16px;">Dear ${order.customer_name},</h2>
+      <!-- Header -->
+      <div style="padding:20px 32px 8px;text-align:center;">
+        <h1 style="color:#333;font-size:24px;margin:0;font-weight:700;">Order Confirmation</h1>
+      </div>
+
+      <div style="padding:24px 32px 32px;">
+        <p style="color:#555;font-size:15px;line-height:1.7;">
+          Dear ${order.customer_name},
+        </p>
         
-        <p style="color:#555;font-size:15px;line-height:1.6;">
-          Great news! Your order <strong>#${order.id.slice(0, 8).toUpperCase()}</strong> has been confirmed. 
-          We're excited to prepare your cake(s)! 🎂
+        <p style="color:#555;font-size:15px;line-height:1.7;">
+          Thank you for choosing Bento Cake Studio. Your order <strong>#${orderNumber}</strong> has been confirmed and will be prepared for you on the selected date.
         </p>
 
         <!-- Pickup Details -->
         <div style="background:#f0fff4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin:24px 0;">
-          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📅 Pickup Details</h3>
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">Pickup details</h3>
           <table style="border-collapse:collapse;width:100%;">
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Date</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${order.order_date}</td></tr>
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;width:40%;">Date</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${order.order_date}</td></tr>
             <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Time</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${pickupTime}</td></tr>
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Option</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${deliveryInfo}</td></tr>
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Pickup option</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${deliveryInfo}</td></tr>
           </table>
         </div>
 
+        <!-- Cake Details -->
+        ${cakeDetailsRows}
+
         <!-- Order Summary -->
-        <h3 style="color:#333;font-size:15px;margin:0 0 8px;font-weight:600;">🍰 Your Order</h3>
+        <h3 style="color:#333;font-size:15px;margin:24px 0 8px;font-weight:600;">Order summary</h3>
         <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
           <thead>
             <tr style="border-bottom:2px solid #eee;">
@@ -189,7 +215,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
             </tr>
           </thead>
           <tbody>
-            ${itemRows}
+            ${itemSummaryRows}
           </tbody>
           <tfoot>
             <tr>
@@ -199,12 +225,16 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
           </tfoot>
         </table>
 
-        <p style="color:#555;font-size:15px;line-height:1.6;">
-          If you have any questions about your order, feel free to contact us.
+        <p style="color:#555;font-size:15px;line-height:1.7;">
+          If any of these details are incorrect or if you need to make a small change, please contact us as soon as possible.
         </p>
 
-        <p style="color:#555;font-size:15px;line-height:1.6;">
-          Thank you for choosing Bento Cake Studio!<br>
+        <p style="color:#555;font-size:15px;line-height:1.7;">
+          Thank you again for your order. We look forward to preparing your cake.
+        </p>
+
+        <p style="color:#555;font-size:15px;line-height:1.7;">
+          Warm regards,<br>
           <strong>The Bento Cake Studio Team</strong> 🤍
         </p>
       </div>
@@ -226,7 +256,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: [order.customer_email],
-      subject: `✅ Your Bento Cake Studio Order #${order.id.slice(0, 8).toUpperCase()} is Confirmed!`,
+      subject: `Order Confirmation — #${orderNumber}`,
       html,
     }),
   });
