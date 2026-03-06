@@ -831,7 +831,8 @@ const Catalog = () => {
       return;
     }
 
-    if (selections.extras.includes("ribbons") && !selections.ribbonColor) {
+    const designNeedsRibbon = selectedCake?.styleId === "retro-ribbons" || selectedCake?.styleId === "retro-ribbons-glitter";
+    if ((designNeedsRibbon || selections.extras.includes("ribbons")) && !selections.ribbonColor) {
       toast({ title: "Ribbon Color required", description: "Please select a color for your ribbons.", variant: "destructive" });
       return;
     }
@@ -1496,7 +1497,7 @@ const Catalog = () => {
                 )}
 
                 {/* Ribbon Color */}
-                {selections.extras.includes("ribbons") && (
+                {(selections.extras.includes("ribbons") || selectedCake?.styleId === "retro-ribbons" || selectedCake?.styleId === "retro-ribbons-glitter") && (
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-foreground">Ribbon Color <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">

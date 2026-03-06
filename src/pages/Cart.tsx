@@ -787,7 +787,7 @@ const CartItemEditor = ({
         )}
 
         {/* Ribbon Color */}
-        {(item.extras || []).includes("ribbons") && (
+        {((item.extras || []).includes("ribbons") || item.style === "retro-ribbons" || item.style === "retro-ribbons-glitter") && (
           <div className="space-y-2 mt-3">
             <p className="text-xs font-medium text-foreground">Ribbon Color <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
