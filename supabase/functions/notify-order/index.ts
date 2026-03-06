@@ -98,19 +98,23 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
 
         <!-- Action Buttons -->
         <div style="text-align:center;margin:32px 0 16px;">
-          <p style="color:#666;font-size:13px;margin-bottom:20px;">Click below to review and manage this order.</p>
+          <p style="color:#666;font-size:13px;margin-bottom:20px;">Click a button to instantly process this order. No login required.</p>
           
-          <a href="${reviewUrl}" style="display:inline-block;background:#16a34a;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
+          <a href="${siteUrl}/order-action?orderId=${order.id}&action=approve&token=${token}" style="display:inline-block;background:#16a34a;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
             ✅ Accept Order
           </a>
           
-          <a href="${reviewUrl}" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
+          <a href="${siteUrl}/order-action?orderId=${order.id}&action=reject&token=${token}" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
             ❌ Decline Order
           </a>
         </div>
 
         <p style="color:#999;font-size:12px;text-align:center;margin-top:8px;">
-          This link contains a secure token that expires in 24 hours and can only be used once.
+          Each button can only be used once. Links expire after 24 hours.
+        </p>
+        
+        <p style="color:#999;font-size:12px;text-align:center;margin-top:4px;">
+          <a href="${reviewUrl}" style="color:#666;">View full order details →</a>
         </p>
       </div>
 
