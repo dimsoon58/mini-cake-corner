@@ -446,6 +446,7 @@ interface CartItemEditorProps {
   onGlitterColorChange: (v: string) => void;
   onGlitterCherriesColorChange: (v: string) => void;
   onCommentChange: (v: string) => void;
+  onImageUrlsChange: (urls: string[]) => void;
   onCandleQtyChange: (candleId: string, delta: number) => void;
   getCandleUnitQty: (candleId: string) => number;
   getCandleItemPrice: (candleId: string) => number;
