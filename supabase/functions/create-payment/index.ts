@@ -113,13 +113,18 @@ serve(async (req) => {
       customerId = newCustomer.id;
     }
 
-    // Create checkout session with MANUAL CAPTURE (authorize only, don't charge yet)
+    // Create checkout session with per-payment-method manual capture
+    // TWINT does not support manual capture, so we only set it for card
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       line_items: lineItems,
       mode: "payment",
+      payment_method_options: {
+        card: {
+          capture_method: "manual",
+        },
+      },
       payment_intent_data: {
-        capture_method: "manual",
         metadata: {
           order_id: orderId || "",
           customer_name: customerName,

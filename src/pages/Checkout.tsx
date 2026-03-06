@@ -44,6 +44,19 @@ const COUNTRY_CODES = [
   { code: "+1", country: "US", flag: "🇺🇸" },
 ];
 
+// Generate time slots from 10:00 to 18:30 in 30-minute intervals
+const generateTimeSlots = () => {
+  const slots: string[] = [];
+  for (let hour = 10; hour <= 18; hour++) {
+    slots.push(`${hour.toString().padStart(2, "0")}:00`);
+    if (hour < 18 || hour === 18) {
+      slots.push(`${hour.toString().padStart(2, "0")}:30`);
+    }
+  }
+  return slots;
+};
+
+const TIME_SLOTS = generateTimeSlots();
 
 // Delivery zones configuration with postal codes for auto-detection
 const DELIVERY_ZONES = [
@@ -116,6 +129,7 @@ const Checkout = () => {
   const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
+  const [pickupTime, setPickupTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
   const [checkoutPayload, setCheckoutPayload] = useState<any>(null);
@@ -247,7 +261,7 @@ const Checkout = () => {
           total: item.total,
         })),
         deliveryComment,
-        pickupTime: items[0]?.orderTime || "",
+        pickupTime: deliveryOption === "pickup" ? pickupTime : "",
       };
 
       // Save order to database with pending status
@@ -493,6 +507,25 @@ const Checkout = () => {
                 </div>
               </RadioGroup>
             </div>
+
+            {/* Pickup Time - Only shown when pickup is selected */}
+            {deliveryOption === "pickup" && (
+              <div className="space-y-2">
+                <Label>Preferred Pickup Time</Label>
+                <Select value={pickupTime} onValueChange={setPickupTime}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a pickup time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_SLOTS.map((slot) => (
+                      <SelectItem key={slot} value={slot}>
+                        {slot}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Delivery Details - Only shown when delivery is selected */}
             {deliveryOption === "delivery" && (
