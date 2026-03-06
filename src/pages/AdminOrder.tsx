@@ -17,6 +17,12 @@ const DetailRow = ({ label, value }: { label: string; value?: string | null }) =
   );
 };
 
+const formatDateFromIso = (dateValue?: string | null) => {
+  if (!dateValue) return dateValue;
+  const [year, month, day] = dateValue.split("-");
+  return year && month && day ? `${day}.${month}.${year}` : dateValue;
+};
+
 const AdminOrder = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
