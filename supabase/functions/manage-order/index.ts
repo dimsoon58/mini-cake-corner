@@ -58,31 +58,71 @@ async function getGoogleAccessToken(serviceAccountKey: string): Promise<string> 
   return tokenData.access_token;
 }
 
-async function createCalendarEvent(accessToken: string, order: any) {
+// Build a structured text block with all order details (shared between calendar & email)
+function buildOrderDetailsText(order: any): string {
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "";
+  const orderNumber = order.id.slice(0, 8).toUpperCase();
 
-  const itemDescriptions = items.map((item: any, i: number) =>
-    `Cake ${i + 1}: ${item.sizeName} ${item.shapeName} - ${item.flavorName}${item.styleName ? ` (${item.styleName})` : ""}${item.extrasNames?.length ? ` + ${item.extrasNames.join(", ")}` : ""}${item.cakeText ? ` — Text: "${item.cakeText}"` : ""} — CHF ${item.total}`
-  ).join("\n");
+  const lines: string[] = [];
+  lines.push(`Order number: #${orderNumber}`);
+  lines.push(`Customer name: ${order.customer_name}`);
+  lines.push(`Customer email: ${order.customer_email}`);
+  lines.push(`Customer phone: ${order.customer_phone}`);
+  lines.push("");
+  lines.push(`Pickup date: ${order.order_date}`);
+  if (pickupTime) lines.push(`Pickup time: ${pickupTime}`);
+  lines.push(`Pickup option: ${order.delivery_option === "delivery" ? `Delivery to ${order.delivery_address || "—"}` : "Pickup at store"}`);
 
-  const description = `🎂 ORDER #${order.id.slice(0, 8).toUpperCase()}
+  items.forEach((item: any, i: number) => {
+    lines.push("");
+    lines.push(items.length > 1 ? `--- Cake ${i + 1} ---` : "--- Cake details ---");
+    if (item.sizeName) lines.push(`Cake size: ${item.sizeName}`);
+    if (item.flavorName) lines.push(`Flavor: ${item.flavorName}`);
+    if (item.shapeName) lines.push(`Shape: ${item.shapeName}`);
+    if (item.styleName) lines.push(`Design: ${item.styleName}`);
+    if (item.baseColorName) lines.push(`Base color: ${item.baseColorName}`);
+    if (item.decorationColorName) lines.push(`Decoration color: ${item.decorationColorName}`);
+    if (item.textColorName) lines.push(`Text color: ${item.textColorName}`);
+    if (item.textStyle) lines.push(`Text style: ${item.textStyle}`);
+    if (item.cakeText) lines.push(`Text on cake: ${item.cakeText}`);
+    if (item.extrasNames?.length) lines.push(`Extras: ${item.extrasNames.join(", ")}`);
+    if (item.ribbonColorName) lines.push(`Ribbon color: ${item.ribbonColorName}`);
+    if (item.butterflyColorName) lines.push(`Butterfly color: ${item.butterflyColorName}`);
 
-👤 Customer: ${order.customer_name}
-📧 Email: ${order.customer_email}
-📱 Phone: ${order.customer_phone}
+    const candles = (item.candles || []).filter((c: any) => c.quantity > 0);
+    if (candles.length) lines.push(`Candles: ${candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ")}`);
 
-📦 ${order.delivery_option === "delivery" ? `Delivery to: ${order.delivery_address}` : "Pickup at store"}
-⏰ Time: ${pickupTime || "—"}
+    if (item.comment) lines.push(`Additional notes: ${item.comment}`);
+    if (item.imageUrls?.length) {
+      item.imageUrls.forEach((url: string, j: number) => {
+        lines.push(`Reference image ${j + 1}: ${url}`);
+      });
+    }
+    lines.push(`Subtotal: CHF ${item.total}`);
+  });
 
-🍰 Items:
-${itemDescriptions}
+  if (details.deliveryComment) {
+    lines.push("");
+    lines.push(`Delivery comment: ${details.deliveryComment}`);
+  }
 
-💰 Total: CHF ${order.total_amount}`;
+  lines.push("");
+  lines.push(`Total paid: CHF ${order.total_amount}`);
+
+  return lines.join("\n");
+}
+
+async function createCalendarEvent(accessToken: string, order: any) {
+  const details = order.order_details_json || {};
+  const pickupTime = details.pickupTime || "";
+  const orderNumber = order.id.slice(0, 8).toUpperCase();
+
+  const description = buildOrderDetailsText(order);
 
   const event: any = {
-    summary: `Cake Pickup – ${order.customer_name}`,
+    summary: `${order.customer_name} — Order #${orderNumber}`,
     description,
     colorId: "6",
   };
@@ -133,24 +173,40 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
     ? `Delivery to: ${order.delivery_address || "—"}`
     : "Pickup at store";
 
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:6px 8px;color:#888;font-size:14px;width:40%;">${label}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${value}</td></tr>`;
+
   const cakeDetailsRows = items.map((item: any, i: number) => {
     const candles = (item.candles || []).filter((c: any) => c.quantity > 0);
-    const candleStr = candles.length ? candles.map((c: any) => `${c.id} ×${c.quantity}`).join(", ") : "—";
-    const extras = item.extrasNames?.length ? item.extrasNames.join(", ") : "";
-    const designName = item.styleName || "—";
-    const cakeText = item.cakeText || "—";
+    const candleStr = candles.length ? candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ") : "";
+
+    const rows: string[] = [];
+    if (item.sizeName) rows.push(row("Size", item.sizeName));
+    if (item.flavorName) rows.push(row("Flavor", item.flavorName));
+    if (item.shapeName) rows.push(row("Shape", item.shapeName));
+    if (item.styleName) rows.push(row("Design", item.styleName));
+    if (item.baseColorName) rows.push(row("Base color", item.baseColorName));
+    if (item.decorationColorName) rows.push(row("Decoration color", item.decorationColorName));
+    if (item.textColorName) rows.push(row("Text color", item.textColorName));
+    if (item.textStyle) rows.push(row("Text style", item.textStyle));
+    if (item.cakeText) rows.push(row("Text on cake", item.cakeText));
+    if (item.extrasNames?.length) rows.push(row("Extras", item.extrasNames.join(", ")));
+    if (item.ribbonColorName) rows.push(row("Ribbon color", item.ribbonColorName));
+    if (item.butterflyColorName) rows.push(row("Butterfly color", item.butterflyColorName));
+    if (candleStr) rows.push(row("Candles", candleStr));
+    if (item.comment) rows.push(row("Additional notes", item.comment));
+
+    // Reference images
+    const imageRows = (item.imageUrls || []).map((url: string, j: number) =>
+      `<tr><td style="padding:6px 8px;color:#888;font-size:14px;">Reference image ${j + 1}</td><td style="padding:6px 8px;"><a href="${url}" style="color:#2563eb;font-size:14px;" target="_blank">View image</a></td></tr>`
+    ).join("");
 
     return `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
         <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">🎂 Cake ${items.length > 1 ? (i + 1) : "details"}</h3>
         <table style="border-collapse:collapse;width:100%;">
-          <tr><td style="padding:6px 8px;color:#888;font-size:14px;width:40%;">Size</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${item.sizeName || "—"}</td></tr>
-          <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Flavor</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${item.flavorName || "—"}</td></tr>
-          <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Shape</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${item.shapeName || "—"}</td></tr>
-          <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Design</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${designName}</td></tr>
-          ${extras ? `<tr><td style="padding:6px 8px;color:#888;font-size:14px;">Extras</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${extras}</td></tr>` : ""}
-          <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Text on cake</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${cakeText}</td></tr>
-          <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Candle</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${candleStr}</td></tr>
+          ${rows.join("")}
+          ${imageRows}
         </table>
       </div>`;
   }).join("");
@@ -196,9 +252,9 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
         <div style="background:#f0fff4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin:24px 0;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">Pickup details</h3>
           <table style="border-collapse:collapse;width:100%;">
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;width:40%;">Date</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${order.order_date}</td></tr>
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Time</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${pickupTime}</td></tr>
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Pickup option</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${deliveryInfo}</td></tr>
+            ${row("Date", order.order_date)}
+            ${pickupTime ? row("Time", pickupTime) : ""}
+            ${row("Pickup option", deliveryInfo)}
           </table>
         </div>
 
