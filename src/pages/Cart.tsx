@@ -743,7 +743,7 @@ const CartItemEditor = ({
         })}
 
         {/* Glitter Color */}
-        {(item.extras || []).includes("glitter") && (
+        {((item.extras || []).some(e => ["glitter", "glitter-base", "glitter-in-the-air"].includes(e)) || ["retro-glitter-cake", "retro-ribbons-glitter"].includes(item.style)) && (
           <div className="space-y-2 mt-3">
             <p className="text-xs font-medium text-foreground">Glitter Color <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
@@ -765,7 +765,7 @@ const CartItemEditor = ({
         )}
 
         {/* Glitter Cherries Color */}
-        {(item.extras || []).includes("glitter-cherries") && (
+        {((item.extras || []).includes("glitter-cherries") || item.style === "glitter-cherries-retro") && (
           <div className="space-y-2 mt-3">
             <p className="text-xs font-medium text-foreground">Glitter Cherries Color</p>
             <div className="flex flex-wrap gap-2">
