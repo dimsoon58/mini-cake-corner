@@ -121,6 +121,125 @@ ${itemDescriptions}
   return data;
 }
 
+// ── Approval confirmation email ─────────────────────────────────────
+
+async function sendApprovalEmail(resendApiKey: string, order: any) {
+  const details = order.order_details_json || {};
+  const items = details.items || [];
+  const pickupTime = details.pickupTime || "—";
+
+  const itemRows = items.map((item: any, i: number) => {
+    const extras = item.extrasNames?.length ? `<br><span style="color:#888;font-size:12px;">Extras: ${item.extrasNames.join(", ")}</span>` : "";
+    const text = item.cakeText ? `<br><span style="color:#888;font-size:12px;">Text: "${item.cakeText}"</span>` : "";
+    const candles = (item.candles || []).filter((c: any) => c.quantity > 0);
+    const candlesStr = candles.length ? `<br><span style="color:#888;font-size:12px;">Candles: ${candles.map((c: any) => `${c.id} ×${c.quantity}`).join(", ")}</span>` : "";
+    return `
+      <tr>
+        <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">
+          <strong>${item.sizeName} ${item.shapeName}</strong><br>
+          ${item.flavorName}${item.styleName ? ` — ${item.styleName}` : ""}
+          ${extras}${text}${candlesStr}
+        </td>
+        <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
+      </tr>`;
+  }).join("");
+
+  const deliveryInfo = order.delivery_option === "delivery"
+    ? `🚚 Delivery to: ${order.delivery_address || "—"}`
+    : "🏪 Pickup at store";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:24px;">
+    <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+      
+      <div style="background:linear-gradient(135deg,#16a34a,#22c55e);padding:32px;text-align:center;">
+        <h1 style="color:#fff;font-size:24px;margin:0 0 8px;font-weight:700;">✅ Order Confirmed!</h1>
+        <p style="color:rgba(255,255,255,0.9);margin:0;font-size:14px;">Your cake order has been accepted</p>
+      </div>
+
+      <div style="padding:32px;">
+        <h2 style="color:#333;font-size:20px;margin:0 0 16px;">Dear ${order.customer_name},</h2>
+        
+        <p style="color:#555;font-size:15px;line-height:1.6;">
+          Great news! Your order <strong>#${order.id.slice(0, 8).toUpperCase()}</strong> has been confirmed. 
+          We're excited to prepare your cake(s)! 🎂
+        </p>
+
+        <!-- Pickup Details -->
+        <div style="background:#f0fff4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin:24px 0;">
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📅 Pickup Details</h3>
+          <table style="border-collapse:collapse;width:100%;">
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Date</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${order.order_date}</td></tr>
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Time</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${pickupTime}</td></tr>
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Option</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${deliveryInfo}</td></tr>
+          </table>
+        </div>
+
+        <!-- Order Summary -->
+        <h3 style="color:#333;font-size:15px;margin:0 0 8px;font-weight:600;">🍰 Your Order</h3>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+          <thead>
+            <tr style="border-bottom:2px solid #eee;">
+              <th style="padding:8px 12px;text-align:left;font-size:13px;color:#888;font-weight:500;">Item</th>
+              <th style="padding:8px 12px;text-align:right;font-size:13px;color:#888;font-weight:500;">Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style="padding:12px;font-size:16px;font-weight:700;color:#333;">Total</td>
+              <td style="padding:12px;font-size:16px;font-weight:700;color:#333;text-align:right;">CHF ${order.total_amount}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <p style="color:#555;font-size:15px;line-height:1.6;">
+          If you have any questions about your order, feel free to contact us.
+        </p>
+
+        <p style="color:#555;font-size:15px;line-height:1.6;">
+          Thank you for choosing Bento Cake Studio!<br>
+          <strong>The Bento Cake Studio Team</strong> 🤍
+        </p>
+      </div>
+
+      <div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
+        <p style="color:#aaa;font-size:11px;margin:0;">Bento Cake Studio · Lausanne, Switzerland</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const resp = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Melodie.nagle@bentocakestudio.ch",
+      to: [order.customer_email],
+      subject: `✅ Your Bento Cake Studio Order #${order.id.slice(0, 8).toUpperCase()} is Confirmed!`,
+      html,
+    }),
+  });
+
+  const data = await resp.json();
+  if (!resp.ok) {
+    console.error("Approval email send failed:", data);
+    throw new Error(`Resend error: ${JSON.stringify(data)}`);
+  }
+  console.log("Approval email sent to customer:", data.id);
+  return data;
+}
+
 // ── Decline customer email ──────────────────────────────────────────
 
 async function sendDeclineEmail(resendApiKey: string, order: any) {
@@ -308,6 +427,7 @@ serve(async (req) => {
     let stripeAction: string;
     let calendarResult: any = null;
     let declineEmailResult: any = null;
+    let approvalEmailResult: any = null;
 
     if (action === "approve") {
       if (!order.stripe_session_id) throw new Error("No Stripe session ID found");
@@ -337,6 +457,16 @@ serve(async (req) => {
           calendarResult = await createCalendarEvent(accessToken, order);
         } catch (e) {
           console.error("Calendar error:", e);
+        }
+      }
+
+      // Send confirmation email to customer
+      const resendKeyApprove = Deno.env.get("RESEND_API_KEY");
+      if (resendKeyApprove) {
+        try {
+          approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order);
+        } catch (e) {
+          console.error("Approval email error:", e);
         }
       }
     } else {
@@ -386,6 +516,7 @@ serve(async (req) => {
       status: newStatus,
       stripeAction,
       calendarEvent: !!calendarResult,
+      approvalEmailSent: !!approvalEmailResult,
       declineEmailSent: !!declineEmailResult,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
