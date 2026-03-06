@@ -1,21 +1,59 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const { clearCart } = useCart();
   const sessionId = searchParams.get("session_id");
+  const [processed, setProcessed] = useState(false);
 
   useEffect(() => {
-    // Clear the cart after successful payment
-    if (sessionId) {
-      clearCart();
-    }
-  }, [sessionId, clearCart]);
+    if (!sessionId || processed) return;
+
+    const processPayment = async () => {
+      try {
+        // Find the most recent pending order and link the stripe session
+        const { data: recentOrders } = await supabase
+          .from("orders")
+          .select("id")
+          .eq("status", "pending")
+          .is("stripe_session_id", null)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (recentOrders && recentOrders.length > 0) {
+          const orderId = recentOrders[0].id;
+
+          // Update order with stripe session ID
+          await supabase
+            .from("orders")
+            .update({ stripe_session_id: sessionId })
+            .eq("id", orderId);
+
+          // Trigger admin notification + calendar event
+          await supabase.functions.invoke("notify-order", {
+            body: { orderId },
+          });
+
+          console.log("Order processed, notification sent for:", orderId);
+        }
+
+        clearCart();
+        setProcessed(true);
+      } catch (err) {
+        console.error("Error processing payment success:", err);
+        clearCart();
+        setProcessed(true);
+      }
+    };
+
+    processPayment();
+  }, [sessionId, clearCart, processed]);
 
   return (
     <Layout>
@@ -31,9 +69,16 @@ const PaymentSuccess = () => {
             We truly appreciate your support and are so excited to create something special just for you.
           </p>
 
-          <p className="text-muted-foreground mb-4">
-            You will receive a confirmation message within the next 24 hours with the details of your pickup or delivery date and time.
-          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Clock className="w-5 h-5 text-amber-600" />
+              <p className="font-medium text-amber-800">Order Pending Approval</p>
+            </div>
+            <p className="text-sm text-amber-700">
+              Your payment has been authorized but will only be charged once we confirm your order. 
+              You will receive a confirmation message within the next 24 hours with the details of your pickup or delivery date and time.
+            </p>
+          </div>
 
           <p className="text-muted-foreground mb-8">
             We can't wait for you to enjoy your cake! 🎂✨
