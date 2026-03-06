@@ -185,7 +185,7 @@ serve(async (req) => {
       throw new Error("Failed to create action token");
     }
 
-    const siteUrl = req.headers.get("origin") || "https://mini-cake-corner.lovable.app";
+    const siteUrl = "https://mini-cake-corner.lovable.app";
     const results: { email?: any; errors: string[] } = { errors: [] };
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
