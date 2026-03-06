@@ -237,6 +237,10 @@ const Cart = () => {
     updateItem(itemId, { comment });
   };
 
+  const handleImageUrlsChange = (itemId: string, imageUrls: string[]) => {
+    updateItem(itemId, { imageUrls });
+  };
+
   const handleCandleQuantityChange = (itemId: string, candleId: string, delta: number) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
