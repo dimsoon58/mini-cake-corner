@@ -104,13 +104,13 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
             ✅ Accept Order
           </a>
           
-          <a href="${siteUrl}/order-action?orderId=${order.id}&action=reject&token=${token}" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
+          <a href="${siteUrl}/order-action?orderId=${order.id}&action=decline&token=${token}" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
             ❌ Decline Order
           </a>
         </div>
 
         <p style="color:#999;font-size:12px;text-align:center;margin-top:8px;">
-          Each button can only be used once. Links expire after 24 hours.
+          Each button can only be used once.
         </p>
         
         <p style="color:#999;font-size:12px;text-align:center;margin-top:4px;">
@@ -170,14 +170,13 @@ serve(async (req) => {
 
     if (orderError || !order) throw new Error("Order not found");
 
-    // Generate a secure single-use token (24h expiry)
+    // Generate a secure single-use token (no expiry enforced)
     const token = crypto.randomUUID() + "-" + crypto.randomUUID();
     const { error: tokenError } = await supabase
       .from("order_action_tokens")
       .insert({
         order_id: orderId,
         token,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       });
 
     if (tokenError) {

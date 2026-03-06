@@ -224,10 +224,7 @@ async function validateAndConsumeToken(supabase: any, orderId: string, token: st
     throw new Error("This action token has already been used");
   }
 
-  // Check expiry
-  if (new Date(tokenRecord.expires_at) < new Date()) {
-    throw new Error("This action token has expired (24-hour limit)");
-  }
+  // No expiry check: token remains valid until consumed (single-use).
 
   // Mark as used
   const { error: updateError } = await supabase
