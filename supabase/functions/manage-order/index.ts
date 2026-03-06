@@ -7,6 +7,107 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ── Google Calendar helpers ──────────────────────────────────────────
+
+async function getGoogleAccessToken(serviceAccountKey: string): Promise<string> {
+  const key = JSON.parse(serviceAccountKey);
+  const header = { alg: "RS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const claim = {
+    iss: key.client_email,
+    scope: "https://www.googleapis.com/auth/calendar",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: now + 3600,
+    iat: now,
+  };
+
+  const encoder = new TextEncoder();
+  const headerB64 = btoa(String.fromCharCode(...encoder.encode(JSON.stringify(header))))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const claimB64 = btoa(String.fromCharCode(...encoder.encode(JSON.stringify(claim))))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+  const signInput = `${headerB64}.${claimB64}`;
+
+  const pemContents = key.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\n/g, "");
+  const binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8", binaryKey,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false, ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, encoder.encode(signInput));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+  const jwt = `${signInput}.${sigB64}`;
+
+  const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+  });
+
+  const tokenData = await tokenResp.json();
+  if (!tokenResp.ok) throw new Error(`Google OAuth error: ${JSON.stringify(tokenData)}`);
+  return tokenData.access_token;
+}
+
+async function createCalendarEvent(accessToken: string, order: any) {
+  const details = order.order_details_json || {};
+  const items = details.items || [];
+
+  const itemDescriptions = items.map((item: any, i: number) =>
+    `Cake ${i + 1}: ${item.sizeName} ${item.shapeName} - ${item.flavorName}${item.styleName ? ` (${item.styleName})` : ""}${item.extrasNames?.length ? ` + ${item.extrasNames.join(", ")}` : ""} — CHF ${item.total}`
+  ).join("\n");
+
+  const pickupTime = details.pickupTime || "";
+
+  const description = `🎂 ORDER #${order.id.slice(0, 8).toUpperCase()}
+
+👤 Customer: ${order.customer_name}
+📧 Email: ${order.customer_email}
+📱 Phone: ${order.customer_phone}
+
+📦 ${order.delivery_option === "delivery" ? `Delivery to: ${order.delivery_address}` : "Pickup at store"}
+⏰ Time: ${pickupTime || "—"}
+
+🍰 Items:
+${itemDescriptions}
+
+💰 Total: CHF ${order.total_amount}`;
+
+  const event: any = {
+    summary: `🎂 Order #${order.id.slice(0, 8).toUpperCase()} — ${order.customer_name}`,
+    description,
+    start: { date: order.order_date, timeZone: "Europe/Zurich" },
+    end: { date: order.order_date, timeZone: "Europe/Zurich" },
+    colorId: "6",
+  };
+
+  const calendarId = encodeURIComponent("naglemelodie@gmail.com");
+  const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(event),
+  });
+
+  const data = await resp.json();
+  if (!resp.ok) {
+    console.error("Calendar event creation failed:", data);
+    throw new Error(`Google Calendar error: ${JSON.stringify(data)}`);
+  }
+  console.log("Calendar event created:", data.id);
+  return data;
+}
+
+// ── Main handler ─────────────────────────────────────────────────────
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -66,9 +167,10 @@ serve(async (req) => {
 
     let newStatus: string;
     let stripeAction: string;
+    let calendarResult: any = null;
 
     if (action === "approve") {
-      // Retrieve the checkout session to get the payment intent
+      // Capture Stripe payment
       if (!order.stripe_session_id) {
         throw new Error("No Stripe session ID found for this order");
       }
@@ -80,11 +182,22 @@ serve(async (req) => {
         throw new Error("No payment intent found for this session");
       }
 
-      // Capture the payment
       await stripe.paymentIntents.capture(paymentIntentId);
       newStatus = "approved";
       stripeAction = "Payment captured";
       console.log(`Payment captured for order ${orderId}, PI: ${paymentIntentId}`);
+
+      // Create Google Calendar event on approval
+      const gcKey = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
+      if (gcKey) {
+        try {
+          const accessToken = await getGoogleAccessToken(gcKey);
+          calendarResult = await createCalendarEvent(accessToken, order);
+        } catch (e) {
+          console.error("Calendar error:", e);
+          // Don't fail the approval if calendar fails
+        }
+      }
     } else {
       // Reject - cancel/refund the payment intent
       if (!order.stripe_session_id) {
@@ -127,6 +240,7 @@ serve(async (req) => {
       success: true, 
       status: newStatus,
       stripeAction,
+      calendarEvent: calendarResult ? true : false,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

@@ -8,106 +8,6 @@ const corsHeaders = {
 
 const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
 
-// Google Calendar helpers
-async function getGoogleAccessToken(serviceAccountKey: string): Promise<string> {
-  const key = JSON.parse(serviceAccountKey);
-  const header = { alg: "RS256", typ: "JWT" };
-  const now = Math.floor(Date.now() / 1000);
-  const claim = {
-    iss: key.client_email,
-    scope: "https://www.googleapis.com/auth/calendar",
-    aud: "https://oauth2.googleapis.com/token",
-    exp: now + 3600,
-    iat: now,
-  };
-
-  const encoder = new TextEncoder();
-  const headerB64 = btoa(String.fromCharCode(...encoder.encode(JSON.stringify(header))))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  const claimB64 = btoa(String.fromCharCode(...encoder.encode(JSON.stringify(claim))))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-
-  const signInput = `${headerB64}.${claimB64}`;
-
-  const pemContents = key.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\n/g, "");
-  const binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
-
-  const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8", binaryKey,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false, ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, encoder.encode(signInput));
-  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-
-  const jwt = `${signInput}.${sigB64}`;
-
-  const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
-  });
-
-  const tokenData = await tokenResp.json();
-  if (!tokenResp.ok) throw new Error(`Google OAuth error: ${JSON.stringify(tokenData)}`);
-  return tokenData.access_token;
-}
-
-async function createCalendarEvent(accessToken: string, order: any, siteUrl: string) {
-  const details = order.order_details_json || {};
-  const items = details.items || [];
-
-  const itemDescriptions = items.map((item: any, i: number) =>
-    `Cake ${i + 1}: ${item.sizeName} ${item.shapeName} - ${item.flavorName}${item.styleName ? ` (${item.styleName})` : ""}${item.extrasNames?.length ? ` + ${item.extrasNames.join(", ")}` : ""} — CHF ${item.total}`
-  ).join("\n");
-
-  const description = `🎂 ORDER #${order.id.slice(0, 8).toUpperCase()}
-
-👤 Customer: ${order.customer_name}
-📧 Email: ${order.customer_email}
-📱 Phone: ${order.customer_phone}
-
-📦 ${order.delivery_option === "delivery" ? `Delivery to: ${order.delivery_address}` : "Pickup at store"}
-
-🍰 Items:
-${itemDescriptions}
-
-💰 Total: CHF ${order.total_amount}
-
-🔗 Review order: ${siteUrl}/admin/order/${order.id}`;
-
-  const event = {
-    summary: `🎂 Order #${order.id.slice(0, 8).toUpperCase()} — ${order.customer_name}`,
-    description,
-    start: { date: order.order_date, timeZone: "Europe/Zurich" },
-    end: { date: order.order_date, timeZone: "Europe/Zurich" },
-    colorId: "6",
-    attendees: [
-      { email: "naglemelodie@gmail.com", responseStatus: "needsAction" },
-    ],
-  };
-
-  const calendarId = encodeURIComponent("naglemelodie@gmail.com");
-  const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?sendUpdates=all`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify(event),
-  });
-
-  const data = await resp.json();
-  if (!resp.ok) {
-    console.error("Calendar event creation failed:", data);
-    throw new Error(`Google Calendar error: ${JSON.stringify(data)}`);
-  }
-  console.log("Calendar event created:", data.id);
-  return data;
-}
-
 function buildItemDetailRow(label: string, value: string | undefined | null): string {
   if (!value) return "";
   return `<tr><td style="padding:4px 8px;color:#888;font-size:13px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:4px 8px;font-size:13px;color:#333;">${value}</td></tr>`;
@@ -242,23 +142,14 @@ serve(async (req) => {
     if (orderError || !order) throw new Error("Order not found");
 
     const siteUrl = req.headers.get("origin") || "https://mini-cake-corner.lovable.app";
-    const results: { email?: any; calendar?: any; errors: string[] } = { errors: [] };
+    const results: { email?: any; errors: string[] } = { errors: [] };
 
-    // Send admin email
+    // Send admin email only — calendar event is created upon approval
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (resendKey) {
       try { results.email = await sendAdminEmail(resendKey, order, siteUrl); }
       catch (e) { console.error("Email error:", e); results.errors.push(`Email: ${e instanceof Error ? e.message : String(e)}`); }
     } else { results.errors.push("RESEND_API_KEY not configured"); }
-
-    // Create Google Calendar event
-    const gcKey = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
-    if (gcKey) {
-      try {
-        const accessToken = await getGoogleAccessToken(gcKey);
-        results.calendar = await createCalendarEvent(accessToken, order, siteUrl);
-      } catch (e) { console.error("Calendar error:", e); results.errors.push(`Calendar: ${e instanceof Error ? e.message : String(e)}`); }
-    } else { results.errors.push("GOOGLE_SERVICE_ACCOUNT_KEY not configured"); }
 
     return new Response(JSON.stringify({ success: true, ...results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
