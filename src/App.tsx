@@ -18,6 +18,7 @@ import Catalog from "./pages/Catalog";
 import Inspiration from "./pages/Inspiration";
 import KitBentoCake from "./pages/KitBentoCake";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import AdminOrder from "./pages/AdminOrder";
 import NotFound from "./pages/NotFound";
 import Legal from "./pages/Legal";
 
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/admin/order/:id" element={<AdminOrder />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/legal" element={<Legal />} />
             <Route path="/terms-and-conditions" element={<Legal />} />

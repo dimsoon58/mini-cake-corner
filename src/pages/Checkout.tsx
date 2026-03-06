@@ -226,8 +226,28 @@ const Checkout = () => {
         return;
       }
 
-      // Save order to database
-      const { error: orderError } = await supabase.from("orders").insert({
+      // Build order details JSON for admin review
+      const orderDetailsJson = {
+        items: items.map((item) => ({
+          sizeName: item.sizeName,
+          shapeName: item.shapeName,
+          flavorName: item.flavorName,
+          styleName: item.styleName,
+          baseColorName: item.baseColorName,
+          decorationColorName: item.decorationColorName,
+          cakeText: item.cakeText,
+          textColorName: item.textColorName,
+          extrasNames: item.extrasNames,
+          ribbonColorName: item.ribbonColorName,
+          butterflyColorName: item.butterflyColorName,
+          comment: item.comment,
+          total: item.total,
+        })),
+        deliveryComment,
+      };
+
+      // Save order to database with pending status
+      const { data: orderData, error: orderError } = await supabase.from("orders").insert({
         order_date: formattedDate,
         customer_name: `${firstName} ${lastName}`,
         customer_email: email,
@@ -236,11 +256,15 @@ const Checkout = () => {
         delivery_option: deliveryOption,
         delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
         newsletter_subscription: subscribeNewsletter,
-      });
+        status: "pending",
+        order_details_json: orderDetailsJson,
+      }).select("id").single();
 
       if (orderError) {
         console.error("Order save error:", orderError);
       }
+
+      const orderId = orderData?.id;
 
       // Build payload for embedded checkout
       const payload = {
@@ -259,6 +283,7 @@ const Checkout = () => {
         deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
         deliveryFee: deliveryPrice,
         totalAmount: totalPrice,
+        orderId,
       };
 
       console.log("Setting up embedded checkout with:", {

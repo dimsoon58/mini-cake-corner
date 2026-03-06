@@ -3,7 +3,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface CartItem {
@@ -25,10 +25,10 @@ interface PaymentRequest {
   deliveryFee: number;
   totalAmount: number;
   embedded?: boolean;
+  orderId?: string;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -46,7 +46,7 @@ serve(async (req) => {
     const body: PaymentRequest = await req.json();
     console.log("Payment request received:", JSON.stringify(body));
 
-    const { items, customerEmail, customerName, customerPhone, deliveryOption, deliveryAddress, deliveryFee, totalAmount, embedded } = body;
+    const { items, customerEmail, customerName, customerPhone, deliveryOption, deliveryAddress, deliveryFee, totalAmount, embedded, orderId } = body;
 
     if (!items || items.length === 0) {
       throw new Error("No items in cart");
@@ -73,7 +73,7 @@ serve(async (req) => {
             name: `${item.sizeName} ${item.shapeName} Cake`,
             description: description || undefined,
           },
-          unit_amount: Math.round(item.total * 100), // Convert to cents
+          unit_amount: Math.round(item.total * 100),
         },
         quantity: 1,
       };
@@ -100,13 +100,11 @@ serve(async (req) => {
 
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-      // Update customer info
       await stripe.customers.update(customerId, {
         name: customerName,
         phone: customerPhone,
       });
     } else {
-      // Create new customer
       const newCustomer = await stripe.customers.create({
         email: customerEmail,
         name: customerName,
@@ -115,12 +113,23 @@ serve(async (req) => {
       customerId = newCustomer.id;
     }
 
-    // Create checkout session - embedded mode or redirect mode
+    // Create checkout session with MANUAL CAPTURE (authorize only, don't charge yet)
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       line_items: lineItems,
       mode: "payment",
+      payment_intent_data: {
+        capture_method: "manual",
+        metadata: {
+          order_id: orderId || "",
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          delivery_option: deliveryOption,
+          delivery_address: deliveryAddress || "",
+        },
+      },
       metadata: {
+        order_id: orderId || "",
         customer_name: customerName,
         customer_phone: customerPhone,
         delivery_option: deliveryOption,
@@ -129,27 +138,30 @@ serve(async (req) => {
     };
 
     if (embedded) {
-      // Embedded checkout mode
       sessionParams.ui_mode = "embedded";
       sessionParams.return_url = `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
     } else {
-      // Redirect mode (required for TWINT)
       sessionParams.success_url = `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
       sessionParams.cancel_url = `${req.headers.get("origin")}/checkout`;
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
-
     console.log("Checkout session created:", session.id, "embedded:", !!embedded);
 
     if (embedded) {
-      return new Response(JSON.stringify({ clientSecret: session.client_secret }), {
+      return new Response(JSON.stringify({ 
+        clientSecret: session.client_secret,
+        sessionId: session.id,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
 
-    return new Response(JSON.stringify({ url: session.url }), {
+    return new Response(JSON.stringify({ 
+      url: session.url,
+      sessionId: session.id,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
