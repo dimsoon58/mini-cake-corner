@@ -249,9 +249,9 @@ serve(async (req) => {
   }
 
   try {
-    const { orderId, action, pin, token } = await req.json();
+    const { orderId, action: rawAction, pin, token } = await req.json();
 
-    if (!orderId || !action) {
+    if (!orderId || !rawAction) {
       throw new Error("Missing required fields: orderId, action");
     }
 
@@ -259,8 +259,11 @@ serve(async (req) => {
       throw new Error("Missing required field: token");
     }
 
+    // Normalize: accept both "decline" and "reject"
+    const action = rawAction === "decline" ? "reject" : rawAction;
+
     if (action !== "approve" && action !== "reject") {
-      throw new Error("Action must be 'approve' or 'reject'");
+      throw new Error("Action must be 'approve', 'reject', or 'decline'");
     }
 
     // If PIN is provided, verify it (admin page flow). 

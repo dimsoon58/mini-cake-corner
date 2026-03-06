@@ -19,11 +19,13 @@ const OrderAction = () => {
       return;
     }
 
-    if (action !== "approve" && action !== "reject") {
+    if (action !== "approve" && action !== "reject" && action !== "decline") {
       setStatus("error");
-      setMessage("Invalid action. Must be 'approve' or 'reject'.");
+      setMessage("Invalid action. Must be 'approve', 'reject', or 'decline'.");
       return;
     }
+
+    const isDecline = action === "reject" || action === "decline";
 
     const execute = async () => {
       try {
