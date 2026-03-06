@@ -65,11 +65,26 @@ function formatDateCH(dateValue?: string): string {
   return year && month && day ? `${day}.${month}.${year}` : dateValue;
 }
 
+function getOrderImageUrls(order: any): string[] {
+  if (Array.isArray(order?.image_urls) && order.image_urls.length > 0) {
+    return order.image_urls.filter((url: unknown): url is string => typeof url === "string" && url.length > 0);
+  }
+
+  const details = order?.order_details_json || {};
+  const items = Array.isArray(details.items) ? details.items : [];
+  return items.flatMap((item: any) =>
+    Array.isArray(item?.imageUrls)
+      ? item.imageUrls.filter((url: unknown): url is string => typeof url === "string" && url.length > 0)
+      : []
+  );
+}
+
 function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "";
   const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const orderImageUrls = getOrderImageUrls(order);
 
   const lines: string[] = [];
   const pushBullet = (value?: string | null) => {
@@ -111,13 +126,14 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
     if (candles.length) pushBullet(`Candles: ${candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ")}`);
 
     pushBullet(`Additional note: ${item.comment?.trim() || "-"}`);
-
-    if (item.imageUrls?.length) {
-      item.imageUrls.forEach((url: string, j: number) => {
-        pushBullet(`Reference image ${j + 1}: ${url}`);
-      });
-    }
   });
+
+  if (orderImageUrls.length) {
+    lines.push("");
+    orderImageUrls.forEach((url, j) => {
+      pushBullet(`Reference image ${j + 1}: ${url}`);
+    });
+  }
 
   if (details.deliveryComment) {
     lines.push("");
