@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ADMIN_EMAILS = ["nnagle011@gmail.com", "e.potapushina@gmail.com"];
+const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
 
 // Google Calendar helpers
 async function getGoogleAccessToken(serviceAccountKey: string): Promise<string> {
