@@ -258,6 +258,7 @@ const Checkout = () => {
           candles: item.candles,
           orderTime: item.orderTime,
           comment: item.comment,
+          imageUrls: item.imageUrls || [],
           total: item.total,
         })),
         deliveryComment,
