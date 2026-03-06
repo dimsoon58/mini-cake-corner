@@ -365,7 +365,7 @@ const Checkout = () => {
         deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
         deliveryFee: deliveryPrice,
         totalAmount: totalPrice,
-        orderId,
+        orderId: createdOrderId || orderId,
       };
 
       console.log("Setting up embedded checkout with:", {
