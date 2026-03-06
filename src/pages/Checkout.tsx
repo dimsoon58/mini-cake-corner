@@ -510,7 +510,7 @@ const Checkout = () => {
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {deliveryDate ? (
-                      format(deliveryDate, "PPP")
+                      formatDisplayDate(deliveryDate)
                     ) : (
                       <span>Pick a date</span>
                     )}
