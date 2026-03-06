@@ -712,7 +712,12 @@ const Catalog = () => {
     const newExtras = selections.extras.includes(extraId)
       ? selections.extras.filter((e) => e !== extraId)
       : [...selections.extras, extraId];
-    setSelections({ ...selections, extras: newExtras });
+    const updates: Partial<typeof selections> = { extras: newExtras };
+    // Auto-select pink glitter for "Glitter in the Air"
+    if (extraId === "glitter-in-the-air" && newExtras.includes("glitter-in-the-air")) {
+      updates.glitterColor = "pink";
+    }
+    setSelections({ ...selections, ...updates });
   };
 
   const getExtraPriceForSize = (extra: typeof catalogExtras[0]) => {
@@ -1465,19 +1470,23 @@ const Catalog = () => {
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-foreground">Glitter Color <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
-                      {glitterColors.map((color) => (
-                        <button
-                          key={color.id}
-                          onClick={() => setSelections({ ...selections, glitterColor: color.id })}
-                          className={cn(
-                            "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
-                            selections.glitterColor === color.id ? "ring-2 ring-primary" : ""
-                          )}
-                        >
-                          <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
-                          <span className="text-[10px] text-foreground">{color.name}</span>
-                        </button>
-                      ))}
+                      {(() => {
+                        const isGlitterInTheAir = selections.extras.includes("glitter-in-the-air") || selectedCake?.styleId === "retro-ribbons-glitter";
+                        const availableColors = isGlitterInTheAir ? glitterColors.filter(c => c.id === "pink") : glitterColors;
+                        return availableColors.map((color) => (
+                          <button
+                            key={color.id}
+                            onClick={() => setSelections({ ...selections, glitterColor: color.id })}
+                            className={cn(
+                              "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                              selections.glitterColor === color.id ? "ring-2 ring-primary" : ""
+                            )}
+                          >
+                            <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                            <span className="text-[10px] text-foreground">{color.name}</span>
+                          </button>
+                        ));
+                      })()}
                     </div>
                   </div>
                 )}
