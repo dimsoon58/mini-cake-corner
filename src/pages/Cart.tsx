@@ -343,6 +343,7 @@ const Cart = () => {
                           onGlitterColorChange={(v) => handleGlitterColorChange(item.id, v)}
                           onGlitterCherriesColorChange={(v) => handleGlitterCherriesColorChange(item.id, v)}
                           onCommentChange={(v) => handleCommentChange(item.id, v)}
+                          onImageUrlsChange={(urls) => handleImageUrlsChange(item.id, urls)}
                           onCandleQtyChange={(candleId, delta) => handleCandleQuantityChange(item.id, candleId, delta)}
                           getCandleUnitQty={(candleId) => getCandleUnitQty(item, candleId)}
                           getCandleItemPrice={(candleId) => getCandleItemPrice(candleId, item.candles || [])}
