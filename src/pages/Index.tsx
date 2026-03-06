@@ -10,7 +10,7 @@ import cakeFresh from "@/assets/cake-fresh-new.png";
 import cakeTrendy from "@/assets/cake-trendy.png";
 import customer1 from "@/assets/customer-1.jpg";
 import customer2 from "@/assets/customer-2.jpg";
-import customer3 from "@/assets/customer-3.jpg";
+import customer3 from "@/assets/customer-3-new.jpg";
 import customer4 from "@/assets/customer-4.jpg";
 import customer5 from "@/assets/customer-5.jpg";
 import customer6 from "@/assets/customer-6.jpg";
@@ -140,7 +140,7 @@ const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: str
               <img
                 src={photo}
                 alt={`${altPrefix} ${index + 1}`}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
         ))}
