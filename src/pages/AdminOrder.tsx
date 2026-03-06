@@ -7,6 +7,16 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 
+const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
+  if (!value) return null;
+  return (
+    <div className="flex gap-2 text-sm">
+      <span className="text-muted-foreground min-w-[140px]">{label}:</span>
+      <span className="text-foreground">{value}</span>
+    </div>
+  );
+};
+
 const AdminOrder = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<any>(null);
@@ -19,14 +29,8 @@ const AdminOrder = () => {
     const fetchOrder = async () => {
       if (!id) return;
       const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) {
-        console.error("Error fetching order:", error);
-      }
+        .from("orders").select("*").eq("id", id).single();
+      if (error) console.error("Error fetching order:", error);
       setOrder(data);
       setLoading(false);
     };
@@ -38,25 +42,14 @@ const AdminOrder = () => {
       setResult({ type: "error", message: "Please enter the admin PIN" });
       return;
     }
-
     setActionLoading(action);
     setResult(null);
-
     try {
       const { data, error } = await supabase.functions.invoke("manage-order", {
         body: { orderId: id, action, pin },
       });
-
-      if (error) {
-        setResult({ type: "error", message: error.message });
-        return;
-      }
-
-      if (data?.error) {
-        setResult({ type: "error", message: data.error });
-        return;
-      }
-
+      if (error) { setResult({ type: "error", message: error.message }); return; }
+      if (data?.error) { setResult({ type: "error", message: data.error }); return; }
       setResult({
         type: "success",
         message: action === "approve"
@@ -99,6 +92,7 @@ const AdminOrder = () => {
     <Layout>
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="bg-card rounded-lg shadow-md p-6 space-y-6">
+          {/* Header */}
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-6 h-6 text-primary" />
             <h1 className="text-xl font-serif text-foreground">
@@ -115,45 +109,75 @@ const AdminOrder = () => {
 
           {/* Customer Info */}
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
-            <h3 className="font-medium text-foreground">Customer</h3>
-            <p className="text-sm text-muted-foreground">{order.customer_name}</p>
-            <p className="text-sm text-muted-foreground">📧 {order.customer_email}</p>
-            <p className="text-sm text-muted-foreground">📱 {order.customer_phone}</p>
+            <h3 className="font-medium text-foreground mb-2">👤 Customer Information</h3>
+            <DetailRow label="Name" value={order.customer_name} />
+            <DetailRow label="Email" value={order.customer_email} />
+            <DetailRow label="Phone" value={order.customer_phone} />
           </div>
 
-          {/* Order Details */}
+          {/* Pickup / Delivery */}
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
-            <h3 className="font-medium text-foreground">Delivery</h3>
-            <p className="text-sm text-muted-foreground">📅 {order.order_date}</p>
-            <p className="text-sm text-muted-foreground">
-              📦 {order.delivery_option === "delivery" ? `Delivery: ${order.delivery_address}` : "Pickup at store"}
-            </p>
+            <h3 className="font-medium text-foreground mb-2">📦 Pickup / Delivery</h3>
+            <DetailRow label="Date" value={order.order_date} />
+            <DetailRow label="Time" value={details.pickupTime} />
+            <DetailRow label="Option" value={order.delivery_option === "delivery" ? "Delivery" : "Pickup at store"} />
+            {order.delivery_option === "delivery" && (
+              <DetailRow label="Address" value={order.delivery_address} />
+            )}
+            <DetailRow label="Delivery Notes" value={details.deliveryComment} />
           </div>
 
-          {/* Items */}
+          {/* Cake Items */}
           {items.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-medium text-foreground">Items</h3>
-              {items.map((item: any, i: number) => (
-                <div key={i} className="rounded-lg border border-border p-3 space-y-1">
-                  <div className="flex justify-between">
-                    <span className="font-medium text-sm">{item.sizeName} {item.shapeName} Cake</span>
-                    <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+              <h3 className="font-medium text-foreground">🍰 Order Items ({items.length})</h3>
+              {items.map((item: any, i: number) => {
+                const candlesList = (item.candles || [])
+                  .filter((c: any) => c.quantity > 0)
+                  .map((c: any) => `${c.id}${c.hasPack ? " (pack)" : ""} ×${c.quantity}`)
+                  .join(", ");
+
+                return (
+                  <div key={i} className="rounded-lg border border-border p-4 space-y-1">
+                    <div className="flex justify-between mb-2">
+                      <span className="font-medium text-sm">Cake {i + 1}</span>
+                      <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                    </div>
+                    <DetailRow label="Size" value={item.sizeName} />
+                    <DetailRow label="Shape" value={item.shapeName} />
+                    <DetailRow label="Flavor" value={item.flavorName} />
+                    <DetailRow label="Design / Style" value={item.styleName} />
+                    <DetailRow label="Base Color" value={item.baseColorName} />
+                    <DetailRow label="Decoration Color" value={item.decorationColorName} />
+                    {item.cakeText && (
+                      <DetailRow
+                        label="Text on Cake"
+                        value={`"${item.cakeText}" (${item.textStyle || "normal"}, ${item.textColorName || "default"})`}
+                      />
+                    )}
+                    {item.extrasNames?.length > 0 && (
+                      <DetailRow label="Extras" value={item.extrasNames.join(", ")} />
+                    )}
+                    <DetailRow label="Ribbon Color" value={item.ribbonColorName} />
+                    <DetailRow label="Butterfly Color" value={item.butterflyColorName} />
+                    {candlesList && <DetailRow label="Candles" value={candlesList} />}
+                    <DetailRow label="Special Instructions" value={item.comment} />
                   </div>
-                  <p className="text-xs text-muted-foreground">Flavor: {item.flavorName}</p>
-                  {item.styleName && <p className="text-xs text-muted-foreground">Style: {item.styleName}</p>}
-                  {item.extrasNames?.length > 0 && (
-                    <p className="text-xs text-muted-foreground">Extras: {item.extrasNames.join(", ")}</p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
-          {/* Total */}
-          <div className="flex justify-between items-center pt-4 border-t border-border">
-            <span className="text-lg font-semibold">Total</span>
-            <span className="text-lg font-semibold text-primary">CHF {order.total_amount}</span>
+          {/* Payment Summary */}
+          <div className="bg-amber-50 rounded-lg p-4 space-y-1">
+            <h3 className="font-medium text-foreground mb-2">💳 Payment</h3>
+            <DetailRow label="Order ID" value={order.id.slice(0, 8).toUpperCase()} />
+            <DetailRow label="Total" value={`CHF ${order.total_amount}`} />
+            <DetailRow label="Status" value={
+              order.status === "pending" ? "⏳ Pending Approval (funds authorized)" :
+              order.status === "approved" ? "✅ Approved (payment captured)" :
+              "❌ Rejected (payment canceled)"
+            } />
           </div>
 
           {/* Admin Actions */}
@@ -181,29 +205,12 @@ const AdminOrder = () => {
               )}
 
               <div className="flex gap-3">
-                <Button
-                  onClick={() => handleAction("approve")}
-                  disabled={!!actionLoading}
-                  className="flex-1"
-                >
-                  {actionLoading === "approve" ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                  )}
+                <Button onClick={() => handleAction("approve")} disabled={!!actionLoading} className="flex-1">
+                  {actionLoading === "approve" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
                   Approve & Capture Payment
                 </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleAction("reject")}
-                  disabled={!!actionLoading}
-                  className="flex-1"
-                >
-                  {actionLoading === "reject" ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <XCircle className="w-4 h-4 mr-2" />
-                  )}
+                <Button variant="destructive" onClick={() => handleAction("reject")} disabled={!!actionLoading} className="flex-1">
+                  {actionLoading === "reject" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <XCircle className="w-4 h-4 mr-2" />}
                   Reject & Cancel Payment
                 </Button>
               </div>
