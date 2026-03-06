@@ -989,7 +989,7 @@ const Catalog = () => {
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {selections.orderDate ? (
-                        format(selections.orderDate, "PPP")
+                        format(selections.orderDate, "dd.MM.yyyy")
                       ) : (
                         <span>Pick a date</span>
                       )}

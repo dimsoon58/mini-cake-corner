@@ -176,7 +176,7 @@ const CorporateQuoteForm = ({ open, onOpenChange }: CorporateQuoteFormProps) => 
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {eventDate ? format(eventDate, "PPP") : "Select a date"}
+                    {eventDate ? format(eventDate, "dd.MM.yyyy") : "Select a date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
