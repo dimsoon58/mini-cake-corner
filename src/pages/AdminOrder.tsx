@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { CheckCircle, XCircle, Loader2, ShieldCheck } from "lucide-react";
+import { useParams, useSearchParams } from "react-router-dom";
+import { CheckCircle, XCircle, Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,9 @@ const DetailRow = ({ label, value }: { label: string; value?: string | null }) =
 
 const AdminOrder = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [pin, setPin] = useState("");
@@ -42,11 +45,15 @@ const AdminOrder = () => {
       setResult({ type: "error", message: "Please enter the admin PIN" });
       return;
     }
+    if (!token) {
+      setResult({ type: "error", message: "Missing action token. Please use the link from the notification email." });
+      return;
+    }
     setActionLoading(action);
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("manage-order", {
-        body: { orderId: id, action, pin },
+        body: { orderId: id, action, pin, token },
       });
       if (error) { setResult({ type: "error", message: error.message }); return; }
       if (data?.error) { setResult({ type: "error", message: data.error }); return; }
@@ -106,6 +113,17 @@ const AdminOrder = () => {
               {order.status.toUpperCase()}
             </span>
           </div>
+
+          {/* Missing token warning */}
+          {!token && !isResolved && (
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+              <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+              <div className="text-sm text-amber-800">
+                <p className="font-medium">Secure token missing</p>
+                <p>Please use the link from the notification email to manage this order. Direct access without a token is not permitted.</p>
+              </div>
+            </div>
+          )}
 
           {/* Customer Info */}
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
@@ -205,11 +223,11 @@ const AdminOrder = () => {
               )}
 
               <div className="flex gap-3">
-                <Button onClick={() => handleAction("approve")} disabled={!!actionLoading} className="flex-1">
+                <Button onClick={() => handleAction("approve")} disabled={!!actionLoading || !token} className="flex-1">
                   {actionLoading === "approve" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
                   Approve & Capture Payment
                 </Button>
-                <Button variant="destructive" onClick={() => handleAction("reject")} disabled={!!actionLoading} className="flex-1">
+                <Button variant="destructive" onClick={() => handleAction("reject")} disabled={!!actionLoading || !token} className="flex-1">
                   {actionLoading === "reject" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <XCircle className="w-4 h-4 mr-2" />}
                   Reject & Cancel Payment
                 </Button>

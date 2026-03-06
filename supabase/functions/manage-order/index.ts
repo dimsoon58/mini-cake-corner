@@ -81,7 +81,6 @@ ${itemDescriptions}
 
 💰 Total: CHF ${order.total_amount}`;
 
-  // Build start/end based on pickup time
   const event: any = {
     summary: `Cake Pickup – ${order.customer_name}`,
     description,
@@ -89,10 +88,9 @@ ${itemDescriptions}
   };
 
   if (pickupTime && order.order_date) {
-    // Parse time like "10:00" or "14:30"
     const [hours, minutes] = pickupTime.split(":").map(Number);
     const startDate = new Date(`${order.order_date}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
-    const endDate = new Date(startDate.getTime() + 30 * 60 * 1000); // 30 min duration
+    const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
 
     event.start = {
       dateTime: startDate.toISOString().replace("Z", ""),
@@ -206,6 +204,43 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
   return data;
 }
 
+// ── Token validation helper ─────────────────────────────────────────
+
+async function validateAndConsumeToken(supabase: any, orderId: string, token: string): Promise<void> {
+  // Find the token
+  const { data: tokenRecord, error: fetchError } = await supabase
+    .from("order_action_tokens")
+    .select("*")
+    .eq("token", token)
+    .eq("order_id", orderId)
+    .single();
+
+  if (fetchError || !tokenRecord) {
+    throw new Error("Invalid or unknown action token");
+  }
+
+  // Check if already used
+  if (tokenRecord.used) {
+    throw new Error("This action token has already been used");
+  }
+
+  // Check expiry
+  if (new Date(tokenRecord.expires_at) < new Date()) {
+    throw new Error("This action token has expired (24-hour limit)");
+  }
+
+  // Mark as used
+  const { error: updateError } = await supabase
+    .from("order_action_tokens")
+    .update({ used: true, used_at: new Date().toISOString() })
+    .eq("id", tokenRecord.id);
+
+  if (updateError) {
+    console.error("Failed to mark token as used:", updateError);
+    throw new Error("Failed to consume action token");
+  }
+}
+
 // ── Main handler ─────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -214,10 +249,14 @@ serve(async (req) => {
   }
 
   try {
-    const { orderId, action, pin } = await req.json();
+    const { orderId, action, pin, token } = await req.json();
 
     if (!orderId || !action || !pin) {
       throw new Error("Missing required fields: orderId, action, pin");
+    }
+
+    if (!token) {
+      throw new Error("Missing required field: token");
     }
 
     // Verify admin PIN
@@ -241,6 +280,9 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } }
     );
+
+    // Validate and consume the single-use token
+    await validateAndConsumeToken(supabase, orderId, token);
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -272,7 +314,6 @@ serve(async (req) => {
 
       if (!paymentIntentId) throw new Error("No payment intent found");
 
-      // Check if already captured (e.g. TWINT auto-captures)
       const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
       if (pi.status === "requires_capture") {
         await stripe.paymentIntents.capture(paymentIntentId);
@@ -286,7 +327,6 @@ serve(async (req) => {
       newStatus = "approved";
       console.log(`Order ${orderId} approved. ${stripeAction}`);
 
-      // Create Google Calendar event
       const gcKey = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
       if (gcKey) {
         try {
@@ -297,7 +337,6 @@ serve(async (req) => {
         }
       }
     } else {
-      // Reject — cancel or refund depending on capture status
       if (!order.stripe_session_id) throw new Error("No Stripe session ID found");
 
       const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
@@ -321,7 +360,6 @@ serve(async (req) => {
       newStatus = "rejected";
       console.log(`Order ${orderId} rejected. ${stripeAction}`);
 
-      // Send decline email to customer
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (resendKey) {
         try {
@@ -332,7 +370,6 @@ serve(async (req) => {
       }
     }
 
-    // Update order status
     const { error: updateError } = await supabase
       .from("orders").update({ status: newStatus }).eq("id", orderId);
 

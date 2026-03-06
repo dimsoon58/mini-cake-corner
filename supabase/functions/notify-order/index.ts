@@ -13,10 +13,10 @@ function row(label: string, value: string | undefined | null): string {
   return `<tr><td style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
 }
 
-async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string) {
+async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string, token: string) {
   const details = order.order_details_json || {};
   const items = details.items || [];
-  const reviewUrl = `${siteUrl}/admin/order/${order.id}`;
+  const reviewUrl = `${siteUrl}/admin/order/${order.id}?token=${token}`;
 
   const itemBlocks = items.map((item: any, i: number) => {
     const candlesList = (item.candles || [])
@@ -98,7 +98,7 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string)
 
         <!-- Action Buttons -->
         <div style="text-align:center;margin:32px 0 16px;">
-          <p style="color:#666;font-size:13px;margin-bottom:20px;">Click a button below or use the review page to manage this order.</p>
+          <p style="color:#666;font-size:13px;margin-bottom:20px;">Click below to review and manage this order.</p>
           
           <a href="${reviewUrl}" style="display:inline-block;background:#16a34a;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
             ✅ Accept Order
@@ -110,7 +110,7 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string)
         </div>
 
         <p style="color:#999;font-size:12px;text-align:center;margin-top:8px;">
-          Both buttons link to the secure admin review page where you'll enter your PIN to confirm the action.
+          This link contains a secure token that expires in 24 hours and can only be used once.
         </p>
       </div>
 
@@ -166,12 +166,27 @@ serve(async (req) => {
 
     if (orderError || !order) throw new Error("Order not found");
 
+    // Generate a secure single-use token (24h expiry)
+    const token = crypto.randomUUID() + "-" + crypto.randomUUID();
+    const { error: tokenError } = await supabase
+      .from("order_action_tokens")
+      .insert({
+        order_id: orderId,
+        token,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      });
+
+    if (tokenError) {
+      console.error("Token creation error:", tokenError);
+      throw new Error("Failed to create action token");
+    }
+
     const siteUrl = req.headers.get("origin") || "https://mini-cake-corner.lovable.app";
     const results: { email?: any; errors: string[] } = { errors: [] };
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (resendKey) {
-      try { results.email = await sendAdminEmail(resendKey, order, siteUrl); }
+      try { results.email = await sendAdminEmail(resendKey, order, siteUrl, token); }
       catch (e) { console.error("Email error:", e); results.errors.push(`Email: ${e instanceof Error ? e.message : String(e)}`); }
     } else { results.errors.push("RESEND_API_KEY not configured"); }
 
