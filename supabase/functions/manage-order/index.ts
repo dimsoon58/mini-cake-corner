@@ -272,6 +272,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
             ${row("Date", formatDateCH(order.order_date))}
             ${pickupTime ? row("Time", pickupTime) : ""}
             ${row("Pickup option", deliveryInfo)}
+            ${row("Payment method", paymentMethodLabel)}
           </table>
         </div>
 
