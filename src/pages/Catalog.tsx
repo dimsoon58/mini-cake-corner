@@ -837,7 +837,8 @@ const Catalog = () => {
       return;
     }
 
-    if (selections.extras.includes("butterfly") && !selections.butterflyColor) {
+    const designNeedsButterfly = selectedCake?.styleId === "butterfly-garden";
+    if ((designNeedsButterfly || selections.extras.includes("butterfly")) && !selections.butterflyColor) {
       toast({ title: "Butterfly Color required", description: "Please select a color for your butterfly.", variant: "destructive" });
       return;
     }
@@ -1519,7 +1520,7 @@ const Catalog = () => {
                 )}
 
                 {/* Butterfly Color */}
-                {selections.extras.includes("butterfly") && (
+                {(selections.extras.includes("butterfly") || selectedCake?.styleId === "butterfly-garden") && (
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-foreground">Butterfly Color <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
