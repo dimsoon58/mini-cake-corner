@@ -101,12 +101,12 @@ const features = [
   },
 ];
 
-const PhotoCarousel = ({ photos, altPrefix, contain }: { photos: string[]; altPrefix: string; contain?: boolean }) => {
+const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: string }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: "left" | "right") => {
     if (!scrollRef.current) return;
-    const scrollAmount = contain ? scrollRef.current.clientWidth : 320;
+    const scrollAmount = 320;
     scrollRef.current.scrollBy({
       left: direction === "left" ? -scrollAmount : scrollAmount,
       behavior: "smooth",
@@ -129,22 +129,10 @@ const PhotoCarousel = ({ photos, altPrefix, contain }: { photos: string[]; altPr
       </button>
       <div
         ref={scrollRef}
-        className={`flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-4 ${contain ? 'snap-x snap-mandatory' : ''}`}
+        className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-4"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {photos.map((photo, index) => (
-          contain ? (
-            <div
-              key={index}
-              className="flex-shrink-0 w-full flex items-center justify-center snap-center"
-            >
-              <img
-                src={photo}
-                alt={`${altPrefix} ${index + 1}`}
-                className="max-w-[500px] w-full h-auto object-contain rounded-2xl"
-              />
-            </div>
-          ) : (
             <div
               key={index}
               className="flex-shrink-0 w-72 h-80 rounded-2xl overflow-hidden"
@@ -155,7 +143,6 @@ const PhotoCarousel = ({ photos, altPrefix, contain }: { photos: string[]; altPr
                 className="w-full h-full object-cover"
               />
             </div>
-          )
         ))}
       </div>
       <button
@@ -301,12 +288,12 @@ const Index = () => {
       </section>
 
       {/* Customer Comments Section */}
-      <section className="py-10 bg-background">
+      <section className="py-16 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-8">
+          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-6">
             CUSTOMER COMMENTS
           </h2>
-          <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" contain />
+          <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" />
         </div>
       </section>
 
