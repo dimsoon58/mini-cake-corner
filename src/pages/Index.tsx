@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import logo from "@/assets/logo-new.png";
 import heroBg from "@/assets/hero-bg.jpg";
+import heroCake from "@/assets/hero-cake.jpg";
 import cakeWhippedCream from "@/assets/cake-whipped-cream-new.png";
 import cakeFresh from "@/assets/cake-fresh-new.png";
 import cakeTrendy from "@/assets/cake-trendy.png";
@@ -169,9 +170,17 @@ const Index = () => {
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-light tracking-wide mb-6">
             NOT YOUR TRADITIONAL CAKES
           </h1>
-          <p className="text-lg md:text-xl max-w-3xl mx-auto opacity-90 mb-10 font-light">
+          <p className="text-lg md:text-xl max-w-3xl mx-auto opacity-90 mb-6 font-light">
             Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.
           </p>
+          <div className="flex justify-center mb-8">
+            <img
+              src={heroCake}
+              alt="Beautiful pearl border cake"
+              className="w-64 h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 object-cover rounded-2xl shadow-2xl"
+              loading="eager"
+            />
+          </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
