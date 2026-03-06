@@ -237,13 +237,17 @@ const Checkout = () => {
           decorationColorName: item.decorationColorName,
           cakeText: item.cakeText,
           textColorName: item.textColorName,
+          textStyle: item.textStyle,
           extrasNames: item.extrasNames,
           ribbonColorName: item.ribbonColorName,
           butterflyColorName: item.butterflyColorName,
+          candles: item.candles,
+          orderTime: item.orderTime,
           comment: item.comment,
           total: item.total,
         })),
         deliveryComment,
+        pickupTime: items[0]?.orderTime || "",
       };
 
       // Save order to database with pending status
@@ -257,7 +261,7 @@ const Checkout = () => {
         delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
         newsletter_subscription: subscribeNewsletter,
         status: "pending",
-        order_details_json: orderDetailsJson,
+        order_details_json: orderDetailsJson as any,
       }).select("id").single();
 
       if (orderError) {
