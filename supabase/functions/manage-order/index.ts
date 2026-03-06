@@ -65,57 +65,68 @@ function formatDateCH(dateValue?: string): string {
   return year && month && day ? `${day}.${month}.${year}` : dateValue;
 }
 
-function buildOrderDetailsText(order: any): string {
+function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "";
   const orderNumber = order.id.slice(0, 8).toUpperCase();
 
   const lines: string[] = [];
-  lines.push(`Order number: #${orderNumber}`);
-  lines.push(`Customer name: ${order.customer_name}`);
-  lines.push(`Customer email: ${order.customer_email}`);
-  lines.push(`Customer phone: ${order.customer_phone}`);
+  const pushBullet = (value?: string | null) => {
+    if (!value) return;
+    lines.push(`• ${value}`);
+  };
+
+  pushBullet(`Order number: #${orderNumber}`);
+  pushBullet(`Customer name: ${order.customer_name}`);
+  pushBullet(`Customer email: ${order.customer_email}`);
+  pushBullet(`Customer phone: ${order.customer_phone}`);
   lines.push("");
-  lines.push(`Pickup date: ${formatDateCH(order.order_date)}`);
-  if (pickupTime) lines.push(`Pickup time: ${pickupTime}`);
-  lines.push(`Pickup option: ${order.delivery_option === "delivery" ? `Delivery to ${order.delivery_address || "—"}` : "Pickup at store"}`);
+  pushBullet(`Pickup date: ${formatDateCH(order.order_date)}`);
+  if (pickupTime) pushBullet(`Pickup time: ${pickupTime}`);
+  pushBullet(`Pickup option: ${order.delivery_option === "delivery" ? `Delivery to ${order.delivery_address || "—"}` : "Pickup at store"}`);
 
   items.forEach((item: any, i: number) => {
     lines.push("");
-    lines.push(items.length > 1 ? `--- Cake ${i + 1} ---` : "--- Cake details ---");
-    if (item.sizeName) lines.push(`Cake size: ${item.sizeName}`);
-    if (item.flavorName) lines.push(`Flavor: ${item.flavorName}`);
-    if (item.shapeName) lines.push(`Shape: ${item.shapeName}`);
-    if (item.styleName) lines.push(`Design: ${item.styleName}`);
-    if (item.baseColorName) lines.push(`Base color: ${item.baseColorName}`);
-    if (item.decorationColorName) lines.push(`Decoration color: ${item.decorationColorName}`);
-    if (item.textColorName) lines.push(`Text color: ${item.textColorName}`);
-    if (item.textStyle) lines.push(`Text style: ${item.textStyle}`);
-    if (item.cakeText) lines.push(`Text on cake: ${item.cakeText}`);
-    if (item.extrasNames?.length) lines.push(`Extras: ${item.extrasNames.join(", ")}`);
-    if (item.ribbonColorName) lines.push(`Ribbon color: ${item.ribbonColorName}`);
-    if (item.butterflyColorName) lines.push(`Butterfly color: ${item.butterflyColorName}`);
+    pushBullet(items.length > 1 ? `Cake ${i + 1}` : "Cake details");
+    if (item.sizeName) pushBullet(`Cake size: ${item.sizeName}`);
+    if (item.flavorName) pushBullet(`Flavor: ${item.flavorName}`);
+    if (item.shapeName) pushBullet(`Shape: ${item.shapeName}`);
+    if (item.styleName) pushBullet(`Design: ${item.styleName}`);
+    if (item.baseColorName) pushBullet(`Base color: ${item.baseColorName}`);
+    if (item.decorationColorName) pushBullet(`Decoration color: ${item.decorationColorName}`);
+    if (item.textColorName) pushBullet(`Text color: ${item.textColorName}`);
+    if (item.textStyle) pushBullet(`Text style: ${item.textStyle}`);
+    if (item.cakeText) pushBullet(`Text on cake: ${item.cakeText}`);
+
+    if (item.extrasNames?.length) {
+      pushBullet(`Extras: ${item.extrasNames.join(", ")}`);
+      lines.push("");
+    }
+
+    if (item.ribbonColorName) pushBullet(`Ribbon color: ${item.ribbonColorName}`);
+    if (item.butterflyColorName) pushBullet(`Butterfly color: ${item.butterflyColorName}`);
 
     const candles = (item.candles || []).filter((c: any) => c.quantity > 0);
-    if (candles.length) lines.push(`Candles: ${candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ")}`);
+    if (candles.length) pushBullet(`Candles: ${candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ")}`);
 
-    if (item.comment) lines.push(`Additional notes: ${item.comment}`);
+    pushBullet(`Additional note: ${item.comment?.trim() || "-"}`);
+
     if (item.imageUrls?.length) {
       item.imageUrls.forEach((url: string, j: number) => {
-        lines.push(`Reference image ${j + 1}: ${url}`);
+        pushBullet(`Reference image ${j + 1}: ${url}`);
       });
     }
-    lines.push(`Subtotal: CHF ${item.total}`);
   });
 
   if (details.deliveryComment) {
     lines.push("");
-    lines.push(`Delivery comment: ${details.deliveryComment}`);
+    pushBullet(`Delivery comment: ${details.deliveryComment}`);
   }
 
   lines.push("");
-  lines.push(`Total paid: CHF ${order.total_amount}`);
+  pushBullet(`Payment method: ${paymentMethodLabel}`);
+  pushBullet(`Total paid: CHF ${order.total_amount}`);
 
   return lines.join("\n");
 }
