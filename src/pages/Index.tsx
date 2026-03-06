@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import logo from "@/assets/logo-new.png";
 import heroBg from "@/assets/hero-bg.jpg";
+import heroCake from "@/assets/hero-cake.png";
 import cakeWhippedCream from "@/assets/cake-whipped-cream-new.png";
 import cakeFresh from "@/assets/cake-fresh-new.png";
 import cakeTrendy from "@/assets/cake-trendy.png";
