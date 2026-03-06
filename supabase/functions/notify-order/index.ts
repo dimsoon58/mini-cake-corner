@@ -45,7 +45,7 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
           ${row("Ribbon", item.ribbonColorName)}
           ${row("Butterfly", item.butterflyColorName)}
           ${row("Candles", candlesList || null)}
-          ${row("Instructions", item.comment)}
+          ${row("Instructions", item.comment?.trim() || null)}
         </table>
       </div>`;
   }).join("");

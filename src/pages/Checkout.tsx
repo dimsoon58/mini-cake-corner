@@ -44,19 +44,17 @@ const COUNTRY_CODES = [
   { code: "+1", country: "US", flag: "🇺🇸" },
 ];
 
-// Generate time slots from 10:00 to 18:30 in 30-minute intervals
-const generateTimeSlots = () => {
-  const slots: string[] = [];
-  for (let hour = 10; hour <= 18; hour++) {
-    slots.push(`${hour.toString().padStart(2, "0")}:00`);
-    if (hour < 18 || hour === 18) {
-      slots.push(`${hour.toString().padStart(2, "0")}:30`);
-    }
-  }
-  return slots;
-};
-
-const TIME_SLOTS = generateTimeSlots();
+// Generate 1-hour pickup time slots from 10:00 to 18:00
+const TIME_SLOTS = [
+  "10:00 – 11:00",
+  "11:00 – 12:00",
+  "12:00 – 13:00",
+  "13:00 – 14:00",
+  "14:00 – 15:00",
+  "15:00 – 16:00",
+  "16:00 – 17:00",
+  "17:00 – 18:00",
+];
 
 // Delivery zones configuration with postal codes for auto-detection
 const DELIVERY_ZONES = [
@@ -252,6 +250,15 @@ const Checkout = () => {
         title: "Delivery zone not recognized",
         description:
           "Please make sure your address includes a recognized area name (e.g., Carouge, Champel, Meyrin...)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (deliveryOption === "pickup" && !pickupTime) {
+      toast({
+        title: "Pickup Time required",
+        description: "Please select a pickup time slot.",
         variant: "destructive",
       });
       return;
@@ -578,7 +585,7 @@ const Checkout = () => {
             {/* Pickup Time - Only shown when pickup is selected */}
             {deliveryOption === "pickup" && (
               <div className="space-y-2">
-                <Label>Preferred Pickup Time</Label>
+                <Label>Pickup Time <span className="text-destructive">*</span></Label>
                 <Select value={pickupTime} onValueChange={setPickupTime}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a pickup time" />
