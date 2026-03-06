@@ -87,10 +87,13 @@ ${itemDescriptions}
     start: { date: order.order_date, timeZone: "Europe/Zurich" },
     end: { date: order.order_date, timeZone: "Europe/Zurich" },
     colorId: "6",
+    attendees: [
+      { email: "naglemelodie@gmail.com", responseStatus: "needsAction" },
+    ],
   };
 
   const calendarId = encodeURIComponent("naglemelodie@gmail.com");
-  const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
+  const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?sendUpdates=all`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(event),
