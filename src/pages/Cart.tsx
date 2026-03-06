@@ -458,7 +458,7 @@ const CartItemEditor = ({
   onBaseColorChange, onDecoColorChange, onTextChange, onTextColorChange, onTextStyleChange,
   onToggleExtra, onRibbonColorChange, onButterflyColorChange,
   onGlitterColorChange, onGlitterCherriesColorChange,
-  onCommentChange,
+  onCommentChange, onImageUrlsChange,
   onCandleQtyChange, getCandleUnitQty, getCandleItemPrice,
 }: CartItemEditorProps) => {
   const showDecoColor = item.style !== "normal-without-border";
@@ -466,17 +466,57 @@ const CartItemEditor = ({
   const excludedExtras = getExcludedExtras(item.style);
   const availableSizeIds = getAvailableSizesForStyle(item.style);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
-  const [commentImages, setCommentImages] = useState<File[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
-  const handleCommentImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length + commentImages.length > 5) return;
-    setCommentImages(prev => [...prev, ...files]);
-    if (commentFileInputRef.current) commentFileInputRef.current.value = "";
+  const handleCommentImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    const currentUrls: string[] = item.imageUrls || [];
+    const remainingSlots = Math.max(0, 5 - currentUrls.length);
+    const files = selectedFiles.slice(0, remainingSlots);
+
+    if (!files.length) {
+      if (commentFileInputRef.current) commentFileInputRef.current.value = "";
+      return;
+    }
+
+    setIsUploadingImages(true);
+
+    try {
+      const now = new Date();
+      const year = String(now.getFullYear());
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const folderId = item.id || crypto.randomUUID();
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const filePath = `${year}/${month}/${folderId}/reference_${currentUrls.length + i + 1}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("order-images")
+          .upload(filePath, file, { contentType: file.type, upsert: false });
+
+        if (uploadError) {
+          throw new Error(uploadError.message);
+        }
+
+        const { data } = supabase.storage.from("order-images").getPublicUrl(filePath);
+        uploadedUrls.push(data.publicUrl);
+      }
+
+      onImageUrlsChange([...currentUrls, ...uploadedUrls]);
+    } catch (error) {
+      console.error("Reference image upload error:", error);
+    } finally {
+      setIsUploadingImages(false);
+      if (commentFileInputRef.current) commentFileInputRef.current.value = "";
+    }
   };
 
   const removeCommentImage = (index: number) => {
-    setCommentImages(prev => prev.filter((_, i) => i !== index));
+    const currentUrls: string[] = item.imageUrls || [];
+    onImageUrlsChange(currentUrls.filter((_: string, i: number) => i !== index));
   };
 
   const getExtraPriceForSize = (extra: typeof catalogExtras[0]) => {
