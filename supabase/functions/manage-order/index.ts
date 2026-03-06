@@ -516,6 +516,7 @@ serve(async (req) => {
       status: newStatus,
       stripeAction,
       calendarEvent: !!calendarResult,
+      approvalEmailSent: !!approvalEmailResult,
       declineEmailSent: !!declineEmailResult,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
