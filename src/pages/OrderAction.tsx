@@ -12,6 +12,8 @@ const OrderAction = () => {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
 
+  const isDecline = action === "reject" || action === "decline";
+
   useEffect(() => {
     if (!orderId || !action || !token) {
       setStatus("error");
@@ -19,11 +21,13 @@ const OrderAction = () => {
       return;
     }
 
-    if (action !== "approve" && action !== "reject") {
+    if (action !== "approve" && action !== "reject" && action !== "decline") {
       setStatus("error");
-      setMessage("Invalid action. Must be 'approve' or 'reject'.");
+      setMessage("Invalid action. Must be 'approve', 'reject', or 'decline'.");
       return;
     }
+
+    const isDecline = action === "reject" || action === "decline";
 
     const execute = async () => {
       try {
@@ -45,9 +49,9 @@ const OrderAction = () => {
 
         setStatus("success");
         setMessage(
-          action === "approve"
-            ? "Order approved! Payment has been captured and a calendar event has been created."
-            : "Order declined. Payment has been canceled and the customer has been notified."
+          isDecline
+            ? "Order declined. Payment has been refunded and the customer has been notified."
+            : "Order approved! Payment has been captured and a calendar event has been created."
         );
       } catch (err) {
         setStatus("error");
@@ -64,21 +68,21 @@ const OrderAction = () => {
         <div className="flex justify-center">
           <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{
             background: status === "loading" ? "#f3f4f6" :
-              status === "success" && action === "approve" ? "#d1fae5" :
-              status === "success" && action === "reject" ? "#fef2f2" :
+              status === "success" && !isDecline ? "#d1fae5" :
+              status === "success" && isDecline ? "#fef2f2" :
               "#fef3c7"
           }}>
             {status === "loading" && <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />}
-            {status === "success" && action === "approve" && <CheckCircle className="w-10 h-10 text-emerald-600" />}
-            {status === "success" && action === "reject" && <XCircle className="w-10 h-10 text-red-600" />}
+            {status === "success" && !isDecline && <CheckCircle className="w-10 h-10 text-emerald-600" />}
+            {status === "success" && isDecline && <XCircle className="w-10 h-10 text-red-600" />}
             {status === "error" && <AlertTriangle className="w-10 h-10 text-amber-600" />}
           </div>
         </div>
 
         <h1 className="text-2xl font-serif text-foreground">
           {status === "loading" && "Processing..."}
-          {status === "success" && action === "approve" && "Order Accepted ✅"}
-          {status === "success" && action === "reject" && "Order Declined ❌"}
+          {status === "success" && !isDecline && "Order Accepted ✅"}
+          {status === "success" && isDecline && "Order Declined ❌"}
           {status === "error" && "Action Failed"}
         </h1>
 
