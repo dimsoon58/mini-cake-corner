@@ -81,6 +81,11 @@ const cartCandles = [
   ...customizationCandles.filter(c => !c.hasPack),
 ];
 
+const formatDateFromIso = (dateValue: string) => {
+  const [year, month, day] = dateValue.split("-");
+  return year && month && day ? `${day}.${month}.${year}` : dateValue;
+};
+
 const Cart = () => {
   const { items, removeItem, updateItem, clearCart, itemCount } = useCart();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -232,6 +237,10 @@ const Cart = () => {
     updateItem(itemId, { comment });
   };
 
+  const handleImageUrlsChange = (itemId: string, imageUrls: string[]) => {
+    updateItem(itemId, { imageUrls });
+  };
+
   const handleCandleQuantityChange = (itemId: string, candleId: string, delta: number) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
@@ -334,6 +343,7 @@ const Cart = () => {
                           onGlitterColorChange={(v) => handleGlitterColorChange(item.id, v)}
                           onGlitterCherriesColorChange={(v) => handleGlitterCherriesColorChange(item.id, v)}
                           onCommentChange={(v) => handleCommentChange(item.id, v)}
+                          onImageUrlsChange={(urls) => handleImageUrlsChange(item.id, urls)}
                           onCandleQtyChange={(candleId, delta) => handleCandleQuantityChange(item.id, candleId, delta)}
                           getCandleUnitQty={(candleId) => getCandleUnitQty(item, candleId)}
                           getCandleItemPrice={(candleId) => getCandleItemPrice(candleId, item.candles || [])}
@@ -388,7 +398,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
 
   return (
     <div className="space-y-2">
-      {item.orderDate && <p className="text-sm text-muted-foreground">📅 {format(new Date(item.orderDate), "PPP")}</p>}
+      {item.orderDate && <p className="text-sm text-muted-foreground">📅 {formatDateFromIso(item.orderDate)}</p>}
       <p className="text-muted-foreground">Flavor: {item.flavorName}</p>
       <p className="text-muted-foreground">Design: {item.styleName}</p>
       {item.baseColorName && (
@@ -436,6 +446,7 @@ interface CartItemEditorProps {
   onGlitterColorChange: (v: string) => void;
   onGlitterCherriesColorChange: (v: string) => void;
   onCommentChange: (v: string) => void;
+  onImageUrlsChange: (urls: string[]) => void;
   onCandleQtyChange: (candleId: string, delta: number) => void;
   getCandleUnitQty: (candleId: string) => number;
   getCandleItemPrice: (candleId: string) => number;
@@ -447,7 +458,7 @@ const CartItemEditor = ({
   onBaseColorChange, onDecoColorChange, onTextChange, onTextColorChange, onTextStyleChange,
   onToggleExtra, onRibbonColorChange, onButterflyColorChange,
   onGlitterColorChange, onGlitterCherriesColorChange,
-  onCommentChange,
+  onCommentChange, onImageUrlsChange,
   onCandleQtyChange, getCandleUnitQty, getCandleItemPrice,
 }: CartItemEditorProps) => {
   const showDecoColor = item.style !== "normal-without-border";
@@ -455,17 +466,57 @@ const CartItemEditor = ({
   const excludedExtras = getExcludedExtras(item.style);
   const availableSizeIds = getAvailableSizesForStyle(item.style);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
-  const [commentImages, setCommentImages] = useState<File[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
-  const handleCommentImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length + commentImages.length > 5) return;
-    setCommentImages(prev => [...prev, ...files]);
-    if (commentFileInputRef.current) commentFileInputRef.current.value = "";
+  const handleCommentImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    const currentUrls: string[] = item.imageUrls || [];
+    const remainingSlots = Math.max(0, 5 - currentUrls.length);
+    const files = selectedFiles.slice(0, remainingSlots);
+
+    if (!files.length) {
+      if (commentFileInputRef.current) commentFileInputRef.current.value = "";
+      return;
+    }
+
+    setIsUploadingImages(true);
+
+    try {
+      const now = new Date();
+      const year = String(now.getFullYear());
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const folderId = item.id || crypto.randomUUID();
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const filePath = `${year}/${month}/${folderId}/reference_${currentUrls.length + i + 1}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("order-images")
+          .upload(filePath, file, { contentType: file.type, upsert: false });
+
+        if (uploadError) {
+          throw new Error(uploadError.message);
+        }
+
+        const { data } = supabase.storage.from("order-images").getPublicUrl(filePath);
+        uploadedUrls.push(data.publicUrl);
+      }
+
+      onImageUrlsChange([...currentUrls, ...uploadedUrls]);
+    } catch (error) {
+      console.error("Reference image upload error:", error);
+    } finally {
+      setIsUploadingImages(false);
+      if (commentFileInputRef.current) commentFileInputRef.current.value = "";
+    }
   };
 
   const removeCommentImage = (index: number) => {
-    setCommentImages(prev => prev.filter((_, i) => i !== index));
+    const currentUrls: string[] = item.imageUrls || [];
+    onImageUrlsChange(currentUrls.filter((_: string, i: number) => i !== index));
   };
 
   const getExtraPriceForSize = (extra: typeof catalogExtras[0]) => {
@@ -481,7 +532,7 @@ const CartItemEditor = ({
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !item.orderDate && "text-muted-foreground")}>
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {item.orderDate ? format(new Date(item.orderDate), "PPP") : <span>Pick a date</span>}
+              {item.orderDate ? formatDateFromIso(item.orderDate) : <span>Pick a date</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -803,22 +854,23 @@ const CartItemEditor = ({
           onChange={handleCommentImageUpload}
           className="hidden"
         />
-        {commentImages.length < 5 && (
+        {(item.imageUrls || []).length < 5 && (
           <button
             onClick={() => commentFileInputRef.current?.click()}
-            className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center gap-1 hover:border-primary/50 transition-colors"
+            disabled={isUploadingImages}
+            className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center gap-1 hover:border-primary/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Upload className="w-6 h-6 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Click to upload images</span>
+            <span className="text-xs text-muted-foreground">{isUploadingImages ? "Uploading..." : "Click to upload images"}</span>
           </button>
         )}
-        {commentImages.length > 0 && (
+        {(item.imageUrls || []).length > 0 && (
           <>
             <div className="flex flex-wrap gap-2 mt-2">
-              {commentImages.map((file, index) => (
-                <div key={index} className="relative w-16 h-16">
+              {(item.imageUrls || []).map((url: string, index: number) => (
+                <div key={url} className="relative w-16 h-16">
                   <img
-                    src={URL.createObjectURL(file)}
+                    src={url}
                     alt={`Reference ${index + 1}`}
                     className="w-full h-full object-cover rounded-lg"
                   />

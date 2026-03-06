@@ -17,6 +17,12 @@ const DetailRow = ({ label, value }: { label: string; value?: string | null }) =
   );
 };
 
+const formatDateFromIso = (dateValue?: string | null) => {
+  if (!dateValue) return dateValue;
+  const [year, month, day] = dateValue.split("-");
+  return year && month && day ? `${day}.${month}.${year}` : dateValue;
+};
+
 const AdminOrder = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -136,7 +142,7 @@ const AdminOrder = () => {
           {/* Pickup / Delivery */}
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
             <h3 className="font-medium text-foreground mb-2">📦 Pickup / Delivery</h3>
-            <DetailRow label="Date" value={order.order_date} />
+            <DetailRow label="Date" value={formatDateFromIso(order.order_date)} />
             <DetailRow label="Time" value={details.pickupTime} />
             <DetailRow label="Option" value={order.delivery_option === "delivery" ? "Delivery" : "Pickup at store"} />
             {order.delivery_option === "delivery" && (

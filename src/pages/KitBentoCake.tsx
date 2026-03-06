@@ -292,7 +292,7 @@ const KitBentoCake = () => {
 
     const cartItem = {
       id: "",
-      orderDate: orderDate ? format(orderDate, "PPP") : "",
+      orderDate: orderDate ? format(orderDate, "yyyy-MM-dd") : "",
       orderTime: "",
       size: "kit-bento",
       sizeName: "DIY Kit",
@@ -381,7 +381,7 @@ const KitBentoCake = () => {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {orderDate ? format(orderDate, "PPP") : "Select a date"}
+                    {orderDate ? format(orderDate, "dd.MM.yyyy") : "Select a date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="center">
@@ -658,7 +658,7 @@ const KitBentoCake = () => {
           <div className="mt-6 space-y-4">
             <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
               <p><strong>DIY Kit</strong></p>
-              <p className="text-sm text-muted-foreground">Date: {orderDate ? format(orderDate, "PPP") : ""}</p>
+              <p className="text-sm text-muted-foreground">Date: {orderDate ? format(orderDate, "dd.MM.yyyy") : ""}</p>
               <p className="text-sm text-muted-foreground">Shape: {shapes.find(s => s.id === selectedShape)?.name}</p>
               <p className="text-sm text-muted-foreground">Flavor: {getFlavorName()}</p>
               <p className="text-sm text-muted-foreground">Base Color: {baseColors.find(c => c.id === selectedBaseColor)?.name}</p>

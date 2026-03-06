@@ -8,6 +8,12 @@ const corsHeaders = {
 
 const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
 
+function formatDateCH(dateValue?: string): string {
+  if (!dateValue) return "—";
+  const [year, month, day] = dateValue.split("-");
+  return year && month && day ? `${day}.${month}.${year}` : dateValue;
+}
+
 function row(label: string, value: string | undefined | null): string {
   if (!value) return "";
   return `<tr><td style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
@@ -74,7 +80,7 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
         <div style="background:#f0fff4;border-radius:12px;padding:20px;margin-bottom:20px;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📦 Pickup / Delivery</h3>
           <table style="border-collapse:collapse;width:100%;">
-            ${row("Date", order.order_date)}
+            ${row("Date", formatDateCH(order.order_date))}
             ${row("Time", details.pickupTime || "—")}
             ${row("Option", order.delivery_option === "delivery" ? "🚚 Delivery" : "🏪 Pickup at store")}
             ${row("Address", order.delivery_option === "delivery" ? order.delivery_address : null)}

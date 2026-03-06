@@ -59,6 +59,12 @@ async function getGoogleAccessToken(serviceAccountKey: string): Promise<string> 
 }
 
 // Build a structured text block with all order details (shared between calendar & email)
+function formatDateCH(dateValue?: string): string {
+  if (!dateValue) return "—";
+  const [year, month, day] = dateValue.split("-");
+  return year && month && day ? `${day}.${month}.${year}` : dateValue;
+}
+
 function buildOrderDetailsText(order: any): string {
   const details = order.order_details_json || {};
   const items = details.items || [];
@@ -71,7 +77,7 @@ function buildOrderDetailsText(order: any): string {
   lines.push(`Customer email: ${order.customer_email}`);
   lines.push(`Customer phone: ${order.customer_phone}`);
   lines.push("");
-  lines.push(`Pickup date: ${order.order_date}`);
+  lines.push(`Pickup date: ${formatDateCH(order.order_date)}`);
   if (pickupTime) lines.push(`Pickup time: ${pickupTime}`);
   lines.push(`Pickup option: ${order.delivery_option === "delivery" ? `Delivery to ${order.delivery_address || "—"}` : "Pickup at store"}`);
 
@@ -252,7 +258,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
         <div style="background:#f0fff4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin:24px 0;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">Pickup details</h3>
           <table style="border-collapse:collapse;width:100%;">
-            ${row("Date", order.order_date)}
+            ${row("Date", formatDateCH(order.order_date))}
             ${pickupTime ? row("Time", pickupTime) : ""}
             ${row("Pickup option", deliveryInfo)}
           </table>
@@ -353,7 +359,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
 
         <p style="color:#555;font-size:15px;line-height:1.7;">
           Unfortunately, we are unable to accept your order <strong>#${orderNumber}</strong> scheduled for 
-          <strong>${order.order_date}</strong> because we have already reached our maximum production capacity for that day.
+          <strong>${formatDateCH(order.order_date)}</strong> because we have already reached our maximum production capacity for that day.
         </p>
         
         <p style="color:#555;font-size:15px;line-height:1.7;">

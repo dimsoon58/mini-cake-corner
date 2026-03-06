@@ -634,7 +634,7 @@ const Customize = () => {
               </div>
               {selections.orderDate && (
                 <p className="text-center text-lg font-medium text-primary">
-                  Selected: {format(selections.orderDate, "EEEE, MMMM d, yyyy")}
+                  Selected: {format(selections.orderDate, "dd.MM.yyyy")}
                 </p>
               )}
             </div>
@@ -1249,7 +1249,7 @@ const Customize = () => {
                           <span className="text-xs text-muted-foreground mt-1">Upload</span>
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/webp"
                             multiple
                             className="hidden"
                             onChange={(e) => {
@@ -1537,7 +1537,7 @@ const Customize = () => {
               </p>
               {selections.orderDate && (
                 <p className="text-sm text-muted-foreground">
-                  Date: {format(selections.orderDate, "EEEE, MMMM d, yyyy")}
+                  Date: {format(selections.orderDate, "dd.MM.yyyy")}
                 </p>
               )}
               <p className="text-sm text-muted-foreground">
