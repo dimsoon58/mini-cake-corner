@@ -12,6 +12,8 @@ const OrderAction = () => {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
 
+  const isDecline = action === "reject" || action === "decline";
+
   useEffect(() => {
     if (!orderId || !action || !token) {
       setStatus("error");
