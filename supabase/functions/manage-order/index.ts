@@ -61,12 +61,11 @@ async function getGoogleAccessToken(serviceAccountKey: string): Promise<string> 
 async function createCalendarEvent(accessToken: string, order: any) {
   const details = order.order_details_json || {};
   const items = details.items || [];
+  const pickupTime = details.pickupTime || "";
 
   const itemDescriptions = items.map((item: any, i: number) =>
-    `Cake ${i + 1}: ${item.sizeName} ${item.shapeName} - ${item.flavorName}${item.styleName ? ` (${item.styleName})` : ""}${item.extrasNames?.length ? ` + ${item.extrasNames.join(", ")}` : ""} — CHF ${item.total}`
+    `Cake ${i + 1}: ${item.sizeName} ${item.shapeName} - ${item.flavorName}${item.styleName ? ` (${item.styleName})` : ""}${item.extrasNames?.length ? ` + ${item.extrasNames.join(", ")}` : ""}${item.cakeText ? ` — Text: "${item.cakeText}"` : ""} — CHF ${item.total}`
   ).join("\n");
-
-  const pickupTime = details.pickupTime || "";
 
   const description = `🎂 ORDER #${order.id.slice(0, 8).toUpperCase()}
 
@@ -82,13 +81,31 @@ ${itemDescriptions}
 
 💰 Total: CHF ${order.total_amount}`;
 
+  // Build start/end based on pickup time
   const event: any = {
-    summary: `🎂 Order #${order.id.slice(0, 8).toUpperCase()} — ${order.customer_name}`,
+    summary: `Cake Pickup – ${order.customer_name}`,
     description,
-    start: { date: order.order_date, timeZone: "Europe/Zurich" },
-    end: { date: order.order_date, timeZone: "Europe/Zurich" },
     colorId: "6",
   };
+
+  if (pickupTime && order.order_date) {
+    // Parse time like "10:00" or "14:30"
+    const [hours, minutes] = pickupTime.split(":").map(Number);
+    const startDate = new Date(`${order.order_date}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
+    const endDate = new Date(startDate.getTime() + 30 * 60 * 1000); // 30 min duration
+
+    event.start = {
+      dateTime: startDate.toISOString().replace("Z", ""),
+      timeZone: "Europe/Zurich",
+    };
+    event.end = {
+      dateTime: endDate.toISOString().replace("Z", ""),
+      timeZone: "Europe/Zurich",
+    };
+  } else {
+    event.start = { date: order.order_date, timeZone: "Europe/Zurich" };
+    event.end = { date: order.order_date, timeZone: "Europe/Zurich" };
+  }
 
   const calendarId = encodeURIComponent("naglemelodie@gmail.com");
   const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
@@ -103,6 +120,89 @@ ${itemDescriptions}
     throw new Error(`Google Calendar error: ${JSON.stringify(data)}`);
   }
   console.log("Calendar event created:", data.id);
+  return data;
+}
+
+// ── Decline customer email ──────────────────────────────────────────
+
+async function sendDeclineEmail(resendApiKey: string, order: any) {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:24px;">
+    <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+      
+      <div style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
+        <h1 style="color:#fff;font-size:24px;margin:0;font-weight:700;">Bento Cake Studio</h1>
+      </div>
+
+      <div style="padding:32px;">
+        <h2 style="color:#333;font-size:20px;margin:0 0 16px;">Dear ${order.customer_name},</h2>
+        
+        <p style="color:#555;font-size:15px;line-height:1.6;">
+          Thank you for your order with Bento Cake Studio. Unfortunately, we are unable to accept your order 
+          <strong>#${order.id.slice(0, 8).toUpperCase()}</strong> for <strong>${order.order_date}</strong> at this time.
+        </p>
+        
+        <p style="color:#555;font-size:15px;line-height:1.6;">
+          Your payment has been fully refunded and you should see it back in your account within a few business days.
+        </p>
+
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;margin:24px 0;">
+          <table style="border-collapse:collapse;width:100%;">
+            <tr><td style="padding:4px 8px;color:#888;font-size:13px;">Order</td><td style="padding:4px 8px;color:#333;font-size:13px;font-weight:600;">#${order.id.slice(0, 8).toUpperCase()}</td></tr>
+            <tr><td style="padding:4px 8px;color:#888;font-size:13px;">Amount</td><td style="padding:4px 8px;color:#333;font-size:13px;font-weight:600;">CHF ${order.total_amount}</td></tr>
+            <tr><td style="padding:4px 8px;color:#888;font-size:13px;">Status</td><td style="padding:4px 8px;color:#dc2626;font-size:13px;font-weight:600;">Refunded</td></tr>
+          </table>
+        </div>
+
+        <p style="color:#555;font-size:15px;line-height:1.6;">
+          We sincerely apologize for the inconvenience. Please don't hesitate to place a new order for a different date — 
+          we'd love to create something special for you!
+        </p>
+
+        <div style="text-align:center;margin:28px 0;">
+          <a href="https://mini-cake-corner.lovable.app/catalog" style="display:inline-block;background:#333;color:#fff;padding:14px 36px;border-radius:10px;text-decoration:none;font-size:16px;font-weight:600;">
+            Browse Our Catalog
+          </a>
+        </div>
+
+        <p style="color:#555;font-size:15px;line-height:1.6;">
+          Warm regards,<br>
+          <strong>The Bento Cake Studio Team</strong> 🤍
+        </p>
+      </div>
+
+      <div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
+        <p style="color:#aaa;font-size:11px;margin:0;">Bento Cake Studio · Lausanne, Switzerland</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const resp = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Melodie.nagle@bentocakestudio.ch",
+      to: [order.customer_email],
+      subject: `Your Bento Cake Studio Order #${order.id.slice(0, 8).toUpperCase()} Update`,
+      html,
+    }),
+  });
+
+  const data = await resp.json();
+  if (!resp.ok) {
+    console.error("Decline email send failed:", data);
+    throw new Error(`Resend error: ${JSON.stringify(data)}`);
+  }
+  console.log("Decline email sent to customer:", data.id);
   return data;
 }
 
@@ -144,16 +244,10 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Get order from DB
     const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("id", orderId)
-      .single();
+      .from("orders").select("*").eq("id", orderId).single();
 
-    if (orderError || !order) {
-      throw new Error("Order not found");
-    }
+    if (orderError || !order) throw new Error("Order not found");
 
     if (order.status !== "pending") {
       return new Response(JSON.stringify({ 
@@ -168,26 +262,31 @@ serve(async (req) => {
     let newStatus: string;
     let stripeAction: string;
     let calendarResult: any = null;
+    let declineEmailResult: any = null;
 
     if (action === "approve") {
-      // Capture Stripe payment
-      if (!order.stripe_session_id) {
-        throw new Error("No Stripe session ID found for this order");
-      }
+      if (!order.stripe_session_id) throw new Error("No Stripe session ID found");
 
       const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
       const paymentIntentId = session.payment_intent as string;
 
-      if (!paymentIntentId) {
-        throw new Error("No payment intent found for this session");
+      if (!paymentIntentId) throw new Error("No payment intent found");
+
+      // Check if already captured (e.g. TWINT auto-captures)
+      const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (pi.status === "requires_capture") {
+        await stripe.paymentIntents.capture(paymentIntentId);
+        stripeAction = "Payment captured";
+      } else if (pi.status === "succeeded") {
+        stripeAction = "Payment already captured (auto-capture method)";
+      } else {
+        stripeAction = `Payment intent status: ${pi.status}`;
       }
 
-      await stripe.paymentIntents.capture(paymentIntentId);
       newStatus = "approved";
-      stripeAction = "Payment captured";
-      console.log(`Payment captured for order ${orderId}, PI: ${paymentIntentId}`);
+      console.log(`Order ${orderId} approved. ${stripeAction}`);
 
-      // Create Google Calendar event on approval
+      // Create Google Calendar event
       const gcKey = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
       if (gcKey) {
         try {
@@ -195,14 +294,11 @@ serve(async (req) => {
           calendarResult = await createCalendarEvent(accessToken, order);
         } catch (e) {
           console.error("Calendar error:", e);
-          // Don't fail the approval if calendar fails
         }
       }
     } else {
-      // Reject - cancel/refund the payment intent
-      if (!order.stripe_session_id) {
-        throw new Error("No Stripe session ID found for this order");
-      }
+      // Reject — cancel or refund depending on capture status
+      if (!order.stripe_session_id) throw new Error("No Stripe session ID found");
 
       const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
       const paymentIntentId = session.payment_intent as string;
@@ -211,7 +307,7 @@ serve(async (req) => {
         const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
         if (pi.status === "requires_capture") {
           await stripe.paymentIntents.cancel(paymentIntentId);
-          stripeAction = "Payment canceled";
+          stripeAction = "Payment canceled (not captured)";
         } else if (pi.status === "succeeded") {
           await stripe.refunds.create({ payment_intent: paymentIntentId });
           stripeAction = "Payment refunded";
@@ -221,15 +317,24 @@ serve(async (req) => {
       } else {
         stripeAction = "No payment intent to cancel";
       }
+
       newStatus = "rejected";
       console.log(`Order ${orderId} rejected. ${stripeAction}`);
+
+      // Send decline email to customer
+      const resendKey = Deno.env.get("RESEND_API_KEY");
+      if (resendKey) {
+        try {
+          declineEmailResult = await sendDeclineEmail(resendKey, order);
+        } catch (e) {
+          console.error("Decline email error:", e);
+        }
+      }
     }
 
     // Update order status
     const { error: updateError } = await supabase
-      .from("orders")
-      .update({ status: newStatus })
-      .eq("id", orderId);
+      .from("orders").update({ status: newStatus }).eq("id", orderId);
 
     if (updateError) {
       console.error("Error updating order status:", updateError);
@@ -240,7 +345,8 @@ serve(async (req) => {
       success: true, 
       status: newStatus,
       stripeAction,
-      calendarEvent: calendarResult ? true : false,
+      calendarEvent: !!calendarResult,
+      declineEmailSent: !!declineEmailResult,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
