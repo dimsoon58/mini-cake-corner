@@ -328,6 +328,9 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
         <!-- Cake Details -->
         ${cakeDetailsRows}
 
+        <!-- Reference Images -->
+        ${orderImagesBlock}
+
         <!-- Order Summary -->
         <h3 style="color:#333;font-size:15px;margin:24px 0 8px;font-weight:600;">Order summary</h3>
         <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
