@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import logo from "@/assets/logo-new.png";
 import heroBg from "@/assets/hero-bg.jpg";
+import heroCake from "@/assets/hero-cake.png";
 import cakeWhippedCream from "@/assets/cake-whipped-cream-new.png";
 import cakeFresh from "@/assets/cake-fresh-new.png";
 import cakeTrendy from "@/assets/cake-trendy.png";
@@ -159,20 +160,25 @@ const Index = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="relative text-primary-foreground overflow-hidden min-h-[80vh]">
+      <section className="relative text-primary-foreground overflow-hidden">
         <div
           className="absolute inset-0 bg-cover"
           style={{ backgroundImage: `url(${heroBg})`, backgroundPosition: 'center 60%' }}
         />
         <div className="absolute inset-0 bg-foreground/20" />
-        <div className="relative container mx-auto px-4 py-24 md:py-32 text-center">
+        <div className="relative container mx-auto px-4 pt-24 md:pt-32 text-center">
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-light tracking-wide mb-6">
             NOT YOUR TRADITIONAL CAKES
           </h1>
+          <img
+            src={heroCake}
+            alt="Signature whipped cream cake"
+            className="mx-auto w-64 md:w-80 lg:w-96 object-contain mb-8"
+          />
           <p className="text-lg md:text-xl max-w-3xl mx-auto opacity-90 mb-10 font-light">
             Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pb-24 md:pb-32">
             <Button
               size="lg"
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-full font-medium tracking-wide"
