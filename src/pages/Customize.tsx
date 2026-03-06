@@ -8,6 +8,7 @@ import { Check, ShoppingBag, Upload, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
+import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import CakeVisualizer from "@/components/CakeVisualizer";
 import { format, addDays } from "date-fns";
