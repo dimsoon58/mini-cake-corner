@@ -508,6 +508,25 @@ const Checkout = () => {
               </RadioGroup>
             </div>
 
+            {/* Pickup Time - Only shown when pickup is selected */}
+            {deliveryOption === "pickup" && (
+              <div className="space-y-2">
+                <Label>Preferred Pickup Time</Label>
+                <Select value={pickupTime} onValueChange={setPickupTime}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a pickup time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_SLOTS.map((slot) => (
+                      <SelectItem key={slot} value={slot}>
+                        {slot}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Delivery Details - Only shown when delivery is selected */}
             {deliveryOption === "delivery" && (
               <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
