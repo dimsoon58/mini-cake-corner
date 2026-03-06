@@ -81,6 +81,11 @@ const cartCandles = [
   ...customizationCandles.filter(c => !c.hasPack),
 ];
 
+const formatDateFromIso = (dateValue: string) => {
+  const [year, month, day] = dateValue.split("-");
+  return year && month && day ? `${day}.${month}.${year}` : dateValue;
+};
+
 const Cart = () => {
   const { items, removeItem, updateItem, clearCart, itemCount } = useCart();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
