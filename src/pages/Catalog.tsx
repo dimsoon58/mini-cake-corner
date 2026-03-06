@@ -826,8 +826,15 @@ const Catalog = () => {
       return;
     }
 
-    if (selections.extras.includes("glitter") && !selections.glitterColor) {
+    const designNeedsGlitter = ["retro-glitter-cake", "retro-ribbons-glitter"].includes(selectedCake?.styleId || "");
+    if ((designNeedsGlitter || selections.extras.includes("glitter") || selections.extras.includes("glitter-base") || selections.extras.includes("glitter-in-the-air")) && !selections.glitterColor) {
       toast({ title: "Glitter Color required", description: "Please select a color for your glitter.", variant: "destructive" });
+      return;
+    }
+
+    const designNeedsGlitterCherries = selectedCake?.styleId === "glitter-cherries-retro";
+    if ((designNeedsGlitterCherries || selections.extras.includes("glitter-cherries")) && !selections.glitterCherriesColor) {
+      toast({ title: "Glitter Cherries Color required", description: "Please select a color for your glitter cherries.", variant: "destructive" });
       return;
     }
 
@@ -1454,7 +1461,7 @@ const Catalog = () => {
                 })}
 
                 {/* Glitter Color */}
-                {selections.extras.includes("glitter") && (
+                {(selections.extras.includes("glitter") || selections.extras.includes("glitter-base") || selections.extras.includes("glitter-in-the-air") || ["retro-glitter-cake", "retro-ribbons-glitter"].includes(selectedCake?.styleId || "")) && (
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-foreground">Glitter Color <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
@@ -1476,7 +1483,7 @@ const Catalog = () => {
                 )}
 
                 {/* Glitter Cherries Color */}
-                {selections.extras.includes("glitter-cherries") && (
+                {(selections.extras.includes("glitter-cherries") || selectedCake?.styleId === "glitter-cherries-retro") && (
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-foreground">Glitter Cherries Color</p>
                     <div className="flex flex-wrap gap-2">
