@@ -532,7 +532,7 @@ const CartItemEditor = ({
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !item.orderDate && "text-muted-foreground")}>
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {item.orderDate ? format(new Date(item.orderDate), "PPP") : <span>Pick a date</span>}
+              {item.orderDate ? formatDateFromIso(item.orderDate) : <span>Pick a date</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
