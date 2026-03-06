@@ -58,31 +58,71 @@ async function getGoogleAccessToken(serviceAccountKey: string): Promise<string> 
   return tokenData.access_token;
 }
 
-async function createCalendarEvent(accessToken: string, order: any) {
+// Build a structured text block with all order details (shared between calendar & email)
+function buildOrderDetailsText(order: any): string {
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "";
+  const orderNumber = order.id.slice(0, 8).toUpperCase();
 
-  const itemDescriptions = items.map((item: any, i: number) =>
-    `Cake ${i + 1}: ${item.sizeName} ${item.shapeName} - ${item.flavorName}${item.styleName ? ` (${item.styleName})` : ""}${item.extrasNames?.length ? ` + ${item.extrasNames.join(", ")}` : ""}${item.cakeText ? ` — Text: "${item.cakeText}"` : ""} — CHF ${item.total}`
-  ).join("\n");
+  const lines: string[] = [];
+  lines.push(`Order number: #${orderNumber}`);
+  lines.push(`Customer name: ${order.customer_name}`);
+  lines.push(`Customer email: ${order.customer_email}`);
+  lines.push(`Customer phone: ${order.customer_phone}`);
+  lines.push("");
+  lines.push(`Pickup date: ${order.order_date}`);
+  if (pickupTime) lines.push(`Pickup time: ${pickupTime}`);
+  lines.push(`Pickup option: ${order.delivery_option === "delivery" ? `Delivery to ${order.delivery_address || "—"}` : "Pickup at store"}`);
 
-  const description = `🎂 ORDER #${order.id.slice(0, 8).toUpperCase()}
+  items.forEach((item: any, i: number) => {
+    lines.push("");
+    lines.push(items.length > 1 ? `--- Cake ${i + 1} ---` : "--- Cake details ---");
+    if (item.sizeName) lines.push(`Cake size: ${item.sizeName}`);
+    if (item.flavorName) lines.push(`Flavor: ${item.flavorName}`);
+    if (item.shapeName) lines.push(`Shape: ${item.shapeName}`);
+    if (item.styleName) lines.push(`Design: ${item.styleName}`);
+    if (item.baseColorName) lines.push(`Base color: ${item.baseColorName}`);
+    if (item.decorationColorName) lines.push(`Decoration color: ${item.decorationColorName}`);
+    if (item.textColorName) lines.push(`Text color: ${item.textColorName}`);
+    if (item.textStyle) lines.push(`Text style: ${item.textStyle}`);
+    if (item.cakeText) lines.push(`Text on cake: ${item.cakeText}`);
+    if (item.extrasNames?.length) lines.push(`Extras: ${item.extrasNames.join(", ")}`);
+    if (item.ribbonColorName) lines.push(`Ribbon color: ${item.ribbonColorName}`);
+    if (item.butterflyColorName) lines.push(`Butterfly color: ${item.butterflyColorName}`);
 
-👤 Customer: ${order.customer_name}
-📧 Email: ${order.customer_email}
-📱 Phone: ${order.customer_phone}
+    const candles = (item.candles || []).filter((c: any) => c.quantity > 0);
+    if (candles.length) lines.push(`Candles: ${candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ")}`);
 
-📦 ${order.delivery_option === "delivery" ? `Delivery to: ${order.delivery_address}` : "Pickup at store"}
-⏰ Time: ${pickupTime || "—"}
+    if (item.comment) lines.push(`Additional notes: ${item.comment}`);
+    if (item.imageUrls?.length) {
+      item.imageUrls.forEach((url: string, j: number) => {
+        lines.push(`Reference image ${j + 1}: ${url}`);
+      });
+    }
+    lines.push(`Subtotal: CHF ${item.total}`);
+  });
 
-🍰 Items:
-${itemDescriptions}
+  if (details.deliveryComment) {
+    lines.push("");
+    lines.push(`Delivery comment: ${details.deliveryComment}`);
+  }
 
-💰 Total: CHF ${order.total_amount}`;
+  lines.push("");
+  lines.push(`Total paid: CHF ${order.total_amount}`);
+
+  return lines.join("\n");
+}
+
+async function createCalendarEvent(accessToken: string, order: any) {
+  const details = order.order_details_json || {};
+  const pickupTime = details.pickupTime || "";
+  const orderNumber = order.id.slice(0, 8).toUpperCase();
+
+  const description = buildOrderDetailsText(order);
 
   const event: any = {
-    summary: `Cake Pickup – ${order.customer_name}`,
+    summary: `${order.customer_name} — Order #${orderNumber}`,
     description,
     colorId: "6",
   };
