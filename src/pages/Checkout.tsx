@@ -108,6 +108,58 @@ const detectZoneFromAddress = (address: string): typeof DELIVERY_ZONES[0] | null
   return null;
 };
 
+const formatDisplayDate = (date: Date) => format(date, "dd.MM.yyyy");
+
+const extractOrderImagePath = (publicUrl: string): string | null => {
+  const marker = "/storage/v1/object/public/order-images/";
+  const [, path] = publicUrl.split(marker);
+  return path ? decodeURIComponent(path) : null;
+};
+
+const moveImageUrlsToOrderFolder = async (imageUrls: string[], orderId: string): Promise<string[]> => {
+  if (!imageUrls.length) return [];
+
+  const now = new Date();
+  const defaultYear = String(now.getFullYear());
+  const defaultMonth = String(now.getMonth() + 1).padStart(2, "0");
+  const movedUrls: string[] = [];
+
+  for (let i = 0; i < imageUrls.length; i++) {
+    const sourceUrl = imageUrls[i];
+    const sourcePath = extractOrderImagePath(sourceUrl);
+
+    if (!sourcePath) {
+      movedUrls.push(sourceUrl);
+      continue;
+    }
+
+    if (sourcePath.includes(`/${orderId}/`)) {
+      movedUrls.push(sourceUrl);
+      continue;
+    }
+
+    const pathParts = sourcePath.split("/");
+    const year = pathParts[0] || defaultYear;
+    const month = pathParts[1] || defaultMonth;
+    const extension = sourcePath.split(".").pop() || "jpg";
+    const destinationPath = `${year}/${month}/${orderId}/reference_${i + 1}.${extension}`;
+
+    const { error: copyError } = await supabase.storage
+      .from("order-images")
+      .copy(sourcePath, destinationPath);
+
+    if (copyError) {
+      console.error("Image copy error:", copyError);
+      throw new Error("Impossible de préparer les images de référence pour la commande.");
+    }
+
+    const { data } = supabase.storage.from("order-images").getPublicUrl(destinationPath);
+    movedUrls.push(data.publicUrl);
+  }
+
+  return movedUrls;
+};
+
 const Checkout = () => {
   const { items, clearCart } = useCart();
   const { toast } = useToast();
