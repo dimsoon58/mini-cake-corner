@@ -8,9 +8,9 @@ const corsHeaders = {
 
 const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
 
-function buildItemDetailRow(label: string, value: string | undefined | null): string {
+function row(label: string, value: string | undefined | null): string {
   if (!value) return "";
-  return `<tr><td style="padding:4px 8px;color:#888;font-size:13px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:4px 8px;font-size:13px;color:#333;">${value}</td></tr>`;
+  return `<tr><td style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
 }
 
 async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string) {
@@ -25,78 +25,103 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string)
       .join(", ");
 
     return `
-      <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin:12px 0;">
-        <h4 style="margin:0 0 8px;color:#333;font-size:15px;">🍰 Cake ${i + 1} — CHF ${item.total}</h4>
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
+        <h4 style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">🍰 Cake ${i + 1} — CHF ${item.total}</h4>
         <table style="width:100%;border-collapse:collapse;">
-          ${buildItemDetailRow("Size", item.sizeName)}
-          ${buildItemDetailRow("Shape", item.shapeName)}
-          ${buildItemDetailRow("Flavor", item.flavorName)}
-          ${buildItemDetailRow("Design / Style", item.styleName)}
-          ${buildItemDetailRow("Base Color", item.baseColorName)}
-          ${buildItemDetailRow("Decoration Color", item.decorationColorName)}
-          ${buildItemDetailRow("Text on Cake", item.cakeText ? `"${item.cakeText}" (${item.textStyle || "normal"}, ${item.textColorName || "default"})` : null)}
-          ${buildItemDetailRow("Extras", item.extrasNames?.length > 0 ? item.extrasNames.join(", ") : null)}
-          ${buildItemDetailRow("Ribbon Color", item.ribbonColorName)}
-          ${buildItemDetailRow("Butterfly Color", item.butterflyColorName)}
-          ${buildItemDetailRow("Candles", candlesList || null)}
-          ${buildItemDetailRow("Special Instructions", item.comment)}
+          ${row("Size", item.sizeName)}
+          ${row("Shape", item.shapeName)}
+          ${row("Flavor", item.flavorName)}
+          ${row("Design", item.styleName)}
+          ${row("Base Color", item.baseColorName)}
+          ${row("Deco Color", item.decorationColorName)}
+          ${row("Text on Cake", item.cakeText ? `"${item.cakeText}" (${item.textStyle || "normal"}, ${item.textColorName || "default"})` : null)}
+          ${row("Extras", item.extrasNames?.length > 0 ? item.extrasNames.join(", ") : null)}
+          ${row("Ribbon", item.ribbonColorName)}
+          ${row("Butterfly", item.butterflyColorName)}
+          ${row("Candles", candlesList || null)}
+          ${row("Instructions", item.comment)}
         </table>
       </div>`;
   }).join("");
 
   const html = `
-    <div style="font-family:Georgia,serif;max-width:640px;margin:0 auto;padding:20px;">
-      <h1 style="color:#333;font-size:24px;margin-bottom:4px;">🎂 New Order Received</h1>
-      <p style="color:#666;margin-top:0;">Order <strong>#${order.id.slice(0, 8).toUpperCase()}</strong> needs your approval.</p>
-
-      <!-- Customer Info -->
-      <div style="background:#f0f7ff;padding:16px;border-radius:8px;margin:16px 0;">
-        <h3 style="margin:0 0 8px;color:#333;font-size:15px;">👤 Customer Information</h3>
-        <table style="border-collapse:collapse;">
-          ${buildItemDetailRow("Name", order.customer_name)}
-          ${buildItemDetailRow("Email", order.customer_email)}
-          ${buildItemDetailRow("Phone", order.customer_phone)}
-        </table>
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <div style="max-width:640px;margin:0 auto;padding:24px;">
+    <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+      
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
+        <h1 style="color:#fff;font-size:26px;margin:0 0 8px;font-weight:700;">🎂 New Bento Cake Order</h1>
+        <p style="color:#ccc;margin:0;font-size:14px;">Order <strong style="color:#fff;">#${order.id.slice(0, 8).toUpperCase()}</strong> needs your review</p>
       </div>
 
-      <!-- Pickup / Delivery -->
-      <div style="background:#f0f7ff;padding:16px;border-radius:8px;margin:16px 0;">
-        <h3 style="margin:0 0 8px;color:#333;font-size:15px;">📦 Pickup / Delivery</h3>
-        <table style="border-collapse:collapse;">
-          ${buildItemDetailRow("Date", order.order_date)}
-          ${buildItemDetailRow("Time", details.pickupTime || "—")}
-          ${buildItemDetailRow("Option", order.delivery_option === "delivery" ? "Delivery" : "Pickup at store")}
-          ${buildItemDetailRow("Address", order.delivery_option === "delivery" ? order.delivery_address : null)}
-          ${buildItemDetailRow("Delivery Notes", details.deliveryComment || null)}
-        </table>
+      <div style="padding:28px;">
+
+        <!-- Customer Info -->
+        <div style="background:#f0f7ff;border-radius:12px;padding:20px;margin-bottom:20px;">
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">👤 Customer Information</h3>
+          <table style="border-collapse:collapse;width:100%;">
+            ${row("Name", order.customer_name)}
+            ${row("Email", order.customer_email)}
+            ${row("Phone", order.customer_phone)}
+          </table>
+        </div>
+
+        <!-- Pickup / Delivery -->
+        <div style="background:#f0fff4;border-radius:12px;padding:20px;margin-bottom:20px;">
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📦 Pickup / Delivery</h3>
+          <table style="border-collapse:collapse;width:100%;">
+            ${row("Date", order.order_date)}
+            ${row("Time", details.pickupTime || "—")}
+            ${row("Option", order.delivery_option === "delivery" ? "🚚 Delivery" : "🏪 Pickup at store")}
+            ${row("Address", order.delivery_option === "delivery" ? order.delivery_address : null)}
+            ${row("Notes", details.deliveryComment || null)}
+          </table>
+        </div>
+
+        <!-- Order Items -->
+        <h3 style="color:#333;font-size:15px;margin:0 0 4px;font-weight:600;">🍰 Order Items (${items.length})</h3>
+        ${itemBlocks}
+
+        <!-- Payment -->
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;margin:20px 0;">
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">💳 Payment Summary</h3>
+          <table style="border-collapse:collapse;width:100%;">
+            ${row("Order ID", order.id.slice(0, 8).toUpperCase())}
+            ${row("Total", `CHF ${order.total_amount}`)}
+            ${row("Status", "⏳ Funds authorized — awaiting your approval")}
+          </table>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="text-align:center;margin:32px 0 16px;">
+          <p style="color:#666;font-size:13px;margin-bottom:20px;">Click a button below or use the review page to manage this order.</p>
+          
+          <a href="${reviewUrl}" style="display:inline-block;background:#16a34a;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
+            ✅ Accept Order
+          </a>
+          
+          <a href="${reviewUrl}" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
+            ❌ Decline Order
+          </a>
+        </div>
+
+        <p style="color:#999;font-size:12px;text-align:center;margin-top:8px;">
+          Both buttons link to the secure admin review page where you'll enter your PIN to confirm the action.
+        </p>
       </div>
 
-      <!-- Cake Details -->
-      <h3 style="color:#333;font-size:15px;margin-bottom:4px;">🍰 Order Items (${items.length})</h3>
-      ${itemBlocks}
-
-      <!-- Payment Summary -->
-      <div style="background:#fff8e1;padding:16px;border-radius:8px;margin:16px 0;">
-        <h3 style="margin:0 0 8px;color:#333;font-size:15px;">💳 Payment</h3>
-        <table style="border-collapse:collapse;">
-          ${buildItemDetailRow("Order ID", order.id.slice(0, 8).toUpperCase())}
-          ${buildItemDetailRow("Total", `CHF ${order.total_amount}`)}
-          ${buildItemDetailRow("Status", "⏳ Pending Approval (funds authorized, not captured)")}
-        </table>
+      <!-- Footer -->
+      <div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
+        <p style="color:#aaa;font-size:11px;margin:0;">Bento Cake Studio · Order Notification System</p>
       </div>
-
-      <!-- Action Buttons -->
-      <div style="text-align:center;margin:24px 0;">
-        <a href="${reviewUrl}" style="display:inline-block;background:#333;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:16px;">
-          Review & Approve / Reject
-        </a>
-      </div>
-
-      <p style="color:#999;font-size:12px;text-align:center;">
-        Payment has been authorized but not yet captured. You must approve or reject this order via the link above.
-      </p>
     </div>
-  `;
+  </div>
+</body>
+</html>`;
 
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -105,9 +130,9 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string)
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Bento Cake Studio <onboarding@resend.dev>",
+      from: "Melodie.nagle@bentocakestudio.ch",
       to: ADMIN_EMAILS,
-      subject: `🎂 New Order #${order.id.slice(0, 8).toUpperCase()} — ${order.customer_name} (CHF ${order.total_amount})`,
+      subject: `🎂 New Bento Cake Order #${order.id.slice(0, 8).toUpperCase()} — ${order.customer_name} (CHF ${order.total_amount})`,
       html,
     }),
   });
@@ -144,7 +169,6 @@ serve(async (req) => {
     const siteUrl = req.headers.get("origin") || "https://mini-cake-corner.lovable.app";
     const results: { email?: any; errors: string[] } = { errors: [] };
 
-    // Send admin email only — calendar event is created upon approval
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (resendKey) {
       try { results.email = await sendAdminEmail(resendKey, order, siteUrl); }
