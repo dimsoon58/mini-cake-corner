@@ -131,12 +131,12 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
   return lines.join("\n");
 }
 
-async function createCalendarEvent(accessToken: string, order: any) {
+async function createCalendarEvent(accessToken: string, order: any, paymentMethodLabel: string) {
   const details = order.order_details_json || {};
   const pickupTime = details.pickupTime || "";
   const orderNumber = order.id.slice(0, 8).toUpperCase();
 
-  const description = buildOrderDetailsText(order);
+  const description = buildOrderDetailsText(order, paymentMethodLabel);
 
   const event: any = {
     summary: `${order.customer_name} — Order #${orderNumber}`,
