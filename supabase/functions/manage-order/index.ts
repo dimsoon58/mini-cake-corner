@@ -243,6 +243,9 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
 // ── Decline customer email ──────────────────────────────────────────
 
 async function sendDeclineEmail(resendApiKey: string, order: any) {
+  const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const catalogLink = "https://mini-cake-corner.lovable.app/catalog";
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -256,37 +259,41 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
       </div>
 
       <div style="padding:32px;">
-        <h2 style="color:#333;font-size:20px;margin:0 0 16px;">Dear ${order.customer_name},</h2>
+        <h2 style="color:#333;font-size:20px;margin:0 0 20px;">Dear ${order.customer_name},</h2>
         
-        <p style="color:#555;font-size:15px;line-height:1.6;">
-          Thank you for your order with Bento Cake Studio. Unfortunately, we are unable to accept your order 
-          <strong>#${order.id.slice(0, 8).toUpperCase()}</strong> for <strong>${order.order_date}</strong> at this time.
+        <p style="color:#555;font-size:15px;line-height:1.7;">
+          Thank you for choosing Bento Cake Studio. We truly appreciate your order.
+        </p>
+
+        <p style="color:#555;font-size:15px;line-height:1.7;">
+          Unfortunately, we are unable to accept your order <strong>#${orderNumber}</strong> scheduled for 
+          <strong>${order.order_date}</strong> because we have already reached our maximum production capacity for that day.
         </p>
         
-        <p style="color:#555;font-size:15px;line-height:1.6;">
-          Your payment has been fully refunded and you should see it back in your account within a few business days.
+        <p style="color:#555;font-size:15px;line-height:1.7;">
+          Your payment has been fully refunded, and the amount should appear back in your account within a few business days.
         </p>
 
         <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;margin:24px 0;">
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">Order details</h3>
           <table style="border-collapse:collapse;width:100%;">
-            <tr><td style="padding:4px 8px;color:#888;font-size:13px;">Order</td><td style="padding:4px 8px;color:#333;font-size:13px;font-weight:600;">#${order.id.slice(0, 8).toUpperCase()}</td></tr>
-            <tr><td style="padding:4px 8px;color:#888;font-size:13px;">Amount</td><td style="padding:4px 8px;color:#333;font-size:13px;font-weight:600;">CHF ${order.total_amount}</td></tr>
-            <tr><td style="padding:4px 8px;color:#888;font-size:13px;">Status</td><td style="padding:4px 8px;color:#dc2626;font-size:13px;font-weight:600;">Refunded</td></tr>
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Order</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">#${orderNumber}</td></tr>
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Amount</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">CHF ${order.total_amount}</td></tr>
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Status</td><td style="padding:6px 8px;color:#dc2626;font-size:14px;font-weight:600;">Refunded</td></tr>
           </table>
         </div>
 
-        <p style="color:#555;font-size:15px;line-height:1.6;">
-          We sincerely apologize for the inconvenience. Please don't hesitate to place a new order for a different date — 
-          we'd love to create something special for you!
+        <p style="color:#555;font-size:15px;line-height:1.7;">
+          We sincerely apologize for the inconvenience. If you'd like, you are welcome to place a new order for another available date — we would love to create something special for you.
         </p>
 
         <div style="text-align:center;margin:28px 0;">
-          <a href="https://mini-cake-corner.lovable.app/catalog" style="display:inline-block;background:#333;color:#fff;padding:14px 36px;border-radius:10px;text-decoration:none;font-size:16px;font-weight:600;">
+          <a href="${catalogLink}" style="display:inline-block;background:#333;color:#fff;padding:14px 36px;border-radius:10px;text-decoration:none;font-size:16px;font-weight:600;">
             Browse Our Catalog
           </a>
         </div>
 
-        <p style="color:#555;font-size:15px;line-height:1.6;">
+        <p style="color:#555;font-size:15px;line-height:1.7;">
           Warm regards,<br>
           <strong>The Bento Cake Studio Team</strong> 🤍
         </p>
@@ -309,7 +316,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: [order.customer_email],
-      subject: `Your Bento Cake Studio Order #${order.id.slice(0, 8).toUpperCase()} Update`,
+      subject: `Update Regarding Your Order #${orderNumber}`,
       html,
     }),
   });
