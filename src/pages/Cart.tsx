@@ -809,7 +809,7 @@ const CartItemEditor = ({
         )}
 
         {/* Butterfly Color */}
-        {(item.extras || []).includes("butterfly") && (
+        {((item.extras || []).includes("butterfly") || item.style === "butterfly-garden") && (
           <div className="space-y-2 mt-3">
             <p className="text-xs font-medium text-foreground">Butterfly Color <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
