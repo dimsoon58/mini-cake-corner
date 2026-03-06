@@ -573,6 +573,7 @@ serve(async (req) => {
 
       if (!paymentIntentId) throw new Error("No payment intent found");
 
+      const paymentMethodLabel = await getPaymentMethodLabel(stripe, paymentIntentId);
       const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
       if (pi.status === "requires_capture") {
         await stripe.paymentIntents.capture(paymentIntentId);
@@ -590,7 +591,7 @@ serve(async (req) => {
       if (gcKey) {
         try {
           const accessToken = await getGoogleAccessToken(gcKey);
-          calendarResult = await createCalendarEvent(accessToken, order);
+          calendarResult = await createCalendarEvent(accessToken, order, paymentMethodLabel);
         } catch (e) {
           console.error("Calendar error:", e);
         }
@@ -600,7 +601,7 @@ serve(async (req) => {
       const resendKeyApprove = Deno.env.get("RESEND_API_KEY");
       if (resendKeyApprove) {
         try {
-          approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order);
+          approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order, paymentMethodLabel);
         } catch (e) {
           console.error("Approval email error:", e);
         }
