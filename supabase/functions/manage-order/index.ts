@@ -251,25 +251,28 @@ serve(async (req) => {
   try {
     const { orderId, action, pin, token } = await req.json();
 
-    if (!orderId || !action || !pin) {
-      throw new Error("Missing required fields: orderId, action, pin");
+    if (!orderId || !action) {
+      throw new Error("Missing required fields: orderId, action");
     }
 
     if (!token) {
       throw new Error("Missing required field: token");
     }
 
-    // Verify admin PIN
-    const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
-    if (!adminPin || pin !== adminPin) {
-      return new Response(JSON.stringify({ error: "Invalid PIN" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
-    }
-
     if (action !== "approve" && action !== "reject") {
       throw new Error("Action must be 'approve' or 'reject'");
+    }
+
+    // If PIN is provided, verify it (admin page flow). 
+    // If no PIN, token-only auth is sufficient (email link flow).
+    if (pin) {
+      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
+      if (!adminPin || pin !== adminPin) {
+        return new Response(JSON.stringify({ error: "Invalid PIN" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403,
+        });
+      }
     }
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
