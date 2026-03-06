@@ -398,7 +398,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
 
   return (
     <div className="space-y-2">
-      {item.orderDate && <p className="text-sm text-muted-foreground">📅 {format(new Date(item.orderDate), "PPP")}</p>}
+      {item.orderDate && <p className="text-sm text-muted-foreground">📅 {formatDateFromIso(item.orderDate)}</p>}
       <p className="text-muted-foreground">Flavor: {item.flavorName}</p>
       <p className="text-muted-foreground">Design: {item.styleName}</p>
       {item.baseColorName && (
