@@ -224,7 +224,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Melodie.nagle@bentocakestudio.ch",
+      from: "contact@bentocakestudio.ch",
       to: [order.customer_email],
       subject: `✅ Your Bento Cake Studio Order #${order.id.slice(0, 8).toUpperCase()} is Confirmed!`,
       html,
@@ -307,7 +307,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Melodie.nagle@bentocakestudio.ch",
+      from: "contact@bentocakestudio.ch",
       to: [order.customer_email],
       subject: `Your Bento Cake Studio Order #${order.id.slice(0, 8).toUpperCase()} Update`,
       html,
