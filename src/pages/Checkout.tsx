@@ -301,6 +301,8 @@ const Checkout = () => {
         }))
       );
 
+      const orderImageUrls = orderItemsWithFinalImageUrls.flatMap((item) => item.imageUrls || []);
+
       // Build order details JSON for admin review
       const orderDetailsJson = {
         items: orderItemsWithFinalImageUrls.map((item) => ({
@@ -338,6 +340,7 @@ const Checkout = () => {
         delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
         newsletter_subscription: subscribeNewsletter,
         status: "pending",
+        image_urls: orderImageUrls,
         order_details_json: orderDetailsJson as any,
       }).select("id").single();
 

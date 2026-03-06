@@ -65,11 +65,26 @@ function formatDateCH(dateValue?: string): string {
   return year && month && day ? `${day}.${month}.${year}` : dateValue;
 }
 
+function getOrderImageUrls(order: any): string[] {
+  if (Array.isArray(order?.image_urls) && order.image_urls.length > 0) {
+    return order.image_urls.filter((url: unknown): url is string => typeof url === "string" && url.length > 0);
+  }
+
+  const details = order?.order_details_json || {};
+  const items = Array.isArray(details.items) ? details.items : [];
+  return items.flatMap((item: any) =>
+    Array.isArray(item?.imageUrls)
+      ? item.imageUrls.filter((url: unknown): url is string => typeof url === "string" && url.length > 0)
+      : []
+  );
+}
+
 function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "";
   const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const orderImageUrls = getOrderImageUrls(order);
 
   const lines: string[] = [];
   const pushBullet = (value?: string | null) => {
@@ -111,13 +126,14 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
     if (candles.length) pushBullet(`Candles: ${candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ")}`);
 
     pushBullet(`Additional note: ${item.comment?.trim() || "-"}`);
-
-    if (item.imageUrls?.length) {
-      item.imageUrls.forEach((url: string, j: number) => {
-        pushBullet(`Reference image ${j + 1}: ${url}`);
-      });
-    }
   });
+
+  if (orderImageUrls.length) {
+    lines.push("");
+    orderImageUrls.forEach((url, j) => {
+      pushBullet(`Reference image ${j + 1}: ${url}`);
+    });
+  }
 
   if (details.deliveryComment) {
     lines.push("");
@@ -238,20 +254,28 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
     if (candleStr) rows.push(row("Candles", candleStr));
     rows.push(row("Additional note", item.comment?.trim() || "-"));
 
-    // Reference images
-    const imageRows = (item.imageUrls || []).map((url: string, j: number) =>
-      `<tr><td style="padding:8px;color:#888;font-size:14px;vertical-align:top;">Reference image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#2563eb;font-size:14px;display:inline-block;margin-bottom:6px;" target="_blank">Open image</a><br/><img src="${url}" alt="Reference image ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;" /></td></tr>`
-    ).join("");
-
     return `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
         <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">🎂 Cake ${items.length > 1 ? (i + 1) : "details"}</h3>
         <table style="border-collapse:collapse;width:100%;">
           ${rows.join("")}
-          ${imageRows}
         </table>
       </div>`;
   }).join("");
+
+  // Reference images block from order-level image_urls column
+  const orderImageUrls = getOrderImageUrls(order);
+  const orderImagesBlock = orderImageUrls.length
+    ? `
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
+        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📎 Reference images</h3>
+        <table style="border-collapse:collapse;width:100%;">
+          ${orderImageUrls.map((url: string, j: number) =>
+            `<tr><td style="padding:8px;color:#888;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#2563eb;font-size:14px;display:inline-block;margin-bottom:6px;" target="_blank">Open image</a><br/><img src="${url}" alt="Reference image ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;" /></td></tr>`
+          ).join("")}
+        </table>
+      </div>`
+    : "";
 
   const itemSummaryRows = items.map((item: any) => `
     <tr>
@@ -303,6 +327,9 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
 
         <!-- Cake Details -->
         ${cakeDetailsRows}
+
+        <!-- Reference Images -->
+        ${orderImagesBlock}
 
         <!-- Order Summary -->
         <h3 style="color:#333;font-size:15px;margin:24px 0 8px;font-weight:600;">Order summary</h3>
