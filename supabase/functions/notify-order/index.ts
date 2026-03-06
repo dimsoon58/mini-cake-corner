@@ -50,6 +50,30 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
       </div>`;
   }).join("");
 
+  // Reference images from order-level image_urls column
+  const orderImageUrls: string[] = ((): string[] => {
+    if (Array.isArray(order.image_urls) && order.image_urls.length > 0) {
+      return order.image_urls.filter((u: unknown): u is string => typeof u === "string" && u.length > 0);
+    }
+    return items.flatMap((item: any) =>
+      Array.isArray(item?.imageUrls)
+        ? item.imageUrls.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
+        : []
+    );
+  })();
+
+  const imagesBlock = orderImageUrls.length
+    ? `
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
+        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📎 Reference images</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          ${orderImageUrls.map((url: string, j: number) =>
+            `<tr><td style="padding:8px;color:#888;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#2563eb;" target="_blank">Open image</a><br/><img src="${url}" alt="Reference image ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;margin-top:4px;" /></td></tr>`
+          ).join("")}
+        </table>
+      </div>`
+    : "";
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -91,6 +115,9 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
         <!-- Order Items -->
         <h3 style="color:#333;font-size:15px;margin:0 0 4px;font-weight:600;">🍰 Order Items (${items.length})</h3>
         ${itemBlocks}
+
+        <!-- Reference Images -->
+        ${imagesBlock}
 
         <!-- Payment -->
         <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;margin:20px 0;">
