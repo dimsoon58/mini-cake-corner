@@ -747,19 +747,23 @@ const CartItemEditor = ({
           <div className="space-y-2 mt-3">
             <p className="text-xs font-medium text-foreground">Glitter Color <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
-              {glitterColors.map((color) => (
-                <button
-                  key={color.id}
-                  onClick={() => onGlitterColorChange(color.id)}
-                  className={cn(
-                    "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
-                    (item as any).glitterColor === color.id ? "ring-2 ring-primary" : ""
-                  )}
-                >
-                  <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
-                  <span className="text-[10px] text-foreground">{color.name}</span>
-                </button>
-              ))}
+              {(() => {
+                const isGlitterInTheAir = (item.extras || []).includes("glitter-in-the-air") || item.style === "retro-ribbons-glitter";
+                const availableColors = isGlitterInTheAir ? glitterColors.filter(c => c.id === "pink") : glitterColors;
+                return availableColors.map((color) => (
+                  <button
+                    key={color.id}
+                    onClick={() => onGlitterColorChange(color.id)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                      (item as any).glitterColor === color.id ? "ring-2 ring-primary" : ""
+                    )}
+                  >
+                    <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                    <span className="text-[10px] text-foreground">{color.name}</span>
+                  </button>
+                ));
+              })()}
             </div>
           </div>
         )}
