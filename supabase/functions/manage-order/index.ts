@@ -262,7 +262,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
         <h2 style="color:#333;font-size:20px;margin:0 0 20px;">Dear ${order.customer_name},</h2>
         
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          Thank you for choosing Bento Cake Studio. We truly appreciate your order.
+          Thank you for choosing Bento Cake Studio. We truly appreciate your support.
         </p>
 
         <p style="color:#555;font-size:15px;line-height:1.7;">
@@ -284,7 +284,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
         </div>
 
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          We sincerely apologize for the inconvenience. If you'd like, you are welcome to place a new order for another available date — we would love to create something special for you.
+          We sincerely apologize for the inconvenience. If you'd like, you are welcome to place a new order for another available date. We would love to create something special for you.
         </p>
 
         <div style="text-align:center;margin:28px 0;">
