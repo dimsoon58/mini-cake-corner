@@ -427,6 +427,7 @@ serve(async (req) => {
     let stripeAction: string;
     let calendarResult: any = null;
     let declineEmailResult: any = null;
+    let approvalEmailResult: any = null;
 
     if (action === "approve") {
       if (!order.stripe_session_id) throw new Error("No Stripe session ID found");
