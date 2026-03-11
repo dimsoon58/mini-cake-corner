@@ -147,6 +147,30 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
   return lines.join("\n");
 }
 
+function extractPickupStartTime(pickupTime?: string): { hours: number; minutes: number } | null {
+  if (!pickupTime) return null;
+
+  // Supports both "12:00" and "12:00 – 13:00"
+  const match = pickupTime.match(/(\d{1,2})\s*:\s*(\d{2})/);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null;
+  }
+
+  return { hours, minutes };
+}
+
 async function createCalendarEvent(accessToken: string, order: any, paymentMethodLabel: string) {
   const details = order.order_details_json || {};
   const pickupTime = details.pickupTime || "";
@@ -160,19 +184,27 @@ async function createCalendarEvent(accessToken: string, order: any, paymentMetho
     colorId: "6",
   };
 
-  if (pickupTime && order.order_date) {
-    const [hours, minutes] = pickupTime.split(":").map(Number);
-    const startDate = new Date(`${order.order_date}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
-    const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
+  const parsedPickup = extractPickupStartTime(pickupTime);
+  if (parsedPickup && order.order_date) {
+    const startDate = new Date(
+      `${order.order_date}T${String(parsedPickup.hours).padStart(2, "0")}:${String(parsedPickup.minutes).padStart(2, "0")}:00`
+    );
 
-    event.start = {
-      dateTime: startDate.toISOString().replace("Z", ""),
-      timeZone: "Europe/Zurich",
-    };
-    event.end = {
-      dateTime: endDate.toISOString().replace("Z", ""),
-      timeZone: "Europe/Zurich",
-    };
+    if (!Number.isNaN(startDate.getTime())) {
+      const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
+
+      event.start = {
+        dateTime: startDate.toISOString().replace("Z", ""),
+        timeZone: "Europe/Zurich",
+      };
+      event.end = {
+        dateTime: endDate.toISOString().replace("Z", ""),
+        timeZone: "Europe/Zurich",
+      };
+    } else {
+      event.start = { date: order.order_date, timeZone: "Europe/Zurich" };
+      event.end = { date: order.order_date, timeZone: "Europe/Zurich" };
+    }
   } else {
     event.start = { date: order.order_date, timeZone: "Europe/Zurich" };
     event.end = { date: order.order_date, timeZone: "Europe/Zurich" };
