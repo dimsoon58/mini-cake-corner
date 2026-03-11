@@ -458,7 +458,7 @@ const CartItemEditor = ({
   onBaseColorChange, onDecoColorChange, onTextChange, onTextColorChange, onTextStyleChange,
   onToggleExtra, onRibbonColorChange, onButterflyColorChange,
   onGlitterColorChange, onGlitterCherriesColorChange,
-  onCommentChange, onImageUrlsChange,
+  onCommentChange, onImageFilesChange,
   onCandleQtyChange, getCandleUnitQty, getCandleItemPrice,
 }: CartItemEditorProps) => {
   const showDecoColor = item.style !== "normal-without-border";
