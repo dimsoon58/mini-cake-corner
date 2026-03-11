@@ -750,16 +750,36 @@ const Catalog = () => {
   // Comment image upload helpers
   const handleCommentImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + selections.commentImages.length > 5) {
+    const remaining = 5 - selections.commentImages.length;
+    if (remaining <= 0) {
       toast({
         title: "Maximum 5 images",
-        description: "You can upload up to 5 reference images.",
+        description: "You have already reached the maximum number of reference images.",
         variant: "destructive",
       });
+      if (commentFileInputRef.current) commentFileInputRef.current.value = "";
       return;
     }
-    setSelections({ ...selections, commentImages: [...selections.commentImages, ...files] });
+    const oversizedFiles = files.filter(f => f.size > 5 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      toast({
+        title: "File too large",
+        description: `Each image must be under 5 MB. ${oversizedFiles.length} file(s) exceeded the limit.`,
+        variant: "destructive",
+      });
+      if (commentFileInputRef.current) commentFileInputRef.current.value = "";
+      return;
+    }
+    const accepted = files.slice(0, remaining);
+    const rejected = files.length - accepted.length;
+    setSelections({ ...selections, commentImages: [...selections.commentImages, ...accepted] });
     if (commentFileInputRef.current) commentFileInputRef.current.value = "";
+    toast({
+      title: `${accepted.length} image${accepted.length > 1 ? "s" : ""} added ✓`,
+      description: rejected > 0
+        ? `${rejected} image(s) ignored (max 5 reached).`
+        : `${selections.commentImages.length + accepted.length}/5 reference images.`,
+    });
   };
 
   const removeCommentImage = (index: number) => {
