@@ -237,8 +237,8 @@ const Cart = () => {
     updateItem(itemId, { comment });
   };
 
-  const handleImageUrlsChange = (itemId: string, imageUrls: string[]) => {
-    updateItem(itemId, { imageUrls });
+  const handleImageFilesChange = (itemId: string, imageFiles: File[]) => {
+    updateItem(itemId, { imageFiles });
   };
 
   const handleCandleQuantityChange = (itemId: string, candleId: string, delta: number) => {
