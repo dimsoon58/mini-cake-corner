@@ -237,8 +237,8 @@ const Cart = () => {
     updateItem(itemId, { comment });
   };
 
-  const handleImageUrlsChange = (itemId: string, imageUrls: string[]) => {
-    updateItem(itemId, { imageUrls });
+  const handleImageFilesChange = (itemId: string, imageFiles: File[]) => {
+    updateItem(itemId, { imageFiles });
   };
 
   const handleCandleQuantityChange = (itemId: string, candleId: string, delta: number) => {
@@ -343,7 +343,7 @@ const Cart = () => {
                           onGlitterColorChange={(v) => handleGlitterColorChange(item.id, v)}
                           onGlitterCherriesColorChange={(v) => handleGlitterCherriesColorChange(item.id, v)}
                           onCommentChange={(v) => handleCommentChange(item.id, v)}
-                          onImageUrlsChange={(urls) => handleImageUrlsChange(item.id, urls)}
+                          onImageFilesChange={(files) => handleImageFilesChange(item.id, files)}
                           onCandleQtyChange={(candleId, delta) => handleCandleQuantityChange(item.id, candleId, delta)}
                           getCandleUnitQty={(candleId) => getCandleUnitQty(item, candleId)}
                           getCandleItemPrice={(candleId) => getCandleItemPrice(candleId, item.candles || [])}
@@ -446,7 +446,7 @@ interface CartItemEditorProps {
   onGlitterColorChange: (v: string) => void;
   onGlitterCherriesColorChange: (v: string) => void;
   onCommentChange: (v: string) => void;
-  onImageUrlsChange: (urls: string[]) => void;
+  onImageFilesChange: (files: File[]) => void;
   onCandleQtyChange: (candleId: string, delta: number) => void;
   getCandleUnitQty: (candleId: string) => number;
   getCandleItemPrice: (candleId: string) => number;
@@ -458,7 +458,7 @@ const CartItemEditor = ({
   onBaseColorChange, onDecoColorChange, onTextChange, onTextColorChange, onTextStyleChange,
   onToggleExtra, onRibbonColorChange, onButterflyColorChange,
   onGlitterColorChange, onGlitterCherriesColorChange,
-  onCommentChange, onImageUrlsChange,
+  onCommentChange, onImageFilesChange,
   onCandleQtyChange, getCandleUnitQty, getCandleItemPrice,
 }: CartItemEditorProps) => {
   const showDecoColor = item.style !== "normal-without-border";
@@ -466,12 +466,11 @@ const CartItemEditor = ({
   const excludedExtras = getExcludedExtras(item.style);
   const availableSizeIds = getAvailableSizesForStyle(item.style);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
-  const handleCommentImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCommentImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
-    const currentUrls: string[] = item.imageUrls || [];
-    const remainingSlots = Math.max(0, 5 - currentUrls.length);
+    const currentFiles: File[] = item.imageFiles || [];
+    const remainingSlots = Math.max(0, 5 - currentFiles.length);
     const files = selectedFiles.slice(0, remainingSlots);
 
     if (!files.length) {
@@ -479,44 +478,16 @@ const CartItemEditor = ({
       return;
     }
 
-    setIsUploadingImages(true);
-
-    try {
-      const now = new Date();
-      const year = String(now.getFullYear());
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const folderId = item.id || crypto.randomUUID();
-      const uploadedUrls: string[] = [];
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const filePath = `${year}/${month}/${folderId}/reference_${currentUrls.length + i + 1}.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("order-images")
-          .upload(filePath, file, { contentType: file.type, upsert: false });
-
-        if (uploadError) {
-          throw new Error(uploadError.message);
-        }
-
-        const { data } = supabase.storage.from("order-images").getPublicUrl(filePath);
-        uploadedUrls.push(data.publicUrl);
-      }
-
-      onImageUrlsChange([...currentUrls, ...uploadedUrls]);
-    } catch (error) {
-      console.error("Reference image upload error:", error);
-    } finally {
-      setIsUploadingImages(false);
-      if (commentFileInputRef.current) commentFileInputRef.current.value = "";
-    }
+    // Validate size (5MB max each)
+    const validFiles = files.filter(f => f.size <= 5 * 1024 * 1024);
+    
+    onImageFilesChange([...currentFiles, ...validFiles]);
+    if (commentFileInputRef.current) commentFileInputRef.current.value = "";
   };
 
   const removeCommentImage = (index: number) => {
-    const currentUrls: string[] = item.imageUrls || [];
-    onImageUrlsChange(currentUrls.filter((_: string, i: number) => i !== index));
+    const currentFiles: File[] = item.imageFiles || [];
+    onImageFilesChange(currentFiles.filter((_: File, i: number) => i !== index));
   };
 
   const getExtraPriceForSize = (extra: typeof catalogExtras[0]) => {
@@ -858,23 +829,22 @@ const CartItemEditor = ({
           onChange={handleCommentImageUpload}
           className="hidden"
         />
-        {(item.imageUrls || []).length < 5 && (
+        {(item.imageFiles || []).length < 5 && (
           <button
             onClick={() => commentFileInputRef.current?.click()}
-            disabled={isUploadingImages}
-            className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center gap-1 hover:border-primary/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center gap-1 hover:border-primary/50 transition-colors"
           >
             <Upload className="w-6 h-6 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{isUploadingImages ? "Uploading..." : "Click to upload images"}</span>
+            <span className="text-xs text-muted-foreground">Click to upload images</span>
           </button>
         )}
-        {(item.imageUrls || []).length > 0 && (
+        {(item.imageFiles || []).length > 0 && (
           <>
             <div className="flex flex-wrap gap-2 mt-2">
-              {(item.imageUrls || []).map((url: string, index: number) => (
-                <div key={url} className="relative w-16 h-16">
+              {(item.imageFiles || []).map((file: File, index: number) => (
+                <div key={index} className="relative w-16 h-16">
                   <img
-                    src={url}
+                    src={URL.createObjectURL(file)}
                     alt={`Reference ${index + 1}`}
                     className="w-full h-full object-cover rounded-lg"
                   />

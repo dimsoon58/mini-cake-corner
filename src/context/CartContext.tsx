@@ -35,6 +35,7 @@ export interface CartItem {
   candles: CandleCartItem[];
   comment: string;
   imageUrls: string[];
+  imageFiles: File[];
   total: number;
 }
 
@@ -54,11 +55,16 @@ const CART_STORAGE_KEY = "cake-cart-items";
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    // Hydrate with empty imageFiles since File objects can't be serialized
+    return parsed.map((item: any) => ({ ...item, imageFiles: [] }));
   });
 
   useEffect(() => {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    // Exclude non-serializable File objects from localStorage
+    const serializable = items.map(({ imageFiles, ...rest }) => rest);
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(serializable));
   }, [items]);
 
   const addItem = (item: CartItem) => {

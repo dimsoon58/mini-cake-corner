@@ -108,54 +108,49 @@ const detectZoneFromAddress = (address: string): typeof DELIVERY_ZONES[0] | null
 
 const formatDisplayDate = (date: Date) => format(date, "dd.MM.yyyy");
 
-const extractOrderImagePath = (publicUrl: string): string | null => {
-  const marker = "/storage/v1/object/public/order-images/";
-  const [, path] = publicUrl.split(marker);
-  return path ? decodeURIComponent(path) : null;
-};
+const uploadImageFilesToStorage = async (
+  allFiles: File[],
+  orderId: string,
+  onProgress?: (status: string) => void
+): Promise<string[]> => {
+  if (!allFiles.length) return [];
 
-const moveImageUrlsToOrderFolder = async (imageUrls: string[], orderId: string): Promise<string[]> => {
-  if (!imageUrls.length) return [];
-
+  onProgress?.("Uploading images...");
   const now = new Date();
-  const defaultYear = String(now.getFullYear());
-  const defaultMonth = String(now.getMonth() + 1).padStart(2, "0");
-  const movedUrls: string[] = [];
+  const year = String(now.getFullYear());
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const uploadedUrls: string[] = [];
 
-  for (let i = 0; i < imageUrls.length; i++) {
-    const sourceUrl = imageUrls[i];
-    const sourcePath = extractOrderImagePath(sourceUrl);
+  for (let i = 0; i < allFiles.length; i++) {
+    const file = allFiles[i];
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+    const filePath = `${year}/${month}/${orderId}/reference_${i}.${safeExt}`;
 
-    if (!sourcePath) {
-      movedUrls.push(sourceUrl);
-      continue;
+    let uploaded = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { error: uploadError } = await supabase.storage
+        .from("order-images")
+        .upload(filePath, file, { contentType: file.type, upsert: true });
+
+      if (!uploadError) {
+        uploaded = true;
+        break;
+      }
+      console.warn(`Upload attempt ${attempt + 1} failed for reference_${i}:`, uploadError.message);
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
     }
 
-    if (sourcePath.includes(`/${orderId}/`)) {
-      movedUrls.push(sourceUrl);
-      continue;
+    if (uploaded) {
+      const { data } = supabase.storage.from("order-images").getPublicUrl(filePath);
+      uploadedUrls.push(data.publicUrl);
+    } else {
+      console.error(`Failed to upload reference_${i} after 3 attempts`);
     }
-
-    const pathParts = sourcePath.split("/");
-    const year = pathParts[0] || defaultYear;
-    const month = pathParts[1] || defaultMonth;
-    const extension = sourcePath.split(".").pop() || "jpg";
-    const destinationPath = `${year}/${month}/${orderId}/reference_${i + 1}.${extension}`;
-
-    const { error: copyError } = await supabase.storage
-      .from("order-images")
-      .copy(sourcePath, destinationPath);
-
-    if (copyError) {
-      console.error("Image copy error:", copyError);
-      throw new Error("Impossible de préparer les images de référence pour la commande.");
-    }
-
-    const { data } = supabase.storage.from("order-images").getPublicUrl(destinationPath);
-    movedUrls.push(data.publicUrl);
   }
 
-  return movedUrls;
+  onProgress?.("Upload complete");
+  return uploadedUrls;
 };
 
 const Checkout = () => {
@@ -301,18 +296,24 @@ const Checkout = () => {
 
       const orderId = crypto.randomUUID();
 
-      const orderItemsWithFinalImageUrls = await Promise.all(
-        items.map(async (item) => ({
-          ...item,
-          imageUrls: await moveImageUrlsToOrderFolder(item.imageUrls || [], orderId),
-        }))
-      );
+      // Collect all image files from cart items and upload to Supabase
+      const allImageFiles = items.flatMap(item => item.imageFiles || []);
+      const orderImageUrls = await uploadImageFilesToStorage(allImageFiles, orderId, (status) => {
+        toast({ title: status });
+      });
 
-      const orderImageUrls = orderItemsWithFinalImageUrls.flatMap((item) => item.imageUrls || []);
+      // Build per-item image URLs (distribute back to items for order details)
+      let urlIndex = 0;
+      const orderItemsWithImageUrls = items.map(item => {
+        const itemFileCount = (item.imageFiles || []).length;
+        const itemUrls = orderImageUrls.slice(urlIndex, urlIndex + itemFileCount);
+        urlIndex += itemFileCount;
+        return { ...item, imageUrls: itemUrls };
+      });
 
       // Build order details JSON for admin review
       const orderDetailsJson = {
-        items: orderItemsWithFinalImageUrls.map((item) => ({
+        items: orderItemsWithImageUrls.map((item) => ({
           sizeName: item.sizeName,
           shapeName: item.shapeName,
           flavorName: item.flavorName,
