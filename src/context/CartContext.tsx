@@ -55,7 +55,10 @@ const CART_STORAGE_KEY = "cake-cart-items";
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    // Hydrate with empty imageFiles since File objects can't be serialized
+    return parsed.map((item: any) => ({ ...item, imageFiles: [] }));
   });
 
   useEffect(() => {
