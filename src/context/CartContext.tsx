@@ -35,6 +35,7 @@ export interface CartItem {
   candles: CandleCartItem[];
   comment: string;
   imageUrls: string[];
+  imageFiles: File[];
   total: number;
 }
 
