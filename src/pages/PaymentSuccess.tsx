@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { CheckCircle, Clock } from "lucide-react";
+import { CheckCircle, Clock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ const PaymentSuccess = () => {
   const { clearCart } = useCart();
   const sessionId = searchParams.get("session_id");
   const [processed, setProcessed] = useState(false);
+  const [orderStatus, setOrderStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionId || processed) return;
@@ -20,7 +21,7 @@ const PaymentSuccess = () => {
         // Find the most recent pending order and link the stripe session
         const { data: recentOrders } = await supabase
           .from("orders")
-          .select("id")
+          .select("id, status")
           .eq("status", "pending")
           .is("stripe_session_id", null)
           .order("created_at", { ascending: false })
@@ -55,34 +56,64 @@ const PaymentSuccess = () => {
     processPayment();
   }, [sessionId, clearCart, processed]);
 
+  const isOrderConfirmed = orderStatus === "accepted" || orderStatus === "confirmed";
+
   return (
     <Layout>
       <main className="container mx-auto px-4 py-16 max-w-2xl text-center">
         <div className="bg-card rounded-lg shadow-md p-8">
           <CheckCircle className="w-16 h-16 text-primary mx-auto mb-6" />
           
-          <h1 className="text-2xl font-serif text-foreground mb-4">
-            Thank you so much for ordering from Bento Cake Studio! 🤍
-          </h1>
-          
-          <p className="text-muted-foreground mb-6">
-            We truly appreciate your support and are so excited to create something special just for you.
-          </p>
+          {isOrderConfirmed ? (
+            <>
+              <h1 className="text-2xl font-serif text-foreground mb-4">
+                Order Confirmed ✅
+              </h1>
+              
+              <p className="text-muted-foreground mb-8">
+                Your order has been successfully placed and your payment has been processed.
+                <br /><br />
+                We are now preparing your order.
+                <br /><br />
+                You may close this page.
+              </p>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Clock className="w-5 h-5 text-amber-600" />
-              <p className="font-medium text-amber-800">Order Pending Approval</p>
-            </div>
-            <p className="text-sm text-amber-700">
-              Your payment has been authorized but will only be charged once we confirm your order. 
-              You will receive a confirmation message within the next 24 hours with the details of your pickup or delivery date and time.
-            </p>
-          </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Sparkles className="w-5 h-5 text-green-600" />
+                  <p className="font-medium text-green-800">Preparing Your Order</p>
+                </div>
+                <p className="text-sm text-green-700">
+                  We're excited to create something special for you!
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl font-serif text-foreground mb-4">
+                Thank you so much for ordering from Bento Cake Studio! 🤍
+              </h1>
+              
+              <p className="text-muted-foreground mb-6">
+                We truly appreciate your support and are so excited to create something special just for you.
+              </p>
 
-          <p className="text-muted-foreground mb-8">
-            We can't wait for you to enjoy your cake! 🎂✨
-          </p>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Clock className="w-5 h-5 text-amber-600" />
+                  <p className="font-medium text-amber-800">Order Pending Approval</p>
+                </div>
+                <p className="text-sm text-amber-700">
+                  Your payment has been authorized but will only be charged once we confirm your order. 
+                  You will receive a confirmation message within the next 24 hours with the details of your pickup or delivery date and time.
+                </p>
+              </div>
+
+              <p className="text-muted-foreground mb-8">
+                We can't wait for you to enjoy your cake! 🎂✨
+              </p>
+            </>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild>
