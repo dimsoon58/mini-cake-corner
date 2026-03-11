@@ -466,12 +466,11 @@ const CartItemEditor = ({
   const excludedExtras = getExcludedExtras(item.style);
   const availableSizeIds = getAvailableSizesForStyle(item.style);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
-  const handleCommentImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCommentImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
-    const currentUrls: string[] = item.imageUrls || [];
-    const remainingSlots = Math.max(0, 5 - currentUrls.length);
+    const currentFiles: File[] = item.imageFiles || [];
+    const remainingSlots = Math.max(0, 5 - currentFiles.length);
     const files = selectedFiles.slice(0, remainingSlots);
 
     if (!files.length) {
@@ -479,44 +478,16 @@ const CartItemEditor = ({
       return;
     }
 
-    setIsUploadingImages(true);
-
-    try {
-      const now = new Date();
-      const year = String(now.getFullYear());
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const folderId = item.id || crypto.randomUUID();
-      const uploadedUrls: string[] = [];
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const filePath = `${year}/${month}/${folderId}/reference_${currentUrls.length + i + 1}.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("order-images")
-          .upload(filePath, file, { contentType: file.type, upsert: false });
-
-        if (uploadError) {
-          throw new Error(uploadError.message);
-        }
-
-        const { data } = supabase.storage.from("order-images").getPublicUrl(filePath);
-        uploadedUrls.push(data.publicUrl);
-      }
-
-      onImageUrlsChange([...currentUrls, ...uploadedUrls]);
-    } catch (error) {
-      console.error("Reference image upload error:", error);
-    } finally {
-      setIsUploadingImages(false);
-      if (commentFileInputRef.current) commentFileInputRef.current.value = "";
-    }
+    // Validate size (5MB max each)
+    const validFiles = files.filter(f => f.size <= 5 * 1024 * 1024);
+    
+    onImageFilesChange([...currentFiles, ...validFiles]);
+    if (commentFileInputRef.current) commentFileInputRef.current.value = "";
   };
 
   const removeCommentImage = (index: number) => {
-    const currentUrls: string[] = item.imageUrls || [];
-    onImageUrlsChange(currentUrls.filter((_: string, i: number) => i !== index));
+    const currentFiles: File[] = item.imageFiles || [];
+    onImageFilesChange(currentFiles.filter((_: File, i: number) => i !== index));
   };
 
   const getExtraPriceForSize = (extra: typeof catalogExtras[0]) => {
