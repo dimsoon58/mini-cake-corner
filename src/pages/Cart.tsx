@@ -829,23 +829,22 @@ const CartItemEditor = ({
           onChange={handleCommentImageUpload}
           className="hidden"
         />
-        {(item.imageUrls || []).length < 5 && (
+        {(item.imageFiles || []).length < 5 && (
           <button
             onClick={() => commentFileInputRef.current?.click()}
-            disabled={isUploadingImages}
-            className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center gap-1 hover:border-primary/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center gap-1 hover:border-primary/50 transition-colors"
           >
             <Upload className="w-6 h-6 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{isUploadingImages ? "Uploading..." : "Click to upload images"}</span>
+            <span className="text-xs text-muted-foreground">Click to upload images</span>
           </button>
         )}
-        {(item.imageUrls || []).length > 0 && (
+        {(item.imageFiles || []).length > 0 && (
           <>
             <div className="flex flex-wrap gap-2 mt-2">
-              {(item.imageUrls || []).map((url: string, index: number) => (
-                <div key={url} className="relative w-16 h-16">
+              {(item.imageFiles || []).map((file: File, index: number) => (
+                <div key={index} className="relative w-16 h-16">
                   <img
-                    src={url}
+                    src={URL.createObjectURL(file)}
                     alt={`Reference ${index + 1}`}
                     className="w-full h-full object-cover rounded-lg"
                   />
