@@ -313,7 +313,7 @@ const Checkout = () => {
 
       // Build order details JSON for admin review
       const orderDetailsJson = {
-        items: orderItemsWithFinalImageUrls.map((item) => ({
+        items: orderItemsWithImageUrls.map((item) => ({
           sizeName: item.sizeName,
           shapeName: item.shapeName,
           flavorName: item.flavorName,
