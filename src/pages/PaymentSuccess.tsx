@@ -78,12 +78,12 @@ const PaymentSuccess = () => {
                 You may close this page.
               </p>
 
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <div className="bg-secondary border border-border rounded-lg p-4 mb-6">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <Sparkles className="w-5 h-5 text-green-600" />
-                  <p className="font-medium text-green-800">Preparing Your Order</p>
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <p className="font-medium text-foreground">Preparing Your Order</p>
                 </div>
-                <p className="text-sm text-green-700">
+                <p className="text-sm text-muted-foreground">
                   We're excited to create something special for you!
                 </p>
               </div>
