@@ -59,7 +59,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    // Exclude non-serializable File objects from localStorage
+    const serializable = items.map(({ imageFiles, ...rest }) => rest);
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(serializable));
   }, [items]);
 
   const addItem = (item: CartItem) => {
