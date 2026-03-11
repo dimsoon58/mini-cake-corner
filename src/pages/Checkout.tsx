@@ -296,14 +296,20 @@ const Checkout = () => {
 
       const orderId = crypto.randomUUID();
 
-      const orderItemsWithFinalImageUrls = await Promise.all(
-        items.map(async (item) => ({
-          ...item,
-          imageUrls: await moveImageUrlsToOrderFolder(item.imageUrls || [], orderId),
-        }))
-      );
+      // Collect all image files from cart items and upload to Supabase
+      const allImageFiles = items.flatMap(item => item.imageFiles || []);
+      const orderImageUrls = await uploadImageFilesToStorage(allImageFiles, orderId, (status) => {
+        toast({ title: status });
+      });
 
-      const orderImageUrls = orderItemsWithFinalImageUrls.flatMap((item) => item.imageUrls || []);
+      // Build per-item image URLs (distribute back to items for order details)
+      let urlIndex = 0;
+      const orderItemsWithImageUrls = items.map(item => {
+        const itemFileCount = (item.imageFiles || []).length;
+        const itemUrls = orderImageUrls.slice(urlIndex, urlIndex + itemFileCount);
+        urlIndex += itemFileCount;
+        return { ...item, imageUrls: itemUrls };
+      });
 
       // Build order details JSON for admin review
       const orderDetailsJson = {
