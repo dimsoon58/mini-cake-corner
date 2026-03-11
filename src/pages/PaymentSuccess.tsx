@@ -98,12 +98,12 @@ const PaymentSuccess = () => {
                 We truly appreciate your support and are so excited to create something special just for you.
               </p>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <div className="bg-muted border border-border rounded-lg p-4 mb-6">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <Clock className="w-5 h-5 text-amber-600" />
-                  <p className="font-medium text-amber-800">Order Pending Approval</p>
+                  <Clock className="w-5 h-5 text-primary" />
+                  <p className="font-medium text-foreground">Order Pending Approval</p>
                 </div>
-                <p className="text-sm text-amber-700">
+                <p className="text-sm text-muted-foreground">
                   Your payment has been authorized but will only be charged once we confirm your order. 
                   You will receive a confirmation message within the next 24 hours with the details of your pickup or delivery date and time.
                 </p>
