@@ -77,6 +77,7 @@ const flavorCategories = [
       { id: "white-berrylicious", name: "White Berrylicious", description: "Fluffy vanilla sponge filled with a generous raspberry coulis and whipped cream", image: flavorWhiteBerrylicious },
       { id: "salted-caramel", name: "Salted Butter Caramel", description: "Fluffy vanilla sponge filled with caramel and whipped cream", image: flavorSaltedCaramel },
       { id: "lemon-curd", name: "Lemon Curd", description: "Fluffy vanilla sponge filled with lemon curd and whipped cream", image: flavorLemonCurd },
+      { id: "orange-blossom", name: "Orange Blossom", description: "Fluffy vanilla sponge filled with orange blossom cream and whipped cream", image: flavorOrangeBlossom },
     ],
   },
   {
