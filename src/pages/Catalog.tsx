@@ -1644,7 +1644,7 @@ const Catalog = () => {
                     </Tooltip>
                   </label>
                   <p className="text-xs text-muted-foreground mb-2">
-                    Upload reference images (max 5 — JPG, PNG, WEBP)
+                    Upload reference images (max 5 — 5 MB per image — JPG, PNG, WEBP)
                   </p>
                   <input
                     ref={commentFileInputRef}
