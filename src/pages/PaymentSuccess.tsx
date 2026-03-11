@@ -18,7 +18,22 @@ const PaymentSuccess = () => {
 
     const processPayment = async () => {
       try {
-        // Find the most recent pending order and link the stripe session
+        // If already linked, read current status directly
+        const { data: existingOrders } = await supabase
+          .from("orders")
+          .select("id, status")
+          .eq("stripe_session_id", sessionId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (existingOrders && existingOrders.length > 0) {
+          setOrderStatus(existingOrders[0].status);
+          clearCart();
+          setProcessed(true);
+          return;
+        }
+
+        // Otherwise link the most recent pending order
         const { data: recentOrders } = await supabase
           .from("orders")
           .select("id, status")
@@ -29,19 +44,18 @@ const PaymentSuccess = () => {
 
         if (recentOrders && recentOrders.length > 0) {
           const orderId = recentOrders[0].id;
+          setOrderStatus(recentOrders[0].status ?? "pending");
 
-          // Update order with stripe session ID
-          await supabase
+          const { error: updateError } = await supabase
             .from("orders")
             .update({ stripe_session_id: sessionId })
             .eq("id", orderId);
 
-          // Trigger admin notification + calendar event
-          await supabase.functions.invoke("notify-order", {
-            body: { orderId },
-          });
-
-          console.log("Order processed, notification sent for:", orderId);
+          if (!updateError) {
+            await supabase.functions.invoke("notify-order", {
+              body: { orderId },
+            });
+          }
         }
 
         clearCart();
@@ -56,7 +70,35 @@ const PaymentSuccess = () => {
     processPayment();
   }, [sessionId, clearCart, processed]);
 
-  const isOrderConfirmed = orderStatus === "accepted" || orderStatus === "confirmed";
+  useEffect(() => {
+    if (!sessionId || !processed || orderStatus === "approved" || orderStatus === "accepted" || orderStatus === "confirmed") return;
+
+    let mounted = true;
+
+    const refreshOrderStatus = async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("status")
+        .eq("stripe_session_id", sessionId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (mounted && data && data.length > 0) {
+        setOrderStatus(data[0].status);
+      }
+    };
+
+    refreshOrderStatus();
+    const intervalId = setInterval(refreshOrderStatus, 5000);
+
+    return () => {
+      mounted = false;
+      clearInterval(intervalId);
+    };
+  }, [sessionId, processed, orderStatus]);
+
+  const isOrderConfirmed =
+    orderStatus === "approved" || orderStatus === "accepted" || orderStatus === "confirmed";
 
   return (
     <Layout>
