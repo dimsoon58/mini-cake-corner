@@ -81,15 +81,30 @@ const OrderAction = () => {
 
         <h1 className="text-2xl font-serif text-foreground">
           {status === "loading" && "Processing..."}
-          {status === "success" && !isDecline && "Order Accepted ✅"}
+          {status === "success" && !isDecline && "Order Confirmed ✅"}
           {status === "success" && isDecline && "Order Declined ❌"}
           {status === "error" && "Action Failed"}
         </h1>
 
-        <p className="text-muted-foreground text-sm leading-relaxed">{message}</p>
-
-        {status === "success" && (
-          <p className="text-xs text-muted-foreground">You can close this page.</p>
+        {status === "success" && !isDecline ? (
+          <div className="space-y-4">
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Your order has been successfully placed and your payment has been processed.
+            </p>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              We are now preparing your order.
+            </p>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              You may close this page.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="text-muted-foreground text-sm leading-relaxed">{message}</p>
+            {status === "success" && (
+              <p className="text-xs text-muted-foreground">You can close this page.</p>
+            )}
+          </>
         )}
 
         <div className="pt-4 border-t border-border">
