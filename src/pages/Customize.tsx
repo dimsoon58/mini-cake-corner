@@ -512,7 +512,8 @@ const Customize = () => {
       butterflyColorName: selectedButterflyColor?.name || "",
       candles: selections.candles,
       comment: selections.extraComment,
-      imageUrls,
+      imageUrls: [],
+      imageFiles,
       textStyle: "normal",
       total: calculateTotal(),
     });
