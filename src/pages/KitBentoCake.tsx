@@ -321,6 +321,7 @@ const KitBentoCake = () => {
       candles: [],
       comment: "",
       imageUrls: [],
+      imageFiles: [],
       textStyle: "normal",
       total: totalPrice,
     };

@@ -903,6 +903,7 @@ const Catalog = () => {
         ? `[Preferred design: Option ${selections.shagDesignPreference + 1}]${selections.comment ? " " + selections.comment : ""}`
         : selections.comment,
       imageUrls: [],
+      imageFiles: [...selections.commentImages],
       total: calculatePrice(),
     });
     setSheetOpen(false);
