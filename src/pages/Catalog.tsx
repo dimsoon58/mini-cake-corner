@@ -100,6 +100,7 @@ import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
 import flavorTiramisu from "@/assets/flavor-tiramisu-new.png";
 import flavorPraline from "@/assets/flavor-praline.png";
 import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
+import flavorOrangeBlossom from "@/assets/flavor-orange-blossom.png";
 
 // Box images
 import boxBento from "@/assets/box-bento.png";
