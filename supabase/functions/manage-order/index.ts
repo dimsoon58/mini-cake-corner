@@ -83,7 +83,8 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "";
-  const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
+  const invoiceNumber = order.invoice_number || "—";
   const orderImageUrls = getOrderImageUrls(order);
 
   const lines: string[] = [];
