@@ -176,7 +176,7 @@ function extractPickupStartTime(pickupTime?: string): { hours: number; minutes: 
 async function createCalendarEvent(accessToken: string, order: any, paymentMethodLabel: string) {
   const details = order.order_details_json || {};
   const pickupTime = details.pickupTime || "";
-  const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
 
   const description = buildOrderDetailsText(order, paymentMethodLabel);
 
