@@ -93,7 +93,8 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
     lines.push(`• ${value}`);
   };
 
-  pushBullet(`Order number: #${orderNumber}`);
+  pushBullet(`Order number: ${orderNumber}`);
+  pushBullet(`Invoice number: ${invoiceNumber}`);
   pushBullet(`Customer name: ${order.customer_name}`);
   pushBullet(`Customer email: ${order.customer_email}`);
   pushBullet(`Customer phone: ${order.customer_phone}`);
