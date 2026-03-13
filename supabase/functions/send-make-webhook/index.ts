@@ -78,7 +78,7 @@ serve(async (req) => {
       mail: order.customer_email || "",
       moyen_paiement: "Stripe",
       statut: "Pending",
-      n_facture: order.id,
+      n_facture: order.invoice_number || order.id,
     };
 
     console.log("Sending Make webhook:", JSON.stringify(webhookPayload));
