@@ -2,6 +2,11 @@ import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
+import {
+  sizes, shapes, styles, extras as catalogExtrasData,
+  getFlavorCategoryExtra, getCandleTotalPrice, candles as customizationCandles,
+  flavorCategories,
+} from "@/data/customization";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
