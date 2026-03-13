@@ -39,23 +39,109 @@ serve(async (req) => {
     // Build candle info from first item
     const candles = firstItem.candles || [];
     const candleNames = candles.map((c: any) => c.id || "").filter(Boolean).join(", ");
-    const candlePrice = 0; // Candle price is included in item total
+
+    // Calculate candle price
+    let candlePrice = 0;
+    if (candles.length > 0) {
+      const standardCandles = candles.filter((c: any) => c.id && !c.id.includes("thick") && !c.id.includes("glitter"));
+      const thickSpiralCandles = candles.filter((c: any) => c.id && c.id.includes("thick"));
+      const glitterCandles = candles.filter((c: any) => c.id && c.id.includes("glitter"));
+
+      // Standard candles: CHF 1 each, pack of 6 is CHF 5
+      const standardCount = standardCandles.reduce((sum: number, c: any) => sum + (c.quantity || 1), 0);
+      const standardPacks = Math.floor(standardCount / 6);
+      const standardRemaining = standardCount % 6;
+      candlePrice += (standardPacks * 5) + (standardRemaining * 1);
+
+      // Thick spiral candles: CHF 2 each, pack of 6 is CHF 10
+      const thickCount = thickSpiralCandles.reduce((sum: number, c: any) => sum + (c.quantity || 1), 0);
+      const thickPacks = Math.floor(thickCount / 6);
+      const thickRemaining = thickCount % 6;
+      candlePrice += (thickPacks * 10) + (thickRemaining * 2);
+
+      // Glitter candles: CHF 2 each
+      const glitterCount = glitterCandles.reduce((sum: number, c: any) => sum + (c.quantity || 1), 0);
+      candlePrice += glitterCount * 2;
+    }
 
     // Split customer name into first/last
     const nameParts = (order.customer_name || "").split(" ");
     const prenom = nameParts[0] || "";
     const nom = nameParts.slice(1).join(" ") || "";
 
-    // Build extras string
+    // Build extras string and calculate extras price
     const extras = firstItem.extrasNames?.join(", ") || "";
+    const extrasList = firstItem.extras || [];
+    const extrasNamesList = firstItem.extrasNames || [];
 
-    // Build design (style + base color + decoration color)
-    const designParts = [
-      firstItem.styleName,
-      firstItem.baseColorName ? `Base: ${firstItem.baseColorName}` : null,
-      firstItem.decorationColorName ? `Deco: ${firstItem.decorationColorName}` : null,
-    ].filter(Boolean);
-    const design = designParts.join(" • ") || "";
+    // Calculate extras price based on size
+    const sizeId = firstItem.size || "";
+    let extrasPrice = 0;
+    if (extrasList.length > 0) {
+      for (let i = 0; i < extrasList.length; i++) {
+        const extraId = extrasList[i];
+        const extraName = extrasNamesList[i] || "";
+
+        // Pricing based on size - Bento/Retro (small), Medium (medium), Large (large)
+        const isBentoOrRetro = sizeId === "bento" || sizeId === "retro";
+        const isMedium = sizeId === "medium";
+        const isLarge = sizeId === "large";
+
+        if (extraId.includes("cherries")) {
+          if (isBentoOrRetro) extrasPrice += 2;
+          else if (isMedium) extrasPrice += 4;
+          else if (isLarge) extrasPrice += 5;
+        } else if (extraId.includes("drawing")) {
+          if (isBentoOrRetro) extrasPrice += 8;
+          else if (isMedium) extrasPrice += 10;
+          else if (isLarge) extrasPrice += 15;
+        } else if (extraId.includes("sprinkles")) {
+          if (isBentoOrRetro) extrasPrice += 3;
+          else if (isMedium) extrasPrice += 4;
+          else if (isLarge) extrasPrice += 5;
+        } else if (extraId.includes("gold-leaves")) {
+          if (isBentoOrRetro) extrasPrice += 2;
+          else if (isMedium) extrasPrice += 4;
+          else if (isLarge) extrasPrice += 5;
+          else extrasPrice += 8; // X-Large
+        } else if (extraId.includes("ribbons")) {
+          if (isBentoOrRetro) extrasPrice += 2;
+          else if (isMedium) extrasPrice += 4;
+          else if (isLarge) extrasPrice += 5;
+        } else if (extraId.includes("heart")) {
+          if (isBentoOrRetro) extrasPrice += 2;
+          else if (isMedium) extrasPrice += 4;
+          else if (isLarge) extrasPrice += 5;
+        } else if (extraId.includes("butterfly")) {
+          if (isBentoOrRetro) extrasPrice += 2;
+          else if (isMedium) extrasPrice += 4;
+          else if (isLarge) extrasPrice += 5;
+        } else if (extraId.includes("printed-picture")) {
+          if (isBentoOrRetro) extrasPrice += 8;
+          else if (isMedium) extrasPrice += 10;
+          else if (isLarge) extrasPrice += 15;
+        } else if (extraId.includes("retro")) {
+          if (isBentoOrRetro) extrasPrice += 0; // included
+          else if (isMedium) extrasPrice += 3;
+          else if (isLarge) extrasPrice += 5;
+        } else if (extraId.includes("glitter")) {
+          if (isBentoOrRetro) extrasPrice += 5;
+          else if (isMedium) extrasPrice += 8;
+          else if (isLarge) extrasPrice += 12;
+        } else if (extraId.includes("pearl-borders")) {
+          if (isBentoOrRetro) extrasPrice += 3;
+          else if (isMedium) extrasPrice += 5;
+          else if (isLarge) extrasPrice += 8;
+        } else if (extraId.includes("scattered-pearls")) {
+          if (isBentoOrRetro) extrasPrice += 3;
+          else if (isMedium) extrasPrice += 5;
+          else if (isLarge) extrasPrice += 8;
+        }
+      }
+    }
+
+    // Design name - just the style name selected by the customer
+    const designName = firstItem.styleName || "";
 
     const webhookPayload = {
       order_id: order.order_number || order.id,
@@ -63,8 +149,9 @@ serve(async (req) => {
       size: firstItem.sizeName || "",
       flavor: firstItem.flavorName || "",
       shape: firstItem.shapeName || "",
-      design,
+      design_name: designName,
       extra: extras,
+      extras_price: extrasPrice,
       candles_name: candleNames,
       candle_price: candlePrice,
       livraison: order.delivery_option || "",
