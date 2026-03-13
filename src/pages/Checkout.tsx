@@ -659,16 +659,37 @@ const Checkout = () => {
                   )}
                 </div>
 
-                {/* Preferred Delivery Time & Complementary Indications */}
+                {/* Delivery Time Slot */}
                 <div className="space-y-2">
-                  <Label htmlFor="deliveryComment">Preferred Delivery Time & Complementary Indications (optional)</Label>
+                  <Label>Delivery Time Slot <span className="text-destructive">*</span></Label>
+                  <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a delivery time slot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DELIVERY_TIME_SLOTS.map((slot) => (
+                        <SelectItem key={slot} value={slot}>
+                          {slot}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Delivery Comment - Required */}
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryComment">Delivery Instructions <span className="text-destructive">*</span></Label>
                   <Textarea
                     id="deliveryComment"
                     value={deliveryComment}
                     onChange={(e) => setDeliveryComment(e.target.value)}
-                    placeholder="e.g., Between 2pm and 4pm, 3rd floor, ring doorbell twice, code: 1234..."
-                    rows={2}
+                    placeholder="e.g., If possible around 14:30, code 4589, apartment 12, 3rd floor..."
+                    rows={3}
+                    required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Please include: apartment number, door code, floor, and any delivery instructions.
+                  </p>
                 </div>
               </div>
             )}
