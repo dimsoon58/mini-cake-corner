@@ -708,30 +708,75 @@ const Checkout = () => {
 
               {items.length > 0 && (
                 <div className="mb-4 space-y-3">
-                  {items.map((item, index) => (
-                    <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
-                      <div className="flex justify-between items-start">
-                        <span className="font-medium text-sm text-foreground">
-                          {item.sizeName} {item.shapeName} Cake
-                        </span>
-                        <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                  {items.map((item) => {
+                    const sizeObj = sizes.find(s => s.id === item.size);
+                    const sizePrice = sizeObj?.price || 0;
+                    const shapeObj = shapes.find(s => s.id === item.shape);
+                    const shapeExtra = shapeObj ? (shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0) : 0;
+                    const flavorExtra = getFlavorCategoryExtra(item.flavor, item.size);
+                    const styleObj = styles.find(s => s.id === item.style);
+                    const styleExtra = styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0;
+                    const extraEntries = (item.extras || []).map((extraId: string) => {
+                      const extra = catalogExtrasData.find(e => e.id === extraId);
+                      if (!extra) return null;
+                      const price = extra.price[item.size as keyof typeof extra.price] || 0;
+                      return { name: extra.name, price };
+                    }).filter(Boolean) as { name: string; price: number }[];
+                    const candleEntries = (item.candles || [])
+                      .filter((c: any) => c.quantity > 0)
+                      .map((c: any) => {
+                        const candle = customizationCandles.find(x => x.id === c.id);
+                        const price = candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0;
+                        return { name: candle?.name || "", qty: c.quantity, price };
+                      })
+                      .filter((e: any) => e.name);
+
+                    return (
+                      <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
+                        <div className="flex justify-between items-start">
+                          <span className="font-medium text-sm text-foreground">
+                            {item.sizeName} {item.shapeName} Cake
+                          </span>
+                          <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          <div className="flex justify-between">
+                            <span>Base ({item.sizeName})</span>
+                            <span>CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Flavor: {item.flavorName}</span>
+                            <span>{flavorExtra > 0 ? `+ CHF ${flavorExtra}` : "included"}</span>
+                          </div>
+                          {item.styleName && (
+                            <div className="flex justify-between">
+                              <span>Design: {item.styleName}</span>
+                              <span>{styleExtra > 0 ? `+ CHF ${styleExtra}` : "included"}</span>
+                            </div>
+                          )}
+                          {extraEntries.map((e: any, i: number) => (
+                            <div key={i} className="flex justify-between">
+                              <span>+ {e.name}</span>
+                              <span>+ CHF {e.price}</span>
+                            </div>
+                          ))}
+                          {candleEntries.map((e: any, i: number) => (
+                            <div key={i} className="flex justify-between">
+                              <span>🕯️ {e.name} ×{e.qty}</span>
+                              <span>+ CHF {e.price}</span>
+                            </div>
+                          ))}
+                          {item.baseColorName && <p>Base Color: {item.baseColorName}</p>}
+                          {item.decorationColorName && <p>Decoration Color: {item.decorationColorName}</p>}
+                          {item.cakeText && (
+                            <p>Text: "{item.cakeText}"{item.textColorName ? ` (${item.textColorName})` : ""}</p>
+                          )}
+                          {item.ribbonColorName && <p>Ribbon: {item.ribbonColorName}</p>}
+                          {item.butterflyColorName && <p>Butterfly: {item.butterflyColorName}</p>}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground space-y-0.5">
-                        <p>Flavor: {item.flavorName}</p>
-                        {item.styleName && <p>Style: {item.styleName}</p>}
-                        {item.baseColorName && <p>Base Color: {item.baseColorName}</p>}
-                        {item.decorationColorName && <p>Decoration Color: {item.decorationColorName}</p>}
-                        {item.cakeText && (
-                          <p>Text: "{item.cakeText}"{item.textColorName ? ` (${item.textColorName})` : ""}</p>
-                        )}
-                        {item.extrasNames.length > 0 && (
-                          <p>Extras: {item.extrasNames.join(", ")}</p>
-                        )}
-                        {item.ribbonColorName && <p>Ribbon: {item.ribbonColorName}</p>}
-                        {item.butterflyColorName && <p>Butterfly: {item.butterflyColorName}</p>}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
