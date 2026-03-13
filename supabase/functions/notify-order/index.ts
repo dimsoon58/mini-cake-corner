@@ -170,7 +170,7 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: ADMIN_EMAILS,
-      subject: `🎂 New Bento Cake Order #${order.id.slice(0, 8).toUpperCase()} — ${order.customer_name} (CHF ${order.total_amount})`,
+      subject: `🎂 New Bento Cake Order ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.customer_name} (CHF ${order.total_amount})`,
       html,
     }),
   });

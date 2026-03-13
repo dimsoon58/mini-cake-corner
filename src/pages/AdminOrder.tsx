@@ -195,7 +195,8 @@ const AdminOrder = () => {
           {/* Payment Summary */}
           <div className="bg-amber-50 rounded-lg p-4 space-y-1">
             <h3 className="font-medium text-foreground mb-2">💳 Payment</h3>
-            <DetailRow label="Order ID" value={order.id.slice(0, 8).toUpperCase()} />
+             <DetailRow label="Order №" value={order.order_number || order.id.slice(0, 8).toUpperCase()} />
+             <DetailRow label="Invoice №" value={order.invoice_number || "—"} />
             <DetailRow label="Total" value={`CHF ${order.total_amount}`} />
             <DetailRow label="Status" value={
               order.status === "pending" ? "⏳ Pending Approval (funds authorized)" :

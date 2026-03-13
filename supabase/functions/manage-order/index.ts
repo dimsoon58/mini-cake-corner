@@ -433,7 +433,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
 // ── Decline customer email ──────────────────────────────────────────
 
 async function sendDeclineEmail(resendApiKey: string, order: any) {
-  const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
   const catalogLink = "https://mini-cake-corner.lovable.app/catalog";
 
   const html = `
