@@ -35,6 +35,8 @@ import {
   extraGroups,
   extraDescriptions,
   getAvailableSizesForStyle,
+  getFlavorCategoryExtra,
+  getCandleTotalPrice,
 } from "@/data/customization";
 
 // Import images for catalogExtras
