@@ -28,6 +28,10 @@ const PaymentSuccess = () => {
 
         if (existingOrders && existingOrders.length > 0) {
           setOrderStatus(existingOrders[0].status);
+          // Fire Make webhook silently in the background
+          supabase.functions.invoke("send-make-webhook", {
+            body: { orderId: existingOrders[0].id },
+          }).catch((err) => console.warn("Make webhook failed (silent):", err));
           clearCart();
           setProcessed(true);
           return;
@@ -55,6 +59,10 @@ const PaymentSuccess = () => {
             await supabase.functions.invoke("notify-order", {
               body: { orderId },
             });
+            // Fire Make webhook silently in the background
+            supabase.functions.invoke("send-make-webhook", {
+              body: { orderId },
+            }).catch((err) => console.warn("Make webhook failed (silent):", err));
           }
         }
 
