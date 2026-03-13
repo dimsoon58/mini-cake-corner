@@ -83,7 +83,8 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "";
-  const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
+  const invoiceNumber = order.invoice_number || "—";
   const orderImageUrls = getOrderImageUrls(order);
 
   const lines: string[] = [];
@@ -92,7 +93,8 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
     lines.push(`• ${value}`);
   };
 
-  pushBullet(`Order number: #${orderNumber}`);
+  pushBullet(`Order number: ${orderNumber}`);
+  pushBullet(`Invoice number: ${invoiceNumber}`);
   pushBullet(`Customer name: ${order.customer_name}`);
   pushBullet(`Customer email: ${order.customer_email}`);
   pushBullet(`Customer phone: ${order.customer_phone}`);
@@ -174,12 +176,12 @@ function extractPickupStartTime(pickupTime?: string): { hours: number; minutes: 
 async function createCalendarEvent(accessToken: string, order: any, paymentMethodLabel: string) {
   const details = order.order_details_json || {};
   const pickupTime = details.pickupTime || "";
-  const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
 
   const description = buildOrderDetailsText(order, paymentMethodLabel);
 
   const event: any = {
-    summary: `${order.customer_name} — Order #${orderNumber}`,
+    summary: `${order.customer_name} — ${orderNumber}`,
     description,
     colorId: "6",
   };
@@ -257,7 +259,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "—";
-  const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
 
   const deliveryInfo = order.delivery_option === "delivery"
     ? `Delivery to: ${order.delivery_address || "—"}`
@@ -431,7 +433,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
 // ── Decline customer email ──────────────────────────────────────────
 
 async function sendDeclineEmail(resendApiKey: string, order: any) {
-  const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
   const catalogLink = "https://mini-cake-corner.lovable.app/catalog";
 
   const html = `

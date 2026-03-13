@@ -109,7 +109,7 @@ const AdminOrder = () => {
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-6 h-6 text-primary" />
             <h1 className="text-xl font-serif text-foreground">
-              Order #{order.id.slice(0, 8).toUpperCase()}
+              {order.order_number || `Order #${order.id.slice(0, 8).toUpperCase()}`}
             </h1>
             <span className={`ml-auto text-xs font-medium px-3 py-1 rounded-full ${
               order.status === "pending" ? "bg-amber-100 text-amber-800" :
@@ -195,7 +195,8 @@ const AdminOrder = () => {
           {/* Payment Summary */}
           <div className="bg-amber-50 rounded-lg p-4 space-y-1">
             <h3 className="font-medium text-foreground mb-2">💳 Payment</h3>
-            <DetailRow label="Order ID" value={order.id.slice(0, 8).toUpperCase()} />
+             <DetailRow label="Order №" value={order.order_number || order.id.slice(0, 8).toUpperCase()} />
+             <DetailRow label="Invoice №" value={order.invoice_number || "—"} />
             <DetailRow label="Total" value={`CHF ${order.total_amount}`} />
             <DetailRow label="Status" value={
               order.status === "pending" ? "⏳ Pending Approval (funds authorized)" :

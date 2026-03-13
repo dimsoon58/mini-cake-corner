@@ -58,7 +58,7 @@ serve(async (req) => {
     const design = designParts.join(" • ") || "";
 
     const webhookPayload = {
-      order_id: order.id,
+      order_id: order.order_number || order.id,
       date: order.order_date,
       size: firstItem.sizeName || "",
       flavor: firstItem.flavorName || "",

@@ -66,6 +66,7 @@ export type Database = {
           newsletter_subscription: boolean | null
           order_date: string
           order_details_json: Json | null
+          order_number: string | null
           status: string
           stripe_payment_intent_id: string | null
           stripe_session_id: string | null
@@ -84,6 +85,7 @@ export type Database = {
           newsletter_subscription?: boolean | null
           order_date: string
           order_details_json?: Json | null
+          order_number?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
@@ -102,6 +104,7 @@ export type Database = {
           newsletter_subscription?: boolean | null
           order_date?: string
           order_details_json?: Json | null
+          order_number?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
