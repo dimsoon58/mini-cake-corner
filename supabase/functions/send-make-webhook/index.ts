@@ -77,7 +77,9 @@ serve(async (req) => {
     // Determine size - use ID if available, otherwise derive from sizeName
     const sizeId = firstItem.size || "";
     const sizeName = (firstItem.sizeName || "").toLowerCase();
-    const isBentoOrRetro = sizeId === "bento" || sizeId === "retro" || sizeName.includes("bento") || sizeName.includes("retro");
+    const isBento = sizeId === "bento" || sizeName.includes("bento");
+    const isRetro = sizeId === "retro" || sizeName.includes("retro");
+    const isBentoOrRetro = isBento || isRetro;
     const isMedium = sizeId === "medium" || sizeName.includes("medium");
     const isLarge = sizeId === "large" || sizeName.includes("large");
 
@@ -91,58 +93,78 @@ serve(async (req) => {
         const extraId = (extrasList[i] || "").toLowerCase();
 
         // Toppings
-        if (extraId.includes("cherries")) {
-          if (isBentoOrRetro) extrasPrice += 2;
-          else if (isMedium) extrasPrice += 4;
-          else if (isLarge) extrasPrice += 5;
+        if (extraId.includes("cherries") && !extraId.includes("glitter")) {
+          if (isBentoOrRetro) extrasPrice += 4;
+          else if (isMedium) extrasPrice += 8;
+          else if (isLarge) extrasPrice += 12;
+        } else if (extraId.includes("glitter-cherries")) {
+          if (isBentoOrRetro) extrasPrice += 7;
+          else if (isMedium) extrasPrice += 10;
+          else if (isLarge) extrasPrice += 15;
         } else if (extraId.includes("sprinkles")) {
-          if (isBentoOrRetro) extrasPrice += 3;
+          if (isBentoOrRetro) extrasPrice += isBento ? 2 : 4;
           else if (isMedium) extrasPrice += 4;
-          else if (isLarge) extrasPrice += 5;
+          else if (isLarge) extrasPrice += 6;
         }
         // Decorations
         else if (extraId.includes("gold-leaves")) {
-          if (isBentoOrRetro) extrasPrice += 2;
-          else if (isMedium) extrasPrice += 4;
-          else if (isLarge) extrasPrice += 5;
+          if (isBento) extrasPrice += 2;
+          else if (isRetro) extrasPrice += 4;
+          else if (isMedium) extrasPrice += 5;
+          else if (isLarge) extrasPrice += 8;
         } else if (extraId.includes("ribbons")) {
-          if (isBentoOrRetro) extrasPrice += 2;
-          else if (isMedium) extrasPrice += 4;
-          else if (isLarge) extrasPrice += 5;
+          if (isRetro) extrasPrice += 5;
+          else if (isMedium) extrasPrice += 8;
+          else if (isLarge) extrasPrice += 10;
         } else if (extraId.includes("heart")) {
-          if (isBentoOrRetro) extrasPrice += 2;
-          else if (isMedium) extrasPrice += 4;
-          else if (isLarge) extrasPrice += 5;
+          if (isBento) extrasPrice += 3;
+          else if (isRetro) extrasPrice += 5;
+          else if (isMedium) extrasPrice += 10;
+          else if (isLarge) extrasPrice += 15;
         } else if (extraId.includes("butterfly")) {
-          if (isBentoOrRetro) extrasPrice += 2;
-          else if (isMedium) extrasPrice += 4;
-          else if (isLarge) extrasPrice += 5;
+          if (isBento) extrasPrice += 4;
+          else if (isRetro) extrasPrice += 6;
+          else if (isMedium) extrasPrice += 8;
+          else if (isLarge) extrasPrice += 10;
         }
         // Pearl border
-        else if (extraId.includes("pearl-borders")) {
-          if (isBentoOrRetro) extrasPrice += 3;
-          else if (isMedium) extrasPrice += 5;
-          else if (isLarge) extrasPrice += 8;
+        else if (extraId.includes("pearl-border") && !extraId.includes("scattered")) {
+          if (isRetro) extrasPrice += 8;
+          else if (isMedium) extrasPrice += 15;
+          else if (isLarge) extrasPrice += 20;
         }
-        // Pearl border + glitter
-        else if (extraId.includes("scattered-pearls")) {
-          if (isBentoOrRetro) extrasPrice += 3;
+        // Scattered pearl
+        else if (extraId.includes("scattered-pearl")) {
+          if (isBento) extrasPrice += 2;
+          else if (isRetro) extrasPrice += 4;
           else if (isMedium) extrasPrice += 5;
-          else if (isLarge) extrasPrice += 8;
-        } else if (extraId.includes("glitter")) {
-          if (isBentoOrRetro) extrasPrice += 5;
+          else if (isLarge) extrasPrice += 6;
+        }
+        // Glitter effects
+        else if (extraId === "glitter") {
+          if (isBentoOrRetro) extrasPrice += 4;
           else if (isMedium) extrasPrice += 8;
+          else if (isLarge) extrasPrice += 10;
+        } else if (extraId.includes("glitter-base")) {
+          if (isBento) extrasPrice += 6;
+          else if (isRetro) extrasPrice += 8;
+          else if (isMedium) extrasPrice += 10;
           else if (isLarge) extrasPrice += 12;
+        } else if (extraId.includes("glitter-in-the-air")) {
+          if (isBento) extrasPrice += 10;
+          else if (isRetro) extrasPrice += 12;
+          else if (isMedium) extrasPrice += 15;
+          else if (isLarge) extrasPrice += 20;
         }
         // Custom design
         else if (extraId.includes("drawing")) {
-          if (isBentoOrRetro) extrasPrice += 8;
-          else if (isMedium) extrasPrice += 10;
-          else if (isLarge) extrasPrice += 15;
+          if (isBentoOrRetro) extrasPrice += 5;
+          else if (isMedium) extrasPrice += 8;
+          else if (isLarge) extrasPrice += 10;
         } else if (extraId.includes("printed-picture")) {
-          if (isBentoOrRetro) extrasPrice += 8;
-          else if (isMedium) extrasPrice += 10;
-          else if (isLarge) extrasPrice += 15;
+          extrasPrice += 15; // same for all sizes
+        } else if (extraId.includes("pearl-number")) {
+          extrasPrice += 5; // same for all sizes
         }
         // Note: retro, candles, and coulis are NOT included in extras_price
       }
