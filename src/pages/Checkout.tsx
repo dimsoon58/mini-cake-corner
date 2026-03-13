@@ -731,7 +731,7 @@ const Checkout = () => {
                   className="mt-0.5"
                 />
                 <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
-                  I would like to subscribe to the newsletter
+                  Unlock exclusive updates & offers ✨
                 </Label>
               </div>
             </div>
