@@ -62,6 +62,7 @@ export type Database = {
           delivery_option: string
           id: string
           image_urls: string[]
+          invoice_number: string | null
           newsletter_subscription: boolean | null
           order_date: string
           order_details_json: Json | null
@@ -79,6 +80,7 @@ export type Database = {
           delivery_option: string
           id?: string
           image_urls?: string[]
+          invoice_number?: string | null
           newsletter_subscription?: boolean | null
           order_date: string
           order_details_json?: Json | null
@@ -96,6 +98,7 @@ export type Database = {
           delivery_option?: string
           id?: string
           image_urls?: string[]
+          invoice_number?: string | null
           newsletter_subscription?: boolean | null
           order_date?: string
           order_details_json?: Json | null
