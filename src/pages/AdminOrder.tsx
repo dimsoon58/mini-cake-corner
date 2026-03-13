@@ -109,7 +109,7 @@ const AdminOrder = () => {
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-6 h-6 text-primary" />
             <h1 className="text-xl font-serif text-foreground">
-              Order #{order.id.slice(0, 8).toUpperCase()}
+              {order.order_number || `Order #${order.id.slice(0, 8).toUpperCase()}`}
             </h1>
             <span className={`ml-auto text-xs font-medium px-3 py-1 rounded-full ${
               order.status === "pending" ? "bg-amber-100 text-amber-800" :
