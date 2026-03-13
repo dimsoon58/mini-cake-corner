@@ -181,7 +181,7 @@ async function createCalendarEvent(accessToken: string, order: any, paymentMetho
   const description = buildOrderDetailsText(order, paymentMethodLabel);
 
   const event: any = {
-    summary: `${order.customer_name} — Order #${orderNumber}`,
+    summary: `${order.customer_name} — ${orderNumber}`,
     description,
     colorId: "6",
   };
