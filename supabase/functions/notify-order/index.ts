@@ -85,7 +85,7 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
       <!-- Header -->
       <div style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
         <h1 style="color:#fff;font-size:26px;margin:0 0 8px;font-weight:700;">🎂 New Bento Cake Order</h1>
-        <p style="color:#ccc;margin:0;font-size:14px;">Order <strong style="color:#fff;">#${order.id.slice(0, 8).toUpperCase()}</strong> needs your review</p>
+        <p style="color:#ccc;margin:0;font-size:14px;">Order <strong style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> needs your review</p>
       </div>
 
       <div style="padding:28px;">
