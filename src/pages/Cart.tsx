@@ -388,19 +388,91 @@ const Cart = () => {
 
 /* ---------- Summary (read-only view) ---------- */
 const CartItemSummary = ({ item }: { item: any }) => {
-  const candleNames = (item.candles || [])
+  const sizeObj = sizes.find(s => s.id === item.size);
+  const sizePrice = sizeObj?.price || 0;
+  const shapeObj = shapes.find(s => s.id === item.shape);
+  const shapeExtra = shapeObj ? (shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0) : 0;
+  const flavorExtra = getFlavorCategoryExtra(item.flavor, item.size);
+  const styleObj = styles.find(s => s.id === item.style);
+  const styleExtra = styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0;
+
+  const candleEntries = (item.candles || [])
     .filter((c: CandleCartItem) => c.quantity > 0)
     .map((c: CandleCartItem) => {
       const candle = cartCandles.find(x => x.id === c.id);
-      return candle ? `${candle.name} ×${c.quantity}` : "";
+      const price = candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0;
+      return { name: candle?.name || "", qty: c.quantity, price };
     })
-    .filter(Boolean);
+    .filter((e: any) => e.name);
+
+  const extraEntries = (item.extras || []).map((extraId: string) => {
+    const extra = catalogExtras.find(e => e.id === extraId);
+    if (!extra) return null;
+    const price = extra.price[item.size as keyof typeof extra.price] || 0;
+    return { name: extra.name, price };
+  }).filter(Boolean) as { name: string; price: number }[];
+
+  const candlesTotal = candleEntries.reduce((sum: number, e: any) => sum + e.price, 0);
+  const extrasTotal = extraEntries.reduce((sum: number, e: any) => sum + e.price, 0);
 
   return (
     <div className="space-y-2">
       {item.orderDate && <p className="text-sm text-muted-foreground">📅 {formatDateFromIso(item.orderDate)}</p>}
-      <p className="text-muted-foreground">Flavor: {item.flavorName}</p>
-      <p className="text-muted-foreground">Design: {item.styleName}</p>
+
+      {/* Price Breakdown */}
+      <div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{item.sizeName} ({item.shapeName})</span>
+          <span className="text-foreground">CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
+        </div>
+        {flavorExtra > 0 && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Flavor: {item.flavorName}</span>
+            <span className="text-foreground">+ CHF {flavorExtra}</span>
+          </div>
+        )}
+        {flavorExtra === 0 && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Flavor: {item.flavorName}</span>
+            <span className="text-muted-foreground text-xs">included</span>
+          </div>
+        )}
+        {styleExtra > 0 && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Design: {item.styleName}</span>
+            <span className="text-foreground">+ CHF {styleExtra}</span>
+          </div>
+        )}
+        {styleExtra === 0 && item.styleName && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Design: {item.styleName}</span>
+            <span className="text-muted-foreground text-xs">included</span>
+          </div>
+        )}
+        {extraEntries.length > 0 && (
+          <>
+            <div className="border-t border-border my-1" />
+            {extraEntries.map((e: any, i: number) => (
+              <div key={i} className="flex justify-between">
+                <span className="text-muted-foreground">+ {e.name}</span>
+                <span className="text-foreground">+ CHF {e.price}</span>
+              </div>
+            ))}
+          </>
+        )}
+        {candleEntries.length > 0 && (
+          <>
+            <div className="border-t border-border my-1" />
+            {candleEntries.map((e: any, i: number) => (
+              <div key={i} className="flex justify-between">
+                <span className="text-muted-foreground">🕯️ {e.name} ×{e.qty}</span>
+                <span className="text-foreground">+ CHF {e.price}</span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
       {item.baseColorName && (
         <p className="text-sm text-muted-foreground">
           Base: {item.baseColorName}
@@ -408,21 +480,12 @@ const CartItemSummary = ({ item }: { item: any }) => {
         </p>
       )}
       {item.cakeText && <p className="text-sm text-muted-foreground">Text: "{item.cakeText}"</p>}
-      {item.extras && item.extras.length > 0 && (
-        <div className="text-sm text-muted-foreground">
-          {extraGroups.map((group) => {
-            const selectedInGroup = group.ids.filter(id => item.extras.includes(id));
-            if (selectedInGroup.length === 0) return null;
-            const names = selectedInGroup.map(id => catalogExtras.find(e => e.id === id)?.name || id);
-            return (
-              <p key={group.label}>{group.label}: {names.join(", ")}</p>
-            );
-          })}
-        </div>
-      )}
       {item.comment && <p className="text-sm text-muted-foreground">Comment: {item.comment}</p>}
-      {candleNames.length > 0 && <p className="text-sm text-muted-foreground">Candles: {candleNames.join(", ")}</p>}
-      <p className="text-xl font-bold text-primary text-right">CHF {item.total}</p>
+
+      <div className="flex justify-between items-center pt-2 border-t border-border">
+        <span className="text-sm font-medium text-foreground">Total</span>
+        <span className="text-xl font-bold text-primary">CHF {item.total}</span>
+      </div>
     </div>
   );
 };
