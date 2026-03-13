@@ -2,6 +2,11 @@ import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
+import {
+  sizes, shapes, styles, extras as catalogExtrasData,
+  getFlavorCategoryExtra, getCandleTotalPrice, candles as customizationCandles,
+  flavorCategories,
+} from "@/data/customization";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,7 +50,7 @@ const COUNTRY_CODES = [
 ];
 
 // Generate 1-hour pickup time slots from 10:00 to 18:00
-const TIME_SLOTS = [
+const PICKUP_TIME_SLOTS = [
   "10:00 – 11:00",
   "11:00 – 12:00",
   "12:00 – 13:00",
@@ -54,6 +59,22 @@ const TIME_SLOTS = [
   "15:00 – 16:00",
   "16:00 – 17:00",
   "17:00 – 18:00",
+];
+
+// Generate 1-hour delivery time slots from 08:00 to 20:00
+const DELIVERY_TIME_SLOTS = [
+  "08:00 – 09:00",
+  "09:00 – 10:00",
+  "10:00 – 11:00",
+  "11:00 – 12:00",
+  "12:00 – 13:00",
+  "13:00 – 14:00",
+  "14:00 – 15:00",
+  "15:00 – 16:00",
+  "16:00 – 17:00",
+  "17:00 – 18:00",
+  "18:00 – 19:00",
+  "19:00 – 20:00",
 ];
 
 // Delivery zones configuration with postal codes for auto-detection
@@ -175,6 +196,7 @@ const Checkout = () => {
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [pickupTime, setPickupTime] = useState("");
+  const [deliveryTime, setDeliveryTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
   const [checkoutPayload, setCheckoutPayload] = useState<any>(null);
@@ -259,6 +281,15 @@ const Checkout = () => {
       return;
     }
 
+    if (deliveryOption === "delivery" && (!deliveryTime || !deliveryComment.trim())) {
+      toast({
+        title: "Delivery information required",
+        description: "Please select a delivery time slot and add a comment with the necessary delivery information.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setShowEmbeddedCheckout(false);
     setIsSubmitting(true);
 
@@ -334,6 +365,7 @@ const Checkout = () => {
         })),
         deliveryComment,
         pickupTime: deliveryOption === "pickup" ? pickupTime : "",
+        deliveryTime: deliveryOption === "delivery" ? deliveryTime : "",
       };
 
       // Save order to database with pending status
@@ -592,7 +624,7 @@ const Checkout = () => {
                     <SelectValue placeholder="Select a pickup time" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TIME_SLOTS.map((slot) => (
+                    {PICKUP_TIME_SLOTS.map((slot) => (
                       <SelectItem key={slot} value={slot}>
                         {slot}
                       </SelectItem>
@@ -632,16 +664,37 @@ const Checkout = () => {
                   )}
                 </div>
 
-                {/* Preferred Delivery Time & Complementary Indications */}
+                {/* Delivery Time Slot */}
                 <div className="space-y-2">
-                  <Label htmlFor="deliveryComment">Preferred Delivery Time & Complementary Indications (optional)</Label>
+                  <Label>Delivery Time Slot <span className="text-destructive">*</span></Label>
+                  <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a delivery time slot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DELIVERY_TIME_SLOTS.map((slot) => (
+                        <SelectItem key={slot} value={slot}>
+                          {slot}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Delivery Comment - Required */}
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryComment">Delivery Instructions <span className="text-destructive">*</span></Label>
                   <Textarea
                     id="deliveryComment"
                     value={deliveryComment}
                     onChange={(e) => setDeliveryComment(e.target.value)}
-                    placeholder="e.g., Between 2pm and 4pm, 3rd floor, ring doorbell twice, code: 1234..."
-                    rows={2}
+                    placeholder="e.g., If possible around 14:30, code 4589, apartment 12, 3rd floor..."
+                    rows={3}
+                    required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Please include: apartment number, door code, floor, and any delivery instructions.
+                  </p>
                 </div>
               </div>
             )}
@@ -655,30 +708,75 @@ const Checkout = () => {
 
               {items.length > 0 && (
                 <div className="mb-4 space-y-3">
-                  {items.map((item, index) => (
-                    <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
-                      <div className="flex justify-between items-start">
-                        <span className="font-medium text-sm text-foreground">
-                          {item.sizeName} {item.shapeName} Cake
-                        </span>
-                        <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                  {items.map((item) => {
+                    const sizeObj = sizes.find(s => s.id === item.size);
+                    const sizePrice = sizeObj?.price || 0;
+                    const shapeObj = shapes.find(s => s.id === item.shape);
+                    const shapeExtra = shapeObj ? (shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0) : 0;
+                    const flavorExtra = getFlavorCategoryExtra(item.flavor, item.size);
+                    const styleObj = styles.find(s => s.id === item.style);
+                    const styleExtra = styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0;
+                    const extraEntries = (item.extras || []).map((extraId: string) => {
+                      const extra = catalogExtrasData.find(e => e.id === extraId);
+                      if (!extra) return null;
+                      const price = extra.price[item.size as keyof typeof extra.price] || 0;
+                      return { name: extra.name, price };
+                    }).filter(Boolean) as { name: string; price: number }[];
+                    const candleEntries = (item.candles || [])
+                      .filter((c: any) => c.quantity > 0)
+                      .map((c: any) => {
+                        const candle = customizationCandles.find(x => x.id === c.id);
+                        const price = candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0;
+                        return { name: candle?.name || "", qty: c.quantity, price };
+                      })
+                      .filter((e: any) => e.name);
+
+                    return (
+                      <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
+                        <div className="flex justify-between items-start">
+                          <span className="font-medium text-sm text-foreground">
+                            {item.sizeName} {item.shapeName} Cake
+                          </span>
+                          <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          <div className="flex justify-between">
+                            <span>Base ({item.sizeName})</span>
+                            <span>CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Flavor: {item.flavorName}</span>
+                            <span>{flavorExtra > 0 ? `+ CHF ${flavorExtra}` : "included"}</span>
+                          </div>
+                          {item.styleName && (
+                            <div className="flex justify-between">
+                              <span>Design: {item.styleName}</span>
+                              <span>{styleExtra > 0 ? `+ CHF ${styleExtra}` : "included"}</span>
+                            </div>
+                          )}
+                          {extraEntries.map((e: any, i: number) => (
+                            <div key={i} className="flex justify-between">
+                              <span>+ {e.name}</span>
+                              <span>+ CHF {e.price}</span>
+                            </div>
+                          ))}
+                          {candleEntries.map((e: any, i: number) => (
+                            <div key={i} className="flex justify-between">
+                              <span>🕯️ {e.name} ×{e.qty}</span>
+                              <span>+ CHF {e.price}</span>
+                            </div>
+                          ))}
+                          {item.baseColorName && <p>Base Color: {item.baseColorName}</p>}
+                          {item.decorationColorName && <p>Decoration Color: {item.decorationColorName}</p>}
+                          {item.cakeText && (
+                            <p>Text: "{item.cakeText}"{item.textColorName ? ` (${item.textColorName})` : ""}</p>
+                          )}
+                          {item.ribbonColorName && <p>Ribbon: {item.ribbonColorName}</p>}
+                          {item.butterflyColorName && <p>Butterfly: {item.butterflyColorName}</p>}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground space-y-0.5">
-                        <p>Flavor: {item.flavorName}</p>
-                        {item.styleName && <p>Style: {item.styleName}</p>}
-                        {item.baseColorName && <p>Base Color: {item.baseColorName}</p>}
-                        {item.decorationColorName && <p>Decoration Color: {item.decorationColorName}</p>}
-                        {item.cakeText && (
-                          <p>Text: "{item.cakeText}"{item.textColorName ? ` (${item.textColorName})` : ""}</p>
-                        )}
-                        {item.extrasNames.length > 0 && (
-                          <p>Extras: {item.extrasNames.join(", ")}</p>
-                        )}
-                        {item.ribbonColorName && <p>Ribbon: {item.ribbonColorName}</p>}
-                        {item.butterflyColorName && <p>Butterfly: {item.butterflyColorName}</p>}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -731,7 +829,7 @@ const Checkout = () => {
                   className="mt-0.5"
                 />
                 <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
-                  I would like to subscribe to the newsletter
+                  Unlock exclusive updates & offers ✨
                 </Label>
               </div>
             </div>
