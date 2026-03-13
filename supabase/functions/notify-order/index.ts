@@ -123,7 +123,8 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
         <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;margin:20px 0;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">💳 Payment Summary</h3>
           <table style="border-collapse:collapse;width:100%;">
-            ${row("Order ID", order.id.slice(0, 8).toUpperCase())}
+             ${row("Order №", order.order_number || order.id.slice(0, 8).toUpperCase())}
+             ${row("Invoice №", order.invoice_number || "—")}
             ${row("Total", `CHF ${order.total_amount}`)}
             ${row("Status", "⏳ Funds authorized — awaiting your approval")}
           </table>
