@@ -619,7 +619,7 @@ const Checkout = () => {
                     <SelectValue placeholder="Select a pickup time" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TIME_SLOTS.map((slot) => (
+                    {PICKUP_TIME_SLOTS.map((slot) => (
                       <SelectItem key={slot} value={slot}>
                         {slot}
                       </SelectItem>
