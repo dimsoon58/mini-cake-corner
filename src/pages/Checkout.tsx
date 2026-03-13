@@ -345,15 +345,20 @@ const Checkout = () => {
       // Build order details JSON for admin review
       const orderDetailsJson = {
         items: orderItemsWithImageUrls.map((item) => ({
+          size: item.size,
           sizeName: item.sizeName,
+          shape: item.shape,
           shapeName: item.shapeName,
+          flavor: item.flavor,
           flavorName: item.flavorName,
+          style: item.style,
           styleName: item.styleName,
           baseColorName: item.baseColorName,
           decorationColorName: item.decorationColorName,
           cakeText: item.cakeText,
           textColorName: item.textColorName,
           textStyle: item.textStyle,
+          extras: item.extras,
           extrasNames: item.extrasNames,
           ribbonColorName: item.ribbonColorName,
           butterflyColorName: item.butterflyColorName,
