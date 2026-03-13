@@ -77,7 +77,9 @@ serve(async (req) => {
     // Determine size - use ID if available, otherwise derive from sizeName
     const sizeId = firstItem.size || "";
     const sizeName = (firstItem.sizeName || "").toLowerCase();
-    const isBentoOrRetro = sizeId === "bento" || sizeId === "retro" || sizeName.includes("bento") || sizeName.includes("retro");
+    const isBento = sizeId === "bento" || sizeName.includes("bento");
+    const isRetro = sizeId === "retro" || sizeName.includes("retro");
+    const isBentoOrRetro = isBento || isRetro;
     const isMedium = sizeId === "medium" || sizeName.includes("medium");
     const isLarge = sizeId === "large" || sizeName.includes("large");
 
