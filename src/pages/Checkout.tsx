@@ -276,6 +276,15 @@ const Checkout = () => {
       return;
     }
 
+    if (deliveryOption === "delivery" && (!deliveryTime || !deliveryComment.trim())) {
+      toast({
+        title: "Delivery information required",
+        description: "Please select a delivery time slot and add a comment with the necessary delivery information.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setShowEmbeddedCheckout(false);
     setIsSubmitting(true);
 
