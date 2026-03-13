@@ -71,23 +71,24 @@ serve(async (req) => {
 
     // Build extras string and calculate extras price
     const extras = firstItem.extrasNames?.join(", ") || "";
-    const extrasList = firstItem.extras || [];
+    const extrasList = firstItem.extras || firstItem.extrasNames || [];
     const extrasNamesList = firstItem.extrasNames || [];
+
+    // Determine size - use ID if available, otherwise derive from sizeName
+    const sizeId = firstItem.size || "";
+    const sizeName = (firstItem.sizeName || "").toLowerCase();
+    const isBentoOrRetro = sizeId === "bento" || sizeId === "retro" || sizeName.includes("bento") || sizeName.includes("retro");
+    const isMedium = sizeId === "medium" || sizeName.includes("medium");
+    const isLarge = sizeId === "large" || sizeName.includes("large");
 
     // Calculate extras price based on size - only for specific categories
     // Included: toppings (cherries, sprinkles), decorations (heart, butterfly, ribbons, gold-leaves),
     // pearl border (pearl-borders), pearl border + glitter (scattered-pearls, glitter), custom design (drawing, printed-picture)
     // Excluded: candles (calculated separately), coulis, retro
-    const sizeId = firstItem.size || "";
     let extrasPrice = 0;
     if (extrasList.length > 0) {
       for (let i = 0; i < extrasList.length; i++) {
-        const extraId = extrasList[i];
-
-        // Pricing based on size - Bento/Retro (small), Medium (medium), Large (large)
-        const isBentoOrRetro = sizeId === "bento" || sizeId === "retro";
-        const isMedium = sizeId === "medium";
-        const isLarge = sizeId === "large";
+        const extraId = (extrasList[i] || "").toLowerCase();
 
         // Toppings
         if (extraId.includes("cherries")) {
