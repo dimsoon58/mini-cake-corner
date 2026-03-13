@@ -360,6 +360,7 @@ const Checkout = () => {
         })),
         deliveryComment,
         pickupTime: deliveryOption === "pickup" ? pickupTime : "",
+        deliveryTime: deliveryOption === "delivery" ? deliveryTime : "",
       };
 
       // Save order to database with pending status
