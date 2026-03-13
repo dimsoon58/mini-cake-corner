@@ -259,7 +259,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "—";
-  const orderNumber = order.id.slice(0, 8).toUpperCase();
+  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
 
   const deliveryInfo = order.delivery_option === "delivery"
     ? `Delivery to: ${order.delivery_address || "—"}`
