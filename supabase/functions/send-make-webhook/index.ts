@@ -74,36 +74,36 @@ serve(async (req) => {
     const extrasList = firstItem.extras || [];
     const extrasNamesList = firstItem.extrasNames || [];
 
-    // Calculate extras price based on size
+    // Calculate extras price based on size - only for specific categories
+    // Included: toppings (cherries, sprinkles), decorations (heart, butterfly, ribbons, gold-leaves),
+    // pearl border (pearl-borders), pearl border + glitter (scattered-pearls, glitter), custom design (drawing, printed-picture)
+    // Excluded: candles (calculated separately), coulis, retro
     const sizeId = firstItem.size || "";
     let extrasPrice = 0;
     if (extrasList.length > 0) {
       for (let i = 0; i < extrasList.length; i++) {
         const extraId = extrasList[i];
-        const extraName = extrasNamesList[i] || "";
 
         // Pricing based on size - Bento/Retro (small), Medium (medium), Large (large)
         const isBentoOrRetro = sizeId === "bento" || sizeId === "retro";
         const isMedium = sizeId === "medium";
         const isLarge = sizeId === "large";
 
+        // Toppings
         if (extraId.includes("cherries")) {
           if (isBentoOrRetro) extrasPrice += 2;
           else if (isMedium) extrasPrice += 4;
           else if (isLarge) extrasPrice += 5;
-        } else if (extraId.includes("drawing")) {
-          if (isBentoOrRetro) extrasPrice += 8;
-          else if (isMedium) extrasPrice += 10;
-          else if (isLarge) extrasPrice += 15;
         } else if (extraId.includes("sprinkles")) {
           if (isBentoOrRetro) extrasPrice += 3;
           else if (isMedium) extrasPrice += 4;
           else if (isLarge) extrasPrice += 5;
-        } else if (extraId.includes("gold-leaves")) {
+        }
+        // Decorations
+        else if (extraId.includes("gold-leaves")) {
           if (isBentoOrRetro) extrasPrice += 2;
           else if (isMedium) extrasPrice += 4;
           else if (isLarge) extrasPrice += 5;
-          else extrasPrice += 8; // X-Large
         } else if (extraId.includes("ribbons")) {
           if (isBentoOrRetro) extrasPrice += 2;
           else if (isMedium) extrasPrice += 4;
@@ -116,27 +116,34 @@ serve(async (req) => {
           if (isBentoOrRetro) extrasPrice += 2;
           else if (isMedium) extrasPrice += 4;
           else if (isLarge) extrasPrice += 5;
-        } else if (extraId.includes("printed-picture")) {
-          if (isBentoOrRetro) extrasPrice += 8;
-          else if (isMedium) extrasPrice += 10;
-          else if (isLarge) extrasPrice += 15;
-        } else if (extraId.includes("retro")) {
-          if (isBentoOrRetro) extrasPrice += 0; // included
-          else if (isMedium) extrasPrice += 3;
-          else if (isLarge) extrasPrice += 5;
-        } else if (extraId.includes("glitter")) {
-          if (isBentoOrRetro) extrasPrice += 5;
-          else if (isMedium) extrasPrice += 8;
-          else if (isLarge) extrasPrice += 12;
-        } else if (extraId.includes("pearl-borders")) {
-          if (isBentoOrRetro) extrasPrice += 3;
-          else if (isMedium) extrasPrice += 5;
-          else if (isLarge) extrasPrice += 8;
-        } else if (extraId.includes("scattered-pearls")) {
+        }
+        // Pearl border
+        else if (extraId.includes("pearl-borders")) {
           if (isBentoOrRetro) extrasPrice += 3;
           else if (isMedium) extrasPrice += 5;
           else if (isLarge) extrasPrice += 8;
         }
+        // Pearl border + glitter
+        else if (extraId.includes("scattered-pearls")) {
+          if (isBentoOrRetro) extrasPrice += 3;
+          else if (isMedium) extrasPrice += 5;
+          else if (isLarge) extrasPrice += 8;
+        } else if (extraId.includes("glitter")) {
+          if (isBentoOrRetro) extrasPrice += 5;
+          else if (isMedium) extrasPrice += 8;
+          else if (isLarge) extrasPrice += 12;
+        }
+        // Custom design
+        else if (extraId.includes("drawing")) {
+          if (isBentoOrRetro) extrasPrice += 8;
+          else if (isMedium) extrasPrice += 10;
+          else if (isLarge) extrasPrice += 15;
+        } else if (extraId.includes("printed-picture")) {
+          if (isBentoOrRetro) extrasPrice += 8;
+          else if (isMedium) extrasPrice += 10;
+          else if (isLarge) extrasPrice += 15;
+        }
+        // Note: retro, candles, and coulis are NOT included in extras_price
       }
     }
 
