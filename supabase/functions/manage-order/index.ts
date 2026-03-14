@@ -711,9 +711,10 @@ serve(async (req) => {
 
     // Notify Make.com webhook of status change
     try {
+      const webhookOrderId = order.order_number || order.id;
       const webhookPayload = action === "approve"
-        ? { order_id: order.id, statut: "accepted" }
-        : { order_id: order.id, status: "refused" };
+        ? { order_id: webhookOrderId, statut: "accepted" }
+        : { order_id: webhookOrderId, status: "refused" };
       await fetch("https://hook.eu1.make.com/kjb4hh8gai76a9g8o9ihtkolu4fd48d8", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
