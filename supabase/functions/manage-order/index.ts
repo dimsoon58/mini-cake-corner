@@ -713,7 +713,7 @@ serve(async (req) => {
     try {
       const webhookOrderId = order.order_number || order.id;
       const webhookPayload = action === "approve"
-        ? { order_id: webhookOrderId, statut: "accepted" }
+        ? { order_id: webhookOrderId, status: "accepted" }
         : { order_id: webhookOrderId, status: "refused" };
       await fetch("https://hook.eu1.make.com/kjb4hh8gai76a9g8o9ihtkolu4fd48d8", {
         method: "POST",
