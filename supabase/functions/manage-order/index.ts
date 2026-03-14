@@ -709,6 +709,21 @@ serve(async (req) => {
       throw new Error("Failed to update order status");
     }
 
+    // Notify Make.com webhook of status change
+    try {
+      const webhookPayload = action === "approve"
+        ? { order_id: order.id, statut: "accepted" }
+        : { order_id: order.id, status: "refused" };
+      await fetch("https://hook.eu1.make.com/kjb4hh8gai76a9g8o9ihtkolu4fd48d8", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(webhookPayload),
+      });
+      console.log("Make.com status webhook sent:", webhookPayload);
+    } catch (e) {
+      console.error("Make.com status webhook error:", e);
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
       status: newStatus,
