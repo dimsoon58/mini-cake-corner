@@ -256,7 +256,7 @@ async function getPaymentMethodLabel(stripe: Stripe, paymentIntentId: string): P
 
 // ── Approval confirmation email ─────────────────────────────────────
 
-async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethodLabel: string) {
+async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethodLabel: string, pdfBase64?: string | null) {
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "—";
