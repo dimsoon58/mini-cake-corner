@@ -706,36 +706,56 @@ async function generateInvoicePdf(order: any): Promise<string> {
   return btoa(binary);
 }
 
-// ── Send invoice copy to admin ──────────────────────────────────────
+// ── Upload invoice PDF to Google Drive ──────────────────────────────
 
-async function sendAdminInvoiceCopy(resendApiKey: string, order: any, pdfBase64: string) {
-  const invoiceNumber = order.invoice_number || "—";
-  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
+async function uploadInvoiceToGoogleDrive(accessToken: string, pdfBase64: string, invoiceNumber: string) {
+  const FOLDER_ID = "1siujhqZbmYDyhaLdU-zi87o5kCPr0jV1";
+  const fileName = invoiceNumber || "invoice";
 
-  const resp = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: "contact@bentocakestudio.ch",
-      to: ["naglemelodie@gmail.com", "e.potapushina@gmail.com"],
-      subject: `Facture ${invoiceNumber} — ${orderNumber} — ${order.customer_name}`,
-      html: `<p>Veuillez trouver ci-joint la facture <strong>${invoiceNumber}</strong> pour la commande <strong>${orderNumber}</strong> de <strong>${order.customer_name}</strong>.</p><p>Montant : CHF ${order.total_amount}</p>`,
-      attachments: [{
-        filename: `Facture_${invoiceNumber}.pdf`,
-        content: pdfBase64,
-      }],
-    }),
+  // Convert base64 to Uint8Array
+  const binaryStr = atob(pdfBase64);
+  const pdfBytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    pdfBytes[i] = binaryStr.charCodeAt(i);
+  }
+
+  // Use multipart upload
+  const metadata = JSON.stringify({
+    name: `${fileName}.pdf`,
+    parents: [FOLDER_ID],
   });
+
+  const boundary = "invoice_upload_boundary";
+  const body = [
+    `--${boundary}\r\n`,
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n`,
+    metadata,
+    `\r\n--${boundary}\r\n`,
+    `Content-Type: application/pdf\r\n`,
+    `Content-Transfer-Encoding: base64\r\n\r\n`,
+    pdfBase64,
+    `\r\n--${boundary}--`,
+  ].join("");
+
+  const resp = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": `multipart/related; boundary=${boundary}`,
+      },
+      body,
+    }
+  );
 
   const data = await resp.json();
   if (!resp.ok) {
-    console.error("Admin invoice email failed:", data);
-    throw new Error(`Resend error: ${JSON.stringify(data)}`);
+    console.error("Google Drive upload failed:", data);
+    throw new Error(`Google Drive error: ${JSON.stringify(data)}`);
   }
-  console.log("Admin invoice copy sent:", data.id);
+  console.log("Invoice uploaded to Google Drive:", data.id, fileName);
+  return data;
 }
 
 // ── Token validation helper ─────────────────────────────────────────
