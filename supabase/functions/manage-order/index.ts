@@ -914,12 +914,14 @@ serve(async (req) => {
           console.error("Approval email error:", e);
         }
 
-        // Send invoice copy to admin
-        if (invoicePdfBase64) {
+        // Upload invoice PDF to Google Drive
+        if (invoicePdfBase64 && gcKey) {
           try {
-            await sendAdminInvoiceCopy(resendKeyApprove, order, invoicePdfBase64);
+            const driveToken = await getGoogleAccessToken(gcKey);
+            const invoiceNum = order.invoice_number || order.order_number || "invoice";
+            await uploadInvoiceToGoogleDrive(driveToken, invoicePdfBase64, invoiceNum);
           } catch (e) {
-            console.error("Admin invoice email error:", e);
+            console.error("Google Drive invoice upload error:", e);
           }
         }
       }
