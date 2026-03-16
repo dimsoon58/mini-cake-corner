@@ -16,7 +16,7 @@ async function getGoogleAccessToken(serviceAccountKey: string): Promise<string> 
   const now = Math.floor(Date.now() / 1000);
   const claim = {
     iss: key.client_email,
-    scope: "https://www.googleapis.com/auth/calendar",
+    scope: "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/drive.file",
     aud: "https://oauth2.googleapis.com/token",
     exp: now + 3600,
     iat: now,
