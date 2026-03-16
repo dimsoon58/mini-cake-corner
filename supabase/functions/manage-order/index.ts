@@ -531,6 +531,213 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
   return data;
 }
 
+// ── Invoice PDF generation ──────────────────────────────────────────
+
+async function generateInvoicePdf(order: any): Promise<string> {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]); // A4
+  const { width, height } = page.getSize();
+
+  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+
+  const black = rgb(0, 0, 0);
+  const gray = rgb(0.4, 0.4, 0.4);
+  const margin = 60;
+  let y = height - 50;
+
+  // Fetch and embed logo (top-right)
+  try {
+    const logoResp = await fetch("https://mini-cake-corner.lovable.app/logo-new.png");
+    const logoBytes = new Uint8Array(await logoResp.arrayBuffer());
+    const logoImage = await pdfDoc.embedPng(logoBytes);
+    const scale = 50 / logoImage.height;
+    const logoDims = { width: logoImage.width * scale, height: 50 };
+    page.drawImage(logoImage, {
+      x: width - margin - logoDims.width,
+      y: y - logoDims.height + 15,
+      width: logoDims.width,
+      height: logoDims.height,
+    });
+  } catch (e) {
+    console.error("Failed to embed logo in invoice:", e);
+  }
+
+  // Title
+  y -= 30;
+  page.drawText("Facture acquittée", { x: margin, y, size: 16, font: fontBold, color: black });
+  y -= 3;
+  page.drawLine({ start: { x: margin, y }, end: { x: margin + 120, y }, thickness: 1, color: black });
+
+  // Company info
+  y -= 18;
+  const companyLines = [
+    { text: "Bento Cake Studio SNC", font: fontBold },
+    { text: "Adresse : 58 Chemin de la Gradelle, 1224 Genève", font: fontRegular },
+    { text: "Téléphone : +41 78 927 59 97", font: fontRegular },
+    { text: "Email : Contact@bentocakestudio.ch", font: fontRegular },
+    { text: "IDE : CHE-425.048.539", font: fontRegular },
+    { text: "TVA : Non assujetti TVA", font: fontRegular },
+  ];
+
+  for (const line of companyLines) {
+    page.drawText(line.text, { x: margin, y, size: 10, font: line.font, color: black });
+    y -= 14;
+  }
+
+  // Invoice details (right-aligned)
+  const invoiceNumber = order.invoice_number || "—";
+  const today = new Date();
+  const invoiceDate = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+  const orderDateParts = order.order_date?.split("-");
+  const orderDateFormatted = orderDateParts
+    ? `${orderDateParts[2]}/${orderDateParts[1]}/${orderDateParts[0]}`
+    : "—";
+
+  let ry = height - 155;
+  const rightX = width - margin;
+
+  const drawRight = (text: string, font: any, yPos: number) => {
+    const tw = font.widthOfTextAtSize(text, 10);
+    page.drawText(text, { x: rightX - tw, y: yPos, size: 10, font, color: black });
+  };
+
+  drawRight(`Facture n° : ${invoiceNumber}`, fontBold, ry);
+  ry -= 14;
+  drawRight(`Date de facture : ${invoiceDate}`, fontRegular, ry);
+  ry -= 14;
+  drawRight(`Date commande : ${orderDateFormatted}`, fontRegular, ry);
+
+  // Separator
+  y -= 5;
+  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: rgb(0.85, 0.85, 0.85) });
+
+  // Client section
+  y -= 18;
+  page.drawText("Client", { x: margin, y, size: 11, font: fontBold, color: black });
+  y -= 16;
+  page.drawText(`Nom : ${order.customer_name}`, { x: margin, y, size: 10, font: fontRegular, color: black });
+  y -= 14;
+  if (order.delivery_address) {
+    page.drawText(`Adresse : ${order.delivery_address}`, { x: margin, y, size: 10, font: fontRegular, color: black });
+    y -= 14;
+  }
+  page.drawText(`Email : ${order.customer_email}`, { x: margin, y, size: 10, font: fontRegular, color: black });
+
+  // Items table
+  y -= 30;
+  const details = order.order_details_json || {};
+  const items = details.items || [];
+
+  const col1 = margin;
+  const col2 = 260;
+  const col3 = 340;
+  const col4 = 460;
+  const tableRight = width - margin;
+  const rowH = 22;
+
+  // Header row
+  const headerTop = y + 15;
+  const headerBot = y - 5;
+  page.drawRectangle({
+    x: col1, y: headerBot, width: tableRight - col1, height: rowH,
+    color: rgb(0.94, 0.94, 0.94),
+    borderColor: black, borderWidth: 0.5,
+  });
+  page.drawText("Description", { x: col1 + 5, y: y, size: 10, font: fontBold, color: black });
+  page.drawText("Quantité", { x: col2 + 5, y: y, size: 10, font: fontBold, color: black });
+  page.drawText("Prix unitaire (CHF)", { x: col3 + 5, y: y, size: 10, font: fontBold, color: black });
+  page.drawText("Total (CHF)", { x: col4 + 5, y: y, size: 10, font: fontBold, color: black });
+
+  // Header vertical lines
+  for (const cx of [col2, col3, col4]) {
+    page.drawLine({ start: { x: cx, y: headerTop }, end: { x: cx, y: headerBot }, thickness: 0.5, color: black });
+  }
+
+  const formatPrice = (amount: number | string) => {
+    const n = typeof amount === "string" ? parseFloat(amount) : amount;
+    return Number.isInteger(n) ? `${n}.-` : n.toFixed(2);
+  };
+
+  const rowItems = items.length > 0 ? items : [{ styleName: "Gâteau personnalisé", total: order.total_amount }];
+  let tableBot = headerBot;
+
+  for (const item of rowItems) {
+    y -= rowH;
+    const rowBot = y - 5;
+    const desc = item.sizeName
+      ? `${item.sizeName}${item.flavorName ? " — " + item.flavorName : ""}`
+      : (item.styleName || "Gâteau personnalisé");
+    const total = item.total || order.total_amount;
+
+    page.drawText(desc, { x: col1 + 5, y: y, size: 10, font: fontRegular, color: black });
+    page.drawText("1", { x: col2 + 5, y: y, size: 10, font: fontRegular, color: black });
+    page.drawText(formatPrice(total), { x: col3 + 5, y: y, size: 10, font: fontRegular, color: black });
+    page.drawText(formatPrice(total), { x: col4 + 5, y: y, size: 10, font: fontRegular, color: black });
+
+    // Row borders
+    page.drawLine({ start: { x: col1, y: rowBot }, end: { x: tableRight, y: rowBot }, thickness: 0.5, color: black });
+    for (const cx of [col1, col2, col3, col4, tableRight]) {
+      page.drawLine({ start: { x: cx, y: rowBot + rowH }, end: { x: cx, y: rowBot }, thickness: 0.5, color: black });
+    }
+    tableBot = rowBot;
+  }
+
+  // Total
+  y = tableBot - 18;
+  page.drawText(`Total payé : CHF ${formatPrice(order.total_amount)}`, { x: margin, y, size: 11, font: fontBold, color: black });
+
+  // Legal mentions
+  y -= 25;
+  page.drawText("Commande payée avant réalisation. Gâteau personnalisé non repris, non échangé.", {
+    x: margin, y, size: 9, font: fontItalic, color: gray,
+  });
+
+  y -= 18;
+  page.drawText("Merci pour votre confiance", { x: margin, y, size: 10, font: fontRegular, color: black });
+
+  // Save and convert to base64
+  const pdfBytes = await pdfDoc.save();
+  let binary = "";
+  for (let i = 0; i < pdfBytes.length; i++) {
+    binary += String.fromCharCode(pdfBytes[i]);
+  }
+  return btoa(binary);
+}
+
+// ── Send invoice copy to admin ──────────────────────────────────────
+
+async function sendAdminInvoiceCopy(resendApiKey: string, order: any, pdfBase64: string) {
+  const invoiceNumber = order.invoice_number || "—";
+  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
+
+  const resp = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "contact@bentocakestudio.ch",
+      to: ["naglemelodie@gmail.com", "e.potapushina@gmail.com"],
+      subject: `Facture ${invoiceNumber} — ${orderNumber} — ${order.customer_name}`,
+      html: `<p>Veuillez trouver ci-joint la facture <strong>${invoiceNumber}</strong> pour la commande <strong>${orderNumber}</strong> de <strong>${order.customer_name}</strong>.</p><p>Montant : CHF ${order.total_amount}</p>`,
+      attachments: [{
+        filename: `Facture_${invoiceNumber}.pdf`,
+        content: pdfBase64,
+      }],
+    }),
+  });
+
+  const data = await resp.json();
+  if (!resp.ok) {
+    console.error("Admin invoice email failed:", data);
+    throw new Error(`Resend error: ${JSON.stringify(data)}`);
+  }
+  console.log("Admin invoice copy sent:", data.id);
+}
+
 // ── Token validation helper ─────────────────────────────────────────
 
 async function validateAndConsumeToken(supabase: any, orderId: string, token: string): Promise<void> {
