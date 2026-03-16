@@ -719,33 +719,39 @@ async function uploadInvoiceToGoogleDrive(accessToken: string, pdfBase64: string
     pdfBytes[i] = binaryStr.charCodeAt(i);
   }
 
-  // Use multipart upload
+  // Use multipart upload with raw binary (not base64 Content-Transfer-Encoding)
   const metadata = JSON.stringify({
     name: `${fileName}.pdf`,
     parents: [FOLDER_ID],
   });
 
   const boundary = "invoice_upload_boundary";
-  const body = [
-    `--${boundary}\r\n`,
-    `Content-Type: application/json; charset=UTF-8\r\n\r\n`,
-    metadata,
-    `\r\n--${boundary}\r\n`,
-    `Content-Type: application/pdf\r\n`,
-    `Content-Transfer-Encoding: base64\r\n\r\n`,
-    pdfBase64,
-    `\r\n--${boundary}--`,
-  ].join("");
+  // Build multipart body with raw PDF bytes
+  const metadataPart = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`;
+  const filePart = `--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`;
+  const closing = `\r\n--${boundary}--`;
+
+  const encoder = new TextEncoder();
+  const metaBytes = encoder.encode(metadataPart);
+  const fileHeaderBytes = encoder.encode(filePart);
+  const closingBytes = encoder.encode(closing);
+
+  // Combine all parts into a single Uint8Array
+  const combined = new Uint8Array(metaBytes.length + fileHeaderBytes.length + pdfBytes.length + closingBytes.length);
+  combined.set(metaBytes, 0);
+  combined.set(fileHeaderBytes, metaBytes.length);
+  combined.set(pdfBytes, metaBytes.length + fileHeaderBytes.length);
+  combined.set(closingBytes, metaBytes.length + fileHeaderBytes.length + pdfBytes.length);
 
   const resp = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true",
     {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": `multipart/related; boundary=${boundary}`,
       },
-      body,
+      body: combined,
     }
   );
 
