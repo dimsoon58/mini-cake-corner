@@ -876,13 +876,31 @@ serve(async (req) => {
         }
       }
 
-      // Send confirmation email to customer
+      // Generate invoice PDF
+      let invoicePdfBase64: string | null = null;
+      try {
+        invoicePdfBase64 = await generateInvoicePdf(order);
+        console.log("Invoice PDF generated successfully");
+      } catch (e) {
+        console.error("Invoice PDF generation error:", e);
+      }
+
+      // Send confirmation email to customer with invoice attached
       const resendKeyApprove = Deno.env.get("RESEND_API_KEY");
       if (resendKeyApprove) {
         try {
-          approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order, paymentMethodLabel);
+          approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order, paymentMethodLabel, invoicePdfBase64);
         } catch (e) {
           console.error("Approval email error:", e);
+        }
+
+        // Send invoice copy to admin
+        if (invoicePdfBase64) {
+          try {
+            await sendAdminInvoiceCopy(resendKeyApprove, order, invoicePdfBase64);
+          } catch (e) {
+            console.error("Admin invoice email error:", e);
+          }
         }
       }
     } else {
