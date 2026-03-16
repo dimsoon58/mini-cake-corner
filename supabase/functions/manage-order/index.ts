@@ -408,18 +408,28 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
 </body>
 </html>`;
 
+  const invoiceNum = order.invoice_number || orderNumber;
+  const emailPayload: any = {
+    from: "contact@bentocakestudio.ch",
+    to: [order.customer_email],
+    subject: `Order Confirmation — #${orderNumber}`,
+    html,
+  };
+
+  if (pdfBase64) {
+    emailPayload.attachments = [{
+      filename: `Facture_${invoiceNum}.pdf`,
+      content: pdfBase64,
+    }];
+  }
+
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${resendApiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from: "contact@bentocakestudio.ch",
-      to: [order.customer_email],
-      subject: `Order Confirmation — #${orderNumber}`,
-      html,
-    }),
+    body: JSON.stringify(emailPayload),
   });
 
   const data = await resp.json();
