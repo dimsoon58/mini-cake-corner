@@ -119,12 +119,8 @@ serve(async (req) => {
       customer: customerId,
       line_items: lineItems,
       mode: "payment",
-      payment_method_options: {
-        card: {
-          capture_method: "manual",
-        },
-      },
       payment_intent_data: {
+        capture_method: "manual",
         metadata: {
           order_id: orderId || "",
           customer_name: customerName,
