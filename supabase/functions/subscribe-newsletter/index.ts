@@ -76,17 +76,51 @@ serve(async (req) => {
       });
     }
 
-    // Handle duplicate contact error (already exists and updateEnabled handles it, but just in case)
     const errorData = await response.text();
     console.error("Brevo API error:", response.status, errorData);
 
-    // If contact already exists (duplicate), that's fine
+    // If contact already exists (duplicate), treat as success
     if (response.status === 400 && errorData.includes("Contact already exist")) {
       console.log("Contact already exists, treating as success");
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
+    }
+
+    // If SMS is already associated with another contact, retry without phone
+    if (response.status === 400 && errorData.includes("duplicate_parameter") && errorData.includes("SMS")) {
+      console.log("SMS duplicate detected, retrying without phone number");
+      const { SMS, ...attributesWithoutSms } = brevoPayload.attributes;
+      const retryPayload = { ...brevoPayload, attributes: attributesWithoutSms };
+
+      const retryResponse = await fetch(`${BREVO_BASE_URL}/contacts`, {
+        method: "POST",
+        headers: {
+          "api-key": brevoApiKey,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(retryPayload),
+      });
+
+      if (retryResponse.status === 201 || retryResponse.status === 204) {
+        console.log("Brevo subscription successful on retry (without SMS):", retryResponse.status);
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      const retryError = await retryResponse.text();
+      // Even if retry fails with duplicate contact, treat as success
+      if (retryResponse.status === 400 && retryError.includes("Contact already exist")) {
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+      console.error("Brevo retry error:", retryResponse.status, retryError);
     }
 
     throw new Error(`Brevo API error [${response.status}]: ${errorData}`);
