@@ -424,6 +424,23 @@ const Checkout = () => {
 
       setCheckoutPayload(payload);
       setShowEmbeddedCheckout(true);
+
+      // Send to Brevo if newsletter is checked
+      if (subscribeNewsletter) {
+        try {
+          await supabase.functions.invoke("subscribe-newsletter", {
+            body: {
+              email,
+              firstName,
+              lastName,
+              phone: fullPhoneNumber,
+            },
+          });
+          console.log("Newsletter subscription sent to Brevo");
+        } catch (newsletterErr) {
+          console.error("Newsletter subscription error (non-blocking):", newsletterErr);
+        }
+      }
     } catch (err) {
       console.error("Checkout submit error:", err);
       toast({
