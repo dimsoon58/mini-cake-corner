@@ -433,7 +433,6 @@ const Checkout = () => {
               email,
               firstName,
               lastName,
-              phone: fullPhoneNumber,
             },
           });
           console.log("Newsletter subscription sent to Brevo");

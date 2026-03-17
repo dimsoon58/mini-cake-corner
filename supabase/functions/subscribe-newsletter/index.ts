@@ -11,7 +11,6 @@ interface SubscribeRequest {
   email: string;
   firstName?: string;
   lastName?: string;
-  phone?: string;
 }
 
 serve(async (req) => {
@@ -36,23 +35,21 @@ serve(async (req) => {
     }
 
     const body: SubscribeRequest = await req.json();
-    const { email, firstName, lastName, phone } = body;
+    const { email, firstName, lastName } = body;
 
     if (!email || !email.includes("@")) {
       throw new Error("A valid email is required");
     }
 
-    // Create or update contact and add to list
     const attributes: Record<string, string> = {};
     if (firstName) attributes.FIRSTNAME = firstName;
     if (lastName) attributes.LASTNAME = lastName;
-    if (phone) attributes.SMS = phone;
 
     const brevoPayload = {
       email: email.trim().toLowerCase(),
       attributes,
       listIds: [listId],
-      updateEnabled: true, // Update existing contact instead of creating duplicate
+      updateEnabled: true,
     };
 
     console.log("Subscribing to Brevo newsletter:", { email: brevoPayload.email, listId });
@@ -67,7 +64,6 @@ serve(async (req) => {
       body: JSON.stringify(brevoPayload),
     });
 
-    // Brevo returns 201 for new contact, 204 for updated contact
     if (response.status === 201 || response.status === 204) {
       console.log("Brevo subscription successful:", response.status);
       return new Response(JSON.stringify({ success: true }), {
@@ -79,48 +75,12 @@ serve(async (req) => {
     const errorData = await response.text();
     console.error("Brevo API error:", response.status, errorData);
 
-    // If contact already exists (duplicate), treat as success
     if (response.status === 400 && errorData.includes("Contact already exist")) {
       console.log("Contact already exists, treating as success");
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
-    }
-
-    // If SMS is already associated with another contact, retry without phone
-    if (response.status === 400 && errorData.includes("duplicate_parameter") && errorData.includes("SMS")) {
-      console.log("SMS duplicate detected, retrying without phone number");
-      const { SMS, ...attributesWithoutSms } = brevoPayload.attributes;
-      const retryPayload = { ...brevoPayload, attributes: attributesWithoutSms };
-
-      const retryResponse = await fetch(`${BREVO_BASE_URL}/contacts`, {
-        method: "POST",
-        headers: {
-          "api-key": brevoApiKey,
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: JSON.stringify(retryPayload),
-      });
-
-      if (retryResponse.status === 201 || retryResponse.status === 204) {
-        console.log("Brevo subscription successful on retry (without SMS):", retryResponse.status);
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-
-      const retryError = await retryResponse.text();
-      // Even if retry fails with duplicate contact, treat as success
-      if (retryResponse.status === 400 && retryError.includes("Contact already exist")) {
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-      console.error("Brevo retry error:", retryResponse.status, retryError);
     }
 
     throw new Error(`Brevo API error [${response.status}]: ${errorData}`);
