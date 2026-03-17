@@ -412,6 +412,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
   const emailPayload: any = {
     from: "contact@bentocakestudio.ch",
     to: [order.customer_email],
+    bcc: ["facturesbentocakestudio@gmail.com"],
     subject: `Order Confirmation — #${orderNumber}`,
     html,
   };
