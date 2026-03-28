@@ -538,7 +538,7 @@ const Checkout = () => {
                   id="phone"
                   type="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(e.target.value.replace(/\s/g, ''))}
                   placeholder="79 123 45 67"
                   required
                 />
