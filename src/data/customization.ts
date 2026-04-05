@@ -203,7 +203,7 @@ export const extras = [
   { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 } as Record<string, number>, image: extraCherries },
   { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 } as Record<string, number>, image: extraGlitterCherries },
   { id: "scattered-pearl", name: "Scattered Pearl", price: { bento: 2, retro: 4, medium: 5, large: 6 } as Record<string, number>, image: designScatteredPearls },
-  { id: "glitter", name: "Glitter", price: { bento: 4, retro: 4, medium: 8, large: 10 } as Record<string, number>, image: designGlitterCake },
+  { id: "glitter", name: "Glitter", price: { bento: 4, retro: 4, medium: 8, large: 10 } as Record<string, number>, image: extraGlitter },
   { id: "glitter-base", name: "Glitter Base", price: { bento: 6, retro: 8, medium: 10, large: 12 } as Record<string, number>, image: designGlitterCake },
   { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 12, medium: 15, large: 20 } as Record<string, number>, image: designGlitterInAir },
   { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 8, medium: 15, large: 20 } as Record<string, number>, image: designPearlBorders },
