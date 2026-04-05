@@ -52,6 +52,7 @@ import shagCake1 from "@/assets/shag-cake-1.jpg";
 import shagCake2 from "@/assets/shag-cake-2.jpg";
 import shagCake3 from "@/assets/shag-cake-3.jpg";
 import designGoldLeaves from "@/assets/design-gold-leaves-new.png";
+import designGoldenCake from "@/assets/design-golden-cake.jpg";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
 import designCherries from "@/assets/design-cherries-new.png";
@@ -406,6 +407,16 @@ const catalog = [
     styleId: "gold-leaves-style",
     styleName: "Gold Leaves",
     stylePrice: { bento: 2, retro: 4, medium: 5, large: 8 },
+    disableText: false,
+  },
+  {
+    id: "golden-cake",
+    name: "Golden Cake",
+    description: "A luxurious fully golden cake",
+    image: designGoldenCake,
+    styleId: "golden-cake",
+    styleName: "Golden Cake",
+    stylePrice: { retro: 15, medium: 25, large: 40 },
     disableText: false,
   },
   {
