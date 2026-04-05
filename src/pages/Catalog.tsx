@@ -12,6 +12,7 @@ import { ShoppingBag, Upload, X, Plus, Minus, ChevronDown, ChevronUp, CalendarIc
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
+import ExtraImageLightbox from "@/components/ExtraImageLightbox";
 import { allergenMap } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
 import { useCart } from "@/context/CartContext";

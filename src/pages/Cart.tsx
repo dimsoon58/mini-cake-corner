@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 // @ts-ignore
 import "@fontsource/dancing-script";
 import { Link } from "react-router-dom";
+import ExtraImageLightbox from "@/components/ExtraImageLightbox";
 import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
