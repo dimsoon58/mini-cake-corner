@@ -36,6 +36,7 @@ import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designDrawing from "@/assets/design-drawing-new.jpg";
 import designPrintedPicture from "@/assets/design-printed-picture-new.jpg";
 import designGoldLeaves from "@/assets/design-gold-leaves-new.png";
+import designGoldenCake from "@/assets/design-golden-cake.jpg";
 import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
 import extraGlitter from "@/assets/extra-glitter-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
@@ -170,7 +171,7 @@ export const styles = [
   { id: "cherries-retro", name: "Cherries × Retro", price: { retro: 8, medium: 20, large: 30 } as Record<string, number>, image: designCherries },
   { id: "scattered-retro-pearls", name: "Scattered Retro Pearls", price: { retro: 15, medium: 30, large: 45 } as Record<string, number>, image: designScatteredPearls },
   { id: "gold-leaves-style", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 5, large: 8 } as Record<string, number>, image: designGoldLeaves },
-  { id: "golden-cake", name: "Golden Cake", price: { bento: 10, retro: 12, medium: 20, large: 30 } as Record<string, number>, image: designGoldLeaves },
+  { id: "golden-cake", name: "Golden Cake", price: { retro: 15, medium: 25, large: 40 } as Record<string, number>, image: designGoldenCake },
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 7, medium: 5, large: 5 } as Record<string, number>, image: designPearlNumber },
   { id: "retro-ribbons-glitter", name: "Retro × Ribbons Glitter in the Air", price: { retro: 20, medium: 30, large: 40 } as Record<string, number>, image: designGlitterInAir },
   { id: "butterfly-garden", name: "Butterfly Garden", price: { bento: 6, retro: 8, medium: 15, large: 20 } as Record<string, number>, image: designButterflyGarden },
