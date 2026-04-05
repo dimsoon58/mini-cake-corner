@@ -42,8 +42,8 @@ import {
 
 // Import images for catalogExtras
 import extraGoldLeaves from "@/assets/extra-gold-leaves.png";
-import extraCherries from "@/assets/extra-cherries.png";
-import extraGlitterCherries from "@/assets/extra-glitter-cherries.png";
+import extraCherries from "@/assets/extra-cherries-new.jpg";
+import extraGlitterCherries from "@/assets/extra-glitter-cherries-new.jpg";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
@@ -55,9 +55,9 @@ import extraHeart from "@/assets/extra-heart.png";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 import extraPrintedPicture from "@/assets/extra-printed-picture.png";
-import extraButterfly from "@/assets/extra-butterfly.png";
-import extraRibbons from "@/assets/extra-ribbons.png";
-import extraSprinkles from "@/assets/extra-sprinkles-new.jpg";
+import extraButterfly from "@/assets/extra-butterfly-new.jpg";
+import extraRibbons from "@/assets/extra-ribbons-new.jpg";
+import extraSprinkles from "@/assets/extra-sprinkles-new2.jpg";
 
 const catalogExtras = [
   { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 5, large: 8 }, image: extraGoldLeaves },
