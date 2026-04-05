@@ -19,6 +19,7 @@ import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
 import flavorOrangeBlossom from "@/assets/flavor-orange-blossom.png";
 import flavorTiramisu from "@/assets/flavor-tiramisu-new.png";
 import flavorPraline from "@/assets/flavor-praline.png";
+import flavorPistachio from "@/assets/flavor-pistachio.png";
 import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
 // Style images
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
@@ -144,6 +145,7 @@ export const flavorCategories = [
     flavors: [
       { id: "tiramisu", name: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", image: flavorTiramisu },
       { id: "praline", name: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelized almond, hazelnut and whipped cream", image: flavorPraline },
+      { id: "pistachio-lovers", name: "Pistachio Lovers", description: "Fluffy vanilla sponge filled with caramelized pistachio and whipped cream", image: flavorPistachio },
       { id: "passion-fruit", name: "Passion Fruit", description: "Fluffy vanilla sponge filled with fresh passion fruit curd and whipped cream", image: flavorPassionFruit },
       { id: "vanilla-gf", name: "Vanilla Gluten-free", description: "Fluffy gluten-free vanilla sponge with whipped cream", image: flavorVanilla },
       { id: "red-velvet-gf", name: "Red Velvet Gluten-free", description: "Fluffy gluten-free vanilla & chocolate sponge with whipped cream", image: flavorRedVelvet },
