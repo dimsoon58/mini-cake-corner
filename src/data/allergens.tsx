@@ -53,6 +53,11 @@ export const allergenMap: Record<string, AllergenInfo> = {
     mayContain: "other nuts",
     warning: "Contains almond & hazelnut",
   },
+  "pistachio-lovers": {
+    contains: "gluten (wheat), eggs, milk, nuts (pistachio)",
+    mayContain: "other nuts",
+    warning: "Contains pistachio",
+  },
   "passion-fruit": {
     contains: "gluten (wheat), eggs, milk",
     mayContain: "nuts",
@@ -100,8 +105,9 @@ export const AllergenDisplay = ({ flavorId }: { flavorId: string }) => {
         <p className="font-semibold text-destructive">⚠️ {info.warning}</p>
       )}
       <p className="text-muted-foreground">
-        <span className="font-medium">Allergens:</span> Gluten, Eggs, Milk
+      <span className="font-medium">Allergens:</span> Gluten, Eggs, Milk
         {flavorId === "praline" && ", Nuts (almond, hazelnut)"}
+        {flavorId === "pistachio-lovers" && ", Nuts (pistachio)"}
       </p>
       <p className="text-muted-foreground">
         (May contain Nuts)
