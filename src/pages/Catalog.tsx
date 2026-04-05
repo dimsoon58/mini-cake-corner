@@ -1456,7 +1456,11 @@ const Catalog = () => {
                 {extraGroups.map((group) => {
                   const visibleExtras = group.ids
                     .map(id => catalogExtras.find(e => e.id === id))
-                    .filter((extra): extra is typeof catalogExtras[0] => !!extra && !excludedExtras.includes(extra.id));
+                    .filter((extra): extra is typeof catalogExtras[0] => !!extra && !excludedExtras.includes(extra.id))
+                    .filter(extra => {
+                      const price = extra.price[selections.size as keyof typeof extra.price];
+                      return price !== undefined && price > 0;
+                    });
                   if (visibleExtras.length === 0) return null;
                   return (
                     <div key={group.label} className="space-y-2">
