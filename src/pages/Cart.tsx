@@ -46,6 +46,7 @@ import extraCherries from "@/assets/extra-cherries-new.jpg";
 import extraGlitterCherries from "@/assets/extra-glitter-cherries-new.jpg";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
+import extraGlitter from "@/assets/extra-glitter-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
 import extraRetro from "@/assets/extra-retro.png";
@@ -64,7 +65,7 @@ const catalogExtras = [
   { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 }, image: extraCherries },
   { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 }, image: extraGlitterCherries },
   { id: "scattered-pearl", name: "Scattered Pearl", price: { bento: 2, retro: 4, medium: 5, large: 6 }, image: designScatteredPearls },
-  { id: "glitter", name: "Glitter", price: { bento: 4, retro: 4, medium: 8, large: 10 }, image: designGlitterCake },
+  { id: "glitter", name: "Glitter", price: { bento: 4, retro: 4, medium: 8, large: 10 }, image: extraGlitter },
   { id: "glitter-base", name: "Glitter Base", price: { bento: 6, retro: 8, medium: 10, large: 12 }, image: designGlitterCake },
   { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 12, medium: 15, large: 20 }, image: designGlitterInAir },
   { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 8, medium: 15, large: 20 }, image: designPearlBorders },
