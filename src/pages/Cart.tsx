@@ -46,6 +46,7 @@ import extraCherries from "@/assets/extra-cherries-new.jpg";
 import extraGlitterCherries from "@/assets/extra-glitter-cherries-new.jpg";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
+import extraGlitter from "@/assets/extra-glitter-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
 import extraRetro from "@/assets/extra-retro.png";

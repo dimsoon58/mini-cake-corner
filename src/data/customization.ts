@@ -37,6 +37,7 @@ import designDrawing from "@/assets/design-drawing-new.jpg";
 import designPrintedPicture from "@/assets/design-printed-picture-new.jpg";
 import designGoldLeaves from "@/assets/design-gold-leaves-new.png";
 import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
+import extraGlitter from "@/assets/extra-glitter-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designGenderReveal from "@/assets/design-gender-reveal-new.jpg";
 import designCherries from "@/assets/design-cherries-new.png";

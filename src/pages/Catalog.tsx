@@ -60,6 +60,7 @@ import designRibbons from "@/assets/design-ribbons-new.jpg";
 import retroRibbons1 from "@/assets/retro-ribbons-1.jpg";
 import retroRibbons2 from "@/assets/retro-ribbons-2.jpg";
 import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
+import extraGlitter from "@/assets/extra-glitter-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
 import designGenderReveal from "@/assets/design-gender-reveal-new.jpg";
