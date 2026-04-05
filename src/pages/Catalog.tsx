@@ -102,6 +102,7 @@ import flavorSaltedCaramel from "@/assets/flavor-salted-caramel-new.png";
 import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
 import flavorTiramisu from "@/assets/flavor-tiramisu-new.png";
 import flavorPraline from "@/assets/flavor-praline.png";
+import flavorPistachio from "@/assets/flavor-pistachio.png";
 import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
 import flavorOrangeBlossom from "@/assets/flavor-orange-blossom.png";
 
@@ -161,6 +162,7 @@ const flavors = [
   { id: "orange-blossom", name: "Orange Blossom", image: flavorOrangeBlossom, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
   { id: "tiramisu", name: "Tiramisu", image: flavorTiramisu, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
   { id: "praline", name: "Praline Obsession", image: flavorPraline, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
+  { id: "pistachio-lovers", name: "Pistachio Lovers", image: flavorPistachio, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
   { id: "passion-fruit", name: "Passion Fruit", image: flavorPassionFruit, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
   { id: "vanilla-gf", name: "Vanilla Gluten-Free", image: flavorVanilla, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
   { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", image: flavorRedVelvet, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
