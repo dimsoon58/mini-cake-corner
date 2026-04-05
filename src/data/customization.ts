@@ -44,16 +44,16 @@ import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 import designGlitterCherries from "@/assets/design-glitter-cherries-new.jpg";
 import designRetroGlitter from "@/assets/design-retro-glitter-new.jpg";
-import extraSprinkles from "@/assets/extra-sprinkles-new.jpg";
-import extraCherries from "@/assets/extra-cherries.png";
-import extraGlitterCherries from "@/assets/extra-glitter-cherries.png";
+import extraSprinkles from "@/assets/extra-sprinkles-new2.jpg";
+import extraCherries from "@/assets/extra-cherries-new.jpg";
+import extraGlitterCherries from "@/assets/extra-glitter-cherries-new.jpg";
 import extraGoldLeaves from "@/assets/extra-gold-leaves.png";
 import extraHeart from "@/assets/extra-heart.png";
 import extraRetro from "@/assets/extra-retro.png";
 import extraDrawing from "@/assets/extra-drawing.png";
 import extraPrintedPicture from "@/assets/extra-printed-picture.png";
-import extraButterfly from "@/assets/extra-butterfly.png";
-import extraRibbons from "@/assets/extra-ribbons.png";
+import extraButterfly from "@/assets/extra-butterfly-new.jpg";
+import extraRibbons from "@/assets/extra-ribbons-new.jpg";
 
 // Candle images
 import candlePuppy from "@/assets/candle-puppy-new.png";
