@@ -238,24 +238,24 @@ export const candles = [
 
 export const extraGroups = [
   {
-    label: "Toppings",
-    ids: ["cherries", "glitter-cherries", "sprinkles", "gold-leaves"],
-  },
-  {
     label: "Decorations",
     ids: ["heart", "ribbons", "retro", "butterfly"],
   },
   {
-    label: "Pearls & Borders",
+    label: "Pearls",
     ids: ["scattered-pearl", "pearl-border", "pearl-number"],
   },
   {
-    label: "Glitter Effects",
-    ids: ["glitter", "glitter-base", "glitter-in-the-air"],
+    label: "Custom",
+    ids: ["drawing", "printed-picture"],
   },
   {
-    label: "Custom Design",
-    ids: ["drawing", "printed-picture"],
+    label: "Toppings",
+    ids: ["cherries", "glitter-cherries", "sprinkles", "gold-leaves"],
+  },
+  {
+    label: "Glitter",
+    ids: ["glitter", "glitter-base", "glitter-in-the-air"],
   },
 ];
 
