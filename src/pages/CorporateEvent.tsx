@@ -69,14 +69,14 @@ const ImageCarousel = ({ images }: { images: { src: string; alt: string }[] }) =
 
       <button
         onClick={prev}
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-none bg-background/80 backdrop-blur-sm border border-border shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
         aria-label="Previous image"
       >
         <ChevronLeft className="w-5 h-5" />
       </button>
       <button
         onClick={next}
-        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-none bg-background/80 backdrop-blur-sm border border-border shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
         aria-label="Next image"
       >
         <ChevronRight className="w-5 h-5" />
@@ -119,7 +119,7 @@ const CorporateEvent = () => {
           </p>
           <button
             onClick={() => setQuoteOpen(true)}
-            className="inline-flex items-center justify-center px-8 py-3 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center justify-center px-8 py-3 bg-primary text-primary-foreground rounded-none font-medium hover:bg-primary/90 transition-colors"
           >
             Get a Quote
           </button>

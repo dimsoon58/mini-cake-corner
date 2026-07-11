@@ -15,7 +15,7 @@ type NavItem = { to: string; label: string } | { label: string; children: { to: 
 const navLinks: NavItem[] = [
   { to: "/", label: "Home" },
   { to: "/catalog", label: "Catalog" },
-  
+
   { to: "/kit-bento-cake", label: "DIY Kit" },
   { to: "/inspiration", label: "Inspiration" },
   {
@@ -28,6 +28,9 @@ const navLinks: NavItem[] = [
   { to: "/faq", label: "FAQ" },
   { to: "/contact", label: "Contact" },
 ];
+
+const navLinkClass =
+  "uppercase tracking-[0.18em] text-xs font-medium text-foreground transition-colors";
 
 const DropdownNav = ({ item, isActive }: { item: Extract<NavItem, { children: any[] }>; isActive: (to: string) => boolean }) => {
   const [open, setOpen] = useState(false);
@@ -48,10 +51,10 @@ const DropdownNav = ({ item, isActive }: { item: Extract<NavItem, { children: an
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "inline-flex items-center gap-1 transition-colors font-medium",
+          "inline-flex items-center gap-1",
+          navLinkClass,
           anyActive ? "font-semibold" : "hover:opacity-70"
         )}
-        style={{ color: "#000000" }}
       >
         {item.label}
         <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", open && "rotate-180")} />
@@ -64,10 +67,9 @@ const DropdownNav = ({ item, isActive }: { item: Extract<NavItem, { children: an
               to={child.to}
               onClick={() => setOpen(false)}
               className={cn(
-                "block px-4 py-2 text-sm transition-colors",
+                "block px-4 py-2 text-xs uppercase tracking-[0.15em] text-foreground transition-colors",
                 isActive(child.to) ? "font-semibold bg-muted" : "hover:bg-muted"
               )}
-              style={{ color: "#000000" }}
             >
               {child.label}
             </Link>
@@ -95,11 +97,10 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
         key={item.to}
         to={item.to}
         className={cn(
-          "transition-colors font-medium",
-          mobile && "text-sm",
+          navLinkClass,
+          mobile && "text-[11px]",
           isActive(item.to) ? "font-semibold" : "hover:opacity-70"
         )}
-        style={{ color: "#000000" }}
       >
         {item.label}
       </Link>
@@ -108,24 +109,30 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background font-sans">
-      <header className="bg-background pt-6 pb-0">
-        <div className="container mx-auto px-4 flex items-center justify-between pb-0">
-          <div className="w-12" />
-          <Link to="/">
-            <img src={logo} alt="Bento Cake Studio" className="h-44 md:h-64 -mb-6 md:-mb-10" style={{ mixBlendMode: "multiply" }} />
+      <header className="bg-background border-b border-border/40">
+        <div className="container mx-auto px-4 flex items-center justify-between py-3">
+          <Link to="/" className="flex-shrink-0">
+            <img
+              src={logo}
+              alt="Bento Cake Studio"
+              className="h-16 md:h-20"
+              style={{ mixBlendMode: "multiply" }}
+            />
           </Link>
+
+          {!hideNav && (
+            <nav className="hidden md:flex items-center gap-7">
+              {navLinks.map((link) => renderNavItem(link))}
+            </nav>
+          )}
+
           <CartIcon />
         </div>
 
         {!hideNav && (
-          <>
-            <nav className="hidden md:flex justify-center gap-8 mt-3 border-b border-border/30 pb-4">
-              {navLinks.map((link) => renderNavItem(link))}
-            </nav>
-            <nav className="md:hidden flex flex-wrap justify-center gap-4 mt-2 pb-4 border-b border-border/30">
-              {navLinks.map((link) => renderNavItem(link, true))}
-            </nav>
-          </>
+          <nav className="md:hidden flex flex-wrap justify-center gap-x-4 gap-y-2 px-4 pb-3">
+            {navLinks.map((link) => renderNavItem(link, true))}
+          </nav>
         )}
       </header>
 

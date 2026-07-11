@@ -520,13 +520,13 @@ const CatalogCarousel = ({ images, name, imagePositions }: { images: string[]; n
       </div>
       <button
         onClick={(e) => { e.stopPropagation(); emblaApi?.scrollPrev(); }}
-        className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-none p-1 opacity-0 group-hover:opacity-100 transition-opacity"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); emblaApi?.scrollNext(); }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 rounded-none p-1 opacity-0 group-hover:opacity-100 transition-opacity"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
@@ -965,7 +965,7 @@ const Catalog = () => {
           {catalog.map((cake) => (
             <div
               key={cake.id}
-              className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
+              className="bg-card rounded-none overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
             >
               {cake.images && cake.images.length > 1 ? (
                 <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
@@ -987,7 +987,7 @@ const Catalog = () => {
                 </p>
                 <Button 
                   variant="outline" 
-                  className="w-full rounded-full border-foreground text-foreground hover:bg-foreground hover:text-background"
+                  className="w-full rounded-none border-foreground text-foreground hover:bg-foreground hover:text-background"
                   onClick={() => handleSelectCake(cake)}
                 >
                   Choose this style
@@ -1013,7 +1013,7 @@ const Catalog = () => {
           
           {selectedCake && (
             <div className="mt-6 space-y-6">
-              <div className="aspect-square rounded-lg overflow-hidden bg-muted/30">
+              <div className="aspect-square rounded-none overflow-hidden bg-muted/30">
                 <img
                   src={selectedCake.image}
                   alt={selectedCake.name}
@@ -1203,7 +1203,7 @@ const Catalog = () => {
                         key={i}
                         onClick={() => setSelections(prev => ({ ...prev, shagDesignPreference: i }))}
                         className={cn(
-                          "rounded-lg overflow-hidden border-2 transition-all aspect-square",
+                          "rounded-none overflow-hidden border-2 transition-all aspect-square",
                           selections.shagDesignPreference === i
                             ? "border-primary ring-2 ring-primary/30"
                             : "border-transparent hover:border-muted-foreground/30"
@@ -1631,7 +1631,7 @@ const Catalog = () => {
                       />
                       <button
                         onClick={removeImage}
-                        className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/80"
+                        className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-none p-1 hover:bg-destructive/80"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -1696,7 +1696,7 @@ const Catalog = () => {
                             />
                             <button
                               onClick={() => removeCommentImage(index)}
-                              className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/80"
+                              className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-none p-0.5 hover:bg-destructive/80"
                             >
                               <X className="w-3 h-3" />
                             </button>
@@ -1741,7 +1741,7 @@ const Catalog = () => {
                                 onClick={() => handleCandleQuantityChange(candle.id, -1)}
                                 disabled={unitQty === 0}
                                 className={cn(
-                                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                  "w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
                                   unitQty === 0
                                     ? "bg-muted text-muted-foreground cursor-not-allowed"
                                     : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -1750,7 +1750,7 @@ const Catalog = () => {
                               <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
                               <button
                                 onClick={() => handleCandleQuantityChange(candle.id, 1)}
-                                className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                                className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
                               >+</button>
                             </div>
                             {isPackApplied && (
@@ -1793,7 +1793,7 @@ const Catalog = () => {
                                   onClick={() => handleCandleQuantityChange(candle.id, -1)}
                                   disabled={unitQty === 0}
                                   className={cn(
-                                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                    "w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
                                     unitQty === 0
                                       ? "bg-muted text-muted-foreground cursor-not-allowed"
                                       : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -1802,7 +1802,7 @@ const Catalog = () => {
                                 <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
                                 <button
                                   onClick={() => handleCandleQuantityChange(candle.id, 1)}
-                                  className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                                  className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
                                 >+</button>
                               </div>
                               {totalPrice > 0 && (
@@ -1838,7 +1838,7 @@ const Catalog = () => {
               </div>
 
               <Button
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg rounded-full"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg rounded-none"
                 onClick={handleAddToCart}
               >
                 <ShoppingBag className="w-5 h-5 mr-2" />

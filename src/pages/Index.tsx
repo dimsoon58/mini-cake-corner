@@ -5,9 +5,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import logo from "@/assets/logo-new.png";
 import heroBg from "@/assets/hero-bg.jpg";
-import cakeWhippedCream from "@/assets/cake-whipped-cream-new.png";
-import cakeFresh from "@/assets/cake-fresh-new.png";
-import cakeTrendy from "@/assets/cake-trendy.png";
+import featureCake from "@/assets/feature-cake.png";
+import featurePipingBag from "@/assets/feature-piping-bag.png";
+import featureWhisk from "@/assets/feature-whisk.png";
 import customer1 from "@/assets/customer-1.jpg";
 import customer2 from "@/assets/customer-2.jpg";
 import customer3 from "@/assets/customer-3.jpg";
@@ -80,24 +80,22 @@ const customerCommentPhotos: string[] = [
   comment21, comment22, comment23, comment24, comment25,
 ];
 
+/* Original hand-drawn brand illustrations, cropped from the Canva design */
 const features = [
   {
-    title: "Personalized",
+    title: "Personalised",
     description: "Your perfect cake, from flavors to decoration.",
-    image: cakeTrendy,
-    scaleClass: "scale-100",
+    image: featureCake,
   },
   {
     title: "Whipped Cream Cakes",
     description: "Light, fluffy and delicious.",
-    image: cakeWhippedCream,
-    scaleClass: "scale-[2.2]",
+    image: featurePipingBag,
   },
   {
     title: "Fresh ingredients",
     description: "Made with fresh ingredients. No preservatives.",
-    image: cakeFresh,
-    scaleClass: "scale-[1.8]",
+    image: featureWhisk,
   },
 ];
 
@@ -123,7 +121,7 @@ const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: str
     <div className="relative">
       <button
         onClick={() => scroll("left")}
-        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-full p-2 shadow-md -ml-4"
+        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md -ml-4"
       >
         <ChevronLeft className="h-6 w-6 text-foreground" />
       </button>
@@ -135,7 +133,7 @@ const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: str
         {photos.map((photo, index) => (
             <div
               key={index}
-              className="flex-shrink-0 w-72 h-80 rounded-2xl overflow-hidden"
+              className="flex-shrink-0 w-72 h-80 overflow-hidden"
             >
               <img
                 src={photo}
@@ -147,7 +145,7 @@ const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: str
       </div>
       <button
         onClick={() => scroll("right")}
-        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-full p-2 shadow-md -mr-4"
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md -mr-4"
       >
         <ChevronRight className="h-6 w-6 text-foreground" />
       </button>
@@ -165,29 +163,22 @@ const Index = () => {
           style={{ backgroundImage: `url(${heroBg})`, backgroundPosition: 'center 60%' }}
         />
         <div className="absolute inset-0 bg-foreground/20" />
-        <div className="relative container mx-auto px-4 py-24 md:py-32 text-center">
-          <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-light tracking-wide mb-6">
+        <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
+          <h1 className="font-serif text-[32px] md:text-[50px] tracking-[0.15em] leading-tight mb-6 max-w-4xl mx-auto">
             NOT YOUR TRADITIONAL CAKES
           </h1>
-          <p className="text-lg md:text-xl max-w-3xl mx-auto opacity-90 mb-10 font-light">
-            Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.
+          <p className="text-base md:text-lg max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
+            Signature whipped cream cakes, Delicately crafted,
+            <br className="hidden md:block" />
+            Beautifully designed, And irresistibly light.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-full font-medium tracking-wide"
-              asChild
-            >
-              <Link to="/catalog">Shop the Catalog</Link>
-            </Button>
-            <Button
-              size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-full font-medium tracking-wide"
-              asChild
-            >
-              <Link to="/catalog">Customize Your Cake</Link>
-            </Button>
-          </div>
+          <Button
+            size="lg"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide"
+            asChild
+          >
+            <Link to="/catalog">Shop the Catalog</Link>
+          </Button>
         </div>
       </section>
 
@@ -197,17 +188,17 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {features.map((feature) => (
               <div key={feature.title} className="text-center flex flex-col items-center">
-                <div className="w-[240px] h-[240px] flex items-center justify-center mb-6 overflow-hidden">
+                <div className="h-[180px] md:h-[210px] flex items-end justify-center mb-6">
                   <img
                     src={feature.image}
                     alt={feature.title}
-                    className={`max-w-full max-h-full object-contain ${feature.scaleClass}`}
+                    className="max-h-full w-auto object-contain"
                   />
                 </div>
-                <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-4 whitespace-nowrap min-h-[3rem] flex items-center justify-center">
+                <h3 className="font-script text-[32px] md:text-[40px] leading-normal text-foreground mb-3 whitespace-nowrap">
                   {feature.title}
                 </h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <p className="text-sm text-foreground/80 leading-relaxed max-w-[230px]">
                   {feature.description}
                 </p>
               </div>
@@ -217,61 +208,46 @@ const Index = () => {
       </section>
 
       {/* How to Order Section */}
-      <section className="py-20" style={{ backgroundColor: '#FFE4EC' }}>
-        <div className="container mx-auto px-4 max-w-3xl">
-          <h2 className="font-serif text-4xl md:text-5xl text-center font-bold mb-16" style={{ color: '#000000' }}>
+      <section
+        className="py-20"
+        style={{
+          background:
+            "radial-gradient(ellipse at 20% 30%, hsl(49 90% 97%) 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, hsl(46 70% 90%) 0%, transparent 55%), hsl(49 88% 94%)",
+        }}
+      >
+        <div className="container mx-auto px-4 max-w-5xl">
+          <h2 className="font-serif text-4xl md:text-5xl text-center tracking-[0.15em] text-foreground mb-16">
             HOW TO ORDER
           </h2>
-          <div className="space-y-6">
-            <div className="flex items-start gap-4">
-              <span className="text-2xl" style={{ color: '#000000' }}>①</span>
-              <div>
-                <h3 className="font-medium text-lg" style={{ color: '#000000' }}>Choose your date</h3>
-                <p style={{ color: '#000000' }} className="opacity-80">Select your pickup date (minimum 4 days in advance)</p>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-12 items-start">
+            <div className="space-y-7">
+              {[
+                { step: "1", title: "Choose your date", text: "Select your pickup date (minimum 4 days in advance)" },
+                { step: "2", title: "Choose size, shape & flavor", text: "Pick the cake size, shape, and flavor" },
+                { step: "3", title: "Choose a cake style", text: "This is a base style — you can upload a reference image later" },
+                { step: "4", title: "Add text (optional)", text: "Choose your message, font, and color" },
+                { step: "5", title: "Add extras", text: "Customize with extra details and candles" },
+                { step: "6", title: "Leave a note", text: "Tell us anything important about your order" },
+              ].map(({ step, title, text }) => (
+                <div key={step} className="flex items-start gap-5">
+                  <span className="font-serif italic text-4xl text-foreground/60 leading-none w-8 text-center flex-shrink-0">
+                    {step}
+                  </span>
+                  <div>
+                    <h3 className="font-semibold text-foreground">{title}</h3>
+                    <p className="text-sm text-foreground/75">{text}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex items-start gap-4">
-              <span className="text-2xl" style={{ color: '#000000' }}>②</span>
-              <div>
-                <h3 className="font-medium text-lg" style={{ color: '#000000' }}>Choose size, shape & flavor</h3>
-                <p style={{ color: '#000000' }} className="opacity-80">Pick the cake size, shape, and flavor</p>
-              </div>
+            <div className="text-center lg:pt-8">
+              <img src={featureCake} alt="" className="w-16 mx-auto mb-4" />
+              <h3 className="font-serif text-2xl text-foreground mb-4">Good to know</h3>
+              <ul className="space-y-3 text-sm text-foreground/80">
+                <li>Fully booked dates cannot be selected</li>
+                <li>Complex designs may require additional fees</li>
+              </ul>
             </div>
-            <div className="flex items-start gap-4">
-              <span className="text-2xl" style={{ color: '#000000' }}>③</span>
-              <div>
-                <h3 className="font-medium text-lg" style={{ color: '#000000' }}>Choose a cake style</h3>
-                <p style={{ color: '#000000' }} className="opacity-80">This is a base style — you can upload a reference image later</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <span className="text-2xl" style={{ color: '#000000' }}>④</span>
-              <div>
-                <h3 className="font-medium text-lg" style={{ color: '#000000' }}>Add text (optional)</h3>
-                <p style={{ color: '#000000' }} className="opacity-80">Choose your message, font, and color</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <span className="text-2xl" style={{ color: '#000000' }}>⑤</span>
-              <div>
-                <h3 className="font-medium text-lg" style={{ color: '#000000' }}>Add extras ✨</h3>
-                <p style={{ color: '#000000' }} className="opacity-80">Customize with extra details and candles</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <span className="text-2xl" style={{ color: '#000000' }}>⑥</span>
-              <div>
-                <h3 className="font-medium text-lg" style={{ color: '#000000' }}>Leave a note 💬</h3>
-                <p style={{ color: '#000000' }} className="opacity-80">Tell us anything important about your order</p>
-              </div>
-            </div>
-          </div>
-          <div className="mt-10 p-6 bg-background/50 rounded-2xl">
-            <h3 className="font-medium mb-3" style={{ color: '#000000' }}>Good to know</h3>
-            <ul className="space-y-2 text-sm" style={{ color: '#000000' }}>
-              <li>Fully booked dates cannot be selected</li>
-              <li>Complex designs may require additional fees</li>
-            </ul>
           </div>
         </div>
       </section>
@@ -280,7 +256,7 @@ const Index = () => {
       {/* Customers Section */}
       <section className="py-20 bg-cream">
         <div className="container mx-auto px-4">
-          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-16">
+          <h2 className="font-serif text-4xl md:text-5xl text-center tracking-[0.15em] text-foreground mb-16">
             OUR CUSTOMERS
           </h2>
           <PhotoCarousel photos={customerPhotos} altPrefix="Happy customer" />
@@ -290,35 +266,43 @@ const Index = () => {
       {/* Customer Comments Section */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-6">
-            CUSTOMER COMMENTS
+          <h2 className="font-serif text-4xl md:text-5xl text-center tracking-[0.15em] text-foreground mb-6">
+            CUSTOMERS COMMENTS
           </h2>
           <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" />
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="font-serif text-3xl md:text-4xl text-foreground mb-6">
-            Ready to create your perfect cake?
-          </h2>
-          <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Choose your size, shape, flavor, and extras to design a cake that's
-            uniquely yours.
-          </p>
-          <Button
-            size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-none font-medium tracking-wide"
-            asChild
+      {/* CTA Section — lace doily style */}
+      <section className="py-16 bg-background">
+        <div className="container mx-auto px-4">
+          <div
+            className="max-w-3xl mx-auto text-center rounded-[2rem] border-4 border-double border-primary/25 px-8 py-14 md:px-16"
+            style={{
+              background:
+                "radial-gradient(circle at 15% 20%, hsl(0 0% 100% / 0.7) 0%, transparent 40%), radial-gradient(circle at 85% 80%, hsl(0 0% 100% / 0.5) 0%, transparent 40%), hsl(40 25% 92%)",
+            }}
           >
-            <Link to="/catalog">Customize Your Cake</Link>
-          </Button>
+            <h2 className="font-script text-4xl md:text-5xl text-foreground mb-6">
+              Ready to create your perfect cake?
+            </h2>
+            <p className="text-sm md:text-base text-foreground/80 mb-10 max-w-md mx-auto">
+              Choose your size, shape, flavor, and extras to design a cake
+              that's uniquely yours.
+            </p>
+            <Button
+              size="lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-sm uppercase tracking-[0.2em] font-medium"
+              asChild
+            >
+              <Link to="/catalog">Customize Your Cake</Link>
+            </Button>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-foreground text-primary-foreground py-12">
+      <footer className="bg-primary text-primary-foreground py-12">
         <div className="container mx-auto px-4 text-center">
           <img
             src={logo}
@@ -337,17 +321,6 @@ const Index = () => {
             <Link to="/newsletter" className="underline hover:opacity-100">
               Subscribe to newsletter
             </Link>
-          </p>
-          <p className="text-xs opacity-50">
-            Website powered by{" "}
-            <a 
-              href="https://lovable.dev" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="underline hover:opacity-100"
-            >
-              Lovable
-            </a>
           </p>
         </div>
       </footer>

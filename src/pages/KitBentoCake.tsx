@@ -379,7 +379,7 @@ const KitBentoCake = () => {
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-[280px] justify-start text-left font-normal rounded-full",
+                      "w-[280px] justify-start text-left font-normal rounded-none",
                       !orderDate && "text-muted-foreground"
                     )}
                   >
@@ -437,7 +437,7 @@ const KitBentoCake = () => {
                       <div
                         key={flavor.id}
                         className={cn(
-                          "bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer",
+                          "bg-card rounded-none overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer",
                           selectedFlavor === flavor.id && "ring-2 ring-primary"
                         )}
                         onClick={() => setSelectedFlavor(flavor.id)}
@@ -566,12 +566,12 @@ const KitBentoCake = () => {
                             <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce · Pack {candle.packSize}: CHF {candle.packPrice}</p>
                             <div className="flex items-center justify-center gap-1.5 mb-1">
                               <button onClick={() => handleCandleQtyChange(candle.id, -1)} disabled={qty === 0}
-                                className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
                                   qty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                                 )}>−</button>
                               <span className="w-5 text-center font-medium text-foreground text-sm">{qty}</span>
                               <button onClick={() => handleCandleQtyChange(candle.id, 1)}
-                                className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
+                                className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
                             </div>
                             {qty > 0 && (
                               <p className={cn("text-[10px] font-medium", hasPackApplied ? "text-green-700" : "text-muted-foreground")}>
@@ -603,12 +603,12 @@ const KitBentoCake = () => {
                               <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
                               <div className="flex items-center justify-center gap-1.5">
                                 <button onClick={() => handleCandleQtyChange(candle.id, -1)} disabled={qty === 0}
-                                  className={cn("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                                  className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
                                     qty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                                   )}>−</button>
                                 <span className="w-5 text-center font-medium text-foreground text-sm">{qty}</span>
                                 <button onClick={() => handleCandleQtyChange(candle.id, 1)}
-                                  className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
+                                  className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
                               </div>
                             </CardContent>
                           </Card>
@@ -641,7 +641,7 @@ const KitBentoCake = () => {
               <p className="text-sm text-muted-foreground">Estimated Total</p>
               <p className="text-2xl font-bold">CHF {totalPrice}</p>
             </div>
-            <Button onClick={handleAddToCart} className="gap-2 rounded-full" size="lg">
+            <Button onClick={handleAddToCart} className="gap-2" size="lg">
               <ShoppingCart className="w-4 h-4" />
               Add to Cart
             </Button>
@@ -671,8 +671,8 @@ const KitBentoCake = () => {
               <p className="text-lg font-semibold mt-4">Total: CHF {totalPrice}</p>
             </div>
             <div className="flex flex-col gap-3">
-              <Button onClick={() => navigate("/cart")} className="rounded-full">View Basket</Button>
-              <Button variant="outline" className="rounded-full" onClick={() => { setShowCartSheet(false); navigate("/"); }}>
+              <Button onClick={() => navigate("/cart")} className="">View Basket</Button>
+              <Button variant="outline" className="" onClick={() => { setShowCartSheet(false); navigate("/"); }}>
                 Continue Shopping
               </Button>
             </div>

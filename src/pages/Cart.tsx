@@ -921,7 +921,7 @@ const CartItemEditor = ({
                   />
                   <button
                     onClick={() => removeCommentImage(index)}
-                    className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/80"
+                    className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-none p-0.5 hover:bg-destructive/80"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -960,14 +960,14 @@ const CartItemEditor = ({
                   <button
                     onClick={() => onCandleQtyChange(candle.id, -1)}
                     disabled={qty === 0}
-                    className="h-7 w-7 rounded-full border border-border flex items-center justify-center text-foreground disabled:opacity-30 hover:bg-muted"
+                    className="h-7 w-7 rounded-none border border-border flex items-center justify-center text-foreground disabled:opacity-30 hover:bg-muted"
                   >
                     <Minus className="h-3 w-3" />
                   </button>
                   <span className="text-sm font-medium w-6 text-center text-foreground">{qty}</span>
                   <button
                     onClick={() => onCandleQtyChange(candle.id, 1)}
-                    className="h-7 w-7 rounded-full border border-border flex items-center justify-center text-foreground hover:bg-muted"
+                    className="h-7 w-7 rounded-none border border-border flex items-center justify-center text-foreground hover:bg-muted"
                   >
                     <Plus className="h-3 w-3" />
                   </button>
@@ -1013,7 +1013,7 @@ const ColorPicker = ({
         onClick={() => onSelect(c.id)}
         title={c.name}
         className={cn(
-          "h-8 w-8 rounded-full border-2 transition-all flex items-center justify-center",
+          "h-8 w-8 rounded-none border-2 transition-all flex items-center justify-center",
           selected === c.id ? "ring-2 ring-primary ring-offset-2" : "border-border hover:scale-110"
         )}
         style={{ backgroundColor: c.color }}

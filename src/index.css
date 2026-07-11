@@ -8,41 +8,42 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 15%;
+    /* Brand refs (Canva): jaune #FDF8E1, brun #4B2E1F, rouge #78020C */
+    --background: 49 88% 94%;
+    --foreground: 20 42% 21%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 15%;
+    --card: 49 80% 97%;
+    --card-foreground: 20 42% 21%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 15%;
+    --popover: 49 80% 97%;
+    --popover-foreground: 20 42% 21%;
 
-    --primary: 340 55% 70%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 355 97% 24%;
+    --primary-foreground: 49 88% 94%;
 
-    --secondary: 340 30% 96%;
-    --secondary-foreground: 240 10% 15%;
+    --secondary: 46 60% 89%;
+    --secondary-foreground: 20 42% 21%;
 
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 5% 45%;
+    --muted: 46 50% 89%;
+    --muted-foreground: 20 30% 35%;
 
-    --accent: 220 60% 75%;
-    --accent-foreground: 240 10% 15%;
+    --accent: 355 80% 32%;
+    --accent-foreground: 49 88% 94%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 5% 90%;
-    --input: 240 5% 90%;
-    --ring: 340 55% 70%;
+    --border: 40 35% 80%;
+    --input: 40 35% 80%;
+    --ring: 355 97% 24%;
 
     --radius: 0.5rem;
-    
+
     --peach: 15 80% 88%;
     --mint: 150 40% 85%;
     --lavender: 250 50% 80%;
-    --cream: 40 60% 96%;
-    --blush: 340 55% 70%;
+    --cream: 49 88% 94%;
+    --blush: 355 97% 24%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -100,5 +101,8 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    /* Brand: Montserrat, espacement 105, interligne 1.3 */
+    letter-spacing: 0.05em;
+    line-height: 1.3;
   }
 }
