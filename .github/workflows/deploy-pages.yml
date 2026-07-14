@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Client-side (VITE_) values — safe to expose, they ship in the built JS by design
+      VITE_SUPABASE_PROJECT_ID: fgqwisxcpadrqgbjfdqj
+      VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZncXdpc3hjcGFkcnFnYmpmZHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3MzU5NjIsImV4cCI6MjA4MjMxMTk2Mn0.gS4_CstGh26z5liN5PJ6jgF7Mht1u3UlfRyTW0qKpss
+      VITE_SUPABASE_URL: https://fgqwisxcpadrqgbjfdqj.supabase.co
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx vite build --base=/mini-cake-corner/
+      - name: SPA fallback for deep links
+        run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
