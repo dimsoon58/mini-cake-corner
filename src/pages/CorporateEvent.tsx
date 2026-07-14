@@ -119,7 +119,7 @@ const CorporateEvent = () => {
           </p>
           <button
             onClick={() => setQuoteOpen(true)}
-            className="inline-flex items-center justify-center px-8 py-3 bg-primary text-primary-foreground rounded-none font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center justify-center h-11 px-10 text-base bg-primary text-primary-foreground rounded-full font-medium tracking-wide hover:bg-primary/90 transition-colors"
           >
             Get a Quote
           </button>

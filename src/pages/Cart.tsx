@@ -290,17 +290,17 @@ const Cart = () => {
             Continue Shopping
           </Link>
           <div className="flex items-center gap-2">
-            <ShoppingBag className="h-6 w-6 text-primary" />
-            <span className="text-lg font-medium text-foreground">Your Basket ({itemCount})</span>
+            <ShoppingBag className="h-6 w-6 text-primary" strokeWidth={1.25} />
+            <span className="uppercase tracking-[0.18em] text-sm font-medium text-foreground">Your Basket ({itemCount})</span>
           </div>
         </div>
 
         {items.length === 0 ? (
           <div className="text-center py-20">
-            <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
+            <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-6" strokeWidth={1.25} />
             <h2 className="font-serif text-3xl text-foreground mb-4">Your basket is empty</h2>
             <p className="text-muted-foreground mb-8">Start customizing your perfect cake!</p>
-            <Button asChild><Link to="/catalog">Customize Your Cake</Link></Button>
+            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide rounded-full" asChild><Link to="/catalog">Customize Your Cake</Link></Button>
           </div>
         ) : (
           <div className="grid lg:grid-cols-3 gap-8">
@@ -378,8 +378,8 @@ const Cart = () => {
                     <span className="text-foreground">Total</span>
                     <span className="text-primary">CHF {totalPrice}</span>
                   </div>
-                  <Button className="w-full" size="lg" asChild><Link to="/checkout">Proceed to Checkout</Link></Button>
-                  <Button variant="outline" className="w-full" asChild><Link to="/catalog">Add Another Cake</Link></Button>
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-base font-medium tracking-wide rounded-full" size="lg" asChild><Link to="/checkout">Proceed to Checkout</Link></Button>
+                  <Button variant="outline" className="w-full rounded-full" asChild><Link to="/catalog">Add Another Cake</Link></Button>
                 </CardContent>
               </Card>
             </div>

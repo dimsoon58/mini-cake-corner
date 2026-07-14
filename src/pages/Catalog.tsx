@@ -965,7 +965,7 @@ const Catalog = () => {
           {catalog.map((cake) => (
             <div
               key={cake.id}
-              className="bg-card rounded-none overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
+              className="bg-card rounded-none overflow-hidden shadow-sm hover:shadow-lg transition-shadow flex flex-col"
             >
               {cake.images && cake.images.length > 1 ? (
                 <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
@@ -978,16 +978,16 @@ const Catalog = () => {
                   />
                 </div>
               )}
-              <div className="p-6 text-center">
+              <div className="p-6 text-center flex flex-col flex-1">
                 <h3 className="font-serif text-xl font-bold text-foreground mb-2">
                   {cake.name}
                 </h3>
                 <p className="text-muted-foreground text-sm mb-4">
                   {cake.description}
                 </p>
-                <Button 
-                  variant="outline" 
-                  className="w-full rounded-none border-foreground text-foreground hover:bg-foreground hover:text-background"
+                <Button
+                  variant="outline"
+                  className="w-full rounded-none border-foreground text-foreground hover:bg-foreground hover:text-background mt-auto"
                   onClick={() => handleSelectCake(cake)}
                 >
                   Choose this style

@@ -174,7 +174,7 @@ const Index = () => {
           </p>
           <Button
             size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide rounded-full"
             asChild
           >
             <Link to="/catalog">Shop the Catalog</Link>
@@ -292,7 +292,7 @@ const Index = () => {
             </p>
             <Button
               size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-sm uppercase tracking-[0.2em] font-medium"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-sm uppercase tracking-[0.2em] font-medium rounded-full"
               asChild
             >
               <Link to="/catalog">Customize Your Cake</Link>
