@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import CartIcon from "@/components/CartIcon";
-import logo from "@/assets/logo-new.png";
+import logo from "@/assets/logo-brown.png";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -115,8 +115,7 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
             <img
               src={logo}
               alt="Bento Cake Studio"
-              className="h-16 md:h-20"
-              style={{ mixBlendMode: "multiply" }}
+              className="h-12 md:h-16 w-auto"
             />
           </Link>
 

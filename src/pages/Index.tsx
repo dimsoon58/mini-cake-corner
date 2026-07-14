@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
-import logo from "@/assets/logo-new.png";
+import logoCream from "@/assets/logo-cream.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import featureCake from "@/assets/feature-cake.png";
 import featurePipingBag from "@/assets/feature-piping-bag.png";
@@ -164,8 +164,13 @@ const Index = () => {
         />
         <div className="absolute inset-0 bg-foreground/20" />
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
-          <h1 className="font-serif text-[32px] md:text-[50px] tracking-[0.15em] leading-tight mb-6 max-w-4xl mx-auto">
-            NOT YOUR TRADITIONAL CAKES
+          {/* Brand spec: Agrandir Bold 50px — Montserrat stands in until the Agrandir font file is provided */}
+          <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
+            Not your
+            <br />
+            traditional
+            <br />
+            cakes
           </h1>
           <p className="text-base md:text-lg max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
             Signature whipped cream cakes, Delicately crafted,
@@ -174,10 +179,10 @@ const Index = () => {
           </p>
           <Button
             size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide rounded-full"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-[14px] font-medium tracking-[0.105em] rounded-none"
             asChild
           >
-            <Link to="/catalog">Shop the Catalog</Link>
+            <Link to="/catalog">SHOP NOW</Link>
           </Button>
         </div>
       </section>
@@ -195,7 +200,7 @@ const Index = () => {
                     className="max-h-full w-auto object-contain"
                   />
                 </div>
-                <h3 className="font-script text-[32px] md:text-[40px] leading-normal text-foreground mb-3 whitespace-nowrap">
+                <h3 className="font-script font-normal text-[32px] md:text-[40px] leading-normal text-foreground mb-3 whitespace-nowrap">
                   {feature.title}
                 </h3>
                 <p className="text-sm text-foreground/80 leading-relaxed max-w-[230px]">
@@ -207,56 +212,10 @@ const Index = () => {
         </div>
       </section>
 
-      {/* How to Order Section */}
-      <section
-        className="py-20"
-        style={{
-          background:
-            "radial-gradient(ellipse at 20% 30%, hsl(49 90% 97%) 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, hsl(46 70% 90%) 0%, transparent 55%), hsl(49 88% 94%)",
-        }}
-      >
-        <div className="container mx-auto px-4 max-w-5xl">
-          <h2 className="font-serif text-4xl md:text-5xl text-center tracking-[0.15em] text-foreground mb-16">
-            HOW TO ORDER
-          </h2>
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-12 items-start">
-            <div className="space-y-7">
-              {[
-                { step: "1", title: "Choose your date", text: "Select your pickup date (minimum 4 days in advance)" },
-                { step: "2", title: "Choose size, shape & flavor", text: "Pick the cake size, shape, and flavor" },
-                { step: "3", title: "Choose a cake style", text: "This is a base style — you can upload a reference image later" },
-                { step: "4", title: "Add text (optional)", text: "Choose your message, font, and color" },
-                { step: "5", title: "Add extras", text: "Customize with extra details and candles" },
-                { step: "6", title: "Leave a note", text: "Tell us anything important about your order" },
-              ].map(({ step, title, text }) => (
-                <div key={step} className="flex items-start gap-5">
-                  <span className="font-serif italic text-4xl text-foreground/60 leading-none w-8 text-center flex-shrink-0">
-                    {step}
-                  </span>
-                  <div>
-                    <h3 className="font-semibold text-foreground">{title}</h3>
-                    <p className="text-sm text-foreground/75">{text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="text-center lg:pt-8">
-              <img src={featureCake} alt="" className="w-16 mx-auto mb-4" />
-              <h3 className="font-serif text-2xl text-foreground mb-4">Good to know</h3>
-              <ul className="space-y-3 text-sm text-foreground/80">
-                <li>Fully booked dates cannot be selected</li>
-                <li>Complex designs may require additional fees</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
       {/* Customers Section */}
       <section className="py-20 bg-cream">
         <div className="container mx-auto px-4">
-          <h2 className="font-serif text-4xl md:text-5xl text-center tracking-[0.15em] text-foreground mb-16">
+          <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-16">
             OUR CUSTOMERS
           </h2>
           <PhotoCarousel photos={customerPhotos} altPrefix="Happy customer" />
@@ -266,7 +225,7 @@ const Index = () => {
       {/* Customer Comments Section */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="font-serif text-4xl md:text-5xl text-center tracking-[0.15em] text-foreground mb-6">
+          <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-6">
             CUSTOMERS COMMENTS
           </h2>
           <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" />
@@ -283,19 +242,19 @@ const Index = () => {
                 "radial-gradient(circle at 15% 20%, hsl(0 0% 100% / 0.7) 0%, transparent 40%), radial-gradient(circle at 85% 80%, hsl(0 0% 100% / 0.5) 0%, transparent 40%), hsl(40 25% 92%)",
             }}
           >
-            <h2 className="font-script text-4xl md:text-5xl text-foreground mb-6">
-              Ready to create your perfect cake?
+            <h2 className="font-script font-normal text-4xl md:text-5xl text-foreground mb-6">
+              Ready to order your perfect cake?
             </h2>
             <p className="text-sm md:text-base text-foreground/80 mb-10 max-w-md mx-auto">
-              Choose your size, shape, flavor, and extras to design a cake
-              that's uniquely yours.
+              Browse our collection and personalise your cake in just a few
+              steps.
             </p>
             <Button
               size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-sm uppercase tracking-[0.2em] font-medium rounded-full"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-[14px] font-medium tracking-[0.105em] rounded-none"
               asChild
             >
-              <Link to="/catalog">Customize Your Cake</Link>
+              <Link to="/catalog">SHOP NOW</Link>
             </Button>
           </div>
         </div>
@@ -305,9 +264,9 @@ const Index = () => {
       <footer className="bg-primary text-primary-foreground py-12">
         <div className="container mx-auto px-4 text-center">
           <img
-            src={logo}
+            src={logoCream}
             alt="Bento Cake Studio"
-            className="h-32 mx-auto mb-6 brightness-0 invert"
+            className="h-16 md:h-20 w-auto mx-auto mb-6"
           />
           <p className="text-sm opacity-90 mb-4">
             © 2026 Bento Cake Studio SNC. All rights reserved.

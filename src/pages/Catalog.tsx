@@ -954,18 +954,18 @@ const Catalog = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-16">
-        <h1 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-6">
+        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-6">
           CATALOG
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          Get inspired by our pre-designed creations. Pick your favorite and customize it to make it yours.
+          Get inspired by our signature cake designs, choose your favourite, then personalise it with your preferred size, flavour, colours and message to create a cake that's uniquely yours.
         </p>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {catalog.map((cake) => (
             <div
               key={cake.id}
-              className="bg-card rounded-none overflow-hidden shadow-sm hover:shadow-lg transition-shadow flex flex-col"
+              className="bg-card rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
             >
               {cake.images && cake.images.length > 1 ? (
                 <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
@@ -979,18 +979,17 @@ const Catalog = () => {
                 </div>
               )}
               <div className="p-6 text-center flex flex-col flex-1">
-                <h3 className="font-serif text-xl font-bold text-foreground mb-2">
+                <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
                   {cake.name}
                 </h3>
                 <p className="text-muted-foreground text-sm mb-4">
                   {cake.description}
                 </p>
                 <Button
-                  variant="outline"
-                  className="w-full rounded-none border-foreground text-foreground hover:bg-foreground hover:text-background mt-auto"
+                  className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] mt-auto"
                   onClick={() => handleSelectCake(cake)}
                 >
-                  Choose this style
+                  CHOOSE THIS STYLE
                 </Button>
               </div>
             </div>
