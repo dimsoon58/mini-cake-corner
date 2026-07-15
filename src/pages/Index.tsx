@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
-import logoBrown from "@/assets/logo-brown.png";
+import logoCream from "@/assets/logo-cream.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import featureCake from "@/assets/feature-cake.png";
 import featurePipingBag from "@/assets/feature-piping-bag.png";
@@ -235,13 +235,8 @@ const Index = () => {
       {/* CTA Section — lace doily style */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4">
-          <div
-            className="max-w-3xl mx-auto text-center rounded-[2rem] border-4 border-double border-primary/25 px-8 py-14 md:px-16"
-            style={{
-              background:
-                "radial-gradient(circle at 15% 20%, hsl(0 0% 100% / 0.7) 0%, transparent 40%), radial-gradient(circle at 85% 80%, hsl(0 0% 100% / 0.5) 0%, transparent 40%), hsl(40 25% 92%)",
-            }}
-          >
+          <div className="max-w-4xl mx-auto border-[3px] border-primary p-1.5">
+            <div className="text-center border border-primary px-8 py-16 md:px-16">
             <h2 className="font-script font-normal text-4xl md:text-5xl text-foreground mb-6">
               Ready to order your perfect cake?
             </h2>
@@ -256,33 +251,32 @@ const Index = () => {
             >
               <Link to="/catalog">SHOP NOW</Link>
             </Button>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Footer — clean cream background with double decorative frame */}
-      <footer className="bg-background py-10 px-4">
-        <div className="container mx-auto border-[3px] border-primary p-1.5">
-          <div className="border border-primary px-4 py-12 text-center">
+      {/* Footer */}
+      <footer className="bg-primary text-primary-foreground py-12">
+        <div className="container mx-auto px-4 text-center">
             <img
-              src={logoBrown}
+              src={logoCream}
               alt="Bento Cake Studio"
-              className="h-12 md:h-16 w-auto mx-auto mb-6"
+              className="h-16 md:h-20 w-auto mx-auto mb-6"
             />
-            <p className="text-sm text-foreground/90 mb-4">
+            <p className="text-sm opacity-90 mb-4">
               © 2026 Bento Cake Studio SNC. All rights reserved.
             </p>
-            <p className="text-sm text-foreground/70 mb-4">
-              <Link to="/legal" className="underline hover:text-foreground">
+            <p className="text-sm opacity-70 mb-4">
+              <Link to="/legal" className="underline hover:opacity-100">
                 Terms and Conditions & Privacy Policy
               </Link>
             </p>
-            <p className="text-sm text-foreground/70">
-              <Link to="/newsletter" className="underline hover:text-foreground">
+            <p className="text-sm opacity-70">
+              <Link to="/newsletter" className="underline hover:opacity-100">
                 Subscribe to newsletter
               </Link>
             </p>
-          </div>
         </div>
       </footer>
     </Layout>

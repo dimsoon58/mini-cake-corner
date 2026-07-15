@@ -967,6 +967,13 @@ const Catalog = () => {
   const packCandles = candles.filter(c => c.hasPack);
   const individualCandles = candles.filter(c => !c.hasPack);
 
+  useEffect(() => {
+    document.title = "Shop Cakes – Bento Cake Studio";
+    return () => {
+      document.title = "Bento Cake Studio Geneva";
+    };
+  }, []);
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-16">

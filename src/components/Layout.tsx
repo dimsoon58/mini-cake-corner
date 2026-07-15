@@ -14,7 +14,7 @@ type NavItem = { to: string; label: string } | { label: string; children: { to: 
 
 const navLinks: NavItem[] = [
   { to: "/", label: "Home" },
-  { to: "/catalog", label: "Catalog" },
+  { to: "/catalog", label: "Shop Cakes" },
 
   { to: "/kit-bento-cake", label: "DIY Kit" },
   { to: "/inspiration", label: "Inspiration" },
