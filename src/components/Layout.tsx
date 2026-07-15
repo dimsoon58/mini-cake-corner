@@ -115,7 +115,7 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
             <img
               src={logo}
               alt="Bento Cake Studio"
-              className="h-12 md:h-16 w-auto"
+              className="h-10 md:h-14 w-auto"
             />
           </Link>
 

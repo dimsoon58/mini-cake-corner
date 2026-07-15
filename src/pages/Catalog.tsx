@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { format, addDays } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -484,6 +485,21 @@ const catalog = [
   },
 ];
 
+// Collections: curated groupings shown as separate catalog sections
+const namedCollections = [
+  { title: "MINIMAL COLLECTION", ids: ["normal-with-border", "normal-without-border"] },
+  { title: "VINTAGE COLLECTION", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
+  { title: "CUTE COLLECTION", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
+  { title: "FUN COLLECTION", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
+  { title: "PERSONALISED COLLECTION", ids: ["printed-picture", "gender-reveal"] },
+];
+const assignedIds = new Set(namedCollections.flatMap((c) => c.ids));
+const collections = [
+  ...namedCollections,
+  // Every cake not named in a collection stays visible here
+  { title: "MORE DESIGNS", ids: catalog.filter((c) => !assignedIds.has(c.id)).map((c) => c.id) },
+];
+
 interface CandleSelection {
   id: string;
   quantity: number;
@@ -954,46 +970,87 @@ const Catalog = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-16">
-        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-6">
-          CATALOG
+        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6">
+          SHOP CAKES
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
           Get inspired by our signature cake designs, choose your favourite, then personalise it with your preferred size, flavour, colours and message to create a cake that's uniquely yours.
         </p>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {catalog.map((cake) => (
-            <div
-              key={cake.id}
-              className="bg-card rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
-            >
-              {cake.images && cake.images.length > 1 ? (
-                <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
-              ) : (
-                <div className="aspect-square overflow-hidden bg-muted/30">
-                  <img
-                    src={cake.image}
-                    alt={cake.name}
-                    className={cn("w-full h-full object-cover hover:scale-105 transition-transform duration-300", cake.imagePosition)}
-                  />
+
+        <div className="max-w-6xl mx-auto space-y-20">
+          {collections.map((collection) => {
+            const cakes = collection.ids
+              .map((id) => catalog.find((c) => c.id === id))
+              .filter(Boolean) as typeof catalog;
+            if (cakes.length === 0) return null;
+            return (
+              <section key={collection.title}>
+                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10 md:max-w-[60%]">
+                  {collection.title}
                 </div>
-              )}
-              <div className="p-6 text-center flex flex-col flex-1">
-                <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
-                  {cake.name}
-                </h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  {cake.description}
-                </p>
-                <Button
-                  className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] mt-auto"
-                  onClick={() => handleSelectCake(cake)}
-                >
-                  CHOOSE THIS STYLE
-                </Button>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {cakes.map((cake) => (
+                    <div
+                      key={cake.id}
+                      className="rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
+                    >
+                      {cake.images && cake.images.length > 1 ? (
+                        <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
+                      ) : (
+                        <div className="aspect-square overflow-hidden bg-muted/30">
+                          <img
+                            src={cake.image}
+                            alt={cake.name}
+                            className={cn("w-full h-full object-cover hover:scale-105 transition-transform duration-300", cake.imagePosition)}
+                          />
+                        </div>
+                      )}
+                      <div className="p-6 text-center flex flex-col flex-1">
+                        <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
+                          {cake.name}
+                        </h3>
+                        <p className="text-muted-foreground text-sm mb-4">
+                          {cake.description}
+                        </p>
+                        <div className="mt-auto">
+                          <Button
+                            className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
+                            onClick={() => handleSelectCake(cake)}
+                          >
+                            CHOOSE THIS STYLE
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+
+          {/* Custom Request */}
+          <section>
+            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10 md:max-w-[60%]">
+              CUSTOM REQUEST
             </div>
-          ))}
+            <div className="text-center max-w-2xl mx-auto py-6">
+              <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
+                Can't find what you're looking for?
+              </h3>
+              <p className="text-muted-foreground text-sm mb-8">
+                Every cake in our collections can be personalised — but if you're
+                dreaming of something completely different, we'd love to create a
+                fully bespoke design just for you. Tell us about your idea, your
+                colours and your occasion, and we'll bring it to life.
+              </p>
+              <Button
+                className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
+                asChild
+              >
+                <Link to="/contact">REQUEST A CUSTOM CAKE</Link>
+              </Button>
+            </div>
+          </section>
         </div>
       </div>
 

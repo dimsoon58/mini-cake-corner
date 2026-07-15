@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
-import logoCream from "@/assets/logo-cream.png";
+import logoBrown from "@/assets/logo-brown.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import featureCake from "@/assets/feature-cake.png";
 import featurePipingBag from "@/assets/feature-piping-bag.png";
@@ -166,11 +166,11 @@ const Index = () => {
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
           {/* Brand spec: Agrandir Bold 50px — Montserrat stands in until the Agrandir font file is provided */}
           <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
-            Not your
+            NOT YOUR
             <br />
-            traditional
+            TRADITIONAL
             <br />
-            cakes
+            CAKES
           </h1>
           <p className="text-base md:text-lg max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
             Signature whipped cream cakes, Delicately crafted,
@@ -260,27 +260,29 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-primary text-primary-foreground py-12">
-        <div className="container mx-auto px-4 text-center">
-          <img
-            src={logoCream}
-            alt="Bento Cake Studio"
-            className="h-16 md:h-20 w-auto mx-auto mb-6"
-          />
-          <p className="text-sm opacity-90 mb-4">
-            © 2026 Bento Cake Studio SNC. All rights reserved.
-          </p>
-          <p className="text-sm opacity-70 mb-4">
-            <Link to="/legal" className="underline hover:opacity-100">
-              Terms and Conditions & Privacy Policy
-            </Link>
-          </p>
-          <p className="text-sm opacity-70 mb-6">
-            <Link to="/newsletter" className="underline hover:opacity-100">
-              Subscribe to newsletter
-            </Link>
-          </p>
+      {/* Footer — clean cream background with double decorative frame */}
+      <footer className="bg-background py-10 px-4">
+        <div className="container mx-auto border-[3px] border-primary p-1.5">
+          <div className="border border-primary px-4 py-12 text-center">
+            <img
+              src={logoBrown}
+              alt="Bento Cake Studio"
+              className="h-12 md:h-16 w-auto mx-auto mb-6"
+            />
+            <p className="text-sm text-foreground/90 mb-4">
+              © 2026 Bento Cake Studio SNC. All rights reserved.
+            </p>
+            <p className="text-sm text-foreground/70 mb-4">
+              <Link to="/legal" className="underline hover:text-foreground">
+                Terms and Conditions & Privacy Policy
+              </Link>
+            </p>
+            <p className="text-sm text-foreground/70">
+              <Link to="/newsletter" className="underline hover:text-foreground">
+                Subscribe to newsletter
+              </Link>
+            </p>
+          </div>
         </div>
       </footer>
     </Layout>
