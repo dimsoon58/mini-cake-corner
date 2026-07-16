@@ -1006,7 +1006,9 @@ const Catalog = () => {
       total: calculatePrice(),
     });
     setSheetOpen(false);
-    setSelectedCake(null);
+    // Let the dialog finish its close animation before unmounting its content —
+    // clearing it immediately can leave Radix's body pointer-events lock stuck.
+    setTimeout(() => setSelectedCake(null), 350);
   };
 
   // Split candles into packs and individuals

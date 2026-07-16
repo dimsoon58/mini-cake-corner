@@ -27,11 +27,13 @@ import Legal from "./pages/Legal";
 
 const queryClient = new QueryClient();
 
-// Every route change starts the new page from the very top
+// Every route change starts the new page from the very top and clears any
+// stuck body pointer-events lock left behind by an abruptly closed dialog.
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
+    document.body.style.removeProperty("pointer-events");
   }, [pathname]);
   return null;
 };
