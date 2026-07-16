@@ -4,6 +4,10 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import logoCream from "@/assets/logo-cream.png";
+import homeCatBento from "@/assets/home-cat-bento.png";
+import homeCatDots from "@/assets/home-cat-dots.png";
+import homeCatDiy from "@/assets/home-cat-diy.png";
+import homeCatWorkshops from "@/assets/home-cat-workshops.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import featureCake from "@/assets/feature-cake.png";
 import featurePipingBag from "@/assets/feature-piping-bag.png";
@@ -209,6 +213,58 @@ const Index = () => {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Discover Section — category cards */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { image: homeCatBento, label: "BENTO CAKES", to: "/catalog" },
+              { image: homeCatDots, label: "DOT CAKES", to: "/dot-cakes" },
+              { image: homeCatDiy, label: "DIY KITS", to: "/kit-bento-cake" },
+            ].map((category) => (
+              <Link
+                key={category.label}
+                to={category.to}
+                className="relative block aspect-[3/4] overflow-hidden group"
+              >
+                <img
+                  src={category.image}
+                  alt={category.label}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-x-0 bottom-0 p-8">
+                  <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                    {category.label}
+                  </p>
+                  <span className="block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-8 py-2.5 transition-colors">
+                    DISCOVER
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <Link
+            to="/contact"
+            className="relative block mt-8 aspect-[16/9] md:aspect-[16/5] overflow-hidden group"
+          >
+            <img
+              src={homeCatWorkshops}
+              alt="Workshops"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+            <div className="absolute left-8 bottom-8">
+              <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                WORKSHOPS
+              </p>
+              <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-12 py-2.5 transition-colors">
+                DISCOVER
+              </span>
+            </div>
+          </Link>
         </div>
       </section>
 

@@ -4,7 +4,13 @@ import { format, addDays } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import {
+  Dialog as Sheet,
+  DialogContent as SheetContent,
+  DialogHeader as SheetHeader,
+  DialogTitle as SheetTitle,
+  DialogDescription as SheetDescription,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -968,7 +974,7 @@ const Catalog = () => {
   const individualCandles = candles.filter(c => !c.hasPack);
 
   useEffect(() => {
-    document.title = "Shop Cakes – Bento Cake Studio";
+    document.title = "Bento Cakes – Bento Cake Studio";
     return () => {
       document.title = "Bento Cake Studio Geneva";
     };
@@ -978,7 +984,7 @@ const Catalog = () => {
     <Layout>
       <div className="container mx-auto px-4 py-16">
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6">
-          SHOP CAKES
+          BENTO CAKES
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
           Get inspired by our signature cake designs, choose your favourite, then personalise it with your preferred size, flavour, colours and message to create a cake that's uniquely yours.
@@ -992,7 +998,7 @@ const Catalog = () => {
             if (cakes.length === 0) return null;
             return (
               <section key={collection.title}>
-                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10 md:max-w-[60%]">
+                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
                   {collection.title}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -1037,7 +1043,7 @@ const Catalog = () => {
 
           {/* Custom Request */}
           <section>
-            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10 md:max-w-[60%]">
+            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
               CUSTOM REQUEST
             </div>
             <div className="text-center max-w-2xl mx-auto py-6">
@@ -1064,7 +1070,7 @@ const Catalog = () => {
       {/* Catalog Sheet */}
       <TooltipProvider delayDuration={200}>
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+        <SheetContent className="w-[95vw] max-w-3xl max-h-[88vh] overflow-y-auto rounded-none p-6 md:p-10">
           <SheetHeader>
             <SheetTitle className="font-serif text-2xl">
               {selectedCake?.name}
