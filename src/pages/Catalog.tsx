@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import CustomRequestForm from "@/components/CustomRequestForm";
 import { format, addDays } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -1090,18 +1090,13 @@ const Catalog = () => {
               <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
                 Can't find what you're looking for?
               </h3>
-              <p className="text-muted-foreground text-sm mb-8">
+              <p className="text-muted-foreground text-sm mb-10">
                 Every cake in our collections can be personalised — but if you're
                 dreaming of something completely different, we'd love to create a
                 fully bespoke design just for you. Tell us about your idea, your
                 colours and your occasion, and we'll bring it to life.
               </p>
-              <Button
-                className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
-                asChild
-              >
-                <Link to="/contact">REQUEST A CUSTOM CAKE</Link>
-              </Button>
+              <CustomRequestForm />
             </div>
           </section>
         </div>
