@@ -82,8 +82,7 @@ export const baseColors = [
   { id: "cream", name: "Cream", color: "#FFF8E7" },
   { id: "pastel-pink", name: "Pastel Pink", color: "#FFE4EC" },
   { id: "pink", name: "Pink", color: "#FFC0CB" },
-  { id: "dark-pink", name: "Dark Pink", color: "#E75480" },
-  { id: "dark-red", name: "Dark Red", color: "#DC143C" },
+  { id: "dark-red", name: "Red", color: "#DC143C" },
   { id: "burgundy", name: "Burgundy", color: "#800020" },
   { id: "pastel-yellow", name: "Pastel Yellow", color: "#FDFD96" },
   { id: "yellow", name: "Yellow", color: "#FFD700" },
@@ -91,7 +90,7 @@ export const baseColors = [
   { id: "pastel-orange", name: "Pastel Orange", color: "#FFB347" },
   { id: "mint-green", name: "Mint Green", color: "#B8F5C8" },
   { id: "green", name: "Green", color: "#3CB371" },
-  { id: "forest-green", name: "Forest Green", color: "#228B22" },
+  { id: "forest-green", name: "Forest Green", color: "#14532D" },
   { id: "baby-blue", name: "Baby Blue", color: "#D4F1F9" },
   { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
   { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
@@ -243,19 +242,15 @@ export const candles = [
 export const extraGroups = [
   {
     label: "Decorations",
-    ids: ["heart", "ribbons", "retro", "butterfly"],
+    ids: ["cherries", "glitter-cherries", "butterfly", "ribbons"],
   },
   {
     label: "Pearls",
-    ids: ["scattered-pearl", "pearl-border", "pearl-number"],
-  },
-  {
-    label: "Custom",
-    ids: ["drawing", "printed-picture"],
+    ids: ["pearl-border"],
   },
   {
     label: "Toppings",
-    ids: ["cherries", "glitter-cherries", "sprinkles", "gold-leaves"],
+    ids: ["sprinkles", "gold-leaves", "retro"],
   },
   {
     label: "Glitter",

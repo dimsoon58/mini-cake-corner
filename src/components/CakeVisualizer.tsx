@@ -33,7 +33,7 @@ const colorMap: Record<string, string> = {
   "pastel-orange": "#FFB347",
   "mint-green": "#B8F5C8",
   "green": "#3CB371",
-  "forest-green": "#228B22",
+  "forest-green": "#14532D",
   "baby-blue": "#D4F1F9",
   "sky-blue": "#87CEEB",
   "midnight-blue": "#191970",

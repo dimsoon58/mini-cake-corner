@@ -124,8 +124,7 @@ const baseColors = [
   { id: "cream", name: "Cream", color: "#FFF8E7" },
   { id: "pastel-pink", name: "Pastel Pink", color: "#FFE4EC" },
   { id: "pink", name: "Pink", color: "#FFC0CB" },
-  { id: "dark-pink", name: "Dark Pink", color: "#E75480" },
-  { id: "dark-red", name: "Dark Red", color: "#DC143C" },
+  { id: "dark-red", name: "Red", color: "#DC143C" },
   { id: "burgundy", name: "Burgundy", color: "#800020" },
   { id: "pastel-yellow", name: "Pastel Yellow", color: "#FDFD96" },
   { id: "yellow", name: "Yellow", color: "#FFD700" },
@@ -133,7 +132,7 @@ const baseColors = [
   { id: "pastel-orange", name: "Pastel Orange", color: "#FFB347" },
   { id: "mint-green", name: "Mint Green", color: "#B8F5C8" },
   { id: "green", name: "Green", color: "#3CB371" },
-  { id: "forest-green", name: "Forest Green", color: "#228B22" },
+  { id: "forest-green", name: "Forest Green", color: "#14532D" },
   { id: "baby-blue", name: "Baby Blue", color: "#D4F1F9" },
   { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
   { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
@@ -202,18 +201,13 @@ const catalogExtras = [
   { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 5, large: 8 }, image: extraGoldLeaves },
   { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 }, image: extraCherries },
   { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 }, image: extraGlitterCherries },
-  { id: "scattered-pearl", name: "Scattered Pearl", price: { bento: 2, retro: 4, medium: 5, large: 6 }, image: designScatteredPearls },
   { id: "glitter", name: "Glitter", price: { bento: 4, retro: 4, medium: 8, large: 10 }, image: extraGlitter },
   { id: "glitter-base", name: "Glitter Base", price: { bento: 6, retro: 8, medium: 10, large: 12 }, image: designGlitterCake },
   { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 12, medium: 15, large: 20 }, image: designGlitterInAir },
   { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 8, medium: 15, large: 20 }, image: designPearlBorders },
   { id: "retro", name: "Retro", price: { retro: 5, medium: 15, large: 20 }, image: extraRetro },
   { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10 }, image: extraRibbons },
-  { id: "drawing", name: "Drawing", price: { bento: 5, retro: 5, medium: 8, large: 10 }, image: extraDrawing },
-  { id: "heart", name: "Heart", price: { bento: 3, retro: 5, medium: 10, large: 15 }, image: extraHeart },
   { id: "butterfly", name: "Butterfly", price: { bento: 4, retro: 6, medium: 8, large: 10 }, image: extraButterfly },
-  { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designPearlNumber },
-  { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 }, image: extraPrintedPicture },
   { id: "sprinkles", name: "Sprinkles", price: { bento: 2, retro: 4, medium: 4, large: 6 }, image: extraSprinkles },
 ];
 
@@ -491,19 +485,48 @@ const catalog = [
   },
 ];
 
+// Per-design colour section configuration. Designs not listed use the default
+// (base colour + "Decoration Color" with up to 3 picks).
+interface ColorSectionConfig {
+  showBase: boolean;
+  baseNote?: string;
+  secondaryLabel: string | null; // null hides the second colour section
+  secondaryMax: number;
+  roseColor: boolean; // extra single-colour section (Roses Please)
+  hideExtras: boolean;
+}
+
+const colorSectionOverrides: Record<string, Partial<ColorSectionConfig>> = {
+  "normal-with-border": { secondaryLabel: "Border Color", secondaryMax: 1 },
+  "normal-without-border": { secondaryLabel: null },
+  "golden-cake": { showBase: false, secondaryLabel: null },
+  "roses-please": { secondaryLabel: "Border Color", secondaryMax: 1, roseColor: true },
+  "butterfly-garden": {
+    secondaryLabel: null,
+    baseNote: "Your cake will be created using a blend of your selected colour and white.",
+  },
+  "heart-bomb": { secondaryLabel: "Heart Color", secondaryMax: 1, hideExtras: true },
+  "shag-cake": { showBase: false, secondaryLabel: "Choose Your Colors", secondaryMax: 6 },
+  "rainbow-cake": { secondaryLabel: "Border Color", secondaryMax: 1 },
+  "printed-picture": { secondaryLabel: "Border Color", secondaryMax: 1 },
+};
+
+const getColorConfig = (styleId?: string): ColorSectionConfig => ({
+  showBase: true,
+  secondaryLabel: "Decoration Color",
+  secondaryMax: 3,
+  roseColor: false,
+  hideExtras: false,
+  ...(styleId ? colorSectionOverrides[styleId] : undefined),
+});
+
 // Collections: curated groupings shown as separate catalog sections
-const namedCollections = [
+const collections = [
   { title: "MINIMAL COLLECTION", ids: ["normal-with-border", "normal-without-border"] },
   { title: "VINTAGE COLLECTION", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
   { title: "CUTE COLLECTION", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
   { title: "FUN COLLECTION", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
-  { title: "PERSONALISED COLLECTION", ids: ["printed-picture", "gender-reveal"] },
-];
-const assignedIds = new Set(namedCollections.flatMap((c) => c.ids));
-const collections = [
-  ...namedCollections,
-  // Every cake not named in a collection stays visible here
-  { title: "MORE DESIGNS", ids: catalog.filter((c) => !assignedIds.has(c.id)).map((c) => c.id) },
+  { title: "PERSONALISED COLLECTION", ids: ["printed-picture", "gender-reveal", "drawing"] },
 ];
 
 interface CandleSelection {
@@ -573,6 +596,7 @@ interface CakeSelections {
   flavor: string;
   baseColor: string;
   decorationColors: string[];
+  roseColor: string;
   wantsText: boolean;
   cakeText: string;
   textColor: string;
@@ -625,6 +649,7 @@ const Catalog = () => {
     shape: "round",
     flavor: "vanilla",
     baseColor: "",
+    roseColor: "",
     decorationColors: [],
     wantsText: false,
     cakeText: "",
@@ -666,6 +691,7 @@ const Catalog = () => {
       flavor: "vanilla",
       baseColor: "",
       decorationColors: [],
+      roseColor: "",
       wantsText: false,
       cakeText: "",
       textColor: "",
@@ -745,7 +771,12 @@ const Catalog = () => {
     return candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id), 0);
   };
 
-  const excludedExtras = selectedCake ? getExcludedExtras(selectedCake.styleId) : [];
+  const colorCfg = getColorConfig(selectedCake?.styleId);
+  const excludedExtras = colorCfg.hideExtras
+    ? catalogExtras.map((e) => e.id)
+    : selectedCake
+      ? getExcludedExtras(selectedCake.styleId)
+      : [];
 
   const handleToggleExtra = (extraId: string) => {
     const newExtras = selections.extras.includes(extraId)
@@ -859,19 +890,26 @@ const Catalog = () => {
 
   const handleAddToCart = () => {
     if (!selectedCake) return;
-    
+
+    const cfg = getColorConfig(selectedCake.styleId);
+
     if (!selections.orderDate) {
       toast({ title: "Date required", description: "Please select a pickup/delivery date.", variant: "destructive" });
       return;
     }
 
-    if (!selections.baseColor) {
+    if (cfg.showBase && !selections.baseColor) {
       toast({ title: "Base Color required", description: "Please select a base color for your cake.", variant: "destructive" });
       return;
     }
-    
-    if (selections.decorationColors.length === 0 && selectedCake.styleId !== "normal-without-border") {
-      toast({ title: "Decoration Color required", description: "Please select at least one decoration color for your cake.", variant: "destructive" });
+
+    if (cfg.secondaryLabel && selections.decorationColors.length === 0) {
+      toast({ title: `${cfg.secondaryLabel} required`, description: `Please select at least one colour for your cake.`, variant: "destructive" });
+      return;
+    }
+
+    if (cfg.roseColor && !selections.roseColor) {
+      toast({ title: "Rose Color required", description: "Please select a colour for your roses.", variant: "destructive" });
       return;
     }
 
@@ -919,6 +957,8 @@ const Catalog = () => {
     const flavorObj = flavors.find(f => f.id === selections.flavor);
     const baseColorObj = baseColors.find(c => c.id === selections.baseColor);
     const decoColorNames = selections.decorationColors.map(id => baseColors.find(c => c.id === id)?.name || "").filter(Boolean);
+    const roseColorName = selections.roseColor ? baseColors.find(c => c.id === selections.roseColor)?.name : "";
+    if (roseColorName) decoColorNames.push(`Roses: ${roseColorName}`);
     const textColorObj = baseColors.find(c => c.id === selections.textColor);
 
     // Format the cake text according to style
@@ -945,7 +985,7 @@ const Catalog = () => {
       styleName: selectedCake.styleName,
       baseColor: selections.baseColor,
       baseColorName: baseColorObj?.name || "",
-      decorationColor: selections.decorationColors.join(", "),
+      decorationColor: [...selections.decorationColors, ...(selections.roseColor ? [`roses-${selections.roseColor}`] : [])].join(", "),
       decorationColorName: decoColorNames.join(", "),
       cakeText: finalText,
       textColor: selections.textColor,
@@ -1072,7 +1112,7 @@ const Catalog = () => {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-[95vw] max-w-3xl max-h-[88vh] overflow-y-auto rounded-none p-6 md:p-10">
           <SheetHeader>
-            <SheetTitle className="font-serif text-2xl">
+            <SheetTitle className="font-sans uppercase tracking-[0.105em] text-lg font-semibold">
               {selectedCake?.name}
             </SheetTitle>
             <SheetDescription>
@@ -1286,6 +1326,7 @@ const Catalog = () => {
               )}
 
               {/* Base Color Selection */}
+              {colorCfg.showBase && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
                   Base Color <span className="text-destructive">*</span>
@@ -1294,6 +1335,9 @@ const Catalog = () => {
                     <TooltipContent><p className="text-xs max-w-[200px]">The base color is essential to personalize your cake.</p></TooltipContent>
                   </Tooltip>
                 </label>
+                {colorCfg.baseNote && (
+                  <p className="text-xs text-muted-foreground italic">{colorCfg.baseNote}</p>
+                )}
                 <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
                   <span>⚠️</span> We recommend choosing light colors, as dark colors may temporarily stain lips.
                 </p>
@@ -1323,27 +1367,30 @@ const Catalog = () => {
                   ))}
                 </div>
               </div>
+              )}
 
-              {/* Decoration Color Selection - hidden for normal-without-border */}
-              {selectedCake?.styleId !== "normal-without-border" && (() => {
-                const maxColors = (selectedCake?.styleId === "roses-please" || selectedCake?.styleId === "shag-cake") ? 4 : 3;
+              {/* Secondary colour section — label and limit depend on the design */}
+              {colorCfg.secondaryLabel && (() => {
+                const maxColors = colorCfg.secondaryMax;
                 return (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Decoration Color <span className="text-destructive cursor-help">
+                  {colorCfg.secondaryLabel} <span className="text-destructive cursor-help">
                     <Tooltip>
                       <TooltipTrigger asChild><span>*</span></TooltipTrigger>
-                      <TooltipContent><p className="text-xs max-w-[200px]">Select up to {maxColors} decoration colors for your design.</p></TooltipContent>
+                      <TooltipContent><p className="text-xs max-w-[200px]">Select up to {maxColors} {maxColors === 1 ? "colour" : "colours"} for your design.</p></TooltipContent>
                     </Tooltip>
                   </span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">Choose the colors for the decorative elements of your cake.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">Choose the colors for this part of your cake.</p></TooltipContent>
                   </Tooltip>
                 </label>
+                {maxColors > 1 && (
                 <p className="text-xs text-muted-foreground">
-                  You can choose up to {maxColors} colors for your design decorations. You can also explain how you would like them to be arranged in the comment section.
+                  You can choose up to {maxColors} colors. You can also explain how you would like them to be arranged in the comment section.
                 </p>
+                )}
                 <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
                   <span>⚠️</span> We recommend choosing light colors, as dark colors may temporarily stain lips.
                 </p>
@@ -1391,6 +1438,44 @@ const Catalog = () => {
               </div>
                 );
               })()}
+
+              {/* Rose Colour — Roses Please only */}
+              {colorCfg.roseColor && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                  Rose Color <span className="text-destructive">*</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[200px]">Choose one colour for the piped roses.</p></TooltipContent>
+                  </Tooltip>
+                </label>
+                <div className="grid grid-cols-6 gap-2">
+                  {baseColors.map((color) => (
+                    <button
+                      key={color.id}
+                      onClick={() => setSelections({ ...selections, roseColor: color.id })}
+                      className={cn(
+                        "flex flex-col items-center gap-1 p-1 rounded-lg border transition-all",
+                        selections.roseColor === color.id
+                          ? "ring-2 ring-primary border-primary"
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "w-6 h-6 rounded-full border",
+                          color.id === "white" || color.id === "cream"
+                            ? "border-muted-foreground/30"
+                            : "border-transparent"
+                        )}
+                        style={{ backgroundColor: color.color }}
+                      />
+                      <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{color.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              )}
 
               {/* Text Toggle - hidden for printed-picture */}
               {!selectedCake?.disableText && (
@@ -1517,6 +1602,7 @@ const Catalog = () => {
 
               {/* Extras Section */}
               <div className="space-y-3">
+                {!colorCfg.hideExtras && (
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
                   ✨ Extra
                   <Tooltip>
@@ -1524,6 +1610,7 @@ const Catalog = () => {
                     <TooltipContent><p className="text-xs max-w-[220px]">You can add any additional elements to personalize your design.</p></TooltipContent>
                   </Tooltip>
                 </label>
+                )}
                 {extraGroups.map((group) => {
                   const visibleExtras = group.ids
                     .map(id => catalogExtras.find(e => e.id === id))
