@@ -353,7 +353,7 @@ const KitBentoCake = () => {
     <Layout>
       <div className="container mx-auto px-4 py-16">
         {/* Header - Catalog style */}
-        <h1 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-6">
+        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6">
           DIY KIT
         </h1>
         <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
@@ -368,7 +368,7 @@ const KitBentoCake = () => {
         <div className="max-w-4xl mx-auto space-y-12">
           {/* Step 1: Date */}
           <section className="space-y-4">
-            <h2 className="font-serif text-2xl font-semibold text-center">
+            <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em]">
               Choose Your Pickup Date<RequiredAsterisk tooltipKey="date" />
             </h2>
             <p className="text-muted-foreground text-center text-sm">Minimum 4 days notice required</p>
@@ -403,7 +403,7 @@ const KitBentoCake = () => {
           {/* Step 2: Shape */}
           {showShape && (
             <section ref={shapeRef} className="space-y-4">
-              <h2 className="font-serif text-2xl font-semibold text-center">
+              <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em]">
                 Choose Shape<RequiredAsterisk tooltipKey="shape" />
               </h2>
               <RadioGroup value={selectedShape} onValueChange={setSelectedShape} className="flex justify-center gap-6">
@@ -422,7 +422,7 @@ const KitBentoCake = () => {
           {/* Step 3: Flavor */}
           {showFlavor && (
             <section ref={flavorRef} className="space-y-6">
-              <h2 className="font-serif text-2xl font-semibold text-center">
+              <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em]">
                 Choose Flavor<RequiredAsterisk tooltipKey="flavor" />
               </h2>
               {flavorCategories.map((category) => (
@@ -459,7 +459,7 @@ const KitBentoCake = () => {
           {/* Step 4: Base Color */}
           {showBaseColor && (
             <section ref={baseColorRef} className="space-y-4">
-              <h2 className="font-serif text-2xl font-semibold text-center">
+              <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em]">
                 Choose Base Color<RequiredAsterisk tooltipKey="baseColor" />
               </h2>
               <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
@@ -487,7 +487,7 @@ const KitBentoCake = () => {
           {showPiping && (
             <section ref={pipingRef} className="space-y-6">
               <div className="text-center space-y-2">
-                <h2 className="font-serif text-2xl font-semibold">
+                <h2 className="font-sans text-xl font-semibold uppercase tracking-[0.105em]">
                   Choose Piping Bags<RequiredAsterisk tooltipKey="piping" />
                 </h2>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
@@ -543,7 +543,7 @@ const KitBentoCake = () => {
           {/* Step 6: Candles (Optional) - Packs first, then individual */}
           {showCandles && (
             <section ref={candlesRef} className="space-y-8 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-              <h2 className="font-serif text-3xl font-bold text-center text-foreground">
+              <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em] text-foreground">
                 Add Candles (Optional)
               </h2>
 
