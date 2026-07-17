@@ -1,43 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, addDays } from "date-fns";
-import { CalendarIcon, Minus, Plus } from "lucide-react";
+import { CalendarIcon, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
-import dotCakesImage from "@/assets/home-cat-dots.png";
+import { flavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
 
-/* Flavour tiers — adjust the tier of any flavour here.
-   Standard CHF 9 each · Premium CHF 11 each (+1.50/dot in packs) ·
-   Deluxe CHF 13 each (+2.50/dot in packs) */
-type Tier = "standard" | "premium" | "deluxe";
-
-const tierInfo: Record<Tier, { label: string; individual: number; packSurcharge: number }> = {
-  standard: { label: "Standard", individual: 9, packSurcharge: 0 },
-  premium: { label: "Premium", individual: 11, packSurcharge: 1.5 },
-  deluxe: { label: "Deluxe", individual: 13, packSurcharge: 2.5 },
-};
-
-const dotFlavours: { id: string; name: string; tier: Tier }[] = [
-  { id: "vanilla", name: "Vanilla", tier: "standard" },
-  { id: "chocolate", name: "Chocolate", tier: "standard" },
-  { id: "red-velvet", name: "Red Velvet", tier: "standard" },
-  { id: "dark-berrylicious", name: "Dark Berrylicious", tier: "premium" },
-  { id: "white-berrylicious", name: "White Berrylicious", tier: "premium" },
-  { id: "lemon-curd", name: "Lemon Curd", tier: "premium" },
-  { id: "orange-blossom", name: "Orange Blossom", tier: "premium" },
-  { id: "salted-butter-caramel", name: "Salted Butter Caramel", tier: "deluxe" },
-  { id: "tiramisu", name: "Tiramisu", tier: "deluxe" },
-  { id: "praline-obsession", name: "Praline Obsession", tier: "deluxe" },
-  { id: "pistachio-lovers", name: "Pistachio Lovers", tier: "deluxe" },
-  { id: "passion-fruit", name: "Passion Fruit", tier: "deluxe" },
-];
-
+/* Dot cake pricing: pack base price + per-dot surcharge for premium/deluxe
+   flavours, split evenly across the chosen flavours. */
 const packs = [
   { size: 4, flavours: 2, price: 35 },
   { size: 6, flavours: 3, price: 51 },
@@ -46,9 +22,14 @@ const packs = [
   { size: 20, flavours: 5, price: 160 },
 ];
 
-const CANDLE_PRICE = 2;
+// DIY kit categories mapped to dot-cake tiers
+const tierByCategory: Record<string, { label: string; surcharge: number; note: string }> = {
+  "Standard Flavors": { label: "Standard Flavours", surcharge: 0, note: "included" },
+  "Special Flavors": { label: "Premium Flavours", surcharge: 1.5, note: "+CHF 1.50 per Dot Cake" },
+  "Deluxe Flavors": { label: "Deluxe Flavours", surcharge: 2.5, note: "+CHF 2.50 per Dot Cake" },
+};
 
-type Choice = { kind: "single"; qty: number } | { kind: "pack"; size: number } | null;
+const INITIAL_CANDLES_SHOWN = 4;
 
 const SectionHeading = ({ children }: { children: React.ReactNode }) => (
   <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em] text-foreground">
@@ -60,10 +41,10 @@ const DotCakes = () => {
   const navigate = useNavigate();
   const { addItem } = useCart();
   const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
-  const [choice, setChoice] = useState<Choice>(null);
-  const [flavourSlots, setFlavourSlots] = useState<string[]>([]);
-  const [wantsCandles, setWantsCandles] = useState(false);
-  const [candleQty, setCandleQty] = useState(1);
+  const [packSize, setPackSize] = useState<number | null>(null);
+  const [selectedFlavours, setSelectedFlavours] = useState<string[]>([]);
+  const [candleSelections, setCandleSelections] = useState<Record<string, number>>({});
+  const [showAllCandles, setShowAllCandles] = useState(false);
 
   useEffect(() => {
     document.title = "Dot Cakes – Bento Cake Studio";
@@ -72,71 +53,102 @@ const DotCakes = () => {
     };
   }, []);
 
-  const slots = useMemo(() => {
-    if (!choice) return { count: 0, dotsPerSlot: 0 };
-    if (choice.kind === "single") return { count: choice.qty, dotsPerSlot: 1 };
-    const pack = packs.find((p) => p.size === choice.size)!;
-    return { count: pack.flavours, dotsPerSlot: pack.size / pack.flavours };
-  }, [choice]);
+  const pack = packs.find((p) => p.size === packSize) || null;
 
-  const selectChoice = (next: Exclude<Choice, null>) => {
-    setChoice(next);
-    const count =
-      next.kind === "single" ? next.qty : packs.find((p) => p.size === next.size)!.flavours;
-    setFlavourSlots(Array(count).fill(""));
+  const allFlavours = useMemo(
+    () =>
+      flavorCategories.flatMap((cat) =>
+        cat.flavors.map((fl) => ({ ...fl, category: cat.name }))
+      ),
+    []
+  );
+
+  const surchargeFor = (flavourId: string) => {
+    const fl = allFlavours.find((f) => f.id === flavourId);
+    return fl ? tierByCategory[fl.category]?.surcharge ?? 0 : 0;
   };
 
+  const toggleFlavour = (id: string) => {
+    if (!pack) return;
+    setSelectedFlavours((prev) => {
+      if (prev.includes(id)) return prev.filter((f) => f !== id);
+      if (prev.length >= pack.flavours) return prev;
+      return [...prev, id];
+    });
+  };
+
+  const handleCandleQtyChange = (candleId: string, delta: number) => {
+    setCandleSelections((prev) => {
+      const next = Math.max(0, (prev[candleId] || 0) + delta);
+      const copy = { ...prev };
+      if (next === 0) delete copy[candleId];
+      else copy[candleId] = next;
+      return copy;
+    });
+  };
+
+  const getCandlePrice = (candleId: string, qty: number) => {
+    const candle = kitCandles.find((c) => c.id === candleId);
+    if (!candle || qty === 0) return 0;
+    if (candle.hasPack && candle.packPrice && candle.packSize) {
+      const fullPacks = Math.floor(qty / candle.packSize);
+      const remainder = qty % candle.packSize;
+      return fullPacks * candle.packPrice + remainder * candle.unitPrice;
+    }
+    return qty * candle.unitPrice;
+  };
+
+  const candlesTotal = Object.entries(candleSelections).reduce(
+    (acc, [id, qty]) => acc + getCandlePrice(id, qty),
+    0
+  );
+
   const total = useMemo(() => {
-    if (!choice) return 0;
-    let sum = 0;
-    if (choice.kind === "single") {
-      flavourSlots.forEach((id) => {
-        const fl = dotFlavours.find((f) => f.id === id);
-        sum += fl ? tierInfo[fl.tier].individual : tierInfo.standard.individual;
-      });
-    } else {
-      const pack = packs.find((p) => p.size === choice.size)!;
-      sum = pack.price;
-      flavourSlots.forEach((id) => {
-        const fl = dotFlavours.find((f) => f.id === id);
-        if (fl) sum += slots.dotsPerSlot * tierInfo[fl.tier].packSurcharge;
+    if (!pack) return 0;
+    let sum = pack.price;
+    if (selectedFlavours.length > 0) {
+      const dotsPerFlavour = pack.size / selectedFlavours.length;
+      selectedFlavours.forEach((id) => {
+        sum += dotsPerFlavour * surchargeFor(id);
       });
     }
-    if (wantsCandles) sum += candleQty * CANDLE_PRICE;
-    return sum;
-  }, [choice, flavourSlots, slots, wantsCandles, candleQty]);
+    return Math.round((sum + candlesTotal) * 100) / 100;
+  }, [pack, selectedFlavours, candlesTotal]);
 
   const handleOrder = () => {
     if (!orderDate) {
-      toast.error("Please pick a date for your order.");
+      toast.error("Please choose your pick-up date (minimum 4 days' notice).");
       return;
     }
-    if (!choice) {
-      toast.error("Please choose a quantity or a pack.");
+    if (!pack) {
+      toast.error("Please choose a pack.");
       return;
     }
-    if (flavourSlots.some((s) => !s)) {
-      toast.error(`Please choose ${slots.count === 1 ? "your flavour" : `all ${slots.count} flavours`}.`);
+    if (selectedFlavours.length === 0) {
+      toast.error(`Please choose up to ${pack.flavours} flavours (at least one).`);
       return;
     }
 
-    const flavourNames = flavourSlots.map((id) => {
-      const fl = dotFlavours.find((f) => f.id === id)!;
-      const dots = slots.dotsPerSlot > 1 ? ` ×${slots.dotsPerSlot}` : "";
-      return `${fl.name} (${tierInfo[fl.tier].label})${dots}`;
+    const flavourNames = selectedFlavours.map((id) => {
+      const fl = allFlavours.find((f) => f.id === id)!;
+      return `${fl.name} (${tierByCategory[fl.category]?.label ?? fl.category})`;
     });
-    const description =
-      choice.kind === "single" ? `Dot Cakes ×${choice.qty}` : `Dot Cake Pack of ${choice.size}`;
+    const candleDetails = Object.entries(candleSelections)
+      .map(([id, qty]) => {
+        const candle = kitCandles.find((c) => c.id === id);
+        return `${qty}x ${candle?.name}`;
+      })
+      .join("; ");
 
     addItem({
       id: "",
       orderDate: format(orderDate, "yyyy-MM-dd"),
       orderTime: "",
       size: "dot-cakes",
-      sizeName: description,
+      sizeName: `Dot Cake Pack of ${pack.size}`,
       shape: "",
       shapeName: "",
-      flavor: flavourSlots.join(", "),
+      flavor: selectedFlavours.join(", "),
       flavorName: flavourNames.join(", "),
       style: "dot-cakes",
       styleName: "Dot Cakes",
@@ -148,8 +160,8 @@ const DotCakes = () => {
       textColor: "",
       textColorName: "",
       textStyle: "normal",
-      extras: wantsCandles ? ["candles"] : [],
-      extrasNames: wantsCandles ? [`${candleQty}x Classic candle`] : [],
+      extras: [],
+      extrasNames: candleDetails ? [candleDetails] : [],
       ribbonColor: "",
       ribbonColorName: "",
       butterflyColor: "",
@@ -164,13 +176,8 @@ const DotCakes = () => {
     navigate("/cart");
   };
 
-  const choiceButton = (selected: boolean) =>
-    cn(
-      "border px-5 py-4 text-left transition-all w-full",
-      selected
-        ? "border-primary ring-2 ring-primary/30 bg-secondary/50"
-        : "border-border hover:border-primary/50"
-    );
+  const packCandles = kitCandles.filter((c) => c.hasPack);
+  const individualCandles = kitCandles.filter((c) => !c.hasPack);
 
   return (
     <Layout>
@@ -183,18 +190,13 @@ const DotCakes = () => {
           for parties, gifts and moments when one cake just isn't enough.
         </p>
 
-        <div className="max-w-3xl mx-auto space-y-14">
-          <div className="aspect-[16/9] overflow-hidden">
-            <img
-              src={dotCakesImage}
-              alt="Dot cakes with colourful sprinkles"
-              className="w-full h-full object-cover"
-            />
-          </div>
-
-          {/* 1. Pick a date */}
-          <section className="space-y-4">
-            <SectionHeading>Pick a Date</SectionHeading>
+        <div className="max-w-4xl mx-auto space-y-14">
+          {/* 1. Pick-up date */}
+          <section className="space-y-3">
+            <SectionHeading>Choose Your Pick-Up Date</SectionHeading>
+            <p className="text-center text-sm text-muted-foreground">
+              Minimum 4 days' notice required.
+            </p>
             <div className="flex justify-center">
               <Popover>
                 <PopoverTrigger asChild>
@@ -214,7 +216,7 @@ const DotCakes = () => {
                     mode="single"
                     selected={orderDate}
                     onSelect={setOrderDate}
-                    disabled={(date) => date < addDays(new Date(), 3)}
+                    disabled={(date) => date < addDays(new Date(), 4)}
                     initialFocus
                   />
                 </PopoverContent>
@@ -222,170 +224,201 @@ const DotCakes = () => {
             </div>
           </section>
 
-          {/* 2. Choose quantity */}
-          <section className="space-y-6">
+          {/* 2. Choose quantity — packs only */}
+          <section className="space-y-4">
             <SectionHeading>Choose Quantity</SectionHeading>
-
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-foreground uppercase tracking-[0.105em]">
-                Individual Dot Cakes
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                {[1, 2, 3].map((qty) => (
-                  <button
-                    key={qty}
-                    onClick={() => selectChoice({ kind: "single", qty })}
-                    className={choiceButton(choice?.kind === "single" && choice.qty === qty)}
-                  >
-                    <span className="block font-semibold text-foreground">{qty}</span>
-                    <span className="block text-sm text-muted-foreground">CHF {qty * 9}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="text-xs text-muted-foreground space-y-0.5">
-                <p>Standard Flavours — CHF 9 each</p>
-                <p>Premium Flavours — CHF 11 each</p>
-                <p>Deluxe Flavours — CHF 13 each</p>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {packs.map((p) => (
+                <button
+                  key={p.size}
+                  onClick={() => {
+                    setPackSize(p.size);
+                    setSelectedFlavours((prev) => prev.slice(0, p.flavours));
+                  }}
+                  className={cn(
+                    "border px-5 py-4 text-left transition-all",
+                    packSize === p.size
+                      ? "border-primary ring-2 ring-primary/30 bg-secondary/50"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <span className="block font-semibold text-foreground">Pack of {p.size}</span>
+                  <span className="block text-sm text-muted-foreground">
+                    Up to {p.flavours} flavours · CHF {p.price}
+                  </span>
+                </button>
+              ))}
             </div>
-
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-foreground uppercase tracking-[0.105em]">
-                Dot Cake Packs
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {packs.map((pack) => (
-                  <button
-                    key={pack.size}
-                    onClick={() => selectChoice({ kind: "pack", size: pack.size })}
-                    className={choiceButton(choice?.kind === "pack" && choice.size === pack.size)}
-                  >
-                    <span className="block font-semibold text-foreground">Pack of {pack.size}</span>
-                    <span className="block text-sm text-muted-foreground">
-                      Up to {pack.flavours} flavours · CHF {pack.price}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="text-xs text-muted-foreground space-y-0.5">
-                <p>Premium flavours: +CHF 1.50 per Dot Cake</p>
-                <p>Deluxe flavours: +CHF 2.50 per Dot Cake</p>
-              </div>
+            <div className="text-xs text-muted-foreground text-center space-y-0.5">
+              <p>Premium flavour: +CHF 1.50 per Dot Cake</p>
+              <p>Deluxe flavour: +CHF 2.50 per Dot Cake</p>
             </div>
           </section>
 
-          {/* 3. Dynamic flavour selection */}
-          {choice && (
-            <section className="space-y-4">
+          {/* 3. Flavour selection — DIY Kit style tiles */}
+          {pack && (
+            <section className="space-y-6">
               <SectionHeading>
-                Choose {slots.count} {slots.count === 1 ? "Flavour" : "Flavours"}
+                Choose up to {pack.flavours} Flavours
               </SectionHeading>
-              <div className="space-y-3">
-                {flavourSlots.map((value, i) => (
-                  <div key={i} className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Flavour {i + 1}
-                      {slots.dotsPerSlot > 1 && (
-                        <span className="text-muted-foreground font-normal">
-                          {" "}
-                          — {slots.dotsPerSlot} dot cakes
-                        </span>
+              <p className="text-center text-sm text-muted-foreground">
+                {selectedFlavours.length}/{pack.flavours} selected
+              </p>
+              {flavorCategories.map((category) => {
+                const tier = tierByCategory[category.name];
+                return (
+                  <div key={category.name} className="space-y-3">
+                    <h3 className="text-lg font-medium">
+                      {tier?.label ?? category.name}
+                      {tier && tier.surcharge > 0 && (
+                        <span className="text-muted-foreground ml-2 text-sm">({tier.note})</span>
                       )}
-                    </label>
-                    <Select
-                      value={value}
-                      onValueChange={(v) => {
-                        const next = [...flavourSlots];
-                        next[i] = v;
-                        setFlavourSlots(next);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a flavour" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {dotFlavours.map((fl) => {
-                          const info = tierInfo[fl.tier];
-                          const priceLabel =
-                            choice.kind === "single"
-                              ? `CHF ${info.individual}`
-                              : info.packSurcharge > 0
-                                ? `+CHF ${info.packSurcharge.toFixed(2)}/dot`
-                                : "included";
-                          return (
-                            <SelectItem key={fl.id} value={fl.id}>
-                              {fl.name} · {info.label} ({priceLabel})
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {category.flavors.map((flavor) => {
+                        const isSelected = selectedFlavours.includes(flavor.id);
+                        const atCap = !isSelected && selectedFlavours.length >= pack.flavours;
+                        return (
+                          <div
+                            key={flavor.id}
+                            className={cn(
+                              "bg-card rounded-none overflow-hidden shadow-sm transition-shadow cursor-pointer",
+                              isSelected && "ring-2 ring-primary",
+                              atCap ? "opacity-40 cursor-not-allowed" : "hover:shadow-lg"
+                            )}
+                            onClick={() => !atCap && toggleFlavour(flavor.id)}
+                          >
+                            <div className="aspect-square overflow-hidden bg-muted/30 p-4">
+                              <img src={flavor.image} alt={flavor.name} className="w-full h-full object-contain" />
+                            </div>
+                            <div className="p-3 text-center">
+                              <p className="font-serif font-medium text-sm">{flavor.name}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </section>
           )}
 
-          {/* 4. Add candles */}
-          {choice && (
-            <section className="space-y-4">
-              <SectionHeading>Add Candles</SectionHeading>
-              <p className="text-center text-sm text-muted-foreground">
-                Would you like to add candles to your order?
-              </p>
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={() => setWantsCandles(false)}
-                  className={cn(
-                    "px-8 py-2 border text-sm font-medium transition-all",
-                    !wantsCandles
-                      ? "border-primary ring-2 ring-primary/30 bg-secondary/50"
-                      : "border-border hover:border-primary/50"
-                  )}
-                >
-                  No thanks
-                </button>
-                <button
-                  onClick={() => setWantsCandles(true)}
-                  className={cn(
-                    "px-8 py-2 border text-sm font-medium transition-all",
-                    wantsCandles
-                      ? "border-primary ring-2 ring-primary/30 bg-secondary/50"
-                      : "border-border hover:border-primary/50"
-                  )}
-                >
-                  Yes, add candles
-                </button>
+          {/* 4. Add candles — same design as the DIY Kit page */}
+          {pack && (
+            <section className="space-y-6">
+              <SectionHeading>Add Candles (Optional)</SectionHeading>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-center text-foreground/80">
+                  Ombré & Spirales (Pack de 6 disponible)
+                </h3>
+                <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
+                  {packCandles.slice(0, showAllCandles ? undefined : INITIAL_CANDLES_SHOWN).map((candle) => {
+                    const qty = candleSelections[candle.id] || 0;
+                    const price = getCandlePrice(candle.id, qty);
+                    const hasPackApplied = candle.packSize && qty >= candle.packSize;
+                    return (
+                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
+                        <img src={candle.image} alt={candle.name} className="h-56 w-56 object-contain mb-2" />
+                        <Card className={cn("w-full transition-all", qty > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                          <CardContent className="p-2 text-center">
+                            <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                            <p className="text-[10px] text-muted-foreground mb-1">
+                              CHF {candle.unitPrice}/pièce · Pack {candle.packSize}: CHF {candle.packPrice}
+                            </p>
+                            <div className="flex items-center justify-center gap-1.5 mb-1">
+                              <button
+                                onClick={() => handleCandleQtyChange(candle.id, -1)}
+                                disabled={qty === 0}
+                                className={cn(
+                                  "w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
+                                  qty === 0
+                                    ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                )}
+                              >
+                                −
+                              </button>
+                              <span className="w-5 text-center font-medium text-foreground text-sm">{qty}</span>
+                              <button
+                                onClick={() => handleCandleQtyChange(candle.id, 1)}
+                                className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                              >
+                                +
+                              </button>
+                            </div>
+                            {qty > 0 && (
+                              <p className={cn("text-[10px] font-medium", hasPackApplied ? "text-green-700" : "text-muted-foreground")}>
+                                {hasPackApplied ? `✓ Pack price applied — CHF ${price}` : `CHF ${price}`}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              {wantsCandles && (
-                <div className="flex items-center justify-center gap-4">
-                  <span className="text-sm text-foreground">
-                    Classic candles (CHF {CANDLE_PRICE} each)
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setCandleQty(Math.max(1, candleQty - 1))}
-                      className="h-7 w-7 border border-border flex items-center justify-center hover:bg-muted"
-                      aria-label="Fewer candles"
-                    >
-                      <Minus className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="w-6 text-center text-sm font-medium">{candleQty}</span>
-                    <button
-                      onClick={() => setCandleQty(Math.min(12, candleQty + 1))}
-                      className="h-7 w-7 border border-border flex items-center justify-center hover:bg-muted"
-                      aria-label="More candles"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
+
+              {showAllCandles && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-center text-foreground/80">Individual Candles</h3>
+                  <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
+                    {individualCandles.map((candle) => {
+                      const qty = candleSelections[candle.id] || 0;
+                      return (
+                        <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
+                          <img src={candle.image} alt={candle.name} className="h-56 w-56 object-contain mb-2" />
+                          <Card className={cn("w-full transition-all", qty > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                            <CardContent className="p-2 text-center">
+                              <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                              <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => handleCandleQtyChange(candle.id, -1)}
+                                  disabled={qty === 0}
+                                  className={cn(
+                                    "w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
+                                    qty === 0
+                                      ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  )}
+                                >
+                                  −
+                                </button>
+                                <span className="w-5 text-center font-medium text-foreground text-sm">{qty}</span>
+                                <button
+                                  onClick={() => handleCandleQtyChange(candle.id, 1)}
+                                  className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
+
+              <button
+                onClick={() => setShowAllCandles(!showAllCandles)}
+                className="w-full flex items-center justify-center gap-1 text-sm text-primary font-medium py-2 hover:underline"
+              >
+                {showAllCandles ? (
+                  <>See less <ChevronUp className="w-4 h-4" /></>
+                ) : (
+                  <>See more candles <ChevronDown className="w-4 h-4" /></>
+                )}
+              </button>
             </section>
           )}
 
           {/* Total + order */}
-          {choice && (
+          {pack && (
             <section className="space-y-6">
               <div className="flex justify-between items-center py-4 bg-secondary/50 px-4">
                 <span className="text-sm font-semibold uppercase tracking-[0.105em] text-foreground">

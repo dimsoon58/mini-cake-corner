@@ -246,7 +246,7 @@ export const extraGroups = [
   },
   {
     label: "Pearls",
-    ids: ["pearl-border"],
+    ids: ["pearl-border", "pearl-number"],
   },
   {
     label: "Toppings",
@@ -371,7 +371,8 @@ export const designExcludedExtras: Record<string, string[]> = {
   "normal-without-border": [],
   "normal-with-border": [],
   "sprinkles-with-border": ["sprinkles"],
-  "retro-vintage": ["retro"],
+  "retro-vintage": ["retro", "pearl-border"],
+  "golden-cake": ["retro", "pearl-border"],
   "rainbow-cake": ["retro", "sprinkles"],
   "shag-cake": ["retro", "heart"],
   "gold-leaves-style": ["gold-leaves"],
@@ -386,7 +387,7 @@ export const designExcludedExtras: Record<string, string[]> = {
   "printed-picture": ["printed-picture", "glitter-base", "glitter-in-the-air"],
   "custom-drawing": ["drawing", "glitter-in-the-air"],
   "butterfly-garden": ["butterfly", "scattered-pearl"],
-  "roses-please": ["retro"],
+  "roses-please": ["retro", "pearl-border"],
   "heart-bomb": ["heart"],
   "pearl-number": ["pearl-number"],
   "gender-reveal": [],

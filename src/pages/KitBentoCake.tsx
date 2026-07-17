@@ -57,7 +57,7 @@ const shapes = [
   { id: "heart", name: "Heart", extraPrice: 3 },
 ];
 
-const flavorCategories = [
+export const flavorCategories = [
   {
     name: "Standard Flavors",
     extraPrice: 0,
@@ -123,7 +123,7 @@ const pipingBagOptions = [
   { id: "3-bags", name: "3 Piping Bags", count: 3, price: 2 },
 ];
 
-const candles = [
+export const candles = [
   // Figurines
   { id: "puppy", name: "Puppy", image: candlePuppy, unitPrice: 2, hasPack: false },
   { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, unitPrice: 2, hasPack: false },

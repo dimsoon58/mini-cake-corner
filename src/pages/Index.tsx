@@ -8,7 +8,7 @@ import homeCatBento from "@/assets/home-cat-bento.png";
 import homeCatDots from "@/assets/home-cat-dots.png";
 import homeCatDiy from "@/assets/home-cat-diy.png";
 import homeCatWorkshops from "@/assets/home-cat-workshops.png";
-import heroBg from "@/assets/hero-bg.jpg";
+import heroBg from "@/assets/hero-main.jpg";
 import featureCake from "@/assets/feature-cake.png";
 import featurePipingBag from "@/assets/feature-piping-bag.png";
 import featureWhisk from "@/assets/feature-whisk.png";
@@ -159,14 +159,14 @@ const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: str
 
 const Index = () => {
   return (
-    <Layout>
+    <Layout overlayHero>
       {/* Hero Section */}
       <section className="relative text-primary-foreground overflow-hidden min-h-[80vh]">
         <div
           className="absolute inset-0 bg-cover"
-          style={{ backgroundImage: `url(${heroBg})`, backgroundPosition: 'center 60%' }}
+          style={{ backgroundImage: `url(${heroBg})`, backgroundPosition: "center 40%" }}
         />
-        <div className="absolute inset-0 bg-foreground/20" />
+        <div className="absolute inset-0 bg-foreground/30" />
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
           {/* Brand spec: Agrandir Bold 50px — Montserrat stands in until the Agrandir font file is provided */}
           <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
@@ -218,7 +218,7 @@ const Index = () => {
 
       {/* Discover Section — category cards */}
       <section className="py-20 bg-background">
-        <div className="container mx-auto px-4 max-w-6xl">
+        <div className="w-full px-4 sm:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { image: homeCatBento, label: "BENTO CAKES", to: "/catalog" },
@@ -247,25 +247,27 @@ const Index = () => {
             ))}
           </div>
 
-          <Link
-            to="/contact"
-            className="relative block mt-8 aspect-[16/9] md:aspect-[16/5] overflow-hidden group"
-          >
-            <img
-              src={homeCatWorkshops}
-              alt="Workshops"
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-            <div className="absolute left-8 bottom-8">
-              <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
-                WORKSHOPS
-              </p>
-              <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-12 py-2.5 transition-colors">
-                DISCOVER
-              </span>
-            </div>
-          </Link>
         </div>
+
+        {/* Workshops banner — full browser width, no side margins */}
+        <Link
+          to="/contact"
+          className="relative block mt-8 w-full aspect-[16/9] md:aspect-[16/5] overflow-hidden group"
+        >
+          <img
+            src={homeCatWorkshops}
+            alt="Workshops"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <div className="absolute left-8 bottom-8">
+            <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+              WORKSHOPS
+            </p>
+            <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-12 py-2.5 transition-colors">
+              DISCOVER
+            </span>
+          </div>
+        </Link>
       </section>
 
       {/* Customers Section */}
@@ -290,8 +292,8 @@ const Index = () => {
 
       {/* CTA Section — lace doily style */}
       <section className="py-16 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto border-[3px] border-primary p-1.5">
+        <div className="w-full px-4 sm:px-6">
+          <div className="w-full border-[3px] border-primary p-1.5">
             <div className="text-center border border-primary px-8 py-16 md:px-16">
             <h2 className="font-script font-normal text-4xl md:text-5xl text-foreground mb-6">
               Ready to order your perfect cake?

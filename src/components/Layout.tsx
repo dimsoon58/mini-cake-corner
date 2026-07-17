@@ -3,11 +3,14 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import CartIcon from "@/components/CartIcon";
-import logo from "@/assets/logo-brown.png";
+import logoBrown from "@/assets/logo-brown.png";
+import logoCream from "@/assets/logo-cream.png";
 
 interface LayoutProps {
   children: React.ReactNode;
   hideNav?: boolean;
+  /** Home page: transparent header over the hero, yellow after scrolling */
+  overlayHero?: boolean;
 }
 
 type NavItem = { to: string; label: string } | { label: string; children: { to: string; label: string }[] };
@@ -30,10 +33,21 @@ const navLinks: NavItem[] = [
   { to: "/contact", label: "Contact" },
 ];
 
-const navLinkClass =
-  "uppercase tracking-[0.18em] text-xs font-medium text-foreground transition-colors";
+const navLinkClass = (light: boolean) =>
+  cn(
+    "uppercase tracking-[0.18em] text-xs font-medium transition-colors",
+    light ? "text-cream" : "text-foreground"
+  );
 
-const DropdownNav = ({ item, isActive }: { item: Extract<NavItem, { children: any[] }>; isActive: (to: string) => boolean }) => {
+const DropdownNav = ({
+  item,
+  isActive,
+  light,
+}: {
+  item: Extract<NavItem, { children: any[] }>;
+  isActive: (to: string) => boolean;
+  light: boolean;
+}) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -53,7 +67,7 @@ const DropdownNav = ({ item, isActive }: { item: Extract<NavItem, { children: an
         onClick={() => setOpen(!open)}
         className={cn(
           "inline-flex items-center gap-1",
-          navLinkClass,
+          navLinkClass(light),
           anyActive ? "font-semibold" : "hover:opacity-70"
         )}
       >
@@ -81,8 +95,19 @@ const DropdownNav = ({ item, isActive }: { item: Extract<NavItem, { children: an
   );
 };
 
-const Layout = ({ children, hideNav = false }: LayoutProps) => {
+const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps) => {
   const location = useLocation();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!overlayHero) return;
+    const onScroll = () => setScrolled(window.scrollY > window.innerHeight * 0.55);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [overlayHero]);
+
+  const light = overlayHero && !scrolled;
 
   const isActive = (to: string) => {
     if (to === "/") return location.pathname === "/";
@@ -91,14 +116,14 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
 
   const renderNavItem = (item: NavItem, mobile = false) => {
     if ("children" in item) {
-      return <DropdownNav key={item.label} item={item} isActive={isActive} />;
+      return <DropdownNav key={item.label} item={item} isActive={isActive} light={light} />;
     }
     return (
       <Link
         key={item.to}
         to={item.to}
         className={cn(
-          navLinkClass,
+          navLinkClass(light),
           mobile && "text-[11px]",
           isActive(item.to) ? "font-semibold" : "hover:opacity-70"
         )}
@@ -110,11 +135,19 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background font-sans">
-      <header className="bg-background border-b border-border/40">
+      <header
+        className={cn(
+          "z-50 transition-all duration-300",
+          overlayHero ? "fixed top-0 inset-x-0" : "sticky top-0",
+          light
+            ? "bg-transparent border-b border-transparent"
+            : "bg-background border-b border-border/40 shadow-sm"
+        )}
+      >
         <div className="container mx-auto px-4 flex items-center justify-between py-3">
           <Link to="/" className="flex-shrink-0">
             <img
-              src={logo}
+              src={light ? logoCream : logoBrown}
               alt="Bento Cake Studio"
               className="h-10 md:h-14 w-auto"
             />
@@ -126,7 +159,9 @@ const Layout = ({ children, hideNav = false }: LayoutProps) => {
             </nav>
           )}
 
-          <CartIcon />
+          <div className={light ? "[&_svg]:text-cream" : ""}>
+            <CartIcon />
+          </div>
         </div>
 
         {!hideNav && (

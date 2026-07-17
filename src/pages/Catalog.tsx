@@ -199,14 +199,15 @@ const candles = [
 
 const catalogExtras = [
   { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 5, large: 8 }, image: extraGoldLeaves },
-  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 }, image: extraCherries },
-  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 }, image: extraGlitterCherries },
+  { id: "cherries", name: "Cherries", price: { bento: 4, retro: 4, medium: 8, large: 12 }, image: extraCherries },
+  { id: "glitter-cherries", name: "Glitter Cherries", price: { bento: 7, retro: 7, medium: 10, large: 15 }, image: extraGlitterCherries },
   { id: "glitter", name: "Glitter", price: { bento: 4, retro: 4, medium: 8, large: 10 }, image: extraGlitter },
   { id: "glitter-base", name: "Glitter Base", price: { bento: 6, retro: 8, medium: 10, large: 12 }, image: designGlitterCake },
   { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 12, medium: 15, large: 20 }, image: designGlitterInAir },
   { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 8, medium: 15, large: 20 }, image: designPearlBorders },
   { id: "retro", name: "Retro", price: { retro: 5, medium: 15, large: 20 }, image: extraRetro },
-  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10 }, image: extraRibbons },
+  { id: "ribbons", name: "Ribbons", price: { bento: 5, retro: 5, medium: 8, large: 10 }, image: extraRibbons },
+  { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designPearlNumber },
   { id: "butterfly", name: "Butterfly", price: { bento: 4, retro: 6, medium: 8, large: 10 }, image: extraButterfly },
   { id: "sprinkles", name: "Sprinkles", price: { bento: 2, retro: 4, medium: 4, large: 6 }, image: extraSprinkles },
 ];
@@ -500,7 +501,7 @@ const colorSectionOverrides: Record<string, Partial<ColorSectionConfig>> = {
   "normal-with-border": { secondaryLabel: "Border Color", secondaryMax: 1 },
   "normal-without-border": { secondaryLabel: null },
   "golden-cake": { showBase: false, secondaryLabel: null },
-  "roses-please": { secondaryLabel: "Border Color", secondaryMax: 1, roseColor: true },
+  "roses-please": { secondaryLabel: "Border Color", secondaryMax: 1, roseColor: true }, // rose section labelled "Roses Color"
   "butterfly-garden": {
     secondaryLabel: null,
     baseNote: "Your cake will be created using a blend of your selected colour and white.",
@@ -519,6 +520,16 @@ const getColorConfig = (styleId?: string): ColorSectionConfig => ({
   hideExtras: false,
   ...(styleId ? colorSectionOverrides[styleId] : undefined),
 });
+
+// Per-design extras whitelist: when a design is listed here, ONLY these
+// extras are offered ([] hides the extras section entirely).
+const designAllowedExtras: Record<string, string[]> = {
+  "butterfly-garden": [],
+  "rainbow-cake": [],
+  "printed-picture": [],
+  "shag-cake": ["cherries", "glitter-cherries"],
+  "custom-drawing": ["gold-leaves", "glitter"],
+};
 
 // Collections: curated groupings shown as separate catalog sections
 const collections = [
@@ -638,6 +649,7 @@ const Catalog = () => {
   const { toast } = useToast();
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [showRequestForm, setShowRequestForm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
@@ -772,11 +784,16 @@ const Catalog = () => {
   };
 
   const colorCfg = getColorConfig(selectedCake?.styleId);
-  const excludedExtras = colorCfg.hideExtras
+  const allowedExtras = selectedCake ? designAllowedExtras[selectedCake.styleId] : undefined;
+  const excludedExtras = colorCfg.hideExtras || (allowedExtras && allowedExtras.length === 0)
     ? catalogExtras.map((e) => e.id)
     : selectedCake
-      ? getExcludedExtras(selectedCake.styleId)
+      ? getExcludedExtras(selectedCake.styleId).filter(
+          (id) => !allowedExtras || !allowedExtras.includes(id)
+        )
       : [];
+  const extrasHiddenForDesign =
+    colorCfg.hideExtras || (allowedExtras !== undefined && allowedExtras.length === 0);
 
   const handleToggleExtra = (extraId: string) => {
     const newExtras = selections.extras.includes(extraId)
@@ -1098,7 +1115,18 @@ const Catalog = () => {
                 fully bespoke design just for you. Tell us about your idea, your
                 colours and your occasion, and we'll bring it to life.
               </p>
-              <CustomRequestForm />
+              {!showRequestForm ? (
+                <Button
+                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-6 text-[14px] font-medium"
+                  onClick={() => setShowRequestForm(true)}
+                >
+                  REQUEST A CUSTOM CAKE
+                </Button>
+              ) : (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                  <CustomRequestForm />
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -1440,7 +1468,7 @@ const Catalog = () => {
               {colorCfg.roseColor && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Rose Color <span className="text-destructive">*</span>
+                  Roses Color <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
                     <TooltipContent><p className="text-xs max-w-[200px]">Choose one colour for the piped roses.</p></TooltipContent>
@@ -1599,7 +1627,7 @@ const Catalog = () => {
 
               {/* Extras Section */}
               <div className="space-y-3">
-                {!colorCfg.hideExtras && (
+                {!extrasHiddenForDesign && (
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
                   ✨ Extra
                   <Tooltip>
@@ -1608,10 +1636,11 @@ const Catalog = () => {
                   </Tooltip>
                 </label>
                 )}
-                {extraGroups.map((group) => {
+                {!extrasHiddenForDesign && extraGroups.map((group) => {
                   const visibleExtras = group.ids
                     .map(id => catalogExtras.find(e => e.id === id))
                     .filter((extra): extra is typeof catalogExtras[0] => !!extra && !excludedExtras.includes(extra.id))
+                    .filter(extra => !allowedExtras || allowedExtras.includes(extra.id))
                     .filter(extra => {
                       const price = extra.price[selections.size as keyof typeof extra.price];
                       return price !== undefined && price > 0;

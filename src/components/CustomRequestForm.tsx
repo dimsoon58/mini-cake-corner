@@ -10,36 +10,26 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const requestSchema = z
-  .object({
-    firstName: z.string().trim().min(1, "First name is required").max(100),
-    lastName: z.string().trim().min(1, "Last name is required").max(100),
-    email: z.string().trim().email("Please enter a valid email address").max(255),
-    phone: z
-      .string()
-      .trim()
-      .min(1, "Phone number is required")
-      .regex(/^[+\d][\d\s().\-/]{6,}$/, "Please enter a valid phone number"),
-    eventDate: z.date({ required_error: "Please select a date" }),
-    cakeSize: z.string().optional(),
-    guests: z.string().trim().optional(),
-    description: z
-      .string()
-      .trim()
-      .min(1, "Please describe your dream cake")
-      .max(3000),
-  })
-  .refine((data) => data.cakeSize || (data.guests && data.guests.length > 0), {
-    message: "Please select a size or tell us the number of guests",
-    path: ["cakeSize"],
-  });
+const requestSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required").max(100),
+  lastName: z.string().trim().min(1, "Last name is required").max(100),
+  email: z.string().trim().email("Please enter a valid email address").max(255),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Phone number is required")
+    .regex(/^[+\d][\d\s().\-/]{6,}$/, "Please enter a valid phone number"),
+  eventDate: z.date({ required_error: "Please select a date" }),
+  description: z
+    .string()
+    .trim()
+    .min(1, "Please describe your dream cake")
+    .max(3000),
+});
 
 type RequestFormData = z.infer<typeof requestSchema>;
-
-const cakeSizes = ["Bento (1-2 people)", "Retro Box (2-4 people)", "Medium (6-8 people)", "Large (10-15 people)"];
 
 const CustomRequestForm = () => {
   const [submitted, setSubmitted] = useState(false);
@@ -55,7 +45,6 @@ const CustomRequestForm = () => {
   } = useForm<RequestFormData>({ resolver: zodResolver(requestSchema) });
 
   const eventDate = watch("eventDate");
-  const cakeSize = watch("cakeSize");
 
   const onSubmit = (_data: RequestFormData) => {
     setSubmitted(true);
@@ -148,35 +137,6 @@ const CustomRequestForm = () => {
         </Popover>
         {errors.eventDate && <p className="text-sm text-destructive">{errors.eventDate.message}</p>}
       </div>
-
-      {/* Size or guests */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label>
-            Cake Size <span className="text-destructive">*</span>
-          </Label>
-          <Select value={cakeSize} onValueChange={(v) => setValue("cakeSize", v, { shouldValidate: true })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a size" />
-            </SelectTrigger>
-            <SelectContent>
-              {cakeSizes.map((size) => (
-                <SelectItem key={size} value={size}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.cakeSize && <p className="text-sm text-destructive">{errors.cakeSize.message}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="cr-guests">Number of Guests</Label>
-          <Input id="cr-guests" type="number" min="1" placeholder="e.g. 12" {...register("guests")} />
-        </div>
-      </div>
-      <p className="text-xs text-muted-foreground -mt-2">
-        Not sure which size to choose? Simply tell us the number of guests.
-      </p>
 
       {/* Description */}
       <div className="space-y-1.5">
