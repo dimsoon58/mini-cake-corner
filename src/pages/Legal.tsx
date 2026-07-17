@@ -244,7 +244,7 @@ const Legal = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-16 max-w-3xl">
-        <h1 className="font-serif text-3xl md:text-4xl text-center text-foreground mb-2">
+        <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-4xl text-center text-foreground mb-2">
           Legal Notice, Terms and Conditions of Sale & Privacy Policy
         </h1>
         <p className="text-center text-muted-foreground mb-10">

@@ -20,7 +20,7 @@ const CommunityPress = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-16">
-        <h1 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-4">
+        <h1 className="font-sans uppercase tracking-[0.105em] text-4xl md:text-5xl text-center text-foreground mb-4">
           Press
         </h1>
         <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-12">

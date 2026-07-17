@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Palette, Truck, Sparkles, ChefHat } from "lucide-react";
 import Layout from "@/components/Layout";
 import CorporateQuoteForm from "@/components/CorporateQuoteForm";
+import { Button } from "@/components/ui/button";
 
 import corporateEvent1 from "@/assets/corporate-event-1.png";
 import corporateEvent2 from "@/assets/corporate-event-2.png";
@@ -16,127 +17,200 @@ import corporateEvent10 from "@/assets/corporate-event-10.png";
 import corporateEvent11 from "@/assets/corporate-event-11.png";
 import corporateEvent12 from "@/assets/corporate-event-12.png";
 
-const sections = [
+const galleryPhotos = [
+  corporateEvent1, corporateEvent2, corporateEvent3, corporateEvent4,
+  corporateEvent5, corporateEvent6, corporateEvent7, corporateEvent8,
+  corporateEvent9, corporateEvent10, corporateEvent11, corporateEvent12,
+];
+
+const whyItems = [
   {
-    title: "VIP Reception",
-    images: [
-      { src: corporateEvent4, alt: "Custom cake with illustration for VIP reception" },
-      { src: corporateEvent5, alt: "Catering service with custom cake at a reception" },
-      { src: corporateEvent6, alt: "Cake with custom artistic design" },
-    ],
+    icon: Palette,
+    title: "Tailor-made",
+    text: "Every cake is designed to match your brand, event or campaign.",
   },
   {
-    title: "Corporate Celebration",
-    images: [
-      { src: corporateEvent1, alt: "Custom cake with company logo and sparklers" },
-      { src: corporateEvent2, alt: "Custom Red Velvet cake for corporate event" },
-      { src: corporateEvent3, alt: "Cake with printed logo for brand launch" },
-    ],
+    icon: Truck,
+    title: "Delivered Across Geneva",
+    text: "Reliable delivery and on-site setup available.",
   },
   {
-    title: "Charity Event",
-    images: [
-      { src: corporateEvent10, alt: "Elegant blue cake for charity event" },
-      { src: corporateEvent11, alt: "Cake decorating workshop for team building" },
-      { src: corporateEvent12, alt: "Artistic creation with vintage details for prestigious event" },
-    ],
+    icon: Sparkles,
+    title: "Fully Personalised",
+    text: "Colours, logos, edible prints and custom designs.",
   },
   {
-    title: "Corporate Gift",
-    images: [
-      { src: corporateEvent8, alt: "Elegant packaging with ribbon for corporate gifts" },
-      { src: corporateEvent9, alt: "Assortment of custom cakes for brand event" },
-      { src: corporateEvent7, alt: "Colorful custom cakes for Yuh brand partnership" },
-    ],
+    icon: ChefHat,
+    title: "Handmade in Geneva",
+    text: "Freshly made with premium ingredients and handcrafted finishes.",
   },
 ];
 
-const ImageCarousel = ({ images }: { images: { src: string; alt: string }[] }) => {
-  const [current, setCurrent] = useState(0);
+const services = [
+  { label: "VIP RECEPTIONS", image: corporateEvent2 },
+  { label: "CORPORATE EVENTS", image: corporateEvent5 },
+  { label: "CHARITY EVENTS", image: corporateEvent8 },
+  { label: "CORPORATE GIFTS", image: corporateEvent11 },
+];
 
-  const prev = () => setCurrent((c) => (c === 0 ? images.length - 1 : c - 1));
-  const next = () => setCurrent((c) => (c === images.length - 1 ? 0 : c + 1));
-
-  return (
-    <div className="relative group">
-      <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
-        <img
-          src={images[current].src}
-          alt={images[current].alt}
-          className="w-full h-full object-cover transition-all duration-500"
-        />
-      </div>
-
-      <button
-        onClick={prev}
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-none bg-background/80 backdrop-blur-sm border border-border shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
-        aria-label="Previous image"
-      >
-        <ChevronLeft className="w-5 h-5" />
-      </button>
-      <button
-        onClick={next}
-        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-none bg-background/80 backdrop-blur-sm border border-border shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
-        aria-label="Next image"
-      >
-        <ChevronRight className="w-5 h-5" />
-      </button>
-
-      {/* Dots */}
-      <div className="flex justify-center gap-2 mt-3">
-        {images.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrent(i)}
-            className={`w-2 h-2 rounded-full transition-all ${
-              i === current ? "bg-primary w-6" : "bg-muted-foreground/30"
-            }`}
-            aria-label={`Go to image ${i + 1}`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
+const SectionTitle = ({ children }: { children: React.ReactNode }) => (
+  <h2 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-4xl text-center text-foreground mb-14">
+    {children}
+  </h2>
+);
 
 const CorporateEvent = () => {
   const [quoteOpen, setQuoteOpen] = useState(false);
+  const galleryRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    document.title = "Corporate Cakes & Events – Bento Cake Studio";
+    return () => {
+      document.title = "Bento Cake Studio Geneva";
+    };
+  }, []);
+
+  const scrollGallery = (direction: "left" | "right") => {
+    galleryRef.current?.scrollBy({
+      left: direction === "left" ? -400 : 400,
+      behavior: "smooth",
+    });
+  };
 
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-16">
-        <h1 className="font-serif text-4xl md:text-5xl text-center text-foreground mb-4">
-          Corporate Events
-        </h1>
-
-        {/* CTA Section */}
-        <div className="text-center mb-12 max-w-2xl mx-auto">
-          <p className="text-muted-foreground text-lg mb-2">
-            Interested in our corporate services?
+    <Layout overlayHero>
+      {/* Hero — full width, full screen */}
+      <section className="relative h-screen min-h-[560px] w-full overflow-hidden">
+        {/* Placeholder photo — swap for the dedicated hero image when provided */}
+        <img
+          src={corporateEvent5}
+          alt="Corporate cakes and events by Bento Cake Studio"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-foreground/40" />
+        <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
+          <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-5xl text-cream leading-tight mb-6 max-w-4xl">
+            CORPORATE CAKES & EVENTS
+          </h1>
+          <p className="text-cream/95 text-base md:text-lg font-light max-w-2xl mb-10">
+            Bespoke cakes, dessert tables and sweet experiences designed for
+            brands, corporate events and unforgettable celebrations.
           </p>
-          <p className="text-muted-foreground text-lg mb-6">
-            Let's create something special for your next corporate event.
-          </p>
-          <button
+          <Button
             onClick={() => setQuoteOpen(true)}
-            className="inline-flex items-center justify-center h-11 px-10 text-base bg-primary text-primary-foreground rounded-full font-medium tracking-wide hover:bg-primary/90 transition-colors"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
           >
-            Get a Quote
+            REQUEST A QUOTE
+          </Button>
+        </div>
+      </section>
+
+      {/* Why companies choose us */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4">
+          <SectionTitle>WHY COMPANIES CHOOSE BENTO CAKE STUDIO?</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 max-w-6xl mx-auto">
+            {whyItems.map((item) => (
+              <div key={item.title} className="text-center flex flex-col items-center">
+                <item.icon className="w-10 h-10 text-primary mb-5" strokeWidth={1.25} />
+                <h3 className="font-sans text-sm font-semibold uppercase tracking-[0.105em] text-foreground mb-3">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-foreground/75 leading-relaxed max-w-[240px]">
+                  {item.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Our services — home-page style cards */}
+      <section className="py-20 bg-background">
+        <div className="w-full px-4 sm:px-8">
+          <SectionTitle>OUR SERVICES</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {services.map((service) => (
+              <button
+                key={service.label}
+                onClick={() => setQuoteOpen(true)}
+                className="relative block aspect-[3/4] overflow-hidden group text-left"
+              >
+                <img
+                  src={service.image}
+                  alt={service.label}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-foreground/20" />
+                <div className="absolute left-6 bottom-6">
+                  <p className="text-cream uppercase tracking-[0.105em] text-base md:text-lg font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+                    {service.label}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Gallery */}
+      <section className="py-20 bg-cream">
+        <div className="container mx-auto px-4">
+          <SectionTitle>OUR CORPORATE CREATIONS</SectionTitle>
+        </div>
+        <div className="relative px-4">
+          <button
+            onClick={() => scrollGallery("left")}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md"
+            aria-label="Scroll gallery left"
+          >
+            <ChevronLeft className="h-6 w-6 text-foreground" />
+          </button>
+          <div
+            ref={galleryRef}
+            className="flex gap-4 overflow-x-auto scroll-smooth px-4"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {galleryPhotos.map((photo, index) => (
+              <div key={index} className="flex-shrink-0 w-80 h-96 overflow-hidden">
+                <img
+                  src={photo}
+                  alt={`Corporate event ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => scrollGallery("right")}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md"
+            aria-label="Scroll gallery right"
+          >
+            <ChevronRight className="h-6 w-6 text-foreground" />
           </button>
         </div>
+      </section>
 
-        {/* Carousel sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-          {sections.map((section) => (
-            <div key={section.title}>
-              <h2 className="font-serif text-2xl text-foreground mb-4 text-center">
-                {section.title}
-              </h2>
-              <ImageCarousel images={section.images} />
-            </div>
-          ))}
+      {/* Trusted by — logo slots ready for future insertion */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4">
+          <SectionTitle>TRUSTED BY</SectionTitle>
+          {/* Add client logos here: drop images into src/assets and render
+              <img> elements inside this flex container. */}
+          <div className="flex flex-wrap justify-center items-center gap-x-16 gap-y-10 max-w-4xl mx-auto min-h-[80px]">
+            {[1, 2, 3, 4].map((slot) => (
+              <div
+                key={slot}
+                className="w-36 h-16 border border-dashed border-border/70 flex items-center justify-center"
+              >
+                <span className="text-[10px] uppercase tracking-[0.105em] text-muted-foreground/50">
+                  Your logo
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
 
       <CorporateQuoteForm open={quoteOpen} onOpenChange={setQuoteOpen} />
     </Layout>

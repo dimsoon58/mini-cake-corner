@@ -115,7 +115,7 @@ const FAQ = () => {
   return (
     <Layout>
       <main className="max-w-4xl mx-auto px-6 py-16">
-        <h1 className="text-4xl md:text-5xl font-serif text-foreground mb-12 text-center">
+        <h1 className="font-sans uppercase tracking-[0.105em] text-4xl md:text-5xl text-foreground mb-12 text-center">
           Frequently Asked Questions
         </h1>
         
