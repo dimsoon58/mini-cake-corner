@@ -251,7 +251,7 @@ const Index = () => {
 
         {/* Workshops banner — full browser width, no side margins */}
         <Link
-          to="/contact"
+          to="/workshop"
           className="relative block mt-8 w-full aspect-[16/9] md:aspect-[16/5] overflow-hidden group"
         >
           <img

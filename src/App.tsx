@@ -17,6 +17,7 @@ import CommunityPress from "./pages/CommunityPress";
 import CorporateEvent from "./pages/CorporateEvent";
 import Catalog from "./pages/Catalog";
 import DotCakes from "./pages/DotCakes";
+import Workshop from "./pages/Workshop";
 import Inspiration from "./pages/Inspiration";
 import KitBentoCake from "./pages/KitBentoCake";
 import PaymentSuccess from "./pages/PaymentSuccess";
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/corporate-event" element={<CorporateEvent />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/dot-cakes" element={<DotCakes />} />
+            <Route path="/workshop" element={<Workshop />} />
             <Route path="/kit-bento-cake" element={<KitBentoCake />} />
             <Route path="/inspiration" element={<Inspiration />} />
             <Route path="/faq" element={<FAQ />} />

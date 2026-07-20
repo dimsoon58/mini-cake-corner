@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -90,7 +91,7 @@ import img81 from "@/assets/inspiration-81.jpg";
 import img82 from "@/assets/inspiration-82.jpg";
 import img83 from "@/assets/inspiration-83.jpg";
 
-const ALL_IMAGES = [
+export const ALL_IMAGES = [
   img1, img2, img3, img4, img5, img6, img7, img8,
   img9, img10, img11, img12, img13, img14, img15,
   img16, img17, img18, img19, img20, img21, img22,
@@ -126,26 +127,33 @@ const LazyImage = ({ src, index }: { src: string; index: number }) => {
   }, []);
 
   return (
-    <a
-      href={PINTEREST_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      ref={ref as any}
-      className="block aspect-square rounded-md overflow-hidden bg-muted group"
-    >
-      {isVisible && (
-        <img
-          src={src}
-          alt={`Bento Cake creation ${index + 1}`}
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setLoaded(true)}
-          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 group-hover:shadow-lg ${
-            loaded ? "opacity-100" : "opacity-0"
-          }`}
-        />
-      )}
-    </a>
+    <div ref={ref}>
+      <a
+        href={PINTEREST_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block aspect-square rounded-none overflow-hidden bg-muted group"
+      >
+        {isVisible && (
+          <img
+            src={src}
+            alt={`Bento Cake creation ${index + 1}`}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setLoaded(true)}
+            className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 group-hover:shadow-lg ${
+              loaded ? "opacity-100" : "opacity-0"
+            }`}
+          />
+        )}
+      </a>
+      <Link
+        to={`/catalog?inspiration=${index}`}
+        className="mt-2 block w-full bg-primary hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-[11px] font-medium py-2.5 transition-colors"
+      >
+        I WANT THIS CAKE
+      </Link>
+    </div>
   );
 };
 

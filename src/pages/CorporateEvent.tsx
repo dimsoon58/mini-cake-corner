@@ -16,6 +16,10 @@ import corporateEvent9 from "@/assets/corporate-event-9.png";
 import corporateEvent10 from "@/assets/corporate-event-10.png";
 import corporateEvent11 from "@/assets/corporate-event-11.png";
 import corporateEvent12 from "@/assets/corporate-event-12.png";
+import pressLogoEleventy from "@/assets/press-logo-eleventy.png";
+import pressLogoSurya from "@/assets/press-logo-surya.png";
+import pressLogoAmc from "@/assets/press-logo-amc.png";
+import pressLogoYuh from "@/assets/press-logo-yuh.png";
 
 const galleryPhotos = [
   corporateEvent1, corporateEvent2, corporateEvent3, corporateEvent4,
@@ -90,7 +94,7 @@ const CorporateEvent = () => {
         <div className="absolute inset-0 bg-foreground/40" />
         <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
           <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-5xl text-cream leading-tight mb-6 max-w-4xl">
-            CORPORATE CAKES & EVENTS
+            CORPORATE & PRESS
           </h1>
           <p className="text-cream/95 text-base md:text-lg font-light max-w-2xl mb-10">
             Bespoke cakes, dessert tables and sweet experiences designed for
@@ -191,22 +195,55 @@ const CorporateEvent = () => {
         </div>
       </section>
 
-      {/* Trusted by — logo slots ready for future insertion */}
+      {/* Press */}
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
-          <SectionTitle>TRUSTED BY</SectionTitle>
-          {/* Add client logos here: drop images into src/assets and render
-              <img> elements inside this flex container. */}
-          <div className="flex flex-wrap justify-center items-center gap-x-16 gap-y-10 max-w-4xl mx-auto min-h-[80px]">
-            {[1, 2, 3, 4].map((slot) => (
-              <div
-                key={slot}
-                className="w-36 h-16 border border-dashed border-border/70 flex items-center justify-center"
-              >
-                <span className="text-[10px] uppercase tracking-[0.105em] text-muted-foreground/50">
-                  Your logo
-                </span>
+          <SectionTitle>PRESS</SectionTitle>
+          <p className="text-center text-muted-foreground text-sm max-w-2xl mx-auto mb-14">
+            Magazine features, press articles, interviews, collaborations and
+            media appearances.
+          </p>
+          {/* Press features: replace these placeholders with real articles —
+              each card takes an image, a publication name, a title and a link. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {[1, 2, 3].map((slot) => (
+              <div key={slot} className="border border-border/60 flex flex-col">
+                <div className="aspect-[4/3] bg-muted/40 flex items-center justify-center">
+                  <span className="text-[10px] uppercase tracking-[0.105em] text-muted-foreground/50">
+                    Feature coming soon
+                  </span>
+                </div>
+                <div className="p-5 text-center">
+                  <p className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground mb-1.5">
+                    Publication
+                  </p>
+                  <p className="font-serif text-lg text-foreground/60 italic">
+                    Press feature title
+                  </p>
+                </div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Trusted by */}
+      <section className="py-20 bg-cream">
+        <div className="container mx-auto px-4">
+          <SectionTitle>TRUSTED BY</SectionTitle>
+          <div className="flex flex-wrap justify-center items-center gap-x-20 gap-y-12 max-w-5xl mx-auto">
+            {[
+              { src: pressLogoEleventy, alt: "Eleventy" },
+              { src: pressLogoSurya, alt: "Sūrya Children" },
+              { src: pressLogoAmc, alt: "AMC Studio" },
+              { src: pressLogoYuh, alt: "Yuh" },
+            ].map((logo) => (
+              <img
+                key={logo.alt}
+                src={logo.src}
+                alt={logo.alt}
+                className="h-16 md:h-20 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+              />
             ))}
           </div>
         </div>

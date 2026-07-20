@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import CustomRequestForm from "@/components/CustomRequestForm";
+import { ALL_IMAGES as inspirationImages } from "@/pages/Inspiration";
 import { format, addDays } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -510,6 +512,8 @@ const colorSectionOverrides: Record<string, Partial<ColorSectionConfig>> = {
   "shag-cake": { showBase: false, secondaryLabel: "Choose Your Colors", secondaryMax: 6 },
   "rainbow-cake": { secondaryLabel: "Border Color", secondaryMax: 1 },
   "printed-picture": { secondaryLabel: "Border Color", secondaryMax: 1 },
+  // Inspiration orders: shape, flavour, text and candles only
+  inspiration: { showBase: false, secondaryLabel: null, hideExtras: true },
 };
 
 const getColorConfig = (styleId?: string): ColorSectionConfig => ({
@@ -650,6 +654,7 @@ const Catalog = () => {
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
+  const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
@@ -1018,7 +1023,7 @@ const Catalog = () => {
       comment: selectedCake.images && selectedCake.images.length > 1
         ? `[Preferred design: Option ${selections.shagDesignPreference + 1}]${selections.comment ? " " + selections.comment : ""}`
         : selections.comment,
-      imageUrls: [],
+      imageUrls: selectedCake.styleId === "inspiration" ? [selectedCake.image] : [],
       imageFiles: [...selections.commentImages],
       total: calculatePrice(),
     });
@@ -1031,6 +1036,25 @@ const Catalog = () => {
   // Split candles into packs and individuals
   const packCandles = candles.filter(c => c.hasPack);
   const individualCandles = candles.filter(c => !c.hasPack);
+
+  // Deep link from the Inspiration page: open the simplified panel
+  useEffect(() => {
+    const param = searchParams.get("inspiration");
+    if (param === null) return;
+    const index = parseInt(param, 10);
+    if (isNaN(index) || index < 0 || index >= inspirationImages.length) return;
+    handleSelectCake({
+      id: `inspiration-${index + 1}`,
+      name: `Inspiration Cake #${index + 1}`,
+      description: "Based on the inspiration photo you selected",
+      image: inspirationImages[index],
+      styleId: "inspiration",
+      styleName: `Inspiration #${index + 1}`,
+      stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+      disableText: false,
+    } as (typeof catalog)[number]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     document.title = "Bento Cakes – Bento Cake Studio";
