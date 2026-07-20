@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import CartIcon from "@/components/CartIcon";
 import logoBrown from "@/assets/logo-brown.png";
 import logoCream from "@/assets/logo-cream.png";
@@ -29,6 +29,19 @@ const navLinks: NavItem[] = [
       { to: "/community-press", label: "Press" },
     ],
   },
+  { to: "/faq", label: "FAQ" },
+  { to: "/contact", label: "Contact" },
+];
+
+/* Flat list for the mobile menu — every page reachable, Workshop included */
+const mobileLinks: { to: string; label: string }[] = [
+  { to: "/", label: "Home" },
+  { to: "/catalog", label: "Bento Cakes" },
+  { to: "/dot-cakes", label: "Dot Cakes" },
+  { to: "/kit-bento-cake", label: "DIY Kit" },
+  { to: "/inspiration", label: "Inspiration" },
+  { to: "/workshop", label: "Workshop" },
+  { to: "/corporate-event", label: "Corporate & Press" },
   { to: "/faq", label: "FAQ" },
   { to: "/contact", label: "Contact" },
 ];
@@ -98,6 +111,7 @@ const DropdownNav = ({
 const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps) => {
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!overlayHero) return;
@@ -107,6 +121,21 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
     return () => window.removeEventListener("scroll", onScroll);
   }, [overlayHero]);
 
+  // Lock the page behind the mobile menu
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [menuOpen]);
+
+  // Close the menu on navigation
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
   const light = overlayHero && !scrolled;
 
   const isActive = (to: string) => {
@@ -114,7 +143,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
     return location.pathname === to;
   };
 
-  const renderNavItem = (item: NavItem, mobile = false) => {
+  const renderNavItem = (item: NavItem) => {
     if ("children" in item) {
       return <DropdownNav key={item.label} item={item} isActive={isActive} light={light} />;
     }
@@ -124,7 +153,6 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
         to={item.to}
         className={cn(
           navLinkClass(light),
-          mobile && "text-[11px]",
           isActive(item.to) ? "font-semibold" : "hover:opacity-70"
         )}
       >
@@ -145,14 +173,30 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
         )}
       >
         <div className="container mx-auto px-4 flex items-center justify-between py-3">
-          <Link to="/" className="flex-shrink-0">
+          {/* Mobile: hamburger left */}
+          {!hideNav && (
+            <button
+              onClick={() => setMenuOpen(true)}
+              className="md:hidden p-2 -ml-2"
+              aria-label="Open menu"
+            >
+              <Menu className={cn("w-6 h-6", light ? "text-cream" : "text-foreground")} strokeWidth={1.5} />
+            </button>
+          )}
+
+          {/* Logo: centred on mobile, left on desktop */}
+          <Link
+            to="/"
+            className="flex-shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0"
+          >
             <img
               src={light ? logoCream : logoBrown}
               alt="Bento Cake Studio"
-              className="h-10 md:h-14 w-auto"
+              className="h-9 md:h-14 w-auto"
             />
           </Link>
 
+          {/* Desktop nav */}
           {!hideNav && (
             <nav className="hidden md:flex items-center gap-7">
               {navLinks.map((link) => renderNavItem(link))}
@@ -163,13 +207,39 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
             <CartIcon />
           </div>
         </div>
-
-        {!hideNav && (
-          <nav className="md:hidden flex flex-wrap justify-center gap-x-4 gap-y-2 px-4 pb-3">
-            {navLinks.map((link) => renderNavItem(link, true))}
-          </nav>
-        )}
       </header>
+
+      {/* Mobile menu — full-screen brand-yellow panel */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-[70] bg-background flex flex-col md:hidden animate-in fade-in slide-in-from-left-4 duration-300">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+            <button
+              onClick={() => setMenuOpen(false)}
+              className="p-2 -ml-2"
+              aria-label="Close menu"
+            >
+              <X className="w-6 h-6 text-foreground" strokeWidth={1.5} />
+            </button>
+            <img src={logoBrown} alt="Bento Cake Studio" className="h-9 w-auto absolute left-1/2 -translate-x-1/2" />
+            <div className="w-6" />
+          </div>
+          <nav className="flex-1 overflow-y-auto py-8 px-6">
+            {mobileLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={() => setMenuOpen(false)}
+                className={cn(
+                  "block py-4 border-b border-border/30 uppercase tracking-[0.105em] text-base font-medium",
+                  isActive(link.to) ? "text-primary font-semibold" : "text-foreground"
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      )}
 
       {children}
     </div>
