@@ -193,7 +193,9 @@ const DotCakes = () => {
         <div className="max-w-4xl mx-auto space-y-14">
           {/* 1. Pick-up date */}
           <section className="space-y-3">
-            <SectionHeading>Choose Your Pick-Up Date</SectionHeading>
+            <SectionHeading>
+              Choose Your Date<span className="text-destructive ml-1">*</span>
+            </SectionHeading>
             <p className="text-center text-sm text-muted-foreground">
               Minimum 4 days' notice required.
             </p>
@@ -224,9 +226,12 @@ const DotCakes = () => {
             </div>
           </section>
 
-          {/* 2. Choose quantity — packs only */}
+          {/* 2. Choose quantity — appears once a date is selected */}
+          {orderDate && (
           <section className="space-y-4">
-            <SectionHeading>Choose Quantity</SectionHeading>
+            <SectionHeading>
+              Choose Your Quantity<span className="text-destructive ml-1">*</span>
+            </SectionHeading>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {packs.map((p) => (
                 <button
@@ -254,6 +259,7 @@ const DotCakes = () => {
               <p>Deluxe flavour: +CHF 2.50 per Dot Cake</p>
             </div>
           </section>
+          )}
 
           {/* 3. Flavour selection — DIY Kit style tiles */}
           {pack && (

@@ -122,7 +122,7 @@ const FAQ = () => {
         <div className="space-y-10">
           {faqSections.map((section, sectionIndex) => (
             <div key={sectionIndex}>
-              <h2 className="text-2xl font-serif text-primary mb-4">{section.title}</h2>
+              <h2 className="font-sans uppercase tracking-[0.105em] text-xl font-semibold text-foreground mb-4">{section.title}</h2>
               <Accordion type="single" collapsible className="w-full">
                 {section.questions.map((item, itemIndex) => (
                   <AccordionItem key={itemIndex} value={`${sectionIndex}-${itemIndex}`}>

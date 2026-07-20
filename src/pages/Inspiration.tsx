@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const PINTEREST_URL = "https://ch.pinterest.com/bentocakestudiosnc/_saved/";
@@ -127,13 +127,8 @@ const LazyImage = ({ src, index }: { src: string; index: number }) => {
   }, []);
 
   return (
-    <div ref={ref}>
-      <a
-        href={PINTEREST_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block aspect-square rounded-none overflow-hidden bg-muted group"
-      >
+    <div ref={ref} className="relative aspect-square rounded-none overflow-hidden bg-muted group">
+      <a href={PINTEREST_URL} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
         {isVisible && (
           <img
             src={src}
@@ -149,9 +144,11 @@ const LazyImage = ({ src, index }: { src: string; index: number }) => {
       </a>
       <Link
         to={`/catalog?inspiration=${index}`}
-        className="mt-2 block w-full bg-primary hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-[11px] font-medium py-2.5 transition-colors"
+        aria-label="Order this cake"
+        title="Order this cake"
+        className="absolute bottom-2 right-2 bg-background/90 hover:bg-primary text-foreground hover:text-primary-foreground p-2.5 rounded-none shadow-md transition-colors"
       >
-        I WANT THIS CAKE
+        <ShoppingBag className="w-4 h-4" strokeWidth={1.5} />
       </Link>
     </div>
   );
@@ -175,7 +172,8 @@ const Inspiration = () => {
             Inspiration
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Explore our creations and find inspiration for your next cake
+            A gallery of our favourite creations to inspire your next
+            celebration. More ideas?
           </p>
         </div>
 

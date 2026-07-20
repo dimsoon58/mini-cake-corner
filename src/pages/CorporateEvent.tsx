@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Palette, Truck, Sparkles, ChefHat } from "lucide-react";
+import { ChevronLeft, ChevronRight, Palette, Truck, HeartHandshake, ChefHat } from "lucide-react";
 import Layout from "@/components/Layout";
 import CorporateQuoteForm from "@/components/CorporateQuoteForm";
 import { Button } from "@/components/ui/button";
@@ -30,8 +30,8 @@ const galleryPhotos = [
 const whyItems = [
   {
     icon: Palette,
-    title: "Tailor-made",
-    text: "Every cake is designed to match your brand, event or campaign.",
+    title: "Brand-Perfect Design",
+    text: "Your logo, brand colours and visual identity — handcrafted into every cake, from edible prints to custom colour palettes.",
   },
   {
     icon: Truck,
@@ -39,22 +39,22 @@ const whyItems = [
     text: "Reliable delivery and on-site setup available.",
   },
   {
-    icon: Sparkles,
-    title: "Fully Personalised",
-    text: "Colours, logos, edible prints and custom designs.",
+    icon: HeartHandshake,
+    title: "Dedicated Service",
+    text: "A personalised quote within 48 hours, a single point of contact, and end-to-end support from first brief to final delivery.",
   },
   {
     icon: ChefHat,
-    title: "Handmade in Geneva",
-    text: "Freshly made with premium ingredients and handcrafted finishes.",
+    title: "Handcrafted in Geneva",
+    text: "Made fresh to order with premium ingredients, no preservatives, by our Geneva atelier.",
   },
 ];
 
 const services = [
-  { label: "VIP RECEPTIONS", image: corporateEvent2 },
-  { label: "CORPORATE EVENTS", image: corporateEvent5 },
-  { label: "CHARITY EVENTS", image: corporateEvent8 },
-  { label: "CORPORATE GIFTS", image: corporateEvent11 },
+  { label: "CORPORATE GIFTS", image: corporateEvent2 },
+  { label: "TEAM CELEBRATIONS", image: corporateEvent5 },
+  { label: "CLIENT & VIP EVENTS", image: corporateEvent8 },
+  { label: "PRODUCT LAUNCHES & BRAND EVENTS", image: corporateEvent11 },
 ];
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (

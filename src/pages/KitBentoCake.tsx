@@ -542,7 +542,7 @@ const KitBentoCake = () => {
 
           {/* Step 6: Candles (Optional) - Packs first, then individual */}
           {showCandles && (
-            <section ref={candlesRef} className="space-y-8 bg-[#FFE4EC] -mx-4 px-4 py-8 rounded-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+            <section ref={candlesRef} className="space-y-8 py-8">
               <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em] text-foreground">
                 Add Candles (Optional)
               </h2>
