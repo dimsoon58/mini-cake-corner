@@ -109,5 +109,5 @@ All colors MUST be HSL.
 
 /* Cursive script: use the font's natural spacing so letters connect cleanly */
 .font-script {
-  letter-spacing: 0.1em;
+  letter-spacing: 0.15em;
 }
