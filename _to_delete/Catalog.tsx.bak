@@ -271,7 +271,6 @@ const catalog = [
   },
   {
     id: "heart-bomb",
-    bestSeller: true,
     name: "Heart Bomb",
     description: "A romantic cake covered in delicate heart decorations",
     image: designHeartBomb,
@@ -303,7 +302,6 @@ const catalog = [
   },
   {
     id: "pearl-border-retro",
-    bestSeller: true,
     name: "Pearl Border × Retro Decoration",
     description: "Three elegant pearl borders with a retro decoration",
     image: designPearlBorders,
@@ -1090,13 +1088,8 @@ const Catalog = () => {
                   {cakes.map((cake) => (
                     <div
                       key={cake.id}
-                      className="relative rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
+                      className="rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
                     >
-                      {(cake as any).bestSeller && (
-                        <span className="absolute top-3 right-3 z-20 bg-cream text-primary text-[10px] font-semibold uppercase tracking-[0.14em] px-3 py-1.5 shadow-sm">
-                          Best Seller
-                        </span>
-                      )}
                       {cake.images && cake.images.length > 1 ? (
                         <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
                       ) : (
