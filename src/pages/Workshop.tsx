@@ -88,14 +88,14 @@ const Workshop = () => {
   return (
     <Layout overlayHero>
       {/* Hero */}
-      <section className="relative h-screen min-h-[560px] w-full overflow-hidden">
+      <section className="relative min-h-[80vh] w-full overflow-hidden">
         <img
           src={workshopHero}
           alt="Cake decorating workshop at Bento Cake Studio"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-foreground/40" />
-        <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
+        <div className="relative min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
           <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-5xl text-cream leading-tight mb-6 max-w-4xl">
             WORKSHOP
           </h1>
