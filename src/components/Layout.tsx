@@ -22,6 +22,7 @@ const navLinks: NavItem[] = [
 
   { to: "/kit-bento-cake", label: "DIY Kit" },
   { to: "/inspiration", label: "Inspiration" },
+  { to: "/workshop", label: "Workshop" },
   { to: "/corporate-event", label: "Corporate & Press" },
   { to: "/faq", label: "FAQ" },
   { to: "/contact", label: "Contact" },
