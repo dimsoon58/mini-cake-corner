@@ -228,7 +228,7 @@ const Index = () => {
               <Link
                 key={category.label}
                 to={category.to}
-                className="relative block aspect-[3/4] overflow-hidden group"
+                className="relative block aspect-square overflow-hidden group"
               >
                 <img
                   src={category.image}
