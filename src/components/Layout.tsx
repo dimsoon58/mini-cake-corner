@@ -125,7 +125,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
             <img
               src={light ? logoCream : logoBrown}
               alt="Bento Cake Studio"
-              className="h-9 md:h-14 w-auto"
+              className="h-7 md:h-10 w-auto"
             />
           </Link>
 
@@ -153,7 +153,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
             >
               <X className="w-6 h-6 text-foreground" strokeWidth={1.5} />
             </button>
-            <img src={logoBrown} alt="Bento Cake Studio" className="h-9 w-auto absolute left-1/2 -translate-x-1/2" />
+            <img src={logoBrown} alt="Bento Cake Studio" className="h-7 w-auto absolute left-1/2 -translate-x-1/2" />
             <div className="w-6" />
           </div>
           <nav className="flex-1 overflow-y-auto py-8 px-6">
