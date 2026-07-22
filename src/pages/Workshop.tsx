@@ -97,7 +97,7 @@ const Workshop = () => {
         <div className="absolute inset-0 bg-foreground/40" />
         <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
           <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-5xl text-cream leading-tight mb-6 max-w-4xl">
-            CREATE, DECORATE & CELEBRATE
+            WORKSHOP
           </h1>
           <p className="text-cream/95 text-base md:text-lg font-light max-w-2xl mb-10">
             Learn to decorate your own Bento Cake in a fun and creative
@@ -130,7 +130,7 @@ const Workshop = () => {
                   <img src={w.image} alt={w.title} className="w-full h-full object-cover" />
                 </div>
                 <div className="p-7 flex flex-col flex-1">
-                  <h3 className="font-sans uppercase tracking-[0.105em] text-base font-semibold text-foreground mb-3">
+                  <h3 className="font-sans uppercase tracking-[0.105em] text-base font-semibold text-foreground text-center mb-3">
                     {w.emoji} {w.title}
                   </h3>
                   <p className="text-sm text-foreground/75 mb-5">{w.tagline}</p>
@@ -165,7 +165,7 @@ const Workshop = () => {
                 <img src={privateWorkshop.image} alt={privateWorkshop.title} className="w-full h-full object-cover" />
               </div>
               <div className="p-7 flex flex-col flex-1">
-                <h3 className="font-sans uppercase tracking-[0.105em] text-base font-semibold text-foreground mb-3">
+                <h3 className="font-sans uppercase tracking-[0.105em] text-base font-semibold text-foreground text-center mb-3">
                   {privateWorkshop.emoji} {privateWorkshop.title}
                 </h3>
                 <p className="text-sm text-foreground/75 mb-5">{privateWorkshop.tagline}</p>
