@@ -890,7 +890,7 @@ const CartItemEditor = ({
       {/* Upload */}
       <EditSection label="Upload" tooltip="Upload an inspiration picture if you would like.">
         <p className="text-xs text-muted-foreground mb-2">
-          Upload reference images (max 5 — JPG, PNG, WEBP)
+          Upload reference images (max 5, JPG, PNG, WEBP)
         </p>
         <input
           ref={commentFileInputRef}

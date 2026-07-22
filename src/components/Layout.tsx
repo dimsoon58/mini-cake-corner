@@ -28,7 +28,7 @@ const navLinks: NavItem[] = [
   { to: "/contact", label: "Contact" },
 ];
 
-/* Flat list for the mobile menu — every page reachable, Workshop included */
+/* Flat list for the mobile menu, every page reachable, Workshop included */
 const mobileLinks: { to: string; label: string }[] = [
   { to: "/", label: "Home" },
   { to: "/catalog", label: "Bento Cakes" },
@@ -143,7 +143,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
         </div>
       </header>
 
-      {/* Mobile menu — full-screen brand-yellow panel */}
+      {/* Mobile menu, full-screen brand-yellow panel */}
       {menuOpen && (
         <div className="fixed inset-0 z-[70] bg-background flex flex-col md:hidden animate-in fade-in slide-in-from-left-4 duration-300">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">

@@ -1141,7 +1141,7 @@ const Catalog = () => {
                 Can't find what you're looking for?
               </h3>
               <p className="text-muted-foreground text-sm mb-10">
-                Every cake in our collections can be personalised — but if you're
+                Every cake in our collections can be personalised, but if you're
                 dreaming of something completely different, we'd love to create a
                 fully bespoke design just for you. Tell us about your idea, your
                 colours and your occasion, and we'll bring it to life.
@@ -1425,7 +1425,7 @@ const Catalog = () => {
               </div>
               )}
 
-              {/* Secondary colour section — label and limit depend on the design */}
+              {/* Secondary colour section, label and limit depend on the design */}
               {colorCfg.secondaryLabel && (() => {
                 const maxColors = colorCfg.secondaryMax;
                 return (
@@ -1495,7 +1495,7 @@ const Catalog = () => {
                 );
               })()}
 
-              {/* Rose Colour — Roses Please only */}
+              {/* Rose Colour, Roses Please only */}
               {colorCfg.roseColor && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
@@ -1878,7 +1878,7 @@ const Catalog = () => {
                     </Tooltip>
                   </label>
                   <p className="text-xs text-muted-foreground mb-2">
-                    Upload reference images (max 5 — 5 MB per image — JPG, PNG, WEBP)
+                    Upload reference images (max 5, 5 MB per image, JPG, PNG, WEBP)
                   </p>
                   <input
                     ref={commentFileInputRef}

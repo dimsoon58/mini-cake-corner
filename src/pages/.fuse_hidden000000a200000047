@@ -1,0 +1,344 @@
+import { useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import Layout from "@/components/Layout";
+import logoCream from "@/assets/logo-cream.png";
+import homeCatBento from "@/assets/home-cat-bento.png";
+import homeCatDots from "@/assets/home-cat-dots.png";
+import homeCatDiy from "@/assets/home-cat-diy.png";
+import homeCatWorkshops from "@/assets/home-cat-workshops.png";
+import heroBg from "@/assets/hero-main.jpg";
+import featureCake from "@/assets/feature-cake.png";
+import featurePipingBag from "@/assets/feature-piping-bag.png";
+import featureWhisk from "@/assets/feature-whisk.png";
+import customer1 from "@/assets/customer-1.jpg";
+import customer2 from "@/assets/customer-2.jpg";
+import customer3 from "@/assets/customer-3.jpg";
+import customer4 from "@/assets/customer-4.jpg";
+import customer5 from "@/assets/customer-5.jpg";
+import customer6 from "@/assets/customer-6.jpg";
+import customer7 from "@/assets/customer-7.jpg";
+import customer8 from "@/assets/customer-8.jpg";
+import customer9 from "@/assets/customer-9.jpg";
+import customer10 from "@/assets/customer-10.jpg";
+import customer11 from "@/assets/customer-11.jpg";
+import customer12 from "@/assets/customer-12.jpg";
+import customer13 from "@/assets/customer-13.jpg";
+import customer14 from "@/assets/customer-14.jpg";
+import customer15 from "@/assets/customer-15.jpg";
+import customer16 from "@/assets/customer-16.jpg";
+import customer17 from "@/assets/customer-17.jpg";
+import customer18 from "@/assets/customer-18.jpg";
+import customer19 from "@/assets/customer-19.jpg";
+import customer20 from "@/assets/customer-20.jpg";
+import customer21 from "@/assets/customer-21.jpg";
+import customer22 from "@/assets/customer-22.jpg";
+import customer23 from "@/assets/customer-23.jpg";
+import customer24 from "@/assets/customer-24.jpg";
+import customer25 from "@/assets/customer-25.jpg";
+import customer26 from "@/assets/customer-26.jpg";
+import customer27 from "@/assets/customer-27.jpg";
+import customer28 from "@/assets/customer-28.jpg";
+import customer29 from "@/assets/customer-29.jpg";
+import customer30 from "@/assets/customer-30.jpg";
+import customer31 from "@/assets/customer-31.jpg";
+import customer32 from "@/assets/customer-32.jpg";
+import customer33 from "@/assets/customer-33.jpg";
+import customer34 from "@/assets/customer-34.jpg";
+import comment7 from "@/assets/comment-7.jpg";
+import comment8 from "@/assets/comment-8.jpg";
+import comment9 from "@/assets/comment-9.jpg";
+import comment10 from "@/assets/comment-10.jpg";
+import comment11 from "@/assets/comment-11.jpg";
+import comment12 from "@/assets/comment-12.jpg";
+import comment13 from "@/assets/comment-13.jpg";
+import comment14 from "@/assets/comment-14.jpg";
+import comment15 from "@/assets/comment-15.jpg";
+import comment16 from "@/assets/comment-16.jpg";
+import comment17 from "@/assets/comment-17.jpg";
+import comment18 from "@/assets/comment-18.jpg";
+import comment19 from "@/assets/comment-19.jpg";
+import comment20 from "@/assets/comment-20.jpg";
+import comment21 from "@/assets/comment-21.jpg";
+import comment22 from "@/assets/comment-22.jpg";
+import comment23 from "@/assets/comment-23.jpg";
+import comment24 from "@/assets/comment-24.jpg";
+import comment25 from "@/assets/comment-25.jpg";
+
+const customerPhotos = [
+  customer3, customer4, customer5,
+  customer7, customer9, customer10,
+  customer11, customer12, customer13, customer15,
+  customer16, customer17, customer18, customer19, customer20,
+  customer21, customer22, customer23, customer24, customer25,
+  customer26, customer27, customer28, customer29,
+  customer30, customer32, customer33, customer34,
+];
+
+// Placeholder array for customer comment images — add imports here later
+const customerCommentPhotos: string[] = [
+  comment7, comment8, comment9, comment10, comment11,
+  comment12, comment13, comment14, comment15,
+  comment16, comment17, comment18, comment19, comment20,
+  comment21, comment22, comment23, comment24, comment25,
+];
+
+/* Original hand-drawn brand illustrations, cropped from the Canva design */
+const features = [
+  {
+    title: "Personalised",
+    description: "Your perfect cake, from flavors to decoration.",
+    image: featureCake,
+  },
+  {
+    title: "Whipped Cream Cakes",
+    description: "Light, fluffy and delicious.",
+    image: featurePipingBag,
+  },
+  {
+    title: "Fresh ingredients",
+    description: "Made with fresh ingredients. No preservatives.",
+    image: featureWhisk,
+  },
+];
+
+const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: string }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: "left" | "right") => {
+    if (!scrollRef.current) return;
+    const scrollAmount = 320;
+    scrollRef.current.scrollBy({
+      left: direction === "left" ? -scrollAmount : scrollAmount,
+      behavior: "smooth",
+    });
+  };
+
+  if (photos.length === 0) {
+    return (
+      <p className="text-center text-muted-foreground italic">Coming soon...</p>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => scroll("left")}
+        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md -ml-4"
+      >
+        <ChevronLeft className="h-6 w-6 text-foreground" />
+      </button>
+      <div
+        ref={scrollRef}
+        className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-4"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        {photos.map((photo, index) => (
+            <div
+              key={index}
+              className="flex-shrink-0 w-72 h-80 overflow-hidden"
+            >
+              <img
+                src={photo}
+                alt={`${altPrefix} ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+        ))}
+      </div>
+      <button
+        onClick={() => scroll("right")}
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md -mr-4"
+      >
+        <ChevronRight className="h-6 w-6 text-foreground" />
+      </button>
+    </div>
+  );
+};
+
+const Index = () => {
+  return (
+    <Layout overlayHero>
+      {/* Hero Section */}
+      <section className="relative text-primary-foreground overflow-hidden min-h-[80vh]">
+        <div
+          className="absolute inset-0 bg-cover"
+          style={{ backgroundImage: `url(${heroBg})`, backgroundPosition: "center 40%" }}
+        />
+        <div className="absolute inset-0 bg-foreground/30" />
+        <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
+          {/* Brand spec: Agrandir Bold 50px — Montserrat stands in until the Agrandir font file is provided */}
+          <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
+            NOT YOUR
+            <br />
+            TRADITIONAL
+            <br />
+            CAKES
+          </h1>
+          <p className="text-base md:text-lg max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
+            Signature whipped cream cakes, Delicately crafted,
+            <br className="hidden md:block" />
+            Beautifully designed, And irresistibly light.
+          </p>
+          <Button
+            size="lg"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-[14px] font-medium tracking-[0.105em] rounded-none"
+            asChild
+          >
+            <Link to="/catalog">SHOP NOW</Link>
+          </Button>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            {features.map((feature) => (
+              <div key={feature.title} className="text-center flex flex-col items-center">
+                <div className="h-[180px] md:h-[210px] flex items-end justify-center mb-6">
+                  <img
+                    src={feature.image}
+                    alt={feature.title}
+                    className="max-h-full w-auto object-contain"
+                  />
+                </div>
+                <h3 className="font-script font-normal text-[32px] md:text-[40px] leading-normal text-foreground mb-3 whitespace-nowrap">
+                  {feature.title}
+                </h3>
+                <p className="text-sm text-foreground/80 leading-relaxed max-w-[230px]">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Discover Section — category cards */}
+      <section className="py-20 bg-background">
+        <div className="w-full px-4 sm:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { image: homeCatBento, label: "BENTO CAKES", to: "/catalog" },
+              { image: homeCatDots, label: "DOT CAKES", to: "/dot-cakes" },
+              { image: homeCatDiy, label: "DIY KITS", to: "/kit-bento-cake" },
+            ].map((category) => (
+              <Link
+                key={category.label}
+                to={category.to}
+                className="relative block aspect-square overflow-hidden group"
+              >
+                <img
+                  src={category.image}
+                  alt={category.label}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-x-0 bottom-0 p-8">
+                  <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                    {category.label}
+                  </p>
+                  <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-8 py-2.5 transition-colors">
+                    DISCOVER
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+        </div>
+
+        {/* Workshops banner — full browser width, no side margins */}
+        <Link
+          to="/workshop"
+          className="relative block mt-8 w-full aspect-[16/9] md:aspect-[16/5] overflow-hidden group"
+        >
+          <img
+            src={homeCatWorkshops}
+            alt="Workshops"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <div className="absolute left-8 bottom-8">
+            <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+              WORKSHOPS
+            </p>
+            <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-12 py-2.5 transition-colors">
+              DISCOVER
+            </span>
+          </div>
+        </Link>
+      </section>
+
+      {/* Customers Section */}
+      <section className="py-20 bg-cream">
+        <div className="container mx-auto px-4">
+          <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-16">
+            OUR CUSTOMERS
+          </h2>
+          <PhotoCarousel photos={customerPhotos} altPrefix="Happy customer" />
+        </div>
+      </section>
+
+      {/* Customer Comments Section */}
+      <section className="py-16 bg-background">
+        <div className="container mx-auto px-4">
+          <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-6">
+            CUSTOMERS COMMENTS
+          </h2>
+          <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" />
+        </div>
+      </section>
+
+      {/* CTA Section — lace doily style */}
+      <section className="py-16 bg-background">
+        <div className="w-full px-4 sm:px-6">
+          <div className="w-full border-[3px] border-primary p-1.5">
+            <div className="text-center border border-primary px-8 py-16 md:px-16">
+            <h2 className="font-script font-normal text-4xl md:text-5xl text-foreground mb-6">
+              Ready to order your perfect cake?
+            </h2>
+            <p className="text-sm md:text-base text-foreground/80 mb-10 max-w-md mx-auto">
+              Browse our collection and personalise your cake in just a few
+              steps.
+            </p>
+            <Button
+              size="lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-[14px] font-medium tracking-[0.105em] rounded-none"
+              asChild
+            >
+              <Link to="/catalog">SHOP NOW</Link>
+            </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-primary text-primary-foreground py-12">
+        <div className="container mx-auto px-4 text-center">
+            <img
+              src={logoCream}
+              alt="Bento Cake Studio"
+              className="h-12 md:h-14 w-auto mx-auto mb-6"
+            />
+            <p className="text-sm opacity-90 mb-4">
+              © 2026 Bento Cake Studio SNC. All rights reserved.
+            </p>
+            <p className="text-sm opacity-70 mb-4">
+              <Link to="/legal" className="underline hover:opacity-100">
+                Terms and Conditions & Privacy Policy
+              </Link>
+            </p>
+            <p className="text-sm opacity-70">
+              <Link to="/newsletter" className="underline hover:opacity-100">
+                Subscribe to newsletter
+              </Link>
+            </p>
+        </div>
+      </footer>
+    </Layout>
+  );
+};
+
+export default Index;

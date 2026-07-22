@@ -4,7 +4,7 @@ import { Clock, Users, MapPin, Check } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 
-// Photos — remplace chaque import par une photo dédiée quand tu en as
+// Photos, remplace chaque import par une photo dédiée quand tu en as
 import workshopHero from "@/assets/home-cat-workshops.png";
 import imgSignature from "@/assets/home-cat-workshops.png";
 import imgPaint from "@/assets/design-drawing-new.jpg";

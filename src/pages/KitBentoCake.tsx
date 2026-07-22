@@ -574,7 +574,7 @@ const KitBentoCake = () => {
                             </div>
                             {qty > 0 && (
                               <p className={cn("text-[10px] font-medium", hasPackApplied ? "text-green-700" : "text-muted-foreground")}>
-                                {hasPackApplied ? `✓ Pack price applied — CHF ${price}` : `CHF ${price}`}
+                                {hasPackApplied ? `✓ Pack price applied, CHF ${price}` : `CHF ${price}`}
                               </p>
                             )}
                           </CardContent>

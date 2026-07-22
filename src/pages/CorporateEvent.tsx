@@ -31,7 +31,7 @@ const whyItems = [
   {
     icon: Palette,
     title: "Brand-Perfect Design",
-    text: "Your logo, brand colours and visual identity — handcrafted into every cake, from edible prints to custom colour palettes.",
+    text: "Your logo, brand colours and visual identity, handcrafted into every cake, from edible prints to custom colour palettes.",
   },
   {
     icon: Truck,
@@ -83,9 +83,9 @@ const CorporateEvent = () => {
 
   return (
     <Layout overlayHero>
-      {/* Hero — full width, full screen */}
+      {/* Hero, full width, full screen */}
       <section className="relative h-screen min-h-[560px] w-full overflow-hidden">
-        {/* Placeholder photo — swap for the dedicated hero image when provided */}
+        {/* Placeholder photo, swap for the dedicated hero image when provided */}
         <img
           src={corporateEvent5}
           alt="Corporate cakes and events by Bento Cake Studio"
@@ -129,7 +129,7 @@ const CorporateEvent = () => {
         </div>
       </section>
 
-      {/* Our services — home-page style cards */}
+      {/* Our services, home-page style cards */}
       <section className="py-20 bg-background">
         <div className="w-full px-4 sm:px-8">
           <SectionTitle>OUR SERVICES</SectionTitle>

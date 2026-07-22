@@ -197,7 +197,7 @@ const CustomRequestForm = () => {
           </div>
         )}
         <p className="text-xs text-muted-foreground">
-          Photos are for inspiration only — the final design may be adapted to
+          Photos are for inspiration only, the final design may be adapted to
           the Bento Cake Studio style.
         </p>
       </div>

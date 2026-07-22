@@ -186,7 +186,7 @@ const DotCakes = () => {
           DOT CAKES
         </h1>
         <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-          Bite-sized cakes topped with a cloud of colourful sprinkles — perfect
+          Bite-sized cakes topped with a cloud of colourful sprinkles, perfect
           for parties, gifts and moments when one cake just isn't enough.
         </p>
 
@@ -226,7 +226,7 @@ const DotCakes = () => {
             </div>
           </section>
 
-          {/* 2. Choose quantity — appears once a date is selected */}
+          {/* 2. Choose quantity, appears once a date is selected */}
           {orderDate && (
           <section className="space-y-4">
             <SectionHeading>
@@ -261,7 +261,7 @@ const DotCakes = () => {
           </section>
           )}
 
-          {/* 3. Flavour selection — DIY Kit style tiles */}
+          {/* 3. Flavour selection, DIY Kit style tiles */}
           {pack && (
             <section className="space-y-6">
               <SectionHeading>
@@ -310,7 +310,7 @@ const DotCakes = () => {
             </section>
           )}
 
-          {/* 4. Add candles — same design as the DIY Kit page */}
+          {/* 4. Add candles, same design as the DIY Kit page */}
           {pack && (
             <section className="space-y-6">
               <SectionHeading>Add Candles (Optional)</SectionHeading>
@@ -356,7 +356,7 @@ const DotCakes = () => {
                             </div>
                             {qty > 0 && (
                               <p className={cn("text-[10px] font-medium", hasPackApplied ? "text-green-700" : "text-muted-foreground")}>
-                                {hasPackApplied ? `✓ Pack price applied — CHF ${price}` : `CHF ${price}`}
+                                {hasPackApplied ? `✓ Pack price applied, CHF ${price}` : `CHF ${price}`}
                               </p>
                             )}
                           </CardContent>

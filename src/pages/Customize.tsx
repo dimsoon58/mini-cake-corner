@@ -481,7 +481,7 @@ const Customize = () => {
     const selectedRibbonColor = ribbonColors.find(c => c.id === selections.ribbonColor);
     const selectedButterflyColor = butterflyColors.find(c => c.id === selections.butterflyColor);
 
-    // Keep reference images in memory — they'll be uploaded at checkout
+    // Keep reference images in memory, they'll be uploaded at checkout
     const imageFiles = [...selections.extraImages];
     
     addItem({

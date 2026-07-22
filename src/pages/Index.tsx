@@ -76,7 +76,7 @@ const customerPhotos = [
   customer30, customer32, customer33, customer34,
 ];
 
-// Placeholder array for customer comment images — add imports here later
+// Placeholder array for customer comment images, add imports here later
 const customerCommentPhotos: string[] = [
   comment7, comment8, comment9, comment10, comment11,
   comment12, comment13, comment14, comment15,
@@ -168,7 +168,7 @@ const Index = () => {
         />
         <div className="absolute inset-0 bg-foreground/30" />
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
-          {/* Brand spec: Agrandir Bold 50px — Montserrat stands in until the Agrandir font file is provided */}
+          {/* Brand spec: Agrandir Bold 50px, Montserrat stands in until the Agrandir font file is provided */}
           <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
             NOT YOUR
             <br />
@@ -216,7 +216,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Discover Section — category cards */}
+      {/* Discover Section, category cards */}
       <section className="py-20 bg-background">
         <div className="w-full px-4 sm:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -249,7 +249,7 @@ const Index = () => {
 
         </div>
 
-        {/* Workshops banner — full browser width, no side margins */}
+        {/* Workshops banner, full browser width, no side margins */}
         <Link
           to="/workshop"
           className="relative block mt-8 w-full aspect-[16/9] md:aspect-[16/5] overflow-hidden group"
@@ -290,7 +290,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section — lace doily style */}
+      {/* CTA Section, lace doily style */}
       <section className="py-16 bg-background">
         <div className="w-full px-4 sm:px-6">
           <div className="w-full border-[3px] border-primary p-1.5">
