@@ -18,7 +18,7 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
 
 const workshops = [
   {
-    emoji: "",
+    emoji: "🎂",
     title: "Signature Workshop",
     image: imgSignature,
     tagline: "Learn the basics of Bento Cake decorating.",
@@ -38,7 +38,7 @@ const workshops = [
     ctaTo: "/contact",
   },
   {
-    emoji: "",
+    emoji: "🎨",
     title: "Paint Workshop",
     image: imgPaint,
     tagline: "Turn your cake into edible art.",
@@ -59,18 +59,18 @@ const workshops = [
 ];
 
 const privateWorkshop = {
-  emoji: "",
+  emoji: "✨",
   title: "Private & Custom Workshops",
   image: imgPrivate,
   tagline: "Looking for something tailored?",
   perfectFor: [
-    "Corporate Events",
-    "Birthdays",
-    "Bridal Showers",
-    "Student Groups",
-    "Hen Parties",
-    "Team Building",
-    "Brand Events",
+    "🏢 Corporate Events",
+    "🎉 Birthdays",
+    "👰 Bridal Showers",
+    "🎓 Student Groups",
+    "💍 Hen Parties",
+    "🤝 Team Building",
+    "📸 Brand Events",
   ],
   note: "Every workshop is customised to your needs.",
   ctaLabel: "Request a Quote",
