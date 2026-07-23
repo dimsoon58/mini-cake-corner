@@ -74,7 +74,7 @@ const Contact = () => {
 
           <div className="space-y-2">
             <p className="font-semibold">
-              We take orders by insta DM or by Whatsapp:{" "}
+              Questions? Our team is here to help. Contact us on WhatsApp:{" "}
               <a
                 href="https://wa.me/41783379500"
                 target="_blank"
@@ -108,7 +108,7 @@ const Contact = () => {
 
           {/* Ordering info */}
           <div className="bg-muted/50 border border-border rounded-lg p-6 space-y-3">
-            <h2 className="text-lg font-serif font-semibold text-foreground">
+            <h2 className="text-lg font-sans font-semibold text-foreground">
               Important Ordering Information
             </h2>
             <p className="text-justify">
