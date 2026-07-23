@@ -173,7 +173,7 @@ const Inspiration = () => {
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             A gallery of our favourite creations to inspire your next
-            celebration. More ideas?
+            celebration.<br />More ideas?
           </p>
         </div>
 
