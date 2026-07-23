@@ -1146,6 +1146,9 @@ const Catalog = () => {
                 fully bespoke design just for you. Tell us about your idea, your
                 colours and your occasion, and we'll bring it to life.
               </p>
+              <p className="text-muted-foreground text-sm italic mb-10">
+                Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.
+              </p>
               {!showRequestForm ? (
                 <Button
                   className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-6 text-[14px] font-medium"
