@@ -76,12 +76,12 @@ const Contact = () => {
             <p className="font-semibold">
               We take orders by insta DM or by Whatsapp:{" "}
               <a
-                href="https://wa.me/41799531317"
+                href="https://wa.me/41783379500"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:underline"
               >
-                +41 79 953 13 17
+                +41 78 337 95 00
               </a>
             </p>
             <p className="font-semibold">

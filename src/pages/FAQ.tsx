@@ -138,7 +138,7 @@ const FAQ = () => {
                         <p>
                           You can contact us via Instagram{" "}
                           <a href="https://www.instagram.com/bentocakestudio/" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">@bentocakestudio</a>
-                          , on WhatsApp at +41 79 953 13 17, or by email at{" "}
+                          , on WhatsApp at +41 78 337 95 00, or by email at{" "}
                           <a href="mailto:contact@bentocakestudio.ch" className="text-primary underline hover:text-primary/80">contact@bentocakestudio.ch</a>.
                         </p>
                       ) : (
