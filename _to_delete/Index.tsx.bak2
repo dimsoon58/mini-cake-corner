@@ -8,7 +8,6 @@ import homeCatBento from "@/assets/home-cat-bento.png";
 import homeCatDots from "@/assets/home-cat-dots.png";
 import homeCatDiy from "@/assets/home-cat-diy.png";
 import homeCatWorkshops from "@/assets/home-cat-workshops.png";
-import homeCatRectangle from "@/assets/cake-homemade.png";
 import heroBg from "@/assets/hero-main.jpg";
 import featureCake from "@/assets/feature-cake.png";
 import featurePipingBag from "@/assets/feature-piping-bag.png";
@@ -220,17 +219,16 @@ const Index = () => {
       {/* Discover Section, category cards */}
       <section className="py-20 bg-background">
         <div className="w-full px-4 sm:px-8">
-          <div className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { image: homeCatBento, label: "BENTO CAKES", to: "/catalog" },
               { image: homeCatDots, label: "DOT CAKES", to: "/dot-cakes" },
               { image: homeCatDiy, label: "DIY KITS", to: "/kit-bento-cake" },
-              { image: homeCatRectangle, label: "RECTANGLE CAKES", to: "/catalog" },
             ].map((category) => (
               <Link
                 key={category.label}
                 to={category.to}
-                className="relative snap-start flex-shrink-0 w-[80%] sm:w-[46%] lg:w-[calc((100%-3rem)/3)] aspect-square overflow-hidden group"
+                className="relative block aspect-square overflow-hidden group"
               >
                 <img
                   src={category.image}
