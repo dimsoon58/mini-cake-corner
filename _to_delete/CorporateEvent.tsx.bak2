@@ -94,7 +94,7 @@ const CorporateEvent = () => {
         <div className="absolute inset-0 bg-foreground/40" />
         <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
           <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-5xl text-cream leading-tight mb-6 max-w-4xl">
-            CORPORATE
+            CORPORATE & PRESS
           </h1>
           <p className="text-cream/95 text-base md:text-lg font-light max-w-2xl mb-10">
             Bespoke cakes, dessert tables and sweet experiences designed for
@@ -120,7 +120,7 @@ const CorporateEvent = () => {
                 <h3 className="font-sans text-sm font-semibold uppercase tracking-[0.105em] text-foreground mb-3">
                   {item.title}
                 </h3>
-                <p className="text-sm text-foreground/75 leading-relaxed max-w-[240px] text-justify">
+                <p className="text-sm text-foreground/75 leading-relaxed max-w-[240px]">
                   {item.text}
                 </p>
               </div>
@@ -192,6 +192,38 @@ const CorporateEvent = () => {
           >
             <ChevronRight className="h-6 w-6 text-foreground" />
           </button>
+        </div>
+      </section>
+
+      {/* Press */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4">
+          <SectionTitle>PRESS</SectionTitle>
+          <p className="text-center text-muted-foreground text-sm max-w-2xl mx-auto mb-14">
+            Magazine features, press articles, interviews, collaborations and
+            media appearances.
+          </p>
+          {/* Press features: replace these placeholders with real articles —
+              each card takes an image, a publication name, a title and a link. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {[1, 2, 3].map((slot) => (
+              <div key={slot} className="border border-border/60 flex flex-col">
+                <div className="aspect-[4/3] bg-muted/40 flex items-center justify-center">
+                  <span className="text-[10px] uppercase tracking-[0.105em] text-muted-foreground/50">
+                    Feature coming soon
+                  </span>
+                </div>
+                <div className="p-5 text-center">
+                  <p className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground mb-1.5">
+                    Publication
+                  </p>
+                  <p className="font-serif text-lg text-foreground/60 italic">
+                    Press feature title
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
