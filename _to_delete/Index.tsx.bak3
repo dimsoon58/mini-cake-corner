@@ -159,12 +159,6 @@ const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: str
 };
 
 const Index = () => {
-  const discoverRef = useRef<HTMLDivElement>(null);
-
-  const scrollDiscover = (dir: "left" | "right") => {
-    discoverRef.current?.scrollBy({ left: dir === "left" ? -360 : 360, behavior: "smooth" });
-  };
-
   return (
     <Layout overlayHero>
       {/* Hero Section */}
@@ -225,11 +219,8 @@ const Index = () => {
 
       {/* Discover Section, category cards */}
       <section className="py-20 bg-background">
-        <div className="relative w-full px-4 sm:px-8">
-          <button onClick={() => scrollDiscover("left")} aria-label="Scroll left" className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background p-2 shadow-md items-center justify-center">
-            <ChevronLeft className="h-6 w-6 text-foreground" />
-          </button>
-          <div ref={discoverRef} className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="w-full px-4 sm:px-8">
+          <div className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
               { image: homeCatBento, label: "BENTO CAKES", to: "/catalog" },
               { image: homeCatDots, label: "DOT CAKES", to: "/dot-cakes" },
@@ -257,9 +248,7 @@ const Index = () => {
               </Link>
             ))}
           </div>
-          <button onClick={() => scrollDiscover("right")} aria-label="Scroll right" className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background p-2 shadow-md items-center justify-center">
-            <ChevronRight className="h-6 w-6 text-foreground" />
-          </button>
+
         </div>
 
         {/* Workshops banner, full browser width, no side margins */}
