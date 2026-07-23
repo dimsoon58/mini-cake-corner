@@ -34,10 +34,6 @@ const FAQ = () => {
         {
           question: "Does the food coloring stain the lips?",
           answer: "Darker colors may temporarily stain the lips. The deeper the color, the more noticeable the staining may be. We recommend choosing lighter colors to avoid any discomfort."
-        },
-        {
-          question: "Can pregnant women eat your cakes?",
-          answer: "Yes. All of our cakes are safe to eat during pregnancy, as we do not use raw eggs in our recipes.\nHowever, as a precaution, we do not recommend choosing our Passion Fruit or Lemon Curd fillings during pregnancy. Although the eggs used in these fillings are cooked, some healthcare professionals recommend avoiding them due to the small potential risk associated with egg-based curds."
         }
       ]
     },
