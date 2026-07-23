@@ -4,7 +4,6 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Upload, X } from "lucide-react";
 import Layout from "@/components/Layout";
-import { useLang } from "@/context/LanguageContext";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,6 @@ type ContactFormData = z.infer<typeof contactSchema>;
 
 const Contact = () => {
   const [submitted, setSubmitted] = useState(false);
-  const { t, lang } = useLang();
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,21 +60,21 @@ const Contact = () => {
     <Layout>
       <main className="max-w-4xl mx-auto px-6 py-16">
         <h1 className="font-sans uppercase tracking-[0.105em] text-4xl md:text-5xl text-foreground mb-12 text-center">
-          {t("Contact Us", "Contactez-nous")}
+          Contact Us
         </h1>
 
         <div className="space-y-8 text-foreground leading-relaxed">
           <p className="text-justify">
-            {t("For your custom cake, we take many considerations for the price. This includes the cake size and the amount of labor & time required to make your cake.", "Pour votre gâteau personnalisé, le prix dépend de plusieurs éléments : la taille du gâteau ainsi que le travail et le temps nécessaires à sa réalisation.")}
+            For your custom cake, we take many considerations for the price. This includes the cake size and the amount of labor & time required to make your cake.
           </p>
 
           <p className="text-justify">
-            {t("If the cake is minimal in the design, the price will remain the same as the starting price. You can send us your idea for customization and we will happily quote you the price.", "Si le design du gâteau est minimaliste, le prix reste identique au prix de départ. Envoyez-nous votre idée de personnalisation et nous vous établirons un devis avec plaisir.")}
+            If the cake is minimal in the design, the price will remain the same as the starting price. You can send us your idea for customization and we will happily quote you the price.
           </p>
 
           <div className="space-y-2">
             <p className="font-semibold">
-              {t("Questions? Our team is here to help. Contact us on WhatsApp:", "Des questions ? Notre équipe est là pour vous aider. Contactez-nous sur WhatsApp :")}{" "}
+              Questions? Our team is here to help. Contact us on WhatsApp:{" "}
               <a
                 href="https://wa.me/41783379500"
                 target="_blank"
@@ -111,24 +109,26 @@ const Contact = () => {
           {/* Ordering info */}
           <div className="bg-muted/50 border border-border rounded-lg p-6 space-y-3">
             <h2 className="text-lg font-sans font-semibold text-foreground">
-              {t("Important Ordering Information", "Informations importantes de commande")}
+              Important Ordering Information
             </h2>
             <p className="text-justify">
-              {lang === "fr" ? (<>Tous nos gâteaux sont préparés à la commande, nous n'avons donc pas de gâteaux prêts à l'avance. Pour passer commande, un <strong>délai minimum de 4 jours</strong> est requis. Nous vous <strong>recommandons vivement de commander au moins 1 semaine à l'avance</strong> pour garantir la disponibilité.</>) : (<>All of our cakes are made fresh upon order, which means we don't have any ready cakes. To place an order, a <strong>minimum of 4 days advance notice</strong> is required. However, we <strong>strongly recommend ordering at least 1 week in advance</strong> to ensure availability.</>)}
+              All of our cakes are made fresh upon order, which means we don't have any ready cakes. To place an order, a <strong>minimum of 4 days advance notice</strong> is required. However, we <strong>strongly recommend ordering at least 1 week in advance</strong> to ensure availability.
             </p>
             <p className="text-justify">
-              {lang === "fr" ? (<>Nous recevons un <strong>grand volume de commandes</strong> et avons une <strong>disponibilité limitée</strong>. Les commandes sont traitées <strong>par ordre d'arrivée</strong>. Même avec 4 jours de préavis, <strong>la disponibilité n'est pas garantie</strong>.</>) : (<>We receive a <strong>high volume of orders</strong> and have <strong>limited availability</strong>. Orders are processed on a <strong>first come, first served basis</strong>. Even with 4 days' notice, <strong>availability is not guaranteed</strong>.</>)}
+              We receive a <strong>high volume of orders</strong> and have <strong>limited availability</strong>. Orders are processed on a <strong>first come, first served basis</strong>. Even with 4 days' notice, <strong>availability is not guaranteed</strong>.
             </p>
             <p className="text-justify">
-              {lang === "fr" ? (<>Les commandes ne sont confirmées qu'à réception du paiement. Si vous souhaitez annuler ou reporter votre commande, vous devez nous prévenir au moins <strong>5 jours à l'avance</strong> pour être remboursé ou changer la date. Sinon, <strong>aucun remboursement ni report ne sera possible</strong>.</>) : (<>Orders are confirmed only upon receipt of payment. If you wish to cancel or reschedule your order, you must notify us at least <strong>5 days in advance</strong> to receive a refund or change the date. Otherwise, <strong>no refunds or rescheduling will be possible</strong>.</>)}
+              Orders are confirmed only upon receipt of payment. If you wish to cancel or reschedule your order, you must notify us at least{" "}
+              <strong>5 days in advance</strong> to receive a refund or change the date. Otherwise,{" "}
+              <strong>no refunds or rescheduling will be possible</strong>.
             </p>
           </div>
 
           {/* Need Help Form */}
           <div className="border border-border rounded-lg p-6 md:p-8 mt-12">
-            <h2 className="text-2xl font-serif text-foreground mb-2">{t("Need Help?", "Besoin d'aide ?")}</h2>
+            <h2 className="text-2xl font-serif text-foreground mb-2">Need Help?</h2>
             <p className="text-muted-foreground mb-6">
-              {t("Fill out the form below and we'll get back to you as soon as possible.", "Remplissez le formulaire ci-dessous et nous vous répondrons dès que possible.")}
+              Fill out the form below and we'll get back to you as soon as possible.
             </p>
 
             {submitted ? (
@@ -136,12 +136,12 @@ const Contact = () => {
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
                   <span className="text-3xl">✓</span>
                 </div>
-                <h3 className="font-serif text-2xl text-foreground mb-3">{t("Thank You", "Merci")}</h3>
+                <h3 className="font-serif text-2xl text-foreground mb-3">Thank You</h3>
                 <p className="text-muted-foreground leading-relaxed mb-6">
-                  {t("We've received your message and will get back to you shortly.", "Nous avons bien reçu votre message et vous répondrons sous peu.")}
+                  We've received your message and will get back to you shortly.
                 </p>
                 <Button variant="outline" onClick={handleReset}>
-                  {t("Send another message", "Envoyer un autre message")}
+                  Send another message
                 </Button>
               </div>
             ) : (
@@ -149,7 +149,7 @@ const Contact = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="firstName">
-                      {t("First Name", "Prénom")} <span className="text-destructive">*</span>
+                      First Name <span className="text-destructive">*</span>
                     </Label>
                     <Input id="firstName" {...register("firstName")} />
                     {errors.firstName && (
@@ -158,7 +158,7 @@ const Contact = () => {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="lastName">
-                      {t("Last Name", "Nom")} <span className="text-destructive">*</span>
+                      Last Name <span className="text-destructive">*</span>
                     </Label>
                     <Input id="lastName" {...register("lastName")} />
                     {errors.lastName && (
@@ -179,7 +179,7 @@ const Contact = () => {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="phone">
-                      {t("Phone Number", "Numéro de téléphone")} <span className="text-destructive">*</span>
+                      Phone Number <span className="text-destructive">*</span>
                     </Label>
                     <Input id="phone" type="tel" {...register("phone")} />
                     {errors.phone && (
@@ -195,7 +195,7 @@ const Contact = () => {
                   <Textarea
                     id="message"
                     rows={5}
-                    placeholder={t("Please include your order number and clearly explain your issue.", "Merci d'indiquer votre numéro de commande et d'expliquer clairement votre problème.")}
+                    placeholder="Please include your order number and clearly explain your issue."
                     {...register("message")}
                   />
                   {errors.message && (
@@ -205,7 +205,7 @@ const Contact = () => {
 
                 {/* File upload */}
                 <div className="space-y-1.5">
-                  <Label>{t("Attach an image (optional)", "Joindre une image (optionnel)")}</Label>
+                  <Label>Attach an image (optional)</Label>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -235,13 +235,13 @@ const Contact = () => {
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <Upload className="h-4 w-4" />
-                      {t("Choose a file…", "Choisir un fichier…")}
+                      Choose a file…
                     </Button>
                   )}
                 </div>
 
                 <Button type="submit" className="w-full rounded-full" size="lg">
-                  {t("Send Message", "Envoyer le message")}
+                  Send Message
                 </Button>
               </form>
             )}
