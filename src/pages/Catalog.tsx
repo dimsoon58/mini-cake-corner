@@ -1925,7 +1925,7 @@ const Catalog = () => {
               </div>
 
               {/* Candles Section - Packs first, then individual */}
-              <div className="space-y-3 rounded-xl p-4" style={{ backgroundColor: '#FFE4EC' }}>
+              <div className="space-y-3 p-4">
                 <label className="text-sm font-medium text-foreground">🕯️ Candles (Optional)</label>
                 
                 {/* Ombré & Spirals (Packs) - shown first */}
