@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
-import { useLang } from "@/context/LanguageContext";
 import logoCream from "@/assets/logo-cream.png";
 import homeCatBento from "@/assets/home-cat-bento.png";
 import homeCatDots from "@/assets/home-cat-dots.png";
@@ -90,23 +89,17 @@ const customerCommentPhotos: string[] = [
 const features = [
   {
     title: "Personalised",
-    titleFr: "Personnalisé",
     description: "Your perfect cake, from flavors to decoration.",
-    descFr: "Votre gâteau parfait, des saveurs à la décoration.",
     image: featureCake,
   },
   {
     title: "Whipped Cream Cakes",
-    titleFr: "Gâteaux à la crème fouettée",
     description: "Light, fluffy and delicious.",
-    descFr: "Léger, aérien et délicieux.",
     image: featurePipingBag,
   },
   {
     title: "Fresh ingredients",
-    titleFr: "Ingrédients frais",
     description: "Made with fresh ingredients. No preservatives.",
-    descFr: "Préparés avec des ingrédients frais. Sans conservateurs.",
     image: featureWhisk,
   },
 ];
@@ -167,7 +160,6 @@ const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: str
 
 const Index = () => {
   const discoverRef = useRef<HTMLDivElement>(null);
-  const { t, lang } = useLang();
 
   const scrollDiscover = (dir: "left" | "right") => {
     discoverRef.current?.scrollBy({ left: dir === "left" ? -360 : 360, behavior: "smooth" });
@@ -185,17 +177,23 @@ const Index = () => {
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
           {/* Brand spec: Agrandir Bold 50px, Montserrat stands in until the Agrandir font file is provided */}
           <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
-            {t("NOT YOUR TRADITIONAL CAKES", "PAS DES GÂTEAUX ORDINAIRES")}
+            NOT YOUR
+            <br />
+            TRADITIONAL
+            <br />
+            CAKES
           </h1>
           <p className="text-base md:text-lg max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
-            {t("Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.", "Des gâteaux signature à la crème fouettée, délicatement réalisés, joliment décorés et incroyablement légers.")}
+            Signature whipped cream cakes, Delicately crafted,
+            <br className="hidden md:block" />
+            Beautifully designed, And irresistibly light.
           </p>
           <Button
             size="lg"
             className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-[14px] font-medium tracking-[0.105em] rounded-none"
             asChild
           >
-            <Link to="/catalog">{t("SHOP NOW", "COMMANDER")}</Link>
+            <Link to="/catalog">SHOP NOW</Link>
           </Button>
         </div>
       </section>
@@ -214,10 +212,10 @@ const Index = () => {
                   />
                 </div>
                 <h3 className="font-script font-normal text-[32px] md:text-[40px] leading-normal text-foreground mb-3 whitespace-nowrap">
-                  {lang === "fr" ? feature.titleFr : feature.title}
+                  {feature.title}
                 </h3>
                 <p className="text-sm text-foreground/80 leading-relaxed max-w-[230px]">
-                  {lang === "fr" ? feature.descFr : feature.description}
+                  {feature.description}
                 </p>
               </div>
             ))}
@@ -233,10 +231,10 @@ const Index = () => {
           </button>
           <div ref={discoverRef} className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
-              { image: homeCatBento, label: "BENTO CAKES", labelFr: "BENTO CAKES", to: "/catalog" },
-              { image: homeCatDots, label: "DOT CAKES", labelFr: "DOT CAKES", to: "/dot-cakes" },
-              { image: homeCatDiy, label: "DIY KITS", labelFr: "KITS DIY", to: "/kit-bento-cake" },
-              { image: homeCatRectangle, label: "RECTANGLE CAKES", labelFr: "GÂTEAUX RECTANGLE", to: "/catalog" },
+              { image: homeCatBento, label: "BENTO CAKES", to: "/catalog" },
+              { image: homeCatDots, label: "DOT CAKES", to: "/dot-cakes" },
+              { image: homeCatDiy, label: "DIY KITS", to: "/kit-bento-cake" },
+              { image: homeCatRectangle, label: "RECTANGLE CAKES", to: "/catalog" },
             ].map((category) => (
               <Link
                 key={category.label}
@@ -250,10 +248,10 @@ const Index = () => {
                 />
                 <div className="absolute inset-x-0 bottom-0 p-8">
                   <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
-                    {lang === "fr" ? category.labelFr : category.label}
+                    {category.label}
                   </p>
                   <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-8 py-2.5 transition-colors">
-                    {t("DISCOVER", "DÉCOUVRIR")}
+                    DISCOVER
                   </span>
                 </div>
               </Link>
@@ -276,10 +274,10 @@ const Index = () => {
           />
           <div className="absolute left-8 bottom-8">
             <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
-              {t("WORKSHOPS", "ATELIERS")}
+              WORKSHOPS
             </p>
             <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-12 py-2.5 transition-colors">
-              {t("DISCOVER", "DÉCOUVRIR")}
+              DISCOVER
             </span>
           </div>
         </Link>
@@ -289,7 +287,7 @@ const Index = () => {
       <section className="py-20 bg-cream">
         <div className="container mx-auto px-4">
           <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-16">
-            {t("OUR CUSTOMERS", "NOS CLIENTS")}
+            OUR CUSTOMERS
           </h2>
           <PhotoCarousel photos={customerPhotos} altPrefix="Happy customer" />
         </div>
@@ -299,7 +297,7 @@ const Index = () => {
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4">
           <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-6">
-            {t("CUSTOMERS COMMENTS", "AVIS CLIENTS")}
+            CUSTOMERS COMMENTS
           </h2>
           <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" />
         </div>
@@ -311,17 +309,18 @@ const Index = () => {
           <div className="w-full border-[3px] border-primary p-1.5">
             <div className="text-center border border-primary px-8 py-16 md:px-16">
             <h2 className="font-script font-normal text-4xl md:text-5xl text-foreground mb-6">
-              {t("Ready to order your perfect cake?", "Prêt à commander votre gâteau parfait ?")}
+              Ready to order your perfect cake?
             </h2>
             <p className="text-sm md:text-base text-foreground/80 mb-10 max-w-md mx-auto">
-              {t("Browse our collection and personalise your cake in just a few steps.", "Parcourez notre collection et personnalisez votre gâteau en quelques étapes.")}
+              Browse our collection and personalise your cake in just a few
+              steps.
             </p>
             <Button
               size="lg"
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-[14px] font-medium tracking-[0.105em] rounded-none"
               asChild
             >
-              <Link to="/catalog">{t("SHOP NOW", "COMMANDER")}</Link>
+              <Link to="/catalog">SHOP NOW</Link>
             </Button>
             </div>
           </div>
@@ -337,16 +336,16 @@ const Index = () => {
               className="h-12 md:h-14 w-auto mx-auto mb-6"
             />
             <p className="text-sm opacity-90 mb-4">
-              {t("© 2026 Bento Cake Studio SNC. All rights reserved.", "© 2026 Bento Cake Studio SNC. Tous droits réservés.")}
+              © 2026 Bento Cake Studio SNC. All rights reserved.
             </p>
             <p className="text-sm opacity-70 mb-4">
               <Link to="/legal" className="underline hover:opacity-100">
-                {t("Terms and Conditions & Privacy Policy", "Conditions générales et politique de confidentialité")}
+                Terms and Conditions & Privacy Policy
               </Link>
             </p>
             <p className="text-sm opacity-70">
               <Link to="/newsletter" className="underline hover:opacity-100">
-                {t("Subscribe to newsletter", "S'abonner à la newsletter")}
+                Subscribe to newsletter
               </Link>
             </p>
         </div>
