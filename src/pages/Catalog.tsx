@@ -1083,7 +1083,7 @@ const Catalog = () => {
             if (cakes.length === 0) return null;
             return (
               <section key={collection.title}>
-                <div className="w-fit bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
+                <div className="uppercase tracking-[0.105em] text-sm font-medium text-primary mb-10">
                   {collection.title}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -1133,7 +1133,7 @@ const Catalog = () => {
 
           {/* Custom Request */}
           <section>
-            <div className="w-fit bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
+            <div className="uppercase tracking-[0.105em] text-sm font-medium text-primary mb-10">
               CUSTOM REQUEST
             </div>
             <div className="text-center max-w-2xl mx-auto py-6">
