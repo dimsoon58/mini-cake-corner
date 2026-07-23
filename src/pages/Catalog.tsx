@@ -539,11 +539,11 @@ const designAllowedExtras: Record<string, string[]> = {
 
 // Collections: curated groupings shown as separate catalog sections
 const collections = [
-  { title: "MINIMAL COLLECTION", ids: ["normal-with-border", "normal-without-border"] },
-  { title: "VINTAGE COLLECTION", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
-  { title: "CUTE COLLECTION", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
-  { title: "FUN COLLECTION", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
-  { title: "PERSONALISED COLLECTION", ids: ["printed-picture", "gender-reveal", "drawing"] },
+  { title: "The Minimal Collection", ids: ["normal-with-border", "normal-without-border"] },
+  { title: "The Vintage Collection", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
+  { title: "The Charming Collection", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
+  { title: "The Original Collection", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
+  { title: "The Personalised Collection", ids: ["printed-picture", "gender-reveal", "drawing"] },
 ];
 
 interface CandleSelection {
@@ -1083,7 +1083,7 @@ const Catalog = () => {
             if (cakes.length === 0) return null;
             return (
               <section key={collection.title}>
-                <div className="uppercase tracking-[0.105em] text-sm font-medium text-primary mb-10">
+                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
                   {collection.title}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -1133,7 +1133,7 @@ const Catalog = () => {
 
           {/* Custom Request */}
           <section>
-            <div className="uppercase tracking-[0.105em] text-sm font-medium text-primary mb-10">
+            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
               CUSTOM REQUEST
             </div>
             <div className="text-center max-w-2xl mx-auto py-6">
