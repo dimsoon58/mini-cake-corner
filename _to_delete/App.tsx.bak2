@@ -26,7 +26,6 @@ import AdminOrder from "./pages/AdminOrder";
 import OrderAction from "./pages/OrderAction";
 import NotFound from "./pages/NotFound";
 import Legal from "./pages/Legal";
-import MyOrders from "./pages/MyOrders";
 
 const queryClient = new QueryClient();
 
@@ -71,7 +70,6 @@ const App = () => (
             <Route path="/legal" element={<Legal />} />
             <Route path="/terms-and-conditions" element={<Legal />} />
             <Route path="/privacy-policy" element={<Legal />} />
-            <Route path="/account/orders" element={<MyOrders />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
