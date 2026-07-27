@@ -48,15 +48,6 @@ const LoyaltyRewards = () => {
           </p>
         </div>
 
-        <div className="border border-primary bg-secondary/40 p-6 mb-10 text-center">
-          <p className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-primary mb-2">
-            {t("Your Birthday Treat", "Votre cadeau d'anniversaire")}
-          </p>
-          <p className="text-sm text-foreground/80 leading-relaxed">
-            {t("Every year, during your birthday month, enjoy 10% off your order, or a free pack of candles on us. Just add your date of birth in your account details.", "Chaque année, pendant le mois de votre anniversaire, profitez de 10% de réduction sur votre commande, ou d'un paquet de bougies offert. Ajoutez simplement votre date de naissance dans les détails de votre compte.")}
-          </p>
-        </div>
-
         <div>
           <h2 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-4">
             {t("How it works", "Comment ça marche")}
