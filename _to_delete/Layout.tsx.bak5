@@ -20,32 +20,27 @@ type NavItem = { to?: string; label: string; children?: { to: string; label: str
 
 const navFr: Record<string, string> = {
   "Home": "Accueil",
-  "Cakes": "Gâteaux",
   "DIY Kit": "Kit DIY",
   "Workshop": "Atelier",
   "Corporate & Press": "Corporate & Presse",
   "Corporate": "Corporate",
   "Press": "Presse",
-  "FAQ & Contact": "FAQ & Contact",
 };
 
 const navLinks: NavItem[] = [
   { to: "/", label: "Home" },
-  { label: "Cakes", children: [
-    { to: "/catalog", label: "Bento Cakes" },
-    { to: "/dot-cakes", label: "Dot Cakes" },
-    { to: "/kit-bento-cake", label: "DIY Kit" },
-  ] },
+  { to: "/catalog", label: "Bento Cakes" },
+  { to: "/dot-cakes", label: "Dot Cakes" },
+
+  { to: "/kit-bento-cake", label: "DIY Kit" },
   { to: "/inspiration", label: "Inspiration" },
   { to: "/workshop", label: "Workshop" },
   { label: "Corporate & Press", children: [
     { to: "/corporate-event", label: "Corporate" },
     { to: "/community-press", label: "Press" },
   ] },
-  { label: "FAQ & Contact", children: [
-    { to: "/faq", label: "FAQ" },
-    { to: "/contact", label: "Contact" },
-  ] },
+  { to: "/faq", label: "FAQ" },
+  { to: "/contact", label: "Contact" },
 ];
 
 /* Flat list for the mobile menu, every page reachable, Workshop included */
@@ -176,7 +171,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
             <img
               src={light ? logoCream : logoBrown}
               alt="Bento Cake Studio"
-              className="h-6 md:h-8 w-auto"
+              className="h-7 md:h-10 w-auto"
             />
           </Link>
 

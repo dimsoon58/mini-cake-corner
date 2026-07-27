@@ -185,7 +185,7 @@ const Index = () => {
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
           {/* Brand spec: Agrandir Bold 50px, Montserrat stands in until the Agrandir font file is provided */}
           <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
-            {t("LET THEM EAT CAKE", "LET THEM EAT CAKE")}
+            {t("NOT YOUR TRADITIONAL CAKES", "PAS DES GÂTEAUX ORDINAIRES")}
           </h1>
           <p className="text-base md:text-lg max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
             {t("Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.", "Des gâteaux signature à la crème fouettée, délicatement réalisés, joliment décorés et incroyablement légers.")}
