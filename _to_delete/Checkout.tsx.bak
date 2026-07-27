@@ -31,7 +31,6 @@ import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
-import { useLang } from "@/context/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { EmbeddedStripeCheckout } from "@/components/EmbeddedCheckout";
 
@@ -179,8 +178,6 @@ const Checkout = () => {
   const { items, clearCart } = useCart();
   const { toast } = useToast();
   const [firstName, setFirstName] = useState("");
-  const { t } = useLang();
-  const [applyReward, setApplyReward] = useState(false);
   const [lastName, setLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
@@ -816,23 +813,6 @@ const Checkout = () => {
                 <span>Total</span>
                 <span className="text-primary">CHF {totalPrice}</span>
               </div>
-            </div>
-
-            {/* Loyalty Rewards (UI-only, demo values) */}
-            <div className="border border-primary/40 bg-secondary/40 p-4 space-y-2 mt-2">
-              <p className="text-sm text-foreground">
-                {t("You have 125 points available.", "Vous avez 125 points disponibles.")}
-              </p>
-              <p className="text-sm text-foreground/80">
-                {t("Redeem 100 points to receive CHF 5 off this order.", "Utilisez 100 points pour obtenir CHF 5 de réduction sur cette commande.")}
-              </p>
-              <div className="flex items-center space-x-3 pt-1">
-                <Checkbox id="applyReward" checked={applyReward} onCheckedChange={(c) => setApplyReward(c === true)} />
-                <Label htmlFor="applyReward" className="text-sm cursor-pointer">{t("Apply my reward", "Utiliser ma récompense")}</Label>
-              </div>
-              <p className="text-xs text-muted-foreground pt-1">
-                {t(`You'll earn ${Math.floor(totalPrice)} points with this order.`, `Vous gagnerez ${Math.floor(totalPrice)} points avec cette commande.`)}
-              </p>
             </div>
 
             {/* Privacy Policy & Newsletter */}

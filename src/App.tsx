@@ -27,6 +27,7 @@ import OrderAction from "./pages/OrderAction";
 import NotFound from "./pages/NotFound";
 import Legal from "./pages/Legal";
 import MyOrders from "./pages/MyOrders";
+import LoyaltyRewards from "./pages/LoyaltyRewards";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +73,7 @@ const App = () => (
             <Route path="/terms-and-conditions" element={<Legal />} />
             <Route path="/privacy-policy" element={<Legal />} />
             <Route path="/account/orders" element={<MyOrders />} />
+            <Route path="/account/rewards" element={<LoyaltyRewards />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
