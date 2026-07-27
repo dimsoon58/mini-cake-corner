@@ -176,19 +176,18 @@ const flavors = [
 ];
 
 const candles = [
-  // Ombré & Spirals - packs first
-  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
+  // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
   { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
+  { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "rainbow", name: "Rainbow", image: candleRainbow, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  // Individual candles
+  { id: "pink-ombre", name: "Pink Ombré", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "daisy", name: "Daisy", image: candleDaisy, unitPrice: 2, hasPack: false },
+  { id: "heart", name: "Red Heart", image: candleHeart, unitPrice: 2, hasPack: false },
   { id: "puppy", name: "Puppy", image: candlePuppy, unitPrice: 2, hasPack: false },
   { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, unitPrice: 2, hasPack: false },
   { id: "cherry", name: "Cherry", image: candleCherry, unitPrice: 2, hasPack: false },
-  { id: "heart", name: "Red Heart", image: candleHeart, unitPrice: 2, hasPack: false },
-  { id: "daisy", name: "Daisy", image: candleDaisy, unitPrice: 2, hasPack: false },
   { id: "ribbon", name: "Ribbon", image: candleRibbon, unitPrice: 2, hasPack: false },
   { id: "soccer", name: "Footy Flame", image: candleSoccer, unitPrice: 2, hasPack: false },
   { id: "pink-car", name: "Pink Car", image: candlePinkCar, unitPrice: 2, hasPack: false },
@@ -1929,14 +1928,14 @@ const Catalog = () => {
               <div className="space-y-3 p-4">
                 <label className="text-sm font-medium text-foreground">🕯️ Candles (Optional)</label>
                 
-                {/* Ombré & Spirals (Packs) - shown first */}
+                {/* All candles in one ordered list */}
                 <div className="space-y-2">
                   <div className="flex flex-wrap justify-center gap-3">
-                    {packCandles.slice(0, showAllCandles ? undefined : 4).map((candle) => {
+                    {candles.slice(0, showAllCandles ? undefined : 4).map((candle) => {
                       const unitQty = getCandleUnitQuantity(candle.id);
                       const totalPrice = getCandleTotalPrice(candle.id);
                       const isPackApplied = candle.hasPack && unitQty >= (candle.packSize || 6);
-                      
+
                       return (
                         <div key={candle.id} className="flex flex-col items-center w-[calc(50%-6px)]">
                           <img
@@ -1949,7 +1948,11 @@ const Catalog = () => {
                             unitQty > 0 ? "bg-white/90 ring-2 ring-primary" : "bg-white/60"
                           )}>
                             <p className="text-xs font-medium text-foreground">{candle.name}</p>
-                            <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce · Pack {candle.packSize} = CHF {candle.packPrice}</p>
+                            {candle.hasPack ? (
+                              <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce · Pack {candle.packSize} = CHF {candle.packPrice}</p>
+                            ) : (
+                              <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice} / pièce</p>
+                            )}
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 onClick={() => handleCandleQuantityChange(candle.id, -1)}
@@ -1979,56 +1982,6 @@ const Catalog = () => {
                     })}
                   </div>
                 </div>
-
-                {/* Individual candles - shown after packs */}
-                {showAllCandles && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-foreground/70 text-center mt-3">Individual Candles</p>
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {individualCandles.map((candle) => {
-                        const unitQty = getCandleUnitQuantity(candle.id);
-                        const totalPrice = getCandleTotalPrice(candle.id);
-                        
-                        return (
-                          <div key={candle.id} className="flex flex-col items-center w-[calc(50%-6px)]">
-                            <img
-                              src={candle.image}
-                              alt={candle.name}
-                              className="h-28 w-28 object-contain mb-1"
-                            />
-                            <div className={cn(
-                              "w-full rounded-lg p-2 text-center transition-all",
-                              unitQty > 0 ? "bg-white/90 ring-2 ring-primary" : "bg-white/60"
-                            )}>
-                              <p className="text-xs font-medium text-foreground">{candle.name}</p>
-                              <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice} / pièce</p>
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  onClick={() => handleCandleQuantityChange(candle.id, -1)}
-                                  disabled={unitQty === 0}
-                                  className={cn(
-                                    "w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
-                                    unitQty === 0
-                                      ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                      : "bg-primary text-primary-foreground hover:bg-primary/90"
-                                  )}
-                                >−</button>
-                                <span className="w-5 text-center font-medium text-foreground text-sm">{unitQty}</span>
-                                <button
-                                  onClick={() => handleCandleQuantityChange(candle.id, 1)}
-                                  className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
-                                >+</button>
-                              </div>
-                              {totalPrice > 0 && (
-                                <p className="text-[10px] text-primary font-medium mt-1">+CHF {totalPrice}</p>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
                 {/* See more / See less toggle */}
                 <button

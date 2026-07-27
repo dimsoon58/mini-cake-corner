@@ -37,6 +37,13 @@ export interface CartItem {
   imageUrls: string[];
   imageFiles: File[];
   total: number;
+  /* Standalone candle product (added from the Candles page) */
+  isCandleProduct?: boolean;
+  candleProductId?: string;
+  candleProductName?: string;
+  candleProductImage?: string;
+  candleProductQty?: number;
+  candleProductHasPack?: boolean;
 }
 
 interface CartContextType {

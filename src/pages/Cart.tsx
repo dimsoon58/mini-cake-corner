@@ -268,6 +268,29 @@ const Cart = () => {
     return (item.candles || []).find(c => c.id === candleId && !c.hasPack)?.quantity || 0;
   };
 
+  const handleCandleProductQty = (itemId: string, delta: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item || !item.isCandleProduct || !item.candleProductId) return;
+    const newQty = Math.max(1, (item.candleProductQty || 1) + delta);
+    const candle = cartCandles.find(c => c.id === item.candleProductId);
+    let price = 0;
+    if (candle) {
+      if (candle.hasPack && newQty >= (candle.packSize || 6)) {
+        const packs = Math.floor(newQty / (candle.packSize || 6));
+        const remaining = newQty % (candle.packSize || 6);
+        price = packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
+      } else {
+        price = candle.unitPrice * newQty;
+      }
+    }
+    updateItem(itemId, {
+      candleProductQty: newQty,
+      sizeName: `${newQty}× ${item.candleProductName}`,
+      extrasNames: [`${newQty}× ${item.candleProductName}`],
+      total: price,
+    });
+  };
+
   const getCandleItemPrice = (candleId: string, itemCandles: CandleCartItem[]) => {
     const candle = cartCandles.find(c => c.id === candleId);
     if (!candle) return 0;
@@ -312,6 +335,44 @@ const Cart = () => {
 
               {items.map((item) => {
                 const isEditing = editingItemId === item.id;
+                if (item.isCandleProduct) {
+                  return (
+                    <Card key={item.id} className="overflow-hidden">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <h3 className="font-serif text-xl text-foreground">{item.candleProductName}</h3>
+                          <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <img src={item.candleProductImage} alt={item.candleProductName} className="h-20 w-20 object-contain flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-sm text-muted-foreground mb-2">Candle</p>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleCandleProductQty(item.id, -1)}
+                                disabled={(item.candleProductQty || 1) <= 1}
+                                className={cn(
+                                  "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
+                                  (item.candleProductQty || 1) <= 1
+                                    ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                )}
+                              >−</button>
+                              <span className="w-6 text-center font-medium text-foreground text-sm">{item.candleProductQty || 1}</span>
+                              <button
+                                onClick={() => handleCandleProductQty(item.id, 1)}
+                                className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
+                              >+</button>
+                            </div>
+                          </div>
+                          <span className="font-semibold text-primary whitespace-nowrap">CHF {item.total}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
                 return (
                   <Card key={item.id} className="overflow-hidden">
                     <CardContent className="p-6">
@@ -369,7 +430,7 @@ const Cart = () => {
                   <div className="space-y-2 border-b border-border pb-4">
                     {items.map((item) => (
                       <div key={item.id} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{item.sizeName} {item.shapeName} Cake</span>
+                        <span className="text-muted-foreground">{item.isCandleProduct ? item.candleProductName : `${item.sizeName} ${item.shapeName} Cake`}</span>
                         <span className="text-foreground">CHF {item.total}</span>
                       </div>
                     ))}

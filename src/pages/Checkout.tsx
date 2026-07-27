@@ -733,6 +733,16 @@ const Checkout = () => {
               {items.length > 0 && (
                 <div className="mb-4 space-y-3">
                   {items.map((item) => {
+                    if (item.isCandleProduct) {
+                      return (
+                        <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3">
+                          <div className="flex justify-between items-start">
+                            <span className="font-medium text-sm text-foreground">🕯️ {item.candleProductName} ×{item.candleProductQty || 1}</span>
+                            <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                          </div>
+                        </div>
+                      );
+                    }
                     const sizeObj = sizes.find(s => s.id === item.size);
                     const sizePrice = sizeObj?.price || 0;
                     const shapeObj = shapes.find(s => s.id === item.shape);
