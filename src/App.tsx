@@ -15,8 +15,8 @@ import FAQ from "./pages/FAQ";
 import Contact from "./pages/Contact";
 import Checkout from "./pages/Checkout";
 import CommunityPress from "./pages/CommunityPress";
-import CorporateEvent from "./pages/CorporateEvent";
 import Catalog from "./pages/Catalog";
+import Business from "./pages/Business";
 import Candles from "./pages/Candles";
 import DotCakes from "./pages/DotCakes";
 import Workshop from "./pages/Workshop";
@@ -57,7 +57,8 @@ const App = () => (
             
             <Route path="/cart" element={<Cart />} />
             <Route path="/community-press" element={<CommunityPress />} />
-            <Route path="/corporate-event" element={<CorporateEvent />} />
+            <Route path="/business" element={<Business />} />
+            <Route path="/corporate-event" element={<Business />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/dot-cakes" element={<DotCakes />} />
             <Route path="/candles" element={<Candles />} />

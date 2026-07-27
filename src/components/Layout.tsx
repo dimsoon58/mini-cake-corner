@@ -24,7 +24,8 @@ const navFr: Record<string, string> = {
   "DIY Kit": "Kit DIY",
   "Candles": "Bougies",
   "Workshop": "Atelier",
-  "Corporate & Press": "Corporate & Presse",
+  "Business & Press": "Business & Presse",
+  "Business": "Business",
   "Corporate": "Corporate",
   "Press": "Presse",
   "FAQ & Contact": "FAQ & Contact",
@@ -40,8 +41,8 @@ const navLinks: NavItem[] = [
   ] },
   { to: "/inspiration", label: "Inspiration" },
   { to: "/workshop", label: "Workshop" },
-  { label: "Corporate & Press", children: [
-    { to: "/corporate-event", label: "Corporate" },
+  { label: "Business & Press", children: [
+    { to: "/business", label: "Business" },
     { to: "/community-press", label: "Press" },
   ] },
   { label: "FAQ & Contact", children: [
@@ -59,7 +60,7 @@ const mobileLinks: { to: string; label: string }[] = [
   { to: "/candles", label: "Candles" },
   { to: "/inspiration", label: "Inspiration" },
   { to: "/workshop", label: "Workshop" },
-  { to: "/corporate-event", label: "Corporate" },
+  { to: "/business", label: "Business" },
   { to: "/community-press", label: "Press" },
   { to: "/faq", label: "FAQ" },
   { to: "/contact", label: "Contact" },
