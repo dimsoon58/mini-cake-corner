@@ -443,7 +443,7 @@ const KitBentoCake = () => {
                           <img src={flavor.image} alt={flavor.name} className="w-full h-full object-contain" />
                         </div>
                         <div className="p-3 text-center">
-                          <p className="font-serif font-medium text-sm">{flavor.name}</p>
+                          <p className="font-sans font-medium text-sm">{flavor.name}</p>
                           <AllergenDisplay flavorId={flavor.id} />
                         </div>
                       </div>

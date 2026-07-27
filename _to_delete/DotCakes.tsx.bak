@@ -232,7 +232,7 @@ const DotCakes = () => {
             <SectionHeading>
               Choose Your Quantity<span className="text-destructive ml-1">*</span>
             </SectionHeading>
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {packs.map((p) => (
                 <button
                   key={p.size}
@@ -241,7 +241,7 @@ const DotCakes = () => {
                     setSelectedFlavours((prev) => prev.slice(0, p.flavours));
                   }}
                   className={cn(
-                    "w-full sm:w-[calc(50%-0.375rem)] lg:w-[calc(33.333%-0.5rem)] border px-5 py-4 text-left transition-all",
+                    "border px-5 py-4 text-left transition-all",
                     packSize === p.size
                       ? "border-primary ring-2 ring-primary/30 bg-secondary/50"
                       : "border-border hover:border-primary/50"

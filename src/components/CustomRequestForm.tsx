@@ -22,6 +22,11 @@ const requestSchema = z.object({
     .min(1, "Phone number is required")
     .regex(/^[+\d][\d\s().\-/]{6,}$/, "Please enter a valid phone number"),
   eventDate: z.date({ required_error: "Please select a date" }),
+  numberOfGuests: z
+    .number({ required_error: "Please enter the number of guests" })
+    .int()
+    .min(1, "Minimum 1 guest")
+    .max(100, "Maximum 100 guests"),
   description: z
     .string()
     .trim()
@@ -42,9 +47,18 @@ const CustomRequestForm = () => {
     watch,
     setValue,
     formState: { errors },
-  } = useForm<RequestFormData>({ resolver: zodResolver(requestSchema) });
+  } = useForm<RequestFormData>({
+    resolver: zodResolver(requestSchema),
+    defaultValues: { numberOfGuests: 1 },
+  });
 
   const eventDate = watch("eventDate");
+  const numberOfGuests = watch("numberOfGuests") ?? 1;
+
+  const changeGuests = (delta: number) => {
+    const next = Math.min(100, Math.max(1, numberOfGuests + delta));
+    setValue("numberOfGuests", next, { shouldValidate: true });
+  };
 
   const onSubmit = (_data: RequestFormData) => {
     setSubmitted(true);
@@ -136,6 +150,39 @@ const CustomRequestForm = () => {
           </PopoverContent>
         </Popover>
         {errors.eventDate && <p className="text-sm text-destructive">{errors.eventDate.message}</p>}
+      </div>
+
+      {/* Number of Guests */}
+      <div className="space-y-1.5">
+        <Label>
+          Number of Guests <span className="text-destructive">*</span>
+        </Label>
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => changeGuests(-1)}
+            disabled={numberOfGuests <= 1}
+            className="h-10 w-12 flex items-center justify-center border border-input bg-background text-lg leading-none text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Decrease number of guests"
+          >
+            −
+          </button>
+          <div className="h-10 min-w-[4rem] flex items-center justify-center border-y border-input px-4 text-sm font-medium text-foreground select-none">
+            {numberOfGuests}
+          </div>
+          <button
+            type="button"
+            onClick={() => changeGuests(1)}
+            disabled={numberOfGuests >= 100}
+            className="h-10 w-12 flex items-center justify-center border border-input bg-background text-lg leading-none text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Increase number of guests"
+          >
+            +
+          </button>
+        </div>
+        {errors.numberOfGuests && (
+          <p className="text-sm text-destructive">{errors.numberOfGuests.message}</p>
+        )}
       </div>
 
       {/* Description */}
