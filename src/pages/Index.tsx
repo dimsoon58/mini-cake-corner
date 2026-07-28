@@ -274,7 +274,7 @@ const Index = () => {
             alt="Workshops"
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
+          <div className="absolute inset-0 flex flex-col items-center justify-end text-center px-4 pb-8 md:pb-10">
             <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
               {t("WORKSHOPS", "ATELIERS")}
             </p>
