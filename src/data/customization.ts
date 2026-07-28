@@ -256,6 +256,10 @@ export const extraGroups = [
     label: "Glitter",
     ids: ["glitter", "glitter-base", "glitter-in-the-air"],
   },
+  {
+    label: "Printed Picture",
+    ids: ["printed-picture"],
+  },
 ];
 
 export const ribbonColors = [
@@ -368,13 +372,13 @@ export const getAvailableSizesForStyle = (styleId: string): string[] => {
 
 // Design → excluded extra IDs mapping (keyed by styleId)
 export const designExcludedExtras: Record<string, string[]> = {
-  "normal-without-border": [],
+  "normal-without-border": ["cherries", "glitter-cherries", "ribbons", "glitter-in-the-air", "glitter-base", "sprinkles", "printed-picture"],
   "normal-with-border": [],
   "sprinkles-with-border": ["sprinkles"],
   "retro-vintage": ["retro", "pearl-border"],
-  "golden-cake": ["retro", "pearl-border"],
-  "rainbow-cake": ["retro", "sprinkles"],
-  "shag-cake": ["retro", "heart"],
+  "golden-cake": ["retro", "pearl-border", "glitter", "glitter-base", "glitter-cherries", "glitter-in-the-air", "sprinkles"],
+  "rainbow-cake": ["retro", "sprinkles", "printed-picture"],
+  "shag-cake": ["retro", "heart", "printed-picture"],
   "gold-leaves-style": ["gold-leaves"],
   "scattered-retro-pearls": ["retro", "scattered-pearl"],
   "pearl-border-retro": ["retro", "scattered-pearl", "pearl-border"],
@@ -382,8 +386,8 @@ export const designExcludedExtras: Record<string, string[]> = {
   "cherries-retro": ["retro", "cherries"],
   "retro-ribbons": ["retro", "ribbons"],
   "retro-glitter-cake": ["retro", "glitter"],
-  "glitter-base": ["glitter-base"],
-  "retro-ribbons-glitter": ["retro", "ribbons", "glitter-in-the-air"],
+  "glitter-base": ["glitter-base", "printed-picture"],
+  "retro-ribbons-glitter": ["retro", "ribbons", "glitter-in-the-air", "sprinkles", "glitter-base", "printed-picture"],
   "printed-picture": ["printed-picture", "glitter-base", "glitter-in-the-air"],
   "custom-drawing": ["drawing", "glitter-in-the-air"],
   "butterfly-garden": ["butterfly", "scattered-pearl"],

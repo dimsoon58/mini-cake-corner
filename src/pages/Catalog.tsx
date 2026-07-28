@@ -209,6 +209,7 @@ const catalogExtras = [
   { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designPearlNumber },
   { id: "butterfly", name: "Butterfly", price: { bento: 4, retro: 6, medium: 8, large: 10 }, image: extraButterfly },
   { id: "sprinkles", name: "Sprinkles", price: { bento: 2, retro: 4, medium: 4, large: 6 }, image: extraSprinkles },
+  { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 17, medium: 15, large: 15 }, image: extraPrintedPicture },
 ];
 
 const ribbonColors = [
@@ -443,7 +444,7 @@ const catalog = [
     styleId: "retro-ribbons-glitter",
     styleName: "Retro × Ribbons Glitter in the Air",
     stylePrice: { retro: 20, medium: 30, large: 40 },
-    disableText: false,
+    disableText: true,
   },
   {
     id: "butterfly-garden",
@@ -495,6 +496,7 @@ interface ColorSectionConfig {
   secondaryLabel: string | null; // null hides the second colour section
   secondaryMax: number;
   roseColor: boolean; // extra single-colour section (Roses Please)
+  secondaryOptional: boolean; // second colour section is optional (no validation)
   hideExtras: boolean;
 }
 
@@ -504,12 +506,19 @@ const colorSectionOverrides: Record<string, Partial<ColorSectionConfig>> = {
   "golden-cake": { showBase: false, secondaryLabel: null },
   "roses-please": { secondaryLabel: "Border Color", secondaryMax: 1, roseColor: true }, // rose section labelled "Roses Color"
   "butterfly-garden": {
-    secondaryLabel: null,
-    baseNote: "Your cake will be created using a blend of your selected colour and white.",
+    secondaryLabel: "Second Color (optional)",
+    secondaryMax: 1,
+    secondaryOptional: true,
   },
+  "custom-drawing": {
+    secondaryLabel: "Second Color (optional)",
+    secondaryMax: 1,
+    secondaryOptional: true,
+  },
+  "gender-reveal": { showBase: false, secondaryLabel: null, hideExtras: true },
   "heart-bomb": { secondaryLabel: "Heart Color", secondaryMax: 1, hideExtras: true },
   "shag-cake": { showBase: false, secondaryLabel: "Choose Your Colors", secondaryMax: 6 },
-  "rainbow-cake": { secondaryLabel: "Border Color", secondaryMax: 1 },
+  "rainbow-cake": { secondaryLabel: null },
   "printed-picture": { secondaryLabel: "Border Color", secondaryMax: 1 },
   // Inspiration orders: shape, flavour, text and candles only
   inspiration: { showBase: false, secondaryLabel: null, hideExtras: true },
@@ -520,6 +529,7 @@ const getColorConfig = (styleId?: string): ColorSectionConfig => ({
   secondaryLabel: "Decoration Color",
   secondaryMax: 3,
   roseColor: false,
+  secondaryOptional: false,
   hideExtras: false,
   ...(styleId ? colorSectionOverrides[styleId] : undefined),
 });
@@ -527,11 +537,11 @@ const getColorConfig = (styleId?: string): ColorSectionConfig => ({
 // Per-design extras whitelist: when a design is listed here, ONLY these
 // extras are offered ([] hides the extras section entirely).
 const designAllowedExtras: Record<string, string[]> = {
-  "butterfly-garden": [],
+  "butterfly-garden": ["printed-picture"],
   "rainbow-cake": [],
   "printed-picture": [],
   "shag-cake": ["cherries", "glitter-cherries"],
-  "custom-drawing": ["gold-leaves", "glitter"],
+  "custom-drawing": ["gold-leaves", "printed-picture"],
 };
 
 // Collections: curated groupings shown as separate catalog sections
@@ -610,6 +620,8 @@ interface CakeSelections {
   flavor: string;
   baseColor: string;
   decorationColors: string[];
+  borderTopColor?: string;
+  borderBottomColor?: string;
   roseColor: string;
   wantsText: boolean;
   cakeText: string;
@@ -924,8 +936,13 @@ const Catalog = () => {
       return;
     }
 
-    if (cfg.secondaryLabel && selections.decorationColors.length === 0) {
+    if (cfg.secondaryLabel && !cfg.secondaryOptional && selections.decorationColors.length === 0) {
       toast({ title: `${cfg.secondaryLabel} required`, description: `Please select at least one colour for your cake.`, variant: "destructive" });
+      return;
+    }
+
+    if (selectedCake.styleId === "rainbow-cake" && (!selections.borderTopColor || !selections.borderBottomColor)) {
+      toast({ title: "Border colours required", description: "Please choose a top and a bottom border colour.", variant: "destructive" });
       return;
     }
 
@@ -976,8 +993,15 @@ const Catalog = () => {
     const sizeObj = sizes.find(s => s.id === selections.size);
     const shapeObj = shapes.find(s => s.id === selections.shape);
     const flavorObj = flavors.find(f => f.id === selections.flavor);
-    const baseColorObj = baseColors.find(c => c.id === selections.baseColor);
+    const genderWhite = selectedCake.styleId === "gender-reveal";
+    const baseColorObj = baseColors.find(c => c.id === (genderWhite ? "white" : selections.baseColor));
     const decoColorNames = selections.decorationColors.map(id => baseColors.find(c => c.id === id)?.name || "").filter(Boolean);
+    if (selectedCake.styleId === "rainbow-cake") {
+      const topName = baseColors.find(c => c.id === selections.borderTopColor)?.name;
+      const botName = baseColors.find(c => c.id === selections.borderBottomColor)?.name;
+      if (topName) decoColorNames.push(`Top border: ${topName}`);
+      if (botName) decoColorNames.push(`Bottom border: ${botName}`);
+    }
     const roseColorName = selections.roseColor ? baseColors.find(c => c.id === selections.roseColor)?.name : "";
     if (roseColorName) decoColorNames.push(`Roses: ${roseColorName}`);
     const textColorObj = baseColors.find(c => c.id === selections.textColor);
@@ -1004,7 +1028,7 @@ const Catalog = () => {
       flavorName: flavorObj?.name || "",
       style: selectedCake.styleId,
       styleName: selectedCake.styleName,
-      baseColor: selections.baseColor,
+      baseColor: genderWhite ? "white" : selections.baseColor,
       baseColorName: baseColorObj?.name || "",
       decorationColor: [...selections.decorationColors, ...(selections.roseColor ? [`roses-${selections.roseColor}`] : [])].join(", "),
       decorationColorName: decoColorNames.join(", "),
@@ -1359,7 +1383,7 @@ const Catalog = () => {
               </div>
 
               {/* Shag Cake Design Preference */}
-              {selectedCake?.images && selectedCake.images.length > 1 && (
+              {selectedCake?.images && selectedCake.images.length > 1 && !["retro-vintage", "shag-cake", "printed-picture", "custom-drawing"].includes(selectedCake.styleId) && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Choose your preferred design</label>
                   <div className="grid grid-cols-2 gap-3">
@@ -1533,6 +1557,47 @@ const Catalog = () => {
               </div>
               )}
 
+              {/* Rainbow: top & bottom border colours */}
+              {selectedCake?.styleId === "rainbow-cake" && (
+                <div className="space-y-4">
+                  {([
+                    { key: "borderTopColor", label: "Top Border Color" },
+                    { key: "borderBottomColor", label: "Bottom Border Color" },
+                  ] as const).map(({ key, label }) => (
+                    <div key={key} className="space-y-2">
+                      <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                        {label} <span className="text-destructive">*</span>
+                      </label>
+                      <div className="grid grid-cols-6 gap-2">
+                        {baseColors.map((color) => (
+                          <button
+                            key={color.id}
+                            onClick={() => setSelections({ ...selections, [key]: color.id })}
+                            className={cn(
+                              "flex flex-col items-center gap-1 p-1 rounded-lg border transition-all",
+                              selections[key] === color.id
+                                ? "ring-2 ring-primary border-primary"
+                                : "border-border hover:border-primary/50"
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "w-6 h-6 rounded-full border",
+                                color.id === "white" || color.id === "cream"
+                                  ? "border-muted-foreground/30"
+                                  : "border-transparent"
+                              )}
+                              style={{ backgroundColor: color.color }}
+                            />
+                            <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{color.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Text Toggle - hidden for printed-picture */}
               {!selectedCake?.disableText && (
               <div className="space-y-2">
@@ -1698,7 +1763,7 @@ const Catalog = () => {
                               <ExtraImageLightbox src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1">
-                                  <p className="text-xs font-medium text-foreground truncate">{extra.name}</p>
+                                  <p className="text-xs font-medium text-foreground truncate">{extra.id === "pearl-border" && selectedCake?.styleId === "retro-ribbons-glitter" ? "Full border of pearls" : extra.name}</p>
                                   {extraDescriptions[extra.id] && (
                                     <Tooltip>
                                       <TooltipTrigger asChild>
@@ -1869,6 +1934,7 @@ const Catalog = () => {
                   placeholder="Any special requests or details about your cake..."
                   className="min-h-[80px]"
                 />
+                {selectedCake?.styleId !== "printed-picture" && (
                 <div>
                   <label className="text-xs font-medium text-foreground flex items-center gap-1 mb-2">
                     Upload
@@ -1922,6 +1988,7 @@ const Catalog = () => {
                     </>
                   )}
                 </div>
+                )}
               </div>
 
               {/* Candles Section - Packs first, then individual */}
