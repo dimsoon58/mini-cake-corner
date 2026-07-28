@@ -23,6 +23,10 @@ export const allergenMap: Record<string, AllergenInfo> = {
     contains: "gluten (wheat), eggs, milk",
     mayContain: "nuts",
   },
+  "chocolate-lover-berrylicious": {
+    contains: "gluten (wheat), eggs, milk",
+    mayContain: "nuts",
+  },
   "dark-berrylicious": {
     contains: "gluten (wheat), eggs, milk",
     mayContain: "nuts",

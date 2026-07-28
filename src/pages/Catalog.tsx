@@ -1310,7 +1310,7 @@ const Catalog = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select flavor" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent nativeScroll>
                     {flavors.map((flavor) => {
                       const extra = flavor.extraPrice[selections.size as keyof typeof flavor.extraPrice] || 0;
                       const info = allergenMap[flavor.id];
