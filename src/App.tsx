@@ -17,6 +17,7 @@ import Checkout from "./pages/Checkout";
 import CommunityPress from "./pages/CommunityPress";
 import Catalog from "./pages/Catalog";
 import Business from "./pages/Business";
+import Printing from "./pages/Printing";
 import Candles from "./pages/Candles";
 import DotCakes from "./pages/DotCakes";
 import Workshop from "./pages/Workshop";
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/dot-cakes" element={<DotCakes />} />
             <Route path="/candles" element={<Candles />} />
+            <Route path="/printing" element={<Printing />} />
             <Route path="/workshop" element={<Workshop />} />
             <Route path="/kit-bento-cake" element={<KitBentoCake />} />
             <Route path="/inspiration" element={<Inspiration />} />
