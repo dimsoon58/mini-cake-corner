@@ -54,6 +54,7 @@ const CustomRequestForm = () => {
 
   const eventDate = watch("eventDate");
   const numberOfGuests = watch("numberOfGuests") ?? 1;
+  const guestsRaw = watch("numberOfGuests");
 
   const changeGuests = (delta: number) => {
     const next = Math.min(100, Math.max(1, numberOfGuests + delta));
@@ -167,9 +168,28 @@ const CustomRequestForm = () => {
           >
             −
           </button>
-          <div className="h-10 min-w-[4rem] flex items-center justify-center border-y border-input px-4 text-sm font-medium text-foreground select-none">
-            {numberOfGuests}
-          </div>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={guestsRaw ?? ""}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/[^0-9]/g, "");
+              if (digits === "") {
+                setValue("numberOfGuests", undefined as unknown as number, { shouldValidate: false });
+                return;
+              }
+              const n = Math.min(100, parseInt(digits, 10));
+              setValue("numberOfGuests", n, { shouldValidate: true });
+            }}
+            onBlur={() => {
+              const v = watch("numberOfGuests");
+              if (v === undefined || Number.isNaN(v) || v < 1) {
+                setValue("numberOfGuests", 1, { shouldValidate: true });
+              }
+            }}
+            className="h-10 w-16 text-center border-y border-input bg-background text-sm font-medium text-foreground focus:outline-none"
+            aria-label="Number of guests"
+          />
           <button
             type="button"
             onClick={() => changeGuests(1)}
