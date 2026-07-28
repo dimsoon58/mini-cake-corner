@@ -87,7 +87,7 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
           "Number of employees": data.numberOfEmployees,
           "Looking for": data.lookingFor,
         },
-        { subject: "Corporate Celebrations enquiry — Bento Cake Studio" }
+        { subject: "Corporate Celebrations enquiry, Bento Cake Studio" }
       );
       onSuccess();
     } catch (err) {
@@ -186,14 +186,14 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
       await submitToWeb3Forms(
         {
           "First and last name": data.fullName,
-          "Company / Agency": data.companyAgency || "—",
+          "Company / Agency": data.companyAgency || "(not provided)",
           "Email address": data.email,
           "Phone number": data.phone,
           "Event date": format(data.eventDate, "dd.MM.yyyy"),
           "Estimated number of guests": data.estimatedGuests,
           "Project description": data.projectDescription,
         },
-        { subject: "Event Quote Request — Bento Cake Studio", files }
+        { subject: "Event Quote Request, Bento Cake Studio", files }
       );
       onSuccess();
     } catch (err) {
@@ -203,12 +203,6 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2 text-left">
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Planning an event and looking for a personalised proposal? Tell us about your idea, even if it
-        is not yet fully defined. The more information you share about your needs, inspiration and
-        budget, the better we can tailor our proposal to your event.
-      </p>
-
       <div className="space-y-1.5">
         <Label htmlFor="ev-name">First and last name <RequiredMark /></Label>
         <Input id="ev-name" {...register("fullName")} />
@@ -380,7 +374,7 @@ const HospitalityForm = ({ onSuccess }: { onSuccess: () => void }) => {
           "Establishment name": data.establishmentName,
           "Looking for": data.lookingFor,
         },
-        { subject: "Hospitality Partners enquiry — Bento Cake Studio" }
+        { subject: "Hospitality Partners enquiry, Bento Cake Studio" }
       );
       onSuccess();
     } catch (err) {
@@ -477,7 +471,7 @@ const cards: {
       "Individual formats or large quantities",
       "Delivery and set-up available",
     ],
-    cta: "Request a Quote",
+    cta: "Discover",
     image: cardEvents,
   },
   {
@@ -512,7 +506,7 @@ const Business = () => {
   }, []);
 
   const openCategory = (id: CategoryId) => {
-    setView(id === "events" ? "form" : "info");
+    setView("info");
     setOpenId(id);
   };
 
@@ -531,7 +525,7 @@ const Business = () => {
           Business &amp; Press
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          Partner with Bento Cake Studio — from employee celebrations to bespoke events and
+          Partner with Bento Cake Studio, from employee celebrations to bespoke events and
           hospitality collaborations.
         </p>
 
@@ -629,7 +623,7 @@ const Business = () => {
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           {view === "done" ? (
             <SuccessPanel message="Thank you for your enquiry. We will get back to you with a personalised proposal based on your requirements, our availability and the feasibility of the project." />
-          ) : (
+          ) : view === "form" ? (
             <>
               <DialogHeader>
                 <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Events</p>
@@ -638,6 +632,26 @@ const Business = () => {
                 </DialogTitle>
               </DialogHeader>
               <EventsForm onSuccess={() => setView("done")} />
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Events</p>
+                <DialogTitle className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">
+                  Event Quote Request
+                </DialogTitle>
+              </DialogHeader>
+              <div className="pt-2">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Planning an event and looking for a personalised proposal? Tell us about your idea, even if it is not yet fully defined. The more information you share about your needs, inspiration and budget, the better we can tailor our proposal to your event.
+                </p>
+                <Button
+                  onClick={() => setView("form")}
+                  className="w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
+                >
+                  Request a Quote
+                </Button>
+              </div>
             </>
           )}
         </DialogContent>

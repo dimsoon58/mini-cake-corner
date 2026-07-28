@@ -21,7 +21,7 @@ export async function submitToWeb3Forms(
 ): Promise<void> {
   const fd = new FormData();
   fd.append("access_key", WEB3FORMS_ACCESS_KEY);
-  fd.append("from_name", "Bento Cake Studio — Website");
+  fd.append("from_name", "Bento Cake Studio, Website");
   if (options?.subject) fd.append("subject", options.subject);
   fd.append("botcheck", "");
 

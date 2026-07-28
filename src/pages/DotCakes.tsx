@@ -265,7 +265,7 @@ const DotCakes = () => {
           {pack && (
             <section className="space-y-6">
               <SectionHeading>
-                Choose up to {pack.flavours} Flavours
+                Choose up to {pack.flavours} Flavours<span className="text-destructive ml-1">*</span>
               </SectionHeading>
               <p className="text-center text-sm text-muted-foreground">
                 {selectedFlavours.length}/{pack.flavours} selected
