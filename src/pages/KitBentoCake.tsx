@@ -83,7 +83,7 @@ export const flavorCategories = [
     extraPrice: 4,
     flavors: [
       { id: "tiramisu", name: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", image: flavorTiramisu },
-      { id: "praline", name: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelized almond, hazelnut and whipped cream", image: flavorPraline },
+      { id: "praline", name: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelised almond, hazelnut and whipped cream", image: flavorPraline },
       { id: "passion-fruit", name: "Passion Fruit", description: "Fluffy vanilla sponge filled with fresh passion fruit curd and whipped cream", image: flavorPassionFruit },
       { id: "vanilla-gf", name: "Vanilla Gluten-free", description: "Fluffy gluten-free vanilla sponge with whipped cream", image: flavorVanilla },
       { id: "red-velvet-gf", name: "Red Velvet Gluten-free", description: "Fluffy gluten-free vanilla & chocolate sponge with whipped cream", image: flavorRedVelvet },
@@ -147,8 +147,8 @@ export const candles = [
 const tooltipTexts: Record<string, string> = {
   date: "Date required to schedule the preparation of your order (minimum 4 days in advance).",
   shape: "Choose the shape of your cake.",
-  flavor: "Please select the flavor of your cake.",
-  baseColor: "The base color is essential to personalize your cake.",
+  flavor: "Please select the flavour of your cake.",
+  baseColor: "The base colour is essential to personalise your cake.",
   piping: "Choose the number of piping bags you would like with your cake.",
 };
 
@@ -358,7 +358,7 @@ const KitBentoCake = () => {
         <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
           A bento cake ready to decorate at home.
           <br />
-          Choose the flavor, shape and colors to create your own bento cake.
+          Choose the flavour, shape and colours to create your own bento cake.
         </p>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto text-sm">
           Starting from <span className="font-semibold text-foreground">CHF {BASE_PRICE}</span>
@@ -422,12 +422,12 @@ const KitBentoCake = () => {
           {showFlavor && (
             <section ref={flavorRef} className="space-y-6">
               <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em]">
-                Choose Flavor<RequiredAsterisk tooltipKey="flavor" />
+                Choose Flavour<RequiredAsterisk tooltipKey="flavor" />
               </h2>
               {flavorCategories.map((category) => (
                 <div key={category.name} className="space-y-3">
                   <h3 className="text-lg font-medium">
-                    {category.name}
+                    {category.name.replace("Flavors", "Flavours")}
                     {category.extraPrice > 0 && <span className="text-muted-foreground ml-2">(+CHF {category.extraPrice})</span>}
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -455,11 +455,11 @@ const KitBentoCake = () => {
             </section>
           )}
 
-          {/* Step 4: Base Color */}
+          {/* Step 4: Base Colour */}
           {showBaseColor && (
             <section ref={baseColorRef} className="space-y-4">
               <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em]">
-                Choose Base Color<RequiredAsterisk tooltipKey="baseColor" />
+                Choose Base Colour<RequiredAsterisk tooltipKey="baseColor" />
               </h2>
               <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
                 {baseColors.map((color) => (
@@ -508,7 +508,7 @@ const KitBentoCake = () => {
               {selectedPipingOption && (
                 <div className="space-y-3">
                   <p className="text-center text-muted-foreground">
-                    Select {pipingBagOptions.find(p => p.id === selectedPipingOption)?.count} colors for your piping bags
+                    Select {pipingBagOptions.find(p => p.id === selectedPipingOption)?.count} colours for your piping bags
                   </p>
                   <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
                     {baseColors.map((color) => (
@@ -631,8 +631,8 @@ const KitBentoCake = () => {
               <p><strong>DIY Kit</strong></p>
               <p className="text-sm text-muted-foreground">Date: {orderDate ? format(orderDate, "dd.MM.yyyy") : ""}</p>
               <p className="text-sm text-muted-foreground">Shape: {shapes.find(s => s.id === selectedShape)?.name}</p>
-              <p className="text-sm text-muted-foreground">Flavor: {getFlavorName()}</p>
-              <p className="text-sm text-muted-foreground">Base Color: {baseColors.find(c => c.id === selectedBaseColor)?.name}</p>
+              <p className="text-sm text-muted-foreground">Flavour: {getFlavorName()}</p>
+              <p className="text-sm text-muted-foreground">Base Colour: {baseColors.find(c => c.id === selectedBaseColor)?.name}</p>
               <p className="text-sm text-muted-foreground">
                 Piping: {pipingBagOptions.find(p => p.id === selectedPipingOption)?.name} - {pipingColors.map(id => baseColors.find(c => c.id === id)?.name).join(", ")}
               </p>

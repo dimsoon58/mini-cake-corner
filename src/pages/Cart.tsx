@@ -23,7 +23,7 @@ import {
   flavorCategories,
   styles,
   extras,
-  candles as customizationCandles,
+  candles as customisationCandles,
   baseColors,
   textColors,
   ribbonColors,
@@ -38,7 +38,7 @@ import {
   getAvailableSizesForStyle,
   getFlavorCategoryExtra,
   getCandleTotalPrice,
-} from "@/data/customization";
+} from "@/data/customisation";
 
 // Import images for catalogExtras
 import extraGoldLeaves from "@/assets/extra-gold-leaves.png";
@@ -81,8 +81,8 @@ const catalogExtras = [
 
 // Candles reordered: packs first, then individuals
 const cartCandles = [
-  ...customizationCandles.filter(c => c.hasPack),
-  ...customizationCandles.filter(c => !c.hasPack),
+  ...customisationCandles.filter(c => c.hasPack),
+  ...customisationCandles.filter(c => !c.hasPack),
 ];
 
 const formatDateFromIso = (dateValue: string) => {
@@ -323,7 +323,7 @@ const Cart = () => {
             <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-6" strokeWidth={1.25} />
             <h2 className="font-serif text-3xl text-foreground mb-4">Your basket is empty</h2>
             <p className="text-muted-foreground mb-8">Start customizing your perfect cake!</p>
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide rounded-full" asChild><Link to="/catalog">Customize Your Cake</Link></Button>
+            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide rounded-full" asChild><Link to="/catalog">Customise Your Cake</Link></Button>
           </div>
         ) : (
           <div className="grid lg:grid-cols-3 gap-8">
@@ -492,13 +492,13 @@ const CartItemSummary = ({ item }: { item: any }) => {
         </div>
         {flavorExtra > 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Flavor: {item.flavorName}</span>
+            <span className="text-muted-foreground">Flavour: {item.flavorName}</span>
             <span className="text-foreground">+ CHF {flavorExtra}</span>
           </div>
         )}
         {flavorExtra === 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Flavor: {item.flavorName}</span>
+            <span className="text-muted-foreground">Flavour: {item.flavorName}</span>
             <span className="text-muted-foreground text-xs">included</span>
           </div>
         )}
@@ -676,7 +676,7 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Flavor with images */}
-      <EditSection label="Flavor" tooltip="Please select the flavor of your cake." required>
+      <EditSection label="Flavor" tooltip="Please select the flavour of your cake." required>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {flavorCategories.map(cat => cat.flavors.map(flavor => (
             <button
@@ -716,14 +716,14 @@ const CartItemEditor = ({
         </div>
       </EditSection>
 
-      {/* Base Color */}
-      <EditSection label="Base Color" tooltip="The base color is essential to personalize your cake." required>
+      {/* Base Colour */}
+      <EditSection label="Base Colour" tooltip="The base colour is essential to personalise your cake." required>
         <ColorPicker colors={baseColors} selected={item.baseColor} onSelect={onBaseColorChange} />
       </EditSection>
 
-      {/* Decoration Color */}
+      {/* Decoration Colour */}
       {showDecoColor && (
-        <EditSection label="Decoration Color" tooltip="Choose the colors for the decorative elements of your cake." required>
+        <EditSection label="Decoration Colour" tooltip="Choose the colours for the decorative elements of your cake." required>
           <ColorPicker colors={baseColors} selected={item.decorationColor} onSelect={onDecoColorChange} />
         </EditSection>
       )}
@@ -784,7 +784,7 @@ const CartItemEditor = ({
 
           {item.cakeText && (
             <div className="mt-2">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Text Color</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Text Colour</p>
               <ColorPicker colors={textColors} selected={item.textColor} onSelect={onTextColorChange} />
             </div>
           )}
@@ -792,7 +792,7 @@ const CartItemEditor = ({
       )}
 
       {/* Extras */}
-      <EditSection label="✨ Extra" tooltip="You can add any additional elements to personalize your design.">
+      <EditSection label="✨ Extra" tooltip="You can add any additional elements to personalise your design.">
         {extraGroups.map((group) => {
           const visibleExtras = group.ids
             .map(id => catalogExtras.find(e => e.id === id))
@@ -845,10 +845,10 @@ const CartItemEditor = ({
           );
         })}
 
-        {/* Glitter Color */}
+        {/* Glitter Colour */}
         {((item.extras || []).some(e => ["glitter", "glitter-base", "glitter-in-the-air"].includes(e)) || ["retro-glitter-cake", "retro-ribbons-glitter"].includes(item.style)) && (
           <div className="space-y-2 mt-3">
-            <p className="text-xs font-medium text-foreground">Glitter Color <span className="text-destructive">*</span></p>
+            <p className="text-xs font-medium text-foreground">Glitter Colour <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
               {(() => {
                 const isGlitterInTheAir = (item.extras || []).includes("glitter-in-the-air") || item.style === "retro-ribbons-glitter";
@@ -871,10 +871,10 @@ const CartItemEditor = ({
           </div>
         )}
 
-        {/* Glitter Cherries Color */}
+        {/* Glitter Cherries Colour */}
         {((item.extras || []).includes("glitter-cherries") || item.style === "glitter-cherries-retro") && (
           <div className="space-y-2 mt-3">
-            <p className="text-xs font-medium text-foreground">Glitter Cherries Color</p>
+            <p className="text-xs font-medium text-foreground">Glitter Cherries Colour</p>
             <div className="flex flex-wrap gap-2">
               {glitterCherriesColors.map((color) => (
                 <button
@@ -893,10 +893,10 @@ const CartItemEditor = ({
           </div>
         )}
 
-        {/* Ribbon Color */}
+        {/* Ribbon Colour */}
         {((item.extras || []).includes("ribbons") || item.style === "retro-ribbons" || item.style === "retro-ribbons-glitter") && (
           <div className="space-y-2 mt-3">
-            <p className="text-xs font-medium text-foreground">Ribbon Color <span className="text-destructive">*</span></p>
+            <p className="text-xs font-medium text-foreground">Ribbon Colour <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
               {ribbonColors.map((color) => (
                 <button
@@ -915,10 +915,10 @@ const CartItemEditor = ({
           </div>
         )}
 
-        {/* Butterfly Color */}
+        {/* Butterfly Colour */}
         {((item.extras || []).includes("butterfly") || item.style === "butterfly-garden") && (
           <div className="space-y-2 mt-3">
-            <p className="text-xs font-medium text-foreground">Butterfly Color <span className="text-destructive">*</span></p>
+            <p className="text-xs font-medium text-foreground">Butterfly Colour <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
               {butterflyColors.map((color) => (
                 <button
@@ -990,7 +990,7 @@ const CartItemEditor = ({
               ))}
             </div>
             <p className="text-[10px] text-muted-foreground/80 italic mt-2 leading-tight">
-              When a client provides an inspiration photo, it is for reference only. Bento Cake Studio SNC will create a design inspired by it and aim to respect the colors and style, but an identical reproduction is not guaranteed.
+              When a client provides an inspiration photo, it is for reference only. Bento Cake Studio SNC will create a design inspired by it and aim to respect the colours and style, but an identical reproduction is not guaranteed.
             </p>
           </>
         )}

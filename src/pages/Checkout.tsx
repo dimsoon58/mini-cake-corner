@@ -4,9 +4,9 @@ import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
 import {
   sizes, shapes, styles, extras as catalogExtrasData,
-  getFlavorCategoryExtra, getCandleTotalPrice, candles as customizationCandles,
+  getFlavorCategoryExtra, getCandleTotalPrice, candles as customisationCandles,
   flavorCategories,
-} from "@/data/customization";
+} from "@/data/customisation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -267,9 +267,9 @@ const Checkout = () => {
 
     if (deliveryOption === "delivery" && !detectedZone) {
       toast({
-        title: "Delivery zone not recognized",
+        title: "Delivery zone not recognised",
         description:
-          "Please make sure your address includes a recognized area name (e.g., Carouge, Champel, Meyrin...)",
+          "Please make sure your address includes a recognised area name (e.g., Carouge, Champel, Meyrin...)",
         variant: "destructive",
       });
       return;
@@ -759,7 +759,7 @@ const Checkout = () => {
                     const candleEntries = (item.candles || [])
                       .filter((c: any) => c.quantity > 0)
                       .map((c: any) => {
-                        const candle = customizationCandles.find(x => x.id === c.id);
+                        const candle = customisationCandles.find(x => x.id === c.id);
                         const price = candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0;
                         return { name: candle?.name || "", qty: c.quantity, price };
                       })
@@ -779,7 +779,7 @@ const Checkout = () => {
                             <span>CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Flavor: {item.flavorName}</span>
+                            <span>Flavour: {item.flavorName}</span>
                             <span>{flavorExtra > 0 ? `+ CHF ${flavorExtra}` : "included"}</span>
                           </div>
                           {item.styleName && (
@@ -800,8 +800,8 @@ const Checkout = () => {
                               <span>+ CHF {e.price}</span>
                             </div>
                           ))}
-                          {item.baseColorName && <p>Base Color: {item.baseColorName}</p>}
-                          {item.decorationColorName && <p>Decoration Color: {item.decorationColorName}</p>}
+                          {item.baseColorName && <p>Base Colour: {item.baseColorName}</p>}
+                          {item.decorationColorName && <p>Decoration Colour: {item.decorationColorName}</p>}
                           {item.cakeText && (
                             <p>Text: "{item.cakeText}"{item.textColorName ? ` (${item.textColorName})` : ""}</p>
                           )}

@@ -23,7 +23,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import Layout from "@/components/Layout";
 import ExtraImageLightbox from "@/components/ExtraImageLightbox";
 import { allergenMap } from "@/data/allergens";
-import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
+import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customisation";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -355,7 +355,7 @@ const catalog = [
   {
     id: "shag-cake",
     name: "Shag Cake",
-    description: "A retro inspired shag cake with rich texture and colorful details",
+    description: "A retro inspired shag cake with rich texture and colourful details",
     image: designShagCake,
     images: [designShagCake, shagCake1, shagCake2, shagCake3],
     styleId: "shag-cake",
@@ -428,7 +428,7 @@ const catalog = [
   {
     id: "pearl-number",
     name: "Pearl Number",
-    description: "Customize with a pearl number",
+    description: "Customise with a pearl number",
     image: designPearlNumber,
     styleId: "pearl-number",
     styleName: "Pearl Number",
@@ -469,7 +469,7 @@ const catalog = [
   {
     id: "gender-reveal",
     name: "Gender Reveal",
-    description: "Choose the inside color. Perfect for your special announcement",
+    description: "Choose the inside colour. Perfect for your special announcement",
     image: designGenderReveal,
     styleId: "gender-reveal",
     styleName: "Gender Reveal",
@@ -479,7 +479,7 @@ const catalog = [
   {
     id: "sprinkles-with-border",
     name: "Sprinkles with Border",
-    description: "A classic cake with decorative borders and colorful sprinkles",
+    description: "A classic cake with decorative borders and colourful sprinkles",
     image: designSprinklesWithBorder,
     styleId: "sprinkles-with-border",
     styleName: "Sprinkles with Border",
@@ -489,7 +489,7 @@ const catalog = [
 ];
 
 // Per-design colour section configuration. Designs not listed use the default
-// (base colour + "Decoration Color" with up to 3 picks).
+// (base colour + "Decoration Colour" with up to 3 picks).
 interface ColorSectionConfig {
   showBase: boolean;
   baseNote?: string;
@@ -501,32 +501,32 @@ interface ColorSectionConfig {
 }
 
 const colorSectionOverrides: Record<string, Partial<ColorSectionConfig>> = {
-  "normal-with-border": { secondaryLabel: "Border Color", secondaryMax: 1 },
+  "normal-with-border": { secondaryLabel: "Border Colour", secondaryMax: 1 },
   "normal-without-border": { secondaryLabel: null },
   "golden-cake": { showBase: false, secondaryLabel: null },
-  "roses-please": { secondaryLabel: "Border Color", secondaryMax: 1, roseColor: true }, // rose section labelled "Roses Color"
+  "roses-please": { secondaryLabel: "Border Colour", secondaryMax: 1, roseColor: true }, // rose section labelled "Roses Colour"
   "butterfly-garden": {
-    secondaryLabel: "Second Color (optional)",
+    secondaryLabel: "Second Colour (optional)",
     secondaryMax: 1,
     secondaryOptional: true,
   },
   "custom-drawing": {
-    secondaryLabel: "Second Color (optional)",
+    secondaryLabel: "Second Colour (optional)",
     secondaryMax: 1,
     secondaryOptional: true,
   },
   "gender-reveal": { showBase: false, secondaryLabel: null, hideExtras: true },
-  "heart-bomb": { secondaryLabel: "Heart Color", secondaryMax: 1, hideExtras: true },
-  "shag-cake": { showBase: false, secondaryLabel: "Choose Your Colors", secondaryMax: 6 },
+  "heart-bomb": { secondaryLabel: "Heart Colour", secondaryMax: 1, hideExtras: true },
+  "shag-cake": { showBase: false, secondaryLabel: "Choose Your Colours", secondaryMax: 6 },
   "rainbow-cake": { secondaryLabel: null },
-  "printed-picture": { secondaryLabel: "Border Color", secondaryMax: 1 },
+  "printed-picture": { secondaryLabel: "Border Colour", secondaryMax: 1 },
   // Inspiration orders: shape, flavour, text and candles only
   inspiration: { showBase: false, secondaryLabel: null, hideExtras: true },
 };
 
 const getColorConfig = (styleId?: string): ColorSectionConfig => ({
   showBase: true,
-  secondaryLabel: "Decoration Color",
+  secondaryLabel: "Decoration Colour",
   secondaryMax: 3,
   roseColor: false,
   secondaryOptional: false,
@@ -932,7 +932,7 @@ const Catalog = () => {
     }
 
     if (cfg.showBase && !selections.baseColor) {
-      toast({ title: "Base Color required", description: "Please select a base color for your cake.", variant: "destructive" });
+      toast({ title: "Base Colour required", description: "Please select a base colour for your cake.", variant: "destructive" });
       return;
     }
 
@@ -952,7 +952,7 @@ const Catalog = () => {
     }
 
     if (selections.wantsText && !selections.textColor) {
-      toast({ title: "Text Color required", description: "Please select a color for your text.", variant: "destructive" });
+      toast({ title: "Text Colour required", description: "Please select a colour for your text.", variant: "destructive" });
       return;
     }
 
@@ -968,25 +968,25 @@ const Catalog = () => {
 
     const designNeedsGlitter = ["retro-glitter-cake", "retro-ribbons-glitter"].includes(selectedCake?.styleId || "");
     if ((designNeedsGlitter || selections.extras.includes("glitter") || selections.extras.includes("glitter-base") || selections.extras.includes("glitter-in-the-air")) && !selections.glitterColor) {
-      toast({ title: "Glitter Color required", description: "Please select a color for your glitter.", variant: "destructive" });
+      toast({ title: "Glitter Colour required", description: "Please select a colour for your glitter.", variant: "destructive" });
       return;
     }
 
     const designNeedsGlitterCherries = selectedCake?.styleId === "glitter-cherries-retro";
     if ((designNeedsGlitterCherries || selections.extras.includes("glitter-cherries")) && !selections.glitterCherriesColor) {
-      toast({ title: "Glitter Cherries Color required", description: "Please select a color for your glitter cherries.", variant: "destructive" });
+      toast({ title: "Glitter Cherries Colour required", description: "Please select a colour for your glitter cherries.", variant: "destructive" });
       return;
     }
 
     const designNeedsRibbon = selectedCake?.styleId === "retro-ribbons" || selectedCake?.styleId === "retro-ribbons-glitter";
     if ((designNeedsRibbon || selections.extras.includes("ribbons")) && !selections.ribbonColor) {
-      toast({ title: "Ribbon Color required", description: "Please select a color for your ribbons.", variant: "destructive" });
+      toast({ title: "Ribbon Colour required", description: "Please select a colour for your ribbons.", variant: "destructive" });
       return;
     }
 
     const designNeedsButterfly = selectedCake?.styleId === "butterfly-garden";
     if ((designNeedsButterfly || selections.extras.includes("butterfly")) && !selections.butterflyColor) {
-      toast({ title: "Butterfly Color required", description: "Please select a color for your butterfly.", variant: "destructive" });
+      toast({ title: "Butterfly Colour required", description: "Please select a colour for your butterfly.", variant: "destructive" });
       return;
     }
     
@@ -1196,7 +1196,7 @@ const Catalog = () => {
               {selectedCake?.name}
             </SheetTitle>
             <SheetDescription>
-              Customize your cake options
+              Customise your cake options
             </SheetDescription>
           </SheetHeader>
           
@@ -1321,10 +1321,10 @@ const Catalog = () => {
               {/* Flavor Selection */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Flavor <span className="text-destructive">*</span>
+                  Flavour <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">Please select the flavor of your cake.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">Please select the flavour of your cake.</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Select
@@ -1332,7 +1332,7 @@ const Catalog = () => {
                   onValueChange={(value) => setSelections({ ...selections, flavor: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select flavor" />
+                    <SelectValue placeholder="Select flavour" />
                   </SelectTrigger>
                   <SelectContent nativeScroll>
                     {flavors.map((flavor) => {
@@ -1405,21 +1405,21 @@ const Catalog = () => {
                 </div>
               )}
 
-              {/* Base Color Selection */}
+              {/* Base Colour Selection */}
               {colorCfg.showBase && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Base Color <span className="text-destructive">*</span>
+                  Base Colour <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">The base color is essential to personalize your cake.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">The base colour is essential to personalise your cake.</p></TooltipContent>
                   </Tooltip>
                 </label>
                 {colorCfg.baseNote && (
                   <p className="text-xs text-muted-foreground italic">{colorCfg.baseNote}</p>
                 )}
                 <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
-                  <span>⚠️</span> We recommend choosing light colors, as dark colors may temporarily stain lips.
+                  <span>⚠️</span> We recommend choosing light colours, as dark colours may temporarily stain lips.
                 </p>
                 <div className="grid grid-cols-6 gap-2">
                   {baseColors.map((color) => (
@@ -1463,16 +1463,16 @@ const Catalog = () => {
                   </span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">Choose the colors for this part of your cake.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">Choose the colours for this part of your cake.</p></TooltipContent>
                   </Tooltip>
                 </label>
                 {maxColors > 1 && (
                 <p className="text-xs text-muted-foreground">
-                  You can choose up to {maxColors} colors. You can also explain how you would like them to be arranged in the comment section.
+                  You can choose up to {maxColors} colours. You can also explain how you would like them to be arranged in the comment section.
                 </p>
                 )}
                 <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
-                  <span>⚠️</span> We recommend choosing light colors, as dark colors may temporarily stain lips.
+                  <span>⚠️</span> We recommend choosing light colours, as dark colours may temporarily stain lips.
                 </p>
                 <div className="grid grid-cols-6 gap-2">
                   {baseColors.map((color) => {
@@ -1513,7 +1513,7 @@ const Catalog = () => {
                   })}
                 </div>
                 {selections.decorationColors.length > 0 && (
-                  <p className="text-xs text-primary font-medium">{selections.decorationColors.length}/{maxColors} colors selected</p>
+                  <p className="text-xs text-primary font-medium">{selections.decorationColors.length}/{maxColors} colours selected</p>
                 )}
               </div>
                 );
@@ -1523,7 +1523,7 @@ const Catalog = () => {
               {colorCfg.roseColor && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Roses Color <span className="text-destructive">*</span>
+                  Roses Colour <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
                     <TooltipContent><p className="text-xs max-w-[200px]">Choose one colour for the piped roses.</p></TooltipContent>
@@ -1561,8 +1561,8 @@ const Catalog = () => {
               {selectedCake?.styleId === "rainbow-cake" && (
                 <div className="space-y-4">
                   {([
-                    { key: "borderTopColor", label: "Top Border Color" },
-                    { key: "borderBottomColor", label: "Bottom Border Color" },
+                    { key: "borderTopColor", label: "Top Border Colour" },
+                    { key: "borderBottomColor", label: "Bottom Border Colour" },
                   ] as const).map(({ key, label }) => (
                     <div key={key} className="space-y-2">
                       <label className="text-sm font-medium text-foreground flex items-center gap-1">
@@ -1689,9 +1689,9 @@ const Catalog = () => {
                     )}
                   </div>
 
-                  {/* Text Color Selection */}
+                  {/* Text Colour Selection */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Text Color</label>
+                    <label className="text-sm font-medium text-foreground">Text Colour</label>
                     <div className="grid grid-cols-6 gap-2">
                       {baseColors.map((color) => (
                         <button
@@ -1728,7 +1728,7 @@ const Catalog = () => {
                   ✨ Extra
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">You can add any additional elements to personalize your design.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">You can add any additional elements to personalise your design.</p></TooltipContent>
                   </Tooltip>
                 </label>
                 )}
@@ -1785,10 +1785,10 @@ const Catalog = () => {
                   );
                 })}
 
-                {/* Glitter Color */}
+                {/* Glitter Colour */}
                 {(selections.extras.includes("glitter") || selections.extras.includes("glitter-base") || selections.extras.includes("glitter-in-the-air") || ["retro-glitter-cake", "retro-ribbons-glitter"].includes(selectedCake?.styleId || "")) && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Glitter Color <span className="text-destructive">*</span></p>
+                    <p className="text-xs font-medium text-foreground">Glitter Colour <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {(() => {
                         const isGlitterInTheAir = selections.extras.includes("glitter-in-the-air") || selectedCake?.styleId === "retro-ribbons-glitter";
@@ -1811,10 +1811,10 @@ const Catalog = () => {
                   </div>
                 )}
 
-                {/* Glitter Cherries Color */}
+                {/* Glitter Cherries Colour */}
                 {(selections.extras.includes("glitter-cherries") || selectedCake?.styleId === "glitter-cherries-retro") && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Glitter Cherries Color</p>
+                    <p className="text-xs font-medium text-foreground">Glitter Cherries Colour</p>
                     <div className="flex flex-wrap gap-2">
                       {glitterCherriesColors.map((color) => (
                         <button
@@ -1833,10 +1833,10 @@ const Catalog = () => {
                   </div>
                 )}
 
-                {/* Ribbon Color */}
+                {/* Ribbon Colour */}
                 {(selections.extras.includes("ribbons") || selectedCake?.styleId === "retro-ribbons" || selectedCake?.styleId === "retro-ribbons-glitter") && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Ribbon Color <span className="text-destructive">*</span></p>
+                    <p className="text-xs font-medium text-foreground">Ribbon Colour <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {ribbonColors.map((color) => (
                         <button
@@ -1855,10 +1855,10 @@ const Catalog = () => {
                   </div>
                 )}
 
-                {/* Butterfly Color */}
+                {/* Butterfly Colour */}
                 {(selections.extras.includes("butterfly") || selectedCake?.styleId === "butterfly-garden") && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Butterfly Color <span className="text-destructive">*</span></p>
+                    <p className="text-xs font-medium text-foreground">Butterfly Colour <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {butterflyColors.map((color) => (
                         <button
@@ -1983,7 +1983,7 @@ const Catalog = () => {
                         ))}
                       </div>
                       <p className="text-[10px] text-muted-foreground/80 italic mt-2 leading-tight">
-                        When a client provides an inspiration photo, it is for reference only. Bento Cake Studio SNC will create a design inspired by it and aim to respect the colors and style, but an identical reproduction is not guaranteed.
+                        When a client provides an inspiration photo, it is for reference only. Bento Cake Studio SNC will create a design inspired by it and aim to respect the colours and style, but an identical reproduction is not guaranteed.
                       </p>
                     </>
                   )}

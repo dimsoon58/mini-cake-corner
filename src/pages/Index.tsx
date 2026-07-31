@@ -91,7 +91,7 @@ const features = [
   {
     title: "Personalised",
     titleFr: "Personnalisé",
-    description: "Your perfect cake, from flavors to decoration.",
+    description: "Your perfect cake, from flavours to decoration.",
     descFr: "Votre gâteau parfait, des saveurs à la décoration.",
     image: featureCake,
   },
@@ -299,7 +299,7 @@ const Index = () => {
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4">
           <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-6">
-            {t("CUSTOMERS COMMENTS", "AVIS CLIENTS")}
+            {t("CUSTOMER COMMENTS", "AVIS CLIENTS")}
           </h2>
           <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" />
         </div>

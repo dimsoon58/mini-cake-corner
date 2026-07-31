@@ -1,4 +1,4 @@
-// Shared customization data used by Customize page, Cart, and Checkout
+// Shared customisation data used by Customise page, Cart, and Checkout
 
 // Box images
 import boxBento from "@/assets/box-bento.png";
@@ -143,8 +143,8 @@ export const flavorCategories = [
     extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 },
     flavors: [
       { id: "tiramisu", name: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", image: flavorTiramisu },
-      { id: "praline", name: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelized almond, hazelnut and whipped cream", image: flavorPraline },
-      { id: "pistachio-lovers", name: "Pistachio Lovers", description: "Fluffy vanilla sponge filled with caramelized pistachio and whipped cream", image: flavorPistachio },
+      { id: "praline", name: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelised almond, hazelnut and whipped cream", image: flavorPraline },
+      { id: "pistachio-lovers", name: "Pistachio Lovers", description: "Fluffy vanilla sponge filled with caramelised pistachio and whipped cream", image: flavorPistachio },
       { id: "passion-fruit", name: "Passion Fruit", description: "Fluffy vanilla sponge filled with fresh passion fruit curd and whipped cream", image: flavorPassionFruit },
       { id: "vanilla-gf", name: "Vanilla Gluten-free", description: "Fluffy gluten-free vanilla sponge with whipped cream", image: flavorVanilla },
       { id: "red-velvet-gf", name: "Red Velvet Gluten-free", description: "Fluffy gluten-free vanilla & chocolate sponge with whipped cream", image: flavorRedVelvet },
@@ -184,7 +184,7 @@ export const styles = [
 export const extraDescriptions: Record<string, string> = {
   "cherries": "Candied cherries placed on top of the cake.",
   "glitter-cherries": "Candied cherries covered with edible glitter.",
-  "sprinkles": "Small colorful sprinkles scattered over the cake.",
+  "sprinkles": "Small colourful sprinkles scattered over the cake.",
   "gold-leaves": "Small pieces of edible gold leaf for a luxury touch.",
   "heart": "Heart shapes piped on the cake.",
   "ribbons": "Decorative satin ribbons placed around the cake.",

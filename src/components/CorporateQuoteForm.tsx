@@ -104,7 +104,7 @@ const CorporateQuoteForm = ({ open, onOpenChange }: CorporateQuoteFormProps) => 
             Get a Quote
           </DialogTitle>
           <DialogDescription className="text-muted-foreground leading-relaxed pt-2">
-            Share the details of your event with us, and our team will carefully review your request. You will receive a personalized quote within 48 hours.
+            Share the details of your event with us, and our team will carefully review your request. You will receive a personalised quote within 48 hours.
           </DialogDescription>
         </DialogHeader>
 

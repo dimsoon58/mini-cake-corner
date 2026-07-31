@@ -13,7 +13,7 @@ const FAQ = () => {
       questions: [
         {
           question: "What is a Bento cake?",
-          answer: "A Bento cake is a Korean-inspired cake, light in texture. It is fully customizable, allowing you to choose the design, colors, and message. Its minimalist style makes it perfect for birthdays, gifts, or any special occasion."
+          answer: "A Bento cake is a Korean-inspired cake, light in texture. It is fully customisable, allowing you to choose the design, colors, and message. Its minimalist style makes it perfect for birthdays, gifts, or any special occasion."
         },
         {
           question: "What kind of cream do you use?",
@@ -21,7 +21,7 @@ const FAQ = () => {
         },
         {
           question: "How many days can a cake be kept?",
-          answer: "The cake can be kept for 2 days. Please note that when dark and light colors are combined, slight color transfer may occur over time."
+          answer: "The cake can be kept for 2 days. Please note that when dark and light colours are combined, slight colour transfer may occur over time."
         },
         {
           question: "How should I store my cake?",
@@ -32,8 +32,8 @@ const FAQ = () => {
           answer: "The cake can be left outside for up to 2 hours. We recommend keeping it refrigerated as much as possible to maintain its freshness and quality."
         },
         {
-          question: "Does the food coloring stain the lips?",
-          answer: "Darker colors may temporarily stain the lips. The deeper the color, the more noticeable the staining may be. We recommend choosing lighter colors to avoid any discomfort."
+          question: "Does the food colouring stain the lips?",
+          answer: "Darker colours may temporarily stain the lips. The deeper the colour, the more noticeable the staining may be. We recommend choosing lighter colours to avoid any discomfort."
         },
         {
           question: "Can pregnant women eat your cakes?",
@@ -50,7 +50,7 @@ const FAQ = () => {
         },
         {
           question: "What are the steps to place an order?",
-          answer: "To place an order, please provide the date, size, shape, flavor, design, desired colors, text and text color, and you may also include a reference photo of a design you like."
+          answer: "To place an order, please provide the date, size, shape, flavour, design, desired colours, text and text colour, and you may also include a reference photo of a design you like."
         },
         {
           question: "How many days in advance should I order?",
