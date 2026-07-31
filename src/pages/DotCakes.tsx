@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
+import { useLang } from "@/context/LanguageContext";
 import { flavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
 
 /* Dot cake pricing: pack base price + per-dot surcharge for premium/deluxe
@@ -40,6 +41,7 @@ const SectionHeading = ({ children }: { children: React.ReactNode }) => (
 const DotCakes = () => {
   const navigate = useNavigate();
   const { addItem } = useCart();
+  const { t } = useLang();
   const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
   const [packSize, setPackSize] = useState<number | null>(null);
   const [selectedFlavours, setSelectedFlavours] = useState<string[]>([]);
@@ -47,11 +49,11 @@ const DotCakes = () => {
   const [showAllCandles, setShowAllCandles] = useState(false);
 
   useEffect(() => {
-    document.title = "Dot Cakes – Bento Cake Studio";
+    document.title = t("Dot Cakes – Bento Cake Studio", "Dot Cakes – Bento Cake Studio");
     return () => {
       document.title = "Bento Cake Studio Geneva";
     };
-  }, []);
+  }, [t]);
 
   const pack = packs.find((p) => p.size === packSize) || null;
 
@@ -117,15 +119,15 @@ const DotCakes = () => {
 
   const handleOrder = () => {
     if (!orderDate) {
-      toast.error("Please choose your pick-up date (minimum 4 days' notice).");
+      toast.error(t("Please choose your pick-up date (minimum 4 days' notice).", "Veuillez choisir votre date de retrait (minimum 4 jours à l'avance)."));
       return;
     }
     if (!pack) {
-      toast.error("Please choose a pack.");
+      toast.error(t("Please choose a pack.", "Veuillez choisir un pack."));
       return;
     }
     if (selectedFlavours.length === 0) {
-      toast.error(`Please choose up to ${pack.flavours} flavours (at least one).`);
+      toast.error(t("Please choose up to " + pack.flavours + " flavours (at least one).", "Veuillez choisir jusqu'à " + pack.flavours + " parfums (au moins un)."));
       return;
     }
 
@@ -172,7 +174,7 @@ const DotCakes = () => {
       imageFiles: [],
       total,
     });
-    toast.success("Dot cakes added to your cart!");
+    toast.success(t("Dot cakes added to your cart!", "Dot cakes ajoutés à votre panier !"));
     navigate("/cart");
   };
 
@@ -186,18 +188,17 @@ const DotCakes = () => {
           DOT CAKES
         </h1>
         <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-          Bite-sized cakes topped with a cloud of colourful sprinkles, perfect
-          for parties, gifts and moments when one cake just isn't enough.
+          {t("Bite-sized cakes topped with a cloud of colourful sprinkles, perfect for parties, gifts and moments when one cake just isn't enough.", "De délicieux petits gâteaux surmontés d'un nuage de vermicelles colorés, parfaits pour les fêtes, les cadeaux et tous les moments où un seul gâteau ne suffit pas.")}
         </p>
 
         <div className="max-w-4xl mx-auto space-y-14">
           {/* 1. Pick-up date */}
           <section className="space-y-3">
             <SectionHeading>
-              Choose Your Date<span className="text-destructive ml-1">*</span>
+              {t("Choose Your Date", "Choisissez votre date")}<span className="text-destructive ml-1">*</span>
             </SectionHeading>
             <p className="text-center text-sm text-muted-foreground">
-              Minimum 4 days' notice required.
+              {t("Minimum 4 days' notice required.", "Minimum 4 jours à l'avance requis.")}
             </p>
             <div className="flex justify-center">
               <Popover>
@@ -210,7 +211,7 @@ const DotCakes = () => {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {orderDate ? format(orderDate, "PPP") : "Select your pick-up date"}
+                    {orderDate ? format(orderDate, "PPP") : t("Select your pick-up date", "Sélectionnez votre date de retrait")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="center">
@@ -230,7 +231,7 @@ const DotCakes = () => {
           {orderDate && (
           <section className="space-y-4">
             <SectionHeading>
-              Choose Your Quantity<span className="text-destructive ml-1">*</span>
+              {t("Choose Your Quantity", "Choisissez votre quantité")}<span className="text-destructive ml-1">*</span>
             </SectionHeading>
             <div className="flex flex-wrap justify-center gap-3">
               {packs.map((p) => (
@@ -247,16 +248,16 @@ const DotCakes = () => {
                       : "border-border hover:border-primary/50"
                   )}
                 >
-                  <span className="block font-semibold text-foreground">Pack of {p.size}</span>
+                  <span className="block font-semibold text-foreground">{t("Pack of " + p.size, "Pack de " + p.size)}</span>
                   <span className="block text-sm text-muted-foreground">
-                    Up to {p.flavours} flavours · CHF {p.price}
+                    {t("Up to " + p.flavours + " flavours · CHF " + p.price, "Jusqu'à " + p.flavours + " parfums · CHF " + p.price)}
                   </span>
                 </button>
               ))}
             </div>
             <div className="text-xs text-muted-foreground text-center space-y-0.5">
-              <p>Premium flavour: +CHF 1.50 per Dot Cake</p>
-              <p>Deluxe flavour: +CHF 2.50 per Dot Cake</p>
+              <p>{t("Premium flavour: +CHF 1.50 per Dot Cake", "Parfum Premium : +CHF 1.50 par Dot Cake")}</p>
+              <p>{t("Deluxe flavour: +CHF 2.50 per Dot Cake", "Parfum Deluxe : +CHF 2.50 par Dot Cake")}</p>
             </div>
           </section>
           )}
@@ -265,19 +266,19 @@ const DotCakes = () => {
           {pack && (
             <section className="space-y-6">
               <SectionHeading>
-                Choose up to {pack.flavours} Flavours<span className="text-destructive ml-1">*</span>
+                {t("Choose up to " + pack.flavours + " Flavours", "Choisissez jusqu'à " + pack.flavours + " parfums")}<span className="text-destructive ml-1">*</span>
               </SectionHeading>
               <p className="text-center text-sm text-muted-foreground">
-                {selectedFlavours.length}/{pack.flavours} selected
+                {selectedFlavours.length}/{pack.flavours} {t("selected", "sélectionnés")}
               </p>
               {flavorCategories.map((category) => {
                 const tier = tierByCategory[category.name];
                 return (
                   <div key={category.name} className="space-y-3">
                     <h3 className="text-lg font-medium">
-                      {tier?.label ?? category.name}
+                      {t(tier?.label ?? category.name, "Parfums " + (tier?.label ?? category.name).replace(" Flavours", ""))}
                       {tier && tier.surcharge > 0 && (
-                        <span className="text-muted-foreground ml-2 text-sm">({tier.note})</span>
+                        <span className="text-muted-foreground ml-2 text-sm">({t(tier.note, tier.note.replace("per Dot Cake", "par Dot Cake"))})</span>
                       )}
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -313,7 +314,7 @@ const DotCakes = () => {
           {/* 4. Add candles, same design as the DIY Kit page */}
           {pack && (
             <section className="space-y-6">
-              <SectionHeading>Add Candles (Optional)</SectionHeading>
+              <SectionHeading>{t("Add Candles (Optional)", "Ajouter des bougies (optionnel)")}</SectionHeading>
 
               <div className="space-y-4">
                 <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
@@ -357,7 +358,7 @@ const DotCakes = () => {
                             </div>
                             {qty > 0 && candle.hasPack && (
                               <p className={cn("text-[10px] font-medium", hasPackApplied ? "text-green-700" : "text-muted-foreground")}>
-                                {hasPackApplied ? `✓ Pack price applied, CHF ${price}` : `CHF ${price}`}
+                                {hasPackApplied ? t("✓ Pack price applied, CHF " + price, "✓ Prix pack appliqué, CHF " + price) : `CHF ${price}`}
                               </p>
                             )}
                           </CardContent>
@@ -373,9 +374,9 @@ const DotCakes = () => {
                 className="w-full flex items-center justify-center gap-1 text-sm text-primary font-medium py-2 hover:underline"
               >
                 {showAllCandles ? (
-                  <>See less <ChevronUp className="w-4 h-4" /></>
+                  <>{t("See less", "Voir moins")} <ChevronUp className="w-4 h-4" /></>
                 ) : (
-                  <>See more candles <ChevronDown className="w-4 h-4" /></>
+                  <>{t("See more candles", "Voir plus")} <ChevronDown className="w-4 h-4" /></>
                 )}
               </button>
             </section>
@@ -386,7 +387,7 @@ const DotCakes = () => {
             <section className="space-y-6">
               <div className="flex justify-between items-center py-4 bg-secondary/50 px-4">
                 <span className="text-sm font-semibold uppercase tracking-[0.105em] text-foreground">
-                  Total
+                  {t("Total", "Total")}
                 </span>
                 <span className="font-semibold text-foreground">CHF {total.toFixed(2)}</span>
               </div>
@@ -394,7 +395,7 @@ const DotCakes = () => {
                 onClick={handleOrder}
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-base font-medium tracking-[0.105em] rounded-none"
               >
-                ADD TO BASKET
+                {t("ADD TO BASKET", "AJOUTER AU PANIER")}
               </Button>
             </section>
           )}

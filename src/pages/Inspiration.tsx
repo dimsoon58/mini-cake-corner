@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { ExternalLink, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLang } from "@/context/LanguageContext";
 
 const PINTEREST_URL = "https://ch.pinterest.com/bentocakestudiosnc/_saved/";
 const IMAGES_PER_PAGE = 12;
@@ -106,6 +107,7 @@ export const ALL_IMAGES = [
 ];
 
 const LazyImage = ({ src, index }: { src: string; index: number }) => {
+  const { t } = useLang();
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -132,7 +134,7 @@ const LazyImage = ({ src, index }: { src: string; index: number }) => {
         {isVisible && (
           <img
             src={src}
-            alt={`Bento Cake creation ${index + 1}`}
+            alt={t(`Bento Cake creation ${index + 1}`, `Création Bento Cake ${index + 1}`)}
             loading="lazy"
             decoding="async"
             onLoad={() => setLoaded(true)}
@@ -144,8 +146,8 @@ const LazyImage = ({ src, index }: { src: string; index: number }) => {
       </a>
       <Link
         to={`/catalog?inspiration=${index}`}
-        aria-label="Order this cake"
-        title="Order this cake"
+        aria-label={t("Order this cake", "Commander ce gâteau")}
+        title={t("Order this cake", "Commander ce gâteau")}
         className="absolute bottom-2 right-2 bg-background/90 hover:bg-primary text-foreground hover:text-primary-foreground p-2.5 rounded-none shadow-md transition-colors"
       >
         <ShoppingBag className="w-4 h-4" strokeWidth={1.5} />
@@ -155,6 +157,7 @@ const LazyImage = ({ src, index }: { src: string; index: number }) => {
 };
 
 const Inspiration = () => {
+  const { t } = useLang();
   const [visibleCount, setVisibleCount] = useState(IMAGES_PER_PAGE);
   const visibleImages = ALL_IMAGES.slice(0, visibleCount);
   const hasMore = visibleCount < ALL_IMAGES.length;
@@ -169,11 +172,13 @@ const Inspiration = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="font-sans uppercase tracking-[0.105em] text-4xl md:text-5xl text-foreground mb-4">
-            Inspiration
+            {t("Inspiration", "Inspiration")}
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            A gallery of our favourite creations to inspire your next
-            celebration.<br />More ideas?
+            {t(
+              "A gallery of our favourite creations to inspire your next celebration.",
+              "Une galerie de nos créations préférées pour inspirer votre prochaine célébration."
+            )}<br />{t("More ideas?", "Plus d'idées ?")}
           </p>
         </div>
 
@@ -188,7 +193,7 @@ const Inspiration = () => {
             <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
               <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/>
             </svg>
-            Follow us on Pinterest
+            {t("Follow us on Pinterest", "Suivez-nous sur Pinterest")}
             <ExternalLink className="w-5 h-5 opacity-80" />
           </a>
         </div>
@@ -208,7 +213,7 @@ const Inspiration = () => {
               size="lg"
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide rounded-full"
             >
-              Load More
+              {t("Load More", "Voir plus")}
             </Button>
           </div>
         ) : (
@@ -218,7 +223,7 @@ const Inspiration = () => {
                 size="lg"
                 className="bg-primary hover:bg-primary/90 text-primary-foreground px-10"
               >
-                View on Pinterest <ExternalLink className="w-4 h-4 ml-1" />
+                {t("View on Pinterest", "Voir sur Pinterest")} <ExternalLink className="w-4 h-4 ml-1" />
               </Button>
             </a>
           </div>

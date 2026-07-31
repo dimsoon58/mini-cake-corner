@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useLang } from "@/context/LanguageContext";
 
 const requestSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
@@ -37,6 +38,7 @@ const requestSchema = z.object({
 type RequestFormData = z.infer<typeof requestSchema>;
 
 const CustomRequestForm = () => {
+  const { t } = useLang();
   const [submitted, setSubmitted] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,11 +74,13 @@ const CustomRequestForm = () => {
           <span className="text-3xl text-primary">✓</span>
         </div>
         <h3 className="font-sans uppercase tracking-[0.105em] text-2xl font-semibold text-foreground mb-4">
-          THANK YOU!
+          {t("THANK YOU!", "MERCI !")}
         </h3>
         <p className="text-muted-foreground leading-relaxed">
-          We've received your request and will get back to you within 24 hours
-          with availability and a personalised quote.
+          {t(
+            "We've received your request and will get back to you within 24 hours with availability and a personalised quote.",
+            "Nous avons bien reçu votre demande et nous reviendrons vers vous sous 24 heures avec nos disponibilités et un devis personnalisé."
+          )}
         </p>
       </div>
     );
@@ -88,14 +92,14 @@ const CustomRequestForm = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="cr-firstName">
-            First Name <span className="text-destructive">*</span>
+            {t("First Name", "Prénom")} <span className="text-destructive">*</span>
           </Label>
           <Input id="cr-firstName" {...register("firstName")} />
           {errors.firstName && <p className="text-sm text-destructive">{errors.firstName.message}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="cr-lastName">
-            Last Name <span className="text-destructive">*</span>
+            {t("Last Name", "Nom")} <span className="text-destructive">*</span>
           </Label>
           <Input id="cr-lastName" {...register("lastName")} />
           {errors.lastName && <p className="text-sm text-destructive">{errors.lastName.message}</p>}
@@ -106,14 +110,14 @@ const CustomRequestForm = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="cr-email">
-            Email <span className="text-destructive">*</span>
+            {t("Email", "E-mail")} <span className="text-destructive">*</span>
           </Label>
           <Input id="cr-email" type="email" {...register("email")} />
           {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="cr-phone">
-            Phone Number <span className="text-destructive">*</span>
+            {t("Phone Number", "Numéro de téléphone")} <span className="text-destructive">*</span>
           </Label>
           <Input id="cr-phone" type="tel" {...register("phone")} />
           {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
@@ -123,7 +127,7 @@ const CustomRequestForm = () => {
       {/* Date */}
       <div className="space-y-1.5">
         <Label>
-          Event / Pick-up Date <span className="text-destructive">*</span>
+          {t("Event / Pick-up Date", "Date de l'événement / retrait")} <span className="text-destructive">*</span>
         </Label>
         <Popover>
           <PopoverTrigger asChild>
@@ -136,7 +140,7 @@ const CustomRequestForm = () => {
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {eventDate ? format(eventDate, "dd.MM.yyyy") : "Select a date"}
+              {eventDate ? format(eventDate, "dd.MM.yyyy") : t("Select a date", "Choisir une date")}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -156,7 +160,7 @@ const CustomRequestForm = () => {
       {/* Number of Guests */}
       <div className="space-y-1.5">
         <Label>
-          Number of Guests <span className="text-destructive">*</span>
+          {t("Number of Guests", "Nombre d'invités")} <span className="text-destructive">*</span>
         </Label>
         <div className="flex items-center">
           <button
@@ -164,7 +168,7 @@ const CustomRequestForm = () => {
             onClick={() => changeGuests(-1)}
             disabled={numberOfGuests <= 1}
             className="h-10 w-12 flex items-center justify-center border border-input bg-background text-lg leading-none text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
-            aria-label="Decrease number of guests"
+            aria-label={t("Decrease number of guests", "Diminuer le nombre d'invités")}
           >
             −
           </button>
@@ -188,14 +192,14 @@ const CustomRequestForm = () => {
               }
             }}
             className="h-10 w-16 text-center border-y border-input bg-background text-sm font-medium text-foreground focus:outline-none"
-            aria-label="Number of guests"
+            aria-label={t("Number of guests", "Nombre d'invités")}
           />
           <button
             type="button"
             onClick={() => changeGuests(1)}
             disabled={numberOfGuests >= 100}
             className="h-10 w-12 flex items-center justify-center border border-input bg-background text-lg leading-none text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
-            aria-label="Increase number of guests"
+            aria-label={t("Increase number of guests", "Augmenter le nombre d'invités")}
           >
             +
           </button>
@@ -208,12 +212,15 @@ const CustomRequestForm = () => {
       {/* Description */}
       <div className="space-y-1.5">
         <Label htmlFor="cr-description">
-          Design Description <span className="text-destructive">*</span>
+          {t("Design Description", "Description du design")} <span className="text-destructive">*</span>
         </Label>
         <Textarea
           id="cr-description"
           rows={6}
-          placeholder="Describe your dream cake: design, colours, theme, decorations, message to write on the cake, flavours and any other important details..."
+          placeholder={t(
+            "Describe your dream cake: design, colours, theme, decorations, message to write on the cake, flavours and any other important details...",
+            "Décrivez le gâteau de vos rêves : design, couleurs, thème, décorations, message à inscrire sur le gâteau, saveurs et tout autre détail important..."
+          )}
           {...register("description")}
         />
         {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
@@ -221,7 +228,7 @@ const CustomRequestForm = () => {
 
       {/* Photo upload */}
       <div className="space-y-2">
-        <Label>Inspiration Photos</Label>
+        <Label>{t("Inspiration Photos", "Photos d'inspiration")}</Label>
         <input
           ref={fileInputRef}
           type="file"
@@ -240,7 +247,7 @@ const CustomRequestForm = () => {
           className="w-full border-2 border-dashed border-border p-6 flex flex-col items-center gap-2 hover:border-primary/50 transition-colors"
         >
           <Upload className="w-5 h-5 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Upload one or several photos</span>
+          <span className="text-sm text-muted-foreground">{t("Upload one or several photos", "Importez une ou plusieurs photos")}</span>
         </button>
         {photos.length > 0 && (
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -248,14 +255,14 @@ const CustomRequestForm = () => {
               <div key={i} className="relative aspect-square">
                 <img
                   src={URL.createObjectURL(file)}
-                  alt={`Inspiration ${i + 1}`}
+                  alt={t(`Inspiration ${i + 1}`, `Inspiration ${i + 1}`)}
                   className="w-full h-full object-cover"
                 />
                 <button
                   type="button"
                   onClick={() => setPhotos(photos.filter((_, idx) => idx !== i))}
                   className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-none p-0.5 hover:bg-destructive/80"
-                  aria-label="Remove photo"
+                  aria-label={t("Remove photo", "Supprimer la photo")}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -264,8 +271,10 @@ const CustomRequestForm = () => {
           </div>
         )}
         <p className="text-xs text-muted-foreground">
-          Photos are for inspiration only, the final design may be adapted to
-          the Bento Cake Studio style.
+          {t(
+            "Photos are for inspiration only, the final design may be adapted to the Bento Cake Studio style.",
+            "Les photos sont fournies à titre d'inspiration uniquement ; le design final pourra être adapté au style Bento Cake Studio."
+          )}
         </p>
       </div>
 
@@ -273,7 +282,7 @@ const CustomRequestForm = () => {
         type="submit"
         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
       >
-        SEND MY REQUEST
+        {t("SEND MY REQUEST", "ENVOYER MA DEMANDE")}
       </Button>
     </form>
   );

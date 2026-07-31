@@ -15,6 +15,7 @@ import { useCart, CandleCartItem } from "@/context/CartContext";
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, CalendarIcon, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
+import { useLang } from "@/context/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
   sizes,
@@ -92,6 +93,7 @@ const formatDateFromIso = (dateValue: string) => {
 
 const Cart = () => {
   const { items, removeItem, updateItem, clearCart, itemCount } = useCart();
+  const { t } = useLang();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
 
@@ -310,27 +312,27 @@ const Cart = () => {
         <div className="flex items-center justify-between mb-8">
           <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Continue Shopping
+            {t("Continue Shopping", "Continuer vos achats")}
           </Link>
           <div className="flex items-center gap-2">
             <ShoppingBag className="h-6 w-6 text-primary" strokeWidth={1.25} />
-            <span className="uppercase tracking-[0.18em] text-sm font-medium text-foreground">Your Cart ({itemCount})</span>
+            <span className="uppercase tracking-[0.18em] text-sm font-medium text-foreground">{t("Your Cart", "Votre panier")} ({itemCount})</span>
           </div>
         </div>
 
         {items.length === 0 ? (
           <div className="text-center py-20">
             <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-6" strokeWidth={1.25} />
-            <h2 className="font-serif text-3xl text-foreground mb-4">Your cart is empty</h2>
-            <p className="text-muted-foreground mb-8">Start customizing your perfect cake!</p>
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide rounded-full" asChild><Link to="/catalog">Customise Your Cake</Link></Button>
+            <h2 className="font-serif text-3xl text-foreground mb-4">{t("Your cart is empty", "Votre panier est vide")}</h2>
+            <p className="text-muted-foreground mb-8">{t("Start customizing your perfect cake!", "Composez le gâteau parfait !")}</p>
+            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide rounded-full" asChild><Link to="/catalog">{t("Customise Your Cake", "Personnalisez votre gâteau")}</Link></Button>
           </div>
         ) : (
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="font-serif text-2xl text-foreground">Your Items</h2>
-                <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive">Clear All</Button>
+                <h2 className="font-serif text-2xl text-foreground">{t("Your Items", "Vos articles")}</h2>
+                <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive">{t("Clear All", "Tout supprimer")}</Button>
               </div>
 
               {items.map((item) => {
@@ -348,7 +350,7 @@ const Cart = () => {
                         <div className="flex items-center gap-4">
                           <img src={item.candleProductImage} alt={item.candleProductName} className="h-20 w-20 object-contain flex-shrink-0" />
                           <div className="flex-1">
-                            <p className="text-sm text-muted-foreground mb-2">Candle</p>
+                            <p className="text-sm text-muted-foreground mb-2">{t("Candle", "Bougie")}</p>
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleCandleProductQty(item.id, -1)}
@@ -377,11 +379,11 @@ const Cart = () => {
                   <Card key={item.id} className="overflow-hidden">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start mb-4">
-                        <h3 className="font-serif text-xl text-foreground">{item.sizeName} {item.shapeName} Cake</h3>
+                        <h3 className="font-serif text-xl text-foreground">{item.sizeName} {item.shapeName} {t("Cake", "Gâteau")}</h3>
                         <div className="flex items-center gap-2">
                           <Button variant="ghost" size="sm" onClick={() => setEditingItemId(isEditing ? null : item.id)} className="text-primary hover:text-primary">
                             {isEditing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
-                            {isEditing ? "Done" : "Edit"}
+                            {isEditing ? t("Done", "Terminé") : t("Edit", "Modifier")}
                           </Button>
                           <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="text-destructive hover:text-destructive">
                             <Trash2 className="h-4 w-4" />
@@ -426,21 +428,21 @@ const Cart = () => {
             <div className="lg:col-span-1">
               <Card className="sticky top-8">
                 <CardContent className="p-6 space-y-4">
-                  <h3 className="font-serif text-xl text-foreground">Order Summary</h3>
+                  <h3 className="font-serif text-xl text-foreground">{t("Order Summary", "Récapitulatif")}</h3>
                   <div className="space-y-2 border-b border-border pb-4">
                     {items.map((item) => (
                       <div key={item.id} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{item.isCandleProduct ? item.candleProductName : `${item.sizeName} ${item.shapeName} Cake`}</span>
+                        <span className="text-muted-foreground">{item.isCandleProduct ? item.candleProductName : `${item.sizeName} ${item.shapeName} ${t("Cake", "Gâteau")}`}</span>
                         <span className="text-foreground">CHF {item.total}</span>
                       </div>
                     ))}
                   </div>
                   <div className="flex justify-between text-lg font-bold">
-                    <span className="text-foreground">Total</span>
+                    <span className="text-foreground">{t("Total", "Total")}</span>
                     <span className="text-primary">CHF {totalPrice}</span>
                   </div>
-                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-base font-medium tracking-wide rounded-full" size="lg" asChild><Link to="/checkout">Proceed to Checkout</Link></Button>
-                  <Button variant="outline" className="w-full rounded-full" asChild><Link to="/catalog">Add Another Cake</Link></Button>
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-base font-medium tracking-wide rounded-full" size="lg" asChild><Link to="/checkout">{t("Proceed to Checkout", "Passer la commande")}</Link></Button>
+                  <Button variant="outline" className="w-full rounded-full" asChild><Link to="/catalog">{t("Add Another Cake", "Ajouter un autre gâteau")}</Link></Button>
                 </CardContent>
               </Card>
             </div>
@@ -453,6 +455,7 @@ const Cart = () => {
 
 /* ---------- Summary (read-only view) ---------- */
 const CartItemSummary = ({ item }: { item: any }) => {
+  const { t } = useLang();
   const sizeObj = sizes.find(s => s.id === item.size);
   const sizePrice = sizeObj?.price || 0;
   const shapeObj = shapes.find(s => s.id === item.shape);
@@ -492,26 +495,26 @@ const CartItemSummary = ({ item }: { item: any }) => {
         </div>
         {flavorExtra > 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Flavour: {item.flavorName}</span>
+            <span className="text-muted-foreground">{t("Flavour:", "Parfum :")} {item.flavorName}</span>
             <span className="text-foreground">+ CHF {flavorExtra}</span>
           </div>
         )}
         {flavorExtra === 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Flavour: {item.flavorName}</span>
-            <span className="text-muted-foreground text-xs">included</span>
+            <span className="text-muted-foreground">{t("Flavour:", "Parfum :")} {item.flavorName}</span>
+            <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
           </div>
         )}
         {styleExtra > 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Design: {item.styleName}</span>
+            <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
             <span className="text-foreground">+ CHF {styleExtra}</span>
           </div>
         )}
         {styleExtra === 0 && item.styleName && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Design: {item.styleName}</span>
-            <span className="text-muted-foreground text-xs">included</span>
+            <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
+            <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
           </div>
         )}
         {extraEntries.length > 0 && (
@@ -540,15 +543,15 @@ const CartItemSummary = ({ item }: { item: any }) => {
 
       {item.baseColorName && (
         <p className="text-sm text-muted-foreground">
-          Base: {item.baseColorName}
-          {item.decorationColorName && ` · Deco: ${item.decorationColorName}`}
+          {t("Base:", "Base :")} {item.baseColorName}
+          {item.decorationColorName && ` · ${t("Deco:", "Déco :")} ${item.decorationColorName}`}
         </p>
       )}
-      {item.cakeText && <p className="text-sm text-muted-foreground">Text: "{item.cakeText}"</p>}
-      {item.comment && <p className="text-sm text-muted-foreground">Comment: {item.comment}</p>}
+      {item.cakeText && <p className="text-sm text-muted-foreground">{t("Text:", "Texte :")} "{item.cakeText}"</p>}
+      {item.comment && <p className="text-sm text-muted-foreground">{t("Comment:", "Commentaire :")} {item.comment}</p>}
 
       <div className="flex justify-between items-center pt-2 border-t border-border">
-        <span className="text-sm font-medium text-foreground">Total</span>
+        <span className="text-sm font-medium text-foreground">{t("Total", "Total")}</span>
         <span className="text-xl font-bold text-primary">CHF {item.total}</span>
       </div>
     </div>
@@ -589,6 +592,7 @@ const CartItemEditor = ({
   onCommentChange, onImageFilesChange,
   onCandleQtyChange, getCandleUnitQty, getCandleItemPrice,
 }: CartItemEditorProps) => {
+  const { t } = useLang();
   const showDecoColor = item.style !== "normal-without-border";
   const showText = item.style !== "printed-picture";
   const excludedExtras = getExcludedExtras(item.style);
@@ -626,12 +630,12 @@ const CartItemEditor = ({
     <TooltipProvider delayDuration={200}>
     <div className="space-y-6">
       {/* Date */}
-      <EditSection label="Pickup Date" tooltip="Order preparation date (minimum 4 days in advance)" required>
+      <EditSection label={t("Pickup Date", "Date de retrait")} tooltip={t("Order preparation date (minimum 4 days in advance)", "Date de préparation de la commande (minimum 4 jours à l'avance)")} required>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !item.orderDate && "text-muted-foreground")}>
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {item.orderDate ? formatDateFromIso(item.orderDate) : <span>Pick a date</span>}
+              {item.orderDate ? formatDateFromIso(item.orderDate) : <span>{t("Pick a date", "Choisir une date")}</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -653,7 +657,7 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Size with box images */}
-      <EditSection label="Size" tooltip="Choose the size of your cake." required>
+      <EditSection label={t("Size", "Taille")} tooltip={t("Choose the size of your cake.", "Choisissez la taille de votre gâteau.")} required>
         <div className="grid grid-cols-1 gap-2">
           {sizes.filter(size => availableSizeIds.includes(size.id)).map((size) => (
             <button
@@ -676,7 +680,7 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Flavor with images */}
-      <EditSection label="Flavor" tooltip="Please select the flavour of your cake." required>
+      <EditSection label={t("Flavor", "Parfum")} tooltip={t("Please select the flavour of your cake.", "Veuillez sélectionner le parfum de votre gâteau.")} required>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {flavorCategories.map(cat => cat.flavors.map(flavor => (
             <button
@@ -695,7 +699,7 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Design */}
-      <EditSection label="Design" tooltip="You can select any design. You can also add extras and/or inspiration pictures in the next steps.">
+      <EditSection label={t("Design", "Design")} tooltip={t("You can select any design. You can also add extras and/or inspiration pictures in the next steps.", "Vous pouvez sélectionner n'importe quel design. Vous pourrez également ajouter des suppléments et/ou des photos d'inspiration aux étapes suivantes.")}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {styles.map((style) => (
             <button
@@ -717,28 +721,28 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Base Colour */}
-      <EditSection label="Base Colour" tooltip="The base colour is essential to personalise your cake." required>
+      <EditSection label={t("Base Colour", "Couleur de base")} tooltip={t("The base colour is essential to personalise your cake.", "La couleur de base est essentielle pour personnaliser votre gâteau.")} required>
         <ColorPicker colors={baseColors} selected={item.baseColor} onSelect={onBaseColorChange} />
       </EditSection>
 
       {/* Decoration Colour */}
       {showDecoColor && (
-        <EditSection label="Decoration Colour" tooltip="Choose the colours for the decorative elements of your cake." required>
+        <EditSection label={t("Decoration Colour", "Couleur de décoration")} tooltip={t("Choose the colours for the decorative elements of your cake.", "Choisissez les couleurs des éléments décoratifs de votre gâteau.")} required>
           <ColorPicker colors={baseColors} selected={item.decorationColor} onSelect={onDecoColorChange} />
         </EditSection>
       )}
 
       {/* Text */}
       {showText && (
-        <EditSection label="Cake Text" tooltip="If you would like to add text, you can choose the typography.">
+        <EditSection label={t("Cake Text", "Texte du gâteau")} tooltip={t("If you would like to add text, you can choose the typography.", "Si vous souhaitez ajouter un texte, vous pouvez choisir la typographie.")}>
           {/* Text Style Selection */}
           <div className="space-y-2 mb-3">
-            <p className="text-xs font-medium text-muted-foreground">Text Style</p>
+            <p className="text-xs font-medium text-muted-foreground">{t("Text Style", "Style du texte")}</p>
             <div className="flex gap-2">
               {[
-                { id: "normal", name: "Normal" },
-                { id: "uppercase", name: "Uppercase" },
-                { id: "cursive", name: "Cursive" },
+                { id: "normal", name: t("Normal", "Normal") },
+                { id: "uppercase", name: t("Uppercase", "Majuscules") },
+                { id: "cursive", name: t("Cursive", "Cursive") },
               ].map((style) => (
                 <button
                   key={style.id}
@@ -759,7 +763,7 @@ const CartItemEditor = ({
           </div>
 
           <Input
-            placeholder="Enter text for your cake (max 30 chars)"
+            placeholder={t("Enter text for your cake (max 30 chars)", "Saisissez le texte de votre gâteau (max 30 caractères)")}
             value={item.cakeText || ""}
             onChange={(e) => onTextChange(e.target.value.slice(0, 30))}
             maxLength={30}
@@ -769,7 +773,7 @@ const CartItemEditor = ({
           {/* Live text preview */}
           {item.cakeText && (
             <div className="bg-muted/30 rounded-lg p-3 text-center mt-1">
-              <p className="text-xs text-muted-foreground mb-1">Preview:</p>
+              <p className="text-xs text-muted-foreground mb-1">{t("Preview:", "Aperçu :")}</p>
               <p
                 className={cn(
                   "text-lg text-foreground",
@@ -784,7 +788,7 @@ const CartItemEditor = ({
 
           {item.cakeText && (
             <div className="mt-2">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Text Colour</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t("Text Colour", "Couleur du texte")}</p>
               <ColorPicker colors={textColors} selected={item.textColor} onSelect={onTextColorChange} />
             </div>
           )}
@@ -792,7 +796,7 @@ const CartItemEditor = ({
       )}
 
       {/* Extras */}
-      <EditSection label="✨ Extra" tooltip="You can add any additional elements to personalise your design.">
+      <EditSection label={t("✨ Extra", "✨ Suppléments")} tooltip={t("You can add any additional elements to personalise your design.", "Vous pouvez ajouter des éléments supplémentaires pour personnaliser votre design.")}>
         {extraGroups.map((group) => {
           const visibleExtras = group.ids
             .map(id => catalogExtras.find(e => e.id === id))
@@ -848,7 +852,7 @@ const CartItemEditor = ({
         {/* Glitter Colour */}
         {((item.extras || []).some(e => ["glitter", "glitter-base", "glitter-in-the-air"].includes(e)) || ["retro-glitter-cake", "retro-ribbons-glitter"].includes(item.style)) && (
           <div className="space-y-2 mt-3">
-            <p className="text-xs font-medium text-foreground">Glitter Colour <span className="text-destructive">*</span></p>
+            <p className="text-xs font-medium text-foreground">{t("Glitter Colour", "Couleur des paillettes")} <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
               {(() => {
                 const isGlitterInTheAir = (item.extras || []).includes("glitter-in-the-air") || item.style === "retro-ribbons-glitter";
@@ -874,7 +878,7 @@ const CartItemEditor = ({
         {/* Glitter Cherries Colour */}
         {((item.extras || []).includes("glitter-cherries") || item.style === "glitter-cherries-retro") && (
           <div className="space-y-2 mt-3">
-            <p className="text-xs font-medium text-foreground">Glitter Cherries Colour</p>
+            <p className="text-xs font-medium text-foreground">{t("Glitter Cherries Colour", "Couleur des cerises pailletées")}</p>
             <div className="flex flex-wrap gap-2">
               {glitterCherriesColors.map((color) => (
                 <button
@@ -896,7 +900,7 @@ const CartItemEditor = ({
         {/* Ribbon Colour */}
         {((item.extras || []).includes("ribbons") || item.style === "retro-ribbons" || item.style === "retro-ribbons-glitter") && (
           <div className="space-y-2 mt-3">
-            <p className="text-xs font-medium text-foreground">Ribbon Colour <span className="text-destructive">*</span></p>
+            <p className="text-xs font-medium text-foreground">{t("Ribbon Colour", "Couleur du ruban")} <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
               {ribbonColors.map((color) => (
                 <button
@@ -918,7 +922,7 @@ const CartItemEditor = ({
         {/* Butterfly Colour */}
         {((item.extras || []).includes("butterfly") || item.style === "butterfly-garden") && (
           <div className="space-y-2 mt-3">
-            <p className="text-xs font-medium text-foreground">Butterfly Colour <span className="text-destructive">*</span></p>
+            <p className="text-xs font-medium text-foreground">{t("Butterfly Colour", "Couleur des papillons")} <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
               {butterflyColors.map((color) => (
                 <button
@@ -939,19 +943,19 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Comment */}
-      <EditSection label="💬 Comment" tooltip="Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.">
+      <EditSection label={t("💬 Comment", "💬 Commentaire")} tooltip={t("Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.", "Indiquez toute précision que vous souhaitez apporter. Veuillez noter que si vous demandez des décorations ou des suppléments non sélectionnés, le prix peut varier.")}>
         <Textarea
           value={item.comment || ""}
           onChange={(e) => onCommentChange(e.target.value)}
-          placeholder="Any special requests or details about your cake..."
+          placeholder={t("Any special requests or details about your cake...", "Toute demande particulière ou détail concernant votre gâteau...")}
           className="min-h-[80px]"
         />
       </EditSection>
 
       {/* Upload */}
-      <EditSection label="Upload" tooltip="Upload an inspiration picture if you would like.">
+      <EditSection label={t("Upload", "Photos")} tooltip={t("Upload an inspiration picture if you would like.", "Ajoutez une photo d'inspiration si vous le souhaitez.")}>
         <p className="text-xs text-muted-foreground mb-2">
-          Upload reference images (max 5, JPG, PNG, WEBP)
+          {t("Upload reference images (max 5, JPG, PNG, WEBP)", "Ajoutez des images de référence (max 5, JPG, PNG, WEBP)")}
         </p>
         <input
           ref={commentFileInputRef}
@@ -967,7 +971,7 @@ const CartItemEditor = ({
             className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center gap-1 hover:border-primary/50 transition-colors"
           >
             <Upload className="w-6 h-6 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Click to upload images</span>
+            <span className="text-xs text-muted-foreground">{t("Click to upload images", "Cliquez pour ajouter des images")}</span>
           </button>
         )}
         {(item.imageFiles || []).length > 0 && (
@@ -990,14 +994,14 @@ const CartItemEditor = ({
               ))}
             </div>
             <p className="text-[10px] text-muted-foreground/80 italic mt-2 leading-tight">
-              When a client provides an inspiration photo, it is for reference only. Bento Cake Studio SNC will create a design inspired by it and aim to respect the colours and style, but an identical reproduction is not guaranteed.
+              {t("When a client provides an inspiration photo, it is for reference only. Bento Cake Studio SNC will create a design inspired by it and aim to respect the colours and style, but an identical reproduction is not guaranteed.", "Lorsqu'un client fournit une photo d'inspiration, celle-ci sert uniquement de référence. Bento Cake Studio SNC créera un design qui s'en inspire en veillant à respecter les couleurs et le style, mais une reproduction à l'identique n'est pas garantie.")}
             </p>
           </>
         )}
       </EditSection>
 
       {/* Candles - packs first, then individual */}
-      <EditSection label="🕯️ Candles">
+      <EditSection label={t("🕯️ Candles", "🕯️ Bougies")}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {cartCandles.map((candle) => {
             const qty = getCandleUnitQty(candle.id);
@@ -1013,9 +1017,9 @@ const CartItemEditor = ({
               >
                 <img src={candle.image} alt={candle.name} className="h-16 w-16 object-contain mb-1" />
                 <span className="text-xs font-medium text-foreground text-center">{candle.name}</span>
-                <span className="text-xs text-muted-foreground">CHF {candle.unitPrice}/ea</span>
+                <span className="text-xs text-muted-foreground">CHF {candle.unitPrice}{t("/ea", "/pièce")}</span>
                 {candle.hasPack && (
-                  <span className="text-[10px] text-muted-foreground">Pack {candle.packSize} = CHF {candle.packPrice}</span>
+                  <span className="text-[10px] text-muted-foreground">{t("Pack", "Lot")} {candle.packSize} = CHF {candle.packPrice}</span>
                 )}
                 <div className="flex items-center gap-2 mt-2">
                   <button
@@ -1034,7 +1038,7 @@ const CartItemEditor = ({
                   </button>
                 </div>
                 {qty > 0 && <span className="text-xs text-primary font-medium mt-1">CHF {price}</span>}
-                {isPackApplied && <span className="text-xs text-green-600 font-medium">✓ Pack applied</span>}
+                {isPackApplied && <span className="text-xs text-green-600 font-medium">{t("✓ Pack applied", "✓ Lot appliqué")}</span>}
               </div>
             );
           })}

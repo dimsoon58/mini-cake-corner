@@ -8,18 +8,20 @@ import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { candles } from "@/pages/KitBentoCake";
 import { getCandleTotalPrice } from "@/data/customization";
+import { useLang } from "@/context/LanguageContext";
 
 const Candles = () => {
   const navigate = useNavigate();
+  const { t } = useLang();
   const { addItem } = useCart();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    document.title = "Candles – Bento Cake Studio";
+    document.title = t("Candles – Bento Cake Studio", "Bougies – Bento Cake Studio");
     return () => {
       document.title = "Bento Cake Studio Geneva";
     };
-  }, []);
+  }, [t]);
 
   const getQty = (id: string) => quantities[id] ?? 1;
 
@@ -47,7 +49,7 @@ const Candles = () => {
       flavor: "",
       flavorName: "",
       style: "candles",
-      styleName: "Candle Order",
+      styleName: t("Candle Order", "Commande de bougies"),
       baseColor: "",
       baseColorName: "",
       decorationColor: "",
@@ -75,9 +77,18 @@ const Candles = () => {
       candleProductHasPack: candle.hasPack,
     });
 
-    toast.success(`${candle.name} added to your cart!`, {
-      action: { label: "View cart", onClick: () => navigate("/cart") },
-    });
+    toast.success(
+      t(
+        `${candle.name} added to your cart!`,
+        `${candle.name} ajouté à votre panier !`
+      ),
+      {
+        action: {
+          label: t("View cart", "Voir le panier"),
+          onClick: () => navigate("/cart"),
+        },
+      }
+    );
     setQuantities((prev) => ({ ...prev, [candle.id]: 1 }));
   };
 
@@ -85,11 +96,13 @@ const Candles = () => {
     <Layout>
       <div className="container mx-auto px-4 py-16">
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6">
-          CANDLES
+          {t("CANDLES", "BOUGIES")}
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          Add the perfect finishing touch to your cake with our selection of fun
-          and colourful candles.
+          {t(
+            "Add the perfect finishing touch to your cake with our selection of fun and colourful candles.",
+            "Ajoutez la touche finale idéale à votre gâteau grâce à notre sélection de bougies ludiques et colorées."
+          )}
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
@@ -134,7 +147,10 @@ const Candles = () => {
                             ? "bg-muted text-muted-foreground cursor-not-allowed"
                             : "bg-primary text-primary-foreground hover:bg-primary/90"
                         )}
-                        aria-label={`Decrease ${candle.name} quantity`}
+                        aria-label={t(
+                          `Decrease ${candle.name} quantity`,
+                          `Diminuer la quantité de ${candle.name}`
+                        )}
                       >
                         −
                       </button>
@@ -145,7 +161,10 @@ const Candles = () => {
                         type="button"
                         onClick={() => changeQty(candle.id, 1)}
                         className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
-                        aria-label={`Increase ${candle.name} quantity`}
+                        aria-label={t(
+                          `Increase ${candle.name} quantity`,
+                          `Augmenter la quantité de ${candle.name}`
+                        )}
                       >
                         +
                       </button>
@@ -154,7 +173,7 @@ const Candles = () => {
                       onClick={() => handleAddToCart(candle)}
                       className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] tracking-[0.105em] uppercase"
                     >
-                      Add to Cart
+                      {t("Add to Cart", "Ajouter au panier")}
                     </Button>
                   </div>
                 </CardContent>

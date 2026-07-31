@@ -1,4 +1,5 @@
 import Layout from "@/components/Layout";
+import { useLang } from "@/context/LanguageContext";
 import pressCotemag2022 from "@/assets/press-cote-magazine-2022.png";
 import pressLesVoiles from "@/assets/press-cote-les-voiles.jpeg";
 import pressGaultMillau2 from "@/assets/press-gault-millau-2.png";
@@ -17,14 +18,15 @@ const gaultMillauImages = [
 ];
 
 const CommunityPress = () => {
+  const { t } = useLang();
   return (
     <Layout>
       <div className="container mx-auto px-4 py-16">
         <h1 className="font-sans uppercase tracking-[0.105em] text-4xl md:text-5xl text-center text-foreground mb-4">
-          Press
+          {t("Press", "Presse")}
         </h1>
         <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-12">
-          Discover our press features and media appearances.
+          {t("Discover our press features and media appearances.", "Découvrez nos parutions et apparitions dans la presse.")}
         </p>
 
         {/* Standalone articles */}
@@ -88,7 +90,7 @@ const CommunityPress = () => {
         {/* Community Section */}
         <section className="text-center">
           <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-            Follow us on Instagram{" "}
+            {t("Follow us on Instagram", "Suivez-nous sur Instagram")}{" "}
             <a
               href="https://www.instagram.com/bentocakestudio"
               target="_blank"
@@ -97,7 +99,7 @@ const CommunityPress = () => {
             >
               @bentocakestudio
             </a>{" "}
-            to discover our creations.
+            {t("to discover our creations.", "pour découvrir nos créations.")}
           </p>
         </section>
       </div>

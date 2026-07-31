@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { submitToWeb3Forms } from "@/lib/web3forms";
+import { useLang } from "@/context/LanguageContext";
 
 // Photos, remplace chaque import par une photo dédiée quand tu en as
 import workshopHero from "@/assets/home-cat-workshops.png";
@@ -29,8 +30,10 @@ const workshops = [
   {
     emoji: "",
     title: "Signature Workshop",
+    titleFr: "Atelier Signature",
     image: imgSignature,
     tagline: "Learn the basics of Bento Cake decorating.",
+    taglineFr: "Découvrez les bases de la décoration du Bento Cake.",
     features: [
       "Cake already baked and filled",
       "Learn piping techniques",
@@ -38,31 +41,48 @@ const workshops = [
       "Decorate your own cake",
       "Take it home",
     ],
+    featuresFr: [
+      "Gâteau déjà cuit et garni",
+      "Apprenez les techniques de pochage",
+      "Les bases de la crème au beurre",
+      "Décorez votre propre gâteau",
+      "Repartez avec votre création",
+    ],
     meta: [
-      { icon: Clock, label: "Duration" },
-      { icon: Users, label: "Participants" },
-      { icon: MapPin, label: "Geneva" },
+      { icon: Clock, label: "Duration", labelFr: "Durée" },
+      { icon: Users, label: "Participants", labelFr: "Participants" },
+      { icon: MapPin, label: "Geneva", labelFr: "Genève" },
     ],
     ctaLabel: "Book Now",
+    ctaLabelFr: "Réserver",
     ctaTo: "/contact",
   },
   {
     emoji: "",
     title: "Paint Workshop",
+    titleFr: "Atelier Peinture",
     image: imgPaint,
     tagline: "Turn your cake into edible art.",
+    taglineFr: "Transformez votre gâteau en œuvre d'art comestible.",
     features: [
       "Ready-to-decorate cake",
       "Edible paint",
       "Creative designs",
       "Perfect for beginners",
     ],
+    featuresFr: [
+      "Gâteau prêt à décorer",
+      "Peinture comestible",
+      "Créations originales",
+      "Idéal pour les débutants",
+    ],
     meta: [
-      { icon: Clock, label: "Duration" },
-      { icon: Users, label: "Participants" },
-      { icon: MapPin, label: "Geneva" },
+      { icon: Clock, label: "Duration", labelFr: "Durée" },
+      { icon: Users, label: "Participants", labelFr: "Participants" },
+      { icon: MapPin, label: "Geneva", labelFr: "Genève" },
     ],
     ctaLabel: "Book Now",
+    ctaLabelFr: "Réserver",
     ctaTo: "/contact",
   },
 ];
@@ -70,8 +90,10 @@ const workshops = [
 const privateWorkshop = {
   emoji: "",
   title: "Private & Custom Workshops",
+  titleFr: "Ateliers privés et sur mesure",
   image: imgPrivate,
   tagline: "Looking for something tailored?",
+  taglineFr: "Vous cherchez une expérience sur mesure ?",
   perfectFor: [
     "Corporate Events",
     "Birthdays",
@@ -81,8 +103,19 @@ const privateWorkshop = {
     "Team Building",
     "Brand Events",
   ],
+  perfectForFr: [
+    "Événements d'entreprise",
+    "Anniversaires",
+    "Fêtes prénuptiales",
+    "Groupes d'étudiants",
+    "Enterrements de vie de jeune fille",
+    "Team building",
+    "Événements de marque",
+  ],
   note: "Every workshop is customised to your needs.",
+  noteFr: "Chaque atelier est personnalisé selon vos envies.",
   ctaLabel: "Request a Quote",
+  ctaLabelFr: "Demander un devis",
   ctaTo: "/contact",
 };
 
@@ -100,6 +133,7 @@ const privateSchema = z.object({
 type PrivateData = z.infer<typeof privateSchema>;
 
 const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) => {
+  const { t } = useLang();
   const [submitted, setSubmitted] = useState(false);
   const {
     register,
@@ -129,7 +163,7 @@ const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenCh
       );
       setSubmitted(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      toast.error(err instanceof Error ? err.message : t("Something went wrong. Please try again.", "Une erreur s'est produite. Veuillez réessayer."));
     }
   };
 
@@ -141,61 +175,61 @@ const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenCh
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
               <span className="text-3xl text-primary">✓</span>
             </div>
-            <h3 className="font-sans uppercase tracking-[0.105em] text-xl font-semibold text-foreground mb-3">Thank you</h3>
+            <h3 className="font-sans uppercase tracking-[0.105em] text-xl font-semibold text-foreground mb-3">{t("Thank you", "Merci")}</h3>
             <p className="text-muted-foreground leading-relaxed max-w-md mx-auto">
-              Thank you for your enquiry. We will get back to you shortly with a personalised proposal for your private workshop.
+              {t("Thank you for your enquiry. We will get back to you shortly with a personalised proposal for your private workshop.", "Merci pour votre demande. Nous reviendrons vers vous très prochainement avec une proposition personnalisée pour votre atelier privé.")}
             </p>
           </div>
         ) : (
           <>
             <DialogHeader>
               <DialogTitle className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">
-                Private &amp; Custom Workshops
+                {t("Private & Custom Workshops", "Ateliers privés et sur mesure")}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground leading-relaxed pt-1">
-                Tell us about your event and we will get back to you with a personalised proposal.
+                {t("Tell us about your event and we will get back to you with a personalised proposal.", "Parlez-nous de votre événement et nous reviendrons vers vous avec une proposition personnalisée.")}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2 text-left">
               <div className="space-y-1.5">
-                <Label htmlFor="pw-name">First and last name <span className="text-destructive">*</span></Label>
+                <Label htmlFor="pw-name">{t("First and last name", "Prénom et nom")} <span className="text-destructive">*</span></Label>
                 <Input id="pw-name" {...register("fullName")} />
                 {errors.fullName && <p className="text-sm text-destructive">{errors.fullName.message}</p>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="pw-email">Email address <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="pw-email">{t("Email address", "Adresse e-mail")} <span className="text-destructive">*</span></Label>
                   <Input id="pw-email" type="email" {...register("email")} />
                   {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="pw-phone">Phone number <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="pw-phone">{t("Phone number", "Numéro de téléphone")} <span className="text-destructive">*</span></Label>
                   <Input id="pw-phone" type="tel" {...register("phone")} />
                   {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="pw-occasion">Occasion <span className="text-muted-foreground">(optional)</span></Label>
-                  <Input id="pw-occasion" placeholder="Birthday, team building…" {...register("occasion")} />
+                  <Label htmlFor="pw-occasion">{t("Occasion", "Occasion")} <span className="text-muted-foreground">{t("(optional)", "(optionnel)")}</span></Label>
+                  <Input id="pw-occasion" placeholder={t("Birthday, team building…", "Anniversaire, team building…")} {...register("occasion")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="pw-participants">Number of participants <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="pw-participants">{t("Number of participants", "Nombre de participants")} <span className="text-destructive">*</span></Label>
                   <Input id="pw-participants" {...register("participants")} />
                   {errors.participants && <p className="text-sm text-destructive">{errors.participants.message}</p>}
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pw-date">Preferred date <span className="text-muted-foreground">(optional)</span></Label>
-                <Input id="pw-date" placeholder="e.g. mid-March, a weekend…" {...register("preferredDate")} />
+                <Label htmlFor="pw-date">{t("Preferred date", "Date souhaitée")} <span className="text-muted-foreground">{t("(optional)", "(optionnel)")}</span></Label>
+                <Input id="pw-date" placeholder={t("e.g. mid-March, a weekend…", "ex. mi-mars, un week-end…")} {...register("preferredDate")} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pw-message">Tell us about your event <span className="text-destructive">*</span></Label>
+                <Label htmlFor="pw-message">{t("Tell us about your event", "Parlez-nous de votre événement")} <span className="text-destructive">*</span></Label>
                 <Textarea id="pw-message" rows={4} {...register("message")} />
                 {errors.message && <p className="text-sm text-destructive">{errors.message.message}</p>}
               </div>
               <Button type="submit" disabled={isSubmitting} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none">
-                {isSubmitting ? "Sending…" : "Send my enquiry"}
+                {isSubmitting ? t("Sending…", "Envoi…") : t("Send my enquiry", "Envoyer ma demande")}
               </Button>
             </form>
           </>
@@ -206,13 +240,14 @@ const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenCh
 };
 
 const Workshop = () => {
+  const { t } = useLang();
   const [privateOpen, setPrivateOpen] = useState(false);
   useEffect(() => {
-    document.title = "Workshops – Bento Cake Studio";
+    document.title = t("Workshops – Bento Cake Studio", "Ateliers – Bento Cake Studio");
     return () => {
       document.title = "Bento Cake Studio Geneva";
     };
-  }, []);
+  }, [t]);
 
   return (
     <Layout overlayHero>
@@ -220,18 +255,16 @@ const Workshop = () => {
       <section className="relative min-h-[80vh] w-full overflow-hidden">
         <img
           src={workshopHero}
-          alt="Cake decorating workshop at Bento Cake Studio"
+          alt={t("Cake decorating workshop at Bento Cake Studio", "Atelier de décoration de gâteaux au Bento Cake Studio")}
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-foreground/40" />
         <div className="relative min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
           <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-5xl text-cream leading-tight mb-6 max-w-4xl">
-            WORKSHOP
+            {t("WORKSHOP", "ATELIER")}
           </h1>
           <p className="text-cream/95 text-base md:text-lg font-light max-w-2xl mb-10">
-            Learn to decorate your own Bento Cake in a fun and creative
-            experience. Whether you're joining one of our public workshops or
-            booking a private event, we'll guide you every step of the way.
+            {t("Learn to decorate your own Bento Cake in a fun and creative experience. Whether you're joining one of our public workshops or booking a private event, we'll guide you every step of the way.", "Apprenez à décorer votre propre Bento Cake au cours d'une expérience à la fois ludique et créative. Que vous participiez à l'un de nos ateliers publics ou que vous réserviez un événement privé, nous vous accompagnons à chaque étape.")}
           </p>
           <Button
             onClick={() =>
@@ -239,7 +272,7 @@ const Workshop = () => {
             }
             className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
           >
-            BOOK A WORKSHOP
+            {t("BOOK A WORKSHOP", "RÉSERVER UN ATELIER")}
           </Button>
         </div>
       </section>
@@ -247,27 +280,27 @@ const Workshop = () => {
       {/* Choose your experience */}
       <section id="experiences" className="py-20 bg-background">
         <div className="container mx-auto px-4">
-          <SectionTitle>CHOOSE YOUR EXPERIENCE</SectionTitle>
+          <SectionTitle>{t("CHOOSE YOUR EXPERIENCE", "CHOISISSEZ VOTRE EXPÉRIENCE")}</SectionTitle>
           <p className="text-center text-muted-foreground text-sm max-w-2xl mx-auto mb-14">
-            Three ways to get creative and take home something you made yourself.
+            {t("Three ways to get creative and take home something you made yourself.", "Trois façons de laisser libre cours à votre créativité et de repartir avec une création faite de vos mains.")}
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {workshops.map((w) => (
               <div key={w.title} className="border border-border/60 flex flex-col bg-card">
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img src={w.image} alt={w.title} className="w-full h-full object-cover" />
+                  <img src={w.image} alt={t(w.title, w.titleFr)} className="w-full h-full object-cover" />
                 </div>
                 <div className="p-7 flex flex-col flex-1">
                   <h3 className="font-sans uppercase tracking-[0.105em] text-base font-semibold text-foreground mb-3">
-                    {w.title}
+                    {t(w.title, w.titleFr)}
                   </h3>
-                  <p className="text-sm text-foreground/75 mb-5">{w.tagline}</p>
+                  <p className="text-sm text-foreground/75 mb-5">{t(w.tagline, w.taglineFr)}</p>
                   <ul className="space-y-2.5 mb-6">
-                    {w.features.map((f) => (
+                    {w.features.map((f, i) => (
                       <li key={f} className="flex items-start gap-2.5 text-sm text-foreground/80">
                         <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" strokeWidth={2} />
-                        <span>{f}</span>
+                        <span>{t(f, w.featuresFr[i])}</span>
                       </li>
                     ))}
                   </ul>
@@ -275,7 +308,7 @@ const Workshop = () => {
                     {w.meta.map((m) => (
                       <div key={m.label} className="flex items-center gap-2.5 text-sm text-muted-foreground">
                         <m.icon className="w-4 h-4 text-primary" strokeWidth={1.5} />
-                        <span>{m.label}</span>
+                        <span>{t(m.label, m.labelFr)}</span>
                       </div>
                     ))}
                   </div>
@@ -283,7 +316,7 @@ const Workshop = () => {
                     asChild
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
                   >
-                    <Link to={w.ctaTo}>{w.ctaLabel}</Link>
+                    <Link to={w.ctaTo}>{t(w.ctaLabel, w.ctaLabelFr)}</Link>
                   </Button>
                 </div>
               </div>
@@ -291,29 +324,29 @@ const Workshop = () => {
 
             <div className="border border-border/60 flex flex-col bg-card">
               <div className="aspect-[4/3] overflow-hidden">
-                <img src={privateWorkshop.image} alt={privateWorkshop.title} className="w-full h-full object-cover" />
+                <img src={privateWorkshop.image} alt={t(privateWorkshop.title, privateWorkshop.titleFr)} className="w-full h-full object-cover" />
               </div>
               <div className="p-7 flex flex-col flex-1">
                 <h3 className="font-sans uppercase tracking-[0.105em] text-base font-semibold text-foreground mb-3">
-                  {privateWorkshop.title}
+                  {t(privateWorkshop.title, privateWorkshop.titleFr)}
                 </h3>
-                <p className="text-sm text-foreground/75 mb-5">{privateWorkshop.tagline}</p>
+                <p className="text-sm text-foreground/75 mb-5">{t(privateWorkshop.tagline, privateWorkshop.taglineFr)}</p>
                 <p className="text-[13px] font-semibold uppercase tracking-[0.105em] text-foreground mb-3">
-                  Perfect for
+                  {t("Perfect for", "Idéal pour")}
                 </p>
                 <ul className="space-y-2 mb-6">
-                  {privateWorkshop.perfectFor.map((p) => (
-                    <li key={p} className="text-sm text-foreground/80">{p}</li>
+                  {privateWorkshop.perfectFor.map((p, i) => (
+                    <li key={p} className="text-sm text-foreground/80">{t(p, privateWorkshop.perfectForFr[i])}</li>
                   ))}
                 </ul>
                 <p className="text-sm text-foreground/75 italic mb-7 mt-auto">
-                  {privateWorkshop.note}
+                  {t(privateWorkshop.note, privateWorkshop.noteFr)}
                 </p>
                 <Button
                   onClick={() => setPrivateOpen(true)}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
                 >
-                  Enquire
+                  {t("Enquire", "Nous contacter")}
                 </Button>
               </div>
             </div>
