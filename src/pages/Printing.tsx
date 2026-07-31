@@ -73,8 +73,8 @@ const Printing = () => {
       total: PRINTING_PRICE,
     });
 
-    toast.success("Edible printing added to your basket!", {
-      action: { label: "View basket", onClick: () => navigate("/cart") },
+    toast.success("Edible printing added to your cart!", {
+      action: { label: "View cart", onClick: () => navigate("/cart") },
     });
     setFiles([]);
     setComment("");

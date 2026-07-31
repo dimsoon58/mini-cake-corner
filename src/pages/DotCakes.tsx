@@ -172,7 +172,7 @@ const DotCakes = () => {
       imageFiles: [],
       total,
     });
-    toast.success("Dot cakes added to your basket!");
+    toast.success("Dot cakes added to your cart!");
     navigate("/cart");
   };
 

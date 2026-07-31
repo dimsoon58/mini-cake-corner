@@ -277,8 +277,8 @@ const Checkout = () => {
 
     if (deliveryOption === "pickup" && !pickupTime) {
       toast({
-        title: "Pickup Time required",
-        description: "Please select a pickup time slot.",
+        title: "Pick-up Time required",
+        description: "Please select a pick-up time slot.",
         variant: "destructive",
       });
       return;
@@ -621,7 +621,7 @@ const Checkout = () => {
                 <div className="flex items-center space-x-3 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="pickup" id="pickup" />
                   <Label htmlFor="pickup" className="cursor-pointer flex-1">
-                    <span className="font-medium">Pickup</span>
+                    <span className="font-medium">Pick-up</span>
                     <p className="text-sm text-muted-foreground">
                       Pick up your order at our store
                     </p>
@@ -642,7 +642,7 @@ const Checkout = () => {
             {/* Pickup Time - Only shown when pickup is selected */}
             {deliveryOption === "pickup" && (
               <div className="space-y-2">
-                <Label>Pickup Time <span className="text-destructive">*</span></Label>
+                <Label>Pick-up Time <span className="text-destructive">*</span></Label>
                 <Select value={pickupTime} onValueChange={setPickupTime}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a pickup time" />

@@ -314,14 +314,14 @@ const Cart = () => {
           </Link>
           <div className="flex items-center gap-2">
             <ShoppingBag className="h-6 w-6 text-primary" strokeWidth={1.25} />
-            <span className="uppercase tracking-[0.18em] text-sm font-medium text-foreground">Your Basket ({itemCount})</span>
+            <span className="uppercase tracking-[0.18em] text-sm font-medium text-foreground">Your Cart ({itemCount})</span>
           </div>
         </div>
 
         {items.length === 0 ? (
           <div className="text-center py-20">
             <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-6" strokeWidth={1.25} />
-            <h2 className="font-serif text-3xl text-foreground mb-4">Your basket is empty</h2>
+            <h2 className="font-serif text-3xl text-foreground mb-4">Your cart is empty</h2>
             <p className="text-muted-foreground mb-8">Start customizing your perfect cake!</p>
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide rounded-full" asChild><Link to="/catalog">Customise Your Cake</Link></Button>
           </div>

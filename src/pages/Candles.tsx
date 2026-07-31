@@ -75,8 +75,8 @@ const Candles = () => {
       candleProductHasPack: candle.hasPack,
     });
 
-    toast.success(`${candle.name} added to your basket!`, {
-      action: { label: "View basket", onClick: () => navigate("/cart") },
+    toast.success(`${candle.name} added to your cart!`, {
+      action: { label: "View cart", onClick: () => navigate("/cart") },
     });
     setQuantities((prev) => ({ ...prev, [candle.id]: 1 }));
   };

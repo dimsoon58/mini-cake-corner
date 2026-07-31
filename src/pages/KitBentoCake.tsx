@@ -85,9 +85,9 @@ export const flavorCategories = [
       { id: "tiramisu", name: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", image: flavorTiramisu },
       { id: "praline", name: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelised almond, hazelnut and whipped cream", image: flavorPraline },
       { id: "passion-fruit", name: "Passion Fruit", description: "Fluffy vanilla sponge filled with fresh passion fruit curd and whipped cream", image: flavorPassionFruit },
-      { id: "vanilla-gf", name: "Vanilla Gluten-free", description: "Fluffy gluten-free vanilla sponge with whipped cream", image: flavorVanilla },
-      { id: "red-velvet-gf", name: "Red Velvet Gluten-free", description: "Fluffy gluten-free vanilla & chocolate sponge with whipped cream", image: flavorRedVelvet },
-      { id: "chocolate-gf", name: "Chocolate Gluten-free", description: "Fluffy gluten-free chocolate sponge with whipped cream", image: flavorChocolate },
+      { id: "vanilla-gf", name: "Vanilla Gluten-Free", description: "Fluffy gluten-free vanilla sponge with whipped cream", image: flavorVanilla },
+      { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", description: "Fluffy gluten-free vanilla & chocolate sponge with whipped cream", image: flavorRedVelvet },
+      { id: "chocolate-gf", name: "Chocolate Gluten-Free", description: "Fluffy gluten-free chocolate sponge with whipped cream", image: flavorChocolate },
     ],
   },
 ];
@@ -624,7 +624,7 @@ const KitBentoCake = () => {
       <Sheet open={showCartSheet} onOpenChange={setShowCartSheet}>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>Your order has been added to the basket!</SheetTitle>
+            <SheetTitle>Your order has been added to the cart!</SheetTitle>
           </SheetHeader>
           <div className="mt-6 space-y-4">
             <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
@@ -639,7 +639,7 @@ const KitBentoCake = () => {
               <p className="text-lg font-semibold mt-4">Total: CHF {totalPrice}</p>
             </div>
             <div className="flex flex-col gap-3">
-              <Button onClick={() => navigate("/cart")} className="">View Basket</Button>
+              <Button onClick={() => navigate("/cart")} className="">View Cart</Button>
               <Button variant="outline" className="" onClick={() => { setShowCartSheet(false); navigate("/"); }}>
                 Continue Shopping
               </Button>
