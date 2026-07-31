@@ -10,10 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { useLang } from "@/context/LanguageContext";
 
 const ProductDetail = () => {
   const { id } = useParams();
   const { toast } = useToast();
+  const { t } = useLang();
   const product = products.find((p) => p.id === id);
 
   const [selectedFlavor, setSelectedFlavor] = useState("");
@@ -27,9 +29,9 @@ const ProductDetail = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Product not found</h2>
+          <h2 className="text-2xl font-bold mb-4">{t("Product not found", "Produit introuvable")}</h2>
           <Link to="/">
-            <Button>Back to Home</Button>
+            <Button>{t("Back to Home", "Retour à l'accueil")}</Button>
           </Link>
         </div>
       </div>
@@ -39,15 +41,15 @@ const ProductDetail = () => {
   const handleAddToCart = () => {
     if (!selectedFlavor || !selectedSize || !selectedDesign) {
       toast({
-        title: "Please complete your selection",
-        description: "Choose flavor, size, and design before adding to cart",
+        title: t("Please complete your selection", "Veuillez compléter votre sélection"),
+        description: t("Choose flavor, size, and design before adding to cart", "Choisissez le parfum, la taille et le design avant d'ajouter au panier"),
         variant: "destructive",
       });
       return;
     }
 
     toast({
-      title: "Added to cart! 🎉",
+      title: t("Added to cart! 🎉", "Ajouté au panier ! 🎉"),
       description: `${product.name} - ${selectedFlavor}, ${selectedSize}`,
     });
   };
@@ -60,8 +62,8 @@ const ProductDetail = () => {
       const newFiles = Array.from(e.target.files);
       setUploadedImages([...uploadedImages, ...newFiles]);
       toast({
-        title: "Images uploaded!",
-        description: `${newFiles.length} reference image(s) added`,
+        title: t("Images uploaded!", "Images téléchargées !"),
+        description: `${newFiles.length} ${t("reference image(s) added", "image(s) de référence ajoutée(s)")}`,
       });
     }
   };
@@ -79,7 +81,7 @@ const ProductDetail = () => {
     setTimeout(() => {
       setChatMessages(prev => [...prev, { 
         role: "assistant", 
-        message: "Thanks for your question! Our team will help you customize your perfect bento cake. You can add text, special decorations, or dietary requirements in the notes at checkout!" 
+        message: t("Thanks for your question! Our team will help you customize your perfect bento cake. You can add text, special decorations, or dietary requirements in the notes at checkout!", "Merci pour votre question ! Notre équipe se fera un plaisir de vous aider à personnaliser votre bento cake idéal. Vous pouvez ajouter un texte, des décorations spéciales ou vos exigences alimentaires dans les notes lors du paiement !") 
       }]);
     }, 1000);
     
@@ -104,7 +106,7 @@ const ProductDetail = () => {
       <div className="container mx-auto px-4 py-8">
         <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="h-4 w-4" />
-          Back to Shop
+          {t("Back to Shop", "Retour à la boutique")}
         </Link>
 
         <div className="grid md:grid-cols-2 gap-8">
@@ -137,7 +139,7 @@ const ProductDetail = () => {
             <Card>
               <CardContent className="pt-6">
                 <Label className="text-base font-semibold mb-3 block">
-                  Choose Flavor
+                  {t("Choose Flavor", "Choisir le parfum")}
                 </Label>
                 <RadioGroup value={selectedFlavor} onValueChange={setSelectedFlavor}>
                   <div className="space-y-2">
@@ -161,7 +163,7 @@ const ProductDetail = () => {
             <Card>
               <CardContent className="pt-6">
                 <Label className="text-base font-semibold mb-3 block">
-                  Choose Size
+                  {t("Choose Size", "Choisir la taille")}
                 </Label>
                 <RadioGroup value={selectedSize} onValueChange={setSelectedSize}>
                   <div className="space-y-2">
@@ -186,7 +188,7 @@ const ProductDetail = () => {
             <Card>
               <CardContent className="pt-6">
                 <Label className="text-base font-semibold mb-3 block">
-                  Choose Design
+                  {t("Choose Design", "Choisir le design")}
                 </Label>
                 <RadioGroup value={selectedDesign} onValueChange={setSelectedDesign}>
                   <div className="grid grid-cols-2 gap-3">
@@ -215,7 +217,7 @@ const ProductDetail = () => {
             <Card>
               <CardContent className="pt-6">
                 <Label className="text-base font-semibold mb-3 block">
-                  Upload Reference Images
+                  {t("Upload Reference Images", "Télécharger des images de référence")}
                 </Label>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
@@ -234,7 +236,7 @@ const ProductDetail = () => {
                         <div key={index} className="relative group">
                           <img
                             src={URL.createObjectURL(file)}
-                            alt={`Reference ${index + 1}`}
+                            alt={`${t("Reference", "Référence")} ${index + 1}`}
                             className="w-full h-20 object-cover rounded-md border border-border"
                           />
                           <button
@@ -248,7 +250,7 @@ const ProductDetail = () => {
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Upload reference images for your custom design
+                    {t("Upload reference images for your custom design", "Téléchargez des images de référence pour votre design personnalisé")}
                   </p>
                 </div>
               </CardContent>
@@ -257,7 +259,7 @@ const ProductDetail = () => {
             <div className="flex gap-3">
               <Button size="lg" className="flex-1" onClick={handleAddToCart}>
                 <ShoppingCart className="mr-2 h-5 w-5" />
-                Add to Cart - CHF {currentPrice}
+                {t("Add to Cart", "Ajouter au panier")} - CHF {currentPrice}
               </Button>
               
               {/* Chatbot */}
@@ -269,13 +271,13 @@ const ProductDetail = () => {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Customization Help</DialogTitle>
+                    <DialogTitle>{t("Customization Help", "Aide à la personnalisation")}</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="h-64 overflow-y-auto space-y-3 p-4 bg-muted rounded-lg">
                       {chatMessages.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center">
-                          Ask us anything about customizing your cake!
+                          {t("Ask us anything about customizing your cake!", "Posez-nous toutes vos questions sur la personnalisation de votre gâteau !")}
                         </p>
                       ) : (
                         chatMessages.map((msg, idx) => (
@@ -298,7 +300,7 @@ const ProductDetail = () => {
                     </div>
                     <div className="flex gap-2">
                       <Textarea
-                        placeholder="Ask about flavors, designs, or special requests..."
+                        placeholder={t("Ask about flavors, designs, or special requests...", "Posez vos questions sur les parfums, les designs ou vos demandes spéciales...")}
                         value={currentMessage}
                         onChange={(e) => setCurrentMessage(e.target.value)}
                         onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
