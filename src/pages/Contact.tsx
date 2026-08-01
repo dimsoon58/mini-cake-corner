@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Upload, X } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
+import { useFieldError } from "@/lib/formErrors";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ type ContactFormData = z.infer<typeof contactSchema>;
 const Contact = () => {
   const [submitted, setSubmitted] = useState(false);
   const { t, lang } = useLang();
+  const fe = useFieldError();
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,14 +40,14 @@ const Contact = () => {
 
   const onSubmit = (_data: ContactFormData) => {
     setSubmitted(true);
-    toast.success("Your message has been sent. We'll get back to you soon!");
+    toast.success(t("Your message has been sent. We'll get back to you soon!", "Votre message a bien été envoyé. Nous vous répondrons très vite !"));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
       if (selected.size > 10 * 1024 * 1024) {
-        toast.error("File size must be under 10 MB.");
+        toast.error(t("File size must be under 10 MB.", "Le fichier doit faire moins de 10 Mo."));
         return;
       }
       setFile(selected);
@@ -153,7 +155,7 @@ const Contact = () => {
                     </Label>
                     <Input id="firstName" {...register("firstName")} />
                     {errors.firstName && (
-                      <p className="text-sm text-destructive">{errors.firstName.message}</p>
+                      <p className="text-sm text-destructive">{fe(errors.firstName.message)}</p>
                     )}
                   </div>
                   <div className="space-y-1.5">
@@ -162,7 +164,7 @@ const Contact = () => {
                     </Label>
                     <Input id="lastName" {...register("lastName")} />
                     {errors.lastName && (
-                      <p className="text-sm text-destructive">{errors.lastName.message}</p>
+                      <p className="text-sm text-destructive">{fe(errors.lastName.message)}</p>
                     )}
                   </div>
                 </div>
@@ -174,7 +176,7 @@ const Contact = () => {
                     </Label>
                     <Input id="email" type="email" {...register("email")} />
                     {errors.email && (
-                      <p className="text-sm text-destructive">{errors.email.message}</p>
+                      <p className="text-sm text-destructive">{fe(errors.email.message)}</p>
                     )}
                   </div>
                   <div className="space-y-1.5">
@@ -183,7 +185,7 @@ const Contact = () => {
                     </Label>
                     <Input id="phone" type="tel" {...register("phone")} />
                     {errors.phone && (
-                      <p className="text-sm text-destructive">{errors.phone.message}</p>
+                      <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>
                     )}
                   </div>
                 </div>
@@ -199,7 +201,7 @@ const Contact = () => {
                     {...register("message")}
                   />
                   {errors.message && (
-                    <p className="text-sm text-destructive">{errors.message.message}</p>
+                    <p className="text-sm text-destructive">{fe(errors.message.message)}</p>
                   )}
                 </div>
 

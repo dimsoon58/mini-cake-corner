@@ -12,6 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useLang } from "@/context/LanguageContext";
+import { useFieldError } from "@/lib/formErrors";
 
 const requestSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
@@ -39,6 +40,7 @@ type RequestFormData = z.infer<typeof requestSchema>;
 
 const CustomRequestForm = () => {
   const { t } = useLang();
+  const fe = useFieldError();
   const [submitted, setSubmitted] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,14 +97,14 @@ const CustomRequestForm = () => {
             {t("First Name", "Prénom")} <span className="text-destructive">*</span>
           </Label>
           <Input id="cr-firstName" {...register("firstName")} />
-          {errors.firstName && <p className="text-sm text-destructive">{errors.firstName.message}</p>}
+          {errors.firstName && <p className="text-sm text-destructive">{fe(errors.firstName.message)}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="cr-lastName">
             {t("Last Name", "Nom")} <span className="text-destructive">*</span>
           </Label>
           <Input id="cr-lastName" {...register("lastName")} />
-          {errors.lastName && <p className="text-sm text-destructive">{errors.lastName.message}</p>}
+          {errors.lastName && <p className="text-sm text-destructive">{fe(errors.lastName.message)}</p>}
         </div>
       </div>
 
@@ -113,14 +115,14 @@ const CustomRequestForm = () => {
             {t("Email", "E-mail")} <span className="text-destructive">*</span>
           </Label>
           <Input id="cr-email" type="email" {...register("email")} />
-          {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+          {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="cr-phone">
             {t("Phone Number", "Numéro de téléphone")} <span className="text-destructive">*</span>
           </Label>
           <Input id="cr-phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+          {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
         </div>
       </div>
 
@@ -154,7 +156,7 @@ const CustomRequestForm = () => {
             />
           </PopoverContent>
         </Popover>
-        {errors.eventDate && <p className="text-sm text-destructive">{errors.eventDate.message}</p>}
+        {errors.eventDate && <p className="text-sm text-destructive">{fe(errors.eventDate.message)}</p>}
       </div>
 
       {/* Number of Guests */}
@@ -205,7 +207,7 @@ const CustomRequestForm = () => {
           </button>
         </div>
         {errors.numberOfGuests && (
-          <p className="text-sm text-destructive">{errors.numberOfGuests.message}</p>
+          <p className="text-sm text-destructive">{fe(errors.numberOfGuests.message)}</p>
         )}
       </div>
 
@@ -223,7 +225,7 @@ const CustomRequestForm = () => {
           )}
           {...register("description")}
         />
-        {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
+        {errors.description && <p className="text-sm text-destructive">{fe(errors.description.message)}</p>}
       </div>
 
       {/* Photo upload */}

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { submitToWeb3Forms } from "@/lib/web3forms";
 import { useLang } from "@/context/LanguageContext";
+import { useFieldError } from "@/lib/formErrors";
 
 import cardCelebrations from "@/assets/corporate-event-5.png";
 import cardEvents from "@/assets/corporate-event-8.png";
@@ -35,6 +36,7 @@ const RequiredMark = () => <span className="text-destructive">*</span>;
 
 const SuccessPanel = ({ message }: { message: string }) => {
   const { t } = useLang();
+  const fe = useFieldError();
   return (
   <div className="text-center py-10">
     <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -74,6 +76,7 @@ type CelebrationsData = z.infer<typeof celebrationsSchema>;
 
 const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const { t } = useLang();
+  const fe = useFieldError();
   const {
     register,
     handleSubmit,
@@ -109,44 +112,44 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
         <div className="space-y-1.5">
           <Label htmlFor="cc-firstName">{t("First name", "Prénom")} <RequiredMark /></Label>
           <Input id="cc-firstName" {...register("firstName")} />
-          {errors.firstName && <p className="text-sm text-destructive">{errors.firstName.message}</p>}
+          {errors.firstName && <p className="text-sm text-destructive">{fe(errors.firstName.message)}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="cc-lastName">{t("Last name", "Nom")} <RequiredMark /></Label>
           <Input id="cc-lastName" {...register("lastName")} />
-          {errors.lastName && <p className="text-sm text-destructive">{errors.lastName.message}</p>}
+          {errors.lastName && <p className="text-sm text-destructive">{fe(errors.lastName.message)}</p>}
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="cc-phone">{t("Phone number", "Numéro de téléphone")} <RequiredMark /></Label>
           <Input id="cc-phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+          {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="cc-email">{t("Email address", "Adresse e-mail")} <RequiredMark /></Label>
           <Input id="cc-email" type="email" {...register("email")} />
-          {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+          {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="cc-company">{t("Company name", "Nom de l'entreprise")} <RequiredMark /></Label>
           <Input id="cc-company" {...register("companyName")} />
-          {errors.companyName && <p className="text-sm text-destructive">{errors.companyName.message}</p>}
+          {errors.companyName && <p className="text-sm text-destructive">{fe(errors.companyName.message)}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="cc-employees">{t("Number of employees", "Nombre d'employés")} <RequiredMark /></Label>
           <Input id="cc-employees" {...register("numberOfEmployees")} />
           {errors.numberOfEmployees && (
-            <p className="text-sm text-destructive">{errors.numberOfEmployees.message}</p>
+            <p className="text-sm text-destructive">{fe(errors.numberOfEmployees.message)}</p>
           )}
         </div>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="cc-looking">{t("Tell us what you are looking for", "Dites-nous ce que vous recherchez")} <RequiredMark /></Label>
         <Textarea id="cc-looking" rows={4} {...register("lookingFor")} />
-        {errors.lookingFor && <p className="text-sm text-destructive">{errors.lookingFor.message}</p>}
+        {errors.lookingFor && <p className="text-sm text-destructive">{fe(errors.lookingFor.message)}</p>}
       </div>
       <Button
         type="submit"
@@ -174,6 +177,7 @@ type EventsData = z.infer<typeof eventsSchema>;
 
 const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const { t } = useLang();
+  const fe = useFieldError();
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -211,7 +215,7 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
       <div className="space-y-1.5">
         <Label htmlFor="ev-name">{t("First and last name", "Prénom et nom")} <RequiredMark /></Label>
         <Input id="ev-name" {...register("fullName")} />
-        {errors.fullName && <p className="text-sm text-destructive">{errors.fullName.message}</p>}
+        {errors.fullName && <p className="text-sm text-destructive">{fe(errors.fullName.message)}</p>}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="ev-company">{t("Company / Agency", "Société / Agence")} <span className="text-muted-foreground">{t("(optional)", "(optionnel)")}</span></Label>
@@ -221,12 +225,12 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
         <div className="space-y-1.5">
           <Label htmlFor="ev-email">{t("Email address", "Adresse e-mail")} <RequiredMark /></Label>
           <Input id="ev-email" type="email" {...register("email")} />
-          {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+          {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="ev-phone">{t("Phone number", "Numéro de téléphone")} <RequiredMark /></Label>
           <Input id="ev-phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+          {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -257,13 +261,13 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
               />
             </PopoverContent>
           </Popover>
-          {errors.eventDate && <p className="text-sm text-destructive">{errors.eventDate.message}</p>}
+          {errors.eventDate && <p className="text-sm text-destructive">{fe(errors.eventDate.message)}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="ev-guests">{t("Estimated number of guests", "Nombre d'invités estimé")} <RequiredMark /></Label>
           <Input id="ev-guests" {...register("estimatedGuests")} />
           {errors.estimatedGuests && (
-            <p className="text-sm text-destructive">{errors.estimatedGuests.message}</p>
+            <p className="text-sm text-destructive">{fe(errors.estimatedGuests.message)}</p>
           )}
         </div>
       </div>
@@ -284,7 +288,7 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
         </ul>
         <Textarea id="ev-desc" rows={5} {...register("projectDescription")} />
         {errors.projectDescription && (
-          <p className="text-sm text-destructive">{errors.projectDescription.message}</p>
+          <p className="text-sm text-destructive">{fe(errors.projectDescription.message)}</p>
         )}
       </div>
 
@@ -362,6 +366,7 @@ type HospitalityData = z.infer<typeof hospitalitySchema>;
 
 const HospitalityForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const { t } = useLang();
+  const fe = useFieldError();
   const {
     register,
     handleSubmit,
@@ -396,37 +401,37 @@ const HospitalityForm = ({ onSuccess }: { onSuccess: () => void }) => {
         <div className="space-y-1.5">
           <Label htmlFor="hp-firstName">{t("First name", "Prénom")} <RequiredMark /></Label>
           <Input id="hp-firstName" {...register("firstName")} />
-          {errors.firstName && <p className="text-sm text-destructive">{errors.firstName.message}</p>}
+          {errors.firstName && <p className="text-sm text-destructive">{fe(errors.firstName.message)}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="hp-lastName">{t("Last name", "Nom")} <RequiredMark /></Label>
           <Input id="hp-lastName" {...register("lastName")} />
-          {errors.lastName && <p className="text-sm text-destructive">{errors.lastName.message}</p>}
+          {errors.lastName && <p className="text-sm text-destructive">{fe(errors.lastName.message)}</p>}
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="hp-phone">{t("Phone number", "Numéro de téléphone")} <RequiredMark /></Label>
           <Input id="hp-phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+          {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="hp-email">{t("Email address", "Adresse e-mail")} <RequiredMark /></Label>
           <Input id="hp-email" type="email" {...register("email")} />
-          {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+          {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
         </div>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="hp-establishment">{t("Establishment name", "Nom de l'établissement")} <RequiredMark /></Label>
         <Input id="hp-establishment" {...register("establishmentName")} />
         {errors.establishmentName && (
-          <p className="text-sm text-destructive">{errors.establishmentName.message}</p>
+          <p className="text-sm text-destructive">{fe(errors.establishmentName.message)}</p>
         )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="hp-looking">{t("Tell us what you are looking for", "Dites-nous ce que vous recherchez")} <RequiredMark /></Label>
         <Textarea id="hp-looking" rows={4} {...register("lookingFor")} />
-        {errors.lookingFor && <p className="text-sm text-destructive">{errors.lookingFor.message}</p>}
+        {errors.lookingFor && <p className="text-sm text-destructive">{fe(errors.lookingFor.message)}</p>}
       </div>
       <Button
         type="submit"
@@ -529,6 +534,7 @@ type View = "info" | "form" | "done";
 
 const Business = () => {
   const { t } = useLang();
+  const fe = useFieldError();
   const [openId, setOpenId] = useState<CategoryId | null>(null);
   // Celebrations & Hospitality start on "info"; Events opens straight to "form".
   const [view, setView] = useState<View>("info");

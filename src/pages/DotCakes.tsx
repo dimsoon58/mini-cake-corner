@@ -30,6 +30,12 @@ const tierByCategory: Record<string, { label: string; surcharge: number; note: s
   "Deluxe Flavors": { label: "Deluxe Flavours", surcharge: 2.5, note: "+CHF 2.50 per Dot Cake" },
 };
 
+const tierNoteFr: Record<string, string> = {
+  "included": "inclus",
+  "+CHF 1.50 per Dot Cake": "+CHF 1.50 par Dot Cake",
+  "+CHF 2.50 per Dot Cake": "+CHF 2.50 par Dot Cake",
+};
+
 const INITIAL_CANDLES_SHOWN = 4;
 
 const SectionHeading = ({ children }: { children: React.ReactNode }) => (
@@ -278,7 +284,7 @@ const DotCakes = () => {
                     <h3 className="text-lg font-medium">
                       {t(tier?.label ?? category.name, "Parfums " + (tier?.label ?? category.name).replace(" Flavours", ""))}
                       {tier && tier.surcharge > 0 && (
-                        <span className="text-muted-foreground ml-2 text-sm">({t(tier.note, tier.note.replace("per Dot Cake", "par Dot Cake"))})</span>
+                        <span className="text-muted-foreground ml-2 text-sm">({t(tier.note, tierNoteFr[tier.note] ?? tier.note)})</span>
                       )}
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

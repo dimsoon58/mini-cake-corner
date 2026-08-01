@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from "sonner";
 import { submitToWeb3Forms } from "@/lib/web3forms";
 import { useLang } from "@/context/LanguageContext";
+import { useFieldError } from "@/lib/formErrors";
 
 // Photos, remplace chaque import par une photo dédiée quand tu en as
 import workshopHero from "@/assets/home-cat-workshops.png";
@@ -134,6 +135,7 @@ type PrivateData = z.infer<typeof privateSchema>;
 
 const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) => {
   const { t } = useLang();
+  const fe = useFieldError();
   const [submitted, setSubmitted] = useState(false);
   const {
     register,
@@ -194,18 +196,18 @@ const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenCh
               <div className="space-y-1.5">
                 <Label htmlFor="pw-name">{t("First and last name", "Prénom et nom")} <span className="text-destructive">*</span></Label>
                 <Input id="pw-name" {...register("fullName")} />
-                {errors.fullName && <p className="text-sm text-destructive">{errors.fullName.message}</p>}
+                {errors.fullName && <p className="text-sm text-destructive">{fe(errors.fullName.message)}</p>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="pw-email">{t("Email address", "Adresse e-mail")} <span className="text-destructive">*</span></Label>
                   <Input id="pw-email" type="email" {...register("email")} />
-                  {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                  {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="pw-phone">{t("Phone number", "Numéro de téléphone")} <span className="text-destructive">*</span></Label>
                   <Input id="pw-phone" type="tel" {...register("phone")} />
-                  {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+                  {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -216,7 +218,7 @@ const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenCh
                 <div className="space-y-1.5">
                   <Label htmlFor="pw-participants">{t("Number of participants", "Nombre de participants")} <span className="text-destructive">*</span></Label>
                   <Input id="pw-participants" {...register("participants")} />
-                  {errors.participants && <p className="text-sm text-destructive">{errors.participants.message}</p>}
+                  {errors.participants && <p className="text-sm text-destructive">{fe(errors.participants.message)}</p>}
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -226,7 +228,7 @@ const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenCh
               <div className="space-y-1.5">
                 <Label htmlFor="pw-message">{t("Tell us about your event", "Parlez-nous de votre événement")} <span className="text-destructive">*</span></Label>
                 <Textarea id="pw-message" rows={4} {...register("message")} />
-                {errors.message && <p className="text-sm text-destructive">{errors.message.message}</p>}
+                {errors.message && <p className="text-sm text-destructive">{fe(errors.message.message)}</p>}
               </div>
               <Button type="submit" disabled={isSubmitting} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none">
                 {isSubmitting ? t("Sending…", "Envoi…") : t("Send my enquiry", "Envoyer ma demande")}
@@ -241,6 +243,7 @@ const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenCh
 
 const Workshop = () => {
   const { t } = useLang();
+  const fe = useFieldError();
   const [privateOpen, setPrivateOpen] = useState(false);
   useEffect(() => {
     document.title = t("Workshops – Bento Cake Studio", "Ateliers – Bento Cake Studio");

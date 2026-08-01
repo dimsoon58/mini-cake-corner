@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
+import { useLang } from "@/context/LanguageContext";
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
   if (!value) return null;
@@ -24,6 +25,7 @@ const formatDateFromIso = (dateValue?: string | null) => {
 };
 
 const AdminOrder = () => {
+  const { t } = useLang();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
@@ -48,11 +50,11 @@ const AdminOrder = () => {
 
   const handleAction = async (action: "approve" | "reject") => {
     if (!pin.trim()) {
-      setResult({ type: "error", message: "Please enter the admin PIN" });
+      setResult({ type: "error", message: t("Please enter the admin PIN", "Veuillez saisir le code PIN administrateur") });
       return;
     }
     if (!token) {
-      setResult({ type: "error", message: "Missing action token. Please use the link from the notification email." });
+      setResult({ type: "error", message: t("Missing action token. Please use the link from the notification email.", "Jeton d'action manquant. Veuillez utiliser le lien reçu dans l'e-mail de notification.") });
       return;
     }
     setActionLoading(action);
@@ -66,12 +68,12 @@ const AdminOrder = () => {
       setResult({
         type: "success",
         message: action === "approve"
-          ? "✅ Order approved! Payment has been captured."
-          : "❌ Order rejected. Payment has been canceled.",
+          ? t("✅ Order approved! Payment has been captured.", "✅ Commande approuvée ! Le paiement a été capturé.")
+          : t("❌ Order rejected. Payment has been canceled.", "❌ Commande refusée. Le paiement a été annulé."),
       });
       setOrder({ ...order, status: data.status });
     } catch (err) {
-      setResult({ type: "error", message: err instanceof Error ? err.message : "Unknown error" });
+      setResult({ type: "error", message: err instanceof Error ? err.message : t("Unknown error", "Erreur inconnue") });
     } finally {
       setActionLoading(null);
     }
@@ -91,7 +93,7 @@ const AdminOrder = () => {
     return (
       <Layout>
         <main className="container mx-auto px-4 py-16 text-center">
-          <p className="text-muted-foreground">Order not found.</p>
+          <p className="text-muted-foreground">{t("Order not found.", "Commande introuvable.")}</p>
         </main>
       </Layout>
     );
@@ -109,7 +111,7 @@ const AdminOrder = () => {
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-6 h-6 text-primary" />
             <h1 className="text-xl font-serif text-foreground">
-              {order.order_number || `Order #${order.id.slice(0, 8).toUpperCase()}`}
+              {order.order_number || `${t("Order", "Commande")} #${order.id.slice(0, 8).toUpperCase()}`}
             </h1>
             <span className={`ml-auto text-xs font-medium px-3 py-1 rounded-full ${
               order.status === "pending" ? "bg-amber-100 text-amber-800" :
@@ -125,36 +127,36 @@ const AdminOrder = () => {
             <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
               <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
               <div className="text-sm text-amber-800">
-                <p className="font-medium">Secure token missing</p>
-                <p>Please use the link from the notification email to manage this order. Direct access without a token is not permitted.</p>
+                <p className="font-medium">{t("Secure token missing", "Jeton sécurisé manquant")}</p>
+                <p>{t("Please use the link from the notification email to manage this order. Direct access without a token is not permitted.", "Veuillez utiliser le lien reçu dans l'e-mail de notification pour gérer cette commande. L'accès direct sans jeton n'est pas autorisé.")}</p>
               </div>
             </div>
           )}
 
           {/* Customer Info */}
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
-            <h3 className="font-medium text-foreground mb-2">👤 Customer Information</h3>
-            <DetailRow label="Name" value={order.customer_name} />
-            <DetailRow label="Email" value={order.customer_email} />
-            <DetailRow label="Phone" value={order.customer_phone} />
+            <h3 className="font-medium text-foreground mb-2">{t("👤 Customer Information", "👤 Informations client")}</h3>
+            <DetailRow label={t("Name", "Nom")} value={order.customer_name} />
+            <DetailRow label={t("Email", "E-mail")} value={order.customer_email} />
+            <DetailRow label={t("Phone", "Téléphone")} value={order.customer_phone} />
           </div>
 
           {/* Pickup / Delivery */}
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
-            <h3 className="font-medium text-foreground mb-2">📦 Pickup / Delivery</h3>
-            <DetailRow label="Date" value={formatDateFromIso(order.order_date)} />
-            <DetailRow label="Time" value={details.pickupTime} />
-            <DetailRow label="Option" value={order.delivery_option === "delivery" ? "Delivery" : "Pickup at store"} />
+            <h3 className="font-medium text-foreground mb-2">{t("📦 Pickup / Delivery", "📦 Retrait / Livraison")}</h3>
+            <DetailRow label={t("Date", "Date")} value={formatDateFromIso(order.order_date)} />
+            <DetailRow label={t("Time", "Heure")} value={details.pickupTime} />
+            <DetailRow label={t("Option", "Option")} value={order.delivery_option === "delivery" ? t("Delivery", "Livraison") : t("Pickup at store", "Retrait en boutique")} />
             {order.delivery_option === "delivery" && (
-              <DetailRow label="Address" value={order.delivery_address} />
+              <DetailRow label={t("Address", "Adresse")} value={order.delivery_address} />
             )}
-            <DetailRow label="Delivery Notes" value={details.deliveryComment} />
+            <DetailRow label={t("Delivery Notes", "Notes de livraison")} value={details.deliveryComment} />
           </div>
 
           {/* Cake Items */}
           {items.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-medium text-foreground">🍰 Order Items ({items.length})</h3>
+              <h3 className="font-medium text-foreground">{t("🍰 Order Items", "🍰 Articles de la commande")} ({items.length})</h3>
               {items.map((item: any, i: number) => {
                 const candlesList = (item.candles || [])
                   .filter((c: any) => c.quantity > 0)
@@ -164,28 +166,28 @@ const AdminOrder = () => {
                 return (
                   <div key={i} className="rounded-lg border border-border p-4 space-y-1">
                     <div className="flex justify-between mb-2">
-                      <span className="font-medium text-sm">Cake {i + 1}</span>
+                      <span className="font-medium text-sm">{t("Cake", "Gâteau")} {i + 1}</span>
                       <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
                     </div>
-                    <DetailRow label="Size" value={item.sizeName} />
-                    <DetailRow label="Shape" value={item.shapeName} />
-                    <DetailRow label="Flavor" value={item.flavorName} />
-                    <DetailRow label="Design / Style" value={item.styleName} />
-                    <DetailRow label="Base Color" value={item.baseColorName} />
-                    <DetailRow label="Decoration Color" value={item.decorationColorName} />
+                    <DetailRow label={t("Size", "Taille")} value={item.sizeName} />
+                    <DetailRow label={t("Shape", "Forme")} value={item.shapeName} />
+                    <DetailRow label={t("Flavour", "Parfum")} value={item.flavorName} />
+                    <DetailRow label={t("Design / Style", "Design / Style")} value={item.styleName} />
+                    <DetailRow label={t("Base Colour", "Couleur de base")} value={item.baseColorName} />
+                    <DetailRow label={t("Decoration Colour", "Couleur de décoration")} value={item.decorationColorName} />
                     {item.cakeText && (
                       <DetailRow
-                        label="Text on Cake"
+                        label={t("Text on Cake", "Texte sur le gâteau")}
                         value={`"${item.cakeText}" (${item.textStyle || "normal"}, ${item.textColorName || "default"})`}
                       />
                     )}
                     {item.extrasNames?.length > 0 && (
-                      <DetailRow label="Extras" value={item.extrasNames.join(", ")} />
+                      <DetailRow label={t("Extras", "Extras")} value={item.extrasNames.join(", ")} />
                     )}
-                    <DetailRow label="Ribbon Color" value={item.ribbonColorName} />
-                    <DetailRow label="Butterfly Color" value={item.butterflyColorName} />
-                    {candlesList && <DetailRow label="Candles" value={candlesList} />}
-                    <DetailRow label="Special Instructions" value={item.comment} />
+                    <DetailRow label={t("Ribbon Colour", "Couleur du ruban")} value={item.ribbonColorName} />
+                    <DetailRow label={t("Butterfly Colour", "Couleur du papillon")} value={item.butterflyColorName} />
+                    {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
+                    <DetailRow label={t("Special Instructions", "Instructions particulières")} value={item.comment} />
                   </div>
                 );
               })}
@@ -194,14 +196,14 @@ const AdminOrder = () => {
 
           {/* Payment Summary */}
           <div className="bg-amber-50 rounded-lg p-4 space-y-1">
-            <h3 className="font-medium text-foreground mb-2">💳 Payment</h3>
-             <DetailRow label="Order №" value={order.order_number || order.id.slice(0, 8).toUpperCase()} />
-             <DetailRow label="Invoice №" value={order.invoice_number || "—"} />
-            <DetailRow label="Total" value={`CHF ${order.total_amount}`} />
-            <DetailRow label="Status" value={
-              order.status === "pending" ? "⏳ Pending Approval (funds authorized)" :
-              order.status === "approved" ? "✅ Approved (payment captured)" :
-              "❌ Rejected (payment canceled)"
+            <h3 className="font-medium text-foreground mb-2">{t("💳 Payment", "💳 Paiement")}</h3>
+             <DetailRow label={t("Order №", "Commande n°")} value={order.order_number || order.id.slice(0, 8).toUpperCase()} />
+             <DetailRow label={t("Invoice №", "Facture n°")} value={order.invoice_number || "—"} />
+            <DetailRow label={t("Total", "Total")} value={`CHF ${order.total_amount}`} />
+            <DetailRow label={t("Status", "Statut")} value={
+              order.status === "pending" ? t("⏳ Pending Approval (funds authorised)", "⏳ En attente d'approbation (fonds autorisés)") :
+              order.status === "approved" ? t("✅ Approved (payment captured)", "✅ Approuvée (paiement capturé)") :
+              t("❌ Rejected (payment cancelled)", "❌ Refusée (paiement annulé)")
             } />
           </div>
 
@@ -209,13 +211,13 @@ const AdminOrder = () => {
           {!isResolved ? (
             <div className="border-t border-border pt-6 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="pin">Admin PIN</Label>
+                <Label htmlFor="pin">{t("Admin PIN", "Code PIN administrateur")}</Label>
                 <Input
                   id="pin"
                   type="password"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  placeholder="Enter your admin PIN"
+                  placeholder={t("Enter your admin PIN", "Saisissez votre code PIN administrateur")}
                   className="max-w-xs"
                 />
               </div>
@@ -232,11 +234,11 @@ const AdminOrder = () => {
               <div className="flex gap-3">
                 <Button onClick={() => handleAction("approve")} disabled={!!actionLoading || !token} className="flex-1">
                   {actionLoading === "approve" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                  Approve & Capture Payment
+                  {t("Approve & Capture Payment", "Approuver et capturer le paiement")}
                 </Button>
                 <Button variant="destructive" onClick={() => handleAction("reject")} disabled={!!actionLoading || !token} className="flex-1">
                   {actionLoading === "reject" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <XCircle className="w-4 h-4 mr-2" />}
-                  Reject & Cancel Payment
+                  {t("Reject & Cancel Payment", "Refuser et annuler le paiement")}
                 </Button>
               </div>
             </div>
@@ -245,7 +247,7 @@ const AdminOrder = () => {
               order.status === "approved" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"
             }`}>
               <p className="font-medium">
-                {order.status === "approved" ? "✅ This order has been approved and payment captured." : "❌ This order has been rejected and payment canceled."}
+                {order.status === "approved" ? t("✅ This order has been approved and payment captured.", "✅ Cette commande a été approuvée et le paiement capturé.") : t("❌ This order has been rejected and payment cancelled.", "❌ Cette commande a été refusée et le paiement annulé.")}
               </p>
             </div>
           )}
