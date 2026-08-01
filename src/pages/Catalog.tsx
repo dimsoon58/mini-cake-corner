@@ -26,6 +26,7 @@ import { allergenMap } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customisation";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
+import { useLang } from "@/context/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 // @ts-ignore
 import "@fontsource/dancing-script";
@@ -125,18 +126,20 @@ const baseColors = [
   { id: "cream", name: "Cream", color: "#FFF8E7" },
   { id: "pastel-pink", name: "Pastel Pink", color: "#FFE4EC" },
   { id: "pink", name: "Pink", color: "#FFC0CB" },
-  { id: "dark-red", name: "Red", color: "#DC143C" },
+  { id: "dark-pink", name: "Dark Pink", color: "#DE4489" },
+  { id: "dark-red", name: "Red", color: "#CB2A1D" },
   { id: "burgundy", name: "Burgundy", color: "#800020" },
   { id: "pastel-yellow", name: "Pastel Yellow", color: "#FDFD96" },
   { id: "yellow", name: "Yellow", color: "#FFD700" },
-  { id: "orange", name: "Orange", color: "#FFA500" },
-  { id: "pastel-orange", name: "Pastel Orange", color: "#FFB347" },
-  { id: "mint-green", name: "Mint Green", color: "#B8F5C8" },
-  { id: "green", name: "Green", color: "#3CB371" },
+  { id: "pastel-orange", name: "Pastel Orange", color: "#F5BE6A" },
+  { id: "orange", name: "Orange", color: "#EE7C3A" },
+  { id: "mint-green", name: "Pastel Green", color: "#87C895" },
+  { id: "green", name: "Green", color: "#429356" },
   { id: "forest-green", name: "Forest Green", color: "#14532D" },
-  { id: "baby-blue", name: "Baby Blue", color: "#D4F1F9" },
-  { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
-  { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
+  { id: "baby-blue", name: "Pastel Blue", color: "#C7E4F8" },
+  { id: "sky-blue", name: "Sky Blue", color: "#70B8EC" },
+  { id: "blue", name: "Blue", color: "#3C88C9" },
+  { id: "midnight-blue", name: "Midnight Blue", color: "#122B6D" },
   { id: "lavender", name: "Lavender", color: "#E6E6FA" },
   { id: "plum", name: "Plum", color: "#8E4585" },
   { id: "light-brown", name: "Light Brown", color: "#C4A484" },
@@ -659,9 +662,214 @@ const textStyles = [
   { id: "cursive", name: "Cursive" },
 ];
 
+
+// French label maps for module-scope data rendered to customers
+const collectionTitleFr: Record<string, string> = {
+  "The Minimal Collection": "La Collection Minimaliste",
+  "The Vintage Collection": "La Collection Vintage",
+  "The Charming Collection": "La Collection Charme",
+  "The Original Collection": "La Collection Originale",
+  "The Personalised Collection": "La Collection Personnalisée",
+};
+const cakeNameFr: Record<string, string> = {
+  "normal-without-border": "Nature sans bordure",
+  "normal-with-border": "Nature avec bordure",
+  "heart-bomb": "Heart Bomb",
+  "retro-cake": "Gâteau rétro",
+  "glitter-cherries-retro": "Cerises pailletées x Gâteau rétro",
+  "pearl-border-retro": "Bordure de perles × Décoration rétro",
+  "retro-ribbons": "Rétro × Rubans",
+  "roses-please": "Roses Please",
+  "retro-glitter-cake": "Gâteau rétro pailleté",
+  "printed-picture": "Photos imprimées / Logo",
+  "shag-cake": "Shag Cake",
+  "rainbow-cake": "Gâteau arc-en-ciel",
+  "drawing": "Dessin",
+  "cherries-retro": "Cerises x Gâteau rétro",
+  "scattered-retro-pearls": "Perles rétro éparpillées",
+  "gold-leaves": "Feuilles d'or",
+  "golden-cake": "Gâteau doré",
+  "pearl-number": "Chiffre en perles",
+  "retro-ribbons-glitter": "Rétro × Rubans, paillettes dans l'air",
+  "butterfly-garden": "Jardin de papillons",
+  "glitter-base": "Base pailletée",
+  "gender-reveal": "Gender Reveal",
+  "sprinkles-with-border": "Vermicelles avec bordure",
+};
+const cakeDescFr: Record<string, string> = {
+  "normal-without-border": "Une finition lisse, épurée et toute simple",
+  "normal-with-border": "Un gâteau classique avec une élégante bordure pochée",
+  "heart-bomb": "Un gâteau romantique recouvert de délicates décorations en forme de cœur",
+  "retro-cake": "Un style vintage aux décorations élégantes",
+  "glitter-cherries-retro": "De pétillantes décorations de cerises sur un gâteau rétro",
+  "pearl-border-retro": "Trois élégantes bordures de perles avec une décoration rétro",
+  "retro-ribbons": "De ravissants rubans sur un gâteau rétro",
+  "roses-please": "Un gâteau élégant orné de superbes roses pochées",
+  "retro-glitter-cake": "Une finition pailletée et scintillante sur un gâteau rétro",
+  "printed-picture": "Ajoutez une touche personnelle avec une photo ou un logo imprimé sur le gâteau",
+  "shag-cake": "Un shag cake d'inspiration rétro, à la texture riche et aux détails colorés",
+  "rainbow-cake": "Un gâteau amusant de style rétro, avec des arcs-en-ciel pastel, des vermicelles et des bordures pochées",
+  "drawing": "Un dessin personnalisé réalisé à la main",
+  "cherries-retro": "Un gâteau rétro couronné de cerises",
+  "scattered-retro-pearls": "De délicates perles éparpillées sur le gâteau, avec une bordure de perles et une décoration rétro",
+  "gold-leaves": "Un gâteau élégant avec une bordure de feuilles d'or",
+  "golden-cake": "Un gâteau entièrement doré et luxueux",
+  "pearl-number": "Personnalisez avec un chiffre en perles",
+  "retro-ribbons-glitter": "Un gâteau rétro avec des rubans et des paillettes au centre : soufflez dessus et les paillettes s'envolent dans les airs",
+  "butterfly-garden": "Un superbe gâteau dégradé, orné de perles et d'un papillon comestible",
+  "glitter-base": "Une base pailletée et scintillante entourée de feuilles d'or",
+  "gender-reveal": "Choisissez la couleur intérieure. Parfait pour votre annonce si spéciale",
+  "sprinkles-with-border": "Un gâteau classique avec des bordures décoratives et des vermicelles colorés",
+};
+const styleNameFr: Record<string, string> = {
+  "normal-without-border": "Nature sans bordure",
+  "normal-with-border": "Nature avec bordure",
+  "heart-bomb": "Heart Bomb",
+  "retro-vintage": "Rétro / Vintage",
+  "glitter-cherries-retro": "Cerises pailletées sur un gâteau rétro",
+  "pearl-border-retro": "Bordure de perles × Décoration rétro",
+  "retro-ribbons": "Rétro × Rubans",
+  "roses-please": "Roses Please",
+  "retro-glitter-cake": "Gâteau rétro pailleté",
+  "printed-picture": "Photo imprimée",
+  "shag-cake": "Shag Cake",
+  "rainbow-cake": "Gâteau arc-en-ciel",
+  "custom-drawing": "Dessin personnalisé",
+  "cherries-retro": "Cerises sur un gâteau rétro",
+  "scattered-retro-pearls": "Perles rétro éparpillées",
+  "gold-leaves-style": "Feuilles d'or",
+  "golden-cake": "Gâteau doré",
+  "pearl-number": "Chiffre en perles",
+  "retro-ribbons-glitter": "Rétro × Rubans, paillettes dans l'air",
+  "butterfly-garden": "Jardin de papillons",
+  "glitter-base": "Base pailletée",
+  "gender-reveal": "Gender Reveal",
+  "sprinkles-with-border": "Vermicelles avec bordure",
+};
+const sizeNameFr: Record<string, string> = {
+  bento: "Bento", retro: "Boîte rétro", medium: "Moyen", large: "Grand",
+};
+const shapeNameFr: Record<string, string> = { round: "Rond", heart: "Cœur" };
+const flavorNameFr: Record<string, string> = {
+  "vanilla": "Vanille",
+  "red-velvet": "Red Velvet",
+  "chocolate": "Chocolat",
+  "chocolate-lovers": "Amateurs de chocolat",
+  "chocolate-lover-berrylicious": "Amateur de chocolat x Berrylicious",
+  "dark-berrylicious": "Berrylicious noir",
+  "white-berrylicious": "Berrylicious blanc",
+  "salted-caramel": "Caramel au beurre salé",
+  "lemon-curd": "Lemon curd",
+  "tiramisu": "Tiramisu",
+  "praline": "Obsession praliné",
+  "pistachio-lovers": "Amateurs de pistache",
+  "passion-fruit": "Fruit de la passion",
+  "vanilla-gf": "Vanille sans gluten",
+  "red-velvet-gf": "Red Velvet sans gluten",
+  "chocolate-gf": "Chocolat sans gluten",
+};
+const extraNameFr: Record<string, string> = {
+  "gold-leaves": "Feuilles d'or",
+  "cherries": "Cerises",
+  "glitter-cherries": "Cerises pailletées",
+  "glitter": "Paillettes",
+  "glitter-base": "Base pailletée",
+  "glitter-in-the-air": "Paillettes dans l'air",
+  "pearl-border": "Bordure de perles (chacune)",
+  "retro": "Rétro",
+  "ribbons": "Rubans",
+  "pearl-number": "Chiffre en perles",
+  "butterfly": "Papillon",
+  "sprinkles": "Vermicelles",
+  "printed-picture": "Photo imprimée",
+};
+const groupLabelFr: Record<string, string> = {
+  "Decorations": "Décorations",
+  "Pearls": "Perles",
+  "Toppings": "Garnitures",
+  "Glitter": "Paillettes",
+  "Printed Picture": "Photo imprimée",
+};
+const secondaryLabelFr: Record<string, string> = {
+  "Decoration Colour": "Couleur de décoration",
+  "Border Colour": "Couleur de bordure",
+  "Second Colour (optional)": "Deuxième couleur (optionnel)",
+  "Choose Your Colours": "Choisissez vos couleurs",
+  "Heart Colour": "Couleur du cœur",
+};
+const textStyleFr: Record<string, string> = {
+  "Normal": "Normal", "UPPERCASE": "MAJUSCULES", "Cursive": "Cursive",
+};
+const colourFr: Record<string, string> = {
+  "White": "Blanc",
+  "Cream": "Crème",
+  "Pastel Pink": "Rose Pastel",
+  "Pink": "Rose",
+  "Baby Pink": "Rose Bébé",
+  "Dark Pink": "Rose Foncé",
+  "Red": "Rouge",
+  "Wine Red": "Rouge Vin",
+  "Burgundy": "Bordeaux",
+  "Pastel Yellow": "Jaune Pastel",
+  "Yellow": "Jaune",
+  "Pastel Orange": "Orange Pastel",
+  "Orange": "Orange",
+  "Pastel Green": "Vert Pastel",
+  "Green": "Vert",
+  "Forest Green": "Vert Forêt",
+  "Pastel Blue": "Bleu Pastel",
+  "Sky Blue": "Bleu Ciel",
+  "Blue": "Bleu",
+  "Midnight Blue": "Bleu Nuit",
+  "Lavender": "Lavande",
+  "Plum": "Prune",
+  "Light Brown": "Brun Clair",
+  "Dark Brown": "Brun Foncé",
+  "Black": "Noir",
+  "Gold": "Or",
+};
+const candleNameFr: Record<string, string> = {
+  "blue-ombre": "Dégradé bleu",
+  "thick-spiral": "Spirale épaisse",
+  "shiny-spiral": "Spirale brillante",
+  "spiral-pastel": "Spirale pastel",
+  "rainbow": "Arc-en-ciel",
+  "pink-ombre": "Dégradé rose",
+  "daisy": "Marguerite",
+  "heart": "Cœur rouge",
+  "puppy": "Chiot",
+  "teddy-bear": "Nounours",
+  "cherry": "Cerise",
+  "ribbon": "Ruban",
+  "soccer": "Ballon de foot",
+  "pink-car": "Voiture rose",
+  "red-car": "Voiture rouge",
+  "blue-car": "Voiture bleue",
+  "yellow-car": "Voiture jaune",
+};
+const extraDescFr: Record<string, string> = {
+  "cherries": "Des cerises confites posées sur le gâteau.",
+  "glitter-cherries": "Des cerises confites recouvertes de paillettes comestibles.",
+  "sprinkles": "De petits vermicelles colorés parsemés sur le gâteau.",
+  "gold-leaves": "De petits morceaux de feuille d'or comestible pour une touche de luxe.",
+  "heart": "Des cœurs pochés sur le gâteau.",
+  "ribbons": "Des rubans de satin décoratifs placés autour du gâteau.",
+  "retro": "Un pochage de gâteau vintage.",
+  "butterfly": "Des papillons comestibles posés sur le gâteau.",
+  "scattered-pearl": "De petites perles comestibles éparpillées sur le gâteau.",
+  "pearl-border": "Une bordure composée de petites perles comestibles.",
+  "pearl-number": "Un chiffre réalisé avec des perles comestibles.",
+  "glitter": "Des paillettes comestibles parsemées sur tout le gâteau pour un effet scintillant.",
+  "glitter-base": "Des paillettes recouvrant le dessus du gâteau.",
+  "glitter-in-the-air": "Soufflez sur le gâteau et les paillettes s'envolent.",
+  "drawing": "Un dessin réalisé à la main sur le gâteau.",
+  "printed-picture": "Une image imprimée comestible posée sur le gâteau.",
+};
+
 const Catalog = () => {
   const { addItem } = useCart();
   const { toast } = useToast();
+  const { t } = useLang();
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -856,8 +1064,8 @@ const Catalog = () => {
     const remaining = 5 - selections.commentImages.length;
     if (remaining <= 0) {
       toast({
-        title: "Maximum 5 images",
-        description: "You have already reached the maximum number of reference images.",
+        title: t("Maximum 5 images", "Maximum 5 images"),
+        description: t("You have already reached the maximum number of reference images.", "Vous avez déjà atteint le nombre maximum d'images de référence."),
         variant: "destructive",
       });
       if (commentFileInputRef.current) commentFileInputRef.current.value = "";
@@ -866,8 +1074,8 @@ const Catalog = () => {
     const oversizedFiles = files.filter(f => f.size > 5 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       toast({
-        title: "File too large",
-        description: `Each image must be under 5 MB. ${oversizedFiles.length} file(s) exceeded the limit.`,
+        title: t("File too large", "Fichier trop volumineux"),
+        description: t(`Each image must be under 5 MB. ${oversizedFiles.length} file(s) exceeded the limit.`, `Chaque image doit faire moins de 5 Mo. ${oversizedFiles.length} fichier(s) dépassent la limite.`),
         variant: "destructive",
       });
       if (commentFileInputRef.current) commentFileInputRef.current.value = "";
@@ -878,10 +1086,10 @@ const Catalog = () => {
     setSelections({ ...selections, commentImages: [...selections.commentImages, ...accepted] });
     if (commentFileInputRef.current) commentFileInputRef.current.value = "";
     toast({
-      title: `${accepted.length} image${accepted.length > 1 ? "s" : ""} added ✓`,
+      title: t(`${accepted.length} image${accepted.length > 1 ? "s" : ""} added ✓`, `${accepted.length} image${accepted.length > 1 ? "s" : ""} ajoutée${accepted.length > 1 ? "s" : ""} ✓`),
       description: rejected > 0
-        ? `${rejected} image(s) ignored (max 5 reached).`
-        : `${selections.commentImages.length + accepted.length}/5 reference images.`,
+        ? t(`${rejected} image(s) ignored (max 5 reached).`, `${rejected} image(s) ignorée(s) (maximum de 5 atteint).`)
+        : t(`${selections.commentImages.length + accepted.length}/5 reference images.`, `${selections.commentImages.length + accepted.length}/5 images de référence.`),
     });
   };
 
@@ -927,66 +1135,66 @@ const Catalog = () => {
     const cfg = getColorConfig(selectedCake.styleId);
 
     if (!selections.orderDate) {
-      toast({ title: "Date required", description: "Please select a pickup/delivery date.", variant: "destructive" });
+      toast({ title: t("Date required", "Date requise"), description: t("Please select a pickup/delivery date.", "Veuillez sélectionner une date de retrait ou de livraison."), variant: "destructive" });
       return;
     }
 
     if (cfg.showBase && !selections.baseColor) {
-      toast({ title: "Base Colour required", description: "Please select a base colour for your cake.", variant: "destructive" });
+      toast({ title: t("Base Colour required", "Couleur de base requise"), description: t("Please select a base colour for your cake.", "Veuillez sélectionner une couleur de base pour votre gâteau."), variant: "destructive" });
       return;
     }
 
     if (cfg.secondaryLabel && !cfg.secondaryOptional && selections.decorationColors.length === 0) {
-      toast({ title: `${cfg.secondaryLabel} required`, description: `Please select at least one colour for your cake.`, variant: "destructive" });
+      toast({ title: t(`${cfg.secondaryLabel} required`, `${secondaryLabelFr[cfg.secondaryLabel] ?? cfg.secondaryLabel} requise`), description: t("Please select at least one colour for your cake.", "Veuillez sélectionner au moins une couleur pour votre gâteau."), variant: "destructive" });
       return;
     }
 
     if (selectedCake.styleId === "rainbow-cake" && (!selections.borderTopColor || !selections.borderBottomColor)) {
-      toast({ title: "Border colours required", description: "Please choose a top and a bottom border colour.", variant: "destructive" });
+      toast({ title: t("Border colours required", "Couleurs de bordure requises"), description: t("Please choose a top and a bottom border colour.", "Veuillez choisir une couleur de bordure pour le haut et pour le bas."), variant: "destructive" });
       return;
     }
 
     if (cfg.roseColor && !selections.roseColor) {
-      toast({ title: "Rose Color required", description: "Please select a colour for your roses.", variant: "destructive" });
+      toast({ title: t("Roses Colour required", "Couleur des roses requise"), description: t("Please select a colour for your roses.", "Veuillez sélectionner une couleur pour vos roses."), variant: "destructive" });
       return;
     }
 
     if (selections.wantsText && !selections.textColor) {
-      toast({ title: "Text Colour required", description: "Please select a colour for your text.", variant: "destructive" });
+      toast({ title: t("Text Colour required", "Couleur du texte requise"), description: t("Please select a colour for your text.", "Veuillez sélectionner une couleur pour votre texte."), variant: "destructive" });
       return;
     }
 
     if (selections.wantsText && !selections.cakeText.trim()) {
-      toast({ title: "Text message required", description: "Please enter your message.", variant: "destructive" });
+      toast({ title: t("Text message required", "Message requis"), description: t("Please enter your message.", "Veuillez saisir votre message."), variant: "destructive" });
       return;
     }
 
     if ((selectedCake.styleId === "printed-picture" || selections.extras.includes("printed-picture")) && !selections.printedImage) {
-      toast({ title: "Image required", description: "Please upload an image for your printed picture cake.", variant: "destructive" });
+      toast({ title: t("Image required", "Image requise"), description: t("Please upload an image for your printed picture cake.", "Veuillez télécharger une image pour votre gâteau avec photo imprimée."), variant: "destructive" });
       return;
     }
 
     const designNeedsGlitter = ["retro-glitter-cake", "retro-ribbons-glitter"].includes(selectedCake?.styleId || "");
     if ((designNeedsGlitter || selections.extras.includes("glitter") || selections.extras.includes("glitter-base") || selections.extras.includes("glitter-in-the-air")) && !selections.glitterColor) {
-      toast({ title: "Glitter Colour required", description: "Please select a colour for your glitter.", variant: "destructive" });
+      toast({ title: t("Glitter Colour required", "Couleur des paillettes requise"), description: t("Please select a colour for your glitter.", "Veuillez sélectionner une couleur pour vos paillettes."), variant: "destructive" });
       return;
     }
 
     const designNeedsGlitterCherries = selectedCake?.styleId === "glitter-cherries-retro";
     if ((designNeedsGlitterCherries || selections.extras.includes("glitter-cherries")) && !selections.glitterCherriesColor) {
-      toast({ title: "Glitter Cherries Colour required", description: "Please select a colour for your glitter cherries.", variant: "destructive" });
+      toast({ title: t("Glitter Cherries Colour required", "Couleur des cerises pailletées requise"), description: t("Please select a colour for your glitter cherries.", "Veuillez sélectionner une couleur pour vos cerises pailletées."), variant: "destructive" });
       return;
     }
 
     const designNeedsRibbon = selectedCake?.styleId === "retro-ribbons" || selectedCake?.styleId === "retro-ribbons-glitter";
     if ((designNeedsRibbon || selections.extras.includes("ribbons")) && !selections.ribbonColor) {
-      toast({ title: "Ribbon Colour required", description: "Please select a colour for your ribbons.", variant: "destructive" });
+      toast({ title: t("Ribbon Colour required", "Couleur des rubans requise"), description: t("Please select a colour for your ribbons.", "Veuillez sélectionner une couleur pour vos rubans."), variant: "destructive" });
       return;
     }
 
     const designNeedsButterfly = selectedCake?.styleId === "butterfly-garden";
     if ((designNeedsButterfly || selections.extras.includes("butterfly")) && !selections.butterflyColor) {
-      toast({ title: "Butterfly Colour required", description: "Please select a colour for your butterfly.", variant: "destructive" });
+      toast({ title: t("Butterfly Colour required", "Couleur du papillon requise"), description: t("Please select a colour for your butterfly.", "Veuillez sélectionner une couleur pour votre papillon."), variant: "destructive" });
       return;
     }
     
@@ -1068,8 +1276,8 @@ const Catalog = () => {
     if (isNaN(index) || index < 0 || index >= inspirationImages.length) return;
     handleSelectCake({
       id: `inspiration-${index + 1}`,
-      name: `Inspiration Cake #${index + 1}`,
-      description: "Based on the inspiration photo you selected",
+      name: t(`Inspiration Cake #${index + 1}`, `Gâteau d'inspiration n°${index + 1}`),
+      description: t("Based on the inspiration photo you selected", "D'après la photo d'inspiration que vous avez sélectionnée"),
       image: inspirationImages[index],
       styleId: "inspiration",
       styleName: `Inspiration #${index + 1}`,
@@ -1093,7 +1301,7 @@ const Catalog = () => {
           BENTO CAKES
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          Get inspired by our signature cake designs, choose your favourite, then personalise it with your preferred size, flavour, colours and message to create a cake that's uniquely yours.
+          {t("Get inspired by our signature cake designs, choose your favourite, then personalise it with your preferred size, flavour, colours and message to create a cake that's uniquely yours.", "Laissez-vous inspirer par nos créations signature, choisissez votre préférée, puis personnalisez-la avec la taille, le parfum, les couleurs et le message de votre choix pour créer un gâteau qui vous ressemble.")}
         </p>
 
         <div className="max-w-6xl mx-auto space-y-20">
@@ -1105,7 +1313,7 @@ const Catalog = () => {
             return (
               <section key={collection.title}>
                 <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
-                  {collection.title}
+                  {t(collection.title, collectionTitleFr[collection.title] ?? collection.title)}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                   {cakes.map((cake) => (
@@ -1115,7 +1323,7 @@ const Catalog = () => {
                     >
                       {(cake as any).bestSeller && (
                         <span className="absolute top-3 right-3 z-20 bg-cream text-primary text-[10px] font-semibold uppercase tracking-[0.14em] px-3 py-1.5 shadow-sm">
-                          Best Seller
+                          {t("Best Seller", "Best-seller")}
                         </span>
                       )}
                       {cake.images && cake.images.length > 1 ? (
@@ -1131,17 +1339,17 @@ const Catalog = () => {
                       )}
                       <div className="p-6 text-center flex flex-col flex-1">
                         <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
-                          {cake.name}
+                          {t(cake.name, cakeNameFr[cake.id] ?? cake.name)}
                         </h3>
                         <p className="text-muted-foreground text-sm mb-4">
-                          {cake.description}
+                          {t(cake.description, cakeDescFr[cake.id] ?? cake.description)}
                         </p>
                         <div className="mt-auto">
                           <Button
                             className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
                             onClick={() => handleSelectCake(cake)}
                           >
-                            CHOOSE THIS STYLE
+                            {t("CHOOSE THIS STYLE", "CHOISIR CE STYLE")}
                           </Button>
                         </div>
                       </div>
@@ -1155,27 +1363,24 @@ const Catalog = () => {
           {/* Custom Request */}
           <section>
             <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
-              CUSTOM REQUEST
+              {t("CUSTOM REQUEST", "DEMANDE SUR MESURE")}
             </div>
             <div className="text-center max-w-2xl mx-auto py-6">
               <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
-                Can't find what you're looking for?
+                {t("Can't find what you're looking for?", "Vous ne trouvez pas ce que vous cherchez ?")}
               </h3>
               <p className="text-muted-foreground text-sm mb-10">
-                Every cake in our collections can be personalised, but if you're
-                dreaming of something completely different, we'd love to create a
-                fully bespoke design just for you. Tell us about your idea, your
-                colours and your occasion, and we'll bring it to life.
+                {t("Every cake in our collections can be personalised, but if you're dreaming of something completely different, we'd love to create a fully bespoke design just for you. Tell us about your idea, your colours and your occasion, and we'll bring it to life.", "Tous les gâteaux de nos collections peuvent être personnalisés, mais si vous rêvez de quelque chose de complètement différent, nous serions ravies de créer un modèle entièrement sur mesure rien que pour vous. Parlez-nous de votre idée, de vos couleurs et de votre occasion, et nous lui donnerons vie.")}
               </p>
               <p className="text-muted-foreground text-sm italic mb-10">
-                Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.
+                {t("Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.", "À noter : nous nous efforçons de répondre sous 48 heures. Pour une meilleure disponibilité, merci d'envoyer votre demande au moins une semaine avant la date souhaitée.")}
               </p>
               {!showRequestForm ? (
                 <Button
                   className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-6 text-[14px] font-medium"
                   onClick={() => setShowRequestForm(true)}
                 >
-                  REQUEST A CUSTOM CAKE
+                  {t("REQUEST A CUSTOM CAKE", "DEMANDER UN GÂTEAU SUR MESURE")}
                 </Button>
               ) : (
                 <div className="animate-in fade-in slide-in-from-top-4 duration-500">
@@ -1193,10 +1398,10 @@ const Catalog = () => {
         <SheetContent className="w-[95vw] max-w-3xl max-h-[88vh] overflow-y-auto rounded-none p-6 md:p-10">
           <SheetHeader>
             <SheetTitle className="font-sans uppercase tracking-[0.105em] text-lg font-semibold">
-              {selectedCake?.name}
+              {selectedCake ? t(selectedCake.name, cakeNameFr[selectedCake.id] ?? selectedCake.name) : ""}
             </SheetTitle>
             <SheetDescription>
-              Customise your cake options
+              {t("Customise your cake options", "Personnalisez les options de votre gâteau")}
             </SheetDescription>
           </SheetHeader>
           
@@ -1213,10 +1418,10 @@ const Catalog = () => {
               {/* Pickup Date Selection */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Pickup Date <span className="text-destructive">*</span>
+                  {t("Pickup Date", "Date de retrait")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">Order preparation date (minimum 4 days in advance)</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 4 days in advance)", "Date de préparation de la commande (minimum 4 jours à l'avance)")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Popover>
@@ -1232,7 +1437,7 @@ const Catalog = () => {
                       {selections.orderDate ? (
                         format(selections.orderDate, "dd.MM.yyyy")
                       ) : (
-                        <span>Pick a date</span>
+                        <span>{t("Pick a date", "Choisir une date")}</span>
                       )}
                     </Button>
                   </PopoverTrigger>
@@ -1259,13 +1464,13 @@ const Catalog = () => {
               {/* Size Selection with box images */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Size <span className="text-destructive">*</span>
+                  {t("Size", "Taille")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="text-xs max-w-[200px]">Choose the size of your cake.</p>
+                      <p className="text-xs max-w-[200px]">{t("Choose the size of your cake.", "Choisissez la taille de votre gâteau.")}</p>
                     </TooltipContent>
                   </Tooltip>
                 </label>
@@ -1274,14 +1479,14 @@ const Catalog = () => {
                   onValueChange={(value) => setSelections({ ...selections, size: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select size" />
+                    <SelectValue placeholder={t("Select size", "Choisir une taille")} />
                   </SelectTrigger>
                   <SelectContent>
                     {sizes.filter((size) => selectedCake && size.id in selectedCake.stylePrice).map((size) => (
                       <SelectItem key={size.id} value={size.id}>
                         <div className="flex items-center gap-2">
                           <img src={size.image} alt={size.name} className="w-8 h-8 object-contain flex-shrink-0" />
-                          <span>{size.name} - CHF {size.price}</span>
+                          <span>{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -1292,10 +1497,10 @@ const Catalog = () => {
               {/* Shape Selection */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Shape <span className="text-destructive">*</span>
+                  {t("Shape", "Forme")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">Choose the shape of your cake.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose the shape of your cake.", "Choisissez la forme de votre gâteau.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Select
@@ -1303,14 +1508,14 @@ const Catalog = () => {
                   onValueChange={(value) => setSelections({ ...selections, shape: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select shape" />
+                    <SelectValue placeholder={t("Select shape", "Choisir une forme")} />
                   </SelectTrigger>
                   <SelectContent>
                     {shapes.map((shape) => {
                       const extra = shape.extraPrice[selections.size as keyof typeof shape.extraPrice] || 0;
                       return (
                         <SelectItem key={shape.id} value={shape.id}>
-                          {shape.name} {extra > 0 ? `(+CHF ${extra})` : ""}
+                          {t(shape.name, shapeNameFr[shape.id] ?? shape.name)} {extra > 0 ? `(+CHF ${extra})` : ""}
                         </SelectItem>
                       );
                     })}
@@ -1321,10 +1526,10 @@ const Catalog = () => {
               {/* Flavor Selection */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Flavour <span className="text-destructive">*</span>
+                  {t("Flavour", "Parfum")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">Please select the flavour of your cake.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Please select the flavour of your cake.", "Veuillez sélectionner le parfum de votre gâteau.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Select
@@ -1332,7 +1537,7 @@ const Catalog = () => {
                   onValueChange={(value) => setSelections({ ...selections, flavor: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select flavour" />
+                    <SelectValue placeholder={t("Select flavour", "Choisir un parfum")} />
                   </SelectTrigger>
                   <SelectContent nativeScroll>
                     {flavors.map((flavor) => {
@@ -1343,17 +1548,17 @@ const Catalog = () => {
                           <div className="flex items-start gap-2">
                             <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
                             <div>
-                            <span>{flavor.name} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
+                            <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
                             {info && flavor.id.endsWith("-gf") ? (
                               <div className="text-[10px] text-muted-foreground leading-tight mt-0.5 space-y-0.5">
-                                <p><span className="font-medium">Contains:</span> Eggs, Milk</p>
-                                <p><span className="font-medium">May contain:</span> Gluten, Nuts</p>
-                                <p className="text-muted-foreground/70 italic">Prepared in a kitchen that processes gluten.</p>
+                                <p><span className="font-medium">{t("Contains:", "Contient :")}</span> {t("Eggs, Milk", "Œufs, lait")}</p>
+                                <p><span className="font-medium">{t("May contain:", "Peut contenir :")}</span> {t("Gluten, Nuts", "Gluten, fruits à coque")}</p>
+                                <p className="text-muted-foreground/70 italic">{t("Prepared in a kitchen that processes gluten.", "Préparé dans une cuisine qui manipule du gluten.")}</p>
                               </div>
                             ) : info && (
                               <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
                                 {info.warning && <span className="text-destructive font-medium">⚠️ {info.warning} · </span>}
-                                Contains: {info.contains}
+                                {t("Contains:", "Contient :")} {info.contains}
                               </div>
                             )}
                             </div>
@@ -1368,14 +1573,14 @@ const Catalog = () => {
               {/* Design Display */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Design
+                  {t("Design", "Design")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">You can select any design. You can also add extras and/or inspiration pictures in the next steps.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">{t("You can select any design. You can also add extras and/or inspiration pictures in the next steps.", "Vous pouvez choisir n'importe quel design. Vous pourrez aussi ajouter des extras et/ou des photos d'inspiration aux étapes suivantes.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <div className="bg-secondary/50 rounded-lg p-4">
-                  <p className="font-medium text-foreground">{selectedCake.styleName}</p>
+                  <p className="font-medium text-foreground">{t(selectedCake.styleName, styleNameFr[selectedCake.styleId] ?? selectedCake.styleName)}</p>
                   <p className="text-sm text-primary mt-1">
                     +CHF {selectedCake.stylePrice[selections.size as keyof typeof selectedCake.stylePrice]}
                   </p>
@@ -1385,7 +1590,7 @@ const Catalog = () => {
               {/* Shag Cake Design Preference */}
               {selectedCake?.images && selectedCake.images.length > 1 && !["retro-vintage", "shag-cake", "printed-picture", "custom-drawing"].includes(selectedCake.styleId) && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Choose your preferred design</label>
+                  <label className="text-sm font-medium text-foreground">{t("Choose your preferred design", "Choisissez votre design préféré")}</label>
                   <div className="grid grid-cols-2 gap-3">
                     {selectedCake.images.map((img, i) => (
                       <button
@@ -1409,17 +1614,17 @@ const Catalog = () => {
               {colorCfg.showBase && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Base Colour <span className="text-destructive">*</span>
+                  {t("Base Colour", "Couleur de base")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">The base colour is essential to personalise your cake.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("The base colour is essential to personalise your cake.", "La couleur de base est essentielle pour personnaliser votre gâteau.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 {colorCfg.baseNote && (
                   <p className="text-xs text-muted-foreground italic">{colorCfg.baseNote}</p>
                 )}
                 <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
-                  <span>⚠️</span> We recommend choosing light colours, as dark colours may temporarily stain lips.
+                  <span>⚠️</span> {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
                 </p>
                 <div className="grid grid-cols-6 gap-2">
                   {baseColors.map((color) => (
@@ -1442,7 +1647,7 @@ const Catalog = () => {
                         )}
                         style={{ backgroundColor: color.color }}
                       />
-                      <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{color.name}</span>
+                      <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                     </button>
                   ))}
                 </div>
@@ -1455,24 +1660,24 @@ const Catalog = () => {
                 return (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  {colorCfg.secondaryLabel} <span className="text-destructive cursor-help">
+                  {t(colorCfg.secondaryLabel, secondaryLabelFr[colorCfg.secondaryLabel] ?? colorCfg.secondaryLabel)} <span className="text-destructive cursor-help">
                     <Tooltip>
                       <TooltipTrigger asChild><span>*</span></TooltipTrigger>
-                      <TooltipContent><p className="text-xs max-w-[200px]">Select up to {maxColors} {maxColors === 1 ? "colour" : "colours"} for your design.</p></TooltipContent>
+                      <TooltipContent><p className="text-xs max-w-[200px]">{t(`Select up to ${maxColors} ${maxColors === 1 ? "colour" : "colours"} for your design.`, `Sélectionnez jusqu'à ${maxColors} ${maxColors === 1 ? "couleur" : "couleurs"} pour votre design.`)}</p></TooltipContent>
                     </Tooltip>
                   </span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">Choose the colours for this part of your cake.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose the colours for this part of your cake.", "Choisissez les couleurs pour cette partie de votre gâteau.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 {maxColors > 1 && (
                 <p className="text-xs text-muted-foreground">
-                  You can choose up to {maxColors} colours. You can also explain how you would like them to be arranged in the comment section.
+                  {t(`You can choose up to ${maxColors} colours. You can also explain how you would like them to be arranged in the comment section.`, `Vous pouvez choisir jusqu'à ${maxColors} couleurs. Vous pouvez aussi préciser dans la zone de commentaire comment vous souhaitez qu'elles soient disposées.`)}
                 </p>
                 )}
                 <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
-                  <span>⚠️</span> We recommend choosing light colours, as dark colours may temporarily stain lips.
+                  <span>⚠️</span> {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
                 </p>
                 <div className="grid grid-cols-6 gap-2">
                   {baseColors.map((color) => {
@@ -1507,13 +1712,13 @@ const Catalog = () => {
                         )}
                         style={{ backgroundColor: color.color }}
                       />
-                      <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{color.name}</span>
+                      <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                     </button>
                     );
                   })}
                 </div>
                 {selections.decorationColors.length > 0 && (
-                  <p className="text-xs text-primary font-medium">{selections.decorationColors.length}/{maxColors} colours selected</p>
+                  <p className="text-xs text-primary font-medium">{selections.decorationColors.length}/{maxColors} {t("colours selected", "couleurs sélectionnées")}</p>
                 )}
               </div>
                 );
@@ -1523,10 +1728,10 @@ const Catalog = () => {
               {colorCfg.roseColor && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Roses Colour <span className="text-destructive">*</span>
+                  {t("Roses Colour", "Couleur des roses")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">Choose one colour for the piped roses.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose one colour for the piped roses.", "Choisissez une couleur pour les roses pochées.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <div className="grid grid-cols-6 gap-2">
@@ -1550,7 +1755,7 @@ const Catalog = () => {
                         )}
                         style={{ backgroundColor: color.color }}
                       />
-                      <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{color.name}</span>
+                      <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                     </button>
                   ))}
                 </div>
@@ -1561,8 +1766,8 @@ const Catalog = () => {
               {selectedCake?.styleId === "rainbow-cake" && (
                 <div className="space-y-4">
                   {([
-                    { key: "borderTopColor", label: "Top Border Colour" },
-                    { key: "borderBottomColor", label: "Bottom Border Colour" },
+                    { key: "borderTopColor", label: t("Top Border Colour", "Couleur de la bordure du haut") },
+                    { key: "borderBottomColor", label: t("Bottom Border Colour", "Couleur de la bordure du bas") },
                   ] as const).map(({ key, label }) => (
                     <div key={key} className="space-y-2">
                       <label className="text-sm font-medium text-foreground flex items-center gap-1">
@@ -1589,7 +1794,7 @@ const Catalog = () => {
                               )}
                               style={{ backgroundColor: color.color }}
                             />
-                            <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{color.name}</span>
+                            <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                           </button>
                         ))}
                       </div>
@@ -1602,10 +1807,10 @@ const Catalog = () => {
               {!selectedCake?.disableText && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  Add Text
+                  {t("Add Text", "Ajouter un texte")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">If you would like to add text, you can choose the typography.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">{t("If you would like to add text, you can choose the typography.", "Si vous souhaitez ajouter un texte, vous pouvez choisir la typographie.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <div className="flex gap-2">
@@ -1618,7 +1823,7 @@ const Catalog = () => {
                         : "bg-muted text-muted-foreground hover:bg-muted/80"
                     )}
                   >
-                    No Text
+                    {t("No Text", "Sans texte")}
                   </button>
                   <button
                     onClick={() => setSelections({ ...selections, wantsText: true })}
@@ -1629,7 +1834,7 @@ const Catalog = () => {
                         : "bg-muted text-muted-foreground hover:bg-muted/80"
                     )}
                   >
-                    Add Text
+                    {t("Add Text", "Ajouter un texte")}
                   </button>
                 </div>
               </div>
@@ -1639,7 +1844,7 @@ const Catalog = () => {
                 <>
                   {/* Text Style Selection */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Text Style</label>
+                    <label className="text-sm font-medium text-foreground">{t("Text Style", "Style du texte")}</label>
                     <div className="flex gap-2">
                       {textStyles.map((style) => (
                         <button
@@ -1654,7 +1859,7 @@ const Catalog = () => {
                           )}
                           style={style.id === "cursive" ? { fontFamily: "'Dancing Script', cursive" } : undefined}
                         >
-                          {style.name}
+                          {t(style.name, textStyleFr[style.name] ?? style.name)}
                         </button>
                       ))}
                     </div>
@@ -1662,12 +1867,12 @@ const Catalog = () => {
 
                   {/* Text Input */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Your Message</label>
+                    <label className="text-sm font-medium text-foreground">{t("Your Message", "Votre message")}</label>
                     <input
                       type="text"
                       value={selections.cakeText}
                       onChange={(e) => setSelections({ ...selections, cakeText: e.target.value })}
-                      placeholder="e.g., Happy Birthday!"
+                      placeholder={t("e.g., Happy Birthday!", "ex. Joyeux anniversaire !")}
                       maxLength={30}
                       className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     />
@@ -1675,7 +1880,7 @@ const Catalog = () => {
                     {/* Live text preview */}
                     {selections.cakeText && (
                       <div className="bg-muted/30 rounded-lg p-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Preview:</p>
+                        <p className="text-xs text-muted-foreground mb-1">{t("Preview:", "Aperçu :")}</p>
                         <p
                           className={cn(
                             "text-lg text-foreground",
@@ -1691,7 +1896,7 @@ const Catalog = () => {
 
                   {/* Text Colour Selection */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Text Colour</label>
+                    <label className="text-sm font-medium text-foreground">{t("Text Colour", "Couleur du texte")}</label>
                     <div className="grid grid-cols-6 gap-2">
                       {baseColors.map((color) => (
                         <button
@@ -1713,7 +1918,7 @@ const Catalog = () => {
                             )}
                             style={{ backgroundColor: color.color }}
                           />
-                          <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{color.name}</span>
+                          <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                         </button>
                       ))}
                     </div>
@@ -1725,10 +1930,10 @@ const Catalog = () => {
               <div className="space-y-3">
                 {!extrasHiddenForDesign && (
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  ✨ Extra
+                  ✨ {t("Extra", "Extras")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">You can add any additional elements to personalise your design.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">{t("You can add any additional elements to personalise your design.", "Vous pouvez ajouter tous les éléments supplémentaires que vous souhaitez pour personnaliser votre design.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 )}
@@ -1744,7 +1949,7 @@ const Catalog = () => {
                   if (visibleExtras.length === 0) return null;
                   return (
                     <div key={group.label} className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{group.label}</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t(group.label, groupLabelFr[group.label] ?? group.label)}</p>
                       <div className="grid grid-cols-2 gap-2">
                         {visibleExtras.map((extra) => {
                           const isSelected = selections.extras.includes(extra.id);
@@ -1763,14 +1968,14 @@ const Catalog = () => {
                               <ExtraImageLightbox src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1">
-                                  <p className="text-xs font-medium text-foreground truncate">{extra.id === "pearl-border" && selectedCake?.styleId === "retro-ribbons-glitter" ? "Full border of pearls" : extra.name}</p>
+                                  <p className="text-xs font-medium text-foreground truncate">{extra.id === "pearl-border" && selectedCake?.styleId === "retro-ribbons-glitter" ? t("Full border of pearls", "Bordure complète de perles") : t(extra.name, extraNameFr[extra.id] ?? extra.name)}</p>
                                   {extraDescriptions[extra.id] && (
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Info className="w-3 h-3 text-muted-foreground cursor-help flex-shrink-0" />
                                       </TooltipTrigger>
                                       <TooltipContent side="top">
-                                        <p className="text-xs max-w-[200px]">{extraDescriptions[extra.id]}</p>
+                                        <p className="text-xs max-w-[200px]">{t(extraDescriptions[extra.id], extraDescFr[extra.id] ?? extraDescriptions[extra.id])}</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   )}
@@ -1788,7 +1993,7 @@ const Catalog = () => {
                 {/* Glitter Colour */}
                 {(selections.extras.includes("glitter") || selections.extras.includes("glitter-base") || selections.extras.includes("glitter-in-the-air") || ["retro-glitter-cake", "retro-ribbons-glitter"].includes(selectedCake?.styleId || "")) && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Glitter Colour <span className="text-destructive">*</span></p>
+                    <p className="text-xs font-medium text-foreground">{t("Glitter Colour", "Couleur des paillettes")} <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {(() => {
                         const isGlitterInTheAir = selections.extras.includes("glitter-in-the-air") || selectedCake?.styleId === "retro-ribbons-glitter";
@@ -1803,7 +2008,7 @@ const Catalog = () => {
                             )}
                           >
                             <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
-                            <span className="text-[10px] text-foreground">{color.name}</span>
+                            <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                           </button>
                         ));
                       })()}
@@ -1814,7 +2019,7 @@ const Catalog = () => {
                 {/* Glitter Cherries Colour */}
                 {(selections.extras.includes("glitter-cherries") || selectedCake?.styleId === "glitter-cherries-retro") && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Glitter Cherries Colour</p>
+                    <p className="text-xs font-medium text-foreground">{t("Glitter Cherries Colour", "Couleur des cerises pailletées")}</p>
                     <div className="flex flex-wrap gap-2">
                       {glitterCherriesColors.map((color) => (
                         <button
@@ -1826,7 +2031,7 @@ const Catalog = () => {
                           )}
                         >
                           <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
-                          <span className="text-[10px] text-foreground">{color.name}</span>
+                          <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                         </button>
                       ))}
                     </div>
@@ -1836,7 +2041,7 @@ const Catalog = () => {
                 {/* Ribbon Colour */}
                 {(selections.extras.includes("ribbons") || selectedCake?.styleId === "retro-ribbons" || selectedCake?.styleId === "retro-ribbons-glitter") && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Ribbon Colour <span className="text-destructive">*</span></p>
+                    <p className="text-xs font-medium text-foreground">{t("Ribbon Colour", "Couleur des rubans")} <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {ribbonColors.map((color) => (
                         <button
@@ -1848,7 +2053,7 @@ const Catalog = () => {
                           )}
                         >
                           <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
-                          <span className="text-[10px] text-foreground">{color.name}</span>
+                          <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                         </button>
                       ))}
                     </div>
@@ -1858,7 +2063,7 @@ const Catalog = () => {
                 {/* Butterfly Colour */}
                 {(selections.extras.includes("butterfly") || selectedCake?.styleId === "butterfly-garden") && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">Butterfly Colour <span className="text-destructive">*</span></p>
+                    <p className="text-xs font-medium text-foreground">{t("Butterfly Colour", "Couleur du papillon")} <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {butterflyColors.map((color) => (
                         <button
@@ -1870,7 +2075,7 @@ const Catalog = () => {
                           )}
                         >
                           <div className="w-6 h-6 rounded-full border border-muted" style={{ backgroundColor: color.color }} />
-                          <span className="text-[10px] text-foreground">{color.name}</span>
+                          <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                         </button>
                       ))}
                     </div>
@@ -1881,9 +2086,9 @@ const Catalog = () => {
                {/* Printed Picture Upload - for printed-picture style or extra */}
               {(selectedCake?.styleId === "printed-picture" || selections.extras.includes("printed-picture")) && (
                 <div className="space-y-3">
-                  <label className="text-sm font-medium text-foreground">Upload Your Image</label>
+                  <label className="text-sm font-medium text-foreground">{t("Upload Your Image", "Téléchargez votre image")}</label>
                   <p className="text-xs text-muted-foreground">
-                    Upload the image or logo you want printed on your cake (JPG, PNG, WEBP)
+                    {t("Upload the image or logo you want printed on your cake (JPG, PNG, WEBP)", "Téléchargez l'image ou le logo que vous souhaitez faire imprimer sur votre gâteau (JPG, PNG, WEBP)")}
                   </p>
                   <input
                     ref={fileInputRef}
@@ -1898,7 +2103,7 @@ const Catalog = () => {
                       className="w-full border-2 border-dashed border-border rounded-lg p-6 flex flex-col items-center gap-2 hover:border-primary/50 transition-colors"
                     >
                       <Upload className="w-8 h-8 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Click to upload image</span>
+                      <span className="text-sm text-muted-foreground">{t("Click to upload image", "Cliquez pour télécharger une image")}</span>
                     </button>
                   ) : (
                     <div className="relative">
@@ -1922,29 +2127,29 @@ const Catalog = () => {
               {/* Comment & Image Upload Section */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  💬 Comment
+                  💬 {t("Comment", "Commentaire")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[240px]">Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[240px]">{t("Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.", "Notez toutes les précisions que vous souhaitez apporter. Veuillez noter que si vous demandez des décorations ou des extras qui n'ont pas été sélectionnés, le prix peut changer.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Textarea
                   value={selections.comment}
                   onChange={(e) => setSelections({ ...selections, comment: e.target.value })}
-                  placeholder="Any special requests or details about your cake..."
+                  placeholder={t("Any special requests or details about your cake...", "Toute demande particulière ou tout détail concernant votre gâteau...")}
                   className="min-h-[80px]"
                 />
                 {selectedCake?.styleId !== "printed-picture" && (
                 <div>
                   <label className="text-xs font-medium text-foreground flex items-center gap-1 mb-2">
-                    Upload
+                    {t("Upload", "Télécharger")}
                     <Tooltip>
                       <TooltipTrigger asChild><Info className="w-3 h-3 text-muted-foreground cursor-help" /></TooltipTrigger>
-                      <TooltipContent><p className="text-xs max-w-[200px]">Upload an inspiration picture if you would like.</p></TooltipContent>
+                      <TooltipContent><p className="text-xs max-w-[200px]">{t("Upload an inspiration picture if you would like.", "Téléchargez une photo d'inspiration si vous le souhaitez.")}</p></TooltipContent>
                     </Tooltip>
                   </label>
                   <p className="text-xs text-muted-foreground mb-2">
-                    Upload reference images (max 5, 5 MB per image, JPG, PNG, WEBP)
+                    {t("Upload reference images (max 5, 5 MB per image, JPG, PNG, WEBP)", "Téléchargez des images de référence (max. 5, 5 Mo par image, JPG, PNG, WEBP)")}
                   </p>
                   <input
                     ref={commentFileInputRef}
@@ -1960,7 +2165,7 @@ const Catalog = () => {
                       className="w-full border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center gap-1 hover:border-primary/50 transition-colors"
                     >
                       <Upload className="w-6 h-6 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Click to upload images</span>
+                      <span className="text-xs text-muted-foreground">{t("Click to upload images", "Cliquez pour télécharger des images")}</span>
                     </button>
                   )}
                   {selections.commentImages.length > 0 && (
@@ -1983,7 +2188,7 @@ const Catalog = () => {
                         ))}
                       </div>
                       <p className="text-[10px] text-muted-foreground/80 italic mt-2 leading-tight">
-                        When a client provides an inspiration photo, it is for reference only. Bento Cake Studio SNC will create a design inspired by it and aim to respect the colours and style, but an identical reproduction is not guaranteed.
+                        {t("When a client provides an inspiration photo, it is for reference only. Bento Cake Studio SNC will create a design inspired by it and aim to respect the colours and style, but an identical reproduction is not guaranteed.", "Lorsqu'une cliente fournit une photo d'inspiration, celle-ci sert uniquement de référence. Bento Cake Studio SNC créera un design inspiré de cette photo en veillant à en respecter les couleurs et le style, mais une reproduction à l'identique n'est pas garantie.")}
                       </p>
                     </>
                   )}
@@ -1993,7 +2198,7 @@ const Catalog = () => {
 
               {/* Candles Section - Packs first, then individual */}
               <div className="space-y-3 p-4">
-                <label className="text-sm font-medium text-foreground">🕯️ Candles (Optional)</label>
+                <label className="text-sm font-medium text-foreground">🕯️ {t("Candles (Optional)", "Bougies (optionnel)")}</label>
                 
                 {/* All candles in one ordered list */}
                 <div className="space-y-2">
@@ -2014,11 +2219,11 @@ const Catalog = () => {
                             "w-full rounded-lg p-2 text-center transition-all",
                             unitQty > 0 ? "bg-white/90 ring-2 ring-primary" : "bg-white/60"
                           )}>
-                            <p className="text-xs font-medium text-foreground">{candle.name}</p>
+                            <p className="text-xs font-medium text-foreground">{t(candle.name, candleNameFr[candle.id] ?? candle.name)}</p>
                             {candle.hasPack ? (
-                              <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce · Pack {candle.packSize} = CHF {candle.packPrice}</p>
+                              <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}{t("/ea", "/pièce")} · {t("Pack", "Pack")} {candle.packSize} = CHF {candle.packPrice}</p>
                             ) : (
-                              <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice} / pièce</p>
+                              <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice} {t("each", "/ pièce")}</p>
                             )}
                             <div className="flex items-center justify-center gap-1.5">
                               <button
@@ -2038,7 +2243,7 @@ const Catalog = () => {
                               >+</button>
                             </div>
                             {isPackApplied && (
-                              <p className="text-[10px] text-primary font-semibold mt-1">✓ Pack appliqué</p>
+                              <p className="text-[10px] text-primary font-semibold mt-1">✓ {t("Pack applied", "Pack appliqué")}</p>
                             )}
                             {totalPrice > 0 && (
                               <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {totalPrice}</p>
@@ -2056,16 +2261,16 @@ const Catalog = () => {
                   className="w-full flex items-center justify-center gap-1 text-xs text-primary font-medium py-2 hover:underline"
                 >
                   {showAllCandles ? (
-                    <>See less <ChevronUp className="w-3 h-3" /></>
+                    <>{t("See less", "Voir moins")} <ChevronUp className="w-3 h-3" /></>
                   ) : (
-                    <>See more <ChevronDown className="w-3 h-3" /></>
+                    <>{t("See more", "Voir plus")} <ChevronDown className="w-3 h-3" /></>
                   )}
                 </button>
               </div>
 
               {/* Price */}
               <div className="flex justify-between items-center py-4 bg-secondary/50 rounded-lg px-4">
-                <span className="font-medium text-foreground">Total</span>
+                <span className="font-medium text-foreground">{t("Total", "Total")}</span>
                 <span className="text-xl font-bold text-primary">
                   CHF {calculatePrice()}
                 </span>
@@ -2076,7 +2281,7 @@ const Catalog = () => {
                 onClick={handleAddToCart}
               >
                 <ShoppingBag className="w-5 h-5 mr-2" />
-                Add to Cart
+                {t("Add to Cart", "Ajouter au panier")}
               </Button>
             </div>
           )}

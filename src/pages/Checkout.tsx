@@ -233,8 +233,8 @@ const Checkout = () => {
 
     if (items.length === 0) {
       toast({
-        title: "Panier vide",
-        description: "Ajoutez au moins un gâteau avant de procéder au paiement.",
+        title: t("Empty cart", "Panier vide"),
+        description: t("Please add at least one cake before proceeding to payment.", "Ajoutez au moins un gâteau avant de procéder au paiement."),
         variant: "destructive",
       });
       return;
@@ -242,8 +242,8 @@ const Checkout = () => {
 
     if (!acceptPrivacyPolicy) {
       toast({
-        title: "Privacy Policy required",
-        description: "Please accept the privacy policy to continue.",
+        title: t("Privacy Policy required", "Politique de confidentialité requise"),
+        description: t("Please accept the privacy policy to continue.", "Veuillez accepter la politique de confidentialité pour continuer."),
         variant: "destructive",
       });
       return;
@@ -251,7 +251,7 @@ const Checkout = () => {
 
     if (!deliveryDate) {
       toast({
-        title: "Please select a delivery date",
+        title: t("Please select a delivery date", "Veuillez sélectionner une date"),
         variant: "destructive",
       });
       return;
@@ -259,7 +259,7 @@ const Checkout = () => {
 
     if (deliveryOption === "delivery" && !deliveryAddress.trim()) {
       toast({
-        title: "Please enter your delivery address",
+        title: t("Please enter your delivery address", "Veuillez saisir votre adresse de livraison"),
         variant: "destructive",
       });
       return;
@@ -267,9 +267,10 @@ const Checkout = () => {
 
     if (deliveryOption === "delivery" && !detectedZone) {
       toast({
-        title: "Delivery zone not recognised",
-        description:
+        title: t("Delivery zone not recognised", "Zone de livraison non reconnue"),
+        description: t(
           "Please make sure your address includes a recognised area name (e.g., Carouge, Champel, Meyrin...)",
+          "Merci de vérifier que votre adresse contient un nom de quartier reconnu (ex. Carouge, Champel, Meyrin...)"),
         variant: "destructive",
       });
       return;
@@ -277,8 +278,8 @@ const Checkout = () => {
 
     if (deliveryOption === "pickup" && !pickupTime) {
       toast({
-        title: "Pick-up Time required",
-        description: "Please select a pick-up time slot.",
+        title: t("Pick-up Time required", "Heure de retrait requise"),
+        description: t("Please select a pick-up time slot.", "Veuillez sélectionner un créneau de retrait."),
         variant: "destructive",
       });
       return;
@@ -286,8 +287,8 @@ const Checkout = () => {
 
     if (deliveryOption === "delivery" && (!deliveryTime || !deliveryComment.trim())) {
       toast({
-        title: "Delivery information required",
-        description: "Please select a delivery time slot and add a comment with the necessary delivery information.",
+        title: t("Delivery information required", "Informations de livraison requises"),
+        description: t("Please select a delivery time slot and add a comment with the necessary delivery information.", "Veuillez sélectionner un créneau de livraison et ajouter un commentaire avec les informations nécessaires."),
         variant: "destructive",
       });
       return;
@@ -312,9 +313,10 @@ const Checkout = () => {
 
       if (orderCount && orderCount >= 5) {
         toast({
-          title: "Date fully booked",
-          description:
+          title: t("Date fully booked", "Date complète"),
+          description: t(
             "This date has reached the maximum number of orders. Please select another date.",
+            "Cette date a atteint le nombre maximum de commandes. Veuillez choisir une autre date."),
           variant: "destructive",
         });
 
@@ -446,11 +448,11 @@ const Checkout = () => {
     } catch (err) {
       console.error("Checkout submit error:", err);
       toast({
-        title: "Erreur",
+        title: t("Error", "Erreur"),
         description:
           err instanceof Error
             ? err.message
-            : "Une erreur inattendue est survenue.",
+            : t("An unexpected error occurred.", "Une erreur inattendue est survenue."),
         variant: "destructive",
       });
     } finally {
@@ -466,25 +468,25 @@ const Checkout = () => {
           className="inline-flex items-center text-muted-foreground hover:text-primary mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Cart
+          {t("Back to Cart", "Retour au panier")}
         </Link>
 
         <div className="bg-card rounded-lg shadow-md p-6">
           <h2 className="text-xl font-serif text-foreground mb-6">
-            Contact Information
+            {t("Contact Information", "Coordonnées")}
           </h2>
 
           {items.length === 0 && (
             <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4">
               <p className="text-sm text-muted-foreground">
-                Votre panier est vide. Ajoutez un gâteau avant de procéder au paiement.
+                {t("Your cart is empty. Please add a cake before proceeding to payment.", "Votre panier est vide. Ajoutez un gâteau avant de procéder au paiement.")}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button asChild variant="default">
-                  <Link to="/cart">Aller au panier</Link>
+                  <Link to="/cart">{t("Go to cart", "Aller au panier")}</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link to="/catalog">Voir le catalogue</Link>
+                  <Link to="/catalog">{t("View the catalogue", "Voir le catalogue")}</Link>
                 </Button>
               </div>
             </div>
@@ -495,25 +497,25 @@ const Checkout = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">
-                  First Name <span className="text-destructive">*</span>
+                  {t("First Name", "Prénom")} <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="firstName"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Enter your first name"
+                  placeholder={t("Enter your first name", "Saisissez votre prénom")}
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">
-                  Last Name <span className="text-destructive">*</span>
+                  {t("Last Name", "Nom")} <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="lastName"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Enter your last name"
+                  placeholder={t("Enter your last name", "Saisissez votre nom")}
                   required
                 />
               </div>
@@ -522,7 +524,7 @@ const Checkout = () => {
             {/* Phone */}
             <div className="space-y-2">
               <Label htmlFor="phone">
-                Phone Number <span className="text-destructive">*</span>
+                {t("Phone Number", "Numéro de téléphone")} <span className="text-destructive">*</span>
               </Label>
               <div className="flex gap-2">
                 <Select value={countryCode} onValueChange={setCountryCode}>
@@ -558,14 +560,14 @@ const Checkout = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email address"
+                placeholder={t("Enter your email address", "Saisissez votre adresse e-mail")}
                 required
               />
             </div>
 
             {/* Pickup Date */}
             <div className="space-y-2">
-              <Label>Pick-up / Delivery Date</Label>
+              <Label>{t("Pick-up / Delivery Date", "Date de retrait / livraison")}</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -579,7 +581,7 @@ const Checkout = () => {
                     {deliveryDate ? (
                       formatDisplayDate(deliveryDate)
                     ) : (
-                      <span>Pick a date</span>
+                      <span>{t("Pick a date", "Choisir une date")}</span>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -606,7 +608,7 @@ const Checkout = () => {
 
             {/* Delivery Option */}
             <div className="space-y-3">
-              <Label>Delivery Option</Label>
+              <Label>{t("Delivery Option", "Mode de réception")}</Label>
               <RadioGroup
                 value={deliveryOption}
                 onValueChange={(value) => {
@@ -621,18 +623,18 @@ const Checkout = () => {
                 <div className="flex items-center space-x-3 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="pickup" id="pickup" />
                   <Label htmlFor="pickup" className="cursor-pointer flex-1">
-                    <span className="font-medium">Pick-up</span>
+                    <span className="font-medium">{t("Pick-up", "Retrait")}</span>
                     <p className="text-sm text-muted-foreground">
-                      Pick up your order at our store
+                      {t("Pick up your order at our store", "Retirez votre commande à notre boutique")}
                     </p>
                   </Label>
                 </div>
                 <div className="flex items-center space-x-3 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="delivery" id="delivery" />
                   <Label htmlFor="delivery" className="cursor-pointer flex-1">
-                    <span className="font-medium">Delivery</span>
+                    <span className="font-medium">{t("Delivery", "Livraison")}</span>
                     <p className="text-sm text-muted-foreground">
-                      We deliver to your address
+                      {t("We deliver to your address", "Nous livrons à votre adresse")}
                     </p>
                   </Label>
                 </div>
@@ -642,10 +644,10 @@ const Checkout = () => {
             {/* Pickup Time - Only shown when pickup is selected */}
             {deliveryOption === "pickup" && (
               <div className="space-y-2">
-                <Label>Pick-up Time <span className="text-destructive">*</span></Label>
+                <Label>{t("Pick-up Time", "Heure de retrait")} <span className="text-destructive">*</span></Label>
                 <Select value={pickupTime} onValueChange={setPickupTime}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a pickup time" />
+                    <SelectValue placeholder={t("Select a pickup time", "Choisir une heure de retrait")} />
                   </SelectTrigger>
                   <SelectContent>
                     {PICKUP_TIME_SLOTS.map((slot) => (
@@ -661,27 +663,27 @@ const Checkout = () => {
             {/* Delivery Details - Only shown when delivery is selected */}
             {deliveryOption === "delivery" && (
               <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
-                <h3 className="font-medium text-foreground">Delivery Details</h3>
+                <h3 className="font-medium text-foreground">{t("Delivery Details", "Détails de la livraison")}</h3>
                 
                 {/* Address Input */}
                 <div className="space-y-2">
-                  <Label htmlFor="deliveryAddress">Delivery Address</Label>
+                  <Label htmlFor="deliveryAddress">{t("Delivery Address", "Adresse de livraison")}</Label>
                   <Input
                     id="deliveryAddress"
                     value={deliveryAddress}
                     onChange={(e) => setDeliveryAddress(e.target.value)}
-                    placeholder="Enter your full address (e.g., Rue de Carouge 12, 1205 Genève)"
+                    placeholder={t("Enter your full address (e.g., Rue de Carouge 12, 1205 Genève)", "Saisissez votre adresse complète (ex. Rue de Carouge 12, 1205 Genève)")}
                     required={deliveryOption === "delivery"}
                   />
                   {deliveryAddress.trim() && (
                     <div className="text-sm">
                       {detectedZone ? (
                         <p className="text-primary">
-                          ✓ {detectedZone.name} detected - Delivery fee: CHF {detectedZone.price}
+                          ✓ {detectedZone.name} {t("detected - Delivery fee:", "détecté, frais de livraison :")} CHF {detectedZone.price}
                         </p>
                       ) : (
                         <p className="text-destructive">
-                          Zone not detected. Please include area name (e.g., Carouge, Champel, Meyrin...)
+                          {t("Zone not detected. Please include area name (e.g., Carouge, Champel, Meyrin...)", "Zone non détectée. Merci d'indiquer le nom du quartier (ex. Carouge, Champel, Meyrin...)")}
                         </p>
                       )}
                     </div>
@@ -690,10 +692,10 @@ const Checkout = () => {
 
                 {/* Delivery Time Slot */}
                 <div className="space-y-2">
-                  <Label>Delivery Time Slot <span className="text-destructive">*</span></Label>
+                  <Label>{t("Delivery Time Slot", "Créneau de livraison")} <span className="text-destructive">*</span></Label>
                   <Select value={deliveryTime} onValueChange={setDeliveryTime}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a delivery time slot" />
+                      <SelectValue placeholder={t("Select a delivery time slot", "Choisir un créneau de livraison")} />
                     </SelectTrigger>
                     <SelectContent>
                       {DELIVERY_TIME_SLOTS.map((slot) => (
@@ -707,17 +709,17 @@ const Checkout = () => {
 
                 {/* Delivery Comment - Required */}
                 <div className="space-y-2">
-                  <Label htmlFor="deliveryComment">Delivery Instructions <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="deliveryComment">{t("Delivery Instructions", "Instructions de livraison")} <span className="text-destructive">*</span></Label>
                   <Textarea
                     id="deliveryComment"
                     value={deliveryComment}
                     onChange={(e) => setDeliveryComment(e.target.value)}
-                    placeholder="e.g., If possible around 14:30, code 4589, apartment 12, 3rd floor..."
+                    placeholder={t("e.g., If possible around 14:30, code 4589, apartment 12, 3rd floor...", "ex. Si possible vers 14h30, code 4589, appartement 12, 3e étage...")}
                     rows={3}
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    Please include: apartment number, door code, floor, and any delivery instructions.
+                    {t("Please include: apartment number, door code, floor, and any delivery instructions.", "Merci d'indiquer : le numéro d'appartement, le code d'entrée, l'étage et toute instruction de livraison.")}
                   </p>
                 </div>
               </div>
@@ -726,7 +728,7 @@ const Checkout = () => {
             {/* Order Summary */}
             <div className="border-t border-border pt-6 mt-6">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-muted-foreground">Items ({items.length})</span>
+                <span className="text-muted-foreground">{t("Items", "Articles")} ({items.length})</span>
                 <span className="font-medium">CHF {itemsTotal}</span>
               </div>
 
@@ -769,23 +771,23 @@ const Checkout = () => {
                       <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
                         <div className="flex justify-between items-start">
                           <span className="font-medium text-sm text-foreground">
-                            {item.sizeName} {item.shapeName} Cake
+                            {item.sizeName} {item.shapeName} {t("Cake", "Gâteau")}
                           </span>
                           <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
                         </div>
                         <div className="text-xs text-muted-foreground space-y-0.5">
                           <div className="flex justify-between">
-                            <span>Base ({item.sizeName})</span>
+                            <span>{t("Base", "Base")} ({item.sizeName})</span>
                             <span>CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Flavour: {item.flavorName}</span>
-                            <span>{flavorExtra > 0 ? `+ CHF ${flavorExtra}` : "included"}</span>
+                            <span>{t("Flavour:", "Parfum :")} {item.flavorName}</span>
+                            <span>{flavorExtra > 0 ? `+ CHF ${flavorExtra}` : t("included", "inclus")}</span>
                           </div>
                           {item.styleName && (
                             <div className="flex justify-between">
-                              <span>Design: {item.styleName}</span>
-                              <span>{styleExtra > 0 ? `+ CHF ${styleExtra}` : "included"}</span>
+                              <span>{t("Design:", "Design :")} {item.styleName}</span>
+                              <span>{styleExtra > 0 ? `+ CHF ${styleExtra}` : t("included", "inclus")}</span>
                             </div>
                           )}
                           {extraEntries.map((e: any, i: number) => (
@@ -800,13 +802,13 @@ const Checkout = () => {
                               <span>+ CHF {e.price}</span>
                             </div>
                           ))}
-                          {item.baseColorName && <p>Base Colour: {item.baseColorName}</p>}
-                          {item.decorationColorName && <p>Decoration Colour: {item.decorationColorName}</p>}
+                          {item.baseColorName && <p>{t("Base Colour:", "Couleur de base :")} {item.baseColorName}</p>}
+                          {item.decorationColorName && <p>{t("Decoration Colour:", "Couleur de décoration :")} {item.decorationColorName}</p>}
                           {item.cakeText && (
-                            <p>Text: "{item.cakeText}"{item.textColorName ? ` (${item.textColorName})` : ""}</p>
+                            <p>{t("Text:", "Texte :")} "{item.cakeText}"{item.textColorName ? ` (${item.textColorName})` : ""}</p>
                           )}
-                          {item.ribbonColorName && <p>Ribbon: {item.ribbonColorName}</p>}
-                          {item.butterflyColorName && <p>Butterfly: {item.butterflyColorName}</p>}
+                          {item.ribbonColorName && <p>{t("Ribbon:", "Ruban :")} {item.ribbonColorName}</p>}
+                          {item.butterflyColorName && <p>{t("Butterfly:", "Papillon :")} {item.butterflyColorName}</p>}
                         </div>
                       </div>
                     );
@@ -817,13 +819,13 @@ const Checkout = () => {
               {deliveryOption === "delivery" && deliveryPrice > 0 && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">
-                    Delivery Fee ({detectedZone?.name})
+                    {t("Delivery Fee", "Frais de livraison")} ({detectedZone?.name})
                   </span>
                   <span className="font-medium">CHF {deliveryPrice}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-lg font-semibold pt-2 border-t border-border">
-                <span>Total</span>
+                <span>{t("Total", "Total")}</span>
                 <span className="text-primary">CHF {totalPrice}</span>
               </div>
             </div>
@@ -847,7 +849,7 @@ const Checkout = () => {
 
             {/* Privacy Policy & Newsletter */}
             <div className="space-y-4 border-t border-border pt-6">
-              <h3 className="font-medium text-foreground">Privacy Policy</h3>
+              <h3 className="font-medium text-foreground">{t("Privacy Policy", "Politique de confidentialité")}</h3>
               
               {/* Privacy Policy Checkbox - Required */}
               <div className="flex items-start space-x-3">
@@ -858,14 +860,14 @@ const Checkout = () => {
                   className="mt-0.5"
                 />
                 <Label htmlFor="privacyPolicy" className="text-sm cursor-pointer leading-relaxed">
-                  I have read and accept the{" "}
+                  {t("I have read and accept the", "J'ai lu et j'accepte la")}{" "}
                   <a
                     href="/privacy-policy"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary underline hover:text-primary/80"
                   >
-                    privacy policy
+                    {t("privacy policy", "politique de confidentialité")}
                   </a>
                   <span className="text-destructive ml-1">*</span>
                 </Label>
@@ -880,7 +882,7 @@ const Checkout = () => {
                   className="mt-0.5"
                 />
                 <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
-                  Unlock exclusive updates & offers ✨
+                  {t("Unlock exclusive updates & offers ✨", "Recevez nos actualités et offres exclusives ✨")}
                 </Label>
               </div>
             </div>
@@ -893,12 +895,12 @@ const Checkout = () => {
               disabled={!acceptPrivacyPolicy || isSubmitting || items.length === 0 || showEmbeddedCheckout}
             >
               {items.length === 0
-                ? "Empty cart"
+                ? t("Empty cart", "Panier vide")
                 : isSubmitting
-                  ? "Loading..."
+                  ? t("Loading...", "Chargement...")
                   : showEmbeddedCheckout
-                    ? "Complete payment below"
-                    : "Proceed to Payment"}
+                    ? t("Complete payment below", "Finalisez le paiement ci-dessous")
+                    : t("Proceed to Payment", "Procéder au paiement")}
             </Button>
           </form>
 
@@ -906,10 +908,10 @@ const Checkout = () => {
           {showEmbeddedCheckout && checkoutPayload && (
             <div className="mt-8 pt-6 border-t border-border">
               <h3 className="text-lg font-serif text-foreground mb-2">
-                Complete Your Payment
+                {t("Complete Your Payment", "Finalisez votre paiement")}
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Please complete your payment below to confirm your order. All transactions are secured by Stripe.
+                {t("Please complete your payment below to confirm your order. All transactions are secured by Stripe.", "Veuillez finaliser votre paiement ci-dessous pour confirmer votre commande. Toutes les transactions sont sécurisées par Stripe.")}
               </p>
               <EmbeddedStripeCheckout payload={checkoutPayload} />
             </div>
