@@ -1328,7 +1328,7 @@ const Catalog = () => {
                             className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
                             onClick={() => handleSelectCake(cake)}
                           >
-                            {t("CHOOSE THIS STYLE", "Choisir ce modèle")}
+                            {t("CHOOSE THIS STYLE", "CHOISIR CE MODÈLE")}
                           </Button>
                         </div>
                       </div>
