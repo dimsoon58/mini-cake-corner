@@ -323,7 +323,7 @@ const Cart = () => {
         {items.length === 0 ? (
           <div className="text-center py-20">
             <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-6" strokeWidth={1.25} />
-            <h2 className="font-serif text-3xl text-foreground mb-4">{t("Your cart is empty", "Votre panier est vide")}</h2>
+            <h2 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-4">{t("Your cart is empty", "Votre panier est vide")}</h2>
             <p className="text-muted-foreground mb-8">{t("Start customizing your perfect cake!", "Composez le gâteau parfait !")}</p>
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-base font-medium tracking-wide rounded-full" asChild><Link to="/catalog">{t("Customise Your Cake", "Personnalisez votre gâteau")}</Link></Button>
           </div>
@@ -331,7 +331,7 @@ const Cart = () => {
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="font-serif text-2xl text-foreground">{t("Your Items", "Vos articles")}</h2>
+                <h2 className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">{t("Your Items", "Vos articles")}</h2>
                 <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive">{t("Clear All", "Tout supprimer")}</Button>
               </div>
 
@@ -342,7 +342,7 @@ const Cart = () => {
                     <Card key={item.id} className="overflow-hidden">
                       <CardContent className="p-6">
                         <div className="flex justify-between items-start mb-4">
-                          <h3 className="font-serif text-xl text-foreground">{item.candleProductName}</h3>
+                          <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground">{item.candleProductName}</h3>
                           <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="text-destructive hover:text-destructive">
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -379,7 +379,7 @@ const Cart = () => {
                   <Card key={item.id} className="overflow-hidden">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start mb-4">
-                        <h3 className="font-serif text-xl text-foreground">{item.sizeName} {item.shapeName} {t("Cake", "Gâteau")}</h3>
+                        <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground">{item.sizeName} {item.shapeName} {t("Cake", "Gâteau")}</h3>
                         <div className="flex items-center gap-2">
                           <Button variant="ghost" size="sm" onClick={() => setEditingItemId(isEditing ? null : item.id)} className="text-primary hover:text-primary">
                             {isEditing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
@@ -428,7 +428,7 @@ const Cart = () => {
             <div className="lg:col-span-1">
               <Card className="sticky top-8">
                 <CardContent className="p-6 space-y-4">
-                  <h3 className="font-serif text-xl text-foreground">{t("Order Summary", "Récapitulatif")}</h3>
+                  <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground">{t("Order Summary", "Récapitulatif")}</h3>
                   <div className="space-y-2 border-b border-border pb-4">
                     {items.map((item) => (
                       <div key={item.id} className="flex justify-between text-sm">
