@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Dossier de nettoyage temporaire
+_to_delete/

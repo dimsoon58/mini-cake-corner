@@ -6,7 +6,7 @@ import {
   sizes, shapes, styles, extras as catalogExtrasData,
   getFlavorCategoryExtra, getCandleTotalPrice, candles as customisationCandles,
   flavorCategories,
-} from "@/data/customisation";
+} from "@/data/customization";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

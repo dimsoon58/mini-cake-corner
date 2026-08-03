@@ -39,7 +39,7 @@ import {
   getAvailableSizesForStyle,
   getFlavorCategoryExtra,
   getCandleTotalPrice,
-} from "@/data/customisation";
+} from "@/data/customization";
 
 // Import images for catalogExtras
 import extraGoldLeaves from "@/assets/extra-gold-leaves.png";

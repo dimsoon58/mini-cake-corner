@@ -17,7 +17,9 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
       const saved = window.localStorage.getItem("lang");
       if (saved === "fr" || saved === "en") return saved;
     }
-    return "en";
+    // French is the default: the studio and its customers are in Geneva.
+    // Visitors can switch to English with the EN / FR toggle in the header.
+    return "fr";
   });
 
   const setLang = (l: Lang) => {
