@@ -68,14 +68,6 @@ const Contact = () => {
         </h1>
 
         <div className="space-y-8 text-foreground leading-relaxed">
-          <p className="text-justify">
-            {t("For your custom cake, we take many considerations for the price. This includes the cake size and the amount of labour and time required to make your cake.", "Pour votre gâteau personnalisé, le prix dépend de plusieurs éléments : la taille du gâteau ainsi que le travail et le temps nécessaires à sa réalisation.")}
-          </p>
-
-          <p className="text-justify">
-            {t("If the cake is minimal in the design, the price will remain the same as the starting price. You can send us your idea for customisation and we will happily quote you the price.", "Si le design du gâteau est minimaliste, le prix reste identique au prix de départ. Envoyez-nous votre idée de personnalisation et nous vous établirons un devis avec plaisir.")}
-          </p>
-
           <div className="space-y-2">
             <p className="font-semibold">
               {t("Questions? Our team is here to help. Contact us on WhatsApp:", "Des questions ? Notre équipe est là pour vous aider. Contactez-nous sur WhatsApp :")}{" "}

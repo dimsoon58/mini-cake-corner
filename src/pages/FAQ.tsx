@@ -85,7 +85,7 @@ const FAQ = () => {
           question: "Can I cancel or modify my order?",
           questionFr: "Puis-je annuler ou modifier ma commande ?",
           answer: "Orders are confirmed only upon receipt of payment. If you wish to cancel or reschedule your order, you must notify us at least 5 days in advance to be eligible for a refund or date change. After this time, no refunds or rescheduling will be possible.",
-          answerFr: "Les commandes ne sont confirmées qu'à réception du paiement. Si vous souhaitez annuler ou reporter votre commande, vous devez nous prévenir au moins 5 jours à l'avance pour bénéficier d'un remboursement ou d'un changement de date. Passé ce délai, aucun remboursement ni report ne sera possible."
+          answerFr: "Les commandes ne sont confirmées qu'à réception du paiement. Si vous souhaitez annuler ou reporter votre commande, vous devez nous prévenir au moins 5 jours à l'avance pour bénéficier d'un remboursement ou d'un changement de date. Passé ce délai, aucun remboursement ni changement de date ne sera possible."
         }
       ]
     },

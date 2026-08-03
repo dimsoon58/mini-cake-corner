@@ -665,36 +665,15 @@ const textStyles = [
 
 // French label maps for module-scope data rendered to customers
 const collectionTitleFr: Record<string, string> = {
-  "The Minimal Collection": "La Collection Minimaliste",
-  "The Vintage Collection": "La Collection Vintage",
-  "The Charming Collection": "La Collection Charme",
-  "The Original Collection": "La Collection Originale",
-  "The Personalised Collection": "La Collection Personnalisée",
+  "The Minimal Collection": "La collection Minimaliste",
+  "The Vintage Collection": "La collection Vintage",
+  "The Charming Collection": "La collection Charmante",
+  "The Original Collection": "La collection Originale",
+  "The Personalised Collection": "La collection Personnalisée",
 };
 const cakeNameFr: Record<string, string> = {
-  "normal-without-border": "Nature sans bordure",
-  "normal-with-border": "Nature avec bordure",
-  "heart-bomb": "Heart Bomb",
-  "retro-cake": "Gâteau rétro",
-  "glitter-cherries-retro": "Cerises pailletées x Gâteau rétro",
-  "pearl-border-retro": "Bordure de perles × Décoration rétro",
-  "retro-ribbons": "Rétro × Rubans",
-  "roses-please": "Roses Please",
-  "retro-glitter-cake": "Gâteau rétro pailleté",
-  "printed-picture": "Photos imprimées / Logo",
-  "shag-cake": "Shag Cake",
-  "rainbow-cake": "Gâteau arc-en-ciel",
-  "drawing": "Dessin",
-  "cherries-retro": "Cerises x Gâteau rétro",
-  "scattered-retro-pearls": "Perles rétro éparpillées",
-  "gold-leaves": "Feuilles d'or",
-  "golden-cake": "Gâteau doré",
-  "pearl-number": "Chiffre en perles",
-  "retro-ribbons-glitter": "Rétro × Rubans, paillettes dans l'air",
-  "butterfly-garden": "Jardin de papillons",
-  "glitter-base": "Base pailletée",
-  "gender-reveal": "Gender Reveal",
-  "sprinkles-with-border": "Vermicelles avec bordure",
+  "normal-without-border": "Classique sans bordure",
+  "normal-with-border": "Classique avec bordure",
 };
 const cakeDescFr: Record<string, string> = {
   "normal-without-border": "Une finition lisse, épurée et toute simple",
@@ -704,7 +683,7 @@ const cakeDescFr: Record<string, string> = {
   "glitter-cherries-retro": "De pétillantes décorations de cerises sur un gâteau rétro",
   "pearl-border-retro": "Trois élégantes bordures de perles avec une décoration rétro",
   "retro-ribbons": "De ravissants rubans sur un gâteau rétro",
-  "roses-please": "Un gâteau élégant orné de superbes roses pochées",
+  "roses-please": "Un gâteau élégant orné de délicates roses pochées.",
   "retro-glitter-cake": "Une finition pailletée et scintillante sur un gâteau rétro",
   "printed-picture": "Ajoutez une touche personnelle avec une photo ou un logo imprimé sur le gâteau",
   "shag-cake": "Un shag cake d'inspiration rétro, à la texture riche et aux détails colorés",
@@ -716,7 +695,7 @@ const cakeDescFr: Record<string, string> = {
   "golden-cake": "Un gâteau entièrement doré et luxueux",
   "pearl-number": "Personnalisez avec un chiffre en perles",
   "retro-ribbons-glitter": "Un gâteau rétro avec des rubans et des paillettes au centre : soufflez dessus et les paillettes s'envolent dans les airs",
-  "butterfly-garden": "Un superbe gâteau dégradé, orné de perles et d'un papillon comestible",
+  "butterfly-garden": "Un gâteau dégradé, orné de perles et d'un papillon comestible.",
   "glitter-base": "Une base pailletée et scintillante entourée de feuilles d'or",
   "gender-reveal": "Choisissez la couleur intérieure. Parfait pour votre annonce si spéciale",
   "sprinkles-with-border": "Un gâteau classique avec des bordures décoratives et des vermicelles colorés",
@@ -1301,7 +1280,7 @@ const Catalog = () => {
           BENTO CAKES
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          {t("Get inspired by our signature cake designs, choose your favourite, then personalise it with your preferred size, flavour, colours and message to create a cake that's uniquely yours.", "Laissez-vous inspirer par nos créations signature, choisissez votre préférée, puis personnalisez-la avec la taille, le parfum, les couleurs et le message de votre choix pour créer un gâteau qui vous ressemble.")}
+          {t("Get inspired by our signature cake designs, choose your favourite, then personalise it with your preferred size, flavour, colours and message to create a cake that's uniquely yours.", "Inspirez-vous de nos créations signature, choisissez votre design préféré, puis personnalisez la taille, la saveur, les couleurs et le message pour créer un gâteau unique, à votre image.")}
         </p>
 
         <div className="max-w-6xl mx-auto space-y-20">
@@ -1349,7 +1328,7 @@ const Catalog = () => {
                             className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
                             onClick={() => handleSelectCake(cake)}
                           >
-                            {t("CHOOSE THIS STYLE", "CHOISIR CE STYLE")}
+                            {t("CHOOSE THIS STYLE", "Choisir ce modèle")}
                           </Button>
                         </div>
                       </div>
@@ -1363,24 +1342,24 @@ const Catalog = () => {
           {/* Custom Request */}
           <section>
             <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
-              {t("CUSTOM REQUEST", "DEMANDE SUR MESURE")}
+              {t("CUSTOM REQUEST", "CRÉATION SUR MESURE")}
             </div>
             <div className="text-center max-w-2xl mx-auto py-6">
               <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
                 {t("Can't find what you're looking for?", "Vous ne trouvez pas ce que vous cherchez ?")}
               </h3>
               <p className="text-muted-foreground text-sm mb-10">
-                {t("Every cake in our collections can be personalised, but if you're dreaming of something completely different, we'd love to create a fully bespoke design just for you. Tell us about your idea, your colours and your occasion, and we'll bring it to life.", "Tous les gâteaux de nos collections peuvent être personnalisés, mais si vous rêvez de quelque chose de complètement différent, nous serions ravies de créer un modèle entièrement sur mesure rien que pour vous. Parlez-nous de votre idée, de vos couleurs et de votre occasion, et nous lui donnerons vie.")}
+                {t("Every cake in our collections can be personalised, but if you're dreaming of something completely different, we'd love to create a fully bespoke design just for you. Tell us about your idea, your colours and your occasion, and we'll bring it to life.", "Tous nos gâteaux sont personnalisables. Si vous avez une idée particulière, nous serons ravies de créer un gâteau entièrement sur mesure pour vous.")}
               </p>
               <p className="text-muted-foreground text-sm italic mb-10">
-                {t("Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.", "À noter : nous nous efforçons de répondre sous 48 heures. Pour une meilleure disponibilité, merci d'envoyer votre demande au moins une semaine avant la date souhaitée.")}
+                {t("Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.", "À noter : Nous répondons à votre demande sous 48 heures. Pour une meilleure disponibilité, nous vous recommandons de nous contacter au moins une semaine à l'avance.")}
               </p>
               {!showRequestForm ? (
                 <Button
                   className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-6 text-[14px] font-medium"
                   onClick={() => setShowRequestForm(true)}
                 >
-                  {t("REQUEST A CUSTOM CAKE", "DEMANDER UN GÂTEAU SUR MESURE")}
+                  {t("REQUEST A CUSTOM CAKE", "Demander une création sur mesure")}
                 </Button>
               ) : (
                 <div className="animate-in fade-in slide-in-from-top-4 duration-500">

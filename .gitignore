@@ -30,3 +30,6 @@ dist-ssr
 
 # Dossier de nettoyage temporaire
 _to_delete/
+
+# Fichiers temporaires du systeme de fichiers
+.fuse_hidden*

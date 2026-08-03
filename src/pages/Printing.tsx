@@ -92,7 +92,7 @@ const Printing = () => {
         <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
           {t(
             "Turn your favourite photo, logo or drawing into an edible image, printed with food-safe ink on a fine sugar sheet, ready to top your cake.",
-            "Transformez votre photo, logo ou dessin préféré en une image comestible, imprimée à l'encre alimentaire sur une fine feuille de sucre, prête à sublimer votre gâteau."
+            "Transformez votre photo, logo ou dessin préféré en une image comestible, imprimée à l'encre alimentaire sur une fine feuille de sucre."
           )}
         </p>
         <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto text-sm">

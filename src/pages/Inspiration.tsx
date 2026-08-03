@@ -178,7 +178,7 @@ const Inspiration = () => {
             {t(
               "A gallery of our favourite creations to inspire your next celebration.",
               "Une galerie de nos créations préférées pour inspirer votre prochaine célébration."
-            )}<br />{t("More ideas?", "Plus d'idées ?")}
+            )}
           </p>
         </div>
 

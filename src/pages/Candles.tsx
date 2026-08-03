@@ -101,7 +101,7 @@ const Candles = () => {
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
           {t(
             "Add the perfect finishing touch to your cake with our selection of fun and colourful candles.",
-            "Ajoutez la touche finale idéale à votre gâteau grâce à notre sélection de bougies ludiques et colorées."
+            "Complétez votre création avec notre sélection de bougies originales et colorées."
           )}
         </p>
 

@@ -507,7 +507,7 @@ const cards: {
   {
     id: "hospitality",
     title: "Hospitality Partners",
-    titleFr: "Partenaires Hôtellerie",
+    titleFr: "Partenaires professionnels",
     subtitle: "Custom cakes for your clients' birthdays and celebrations.",
     subtitleFr: "Des gâteaux personnalisés pour les anniversaires et célébrations de vos clients.",
     checks: [
@@ -566,7 +566,7 @@ const Business = () => {
           {t("Partnerships & Press", "Partenariats & Presse")}
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          {t("Partner with Bento Cake Studio, from employee celebrations to bespoke events and hospitality collaborations.", "Devenez partenaire de Bento Cake Studio, des célébrations pour vos employés aux événements sur mesure et aux collaborations avec l'hôtellerie.")}
+          {t("Partner with Bento Cake Studio, from employee celebrations to bespoke events and hospitality collaborations.", "Devenez partenaire de Bento Cake Studio pour célébrer vos équipes, organiser des événements sur mesure ou créer des collaborations avec votre établissement.")}
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
@@ -706,7 +706,7 @@ const Business = () => {
             <>
               <DialogHeader>
                 <DialogTitle className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">
-                  {t("Hospitality Partners", "Partenaires Hôtellerie")}
+                  {t("Hospitality Partners", "Partenaires professionnels")}
                 </DialogTitle>
               </DialogHeader>
               <HospitalityForm onSuccess={() => setView("done")} />
@@ -715,7 +715,7 @@ const Business = () => {
             <>
               <DialogHeader>
                 <DialogTitle className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">
-                  {t("Hospitality Partners", "Partenaires Hôtellerie")}
+                  {t("Hospitality Partners", "Partenaires professionnels")}
                 </DialogTitle>
                 <DialogDescription className="text-muted-foreground leading-relaxed pt-1">
                   {t("Offer personalised cakes to your clients through a simple partner programme. We supply selected cakes at a professional partner price. Each establishment remains free to choose its final resale price and set its own margin.", "Proposez à vos clients des gâteaux personnalisés grâce à un programme partenaire simple. Nous fournissons une sélection de gâteaux à un tarif partenaire professionnel. Chaque établissement reste libre de fixer son prix de revente final et sa propre marge.")}

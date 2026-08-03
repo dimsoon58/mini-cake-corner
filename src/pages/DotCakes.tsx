@@ -194,7 +194,7 @@ const DotCakes = () => {
           DOT CAKES
         </h1>
         <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-          {t("Bite-sized cakes topped with a cloud of colourful sprinkles, perfect for parties, gifts and moments when one cake just isn't enough.", "De délicieux petits gâteaux surmontés d'un nuage de vermicelles colorés, parfaits pour les fêtes, les cadeaux et tous les moments où un seul gâteau ne suffit pas.")}
+          {t("Bite-sized cakes topped with a cloud of colourful sprinkles, perfect for parties, gifts and moments when one cake just isn't enough.", "Nos Dot Cakes allient une crème fouettée légère à des sprinkles colorés, pour de petites créations gourmandes à partager ou à offrir.")}
         </p>
 
         <div className="max-w-4xl mx-auto space-y-14">

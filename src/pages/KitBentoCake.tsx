@@ -374,7 +374,7 @@ const KitBentoCake = () => {
       <div className="container mx-auto px-4 py-16">
         {/* Header - Catalog style */}
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6">
-          {t("DIY KIT", "KIT DIY")}
+          {t("DIY KIT", "DIY KIT")}
         </h1>
         <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
           {t("A bento cake ready to decorate at home.", "Un bento cake prêt à décorer à la maison.")}

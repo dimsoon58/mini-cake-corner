@@ -264,10 +264,10 @@ const Workshop = () => {
         <div className="absolute inset-0 bg-foreground/40" />
         <div className="relative min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
           <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-5xl text-cream leading-tight mb-6 max-w-4xl">
-            {t("WORKSHOP", "ATELIER")}
+            {t("WORKSHOP", "ATELIERS")}
           </h1>
           <p className="text-cream/95 text-base md:text-lg font-light max-w-2xl mb-10">
-            {t("Learn to decorate your own Bento Cake in a fun and creative experience. Whether you're joining one of our public workshops or booking a private event, we'll guide you every step of the way.", "Apprenez à décorer votre propre Bento Cake au cours d'une expérience à la fois ludique et créative. Que vous participiez à l'un de nos ateliers publics ou que vous réserviez un événement privé, nous vous accompagnons à chaque étape.")}
+            {t("Learn to decorate your own Bento Cake in a fun and creative experience. Whether you're joining one of our public workshops or booking a private event, we'll guide you every step of the way.", "Apprenez à décorer votre propre Bento Cake lors d'une expérience créative et conviviale. Que vous participiez à l'un de nos ateliers ou que vous organisiez un événement privé, nous vous accompagnons à chaque étape.")}
           </p>
           <Button
             onClick={() =>
@@ -275,7 +275,7 @@ const Workshop = () => {
             }
             className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
           >
-            {t("BOOK A WORKSHOP", "RÉSERVER UN ATELIER")}
+            {t("BOOK A WORKSHOP", "RÉSERVER VOTRE ATELIER")}
           </Button>
         </div>
       </section>
@@ -284,10 +284,6 @@ const Workshop = () => {
       <section id="experiences" className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <SectionTitle>{t("CHOOSE YOUR EXPERIENCE", "CHOISISSEZ VOTRE EXPÉRIENCE")}</SectionTitle>
-          <p className="text-center text-muted-foreground text-sm max-w-2xl mx-auto mb-14">
-            {t("Three ways to get creative and take home something you made yourself.", "Trois façons de laisser libre cours à votre créativité et de repartir avec une création faite de vos mains.")}
-          </p>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {workshops.map((w) => (
               <div key={w.title} className="border border-border/60 flex flex-col bg-card">

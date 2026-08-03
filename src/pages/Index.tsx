@@ -92,7 +92,7 @@ const features = [
     title: "Personalised",
     titleFr: "Personnalisé",
     description: "Your perfect cake, from flavours to decoration.",
-    descFr: "Votre gâteau parfait, des saveurs à la décoration.",
+    descFr: "Des saveurs aux finitions, créez le gâteau qui vous ressemble.",
     image: featureCake,
   },
   {
@@ -106,7 +106,7 @@ const features = [
     title: "Fresh ingredients",
     titleFr: "Ingrédients frais",
     description: "Made with fresh ingredients. No preservatives.",
-    descFr: "Préparés avec des ingrédients frais. Sans conservateurs.",
+    descFr: "Préparés avec des ingrédients frais, sans conservateurs.",
     image: featureWhisk,
   },
 ];
@@ -188,7 +188,7 @@ const Index = () => {
             {t("LET THEM EAT CAKE", "LET THEM EAT CAKE")}
           </h1>
           <p className="text-base md:text-lg max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
-            {t("Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.", "Des gâteaux signature à la crème fouettée, délicatement réalisés, joliment décorés et incroyablement légers.")}
+            {t("Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.", "Des gâteaux signature à la crème fouettée, délicatement réalisés, décorés avec finesse et incroyablement légers.")}
           </p>
           <Button
             size="lg"
@@ -234,8 +234,8 @@ const Index = () => {
           <div ref={discoverRef} className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
               { image: homeCatBento, label: "BENTO CAKES", labelFr: "BENTO CAKES", to: "/catalog" },
-              { image: homeCatRectangle, label: "RECTANGLE CAKES", labelFr: "GÂTEAUX RECTANGLE", to: "/catalog" },
-              { image: homeCatDiy, label: "DIY KITS", labelFr: "KITS DIY", to: "/kit-bento-cake" },
+              { image: homeCatRectangle, label: "RECTANGLE CAKES", labelFr: "RECTANGLE CAKES", to: "/catalog" },
+              { image: homeCatDiy, label: "DIY KITS", labelFr: "DIY KITS", to: "/kit-bento-cake" },
               { image: homeCatDots, label: "DOT CAKES", labelFr: "DOT CAKES", to: "/dot-cakes" },
             ].map((category) => (
               <Link
@@ -311,7 +311,7 @@ const Index = () => {
           <div className="w-full border-[3px] border-primary p-1.5">
             <div className="text-center border border-primary px-8 py-16 md:px-16">
             <h2 className="font-script font-normal text-4xl md:text-5xl text-foreground mb-6">
-              {t("Ready to order your perfect cake?", "Prêt à commander votre gâteau parfait ?")}
+              {t("Ready to order your perfect cake?", "Prêt à créer votre gâteau idéal ?")}
             </h2>
             <p className="text-sm md:text-base text-foreground/80 mb-10 max-w-md mx-auto">
               {t("Browse our collection and personalise your cake in just a few steps.", "Parcourez notre collection et personnalisez votre gâteau en quelques étapes.")}
