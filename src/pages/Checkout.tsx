@@ -179,7 +179,7 @@ const Checkout = () => {
   const { items, clearCart } = useCart();
   const { toast } = useToast();
   const [firstName, setFirstName] = useState("");
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [applyReward, setApplyReward] = useState(false);
   const [lastName, setLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+41");
@@ -376,6 +376,7 @@ const Checkout = () => {
         deliveryComment,
         pickupTime: deliveryOption === "pickup" ? pickupTime : "",
         deliveryTime: deliveryOption === "delivery" ? deliveryTime : "",
+        lang,
       };
 
       // Save order to database with pending status

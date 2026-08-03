@@ -254,17 +254,29 @@ async function getPaymentMethodLabel(stripe: Stripe, paymentIntentId: string): P
   return "Card";
 }
 
+// ── Customer language helper ────────────────────────────────────────
+// The language the customer used on the website is stored in
+// order_details_json.lang by the checkout page. Customer-facing emails and
+// the invoice follow that language; French is the default.
+function getCustomerLang(order: any): "fr" | "en" {
+  const l = order?.order_details_json?.lang;
+  return l === "en" ? "en" : "fr";
+}
+
 // ── Approval confirmation email ─────────────────────────────────────
 
 async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethodLabel: string, pdfBase64?: string | null) {
+  const lang = getCustomerLang(order);
+  const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
+
   const details = order.order_details_json || {};
   const items = details.items || [];
   const pickupTime = details.pickupTime || "—";
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
 
   const deliveryInfo = order.delivery_option === "delivery"
-    ? `Delivery to: ${order.delivery_address || "—"}`
-    : "Pickup at store";
+    ? `${tr("Delivery to", "Livraison à")}: ${order.delivery_address || "—"}`
+    : tr("Pickup at store", "Retrait sur place");
 
   const row = (label: string, value: string) =>
     `<tr><td style="padding:6px 8px;color:#888;font-size:14px;width:40%;">${label}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${value}</td></tr>`;
@@ -274,24 +286,24 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
     const candleStr = candles.length ? candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ") : "";
 
     const rows: string[] = [];
-    if (item.sizeName) rows.push(row("Size", item.sizeName));
-    if (item.flavorName) rows.push(row("Flavor", item.flavorName));
-    if (item.shapeName) rows.push(row("Shape", item.shapeName));
-    if (item.styleName) rows.push(row("Design", item.styleName));
-    if (item.baseColorName) rows.push(row("Base color", item.baseColorName));
-    if (item.decorationColorName) rows.push(row("Decoration color", item.decorationColorName));
-    if (item.textColorName) rows.push(row("Text color", item.textColorName));
-    if (item.textStyle) rows.push(row("Text style", item.textStyle));
-    if (item.cakeText) rows.push(row("Text on cake", item.cakeText));
-    if (item.extrasNames?.length) rows.push(row("Extras", item.extrasNames.join(", ")));
-    if (item.ribbonColorName) rows.push(row("Ribbon color", item.ribbonColorName));
-    if (item.butterflyColorName) rows.push(row("Butterfly color", item.butterflyColorName));
-    if (candleStr) rows.push(row("Candles", candleStr));
-    if (item.comment?.trim()) rows.push(row("Additional note", item.comment.trim()));
+    if (item.sizeName) rows.push(row(tr("Size", "Taille"), item.sizeName));
+    if (item.flavorName) rows.push(row(tr("Flavour", "Parfum"), item.flavorName));
+    if (item.shapeName) rows.push(row(tr("Shape", "Forme"), item.shapeName));
+    if (item.styleName) rows.push(row(tr("Design", "Design"), item.styleName));
+    if (item.baseColorName) rows.push(row(tr("Base colour", "Couleur de base"), item.baseColorName));
+    if (item.decorationColorName) rows.push(row(tr("Decoration colour", "Couleur de décoration"), item.decorationColorName));
+    if (item.textColorName) rows.push(row(tr("Text colour", "Couleur du texte"), item.textColorName));
+    if (item.textStyle) rows.push(row(tr("Text style", "Style du texte"), item.textStyle));
+    if (item.cakeText) rows.push(row(tr("Text on cake", "Texte sur le gâteau"), item.cakeText));
+    if (item.extrasNames?.length) rows.push(row(tr("Extras", "Suppléments"), item.extrasNames.join(", ")));
+    if (item.ribbonColorName) rows.push(row(tr("Ribbon colour", "Couleur du ruban"), item.ribbonColorName));
+    if (item.butterflyColorName) rows.push(row(tr("Butterfly colour", "Couleur du papillon"), item.butterflyColorName));
+    if (candleStr) rows.push(row(tr("Candles", "Bougies"), candleStr));
+    if (item.comment?.trim()) rows.push(row(tr("Additional note", "Remarque complémentaire"), item.comment.trim()));
 
     return `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">🎂 Cake ${items.length > 1 ? (i + 1) : "details"}</h3>
+        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${tr("🎂 Cake", "🎂 Gâteau")} ${items.length > 1 ? (i + 1) : tr("details", "— détails")}</h3>
         <table style="border-collapse:collapse;width:100%;">
           ${rows.join("")}
         </table>
@@ -303,10 +315,10 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
   const orderImagesBlock = orderImageUrls.length
     ? `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📎 Reference images</h3>
+        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${tr("📎 Reference images", "📎 Images de référence")}</h3>
         <table style="border-collapse:collapse;width:100%;">
           ${orderImageUrls.map((url: string, j: number) =>
-            `<tr><td style="padding:8px;color:#888;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#2563eb;font-size:14px;display:inline-block;margin-bottom:6px;" target="_blank">Open image</a><br/><img src="${url}" alt="Reference image ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;" /></td></tr>`
+            `<tr><td style="padding:8px;color:#888;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#2563eb;font-size:14px;display:inline-block;margin-bottom:6px;" target="_blank">${tr("Open image", "Ouvrir l’image")}</a><br/><img src="${url}" alt="${tr("Reference image", "Image de référence")} ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;" /></td></tr>`
           ).join("")}
         </table>
       </div>`
@@ -337,26 +349,29 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
 
       <!-- Header -->
       <div style="padding:20px 32px 8px;text-align:center;">
-        <h1 style="color:#333;font-size:24px;margin:0;font-weight:700;">Order Confirmation</h1>
+        <h1 style="color:#333;font-size:24px;margin:0;font-weight:700;">${tr("Order Confirmation", "Confirmation de commande")}</h1>
       </div>
 
       <div style="padding:24px 32px 32px;">
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          Dear ${order.customer_name},
+          ${tr("Dear", "Bonjour")} ${order.customer_name},
         </p>
         
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          Thank you for choosing Bento Cake Studio. Your order <strong>#${orderNumber}</strong> has been confirmed and will be prepared for you on the selected date.
+          ${tr(
+            `Thank you for choosing Bento Cake Studio. Your order <strong>#${orderNumber}</strong> has been confirmed and will be prepared for you on the selected date.`,
+            `Merci d’avoir choisi Bento Cake Studio. Votre commande <strong>n° ${orderNumber}</strong> est confirmée et sera préparée pour la date choisie.`
+          )}
         </p>
 
         <!-- Pickup Details -->
         <div style="background:#f0fff4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin:24px 0;">
-          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">Pickup details</h3>
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${tr("Pickup details", "Détails du retrait")}</h3>
           <table style="border-collapse:collapse;width:100%;">
-            ${row("Date", formatDateCH(order.order_date))}
-            ${pickupTime ? row("Time", pickupTime) : ""}
-            ${row("Pickup option", deliveryInfo)}
-            ${row("Payment method", paymentMethodLabel)}
+            ${row(tr("Date", "Date"), formatDateCH(order.order_date))}
+            ${pickupTime ? row(tr("Time", "Heure"), pickupTime) : ""}
+            ${row(tr("Pickup option", "Mode de retrait"), deliveryInfo)}
+            ${row(tr("Payment method", "Moyen de paiement"), paymentMethodLabel)}
           </table>
         </div>
 
@@ -367,12 +382,12 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
         ${orderImagesBlock}
 
         <!-- Order Summary -->
-        <h3 style="color:#333;font-size:15px;margin:24px 0 8px;font-weight:600;">Order summary</h3>
+        <h3 style="color:#333;font-size:15px;margin:24px 0 8px;font-weight:600;">${tr("Order summary", "Récapitulatif de la commande")}</h3>
         <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
           <thead>
             <tr style="border-bottom:2px solid #eee;">
-              <th style="padding:8px 12px;text-align:left;font-size:13px;color:#888;font-weight:500;">Item</th>
-              <th style="padding:8px 12px;text-align:right;font-size:13px;color:#888;font-weight:500;">Price</th>
+              <th style="padding:8px 12px;text-align:left;font-size:13px;color:#888;font-weight:500;">${tr("Item", "Article")}</th>
+              <th style="padding:8px 12px;text-align:right;font-size:13px;color:#888;font-weight:500;">${tr("Price", "Prix")}</th>
             </tr>
           </thead>
           <tbody>
@@ -380,28 +395,34 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
           </tbody>
           <tfoot>
             <tr>
-              <td style="padding:12px;font-size:16px;font-weight:700;color:#333;">Total</td>
+              <td style="padding:12px;font-size:16px;font-weight:700;color:#333;">${tr("Total", "Total")}</td>
               <td style="padding:12px;font-size:16px;font-weight:700;color:#333;text-align:right;">CHF ${order.total_amount}</td>
             </tr>
           </tfoot>
         </table>
 
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          If any of these details are incorrect or if you need to make a small change, please contact us as soon as possible.
+          ${tr(
+            "If any of these details are incorrect or if you need to make a small change, please contact us as soon as possible.",
+            "Si l’une de ces informations est incorrecte ou si vous souhaitez apporter une petite modification, merci de nous contacter au plus vite."
+          )}
         </p>
 
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          Thank you again for your order. We look forward to preparing your cake.
+          ${tr(
+            "Thank you again for your order. We look forward to preparing your cake.",
+            "Merci encore pour votre commande. Nous avons hâte de préparer votre gâteau."
+          )}
         </p>
 
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          Warm regards,<br>
-          <strong>The Bento Cake Studio Team</strong> 🤍
+          ${tr("Warm regards", "Bien chaleureusement")},<br>
+          <strong>${tr("The Bento Cake Studio Team", "L’équipe Bento Cake Studio")}</strong> 🤍
         </p>
       </div>
 
       <div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
-        <p style="color:#aaa;font-size:11px;margin:0;">Bento Cake Studio · Lausanne, Switzerland</p>
+        <p style="color:#aaa;font-size:11px;margin:0;">${tr("Bento Cake Studio · Geneva, Switzerland", "Bento Cake Studio · Genève, Suisse")}</p>
       </div>
     </div>
   </div>
@@ -413,13 +434,13 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
     from: "contact@bentocakestudio.ch",
     to: [order.customer_email],
     bcc: ["facturesbentocakestudio@gmail.com"],
-    subject: `Order Confirmation — #${orderNumber}`,
+    subject: tr(`Order Confirmation — #${orderNumber}`, `Confirmation de commande — n° ${orderNumber}`),
     html,
   };
 
   if (pdfBase64) {
     emailPayload.attachments = [{
-      filename: `Facture_${invoiceNum}.pdf`,
+      filename: tr(`Invoice_${invoiceNum}.pdf`, `Facture_${invoiceNum}.pdf`),
       content: pdfBase64,
     }];
   }
@@ -445,6 +466,8 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
 // ── Decline customer email ──────────────────────────────────────────
 
 async function sendDeclineEmail(resendApiKey: string, order: any) {
+  const lang = getCustomerLang(order);
+  const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
   const catalogLink = "https://mini-cake-corner.lovable.app/catalog";
 
@@ -461,48 +484,59 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
       </div>
 
       <div style="padding:32px;">
-        <h2 style="color:#333;font-size:20px;margin:0 0 20px;">Dear ${order.customer_name},</h2>
+        <h2 style="color:#333;font-size:20px;margin:0 0 20px;">${tr("Dear", "Bonjour")} ${order.customer_name},</h2>
         
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          Thank you for choosing Bento Cake Studio. We truly appreciate your support.
+          ${tr(
+            "Thank you for choosing Bento Cake Studio. We truly appreciate your support.",
+            "Merci d’avoir choisi Bento Cake Studio. Votre confiance nous touche beaucoup."
+          )}
         </p>
 
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          Unfortunately, we are unable to accept your order <strong>#${orderNumber}</strong> scheduled for 
-          <strong>${formatDateCH(order.order_date)}</strong> because we have already reached our maximum production capacity for that day.
+          ${tr(
+            `Unfortunately, we are unable to accept your order <strong>#${orderNumber}</strong> scheduled for <strong>${formatDateCH(order.order_date)}</strong> because we have already reached our maximum production capacity for that day.`,
+            `Malheureusement, nous ne pouvons pas accepter votre commande <strong>n° ${orderNumber}</strong> prévue le <strong>${formatDateCH(order.order_date)}</strong>, car notre capacité de production maximale est déjà atteinte pour cette journée.`
+          )}
         </p>
         
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          Your payment has been fully refunded, and the amount should appear back in your account within a few business days.
+          ${tr(
+            "Your payment has been fully refunded, and the amount should appear back in your account within a few business days.",
+            "Votre paiement a été intégralement remboursé ; le montant devrait apparaître sur votre compte sous quelques jours ouvrables."
+          )}
         </p>
 
         <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;margin:24px 0;">
-          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">Order details</h3>
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${tr("Order details", "Détails de la commande")}</h3>
           <table style="border-collapse:collapse;width:100%;">
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Order</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">#${orderNumber}</td></tr>
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Amount</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">CHF ${order.total_amount}</td></tr>
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">Status</td><td style="padding:6px 8px;color:#dc2626;font-size:14px;font-weight:600;">Refunded</td></tr>
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">${tr("Order", "Commande")}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">#${orderNumber}</td></tr>
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">${tr("Amount", "Montant")}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">CHF ${order.total_amount}</td></tr>
+            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">${tr("Status", "Statut")}</td><td style="padding:6px 8px;color:#dc2626;font-size:14px;font-weight:600;">${tr("Refunded", "Remboursé")}</td></tr>
           </table>
         </div>
 
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          We sincerely apologize for the inconvenience. If you'd like, you are welcome to place a new order for another available date. We would love to create something special for you.
+          ${tr(
+            "We sincerely apologise for the inconvenience. If you'd like, you are welcome to place a new order for another available date. We would love to create something special for you.",
+            "Nous sommes sincèrement désolées pour la gêne occasionnée. Si vous le souhaitez, vous pouvez passer une nouvelle commande pour une autre date disponible. Ce sera un plaisir de créer quelque chose de spécial pour vous."
+          )}
         </p>
 
         <div style="text-align:center;margin:28px 0;">
           <a href="${catalogLink}" style="display:inline-block;background:#333;color:#fff;padding:14px 36px;border-radius:10px;text-decoration:none;font-size:16px;font-weight:600;">
-            Browse Our Catalog
+            ${tr("Browse Our Catalogue", "Découvrir notre catalogue")}
           </a>
         </div>
 
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          Warm regards,<br>
-          <strong>The Bento Cake Studio Team</strong> 🤍
+          ${tr("Warm regards", "Bien chaleureusement")},<br>
+          <strong>${tr("The Bento Cake Studio Team", "L’équipe Bento Cake Studio")}</strong> 🤍
         </p>
       </div>
 
       <div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
-        <p style="color:#aaa;font-size:11px;margin:0;">Bento Cake Studio · Lausanne, Switzerland</p>
+        <p style="color:#aaa;font-size:11px;margin:0;">${tr("Bento Cake Studio · Geneva, Switzerland", "Bento Cake Studio · Genève, Suisse")}</p>
       </div>
     </div>
   </div>
@@ -518,7 +552,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: [order.customer_email],
-      subject: `Update Regarding Your Order #${orderNumber}`,
+      subject: tr(`Update Regarding Your Order #${orderNumber}`, `Mise à jour concernant votre commande n° ${orderNumber}`),
       html,
     }),
   });
@@ -535,6 +569,9 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
 // ── Invoice PDF generation ──────────────────────────────────────────
 
 async function generateInvoicePdf(order: any): Promise<string> {
+  const lang = getCustomerLang(order);
+  const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
+
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595.28, 841.89]); // A4
   const { width, height } = page.getSize();
@@ -567,7 +604,7 @@ async function generateInvoicePdf(order: any): Promise<string> {
 
   // Title
   y -= 30;
-  page.drawText("Facture acquittée", { x: margin, y, size: 16, font: fontBold, color: black });
+  page.drawText(tr("Paid invoice", "Facture acquittée"), { x: margin, y, size: 16, font: fontBold, color: black });
   y -= 3;
   page.drawLine({ start: { x: margin, y }, end: { x: margin + 120, y }, thickness: 1, color: black });
 
@@ -575,11 +612,11 @@ async function generateInvoicePdf(order: any): Promise<string> {
   y -= 18;
   const companyLines = [
     { text: "Bento Cake Studio SNC", font: fontBold },
-    { text: "Adresse : 58 Chemin de la Gradelle, 1224 Genève", font: fontRegular },
-    { text: "Téléphone : +41 78 927 59 97", font: fontRegular },
-    { text: "Email : Contact@bentocakestudio.ch", font: fontRegular },
-    { text: "IDE : CHE-425.048.539", font: fontRegular },
-    { text: "TVA : Non assujetti TVA", font: fontRegular },
+    { text: tr("Address: 58 Chemin de la Gradelle, 1224 Geneva", "Adresse : 58 Chemin de la Gradelle, 1224 Genève"), font: fontRegular },
+    { text: tr("Phone: +41 78 927 59 97", "Téléphone : +41 78 927 59 97"), font: fontRegular },
+    { text: tr("Email: Contact@bentocakestudio.ch", "Email : Contact@bentocakestudio.ch"), font: fontRegular },
+    { text: tr("Business ID: CHE-425.048.539", "IDE : CHE-425.048.539"), font: fontRegular },
+    { text: tr("VAT: not subject to VAT", "TVA : Non assujetti TVA"), font: fontRegular },
   ];
 
   for (const line of companyLines) {
@@ -604,11 +641,11 @@ async function generateInvoicePdf(order: any): Promise<string> {
     page.drawText(text, { x: rightX - tw, y: yPos, size: 10, font, color: black });
   };
 
-  drawRight(`Facture n° : ${invoiceNumber}`, fontBold, ry);
+  drawRight(tr(`Invoice no.: ${invoiceNumber}`, `Facture n° : ${invoiceNumber}`), fontBold, ry);
   ry -= 14;
-  drawRight(`Date de facture : ${invoiceDate}`, fontRegular, ry);
+  drawRight(tr(`Invoice date: ${invoiceDate}`, `Date de facture : ${invoiceDate}`), fontRegular, ry);
   ry -= 14;
-  drawRight(`Date commande : ${orderDateFormatted}`, fontRegular, ry);
+  drawRight(tr(`Order date: ${orderDateFormatted}`, `Date commande : ${orderDateFormatted}`), fontRegular, ry);
 
   // Separator
   y -= 5;
@@ -616,15 +653,15 @@ async function generateInvoicePdf(order: any): Promise<string> {
 
   // Client section
   y -= 18;
-  page.drawText("Client", { x: margin, y, size: 11, font: fontBold, color: black });
+  page.drawText(tr("Customer", "Client"), { x: margin, y, size: 11, font: fontBold, color: black });
   y -= 16;
-  page.drawText(`Nom : ${order.customer_name}`, { x: margin, y, size: 10, font: fontRegular, color: black });
+  page.drawText(tr(`Name: ${order.customer_name}`, `Nom : ${order.customer_name}`), { x: margin, y, size: 10, font: fontRegular, color: black });
   y -= 14;
   if (order.delivery_address) {
-    page.drawText(`Adresse : ${order.delivery_address}`, { x: margin, y, size: 10, font: fontRegular, color: black });
+    page.drawText(tr(`Address: ${order.delivery_address}`, `Adresse : ${order.delivery_address}`), { x: margin, y, size: 10, font: fontRegular, color: black });
     y -= 14;
   }
-  page.drawText(`Email : ${order.customer_email}`, { x: margin, y, size: 10, font: fontRegular, color: black });
+  page.drawText(tr(`Email: ${order.customer_email}`, `Email : ${order.customer_email}`), { x: margin, y, size: 10, font: fontRegular, color: black });
 
   // Items table
   y -= 30;
@@ -646,10 +683,10 @@ async function generateInvoicePdf(order: any): Promise<string> {
     color: rgb(0.94, 0.94, 0.94),
     borderColor: black, borderWidth: 0.5,
   });
-  page.drawText("Description", { x: col1 + 5, y: y, size: 10, font: fontBold, color: black });
-  page.drawText("Quantité", { x: col2 + 5, y: y, size: 10, font: fontBold, color: black });
-  page.drawText("Prix unitaire (CHF)", { x: col3 + 5, y: y, size: 10, font: fontBold, color: black });
-  page.drawText("Total (CHF)", { x: col4 + 5, y: y, size: 10, font: fontBold, color: black });
+  page.drawText(tr("Description", "Description"), { x: col1 + 5, y: y, size: 10, font: fontBold, color: black });
+  page.drawText(tr("Quantity", "Quantité"), { x: col2 + 5, y: y, size: 10, font: fontBold, color: black });
+  page.drawText(tr("Unit price (CHF)", "Prix unitaire (CHF)"), { x: col3 + 5, y: y, size: 10, font: fontBold, color: black });
+  page.drawText(tr("Total (CHF)", "Total (CHF)"), { x: col4 + 5, y: y, size: 10, font: fontBold, color: black });
 
   // Header vertical lines
   for (const cx of [col2, col3, col4]) {
@@ -661,7 +698,7 @@ async function generateInvoicePdf(order: any): Promise<string> {
     return Number.isInteger(n) ? `${n}.-` : n.toFixed(2);
   };
 
-  const rowItems = items.length > 0 ? items : [{ styleName: "Gâteau personnalisé", total: order.total_amount }];
+  const rowItems = items.length > 0 ? items : [{ styleName: tr("Custom cake", "Gâteau personnalisé"), total: order.total_amount }];
   let tableBot = headerBot;
 
   for (const item of rowItems) {
@@ -669,7 +706,7 @@ async function generateInvoicePdf(order: any): Promise<string> {
     const rowBot = y - 5;
     const desc = item.sizeName
       ? `${item.sizeName}${item.flavorName ? " — " + item.flavorName : ""}`
-      : (item.styleName || "Gâteau personnalisé");
+      : (item.styleName || tr("Custom cake", "Gâteau personnalisé"));
     const total = item.total || order.total_amount;
 
     page.drawText(desc, { x: col1 + 5, y: y, size: 10, font: fontRegular, color: black });
@@ -687,16 +724,16 @@ async function generateInvoicePdf(order: any): Promise<string> {
 
   // Total
   y = tableBot - 18;
-  page.drawText(`Total payé : CHF ${formatPrice(order.total_amount)}`, { x: margin, y, size: 11, font: fontBold, color: black });
+  page.drawText(tr(`Total paid: CHF ${formatPrice(order.total_amount)}`, `Total payé : CHF ${formatPrice(order.total_amount)}`), { x: margin, y, size: 11, font: fontBold, color: black });
 
   // Legal mentions
   y -= 25;
-  page.drawText("Commande payée avant réalisation. Gâteau personnalisé non repris, non échangé.", {
+  page.drawText(tr("Order paid before production. Custom cakes cannot be returned or exchanged.", "Commande payée avant réalisation. Gâteau personnalisé non repris, non échangé."), {
     x: margin, y, size: 9, font: fontItalic, color: gray,
   });
 
   y -= 18;
-  page.drawText("Merci pour votre confiance", { x: margin, y, size: 10, font: fontRegular, color: black });
+  page.drawText(tr("Thank you for your trust", "Merci pour votre confiance"), { x: margin, y, size: 10, font: fontRegular, color: black });
 
   // Save and convert to base64
   const pdfBytes = await pdfDoc.save();

@@ -32,19 +32,19 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
 
     return `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
-        <h4 style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">🍰 Cake ${i + 1} — CHF ${item.total}</h4>
+        <h4 style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">🍰 Gâteau ${i + 1} — CHF ${item.total}</h4>
         <table style="width:100%;border-collapse:collapse;">
-          ${row("Size", item.sizeName)}
-          ${row("Shape", item.shapeName)}
-          ${row("Flavor", item.flavorName)}
+          ${row("Taille", item.sizeName)}
+          ${row("Forme", item.shapeName)}
+          ${row("Parfum", item.flavorName)}
           ${row("Design", item.styleName)}
-          ${row("Base Color", item.baseColorName)}
-          ${row("Deco Color", item.decorationColorName)}
-          ${row("Text on Cake", item.cakeText ? `"${item.cakeText}" (${item.textStyle || "normal"}, ${item.textColorName || "default"})` : null)}
-          ${row("Extras", item.extrasNames?.length > 0 ? item.extrasNames.join(", ") : null)}
-          ${row("Ribbon", item.ribbonColorName)}
-          ${row("Butterfly", item.butterflyColorName)}
-          ${row("Candles", candlesList || null)}
+          ${row("Couleur de base", item.baseColorName)}
+          ${row("Couleur de déco", item.decorationColorName)}
+          ${row("Texte sur le gâteau", item.cakeText ? `"${item.cakeText}" (${item.textStyle || "normal"}, ${item.textColorName || "default"})` : null)}
+          ${row("Suppléments", item.extrasNames?.length > 0 ? item.extrasNames.join(", ") : null)}
+          ${row("Ruban", item.ribbonColorName)}
+          ${row("Papillon", item.butterflyColorName)}
+          ${row("Bougies", candlesList || null)}
           ${row("Instructions", item.comment?.trim() || null)}
         </table>
       </div>`;
@@ -65,10 +65,10 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
   const imagesBlock = orderImageUrls.length
     ? `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📎 Reference images</h3>
+        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📎 Images de référence</h3>
         <table style="width:100%;border-collapse:collapse;">
           ${orderImageUrls.map((url: string, j: number) =>
-            `<tr><td style="padding:8px;color:#888;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#2563eb;" target="_blank">Open image</a><br/><img src="${url}" alt="Reference image ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;margin-top:4px;" /></td></tr>`
+            `<tr><td style="padding:8px;color:#888;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#2563eb;" target="_blank">Ouvrir l’image</a><br/><img src="${url}" alt="Image de référence ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;margin-top:4px;" /></td></tr>`
           ).join("")}
         </table>
       </div>`
@@ -84,36 +84,36 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
       
       <!-- Header -->
       <div style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
-        <h1 style="color:#fff;font-size:26px;margin:0 0 8px;font-weight:700;">🎂 New Bento Cake Order</h1>
-        <p style="color:#ccc;margin:0;font-size:14px;">Order <strong style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> needs your review</p>
+        <h1 style="color:#fff;font-size:26px;margin:0 0 8px;font-weight:700;">🎂 Nouvelle commande Bento Cake</h1>
+        <p style="color:#ccc;margin:0;font-size:14px;">La commande <strong style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> attend votre validation</p>
       </div>
 
       <div style="padding:28px;">
 
         <!-- Customer Info -->
         <div style="background:#f0f7ff;border-radius:12px;padding:20px;margin-bottom:20px;">
-          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">👤 Customer Information</h3>
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">👤 Informations client</h3>
           <table style="border-collapse:collapse;width:100%;">
-            ${row("Name", order.customer_name)}
+            ${row("Nom", order.customer_name)}
             ${row("Email", order.customer_email)}
-            ${row("Phone", order.customer_phone)}
+            ${row("Téléphone", order.customer_phone)}
           </table>
         </div>
 
         <!-- Pickup / Delivery -->
         <div style="background:#f0fff4;border-radius:12px;padding:20px;margin-bottom:20px;">
-          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📦 Pickup / Delivery</h3>
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📦 Retrait / Livraison</h3>
           <table style="border-collapse:collapse;width:100%;">
             ${row("Date", formatDateCH(order.order_date))}
-            ${row("Time", details.pickupTime || "—")}
-            ${row("Option", order.delivery_option === "delivery" ? "🚚 Delivery" : "🏪 Pickup at store")}
-            ${row("Address", order.delivery_option === "delivery" ? order.delivery_address : null)}
-            ${row("Notes", details.deliveryComment || null)}
+            ${row("Heure", details.pickupTime || "—")}
+            ${row("Option", order.delivery_option === "delivery" ? "🚚 Livraison" : "🏪 Retrait sur place")}
+            ${row("Adresse", order.delivery_option === "delivery" ? order.delivery_address : null)}
+            ${row("Remarques", details.deliveryComment || null)}
           </table>
         </div>
 
         <!-- Order Items -->
-        <h3 style="color:#333;font-size:15px;margin:0 0 4px;font-weight:600;">🍰 Order Items (${items.length})</h3>
+        <h3 style="color:#333;font-size:15px;margin:0 0 4px;font-weight:600;">🍰 Articles commandés (${items.length})</h3>
         ${itemBlocks}
 
         <!-- Reference Images -->
@@ -121,40 +121,40 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
 
         <!-- Payment -->
         <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;margin:20px 0;">
-          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">💳 Payment Summary</h3>
+          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">💳 Récapitulatif du paiement</h3>
           <table style="border-collapse:collapse;width:100%;">
-             ${row("Order №", order.order_number || order.id.slice(0, 8).toUpperCase())}
-             ${row("Invoice №", order.invoice_number || "—")}
+             ${row("Commande №", order.order_number || order.id.slice(0, 8).toUpperCase())}
+             ${row("Facture №", order.invoice_number || "—")}
             ${row("Total", `CHF ${order.total_amount}`)}
-            ${row("Status", "⏳ Funds authorized — awaiting your approval")}
+            ${row("Statut", "⏳ Fonds autorisés — en attente de votre validation")}
           </table>
         </div>
 
         <!-- Action Buttons -->
         <div style="text-align:center;margin:32px 0 16px;">
-          <p style="color:#666;font-size:13px;margin-bottom:20px;">Click a button to instantly process this order. No login required.</p>
+          <p style="color:#666;font-size:13px;margin-bottom:20px;">Cliquez sur un bouton pour traiter immédiatement cette commande. Aucune connexion requise.</p>
           
           <a href="${siteUrl}/order-action?orderId=${order.id}&action=approve&token=${token}" style="display:inline-block;background:#16a34a;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
-            ✅ Accept Order
+            ✅ Accepter la commande
           </a>
           
           <a href="${siteUrl}/order-action?orderId=${order.id}&action=decline&token=${token}" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
-            ❌ Decline Order
+            ❌ Refuser la commande
           </a>
         </div>
 
         <p style="color:#999;font-size:12px;text-align:center;margin-top:8px;">
-          Each button can only be used once.
+          Chaque bouton ne peut être utilisé qu’une seule fois.
         </p>
         
         <p style="color:#999;font-size:12px;text-align:center;margin-top:4px;">
-          <a href="${reviewUrl}" style="color:#666;">View full order details →</a>
+          <a href="${reviewUrl}" style="color:#666;">Voir le détail complet de la commande →</a>
         </p>
       </div>
 
       <!-- Footer -->
       <div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
-        <p style="color:#aaa;font-size:11px;margin:0;">Bento Cake Studio · Order Notification System</p>
+        <p style="color:#aaa;font-size:11px;margin:0;">Bento Cake Studio · Système de notification des commandes</p>
       </div>
     </div>
   </div>
@@ -170,7 +170,7 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: ADMIN_EMAILS,
-      subject: `🎂 New Bento Cake Order ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.customer_name} (CHF ${order.total_amount})`,
+      subject: `🎂 Nouvelle commande Bento Cake ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.customer_name} (CHF ${order.total_amount})`,
       html,
     }),
   });
