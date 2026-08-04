@@ -48,20 +48,20 @@ import customer31 from "@/assets/customer-31.jpg";
 import customer32 from "@/assets/customer-32.jpg";
 import customer33 from "@/assets/customer-33.jpg";
 import customer34 from "@/assets/customer-34.jpg";
-import comment7 from "@/assets/comment-7.jpg";
-import comment8 from "@/assets/comment-8.jpg";
-import comment9 from "@/assets/comment-9.jpg";
-import comment10 from "@/assets/comment-10.jpg";
-import comment11 from "@/assets/comment-11.jpg";
-import comment12 from "@/assets/comment-12.jpg";
-import comment13 from "@/assets/comment-13.jpg";
-import comment14 from "@/assets/comment-14.jpg";
-import comment15 from "@/assets/comment-15.jpg";
-import comment16 from "@/assets/comment-16.jpg";
-import comment17 from "@/assets/comment-17.jpg";
-import comment18 from "@/assets/comment-18.jpg";
-import comment19 from "@/assets/comment-19.jpg";
-import comment21 from "@/assets/comment-21.jpg";
+import comment7 from "@/assets/comment-7.png";
+import comment8 from "@/assets/comment-8.png";
+import comment9 from "@/assets/comment-9.png";
+import comment10 from "@/assets/comment-10.png";
+import comment11 from "@/assets/comment-11.png";
+import comment12 from "@/assets/comment-12.png";
+import comment13 from "@/assets/comment-13.png";
+import comment14 from "@/assets/comment-14.png";
+import comment15 from "@/assets/comment-15.png";
+import comment16 from "@/assets/comment-16.png";
+import comment17 from "@/assets/comment-17.png";
+import comment18 from "@/assets/comment-18.png";
+import comment19 from "@/assets/comment-19.png";
+import comment21 from "@/assets/comment-21.png";
 
 const customerPhotos = [
   customer3, customer4, customer5,
