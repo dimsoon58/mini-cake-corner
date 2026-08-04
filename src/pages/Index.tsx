@@ -62,6 +62,23 @@ import comment17 from "@/assets/comment-17.png";
 import comment18 from "@/assets/comment-18.png";
 import comment19 from "@/assets/comment-19.png";
 import comment21 from "@/assets/comment-21.png";
+import comment26 from "@/assets/comment-26.png";
+import comment27 from "@/assets/comment-27.png";
+import comment28 from "@/assets/comment-28.png";
+import comment29 from "@/assets/comment-29.png";
+import comment30 from "@/assets/comment-30.png";
+import comment31 from "@/assets/comment-31.png";
+import comment32 from "@/assets/comment-32.png";
+import comment33 from "@/assets/comment-33.png";
+import comment34 from "@/assets/comment-34.png";
+import comment35 from "@/assets/comment-35.png";
+import comment36 from "@/assets/comment-36.png";
+import comment37 from "@/assets/comment-37.png";
+import comment38 from "@/assets/comment-38.png";
+import comment39 from "@/assets/comment-39.png";
+import comment40 from "@/assets/comment-40.png";
+import comment41 from "@/assets/comment-41.png";
+import comment42 from "@/assets/comment-42.png";
 
 const customerPhotos = [
   customer3, customer4, customer5,
@@ -75,9 +92,12 @@ const customerPhotos = [
 
 // Placeholder array for customer comment images, add imports here later
 const customerCommentPhotos: string[] = [
-  comment7, comment8, comment9, comment10, comment11,
-  comment12, comment13, comment14, comment15,
-  comment16, comment17, comment18, comment19,
+  comment26, comment7, comment27, comment8, comment28,
+  comment9, comment29, comment10, comment30, comment31,
+  comment11, comment32, comment12, comment33, comment13,
+  comment34, comment14, comment35, comment15, comment36,
+  comment37, comment16, comment38, comment17, comment39,
+  comment18, comment40, comment19, comment41, comment42,
   comment21,
 ];
 
