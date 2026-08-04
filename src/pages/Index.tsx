@@ -111,7 +111,7 @@ const features = [
   },
 ];
 
-const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: string }) => {
+const PhotoCarousel = ({ photos, altPrefix, contain = false }: { photos: string[]; altPrefix: string; contain?: boolean }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: "left" | "right") => {
@@ -145,12 +145,12 @@ const PhotoCarousel = ({ photos, altPrefix }: { photos: string[]; altPrefix: str
         {photos.map((photo, index) => (
             <div
               key={index}
-              className="flex-shrink-0 w-72 h-80 overflow-hidden"
+              className={`flex-shrink-0 h-80 overflow-hidden ${contain ? "w-[26rem]" : "w-72"}`}
             >
               <img
                 src={photo}
                 alt={`${altPrefix} ${index + 1}`}
-                className="w-full h-full object-cover"
+                className={`w-full h-full ${contain ? "object-contain" : "object-cover"}`}
               />
             </div>
         ))}
@@ -301,7 +301,7 @@ const Index = () => {
           <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-6">
             {t("CUSTOMER COMMENTS", "AVIS CLIENTS")}
           </h2>
-          <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" />
+          <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" contain />
         </div>
       </section>
 
