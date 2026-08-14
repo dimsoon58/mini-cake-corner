@@ -5,6 +5,7 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import CartIcon from "@/components/CartIcon";
 import { useLang } from "@/context/LanguageContext";
 import NewsletterPopup from "@/components/NewsletterPopup";
+import ScrollToTopButton from "@/components/ScrollToTopButton";
 import AccountMenu from "@/components/AccountMenu";
 import logoBrown from "@/assets/logo-brown.png";
 import logoCream from "@/assets/logo-cream.png";
@@ -242,6 +243,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
 
       {children}
       <NewsletterPopup />
+      <ScrollToTopButton />
     </div>
   );
 };
