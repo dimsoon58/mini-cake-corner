@@ -74,6 +74,8 @@ import extraGlitter from "@/assets/extra-glitter-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
 import designGenderReveal from "@/assets/design-gender-reveal-new.jpg";
+import genderReveal2 from "@/assets/gender-reveal-2.jpg";
+import genderReveal3 from "@/assets/gender-reveal-3.jpg";
 import designPrintedPicture from "@/assets/design-printed-picture-new.jpg";
 import printedPicture1 from "@/assets/printed-picture-1.jpg";
 import printedPicture2 from "@/assets/printed-picture-2.jpg";
@@ -478,6 +480,7 @@ const catalog = [
     name: "Gender Reveal",
     description: "Choose the inside colour. Perfect for your special announcement",
     image: designGenderReveal,
+    images: [designGenderReveal, genderReveal2, genderReveal3],
     styleId: "gender-reveal",
     styleName: "Gender Reveal",
     stylePrice: { bento: 5, retro: 7, medium: 10, large: 20 },
