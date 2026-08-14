@@ -81,9 +81,6 @@ import printedPicture1 from "@/assets/printed-picture-1.jpg";
 import printedPicture2 from "@/assets/printed-picture-2.jpg";
 import designDrawing from "@/assets/design-drawing-new.jpg";
 import drawing1 from "@/assets/drawing-1.jpg";
-import drawing2 from "@/assets/drawing-2.jpg";
-import drawing3 from "@/assets/drawing-3.jpg";
-import drawing4 from "@/assets/drawing-4.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
 import designRosesPlease2 from "@/assets/design-roses-please-2.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
@@ -386,7 +383,7 @@ const catalog = [
     name: "Drawing",
     description: "Hand-drawn custom design",
     image: designDrawing,
-    images: [designDrawing, drawing1, drawing2, drawing3, drawing4],
+    images: [designDrawing, drawing1],
     styleId: "custom-drawing",
     styleName: "Custom Drawing",
     stylePrice: { bento: 5, retro: 6, medium: 8, large: 10 },
