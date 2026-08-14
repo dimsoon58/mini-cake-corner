@@ -84,6 +84,7 @@ import drawing2 from "@/assets/drawing-2.jpg";
 import drawing3 from "@/assets/drawing-3.jpg";
 import drawing4 from "@/assets/drawing-4.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
+import designRosesPlease2 from "@/assets/design-roses-please-2.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
@@ -330,6 +331,7 @@ const catalog = [
     name: "Roses Please",
     description: "Elegant cake adorned with beautiful piped roses",
     image: designRosesPlease,
+    images: [designRosesPlease, designRosesPlease2],
     styleId: "roses-please",
     styleName: "Roses Please",
     stylePrice: { retro: 7, medium: 15, large: 20 },
