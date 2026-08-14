@@ -86,6 +86,7 @@ import drawing4 from "@/assets/drawing-4.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
 import designRosesPlease2 from "@/assets/design-roses-please-2.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
+import designButterflyGarden2 from "@/assets/design-butterfly-garden-2.jpg";
 import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
@@ -457,6 +458,7 @@ const catalog = [
     name: "Butterfly Garden",
     description: "A beautiful gradient cake adorned with pearls and edible butterfly",
     image: designButterflyGarden,
+    images: [designButterflyGarden, designButterflyGarden2],
     styleId: "butterfly-garden",
     styleName: "Butterfly Garden",
     stylePrice: { bento: 6, retro: 8, medium: 15, large: 20 },
