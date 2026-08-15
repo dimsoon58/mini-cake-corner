@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import logoCream from "@/assets/logo-cream.png";
-import homeCatBento from "@/assets/home-cat-bento.png";
+import homeCatBento from "@/assets/home-cat-bento.jpg";
 import homeCatDots from "@/assets/home-cat-dots.png";
 import homeCatDiy from "@/assets/home-cat-diy.png";
 import homeCatWorkshops from "@/assets/home-cat-workshops.png";
