@@ -258,7 +258,7 @@ const catalog = [
     image: styleNormalWithoutBorder,
     styleId: "normal-without-border",
     styleName: "Normal without border",
-    stylePrice: { bento: 0, retro: 2, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
     disableText: false,
   },
   {
@@ -268,7 +268,7 @@ const catalog = [
     image: styleNormalWithBorder,
     styleId: "normal-with-border",
     styleName: "Normal with border",
-    stylePrice: { bento: 0, retro: 2, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
     disableText: false,
   },
   {
@@ -290,7 +290,7 @@ const catalog = [
     images: [designRetroCake, retroCake1, retroCake2, retroCake3],
     styleId: "retro-vintage",
     styleName: "Retro / Vintage",
-    stylePrice: { retro: 5, medium: 15, large: 20 },
+    stylePrice: { retro: 6, medium: 10, large: 15 },
     disableText: false,
   },
   {
@@ -300,7 +300,7 @@ const catalog = [
     image: designGlitterCherries,
     styleId: "glitter-cherries-retro",
     styleName: "Glitter Cherries on a Retro Cake",
-    stylePrice: { retro: 12, medium: 25, large: 35 },
+    stylePrice: { retro: 13, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -311,7 +311,7 @@ const catalog = [
     image: designPearlBorders,
     styleId: "pearl-border-retro",
     styleName: "Pearl Border × Retro Decoration",
-    stylePrice: { retro: 25, medium: 50, large: 75 },
+    stylePrice: { retro: 40, medium: 67, large: 98 },
     disableText: false,
   },
   {
@@ -322,7 +322,7 @@ const catalog = [
     images: [retroRibbons2, retroRibbons1],
     styleId: "retro-ribbons",
     styleName: "Retro × Ribbons",
-    stylePrice: { retro: 10, medium: 20, large: 30 },
+    stylePrice: { retro: 11, medium: 18, large: 25 },
     disableText: false,
   },
   {
@@ -333,7 +333,7 @@ const catalog = [
     images: [designRosesPlease, designRosesPlease2],
     styleId: "roses-please",
     styleName: "Roses Please",
-    stylePrice: { retro: 7, medium: 15, large: 20 },
+    stylePrice: { bento: 6, retro: 8, medium: 15, large: 20 },
     disableText: false,
   },
   {
@@ -343,7 +343,7 @@ const catalog = [
     image: designRetroGlitter,
     styleId: "retro-glitter-cake",
     styleName: "Retro Glitter Cake",
-    stylePrice: { bento: 10, retro: 12, medium: 20, large: 30 },
+    stylePrice: { retro: 11, medium: 20, large: 27 },
     disableText: false,
   },
   {
@@ -354,7 +354,7 @@ const catalog = [
     images: [designPrintedPicture, printedPicture1, printedPicture2],
     styleId: "printed-picture",
     styleName: "Printed Picture",
-    stylePrice: { bento: 15, retro: 17, medium: 15, large: 15 },
+    stylePrice: { bento: 15, retro: 15, medium: 15, large: 15 },
     disableText: true,
   },
   {
@@ -365,7 +365,7 @@ const catalog = [
     images: [designShagCake, shagCake1, shagCake2, shagCake3],
     styleId: "shag-cake",
     styleName: "Shag Cake",
-    stylePrice: { retro: 10, medium: 20, large: 30 },
+    stylePrice: { retro: 12, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -375,7 +375,7 @@ const catalog = [
     image: designRainbowCake,
     styleId: "rainbow-cake",
     styleName: "Rainbow Cake",
-    stylePrice: { retro: 10, medium: 20, large: 30 },
+    stylePrice: { retro: 15, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -386,7 +386,7 @@ const catalog = [
     images: [designDrawing, drawing1],
     styleId: "custom-drawing",
     styleName: "Custom Drawing",
-    stylePrice: { bento: 5, retro: 6, medium: 8, large: 10 },
+    stylePrice: { bento: 8, retro: 8, medium: 10, large: 15 },
     disableText: false,
   },
   {
@@ -397,7 +397,7 @@ const catalog = [
     imagePosition: "object-[center_70%]",
     styleId: "cherries-retro",
     styleName: "Cherries on a Retro Cake",
-    stylePrice: { retro: 8, medium: 20, large: 30 },
+    stylePrice: { retro: 10, medium: 18, large: 27 },
     disableText: false,
   },
   {
@@ -407,7 +407,7 @@ const catalog = [
     image: designScatteredPearls,
     styleId: "scattered-retro-pearls",
     styleName: "Scattered Retro Pearls",
-    stylePrice: { retro: 15, medium: 30, large: 45 },
+    stylePrice: { retro: 10, medium: 16, large: 23 },
     disableText: false,
   },
   {
@@ -417,7 +417,7 @@ const catalog = [
     image: designGoldLeaves,
     styleId: "gold-leaves-style",
     styleName: "Gold Leaves",
-    stylePrice: { bento: 2, retro: 4, medium: 5, large: 8 },
+    stylePrice: { bento: 3, retro: 4, medium: 5, large: 8 },
     disableText: false,
   },
   {
@@ -437,7 +437,7 @@ const catalog = [
     image: designPearlNumber,
     styleId: "pearl-number",
     styleName: "Pearl Number",
-    stylePrice: { bento: 5, retro: 7, medium: 5, large: 5 },
+    stylePrice: { bento: 6, retro: 6, medium: 6, large: 6 },
     disableText: false,
   },
   {
@@ -447,7 +447,7 @@ const catalog = [
     image: designGlitterInAir,
     styleId: "retro-ribbons-glitter",
     styleName: "Retro × Glitter in the Air",
-    stylePrice: { retro: 20, medium: 30, large: 40 },
+    stylePrice: { retro: 21, medium: 33, large: 45 },
     disableText: true,
   },
   {
@@ -458,7 +458,7 @@ const catalog = [
     images: [designButterflyGarden, designButterflyGarden2],
     styleId: "butterfly-garden",
     styleName: "Butterfly Garden",
-    stylePrice: { bento: 6, retro: 8, medium: 15, large: 20 },
+    stylePrice: { retro: 10, medium: 15, large: 20 },
     disableText: false,
   },
   {
@@ -468,7 +468,7 @@ const catalog = [
     image: designGlitterCake,
     styleId: "glitter-base",
     styleName: "Glitter Base",
-    stylePrice: { bento: 8, retro: 10, medium: 12, large: 14 },
+    stylePrice: { bento: 8, retro: 8, medium: 10, large: 12 },
     disableText: false,
   },
   {
@@ -479,7 +479,7 @@ const catalog = [
     images: [designGenderReveal, genderReveal2, genderReveal3],
     styleId: "gender-reveal",
     styleName: "Gender Reveal",
-    stylePrice: { bento: 5, retro: 7, medium: 10, large: 20 },
+    stylePrice: { bento: 5, retro: 5, medium: 10, large: 15 },
     disableText: false,
   },
   {
@@ -489,7 +489,7 @@ const catalog = [
     image: designSprinklesWithBorder,
     styleId: "sprinkles-with-border",
     styleName: "Sprinkles with Border",
-    stylePrice: { bento: 2, retro: 4, medium: 4, large: 6 },
+    stylePrice: { bento: 3, retro: 4, medium: 5, large: 6 },
     disableText: false,
   },
 ];
