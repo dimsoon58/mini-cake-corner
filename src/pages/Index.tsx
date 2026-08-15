@@ -7,7 +7,7 @@ import { useLang } from "@/context/LanguageContext";
 import logoCream from "@/assets/logo-cream.png";
 import homeCatBento from "@/assets/home-cat-bento.jpg";
 import homeCatDots from "@/assets/home-cat-dots.png";
-import homeCatDiy from "@/assets/home-cat-diy.png";
+import homeCatDiy from "@/assets/home-cat-diy.jpg";
 import homeCatWorkshops from "@/assets/home-cat-workshops.png";
 import homeCatRectangle from "@/assets/home-cat-rectangle.jpg";
 import heroBg from "@/assets/hero-main.jpg";
