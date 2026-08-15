@@ -106,14 +106,14 @@ export const textColors = baseColors;
 
 export const sizes = [
   { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 40, image: boxBento },
-  { id: "retro", name: "Retro Box", description: "Perfect for up to 4 people", price: 40, image: boxRetro },
-  { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 80, image: boxMedium },
-  { id: "large", name: "Large", description: "Ideal for up to 16 people", price: 160, image: boxLarge },
+  { id: "retro", name: "Retro Box", description: "Perfect for up to 4 people", price: 45, image: boxRetro },
+  { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 85, image: boxMedium },
+  { id: "large", name: "Large", description: "Ideal for up to 16 people", price: 165, image: boxLarge },
 ];
 
 export const shapes = [
   { id: "round", name: "Round", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "heart", name: "Heart", extraPrice: { bento: 3, retro: 3, medium: 5, large: 10 } },
+  { id: "heart", name: "Heart", extraPrice: { bento: 3, retro: 3, medium: 5, large: 5 } },
 ];
 
 export const flavorCategories = [
@@ -128,10 +128,9 @@ export const flavorCategories = [
   },
   {
     name: "Special Flavors",
-    extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 },
+    extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 },
     flavors: [
       { id: "chocolate-lovers", name: "Chocolate Lovers", description: "Moist chocolate sponge with rich chocolate ganache", image: flavorChocolateLovers },
-      { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", image: flavorChocolateLoverBerrylicious },
       { id: "dark-berrylicious", name: "Dark Berrylicious", description: "Fluffy chocolate sponge filled with a generous raspberry coulis and whipped cream", image: flavorDarkBerrylicious },
       { id: "white-berrylicious", name: "White Berrylicious", description: "Fluffy vanilla sponge filled with a generous raspberry coulis and whipped cream", image: flavorWhiteBerrylicious },
       { id: "salted-caramel", name: "Salted Butter Caramel", description: "Fluffy vanilla sponge filled with caramel and whipped cream", image: flavorSaltedCaramel },
@@ -140,8 +139,9 @@ export const flavorCategories = [
   },
   {
     name: "Deluxe Flavors",
-    extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 },
+    extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 },
     flavors: [
+      { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", image: flavorChocolateLoverBerrylicious },
       { id: "tiramisu", name: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", image: flavorTiramisu },
       { id: "praline", name: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelised almond, hazelnut and whipped cream", image: flavorPraline },
       { id: "pistachio-lovers", name: "Pistachio Lovers", description: "Fluffy vanilla sponge filled with caramelised pistachio and whipped cream", image: flavorPistachio },

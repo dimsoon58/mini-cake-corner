@@ -104,13 +104,13 @@ const textColors = baseColors;
 
 const sizes = [
   { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 40 },
-  { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 80 },
-  { id: "large", name: "Large", description: "Ideal for up to 16 people", price: 160 },
+  { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 85 },
+  { id: "large", name: "Large", description: "Ideal for up to 16 people", price: 165 },
 ];
 
 const shapes = [
   { id: "round", name: "Round", extraPrice: { bento: 0, medium: 0, large: 0 } },
-  { id: "heart", name: "Heart", extraPrice: { bento: 3, medium: 5, large: 10 } },
+  { id: "heart", name: "Heart", extraPrice: { bento: 3, medium: 5, large: 5 } },
 ];
 
 const flavorCategories = [
@@ -125,7 +125,7 @@ const flavorCategories = [
   },
   {
     name: "Special Flavors",
-    extraPrice: { bento: 2, medium: 4, large: 8 },
+    extraPrice: { bento: 2, medium: 5, large: 10 },
     flavors: [
       { id: "chocolate-lovers", name: "Chocolate Lovers", description: "Moist chocolate sponge with rich chocolate ganache", image: flavorChocolateLovers },
       { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", image: flavorChocolateLoverBerrylicious },
@@ -137,7 +137,7 @@ const flavorCategories = [
   },
   {
     name: "Deluxe Flavors",
-    extraPrice: { bento: 4, medium: 8, large: 16 },
+    extraPrice: { bento: 4, medium: 10, large: 15 },
     flavors: [
       { id: "tiramisu", name: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", image: flavorTiramisu },
       { id: "praline", name: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelized almond, hazelnut and whipped cream", image: flavorPraline },

@@ -149,33 +149,33 @@ const baseColors = [
 
 const sizes = [
   { id: "bento", name: "Bento", price: 40, image: boxBento },
-  { id: "retro", name: "Retro Box", price: 40, image: boxRetro },
-  { id: "medium", name: "Medium", price: 80, image: boxMedium },
-  { id: "large", name: "Large", price: 160, image: boxLarge },
+  { id: "retro", name: "Retro Box", price: 45, image: boxRetro },
+  { id: "medium", name: "Medium", price: 85, image: boxMedium },
+  { id: "large", name: "Large", price: 165, image: boxLarge },
 ];
 
 const shapes = [
   { id: "round", name: "Round", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "heart", name: "Heart", extraPrice: { bento: 3, retro: 3, medium: 5, large: 10 } },
+  { id: "heart", name: "Heart", extraPrice: { bento: 3, retro: 3, medium: 5, large: 5 } },
 ];
 
 const flavors = [
   { id: "vanilla", name: "Vanilla", image: flavorVanilla, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
   { id: "red-velvet", name: "Red Velvet", image: flavorRedVelvet, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
   { id: "chocolate", name: "Chocolate", image: flavorChocolate, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "chocolate-lovers", name: "Chocolate Lovers", image: flavorChocolateLovers, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", image: flavorChocolateLoverBerrylicious, extraPrice: { bento: 3, retro: 3, medium: 6, large: 10 } },
-  { id: "dark-berrylicious", name: "Dark Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "white-berrylicious", name: "White Berrylicious", image: flavorWhiteBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "salted-caramel", name: "Salted Butter Caramel", image: flavorSaltedCaramel, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "lemon-curd", name: "Lemon Curd", image: flavorLemonCurd, extraPrice: { bento: 2, retro: 2, medium: 4, large: 8 } },
-  { id: "tiramisu", name: "Tiramisu", image: flavorTiramisu, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
-  { id: "praline", name: "Praline Obsession", image: flavorPraline, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
-  { id: "pistachio-lovers", name: "Pistachio Lovers", image: flavorPistachio, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
-  { id: "passion-fruit", name: "Passion Fruit", image: flavorPassionFruit, extraPrice: { bento: 4, retro: 4, medium: 8, large: 16 } },
-  { id: "vanilla-gf", name: "Vanilla Gluten-Free", image: flavorVanilla, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", image: flavorRedVelvet, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "chocolate-gf", name: "Chocolate Gluten-Free", image: flavorChocolate, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "chocolate-lovers", name: "Chocolate Lovers", image: flavorChocolateLovers, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 } },
+  { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", image: flavorChocolateLoverBerrylicious, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
+  { id: "dark-berrylicious", name: "Dark Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 } },
+  { id: "white-berrylicious", name: "White Berrylicious", image: flavorWhiteBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 } },
+  { id: "salted-caramel", name: "Salted Butter Caramel", image: flavorSaltedCaramel, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 } },
+  { id: "lemon-curd", name: "Lemon Curd", image: flavorLemonCurd, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 } },
+  { id: "tiramisu", name: "Tiramisu", image: flavorTiramisu, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
+  { id: "praline", name: "Praline Obsession", image: flavorPraline, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
+  { id: "pistachio-lovers", name: "Pistachio Lovers", image: flavorPistachio, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
+  { id: "passion-fruit", name: "Passion Fruit", image: flavorPassionFruit, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
+  { id: "vanilla-gf", name: "Vanilla Gluten-Free", image: flavorVanilla, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
+  { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", image: flavorRedVelvet, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
+  { id: "chocolate-gf", name: "Chocolate Gluten-Free", image: flavorChocolate, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
 ];
 
 const candles = [

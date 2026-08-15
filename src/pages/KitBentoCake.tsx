@@ -50,7 +50,7 @@ import candleRibbon from "@/assets/candle-ribbon.png";
 import candlePinkCar from "@/assets/candle-pink-car.png";
 import candleRainbow from "@/assets/candle-rainbow.png";
 
-const BASE_PRICE = 40;
+const BASE_PRICE = 45;
 
 const shapes = [
   { id: "round", name: "Round", nameFr: "Rond", extraPrice: 0 },
