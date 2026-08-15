@@ -11,6 +11,7 @@ import homeCatDiy from "@/assets/home-cat-diy.png";
 import homeCatWorkshops from "@/assets/home-cat-workshops.png";
 import homeCatRectangle from "@/assets/cake-homemade.png";
 import heroBg from "@/assets/hero-main.jpg";
+import heroVideo from "@/assets/hero-video.mp4";
 import featureCake from "@/assets/feature-cake.png";
 import featurePipingBag from "@/assets/feature-piping-bag.png";
 import featureWhisk from "@/assets/feature-whisk.png";
@@ -192,9 +193,16 @@ const Index = () => {
     <Layout overlayHero>
       {/* Hero Section */}
       <section className="relative text-primary-foreground overflow-hidden min-h-[80vh]">
-        <div
-          className="absolute inset-0 bg-cover"
-          style={{ backgroundImage: `url(${heroBg})`, backgroundPosition: "center 40%" }}
+        <video
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: "center 40%" }}
+          src={heroVideo}
+          poster={heroBg}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
         />
         <div className="absolute inset-0 bg-foreground/30" />
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
