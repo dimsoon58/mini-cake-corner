@@ -1,121 +1,83 @@
+import { useLang } from "@/context/LanguageContext";
+
 export interface AllergenInfo {
-  contains: string;
-  mayContain: string;
-  warning?: string;
+  /** Allergen list shown in English */
+  en: string;
+  /** Allergen list shown in French */
+  fr: string;
+  /** Highlight the line, used for flavours containing nuts */
+  warn?: boolean;
 }
+
+const STANDARD: AllergenInfo = {
+  en: "Gluten (wheat), eggs, milk",
+  fr: "Gluten (blé), œufs, lait",
+};
+
+const GLUTEN_FREE: AllergenInfo = {
+  en: "Eggs, milk",
+  fr: "Œufs, lait",
+};
 
 export const allergenMap: Record<string, AllergenInfo> = {
   // Standard
-  "vanilla": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
-  "red-velvet": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
-  "chocolate": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
+  "vanilla": STANDARD,
+  "red-velvet": STANDARD,
+  "chocolate": STANDARD,
   // Special
-  "chocolate-lovers": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
-  "chocolate-lover-berrylicious": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
-  "dark-berrylicious": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
-  "white-berrylicious": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
-  "salted-caramel": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
-  "lemon-curd": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
-  "orange-blossom": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
+  "chocolate-lovers": STANDARD,
+  "chocolate-lover-berrylicious": STANDARD,
+  "dark-berrylicious": STANDARD,
+  "white-berrylicious": STANDARD,
+  "salted-caramel": STANDARD,
+  "lemon-curd": STANDARD,
+  "orange-blossom": STANDARD,
   // Deluxe
-  "tiramisu": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
+  "tiramisu": STANDARD,
   "praline": {
-    contains: "gluten (wheat), eggs, milk, nuts (almond, hazelnut)",
-    mayContain: "other nuts",
-    warning: "Contains almond & hazelnut",
+    en: "Gluten (wheat), eggs, milk, almonds, hazelnuts",
+    fr: "Gluten (blé), œufs, lait, amandes, noisettes",
+    warn: true,
   },
   "pistachio-lovers": {
-    contains: "gluten (wheat), eggs, milk, nuts (pistachio)",
-    mayContain: "other nuts",
-    warning: "Contains pistachio",
+    en: "Gluten (wheat), eggs, milk, pistachios",
+    fr: "Gluten (blé), œufs, lait, pistaches",
+    warn: true,
   },
-  "passion-fruit": {
-    contains: "gluten (wheat), eggs, milk",
-    mayContain: "nuts",
-  },
+  "passion-fruit": STANDARD,
   // Gluten-free
-  "vanilla-gf": {
-    contains: "eggs, milk",
-    mayContain: "gluten (wheat), nuts",
-  },
-  "red-velvet-gf": {
-    contains: "eggs, milk",
-    mayContain: "gluten (wheat), nuts",
-  },
-  "chocolate-gf": {
-    contains: "eggs, milk",
-    mayContain: "gluten (wheat), nuts",
-  },
+  "vanilla-gf": GLUTEN_FREE,
+  "red-velvet-gf": GLUTEN_FREE,
+  "chocolate-gf": GLUTEN_FREE,
 };
 
+/** Allergen line shown under a flavour name */
 export const AllergenDisplay = ({ flavorId }: { flavorId: string }) => {
+  const { t } = useLang();
   const info = allergenMap[flavorId];
   if (!info) return null;
 
-  const isGlutenFree = flavorId.endsWith("-gf");
-
-  if (isGlutenFree) {
-    return (
-      <div className="text-[10px] leading-tight mt-1 space-y-0.5">
-        <p className="text-muted-foreground">
-          <span className="font-medium">Contains:</span> Eggs, Milk
-        </p>
-        <p className="text-muted-foreground">
-          <span className="font-medium">May contain:</span> Gluten, Nuts
-        </p>
-        <p className="text-muted-foreground/70 italic">
-          Prepared in a kitchen that processes gluten.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="text-[10px] leading-tight mt-1 space-y-0.5">
-      {info.warning && (
-        <p className="font-semibold text-destructive">⚠️ {info.warning}</p>
+    <p className="text-[10px] leading-tight mt-1 text-muted-foreground">
+      {info.warn && <span aria-hidden="true">⚠️ </span>}
+      <span className="font-medium">{t("Contains:", "Contient :")}</span>{" "}
+      {t(info.en, info.fr)}
+    </p>
+  );
+};
+
+/** General allergen notice, shown once under the flavour selection */
+export const AllergenNotice = ({ className = "" }: { className?: string }) => {
+  const { t } = useLang();
+  return (
+    <p className={`text-[11px] leading-relaxed text-muted-foreground/80 max-w-2xl mx-auto text-center ${className}`}>
+      <span className="font-medium">
+        {t("Allergen notice:", "Information allergènes :")}
+      </span>{" "}
+      {t(
+        "Our products are prepared in a kitchen where gluten, nuts and other allergens are also handled. While we take precautions to minimise cross-contact, we cannot guarantee the complete absence of traces.",
+        "Nos produits sont préparés dans une cuisine où sont également manipulés du gluten, des fruits à coque et d'autres allergènes. Malgré les précautions prises pour limiter les contaminations croisées, nous ne pouvons garantir l'absence totale de traces."
       )}
-      <p className="text-muted-foreground">
-      <span className="font-medium">Allergens:</span> Gluten, Eggs, Milk
-        {flavorId === "praline" && ", Nuts (almond, hazelnut)"}
-        {flavorId === "pistachio-lovers" && ", Nuts (pistachio)"}
-      </p>
-      <p className="text-muted-foreground">
-        (May contain Nuts)
-      </p>
-    </div>
+    </p>
   );
 };

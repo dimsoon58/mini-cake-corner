@@ -172,7 +172,7 @@ const Inspiration = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="font-sans uppercase tracking-[0.105em] text-4xl md:text-5xl text-foreground mb-4">
-            {t("Inspiration", "Inspiration")}
+            {t("Inspirations", "Inspirations")}
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             {t(

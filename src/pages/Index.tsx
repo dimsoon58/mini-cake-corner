@@ -108,7 +108,7 @@ const features = [
     title: "Personalised",
     titleFr: "Personnalisé",
     description: "Your perfect cake, from flavours to decoration.",
-    descFr: "Des saveurs aux finitions, créez le gâteau qui vous ressemble.",
+    descFr: "Des saveurs à la décoration, personnalisez chaque détail de votre gâteau.",
     image: featureCake,
   },
   {
@@ -211,7 +211,7 @@ const Index = () => {
             {t("LET THEM EAT CAKE", "LET THEM EAT CAKE")}
           </h1>
           <p className="text-base md:text-lg max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
-            {t("Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.", "Des gâteaux signature à la crème fouettée, délicatement réalisés, décorés avec finesse et incroyablement légers.")}
+            {t("Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.", "Des gâteaux signature à la crème fouettée, décorés avec finesse et incroyablement légers.")}
           </p>
           <Button
             size="lg"

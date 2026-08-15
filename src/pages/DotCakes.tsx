@@ -12,6 +12,7 @@ import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
 import { flavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
+import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
 
 /* Dot cake pricing: pack base price + per-dot surcharge for premium/deluxe
    flavours, split evenly across the chosen flavours. */
@@ -194,7 +195,7 @@ const DotCakes = () => {
           DOT CAKES
         </h1>
         <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-          {t("Bite-sized cakes topped with a cloud of colourful sprinkles, perfect for parties, gifts and moments when one cake just isn't enough.", "Nos Dot Cakes allient une crème fouettée légère à des sprinkles colorés, pour de petites créations gourmandes à partager ou à offrir.")}
+          {t("Soft sponge, light whipped cream and colourful sprinkles, in small formats made for sharing.", "Une génoise moelleuse, une crème fouettée légère et des sprinkles colorés réunis dans de petits formats à partager.")}
         </p>
 
         <div className="max-w-4xl mx-auto space-y-14">
@@ -306,6 +307,7 @@ const DotCakes = () => {
                             </div>
                             <div className="p-3 text-center">
                               <p className="font-sans font-medium text-sm tracking-[0.105em]">{flavor.name}</p>
+                              <AllergenDisplay flavorId={flavor.id} />
                             </div>
                           </div>
                         );
@@ -314,6 +316,7 @@ const DotCakes = () => {
                   </div>
                 );
               })}
+              <AllergenNotice className="pt-2" />
             </section>
           )}
 

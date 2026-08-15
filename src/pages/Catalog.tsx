@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
 import ExtraImageLightbox from "@/components/ExtraImageLightbox";
-import { allergenMap } from "@/data/allergens";
+import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
@@ -254,7 +254,7 @@ const catalog = [
   {
     id: "normal-without-border",
     name: "Normal without Border",
-    description: "Clean and simple smooth finish",
+    description: "A smooth, clean and elegant finish",
     image: styleNormalWithoutBorder,
     styleId: "normal-without-border",
     styleName: "Normal without border",
@@ -307,7 +307,7 @@ const catalog = [
     id: "pearl-border-retro",
     bestSeller: true,
     name: "Pearl Border × Retro Decoration",
-    description: "Three elegant pearl borders with a retro decoration",
+    description: "Three elegant pearl borders on a retro design",
     image: designPearlBorders,
     styleId: "pearl-border-retro",
     styleName: "Pearl Border × Retro Decoration",
@@ -381,7 +381,7 @@ const catalog = [
   {
     id: "drawing",
     name: "Drawing",
-    description: "Hand-drawn custom design",
+    description: "A simple, personalised hand-drawn design. Detailed illustrations are available on request.",
     image: designDrawing,
     images: [designDrawing, drawing1],
     styleId: "custom-drawing",
@@ -443,7 +443,7 @@ const catalog = [
   {
     id: "retro-ribbons-glitter",
     name: "Retro × Glitter in the Air",
-    description: "A retro cake with ribbons and glitter in the center, blow on it and the glitter flies into the air",
+    description: "A retro cake finished with glitter you blow on, for a spectacular effect",
     image: designGlitterInAir,
     styleId: "retro-ribbons-glitter",
     styleName: "Retro × Glitter in the Air",
@@ -453,7 +453,7 @@ const catalog = [
   {
     id: "butterfly-garden",
     name: "Butterfly Garden",
-    description: "A beautiful gradient cake adorned with pearls and edible butterfly",
+    description: "A gradient cake adorned with pearls and edible butterflies",
     image: designButterflyGarden,
     images: [designButterflyGarden, designButterflyGarden2],
     styleId: "butterfly-garden",
@@ -554,7 +554,7 @@ const designAllowedExtras: Record<string, string[]> = {
 const collections = [
   { title: "The Minimal Collection", ids: ["normal-with-border", "normal-without-border"] },
   { title: "The Vintage Collection", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
-  { title: "The Charming Collection", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
+  { title: "The Iconic Collection", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
   { title: "The Original Collection", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
   { title: "The Personalised Collection", ids: ["printed-picture", "gender-reveal", "drawing"] },
 ];
@@ -670,7 +670,7 @@ const textStyles = [
 const collectionTitleFr: Record<string, string> = {
   "The Minimal Collection": "La collection Minimaliste",
   "The Vintage Collection": "La collection Vintage",
-  "The Charming Collection": "La collection Charmante",
+  "The Iconic Collection": "La collection Iconique",
   "The Original Collection": "La collection Originale",
   "The Personalised Collection": "La collection Personnalisée",
 };
@@ -679,26 +679,26 @@ const cakeNameFr: Record<string, string> = {
   "normal-with-border": "Classique avec bordure",
 };
 const cakeDescFr: Record<string, string> = {
-  "normal-without-border": "Une finition lisse, épurée et toute simple",
+  "normal-without-border": "Une finition lisse, épurée et élégante",
   "normal-with-border": "Un gâteau classique avec une élégante bordure pochée",
   "heart-bomb": "Un gâteau romantique recouvert de délicates décorations en forme de cœur",
   "retro-cake": "Un style vintage aux décorations élégantes",
   "glitter-cherries-retro": "De pétillantes décorations de cerises sur un gâteau rétro",
-  "pearl-border-retro": "Trois élégantes bordures de perles avec une décoration rétro",
+  "pearl-border-retro": "Trois élégantes bordures de perles sur un décor rétro",
   "retro-ribbons": "De ravissants rubans sur un gâteau rétro",
   "roses-please": "Un gâteau élégant orné de délicates roses pochées.",
   "retro-glitter-cake": "Une finition pailletée et scintillante sur un gâteau rétro",
   "printed-picture": "Ajoutez une touche personnelle avec une photo ou un logo imprimé sur le gâteau",
   "shag-cake": "Un shag cake d'inspiration rétro, à la texture riche et aux détails colorés",
   "rainbow-cake": "Un gâteau amusant de style rétro, avec des arcs-en-ciel pastel, des vermicelles et des bordures pochées",
-  "drawing": "Un dessin personnalisé réalisé à la main",
+  "drawing": "Un dessin simple, personnalisé et réalisé à la main. Les illustrations complexes sont disponibles sur devis.",
   "cherries-retro": "Un gâteau rétro couronné de cerises",
   "scattered-retro-pearls": "De délicates perles éparpillées sur le gâteau, avec une bordure de perles et une décoration rétro",
   "gold-leaves": "Un gâteau élégant avec une bordure de feuilles d'or",
   "golden-cake": "Un gâteau entièrement doré et luxueux",
   "pearl-number": "Personnalisez avec un chiffre en perles",
-  "retro-ribbons-glitter": "Un gâteau rétro avec des rubans et des paillettes au centre : soufflez dessus et les paillettes s'envolent dans les airs",
-  "butterfly-garden": "Un gâteau dégradé, orné de perles et d'un papillon comestible.",
+  "retro-ribbons-glitter": "Un gâteau rétro sublimé de paillettes à souffler pour une finition spectaculaire.",
+  "butterfly-garden": "Un gâteau dégradé, orné de perles et de papillons comestibles.",
   "glitter-base": "Une base pailletée et scintillante entourée de feuilles d'or",
   "gender-reveal": "Choisissez la couleur intérieure. Parfait pour votre annonce si spéciale",
   "sprinkles-with-border": "Un gâteau classique avec des bordures décoratives et des vermicelles colorés",
@@ -1284,7 +1284,7 @@ const Catalog = () => {
           BENTO CAKES
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          {t("Get inspired by our signature cake designs, choose your favourite, then personalise it with your preferred size, flavour, colours and message to create a cake that's uniquely yours.", "Inspirez-vous de nos créations signature, choisissez votre design préféré, puis personnalisez la taille, la saveur, les couleurs et le message pour créer un gâteau unique, à votre image.")}
+          {t("Choose a signature design and personalise the size, flavour, colours and message.", "Découvrez nos créations signature, choisissez votre design préféré et personnalisez chaque détail pour créer un gâteau à votre image.")}
         </p>
 
         <div className="max-w-6xl mx-auto space-y-20">
@@ -1532,16 +1532,10 @@ const Catalog = () => {
                             <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
                             <div>
                             <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
-                            {info && flavor.id.endsWith("-gf") ? (
-                              <div className="text-[10px] text-muted-foreground leading-tight mt-0.5 space-y-0.5">
-                                <p><span className="font-medium">{t("Contains:", "Contient :")}</span> {t("Eggs, Milk", "Œufs, lait")}</p>
-                                <p><span className="font-medium">{t("May contain:", "Peut contenir :")}</span> {t("Gluten, Nuts", "Gluten, fruits à coque")}</p>
-                                <p className="text-muted-foreground/70 italic">{t("Prepared in a kitchen that processes gluten.", "Préparé dans une cuisine qui manipule du gluten.")}</p>
-                              </div>
-                            ) : info && (
+                            {info && (
                               <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                                {info.warning && <span className="text-destructive font-medium">⚠️ {info.warning} · </span>}
-                                {t("Contains:", "Contient :")} {info.contains}
+                                {info.warn && <span aria-hidden="true">⚠️ </span>}
+                                <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
                               </div>
                             )}
                             </div>
@@ -1551,6 +1545,7 @@ const Catalog = () => {
                     })}
                   </SelectContent>
                 </Select>
+                <AllergenNotice className="pt-1" />
               </div>
 
               {/* Design Display */}

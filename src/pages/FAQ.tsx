@@ -28,6 +28,24 @@ const FAQ = () => {
           answerFr: "Nous utilisons de la crème fouettée, pour un gâteau léger, aérien et pas trop sucré."
         },
         {
+          question: "Do you use buttercream?",
+          questionFr: "Est-ce que vous utilisez de la crème au beurre ?",
+          answer: "Yes, but only for certain details such as writing, drawings, and dark-coloured decorations. Its firmer texture helps keep details intact and prevents darker colours from transferring onto lighter ones.\nFor our DIY Kits, we also use buttercream instead of whipped cream, as it holds up better during transport, in warmer temperatures, and when working with different colours, making it easier to achieve a clean and beautiful result at home.",
+          answerFr: "Oui, mais uniquement pour certains détails comme les écritures, les dessins et les décorations aux couleurs foncées. Sa meilleure tenue permet de garder les détails intacts et d'éviter que les couleurs foncées ne se transfèrent sur les autres teintes.\nPour nos DIY Kits, nous utilisons également de la crème au beurre plutôt que de la chantilly, car elle résiste mieux au transport, à la chaleur et aux mélanges de couleurs, pour vous garantir un résultat plus facile à réaliser et plus propre à la maison."
+        },
+        {
+          question: "Should I take my cake out of the fridge before serving?",
+          questionFr: "Dois-je sortir mon gâteau du réfrigérateur avant de le déguster ?",
+          answer: "No, there's no need. We recommend keeping your cake refrigerated and taking it out only when you're ready to enjoy it.",
+          answerFr: "Non, ce n'est pas nécessaire. Nous vous recommandons de conserver votre gâteau au réfrigérateur et de le sortir uniquement au moment de le déguster."
+        },
+        {
+          question: "Do your cakes contain allergens?",
+          questionFr: "Vos gâteaux contiennent-ils des allergènes ?",
+          answer: "Yes. Depending on the flavour, our cakes may contain gluten (wheat), eggs, milk and nuts. Specific allergens are listed for each flavour when placing your order.\nOur products are prepared in a kitchen where gluten, nuts and other allergens are also handled. While we take precautions to minimise cross-contact, we cannot guarantee the complete absence of traces.\nIf you have a severe allergy or intolerance, please contact us before placing your order.",
+          answerFr: "Oui. Selon le parfum choisi, nos gâteaux peuvent contenir du gluten (blé), des œufs, du lait et des fruits à coque. Les allergènes spécifiques sont indiqués pour chaque parfum lors de votre commande.\nNos produits sont préparés dans une cuisine où sont également manipulés du gluten, des fruits à coque et d'autres allergènes. Malgré les précautions prises pour limiter les contaminations croisées, nous ne pouvons garantir l'absence totale de traces.\nEn cas d'allergie ou d'intolérance sévère, nous vous recommandons de nous contacter avant de passer commande."
+        },
+        {
           question: "How many days can a cake be kept?",
           questionFr: "Combien de jours peut-on conserver un gâteau ?",
           answer: "The cake can be kept for 2 days. Please note that when dark and light colours are combined, slight colour transfer may occur over time.",
@@ -120,8 +138,8 @@ const FAQ = () => {
         {
           question: "How should I transport the cake?",
           questionFr: "Comment transporter le gâteau ?",
-          answer: "We recommend placing the cake on the floor of the car to keep it as stable as possible. Please turn off the heating to prevent the cake from melting during the drive. When receiving the cake and removing the plastic wrap, make sure to hold it from both the top and the bottom to avoid any damage.",
-          answerFr: "Nous vous recommandons de poser le gâteau au sol dans la voiture, afin qu'il reste le plus stable possible. Pensez à éteindre le chauffage pour éviter qu'il ne fonde pendant le trajet. Au moment de retirer le film plastique, tenez bien le gâteau par le haut et par le bas pour éviter tout dommage."
+          answer: "We recommend placing the cake on the floor of the car so it stays as stable as possible during the journey. Please turn off the heating to prevent it from melting. To remove the plastic wrap, place the cake on a flat surface, hold the wrap gently and pull it away slowly so the cake is not damaged.",
+          answerFr: "Nous vous recommandons de poser le gâteau au sol dans la voiture, afin qu'il reste le plus stable possible pendant le trajet. Pensez à éteindre le chauffage pour éviter qu'il ne fonde. Pour retirer le film plastique, posez le gâteau sur une surface plane, saisissez délicatement le film et retirez-le doucement afin de ne pas abîmer le gâteau."
         },
         {
           question: "Can I get a refund if my cake is damaged after pickup?",

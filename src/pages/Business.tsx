@@ -106,7 +106,7 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2 text-left">
       <p className="text-sm text-muted-foreground leading-relaxed">
-        {t("Tell us more about your company and what you are looking for. We will get back to you with a personalised proposal.", "Parlez-nous de votre entreprise et de ce que vous recherchez. Nous reviendrons vers vous avec une proposition personnalisée.")}
+        {t("Interested in working with us or want to learn more? Fill out the form below and we'll get back to you with more information.", "Envie de travailler avec nous ou d'en savoir plus ? Remplissez le formulaire ci-dessous et nous reviendrons vers vous avec plus d'informations.")}
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
@@ -139,7 +139,7 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
           {errors.companyName && <p className="text-sm text-destructive">{fe(errors.companyName.message)}</p>}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="cc-employees">{t("Number of employees", "Nombre d'employés")} <RequiredMark /></Label>
+          <Label htmlFor="cc-employees">{t("Number of employees", "Nombre d'employés")}</Label>
           <Input id="cc-employees" {...register("numberOfEmployees")} />
           {errors.numberOfEmployees && (
             <p className="text-sm text-destructive">{fe(errors.numberOfEmployees.message)}</p>
@@ -464,8 +464,8 @@ const cards: {
     id: "celebrations",
     title: "Corporate Celebrations",
     titleFr: "Célébrations d'entreprise",
-    subtitle: "We take care of every employee celebration.",
-    subtitleFr: "Nous prenons soin de chaque célébration de vos employés.",
+    subtitle: "Make every employee birthday one to remember.",
+    subtitleFr: "Faites de chaque anniversaire de vos employés un moment mémorable.",
     checks: [
       "Share your calendar with us once",
       "Design and flavour selected by Bento Cake Studio",
@@ -563,10 +563,10 @@ const Business = () => {
     <Layout>
       <div className="container mx-auto px-4 py-16">
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-4">
-          {t("Partnerships & Press", "Partenariats & Presse")}
+          {t("Partnership", "Partenariat")}
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          {t("Partner with Bento Cake Studio, from employee celebrations to bespoke events and hospitality collaborations.", "Devenez partenaire de Bento Cake Studio pour célébrer vos équipes, organiser des événements sur mesure ou créer des collaborations avec votre établissement.")}
+          {t("Bespoke cakes for corporate celebrations, events and hospitality partners.", "Des créations sur mesure pour vos équipes, vos événements et votre établissement.")}
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
@@ -630,7 +630,7 @@ const Business = () => {
                   {t("Corporate Celebrations", "Célébrations d'entreprise")}
                 </DialogTitle>
                 <DialogDescription className="text-muted-foreground leading-relaxed pt-1">
-                  {t("A simple, fully managed way to celebrate your employees throughout the year.", "Une manière simple et entièrement gérée de célébrer vos employés tout au long de l'année.")}
+                  {t("Share your team's birthday calendar once, and we take care of the rest.", "Partagez une seule fois le calendrier des anniversaires de votre équipe, nous nous occupons du reste.")}
                 </DialogDescription>
               </DialogHeader>
               <div className="pt-2">

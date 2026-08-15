@@ -13,7 +13,7 @@ import { format, addDays } from "date-fns";
 import { CalendarIcon, Check, ShoppingCart, ChevronDown, ChevronUp } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useNavigate } from "react-router-dom";
-import { AllergenDisplay } from "@/data/allergens";
+import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
 import { toast } from "sonner";
 import { useLang } from "@/context/LanguageContext";
 
@@ -473,6 +473,7 @@ const KitBentoCake = () => {
                   </div>
                 </div>
               ))}
+              <AllergenNotice className="pt-2" />
             </section>
           )}
 
