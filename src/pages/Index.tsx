@@ -9,7 +9,7 @@ import homeCatBento from "@/assets/home-cat-bento.jpg";
 import homeCatDots from "@/assets/home-cat-dots.png";
 import homeCatDiy from "@/assets/home-cat-diy.png";
 import homeCatWorkshops from "@/assets/home-cat-workshops.png";
-import homeCatRectangle from "@/assets/cake-homemade.png";
+import homeCatRectangle from "@/assets/home-cat-rectangle.jpg";
 import heroBg from "@/assets/hero-main.jpg";
 import heroVideo from "@/assets/hero-video.mp4";
 import featureCake from "@/assets/feature-cake.png";
