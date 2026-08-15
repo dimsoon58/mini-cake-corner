@@ -10,7 +10,7 @@ import homeCatDots from "@/assets/home-cat-dots.png";
 import homeCatDiy from "@/assets/home-cat-diy.jpg";
 import homeCatWorkshops from "@/assets/home-cat-workshops.png";
 import homeCatRectangle from "@/assets/home-cat-rectangle.jpg";
-import heroBg from "@/assets/hero-main.jpg";
+import heroPoster from "@/assets/hero-poster.jpg";
 import heroVideo from "@/assets/hero-video.mp4";
 import featureCake from "@/assets/feature-cake.png";
 import featurePipingBag from "@/assets/feature-piping-bag.png";
@@ -197,12 +197,12 @@ const Index = () => {
           className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: "center 40%" }}
           src={heroVideo}
-          poster={heroBg}
+          poster={heroPoster}
           autoPlay
           loop
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
         />
         <div className="absolute inset-0 bg-foreground/30" />
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
