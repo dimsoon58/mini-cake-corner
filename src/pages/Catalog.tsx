@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import CustomRequestForm from "@/components/CustomRequestForm";
-import { ALL_IMAGES as inspirationImages } from "@/pages/Inspiration";
+import { INSPIRATIONS as inspirationItems } from "@/pages/Inspiration";
 import { format, addDays } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -1256,15 +1256,15 @@ const Catalog = () => {
     const param = searchParams.get("inspiration");
     if (param === null) return;
     const index = parseInt(param, 10);
-    if (isNaN(index) || index < 0 || index >= inspirationImages.length) return;
+    if (isNaN(index) || index < 0 || index >= inspirationItems.length) return;
     handleSelectCake({
       id: `inspiration-${index + 1}`,
       name: t(`Inspiration Cake #${index + 1}`, `Gâteau d'inspiration n°${index + 1}`),
       description: t("Based on the inspiration photo you selected", "D'après la photo d'inspiration que vous avez sélectionnée"),
-      image: inspirationImages[index],
+      image: inspirationItems[index].src,
       styleId: "inspiration",
       styleName: `Inspiration #${index + 1}`,
-      stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+      stylePrice: inspirationItems[index].price,
       disableText: false,
     } as (typeof catalog)[number]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
