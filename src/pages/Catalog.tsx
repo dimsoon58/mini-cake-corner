@@ -78,7 +78,6 @@ import genderReveal2 from "@/assets/gender-reveal-2.jpg";
 import genderReveal3 from "@/assets/gender-reveal-3.jpg";
 import designPrintedPicture from "@/assets/design-printed-picture-new.jpg";
 import printedPicture1 from "@/assets/printed-picture-1.jpg";
-import printedPicture2 from "@/assets/printed-picture-2.jpg";
 import designDrawing from "@/assets/design-drawing-new.jpg";
 import drawing1 from "@/assets/drawing-1.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
@@ -353,7 +352,7 @@ const catalog = [
     name: "Printed Pictures / Logo",
     description: "Add a personal touch with a printed photo or logo on the cake",
     image: designPrintedPicture,
-    images: [designPrintedPicture, printedPicture1, printedPicture2],
+    images: [designPrintedPicture, printedPicture1],
     styleId: "printed-picture",
     styleName: "Printed Picture",
     stylePrice: { bento: 15, retro: 15, medium: 15, large: 15 },
