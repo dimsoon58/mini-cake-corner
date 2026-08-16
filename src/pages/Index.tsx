@@ -161,7 +161,7 @@ const PhotoCarousel = ({ photos, altPrefix, contain = false }: { photos: string[
         {photos.map((photo, index) => (
             <div
               key={index}
-              className={`flex-shrink-0 overflow-hidden ${contain ? "h-64 w-[20rem]" : "h-80 w-72"}`}
+              className={`flex-shrink-0 overflow-hidden ${contain ? "h-52 w-[16rem]" : "h-80 w-72"}`}
             >
               <img
                 src={photo}
