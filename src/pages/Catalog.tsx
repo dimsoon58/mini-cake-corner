@@ -82,6 +82,7 @@ import printedPicture2 from "@/assets/printed-picture-2.jpg";
 import designDrawing from "@/assets/design-drawing-new.jpg";
 import drawing1 from "@/assets/drawing-1.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
+import rectangleCake from "@/assets/home-cat-rectangle.jpg";
 import designRosesPlease2 from "@/assets/design-roses-please-2.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designButterflyGarden2 from "@/assets/design-butterfly-garden-2.jpg";
@@ -152,30 +153,31 @@ const sizes = [
   { id: "retro", name: "Retro Box", price: 45, image: boxRetro },
   { id: "medium", name: "Medium", price: 85, image: boxMedium },
   { id: "large", name: "Large", price: 165, image: boxLarge },
+  { id: "rectangle", name: "Rectangle", price: 450, image: rectangleCake },
 ];
 
 const shapes = [
-  { id: "round", name: "Round", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
+  { id: "round", name: "Round", extraPrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 } },
   { id: "heart", name: "Heart", extraPrice: { bento: 3, retro: 3, medium: 5, large: 5 } },
 ];
 
 const flavors = [
-  { id: "vanilla", name: "Vanilla", image: flavorVanilla, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "red-velvet", name: "Red Velvet", image: flavorRedVelvet, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "chocolate", name: "Chocolate", image: flavorChocolate, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 } },
-  { id: "chocolate-lovers", name: "Chocolate Lovers", image: flavorChocolateLovers, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 } },
-  { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", image: flavorChocolateLoverBerrylicious, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
-  { id: "dark-berrylicious", name: "Dark Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 } },
-  { id: "white-berrylicious", name: "White Berrylicious", image: flavorWhiteBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 } },
-  { id: "salted-caramel", name: "Salted Butter Caramel", image: flavorSaltedCaramel, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 } },
-  { id: "lemon-curd", name: "Lemon Curd", image: flavorLemonCurd, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 } },
-  { id: "tiramisu", name: "Tiramisu", image: flavorTiramisu, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
-  { id: "praline", name: "Praline Obsession", image: flavorPraline, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
-  { id: "pistachio-lovers", name: "Pistachio Lovers", image: flavorPistachio, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
-  { id: "passion-fruit", name: "Passion Fruit", image: flavorPassionFruit, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
-  { id: "vanilla-gf", name: "Vanilla Gluten-Free", image: flavorVanilla, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
-  { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", image: flavorRedVelvet, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
-  { id: "chocolate-gf", name: "Chocolate Gluten-Free", image: flavorChocolate, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 } },
+  { id: "vanilla", name: "Vanilla", image: flavorVanilla, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 } },
+  { id: "red-velvet", name: "Red Velvet", image: flavorRedVelvet, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 } },
+  { id: "chocolate", name: "Chocolate", image: flavorChocolate, extraPrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 } },
+  { id: "chocolate-lovers", name: "Chocolate Lovers", image: flavorChocolateLovers, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10, rectangle: 20 } },
+  { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", image: flavorChocolateLoverBerrylicious, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
+  { id: "dark-berrylicious", name: "Dark Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10, rectangle: 20 } },
+  { id: "white-berrylicious", name: "White Berrylicious", image: flavorWhiteBerrylicious, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10, rectangle: 20 } },
+  { id: "salted-caramel", name: "Salted Butter Caramel", image: flavorSaltedCaramel, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10, rectangle: 20 } },
+  { id: "lemon-curd", name: "Lemon Curd", image: flavorLemonCurd, extraPrice: { bento: 2, retro: 2, medium: 5, large: 10, rectangle: 20 } },
+  { id: "tiramisu", name: "Tiramisu", image: flavorTiramisu, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
+  { id: "praline", name: "Praline Obsession", image: flavorPraline, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
+  { id: "pistachio-lovers", name: "Pistachio Lovers", image: flavorPistachio, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
+  { id: "passion-fruit", name: "Passion Fruit", image: flavorPassionFruit, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
+  { id: "vanilla-gf", name: "Vanilla Gluten-Free", image: flavorVanilla, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
+  { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", image: flavorRedVelvet, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
+  { id: "chocolate-gf", name: "Chocolate Gluten-Free", image: flavorChocolate, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
 ];
 
 const candles = [
@@ -451,6 +453,36 @@ const catalog = [
     disableText: true,
   },
   {
+    id: "rectangle-signature",
+    name: "Signature Rectangle Cake",
+    description: "Our signature rectangle cake, piped by hand.",
+    image: rectangleCake,
+    styleId: "rectangle-signature",
+    styleName: "Signature Rectangle Cake",
+    stylePrice: { rectangle: 0 },
+    disableText: false,
+  },
+  {
+    id: "rectangle-raspberries",
+    name: "Raspberries Rectangle Cake",
+    description: "A rectangle cake covered with fresh raspberries.",
+    image: rectangleCake,
+    styleId: "rectangle-raspberries",
+    styleName: "Raspberries Rectangle Cake",
+    stylePrice: { rectangle: 0 },
+    disableText: false,
+  },
+  {
+    id: "rectangle-strawberry",
+    name: "Strawberry Rectangle Cake",
+    description: "A rectangle cake covered with fresh strawberries.",
+    image: rectangleCake,
+    styleId: "rectangle-strawberry",
+    styleName: "Strawberry Rectangle Cake",
+    stylePrice: { rectangle: 0 },
+    disableText: false,
+  },
+  {
     id: "butterfly-garden",
     name: "Butterfly Garden",
     description: "A gradient cake adorned with pearls and edible butterflies",
@@ -552,11 +584,12 @@ const designAllowedExtras: Record<string, string[]> = {
 
 // Collections: curated groupings shown as separate catalog sections
 const collections = [
-  { title: "The Minimal Collection", ids: ["normal-with-border", "normal-without-border"] },
-  { title: "The Vintage Collection", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
-  { title: "The Iconic Collection", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
-  { title: "The Original Collection", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
-  { title: "The Personalised Collection", ids: ["printed-picture", "gender-reveal", "drawing"] },
+  { title: "The Minimal Collection", anchor: "minimal", ids: ["normal-with-border", "normal-without-border"] },
+  { title: "Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-strawberry"] },
+  { title: "The Vintage Collection", anchor: "vintage", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
+  { title: "The Iconic Collection", anchor: "iconic", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
+  { title: "The Original Collection", anchor: "original", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
+  { title: "The Personalised Collection", anchor: "personalised", ids: ["printed-picture", "gender-reveal", "drawing"] },
 ];
 
 interface CandleSelection {
@@ -669,16 +702,23 @@ const textStyles = [
 // French label maps for module-scope data rendered to customers
 const collectionTitleFr: Record<string, string> = {
   "The Minimal Collection": "La collection Minimaliste",
+  "Rectangle Cakes": "Rectangle Cakes",
   "The Vintage Collection": "La collection Vintage",
   "The Iconic Collection": "La collection Iconique",
   "The Original Collection": "La collection Originale",
   "The Personalised Collection": "La collection Personnalisée",
 };
 const cakeNameFr: Record<string, string> = {
+  "rectangle-signature": "Rectangle Signature",
+  "rectangle-raspberries": "Rectangle aux Framboises",
+  "rectangle-strawberry": "Rectangle aux Fraises",
   "normal-without-border": "Classique sans bordure",
   "normal-with-border": "Classique avec bordure",
 };
 const cakeDescFr: Record<string, string> = {
+  "rectangle-signature": "Notre gâteau rectangle signature, poché à la main.",
+  "rectangle-raspberries": "Un gâteau rectangle recouvert de framboises fraîches.",
+  "rectangle-strawberry": "Un gâteau rectangle recouvert de fraises fraîches.",
   "normal-without-border": "Une finition lisse, épurée et élégante",
   "normal-with-border": "Un gâteau classique avec une élégante bordure pochée",
   "heart-bomb": "Un gâteau romantique recouvert de délicates décorations en forme de cœur",
@@ -729,7 +769,7 @@ const styleNameFr: Record<string, string> = {
   "sprinkles-with-border": "Vermicelles avec bordure",
 };
 const sizeNameFr: Record<string, string> = {
-  bento: "Bento", retro: "Boîte rétro", medium: "Moyen", large: "Grand",
+  bento: "Bento", retro: "Boîte rétro", medium: "Moyen", large: "Grand", rectangle: "Rectangle",
 };
 const shapeNameFr: Record<string, string> = { round: "Rond", heart: "Cœur" };
 const flavorNameFr: Record<string, string> = {
@@ -1270,6 +1310,16 @@ const Catalog = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Arrivee depuis l'accueil avec une ancre : on descend jusqu'a la section
+  useEffect(() => {
+    const ancre = window.location.hash.replace("#", "");
+    if (!ancre) return;
+    const cible = document.getElementById(ancre);
+    if (cible) {
+      requestAnimationFrame(() => cible.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  }, []);
+
   useEffect(() => {
     document.title = "Bento Cakes – Bento Cake Studio";
     return () => {
@@ -1294,7 +1344,7 @@ const Catalog = () => {
               .filter(Boolean) as typeof catalog;
             if (cakes.length === 0) return null;
             return (
-              <section key={collection.title}>
+              <section key={collection.title} id={collection.anchor}>
                 <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
                   {t(collection.title, collectionTitleFr[collection.title] ?? collection.title)}
                 </div>
@@ -1494,7 +1544,7 @@ const Catalog = () => {
                     <SelectValue placeholder={t("Select shape", "Choisir une forme")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {shapes.map((shape) => {
+                    {shapes.filter((shape) => selections.size in shape.extraPrice).map((shape) => {
                       const extra = shape.extraPrice[selections.size as keyof typeof shape.extraPrice] || 0;
                       return (
                         <SelectItem key={shape.id} value={shape.id}>

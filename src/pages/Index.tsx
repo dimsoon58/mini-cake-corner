@@ -257,7 +257,7 @@ const Index = () => {
           <div ref={discoverRef} className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
               { image: homeCatBento, label: "BENTO CAKES", labelFr: "BENTO CAKES", to: "/catalog" },
-              { image: homeCatRectangle, label: "RECTANGLE CAKES", labelFr: "RECTANGLE CAKES", to: "/catalog" },
+              { image: homeCatRectangle, label: "RECTANGLE CAKES", labelFr: "RECTANGLE CAKES", to: "/catalog#rectangle-cakes" },
               { image: homeCatDiy, label: "DIY KITS", labelFr: "DIY KITS", to: "/kit-bento-cake" },
               { image: homeCatDots, label: "DOT CAKES", labelFr: "DOT CAKES", to: "/dot-cakes" },
             ].map((category) => (
