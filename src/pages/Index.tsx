@@ -204,7 +204,7 @@ const Index = () => {
           playsInline
           preload="auto"
         />
-        <div className="absolute inset-0 bg-foreground/30" />
+        <div className="absolute inset-0 bg-foreground/15" />
         <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
           {/* Brand spec: Agrandir Bold 50px, Montserrat stands in until the Agrandir font file is provided */}
           <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
