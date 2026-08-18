@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, addDays } from "date-fns";
-import { CalendarIcon, ChevronDown, ChevronUp } from "lucide-react";
+import { CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,12 @@ import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
 import { flavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
 import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
+import dotGallery1 from "@/assets/dot-gallery-1.jpg";
+import dotGallery2 from "@/assets/dot-gallery-2.jpg";
+import dotGallery3 from "@/assets/dot-gallery-3.jpg";
+import dotGallery4 from "@/assets/dot-gallery-4.jpg";
+import dotGallery5 from "@/assets/dot-gallery-5.jpg";
+import dotGallery6 from "@/assets/dot-gallery-6.jpg";
 
 /* Dot cake pricing: pack base price + per-dot surcharge for premium/deluxe
    flavours, split evenly across the chosen flavours. */
@@ -38,6 +44,60 @@ const tierNoteFr: Record<string, string> = {
 };
 
 const INITIAL_CANDLES_SHOWN = 4;
+
+const dotGallery = [dotGallery1, dotGallery2, dotGallery3, dotGallery4, dotGallery5, dotGallery6];
+
+/* Galerie qui defile, meme principe que le carrousel de la page d'accueil */
+const DotGallery = () => {
+  const { t } = useLang();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: "left" | "right") => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollBy({
+      left: direction === "left" ? -320 : 320,
+      behavior: "smooth",
+    });
+  };
+
+  return (
+    <section className="space-y-6">
+      <SectionHeading>{t("Dot Cakes in Real Life", "Les Dot Cakes en vrai")}</SectionHeading>
+      <div className="relative">
+        <button
+          onClick={() => scroll("left")}
+          aria-label={t("Previous", "Precedent")}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md -ml-3"
+        >
+          <ChevronLeft className="h-5 w-5 text-foreground" />
+        </button>
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto scroll-smooth px-3"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
+          {dotGallery.map((photo, index) => (
+            <div key={index} className="flex-shrink-0 w-64 h-64 overflow-hidden">
+              <img
+                src={photo}
+                alt={`Dot Cake ${index + 1}`}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => scroll("right")}
+          aria-label={t("Next", "Suivant")}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md -mr-3"
+        >
+          <ChevronRight className="h-5 w-5 text-foreground" />
+        </button>
+      </div>
+    </section>
+  );
+};
 
 const SectionHeading = ({ children }: { children: React.ReactNode }) => (
   <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em] text-foreground">
@@ -408,6 +468,8 @@ const DotCakes = () => {
               </Button>
             </section>
           )}
+
+          <DotGallery />
         </div>
       </div>
     </Layout>

@@ -16,8 +16,8 @@ import { useLang } from "@/context/LanguageContext";
 import { useFieldError } from "@/lib/formErrors";
 
 // Photos, remplace chaque import par une photo dédiée quand tu en as
-import workshopHero from "@/assets/home-cat-workshops.png";
-import imgSignature from "@/assets/home-cat-workshops.png";
+import workshopHero from "@/assets/home-cat-workshops.jpg";
+import imgSignature from "@/assets/home-cat-workshops.jpg";
 import imgPaint from "@/assets/design-drawing-new.jpg";
 import imgPrivate from "@/assets/corporate-event-2.png";
 
