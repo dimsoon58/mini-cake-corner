@@ -192,10 +192,10 @@ const Index = () => {
   return (
     <Layout overlayHero>
       {/* Hero Section */}
-      <section className="relative text-primary-foreground overflow-hidden min-h-[80vh]">
+      <section className="relative text-primary-foreground overflow-hidden min-h-[88vh]">
         <video
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ objectPosition: "center 40%" }}
+          style={{ objectPosition: "center 55%" }}
           src={heroVideo}
           poster={heroPoster}
           autoPlay
