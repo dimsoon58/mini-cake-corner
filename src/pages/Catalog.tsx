@@ -584,7 +584,7 @@ const designAllowedExtras: Record<string, string[]> = {
 // Collections: curated groupings shown as separate catalog sections
 const collections = [
   { title: "The Minimal Collection", anchor: "minimal", ids: ["normal-with-border", "normal-without-border"] },
-  { title: "Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-strawberry"] },
+  { title: "The Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-strawberry"] },
   { title: "The Vintage Collection", anchor: "vintage", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
   { title: "The Iconic Collection", anchor: "iconic", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
   { title: "The Original Collection", anchor: "original", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
@@ -701,7 +701,7 @@ const textStyles = [
 // French label maps for module-scope data rendered to customers
 const collectionTitleFr: Record<string, string> = {
   "The Minimal Collection": "La collection Minimaliste",
-  "Rectangle Cakes": "Rectangle Cakes",
+  "The Rectangle Cakes": "The Rectangle Cakes",
   "The Vintage Collection": "La collection Vintage",
   "The Iconic Collection": "La collection Iconique",
   "The Original Collection": "La collection Originale",

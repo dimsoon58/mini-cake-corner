@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
-import logoCream from "@/assets/logo-cream.png";
 import homeCatBento from "@/assets/home-cat-bento.jpg";
 import homeCatDots from "@/assets/home-cat-dots.jpg";
 import homeCatDiy from "@/assets/home-cat-diy.jpg";
@@ -82,9 +81,9 @@ import comment41 from "@/assets/comment-41.png";
 import comment42 from "@/assets/comment-42.png";
 
 const customerPhotos = [
-  customer3, customer4, customer5,
-  customer7, customer9, customer10,
-  customer11, customer12, customer13, customer15,
+  customer4, customer5, customer7,
+  customer9, customer10, customer11,
+  customer12, customer13, customer15, customer3,
   customer16, customer17, customer18, customer19, customer20,
   customer21, customer22, customer23, customer24, customer25,
   customer26, customer27, customer28, customer29,
@@ -251,7 +250,7 @@ const Index = () => {
       {/* Discover Section, category cards */}
       <section className="py-20 bg-background">
         <div className="relative w-full px-4 sm:px-8">
-          <button onClick={() => scrollDiscover("left")} aria-label="Scroll left" className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background p-2 shadow-md items-center justify-center">
+          <button onClick={() => scrollDiscover("left")} aria-label="Scroll left" className="flex absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background p-2 shadow-md items-center justify-center">
             <ChevronLeft className="h-6 w-6 text-foreground" />
           </button>
           <div ref={discoverRef} className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -282,7 +281,7 @@ const Index = () => {
               </Link>
             ))}
           </div>
-          <button onClick={() => scrollDiscover("right")} aria-label="Scroll right" className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background p-2 shadow-md items-center justify-center">
+          <button onClick={() => scrollDiscover("right")} aria-label="Scroll right" className="flex absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background p-2 shadow-md items-center justify-center">
             <ChevronRight className="h-6 w-6 text-foreground" />
           </button>
         </div>
@@ -351,29 +350,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-primary text-primary-foreground py-12">
-        <div className="container mx-auto px-4 text-center">
-            <img
-              src={logoCream}
-              alt="Bento Cake Studio"
-              className="h-12 md:h-14 w-auto mx-auto mb-6"
-            />
-            <p className="text-sm opacity-90 mb-4">
-              {t("© 2026 Bento Cake Studio SNC. All rights reserved.", "© 2026 Bento Cake Studio SNC. Tous droits réservés.")}
-            </p>
-            <p className="text-sm opacity-70 mb-4">
-              <Link to="/legal" className="underline hover:opacity-100">
-                {t("Terms and Conditions & Privacy Policy", "Conditions générales et politique de confidentialité")}
-              </Link>
-            </p>
-            <p className="text-sm opacity-70">
-              <Link to="/newsletter" className="underline hover:opacity-100">
-                {t("Subscribe to newsletter", "S'abonner à la newsletter")}
-              </Link>
-            </p>
-        </div>
-      </footer>
     </Layout>
   );
 };

@@ -392,18 +392,20 @@ const KitBentoCake = () => {
               {t("Choose Your Pickup Date", "Choisir votre date de retrait")}<RequiredAsterisk tooltipKey="date" />
             </h2>
             <p className="text-muted-foreground text-center text-sm">{t("Minimum 4 days notice required", "Un délai minimum de 4 jours est requis")}</p>
-            <div className="flex justify-center">
+            <div className="flex justify-center px-4">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-[280px] justify-start text-left font-normal rounded-none",
+                      "w-full max-w-[320px] justify-start text-left font-normal rounded-none px-3 text-sm",
                       !orderDate && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {orderDate ? format(orderDate, "dd.MM.yyyy") : t("Select a date", "Choisir une date")}
+                    <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">
+                      {orderDate ? format(orderDate, "dd.MM.yyyy") : t("Select a date", "Choisir une date")}
+                    </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="center">

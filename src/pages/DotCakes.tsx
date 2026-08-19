@@ -267,18 +267,20 @@ const DotCakes = () => {
             <p className="text-center text-sm text-muted-foreground">
               {t("Minimum 4 days' notice required.", "Minimum 4 jours à l'avance requis.")}
             </p>
-            <div className="flex justify-center">
+            <div className="flex justify-center px-4">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-[280px] justify-start text-left font-normal rounded-none",
+                      "w-full max-w-[320px] justify-start text-left font-normal rounded-none px-3 text-sm",
                       !orderDate && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {orderDate ? format(orderDate, "PPP") : t("Select your pick-up date", "Sélectionnez votre date de retrait")}
+                    <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">
+                      {orderDate ? format(orderDate, "PPP") : t("Select your pick-up date", "Sélectionnez votre date de retrait")}
+                    </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="center">
