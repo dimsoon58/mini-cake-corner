@@ -28,6 +28,7 @@ import AdminOrder from "./pages/AdminOrder";
 import OrderAction from "./pages/OrderAction";
 import NotFound from "./pages/NotFound";
 import Legal from "./pages/Legal";
+import OurStory from "./pages/OurStory";
 import MyOrders from "./pages/MyOrders";
 import LoyaltyRewards from "./pages/LoyaltyRewards";
 
@@ -67,6 +68,8 @@ const App = () => (
             <Route path="/workshop" element={<Workshop />} />
             <Route path="/kit-bento-cake" element={<KitBentoCake />} />
             <Route path="/inspiration" element={<Inspiration />} />
+            <Route path="/about" element={<OurStory />} />
+            <Route path="/our-story" element={<OurStory />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/checkout" element={<Checkout />} />

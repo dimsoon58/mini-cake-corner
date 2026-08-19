@@ -32,7 +32,7 @@ const navFr: Record<string, string> = {
   "Printing": "Impression",
   "Corporate": "Corporate",
   "Press": "Presse",
-  "FAQ & Contact": "FAQ & Contact",
+  "About Us": "À propos",
 };
 
 const navLinks: NavItem[] = [
@@ -50,7 +50,8 @@ const navLinks: NavItem[] = [
     { to: "/business", label: "Partnerships" },
     { to: "/community-press", label: "Press" },
   ] },
-  { label: "FAQ & Contact", children: [
+  { label: "About Us", children: [
+    { to: "/about", label: "About Us" },
     { to: "/faq", label: "FAQ" },
     { to: "/contact", label: "Contact" },
   ] },
