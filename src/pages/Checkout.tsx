@@ -153,11 +153,21 @@ const uploadReferenceImagesByItem = async (
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+
+      // Guard against non-File/Blob values slipping through (e.g. a stale
+      // cart item hydrated without its original File objects).
+      if (!(file instanceof File) && !(file instanceof Blob)) {
+        console.error(`Reference image ${i} for item ${item.id} is not a File/Blob:`, file);
+        throw new Error(`L'image ${i + 1} de l'article ${item.id} n'est pas valide — merci de la resélectionner.`);
+      }
+
+      const ext = (file instanceof File ? file.name.split(".").pop() : "")?.toLowerCase() || "jpg";
       const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
       const filePath = `${year}/${month}/${orderId}/${item.id}/reference_${i}.${safeExt}`;
 
       let uploaded = false;
+      let lastError: { message?: string; statusCode?: string } | null = null;
+
       for (let attempt = 0; attempt < 3; attempt++) {
         const { error: uploadError } = await supabase.storage
           .from("order-images")
@@ -167,7 +177,13 @@ const uploadReferenceImagesByItem = async (
           uploaded = true;
           break;
         }
-        console.warn(`Upload attempt ${attempt + 1} failed for ${item.id}/reference_${i}:`, uploadError.message);
+
+        lastError = uploadError as unknown as { message?: string; statusCode?: string };
+        console.error(
+          `Upload attempt ${attempt + 1}/3 failed for ${filePath}:`,
+          "message:", lastError?.message,
+          "statusCode:", lastError?.statusCode,
+        );
         if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
       }
 
@@ -175,7 +191,11 @@ const uploadReferenceImagesByItem = async (
         const { data } = supabase.storage.from("order-images").getPublicUrl(filePath);
         uploadedUrls.push(data.publicUrl);
       } else {
-        console.error(`Failed to upload ${item.id}/reference_${i} after 3 attempts`);
+        // Stop here rather than silently reporting "Upload complete" —
+        // handleSubmit's catch block surfaces this message in a toast.
+        throw new Error(
+          `Échec de l'upload de ${filePath} après 3 tentatives : ${lastError?.message || "erreur inconnue"}${lastError?.statusCode ? ` (statusCode ${lastError.statusCode})` : ""}`
+        );
       }
     }
 
