@@ -130,6 +130,11 @@ const detectZoneFromAddress = (address: string): typeof DELIVERY_ZONES[0] | null
 
 const formatDisplayDate = (date: Date) => format(date, "dd.MM.yyyy");
 
+// NOTE: the helpers below (image upload, order_items row building, pickup
+// datetime formatting) are not called from handleSubmit right now — order
+// creation happens after PostFinance confirms payment, not at checkout
+// submission. Kept here ready to be wired into that post-payment step.
+
 // Uploads each item's reference images into its own folder in the
 // (public) "order-images" bucket and returns a map of cart item id -> URLs,
 // so each order_items row can carry only the images that belong to it.
@@ -422,57 +427,12 @@ const Checkout = () => {
         return;
       }
 
+      // Not persisted yet: this id is only a correlation key sent to
+      // PostFinance (merchantReference + return URL). orders/order_items
+      // only get created once payment is confirmed authorized — creating
+      // them here would leave a fake "order" behind for every abandoned
+      // cart, since not everyone who reaches this button completes payment.
       const orderId = crypto.randomUUID();
-
-      // Upload each item's reference images into its own folder
-      const referenceImagesByItemId = await uploadReferenceImagesByItem(items, orderId, (status) => {
-        toast({ title: status });
-      });
-
-      const pickupDeliveryDatetime = buildPickupDeliveryDatetime(
-        deliveryDate,
-        deliveryOption === "pickup" ? pickupTime : deliveryTime
-      );
-
-      // Save the order (general information) — order_validation and
-      // payment_status default to "pending" in the database.
-      const { data: orderData, error: orderError } = await supabase.from("orders").insert({
-        id: orderId,
-        order_source: "website",
-        lang,
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        phone: fullPhoneNumber,
-        delivery_method: deliveryOption,
-        delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
-        delivery_zone: deliveryOption === "delivery" ? (detectedZone?.name ?? null) : null,
-        delivery_fee: deliveryOption === "delivery" ? deliveryPrice : 0,
-        pickup_delivery_datetime: pickupDeliveryDatetime,
-        order_comment: deliveryOption === "delivery" ? deliveryComment : null,
-        total_amount: totalPrice,
-        newsletter_subscription: subscribeNewsletter,
-      }).select("id").single();
-
-      if (orderError) {
-        console.error("Order save error:", orderError);
-        throw new Error("Impossible d'enregistrer la commande.");
-      }
-
-      const createdOrderId = orderData?.id || orderId;
-
-      // Save each cake/product as its own order_items row
-      const orderItemRows = items.map(item =>
-        buildOrderItemRow(item, createdOrderId, referenceImagesByItemId)
-      );
-      const { error: itemsError } = await supabase.from("order_items").insert(orderItemRows);
-
-      if (itemsError) {
-        console.error("Order items save error:", itemsError);
-        // Avoid leaving an order with no items behind
-        await supabase.from("orders").delete().eq("id", createdOrderId);
-        throw new Error("Impossible d'enregistrer les articles de la commande.");
-      }
 
       // Build payload for the PostFinance transaction
       const paymentPayload = {
@@ -491,7 +451,7 @@ const Checkout = () => {
         deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
         deliveryFee: deliveryPrice,
         totalAmount: totalPrice,
-        orderId: createdOrderId || orderId,
+        orderId,
         lang,
       };
 
