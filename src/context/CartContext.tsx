@@ -16,6 +16,10 @@ export interface CartItem {
   shapeName: string;
   flavor: string;
   flavorName: string;
+  /* Optional clean arrays for products with more than one flavour (e.g. Dot
+     Cakes). When present, these take priority over parsing `flavor`/`flavorName`. */
+  flavors?: string[];
+  flavorNames?: string[];
   style: string;
   styleName: string;
   baseColor: string;

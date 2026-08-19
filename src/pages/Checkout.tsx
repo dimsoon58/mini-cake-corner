@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
 import {
   sizes, shapes, styles, extras as catalogExtrasData,
-  getFlavorCategoryExtra, getCandleTotalPrice, candles as customisationCandles,
+  getFlavorCategoryExtra, getCandleTotalPrice, getExtraPrice, candles as customisationCandles,
   flavorCategories,
 } from "@/data/customization";
 import { Button } from "@/components/ui/button";
@@ -28,12 +28,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { useCart } from "@/context/CartContext";
+import { useCart, type CartItem } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-import { EmbeddedStripeCheckout } from "@/components/EmbeddedCheckout";
+import type { Database } from "@/integrations/supabase/types";
 
 // Country codes
 const COUNTRY_CODES = [
@@ -130,49 +130,144 @@ const detectZoneFromAddress = (address: string): typeof DELIVERY_ZONES[0] | null
 
 const formatDisplayDate = (date: Date) => format(date, "dd.MM.yyyy");
 
-const uploadImageFilesToStorage = async (
-  allFiles: File[],
+// Uploads each item's reference images into its own folder in the
+// (public) "order-images" bucket and returns a map of cart item id -> URLs,
+// so each order_items row can carry only the images that belong to it.
+const uploadReferenceImagesByItem = async (
+  items: CartItem[],
   orderId: string,
   onProgress?: (status: string) => void
-): Promise<string[]> => {
-  if (!allFiles.length) return [];
+): Promise<Record<string, string[]>> => {
+  const itemsWithFiles = items.filter(item => (item.imageFiles || []).length > 0);
+  if (!itemsWithFiles.length) return {};
 
   onProgress?.("Uploading images...");
   const now = new Date();
   const year = String(now.getFullYear());
   const month = String(now.getMonth() + 1).padStart(2, "0");
-  const uploadedUrls: string[] = [];
+  const urlsByItemId: Record<string, string[]> = {};
 
-  for (let i = 0; i < allFiles.length; i++) {
-    const file = allFiles[i];
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
-    const filePath = `${year}/${month}/${orderId}/reference_${i}.${safeExt}`;
+  for (const item of itemsWithFiles) {
+    const files = item.imageFiles || [];
+    const uploadedUrls: string[] = [];
 
-    let uploaded = false;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const { error: uploadError } = await supabase.storage
-        .from("order-images")
-        .upload(filePath, file, { contentType: file.type, upsert: true });
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+      const filePath = `${year}/${month}/${orderId}/${item.id}/reference_${i}.${safeExt}`;
 
-      if (!uploadError) {
-        uploaded = true;
-        break;
+      let uploaded = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { error: uploadError } = await supabase.storage
+          .from("order-images")
+          .upload(filePath, file, { contentType: file.type, upsert: true });
+
+        if (!uploadError) {
+          uploaded = true;
+          break;
+        }
+        console.warn(`Upload attempt ${attempt + 1} failed for ${item.id}/reference_${i}:`, uploadError.message);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
       }
-      console.warn(`Upload attempt ${attempt + 1} failed for reference_${i}:`, uploadError.message);
-      if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+
+      if (uploaded) {
+        const { data } = supabase.storage.from("order-images").getPublicUrl(filePath);
+        uploadedUrls.push(data.publicUrl);
+      } else {
+        console.error(`Failed to upload ${item.id}/reference_${i} after 3 attempts`);
+      }
     }
 
-    if (uploaded) {
-      const { data } = supabase.storage.from("order-images").getPublicUrl(filePath);
-      uploadedUrls.push(data.publicUrl);
-    } else {
-      console.error(`Failed to upload reference_${i} after 3 attempts`);
-    }
+    urlsByItemId[item.id] = uploadedUrls;
   }
 
   onProgress?.("Upload complete");
-  return uploadedUrls;
+  return urlsByItemId;
+};
+
+// Product type stored on order_items, derived from the fields each product
+// page already sets on the cart item — no page other than Checkout changes.
+type ProductType = Database["public"]["Enums"]["product_type"];
+
+const PRODUCT_TYPE_BY_SIZE: Record<string, ProductType> = {
+  "dot-cakes": "dot_cakes",
+  "kit-bento": "diy_kit",
+  "printing": "edible_printing",
+  "rectangle": "rectangle_cake",
+};
+
+const getProductType = (item: CartItem): ProductType => {
+  if (item.isCandleProduct) return "candles";
+  return PRODUCT_TYPE_BY_SIZE[item.size] || "bento_cake";
+};
+
+// Fallback for pages that only set a single flavour name string (everything
+// except Dot Cakes, which sets item.flavorNames directly). order_items only
+// stores the readable names — technical ids stay frontend-only.
+const splitList = (value: string): string[] =>
+  value ? value.split(", ").map(v => v.trim()).filter(Boolean) : [];
+
+const getItemFlavorNames = (item: CartItem): string[] =>
+  item.flavorNames && item.flavorNames.length ? item.flavorNames : splitList(item.flavorName);
+
+const buildCandlesJson = (item: CartItem) =>
+  (item.candles || [])
+    .filter(c => c.quantity > 0)
+    .map(c => {
+      const candle = customisationCandles.find(x => x.id === c.id);
+      return {
+        id: c.id,
+        name: candle?.name || c.id,
+        quantity: c.quantity,
+        has_pack: c.hasPack,
+        unit_price: candle?.unitPrice ?? 0,
+      };
+    });
+
+const getCandlesPrice = (item: CartItem): number => {
+  const candleIds = Array.from(new Set((item.candles || []).map(c => c.id)));
+  return candleIds.reduce((sum, id) => sum + getCandleTotalPrice(id, item.candles || []), 0);
+};
+
+const getExtrasPrice = (item: CartItem): number =>
+  (item.extras || []).reduce((sum, extraId) => sum + getExtraPrice(extraId, item.size), 0);
+
+const buildOrderItemRow = (
+  item: CartItem,
+  orderId: string,
+  referenceImagesByItemId: Record<string, string[]>
+) => ({
+  order_id: orderId,
+  product: getProductType(item),
+  size: item.sizeName || null,
+  shape: item.shapeName || null,
+  flavors: getItemFlavorNames(item),
+  design: item.styleName || null,
+  base_color: item.baseColorName || null,
+  decoration_color: item.decorationColorName || null,
+  cake_text: item.cakeText || null,
+  text_color: item.textColorName || null,
+  text_style: item.textStyle || null,
+  ribbon_color: item.ribbonColorName || null,
+  butterfly_color: item.butterflyColorName || null,
+  extras: item.extrasNames || [],
+  extras_price: getExtrasPrice(item),
+  candles: buildCandlesJson(item),
+  candles_price: getCandlesPrice(item),
+  reference_images: referenceImagesByItemId[item.id] || [],
+  item_comment: item.comment || null,
+  total: item.total,
+});
+
+// Combines the pickup/delivery date with the chosen "HH:mm – HH:mm" slot
+// into a single timestamptz for orders.pickup_delivery_datetime.
+const buildPickupDeliveryDatetime = (date: Date, timeSlot: string): string => {
+  const startTime = timeSlot.split(" – ")[0] || "00:00";
+  const [hours, minutes] = startTime.split(":").map(Number);
+  const dt = new Date(date);
+  dt.setHours(hours || 0, minutes || 0, 0, 0);
+  return dt.toISOString();
 };
 
 const Checkout = () => {
@@ -201,8 +296,6 @@ const Checkout = () => {
   const [pickupTime, setPickupTime] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
-  const [checkoutPayload, setCheckoutPayload] = useState<any>(null);
 
   // Fetch fully booked dates on mount
   useEffect(() => {
@@ -294,7 +387,6 @@ const Checkout = () => {
       return;
     }
 
-    setShowEmbeddedCheckout(false);
     setIsSubmitting(true);
 
     try {
@@ -332,67 +424,34 @@ const Checkout = () => {
 
       const orderId = crypto.randomUUID();
 
-      // Collect all image files from cart items and upload to Supabase
-      const allImageFiles = items.flatMap(item => item.imageFiles || []);
-      const orderImageUrls = await uploadImageFilesToStorage(allImageFiles, orderId, (status) => {
+      // Upload each item's reference images into its own folder
+      const referenceImagesByItemId = await uploadReferenceImagesByItem(items, orderId, (status) => {
         toast({ title: status });
       });
 
-      // Build per-item image URLs (distribute back to items for order details)
-      let urlIndex = 0;
-      const orderItemsWithImageUrls = items.map(item => {
-        const itemFileCount = (item.imageFiles || []).length;
-        const itemUrls = orderImageUrls.slice(urlIndex, urlIndex + itemFileCount);
-        urlIndex += itemFileCount;
-        return { ...item, imageUrls: itemUrls };
-      });
+      const pickupDeliveryDatetime = buildPickupDeliveryDatetime(
+        deliveryDate,
+        deliveryOption === "pickup" ? pickupTime : deliveryTime
+      );
 
-      // Build order details JSON for admin review
-      const orderDetailsJson = {
-        items: orderItemsWithImageUrls.map((item) => ({
-          size: item.size,
-          sizeName: item.sizeName,
-          shape: item.shape,
-          shapeName: item.shapeName,
-          flavor: item.flavor,
-          flavorName: item.flavorName,
-          style: item.style,
-          styleName: item.styleName,
-          baseColorName: item.baseColorName,
-          decorationColorName: item.decorationColorName,
-          cakeText: item.cakeText,
-          textColorName: item.textColorName,
-          textStyle: item.textStyle,
-          extras: item.extras,
-          extrasNames: item.extrasNames,
-          ribbonColorName: item.ribbonColorName,
-          butterflyColorName: item.butterflyColorName,
-          candles: item.candles,
-          orderTime: item.orderTime,
-          comment: item.comment,
-          imageUrls: item.imageUrls || [],
-          total: item.total,
-        })),
-        deliveryComment,
-        pickupTime: deliveryOption === "pickup" ? pickupTime : "",
-        deliveryTime: deliveryOption === "delivery" ? deliveryTime : "",
-        lang,
-      };
-
-      // Save order to database with pending status
+      // Save the order (general information) — order_validation and
+      // payment_status default to "pending" in the database.
       const { data: orderData, error: orderError } = await supabase.from("orders").insert({
         id: orderId,
-        order_date: formattedDate,
-        customer_name: `${firstName} ${lastName}`,
-        customer_email: email,
-        customer_phone: fullPhoneNumber,
-        total_amount: totalPrice,
-        delivery_option: deliveryOption,
+        order_source: "website",
+        lang,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone: fullPhoneNumber,
+        delivery_method: deliveryOption,
         delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
+        delivery_zone: deliveryOption === "delivery" ? (detectedZone?.name ?? null) : null,
+        delivery_fee: deliveryOption === "delivery" ? deliveryPrice : 0,
+        pickup_delivery_datetime: pickupDeliveryDatetime,
+        order_comment: deliveryOption === "delivery" ? deliveryComment : null,
+        total_amount: totalPrice,
         newsletter_subscription: subscribeNewsletter,
-        status: "pending",
-        image_urls: orderImageUrls,
-        order_details_json: orderDetailsJson as any,
       }).select("id").single();
 
       if (orderError) {
@@ -400,10 +459,23 @@ const Checkout = () => {
         throw new Error("Impossible d'enregistrer la commande.");
       }
 
-      const createdOrderId = orderData?.id;
+      const createdOrderId = orderData?.id || orderId;
 
-      // Build payload for embedded checkout
-      const payload = {
+      // Save each cake/product as its own order_items row
+      const orderItemRows = items.map(item =>
+        buildOrderItemRow(item, createdOrderId, referenceImagesByItemId)
+      );
+      const { error: itemsError } = await supabase.from("order_items").insert(orderItemRows);
+
+      if (itemsError) {
+        console.error("Order items save error:", itemsError);
+        // Avoid leaving an order with no items behind
+        await supabase.from("orders").delete().eq("id", createdOrderId);
+        throw new Error("Impossible d'enregistrer les articles de la commande.");
+      }
+
+      // Build payload for the PostFinance transaction
+      const paymentPayload = {
         items: items.map((item) => ({
           sizeName: item.sizeName,
           shapeName: item.shapeName,
@@ -420,18 +492,10 @@ const Checkout = () => {
         deliveryFee: deliveryPrice,
         totalAmount: totalPrice,
         orderId: createdOrderId || orderId,
+        lang,
       };
 
-      console.log("Setting up embedded checkout with:", {
-        itemCount: payload.items.length,
-        totalAmount: payload.totalAmount,
-        deliveryOption: payload.deliveryOption,
-      });
-
-      setCheckoutPayload(payload);
-      setShowEmbeddedCheckout(true);
-
-      // Send to Brevo if newsletter is checked
+      // Send to Brevo if newsletter is checked (before navigating away to PostFinance)
       if (subscribeNewsletter) {
         try {
           await supabase.functions.invoke("subscribe-newsletter", {
@@ -446,6 +510,23 @@ const Checkout = () => {
           console.error("Newsletter subscription error (non-blocking):", newsletterErr);
         }
       }
+
+      console.log("Creating PostFinance transaction:", {
+        itemCount: paymentPayload.items.length,
+        totalAmount: paymentPayload.totalAmount,
+        orderId: paymentPayload.orderId,
+      });
+
+      const { data: pfData, error: pfError } = await supabase.functions.invoke("create-postfinance-payment", {
+        body: paymentPayload,
+      });
+
+      if (pfError || pfData?.error || !pfData?.paymentPageUrl) {
+        console.error("PostFinance transaction error:", pfError || pfData?.error);
+        throw new Error("Impossible de démarrer le paiement PostFinance.");
+      }
+
+      window.location.href = pfData.paymentPageUrl;
     } catch (err) {
       console.error("Checkout submit error:", err);
       toast({
@@ -893,30 +974,15 @@ const Checkout = () => {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={!acceptPrivacyPolicy || isSubmitting || items.length === 0 || showEmbeddedCheckout}
+              disabled={!acceptPrivacyPolicy || isSubmitting || items.length === 0}
             >
               {items.length === 0
                 ? t("Empty cart", "Panier vide")
                 : isSubmitting
-                  ? t("Loading...", "Chargement...")
-                  : showEmbeddedCheckout
-                    ? t("Complete payment below", "Finalisez le paiement ci-dessous")
-                    : t("Proceed to Payment", "Procéder au paiement")}
+                  ? t("Redirecting to payment...", "Redirection vers le paiement...")
+                  : t("Proceed to Payment", "Procéder au paiement")}
             </Button>
           </form>
-
-          {/* Embedded Stripe Checkout */}
-          {showEmbeddedCheckout && checkoutPayload && (
-            <div className="mt-8 pt-6 border-t border-border">
-              <h3 className="text-lg font-serif text-foreground mb-2">
-                {t("Complete Your Payment", "Finalisez votre paiement")}
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                {t("Please complete your payment below to confirm your order. All transactions are secured by Stripe.", "Veuillez finaliser votre paiement ci-dessous pour confirmer votre commande. Toutes les transactions sont sécurisées par Stripe.")}
-              </p>
-              <EmbeddedStripeCheckout payload={checkoutPayload} />
-            </div>
-          )}
         </div>
       </main>
     </Layout>

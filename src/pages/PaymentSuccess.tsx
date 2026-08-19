@@ -11,61 +11,34 @@ const PaymentSuccess = () => {
   const { t } = useLang();
   const [searchParams] = useSearchParams();
   const { clearCart } = useCart();
-  const sessionId = searchParams.get("session_id");
+  const orderId = searchParams.get("order_id");
   const [processed, setProcessed] = useState(false);
-  const [orderStatus, setOrderStatus] = useState<string | null>(null);
+  const [orderValidation, setOrderValidation] = useState<string | null>(null);
 
+  // On landing here, look up the order directly by id (no more linking a
+  // Stripe session id after the fact — the return URL already carries our
+  // own order id) and fire the notification webhooks once.
   useEffect(() => {
-    if (!sessionId || processed) return;
+    if (!orderId || processed) return;
 
     const processPayment = async () => {
       try {
-        // If already linked, read current status directly
-        const { data: existingOrders } = await supabase
+        const { data: order } = await supabase
           .from("orders")
-          .select("id, status")
-          .eq("stripe_session_id", sessionId)
-          .order("created_at", { ascending: false })
-          .limit(1);
+          .select("id, order_validation")
+          .eq("id", orderId)
+          .single();
 
-        if (existingOrders && existingOrders.length > 0) {
-          setOrderStatus(existingOrders[0].status);
+        if (order) {
+          setOrderValidation(order.order_validation);
+
+          await supabase.functions.invoke("notify-order", {
+            body: { orderId: order.id },
+          });
           // Fire Make webhook silently in the background
           supabase.functions.invoke("send-make-webhook", {
-            body: { orderId: existingOrders[0].id },
+            body: { orderId: order.id },
           }).catch((err) => console.warn("Make webhook failed (silent):", err));
-          clearCart();
-          setProcessed(true);
-          return;
-        }
-
-        // Otherwise link the most recent pending order
-        const { data: recentOrders } = await supabase
-          .from("orders")
-          .select("id, status")
-          .eq("status", "pending")
-          .is("stripe_session_id", null)
-          .order("created_at", { ascending: false })
-          .limit(1);
-
-        if (recentOrders && recentOrders.length > 0) {
-          const orderId = recentOrders[0].id;
-          setOrderStatus(recentOrders[0].status ?? "pending");
-
-          const { error: updateError } = await supabase
-            .from("orders")
-            .update({ stripe_session_id: sessionId })
-            .eq("id", orderId);
-
-          if (!updateError) {
-            await supabase.functions.invoke("notify-order", {
-              body: { orderId },
-            });
-            // Fire Make webhook silently in the background
-            supabase.functions.invoke("send-make-webhook", {
-              body: { orderId },
-            }).catch((err) => console.warn("Make webhook failed (silent):", err));
-          }
         }
 
         clearCart();
@@ -78,37 +51,39 @@ const PaymentSuccess = () => {
     };
 
     processPayment();
-  }, [sessionId, clearCart, processed]);
+  }, [orderId, clearCart, processed]);
 
+  // Poll until the team has approved or rejected the order. payment_status
+  // (authorized vs captured vs voided) is handled server-side and never
+  // read or written from here.
   useEffect(() => {
-    if (!sessionId || !processed || orderStatus === "approved" || orderStatus === "accepted" || orderStatus === "confirmed") return;
+    if (!orderId || !processed || orderValidation === "approved" || orderValidation === "rejected") return;
 
     let mounted = true;
 
-    const refreshOrderStatus = async () => {
+    const refreshOrderValidation = async () => {
       const { data } = await supabase
         .from("orders")
-        .select("status")
-        .eq("stripe_session_id", sessionId)
-        .order("created_at", { ascending: false })
-        .limit(1);
+        .select("order_validation")
+        .eq("id", orderId)
+        .single();
 
-      if (mounted && data && data.length > 0) {
-        setOrderStatus(data[0].status);
+      if (mounted && data) {
+        setOrderValidation(data.order_validation);
       }
     };
 
-    refreshOrderStatus();
-    const intervalId = setInterval(refreshOrderStatus, 5000);
+    refreshOrderValidation();
+    const intervalId = setInterval(refreshOrderValidation, 5000);
 
     return () => {
       mounted = false;
       clearInterval(intervalId);
     };
-  }, [sessionId, processed, orderStatus]);
+  }, [orderId, processed, orderValidation]);
 
-  const isOrderConfirmed =
-    orderStatus === "approved" || orderStatus === "accepted" || orderStatus === "confirmed";
+  const isOrderConfirmed = orderValidation === "approved";
+  const isOrderRejected = orderValidation === "rejected";
 
   return (
     <Layout>
@@ -145,6 +120,21 @@ const PaymentSuccess = () => {
                   )}
                 </p>
               </div>
+            </>
+          ) : isOrderRejected ? (
+            <>
+              <h1 className="text-2xl font-serif text-foreground mb-4">
+                {t("Order Declined", "Commande refusée")}
+              </h1>
+
+              <p className="text-muted-foreground mb-8">
+                {t(
+                  "We're sorry, we're unable to fulfil this order. Your payment authorization has been cancelled and you have not been charged.",
+                  "Nous sommes désolés, nous ne pouvons pas honorer cette commande. L'autorisation de paiement a été annulée et vous n'avez pas été débité."
+                )}
+                <br /><br />
+                {t("Please contact us if you have any questions.", "N'hésitez pas à nous contacter si vous avez des questions.")}
+              </p>
             </>
           ) : (
             <>

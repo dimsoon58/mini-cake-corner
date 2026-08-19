@@ -55,62 +55,178 @@ export type Database = {
       orders: {
         Row: {
           created_at: string
-          customer_email: string
-          customer_name: string
-          customer_phone: string
           delivery_address: string | null
-          delivery_option: string
+          delivery_fee: number
+          delivery_method: string
+          delivery_zone: string | null
+          email: string
+          first_name: string
           id: string
-          image_urls: string[]
           invoice_number: string | null
-          newsletter_subscription: boolean | null
-          order_date: string
-          order_details_json: Json | null
+          invoice_path: string | null
+          lang: string
+          last_name: string
+          newsletter_subscription: boolean
+          order_comment: string | null
           order_number: string | null
-          status: string
-          stripe_payment_intent_id: string | null
-          stripe_session_id: string | null
+          order_source: string
+          order_validation: Database["public"]["Enums"]["order_validation_status"]
+          paid_at: string | null
+          payment_method: string | null
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          phone: string
+          pickup_delivery_datetime: string
+          postfinance_transaction_id: string | null
           total_amount: number
         }
         Insert: {
           created_at?: string
-          customer_email: string
-          customer_name: string
-          customer_phone: string
           delivery_address?: string | null
-          delivery_option: string
+          delivery_fee?: number
+          delivery_method: string
+          delivery_zone?: string | null
+          email: string
+          first_name: string
           id?: string
-          image_urls?: string[]
           invoice_number?: string | null
-          newsletter_subscription?: boolean | null
-          order_date: string
-          order_details_json?: Json | null
+          invoice_path?: string | null
+          lang: string
+          last_name: string
+          newsletter_subscription?: boolean
+          order_comment?: string | null
           order_number?: string | null
-          status?: string
-          stripe_payment_intent_id?: string | null
-          stripe_session_id?: string | null
+          order_source?: string
+          order_validation?: Database["public"]["Enums"]["order_validation_status"]
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          phone: string
+          pickup_delivery_datetime: string
+          postfinance_transaction_id?: string | null
           total_amount: number
         }
         Update: {
           created_at?: string
-          customer_email?: string
-          customer_name?: string
-          customer_phone?: string
           delivery_address?: string | null
-          delivery_option?: string
+          delivery_fee?: number
+          delivery_method?: string
+          delivery_zone?: string | null
+          email?: string
+          first_name?: string
           id?: string
-          image_urls?: string[]
           invoice_number?: string | null
-          newsletter_subscription?: boolean | null
-          order_date?: string
-          order_details_json?: Json | null
+          invoice_path?: string | null
+          lang?: string
+          last_name?: string
+          newsletter_subscription?: boolean
+          order_comment?: string | null
           order_number?: string | null
-          status?: string
-          stripe_payment_intent_id?: string | null
-          stripe_session_id?: string | null
+          order_source?: string
+          order_validation?: Database["public"]["Enums"]["order_validation_status"]
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          phone?: string
+          pickup_delivery_datetime?: string
+          postfinance_transaction_id?: string | null
           total_amount?: number
         }
         Relationships: []
+      }
+      order_items: {
+        Row: {
+          assigned_to: string | null
+          base_color: string | null
+          butterfly_color: string | null
+          cake_text: string | null
+          candles: Json
+          candles_price: number
+          created_at: string
+          decoration_color: string | null
+          design: string | null
+          extras: string[]
+          extras_price: number
+          flavors: string[]
+          id: string
+          internal_notes: string | null
+          item_comment: string | null
+          made_by: string | null
+          order_id: string
+          product: Database["public"]["Enums"]["product_type"]
+          production_status: Database["public"]["Enums"]["production_status"]
+          reference_images: string[]
+          ribbon_color: string | null
+          shape: string | null
+          size: string | null
+          text_color: string | null
+          text_style: string | null
+          total: number
+        }
+        Insert: {
+          assigned_to?: string | null
+          base_color?: string | null
+          butterfly_color?: string | null
+          cake_text?: string | null
+          candles?: Json
+          candles_price?: number
+          created_at?: string
+          decoration_color?: string | null
+          design?: string | null
+          extras?: string[]
+          extras_price?: number
+          flavors?: string[]
+          id?: string
+          internal_notes?: string | null
+          item_comment?: string | null
+          made_by?: string | null
+          order_id: string
+          product: Database["public"]["Enums"]["product_type"]
+          production_status?: Database["public"]["Enums"]["production_status"]
+          reference_images?: string[]
+          ribbon_color?: string | null
+          shape?: string | null
+          size?: string | null
+          text_color?: string | null
+          text_style?: string | null
+          total: number
+        }
+        Update: {
+          assigned_to?: string | null
+          base_color?: string | null
+          butterfly_color?: string | null
+          cake_text?: string | null
+          candles?: Json
+          candles_price?: number
+          created_at?: string
+          decoration_color?: string | null
+          design?: string | null
+          extras?: string[]
+          extras_price?: number
+          flavors?: string[]
+          id?: string
+          internal_notes?: string | null
+          item_comment?: string | null
+          made_by?: string | null
+          order_id?: string
+          product?: Database["public"]["Enums"]["product_type"]
+          production_status?: Database["public"]["Enums"]["production_status"]
+          reference_images?: string[]
+          ribbon_color?: string | null
+          shape?: string | null
+          size?: string | null
+          text_color?: string | null
+          text_style?: string | null
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -129,7 +245,24 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      order_validation_status: "pending" | "approved" | "rejected"
+      payment_status: "pending" | "paid" | "failed" | "cancelled" | "refunded"
+      product_type:
+        | "bento_cake"
+        | "rectangle_cake"
+        | "dot_cakes"
+        | "diy_kit"
+        | "candles"
+        | "edible_printing"
+      production_status:
+        | "to_assign"
+        | "to_prepare"
+        | "in_progress"
+        | "completed"
+        | "ready_for_pickup"
+        | "delivered"
+        | "picked_up"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -256,6 +389,27 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      order_validation_status: ["pending", "approved", "rejected"],
+      payment_status: ["pending", "paid", "failed", "cancelled", "refunded"],
+      product_type: [
+        "bento_cake",
+        "rectangle_cake",
+        "dot_cakes",
+        "diy_kit",
+        "candles",
+        "edible_printing",
+      ],
+      production_status: [
+        "to_assign",
+        "to_prepare",
+        "in_progress",
+        "completed",
+        "ready_for_pickup",
+        "delivered",
+        "picked_up",
+        "cancelled",
+      ],
+    },
   },
 } as const
