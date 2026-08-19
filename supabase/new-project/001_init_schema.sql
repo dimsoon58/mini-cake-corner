@@ -204,6 +204,24 @@ create policy "Service role only" on public.order_action_tokens
   for all using (false);
 
 -- ---------------------------------------------------------------------------
+-- pending_payments — temporary staging between "PostFinance transaction
+-- created" and "authorization confirmed". orders/order_items are only
+-- created once the transaction is confirmed AUTHORIZED (or further along);
+-- this row is deleted right after that insert succeeds. Service-role only —
+-- create-postfinance-payment writes it, confirm-postfinance-payment reads
+-- and deletes it. No public policy at all.
+-- ---------------------------------------------------------------------------
+
+create table public.pending_payments (
+  order_id uuid primary key,
+  postfinance_transaction_id text not null,
+  payload jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.pending_payments enable row level security;
+
+-- ---------------------------------------------------------------------------
 -- Row Level Security
 --
 -- IMPORTANT: unlike the current live schema, there is NO public SELECT policy
@@ -258,6 +276,21 @@ as $$
   where order_validation = 'approved'
   group by pickup_delivery_datetime::date
   having count(*) >= 5
+$$;
+
+-- Lets the customer's own browser poll their order's approval status on
+-- payment-success (PaymentSuccess.tsx) without a general SELECT policy on
+-- orders. Returns only order_validation, keyed by the order id the customer
+-- already knows from their own return URL — same trust model as before.
+create or replace function public.get_order_validation(target_order_id uuid)
+returns text
+language sql
+stable security definer
+set search_path to 'public'
+as $$
+  select order_validation::text
+  from public.orders
+  where id = target_order_id
 $$;
 
 -- ---------------------------------------------------------------------------

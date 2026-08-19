@@ -13,63 +13,93 @@ const PaymentSuccess = () => {
   const { clearCart } = useCart();
   const orderId = searchParams.get("order_id");
   const [processed, setProcessed] = useState(false);
+  const [orderCreated, setOrderCreated] = useState(false);
   const [orderValidation, setOrderValidation] = useState<string | null>(null);
+  const [paymentFailed, setPaymentFailed] = useState(false);
 
-  // On landing here, look up the order directly by id (no more linking a
-  // Stripe session id after the fact — the return URL already carries our
-  // own order id) and fire the notification webhooks once.
+  const MAX_CONFIRM_ATTEMPTS = 5;
+  const CONFIRM_RETRY_DELAY_MS = 3000;
+
+  // On landing here, confirm the PostFinance authorization server-side —
+  // never trust the redirect alone. orders/order_items are only created by
+  // confirm-postfinance-payment once it has verified the real transaction
+  // state with PostFinance. A few retries cover the rare case where the
+  // browser lands here slightly before PostFinance's own state settles.
   useEffect(() => {
     if (!orderId || processed) return;
+    let cancelled = false;
 
-    const processPayment = async () => {
+    const confirmPayment = async (attempt: number) => {
       try {
-        const { data: order } = await supabase
-          .from("orders")
-          .select("id, order_validation")
-          .eq("id", orderId)
-          .single();
+        const { data, error } = await supabase.functions.invoke("confirm-postfinance-payment", {
+          body: { orderId },
+        });
 
-        if (order) {
-          setOrderValidation(order.order_validation);
+        if (cancelled) return;
 
-          await supabase.functions.invoke("notify-order", {
-            body: { orderId: order.id },
-          });
-          // Fire Make webhook silently in the background
-          supabase.functions.invoke("send-make-webhook", {
-            body: { orderId: order.id },
-          }).catch((err) => console.warn("Make webhook failed (silent):", err));
+        if (error || data?.error) {
+          console.error("Confirm payment error:", error || data?.error);
+          clearCart();
+          setProcessed(true);
+          return;
         }
 
-        clearCart();
-        setProcessed(true);
+        if (data?.confirmed) {
+          setOrderCreated(true);
+          setOrderValidation(data.orderValidation);
+
+          if (data.justCreated) {
+            await supabase.functions.invoke("notify-order", { body: { orderId } });
+            // Fire Make webhook silently in the background
+            supabase.functions.invoke("send-make-webhook", { body: { orderId } })
+              .catch((err) => console.warn("Make webhook failed (silent):", err));
+          }
+
+          clearCart();
+          setProcessed(true);
+          return;
+        }
+
+        if (data?.failed) {
+          setPaymentFailed(true);
+          clearCart();
+          setProcessed(true);
+          return;
+        }
+
+        // Still processing on PostFinance's side — retry a few times.
+        if (attempt < MAX_CONFIRM_ATTEMPTS) {
+          setTimeout(() => { if (!cancelled) confirmPayment(attempt + 1); }, CONFIRM_RETRY_DELAY_MS);
+        } else {
+          clearCart();
+          setProcessed(true);
+        }
       } catch (err) {
-        console.error("Error processing payment success:", err);
-        clearCart();
-        setProcessed(true);
+        console.error("Error confirming payment:", err);
+        if (!cancelled) {
+          clearCart();
+          setProcessed(true);
+        }
       }
     };
 
-    processPayment();
+    confirmPayment(0);
+
+    return () => { cancelled = true; };
   }, [orderId, clearCart, processed]);
 
-  // Poll until the team has approved or rejected the order. payment_status
-  // (authorized vs captured vs voided) is handled server-side and never
-  // read or written from here.
+  // Poll until the team has approved or rejected the order, once it
+  // actually exists. payment_status (authorized vs captured vs voided) is
+  // handled server-side and never read or written from here.
   useEffect(() => {
-    if (!orderId || !processed || orderValidation === "approved" || orderValidation === "rejected") return;
+    if (!orderId || !orderCreated || orderValidation === "approved" || orderValidation === "rejected") return;
 
     let mounted = true;
 
     const refreshOrderValidation = async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("order_validation")
-        .eq("id", orderId)
-        .single();
-
+      const { data } = await supabase.rpc("get_order_validation", { target_order_id: orderId });
       if (mounted && data) {
-        setOrderValidation(data.order_validation);
+        setOrderValidation(data);
       }
     };
 
@@ -80,7 +110,7 @@ const PaymentSuccess = () => {
       mounted = false;
       clearInterval(intervalId);
     };
-  }, [orderId, processed, orderValidation]);
+  }, [orderId, orderCreated, orderValidation]);
 
   const isOrderConfirmed = orderValidation === "approved";
   const isOrderRejected = orderValidation === "rejected";
@@ -90,8 +120,23 @@ const PaymentSuccess = () => {
       <main className="container mx-auto px-4 py-16 max-w-2xl text-center">
         <div className="bg-card rounded-lg shadow-md p-8">
           <CheckCircle className="w-16 h-16 text-primary mx-auto mb-6" />
-          
-          {isOrderConfirmed ? (
+
+          {paymentFailed ? (
+            <>
+              <h1 className="text-2xl font-serif text-foreground mb-4">
+                {t("Payment Unsuccessful", "Paiement non abouti")}
+              </h1>
+
+              <p className="text-muted-foreground mb-8">
+                {t(
+                  "Your payment could not be completed, so no order was placed and you have not been charged.",
+                  "Votre paiement n'a pas pu être finalisé, aucune commande n'a donc été enregistrée et vous n'avez pas été débité."
+                )}
+                <br /><br />
+                {t("You can try again from your cart.", "Vous pouvez réessayer depuis votre panier.")}
+              </p>
+            </>
+          ) : isOrderConfirmed ? (
             <>
               <h1 className="text-2xl font-serif text-foreground mb-4">
                 {t("Order Confirmed ✅", "Commande confirmée ✅")}

@@ -1,149 +1,56 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 
-// Server-side connection to the PostFinance Checkout (ex-Wallee) API.
-// This function only creates a transaction and returns the hosted payment
-// page URL — it does not capture/void anything and is not yet called by
-// any frontend code. Capture/void ("approve"/"reject") logic stays in
+// Creates a PostFinance Checkout transaction (authorization only, via
+// completionBehavior: COMPLETE_DEFERRED) and stages the full order payload
+// in pending_payments, keyed by orderId. orders/order_items are NOT created
+// here — only once confirm-postfinance-payment verifies the authorization
+// actually went through. Capture/void ("approve"/"reject") logic stays in
 // manage-order, migrated separately.
-//
-// Auth scheme and request/response shapes verified against the current
-// official TypeScript SDK source (github.com/pfpayments/typescript-sdk,
-// src/auth/HttpBearerAuth.ts and src/models/TransactionCreate.ts): a JWT,
-// signed HS256 with the base64-decoded Application Key, sent as
-// "Authorization: Bearer <jwt>". The JWT payload binds the token to the
-// exact request path + method, so it can't be replayed against another
-// endpoint. The Space ID goes in a separate "space" header. The JSON body
-// itself uses camelCase field names (completionBehavior, lineItems, ...),
-// not the snake_case used internally by the PHP SDK's property names.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const POSTFINANCE_API_HOST = "https://checkout.postfinance.ch/api/v2.0";
+// The "origin" request header only carries scheme + host, never the
+// GitHub Pages sub-path the site is served under — building return URLs
+// from it produced https://dimsoon58.github.io/payment-success (404).
+// Hardcoding the full base URL here is what actually resolves correctly.
+const SITE_BASE_URL = "https://dimsoon58.github.io/mini-cake-corner";
 
-function base64UrlEncode(bytes: Uint8Array): string {
-  let binary = "";
-  bytes.forEach((b) => { binary += String.fromCharCode(b); });
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+// Shapes match the orders / order_items insert columns exactly (built
+// client-side in Checkout.tsx by the same buildOrderItemRow helper used
+// throughout the migration — reused as-is, not reimplemented here).
+interface OrderRow {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  lang: string;
+  delivery_method: string;
+  delivery_address: string | null;
+  delivery_zone: string | null;
+  delivery_fee: number;
+  total_amount: number;
+  [key: string]: unknown;
 }
 
-function base64Decode(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-async function hmacSha256(keyBytes: Uint8Array, message: string): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyBytes,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
-  return new Uint8Array(signature);
-}
-
-// Builds the "Authorization: Bearer <jwt>" header value for one request.
-async function buildAuthHeader(
-  userId: string,
-  authenticationKey: string,
-  path: string,
-  method: string,
-): Promise<string> {
-  const header = { alg: "HS256", typ: "JWT", ver: 1 };
-  const payload = {
-    sub: userId,
-    iat: Math.floor(Date.now() / 1000),
-    requestPath: `/api/v2.0${path}`,
-    requestMethod: method,
-  };
-
-  const encodedHeader = base64UrlEncode(new TextEncoder().encode(JSON.stringify(header)));
-  const encodedPayload = base64UrlEncode(new TextEncoder().encode(JSON.stringify(payload)));
-  const signingInput = `${encodedHeader}.${encodedPayload}`;
-
-  const keyBytes = base64Decode(authenticationKey);
-  const signature = await hmacSha256(keyBytes, signingInput);
-  const encodedSignature = base64UrlEncode(signature);
-
-  return `Bearer ${signingInput}.${encodedSignature}`;
-}
-
-interface PostFinanceCredentials {
-  spaceId: string;
-  userId: string;
-  authenticationKey: string;
-}
-
-function getCredentials(): PostFinanceCredentials {
-  const spaceId = Deno.env.get("POSTFINANCE_SPACE_ID");
-  const userId = Deno.env.get("POSTFINANCE_USER_ID");
-  const authenticationKey = Deno.env.get("POSTFINANCE_AUTHENTICATION_KEY");
-
-  if (!spaceId || !userId || !authenticationKey) {
-    throw new Error(
-      "PostFinance credentials are not configured (POSTFINANCE_SPACE_ID / POSTFINANCE_USER_ID / POSTFINANCE_AUTHENTICATION_KEY)",
-    );
-  }
-  return { spaceId, userId, authenticationKey };
-}
-
-// Authenticated request against the PostFinance Checkout API.
-async function pfFetch(
-  credentials: PostFinanceCredentials,
-  path: string,
-  method: "GET" | "POST",
-  body?: unknown,
-): Promise<unknown> {
-  const authHeader = await buildAuthHeader(credentials.userId, credentials.authenticationKey, path, method);
-
-  const resp = await fetch(`${POSTFINANCE_API_HOST}${path}`, {
-    method,
-    headers: {
-      "Authorization": authHeader,
-      "space": credentials.spaceId,
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
-  const raw = await resp.text();
-  let data: unknown = null;
-  try { data = raw ? JSON.parse(raw) : null; } catch { data = raw; }
-
-  if (!resp.ok) {
-    console.error(`PostFinance API error on ${method} ${path}:`, resp.status, data);
-    throw new Error(`PostFinance API error (${resp.status}): ${typeof data === "string" ? data : JSON.stringify(data)}`);
-  }
-  return data;
-}
-
-interface CartItem {
-  sizeName: string;
-  shapeName: string;
-  flavorName: string;
-  styleName?: string;
-  extrasNames: string[];
+interface OrderItemRow {
+  size: string | null;
+  shape: string | null;
+  flavors: string[];
+  design: string | null;
+  extras: string[];
   total: number;
+  [key: string]: unknown;
 }
 
-interface TransactionRequest {
-  items: CartItem[];
-  customerEmail: string;
-  customerName: string;
-  customerPhone: string;
-  deliveryOption: string;
-  deliveryAddress?: string;
-  deliveryFee: number;
-  totalAmount: number;
+interface PaymentRequest {
   orderId: string;
-  lang?: string;
+  order: OrderRow;
+  orderItems: OrderItemRow[];
 }
 
 serve(async (req) => {
@@ -152,25 +59,27 @@ serve(async (req) => {
   }
 
   try {
-    const credentials = getCredentials();
+    const credentials = getPostFinanceCredentials();
 
-    const body: TransactionRequest = await req.json();
-    const {
-      items, customerEmail, customerName, customerPhone,
-      deliveryOption, deliveryAddress, deliveryFee, totalAmount, orderId, lang,
-    } = body;
+    const body: PaymentRequest = await req.json();
+    const { orderId, order, orderItems } = body;
 
-    if (!items || items.length === 0) throw new Error("No items in cart");
-    if (!customerEmail) throw new Error("Customer email is required");
     if (!orderId) throw new Error("orderId is required");
+    if (!order) throw new Error("order is required");
+    if (!orderItems || orderItems.length === 0) throw new Error("orderItems is required");
+    if (!order.email) throw new Error("Customer email is required");
 
-    const lineItems = items.map((item, i) => {
-      const description = [item.flavorName, item.styleName, item.extrasNames?.length ? `Extras: ${item.extrasNames.join(", ")}` : null]
-        .filter(Boolean)
-        .join(" • ");
+    const lineItems = orderItems.map((item, i) => {
+      const name = [item.size, item.shape].filter(Boolean).join(" ") || `Item ${i + 1}`;
+      const description = [
+        item.flavors?.length ? item.flavors.join(", ") : null,
+        item.design,
+        item.extras?.length ? `Extras: ${item.extras.join(", ")}` : null,
+      ].filter(Boolean).join(" • ");
+
       return {
         uniqueId: `item-${i}`,
-        name: `${item.sizeName} ${item.shapeName} Cake`.trim(),
+        name,
         quantity: 1,
         amountIncludingTax: item.total,
         type: "PRODUCT",
@@ -178,22 +87,20 @@ serve(async (req) => {
       };
     });
 
-    if (deliveryOption === "delivery" && deliveryFee > 0) {
+    if (order.delivery_method === "delivery" && order.delivery_fee > 0) {
       lineItems.push({
         uniqueId: "delivery-fee",
         name: "Delivery Fee",
         quantity: 1,
-        amountIncludingTax: deliveryFee,
+        amountIncludingTax: order.delivery_fee,
         type: "SHIPPING",
       });
     }
 
     const lineItemsSum = lineItems.reduce((sum, li) => sum + li.amountIncludingTax * li.quantity, 0);
-    if (Math.abs(lineItemsSum - totalAmount) > 0.01) {
-      console.warn(`Line items sum (${lineItemsSum}) does not match totalAmount (${totalAmount}) for order ${orderId}`);
+    if (Math.abs(lineItemsSum - order.total_amount) > 0.01) {
+      console.warn(`Line items sum (${lineItemsSum}) does not match total_amount (${order.total_amount}) for order ${orderId}`);
     }
-
-    const origin = req.headers.get("origin") || "";
 
     // completionBehavior: COMPLETE_DEFERRED keeps the transaction as an
     // authorization only — funds are captured later via the Completion API
@@ -203,19 +110,19 @@ serve(async (req) => {
     // Space) determine test vs. production — exactly what we want here.
     const transactionCreate = {
       currency: "CHF",
-      language: lang === "en" ? "en-US" : "fr-CH",
-      customerEmailAddress: customerEmail,
+      language: order.lang === "en" ? "en-US" : "fr-CH",
+      customerEmailAddress: order.email,
       merchantReference: orderId,
-      successUrl: `${origin}/payment-success?order_id=${orderId}`,
-      failedUrl: `${origin}/checkout`,
+      successUrl: `${SITE_BASE_URL}/payment-success?order_id=${orderId}`,
+      failedUrl: `${SITE_BASE_URL}/checkout`,
       completionBehavior: "COMPLETE_DEFERRED",
       lineItems,
       metaData: {
         order_id: orderId,
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        delivery_option: deliveryOption,
-        delivery_address: deliveryAddress || "",
+        customer_name: `${order.first_name} ${order.last_name}`,
+        customer_phone: order.phone,
+        delivery_option: order.delivery_method,
+        delivery_address: order.delivery_address || "",
       },
     };
 
@@ -230,6 +137,25 @@ serve(async (req) => {
       `/payment/transactions/${transaction.id}/payment-page-url`,
       "GET",
     ) as string;
+
+    // Stage the full order so confirm-postfinance-payment can create it
+    // once the authorization is actually verified — never before.
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
+
+    const { error: stagingError } = await supabase.from("pending_payments").insert({
+      order_id: orderId,
+      postfinance_transaction_id: String(transaction.id),
+      payload: { order, orderItems },
+    });
+
+    if (stagingError) {
+      console.error("Failed to stage pending payment:", stagingError);
+      throw new Error("Failed to save pending payment");
+    }
 
     return new Response(JSON.stringify({
       transactionId: transaction.id,

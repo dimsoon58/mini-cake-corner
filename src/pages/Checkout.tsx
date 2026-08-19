@@ -130,11 +130,6 @@ const detectZoneFromAddress = (address: string): typeof DELIVERY_ZONES[0] | null
 
 const formatDisplayDate = (date: Date) => format(date, "dd.MM.yyyy");
 
-// NOTE: the helpers below (image upload, order_items row building, pickup
-// datetime formatting) are not called from handleSubmit right now — order
-// creation happens after PostFinance confirms payment, not at checkout
-// submission. Kept here ready to be wired into that post-payment step.
-
 // Uploads each item's reference images into its own folder in the
 // (public) "order-images" bucket and returns a map of cart item id -> URLs,
 // so each order_items row can carry only the images that belong to it.
@@ -434,25 +429,48 @@ const Checkout = () => {
       // cart, since not everyone who reaches this button completes payment.
       const orderId = crypto.randomUUID();
 
+      // Upload each item's reference images into its own folder. Harmless
+      // even if the payment is abandoned afterwards — unlike a DB order
+      // row, an orphaned image folder isn't a fake order.
+      const referenceImagesByItemId = await uploadReferenceImagesByItem(items, orderId, (status) => {
+        toast({ title: status });
+      });
+
+      const pickupDeliveryDatetime = buildPickupDeliveryDatetime(
+        deliveryDate,
+        deliveryOption === "pickup" ? pickupTime : deliveryTime
+      );
+
+      // Full orders/order_items rows, built with the same helpers used
+      // everywhere else in this migration — not persisted yet, just staged
+      // server-side (pending_payments) until PostFinance confirms the
+      // authorization, in create-postfinance-payment.
+      const orderRow = {
+        order_source: "website",
+        lang,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone: fullPhoneNumber,
+        delivery_method: deliveryOption,
+        delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
+        delivery_zone: deliveryOption === "delivery" ? (detectedZone?.name ?? null) : null,
+        delivery_fee: deliveryOption === "delivery" ? deliveryPrice : 0,
+        pickup_delivery_datetime: pickupDeliveryDatetime,
+        order_comment: deliveryOption === "delivery" ? deliveryComment : null,
+        total_amount: totalPrice,
+        newsletter_subscription: subscribeNewsletter,
+      };
+
+      const orderItemRows = items.map(item =>
+        buildOrderItemRow(item, orderId, referenceImagesByItemId)
+      );
+
       // Build payload for the PostFinance transaction
       const paymentPayload = {
-        items: items.map((item) => ({
-          sizeName: item.sizeName,
-          shapeName: item.shapeName,
-          flavorName: item.flavorName,
-          styleName: item.styleName,
-          extrasNames: item.extrasNames,
-          total: item.total,
-        })),
-        customerEmail: email,
-        customerName: `${firstName} ${lastName}`,
-        customerPhone: fullPhoneNumber,
-        deliveryOption,
-        deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
-        deliveryFee: deliveryPrice,
-        totalAmount: totalPrice,
         orderId,
-        lang,
+        order: orderRow,
+        orderItems: orderItemRows,
       };
 
       // Send to Brevo if newsletter is checked (before navigating away to PostFinance)
@@ -472,8 +490,8 @@ const Checkout = () => {
       }
 
       console.log("Creating PostFinance transaction:", {
-        itemCount: paymentPayload.items.length,
-        totalAmount: paymentPayload.totalAmount,
+        itemCount: paymentPayload.orderItems.length,
+        totalAmount: paymentPayload.order.total_amount,
         orderId: paymentPayload.orderId,
       });
 
