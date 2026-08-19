@@ -171,7 +171,7 @@ const uploadReferenceImagesByItem = async (
       for (let attempt = 0; attempt < 3; attempt++) {
         const { error: uploadError } = await supabase.storage
           .from("order-images")
-          .upload(filePath, file, { contentType: file.type, upsert: true });
+          .upload(filePath, file, { contentType: file.type, upsert: false });
 
         if (!uploadError) {
           uploaded = true;
