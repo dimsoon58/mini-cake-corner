@@ -23,6 +23,10 @@ const corsHeaders = {
 const SUCCESS_STATES = new Set(["AUTHORIZED", "COMPLETED", "FULFILL"]);
 const FAILURE_STATES = new Set(["FAILED", "DECLINE", "VOIDED"]);
 
+// Make scenario → Notion "Commandes & Paiements" (configured in Make
+// itself, not here). Notified once the order actually exists.
+const MAKE_WEBHOOK_URL = "https://hook.eu1.make.com/tomf1o371swpu1ee6yasivboiy19ys94";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -95,19 +99,20 @@ serve(async (req) => {
     const order = pending.payload.order;
     const orderItems = pending.payload.orderItems;
 
-    const { error: orderError } = await supabase.from("orders").insert({
+    const { data: insertedOrder, error: orderError } = await supabase.from("orders").insert({
       ...order,
       id: orderId,
       postfinance_transaction_id: String(pending.postfinance_transaction_id),
       payment_status: "pending",
-    });
+    }).select().single();
 
-    if (orderError) {
+    if (orderError || !insertedOrder) {
       console.error("Order insert error:", orderError);
       throw new Error("Failed to save order");
     }
 
-    const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
+    const { data: insertedItems, error: itemsError } = await supabase
+      .from("order_items").insert(orderItems).select();
 
     if (itemsError) {
       console.error("Order items insert error:", itemsError);
@@ -117,6 +122,24 @@ serve(async (req) => {
     }
 
     await supabase.from("pending_payments").delete().eq("order_id", orderId);
+
+    // Notify Make (→ Notion) with the full, DB-generated order + items —
+    // non-blocking: a Make outage must not stop the order confirmation
+    // itself from succeeding for the customer.
+    try {
+      const webhookResp = await fetch(MAKE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: insertedOrder, orderItems: insertedItems ?? [] }),
+      });
+      if (!webhookResp.ok) {
+        console.error("Make webhook error:", webhookResp.status, await webhookResp.text());
+      } else {
+        console.log("Make webhook sent for order", orderId);
+      }
+    } catch (webhookErr) {
+      console.error("Make webhook request failed:", webhookErr);
+    }
 
     return new Response(JSON.stringify({
       confirmed: true,
