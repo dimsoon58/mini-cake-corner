@@ -173,15 +173,9 @@ const OurStory = () => {
       {/* Hero */}
       <section className="bg-background pt-10 pb-8 md:pt-16 md:pb-10">
         <div className="container mx-auto px-4 text-center">
-          <p className="font-sans uppercase tracking-[0.3em] text-[10px] text-primary/60 mb-4">
-            {t("BENTO CAKE STUDIO — GENEVA", "BENTO CAKE STUDIO — GENÈVE")}
-          </p>
           <h1 className="font-sans text-3xl md:text-5xl uppercase tracking-[0.105em] text-foreground">
             {t("OUR STORY", "NOTRE HISTOIRE")}
           </h1>
-          <p className="font-serif italic text-lg md:text-xl text-foreground/70 mt-4">
-            {t("Five years of cakes, celebrations and creativity.", "Cinq ans de gâteaux, de célébrations et de créativité.")}
-          </p>
         </div>
         <div className="container mx-auto px-4 mt-8 md:mt-10">
           <PhotoSlot className="aspect-[16/7] md:aspect-[24/7] max-h-[380px]" label={t("HERO PHOTO", "PHOTO PRINCIPALE")} />
