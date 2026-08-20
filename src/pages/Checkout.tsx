@@ -408,10 +408,14 @@ const Checkout = () => {
         return { ...item, imageUrls: itemUrls };
       });
 
-      // Save the order first — Supabase is the source of truth. order_number /
-      // invoice_number / order_validation / payment fields are left unset:
-      // the DB trigger and the payment webhook own those, never the client.
-      const { data: orderData, error: orderError } = await supabase.from("orders").insert({
+      // Nothing is written to Supabase yet. The order only becomes real
+      // once PostFinance confirms the payment authorization — creating it
+      // here would leave a fake "order" behind (with a burnt order_number)
+      // for every abandoned or declined checkout. What we build below is
+      // staged into pending_payments by create-payment, and only turned
+      // into real orders/order_items rows by postfinance-webhook on first
+      // confirmed authorization.
+      const orderData = {
         id: orderId,
         order_source: "website",
         lang,
@@ -430,19 +434,10 @@ const Checkout = () => {
         order_comment: deliveryOption === "delivery" ? deliveryComment : null,
         total_amount: totalPrice,
         newsletter_subscription: subscribeNewsletter,
-      }).select("id").single();
-
-      if (orderError) {
-        console.error("Order save error:", orderError);
-        throw new Error("Impossible d'enregistrer la commande.");
-      }
-
-      const createdOrderId = orderData?.id || orderId;
+      };
 
       // Each cake/product is its own order_items row, with its own real
-      // price — never orders.total_amount split evenly. This must succeed
-      // before payment starts: the Make webhook (fired later, on payment
-      // authorization) reads order_items, not the cart.
+      // price — never orders.total_amount split evenly.
       const orderItemsRows = orderItemsWithImageUrls.map((item) => {
         const { extra, extraType, extraColor } = buildExtraFields(item);
 
@@ -468,7 +463,7 @@ const Checkout = () => {
         }
 
         return {
-          order_id: createdOrderId,
+          order_id: orderId,
           product: item.product,
           size: item.size || null,
           shape: item.shape || null,
@@ -501,16 +496,13 @@ const Checkout = () => {
         };
       });
 
-      const { error: itemsError } = await supabase.from("order_items").insert(orderItemsRows);
-
-      if (itemsError) {
-        console.error("Order items save error:", itemsError);
-        await supabase.from("orders").delete().eq("id", createdOrderId);
-        throw new Error("Impossible d'enregistrer les articles de la commande.");
-      }
-
-      // Build payload for embedded checkout
+      // Build payload for the payment page. `order`/`orderItems` are the
+      // real rows create-payment stages into pending_payments — nothing
+      // has touched orders/order_items yet. `items` below is display-only,
+      // used solely to build the PostFinance payment page's line items.
       const payload = {
+        order: orderData,
+        orderItems: orderItemsRows,
         items: items.map((item) => ({
           sizeName: item.sizeName,
           shapeName: item.shapeName,
@@ -526,7 +518,7 @@ const Checkout = () => {
         deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
         deliveryFee: deliveryPrice,
         totalAmount: totalPrice,
-        orderId: createdOrderId || orderId,
+        orderId,
         language: lang,
       };
 
