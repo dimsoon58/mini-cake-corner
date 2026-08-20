@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { Check, CalendarIcon, Upload, X } from "lucide-react";
+import { Check, CalendarIcon, Upload, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
@@ -22,6 +22,16 @@ import {
 } from "@/components/ui/dialog";
 import { submitToWeb3Forms } from "@/lib/web3forms";
 import { useLang } from "@/context/LanguageContext";
+import partnerGallery1 from "@/assets/partner-gallery-1.jpg";
+import partnerGallery2 from "@/assets/partner-gallery-2.jpg";
+import partnerGallery3 from "@/assets/partner-gallery-3.jpg";
+import partnerGallery4 from "@/assets/partner-gallery-4.jpg";
+import partnerGallery5 from "@/assets/partner-gallery-5.jpg";
+import partnerGallery6 from "@/assets/partner-gallery-6.jpg";
+import partnerGallery7 from "@/assets/partner-gallery-7.jpg";
+import partnerGallery8 from "@/assets/partner-gallery-8.jpg";
+import partnerGallery9 from "@/assets/partner-gallery-9.jpg";
+import partnerGallery10 from "@/assets/partner-gallery-10.jpg";
 import { useFieldError } from "@/lib/formErrors";
 
 import cardCelebrations from "@/assets/corporate-event-5.png";
@@ -532,6 +542,61 @@ const cards: {
 
 type View = "info" | "form" | "done";
 
+const partnerGallery = [
+  partnerGallery1, partnerGallery2, partnerGallery3, partnerGallery4, partnerGallery5,
+  partnerGallery6, partnerGallery7, partnerGallery8, partnerGallery9, partnerGallery10,
+];
+
+/* Bandeau de photos qui defilent, en bas de la page Partenariat */
+const PartnerGallery = () => {
+  const { t } = useLang();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: "left" | "right") => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollBy({ left: direction === "left" ? -288 : 288, behavior: "smooth" });
+  };
+
+  return (
+    <section className="pb-20">
+      <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-10">
+        {t("Our Partnerships", "Nos partenariats")}
+      </h2>
+      <div className="relative">
+        <button
+          onClick={() => scroll("left")}
+          aria-label={t("Previous", "Precedent")}
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background rounded-none p-2 shadow-md"
+        >
+          <ChevronLeft className="h-5 w-5 text-foreground" />
+        </button>
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {partnerGallery.map((photo, index) => (
+            <div key={index} className="flex-shrink-0 w-64 h-64 overflow-hidden">
+              <img
+                src={photo}
+                alt={`Bento Cake Studio partnership ${index + 1}`}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => scroll("right")}
+          aria-label={t("Next", "Suivant")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background rounded-none p-2 shadow-md"
+        >
+          <ChevronRight className="h-5 w-5 text-foreground" />
+        </button>
+      </div>
+    </section>
+  );
+};
+
 const Business = () => {
   const { t } = useLang();
   const fe = useFieldError();
@@ -608,6 +673,8 @@ const Business = () => {
           ))}
         </div>
       </div>
+
+      <PartnerGallery />
 
       {/* ───────── Corporate Celebrations dialog ───────── */}
       <Dialog open={openId === "celebrations"} onOpenChange={handleOpenChange}>
