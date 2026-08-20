@@ -27,6 +27,7 @@ import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/custom
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
+import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { supabase } from "@/integrations/supabase/client";
 // @ts-ignore
 import "@fontsource/dancing-script";
@@ -1538,7 +1539,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="text-xs max-w-[200px]">{t("Choose the size of your cake.", "Choisissez la taille de votre gâteau.")}</p>
+                      <p className="text-xs max-w-[260px]">
+                        {t("Choose the size of your cake.", "Choisissez la taille de votre gâteau.")}
+                        <br />
+                        {t(sizeInfoSummary.en, sizeInfoSummary.fr)}
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </label>
@@ -1556,6 +1561,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           <img src={size.image} alt={size.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
                           <div className="min-w-0 flex-1">
                             <span className="block">{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
+                            {sizeInfo[size.id] && (
+                              <span className="block text-xs text-primary/80 whitespace-normal leading-snug mt-0.5">
+                                {t(sizeInfo[size.id].en, sizeInfo[size.id].fr)}
+                              </span>
+                            )}
                             {sizeDesc[size.id] && (
                               <span className="block text-xs text-muted-foreground whitespace-normal leading-snug mt-0.5">
                                 {t(sizeDesc[size.id].en, sizeDesc[size.id].fr)}

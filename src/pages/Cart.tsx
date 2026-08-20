@@ -16,6 +16,7 @@ import { ShoppingBag, Trash2, ArrowLeft, Pencil, CalendarIcon, Check, Plus, Minu
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
+import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { supabase } from "@/integrations/supabase/client";
 import {
   sizes,
@@ -657,7 +658,7 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Size with box images */}
-      <EditSection label={t("Size", "Taille")} tooltip={t("Choose the size of your cake.", "Choisissez la taille de votre gâteau.")} required>
+      <EditSection label={t("Size", "Taille")} tooltip={t(`Choose the size of your cake. ${sizeInfoSummary.en}`, `Choisissez la taille de votre gâteau. ${sizeInfoSummary.fr}`)} required>
         <div className="grid grid-cols-1 gap-2">
           {sizes.filter(size => availableSizeIds.includes(size.id)).map((size) => (
             <button
@@ -672,6 +673,11 @@ const CartItemEditor = ({
               <div className="flex-1">
                 <span className="font-medium text-foreground">{size.name}</span>
                 <span className="text-sm text-muted-foreground ml-2">CHF {size.price}</span>
+                {sizeInfo[size.id] && (
+                  <span className="block text-xs text-primary/80 mt-0.5">
+                    {t(sizeInfo[size.id].en, sizeInfo[size.id].fr)}
+                  </span>
+                )}
               </div>
               {item.size === size.id && <Check className="h-4 w-4 text-primary" />}
             </button>
