@@ -1273,6 +1273,8 @@ const Catalog = () => {
       ribbonColorName: selectedRibbonColor?.name || "",
       butterflyColor: selections.butterflyColor,
       butterflyColorName: selectedButterflyColor?.name || "",
+      glitterColorName: glitterColors.find(c => c.id === selections.glitterColor)?.name || "",
+      glitterCherriesColorName: glitterCherriesColors.find(c => c.id === selections.glitterCherriesColor)?.name || "",
       candles: selections.candles,
       comment: selectedCake.images && selectedCake.images.length > 1
         ? `[Preferred design: Option ${selections.shagDesignPreference + 1}]${selections.comment ? " " + selections.comment : ""}`

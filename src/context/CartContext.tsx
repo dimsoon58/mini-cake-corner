@@ -36,6 +36,10 @@ export interface CartItem {
   ribbonColorName: string;
   butterflyColor: string;
   butterflyColorName: string;
+  /* Only set by Catalog.tsx, for the Glitter / Glitter Cherries extras —
+     optional so every other add-to-cart page is unaffected. */
+  glitterColorName?: string;
+  glitterCherriesColorName?: string;
   candles: CandleCartItem[];
   comment: string;
   imageUrls: string[];

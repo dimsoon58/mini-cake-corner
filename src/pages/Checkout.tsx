@@ -5,7 +5,7 @@ import { CalendarIcon, ArrowLeft } from "lucide-react";
 import {
   sizes, shapes, styles, extras as catalogExtrasData,
   getFlavorCategoryExtra, getExtraPrice, getCandleTotalPrice, candles as customisationCandles,
-  flavorCategories,
+  flavorCategories, extraGroups,
 } from "@/data/customization";
 import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
 import { Button } from "@/components/ui/button";
@@ -144,35 +144,64 @@ const buildPickupDeliveryDatetime = (date: Date, slot: string): string => {
   return combined.toISOString();
 };
 
+// order_items.extra_type comes from the real catalog structure (customization.ts's
+// extraGroups: "Pearls", "Glitter", "Decorations"...), not from parsing text —
+// e.g. pearl-number and glitter resolve to "Pearls, Glitter", never left as a
+// copy of `extra` and never as the raw ids.
+const EXTRA_GROUP_BY_ID: Record<string, string> = {};
+extraGroups.forEach((group) => {
+  group.ids.forEach((id) => { EXTRA_GROUP_BY_ID[id] = group.label; });
+});
+
 // Builds order_items.extra / extra_type / extra_color as clean, readable
-// values (no raw JSON) from the cart item's already-readable Name fields.
-// When there's exactly one extra and it's formatted as "Type: Colour(s)"
-// (e.g. KitBentoCake's "3 Piping Bags: Sky Blue, Pink"), it's split into a
-// clean type/colour pair; otherwise extra_type/extra_color are left blank
-// and `extra` alone carries the full readable description.
+// values (no raw JSON, no technical ids).
 const buildExtraFields = (item: {
+  extras: string[];
   extrasNames: string[];
   ribbonColorName: string;
   butterflyColorName: string;
+  glitterColorName?: string;
+  glitterCherriesColorName?: string;
 }): { extra: string; extraType: string; extraColor: string } => {
   const parts = [...item.extrasNames];
   if (item.ribbonColorName) parts.push(`Ribbon: ${item.ribbonColorName}`);
   if (item.butterflyColorName) parts.push(`Butterfly: ${item.butterflyColorName}`);
+  if (item.glitterColorName) parts.push(`Glitter: ${item.glitterColorName}`);
+  if (item.glitterCherriesColorName) parts.push(`Glitter Cherries: ${item.glitterCherriesColorName}`);
   const cleanParts = parts.filter(Boolean);
   const extra = cleanParts.join(", ");
 
-  let extraType = "";
-  let extraColor = "";
-  if (cleanParts.length === 1) {
+  // Structured lookup first: each extra's real catalog category.
+  const groupLabels = Array.from(new Set(
+    (item.extras || [])
+      .map((id) => EXTRA_GROUP_BY_ID[id])
+      .filter((label): label is string => Boolean(label))
+  ));
+  const colorParts = [
+    item.ribbonColorName,
+    item.butterflyColorName,
+    item.glitterColorName,
+    item.glitterCherriesColorName,
+  ].filter(Boolean);
+
+  let extraType = groupLabels.join(", ");
+  let extraColor = colorParts.join(", ");
+
+  // Ids with no catalog group (e.g. KitBentoCake's piping-bag option, which
+  // isn't in customization.ts's extras catalog at all) fall back to the
+  // single readable entry itself, which already embeds "Type: Colour(s)"
+  // (e.g. "3 Piping Bags: Sky Blue, Pink, Pastel Orange").
+  if (!extraType && cleanParts.length === 1) {
     const [only] = cleanParts;
     const colonIndex = only.indexOf(":");
     if (colonIndex > -1) {
       extraType = only.slice(0, colonIndex).replace(/^\d+\s+/, "").trim();
-      extraColor = only.slice(colonIndex + 1).trim();
+      if (!extraColor) extraColor = only.slice(colonIndex + 1).trim();
     } else {
       extraType = only.replace(/^\d+\s+/, "").trim();
     }
   }
+
   return { extra, extraType, extraColor };
 };
 
