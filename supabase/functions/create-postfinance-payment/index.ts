@@ -89,7 +89,7 @@ serve(async (req) => {
       customerEmailAddress: order.email,
       merchantReference: orderId,
       successUrl: `${SITE_BASE_URL}/payment-success?order_id=${orderId}`,
-      failedUrl: `${SITE_BASE_URL}/checkout`,
+      failedUrl: `${SITE_BASE_URL}/checkout?payment=failed`,
       completionBehavior: "COMPLETE_DEFERRED",
       lineItems,
       metaData: {

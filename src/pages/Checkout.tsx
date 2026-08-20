@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
 import {
@@ -271,6 +271,7 @@ const uploadImageFilesToStorage = async (
 const Checkout = () => {
   const { items, clearCart } = useCart();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [firstName, setFirstName] = useState("");
   const { t, lang } = useLang();
   const [applyReward, setApplyReward] = useState(false);
@@ -306,6 +307,23 @@ const Checkout = () => {
       }
     };
     fetchBookedDates();
+  }, []);
+
+  // PostFinance's failedUrl brings the customer straight back here with
+  // ?payment=failed — cart is left untouched (nothing here calls
+  // clearCart()) so they can retry immediately.
+  useEffect(() => {
+    if (searchParams.get("payment") === "failed") {
+      toast({
+        title: t("Payment failed", "Échec du paiement"),
+        description: t(
+          "Payment failed. Please try again or use another payment method.",
+          "Le paiement a échoué. Veuillez réessayer ou utiliser un autre moyen de paiement."
+        ),
+        variant: "destructive",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);

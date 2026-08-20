@@ -865,6 +865,16 @@ serve(async (req) => {
     if (!order.postfinance_transaction_id) throw new Error("No PostFinance transaction found");
 
     const credentials = getPostFinanceCredentials();
+
+    // Re-read the transaction's real state from PostFinance before acting —
+    // never trust order.payment_status alone for a money-moving decision.
+    const transactionRead = await pfFetch(
+      credentials,
+      `/payment/transactions/${order.postfinance_transaction_id}`,
+      "GET",
+    ) as { state: string };
+    const transactionState = transactionRead.state;
+
     const paymentMethodLabel = order.payment_method || "PostFinance";
 
     let newValidation: string;
@@ -876,32 +886,28 @@ serve(async (req) => {
 
     if (action === "approve") {
       // The transaction was only authorised at checkout (COMPLETE_DEFERRED) —
-      // approving is what actually captures the funds.
-      //
-      // UNVERIFIED: manage-order.ts is not deployed live yet, unlike
-      // create-postfinance-payment/confirm-postfinance-payment. This POST
-      // path follows the same /payment/transactions/{id}/... convention
-      // those two confirmed-working calls use, but the exact completion
-      // endpoint name has not been checked against PostFinance's API
-      // reference or tested against a real transaction. Verify this before
-      // relying on it to capture real money.
-      if (order.payment_status === "authorized") {
+      // approving is what actually captures the funds. Verified against
+      // PostFinance's official TypeScript SDK (pfpayments/typescript-sdk):
+      // POST .../complete-online, no request body, only valid while the
+      // transaction is AUTHORIZED.
+      if (transactionState === "AUTHORIZED") {
         try {
           await pfFetch(
             credentials,
-            `/payment/transactions/${order.postfinance_transaction_id}/complete`,
+            `/payment/transactions/${order.postfinance_transaction_id}/complete-online`,
             "POST",
           );
         } catch (e) {
-          throw new Error(`PostFinance capture failed: ${e instanceof Error ? e.message : String(e)}`);
+          throw new Error(`Payment capture failed. The order has not been approved. Manual verification is required. PostFinance state: ${transactionState}. Details: ${e instanceof Error ? e.message : String(e)}`);
         }
         paymentAction = "Payment captured via PostFinance";
         orderUpdate.payment_status = "paid";
         orderUpdate.paid_at = new Date().toISOString();
-      } else if (order.payment_status === "paid") {
+      } else if (transactionState === "COMPLETED") {
         paymentAction = "Payment already captured";
       } else {
-        paymentAction = `Payment status: ${order.payment_status}`;
+        // No valid money action for this state — do not approve the order.
+        throw new Error(`Cannot approve: PostFinance transaction is in unexpected state ${transactionState} (expected AUTHORIZED or COMPLETED)`);
       }
 
       newValidation = "approved";
@@ -950,37 +956,49 @@ serve(async (req) => {
     } else {
       // Reject: release the authorization, or refund if it was somehow
       // already captured (shouldn't normally happen — capture only ever
-      // happens on approve — but stay defensive, same as before).
-      // Same caveat as the capture call above: void/refund endpoint names
-      // are unverified against PostFinance's real API — check before relying
-      // on them.
-      if (order.payment_status === "authorized") {
+      // happens on approve — but stay defensive, same as before). Verified
+      // against PostFinance's official TypeScript SDK:
+      //   - void-online: POST .../void-online, no body, only valid while
+      //     the transaction is AUTHORIZED.
+      //   - refund: POST /payment/refunds with a RefundCreate body — refund
+      //     is its own resource, not a sub-action on the transaction — only
+      //     valid once the transaction is COMPLETED. externalId is a stable
+      //     idempotency key: PostFinance returns the original result instead
+      //     of double-refunding if this exact request is ever retried.
+      if (transactionState === "AUTHORIZED") {
         try {
           await pfFetch(
             credentials,
-            `/payment/transactions/${order.postfinance_transaction_id}/void`,
+            `/payment/transactions/${order.postfinance_transaction_id}/void-online`,
             "POST",
           );
         } catch (e) {
-          throw new Error(`PostFinance void failed: ${e instanceof Error ? e.message : String(e)}`);
+          throw new Error(`Payment void failed. The order has not been rejected. Manual verification is required. PostFinance state: ${transactionState}. Details: ${e instanceof Error ? e.message : String(e)}`);
         }
         paymentAction = "Authorization voided (not captured)";
-        orderUpdate.payment_status = "voided";
-      } else if (order.payment_status === "paid") {
+        // The live payment_status enum has no "voided" value — "cancelled"
+        // is the existing compatible status for a released authorization.
+        orderUpdate.payment_status = "cancelled";
+      } else if (transactionState === "COMPLETED") {
         try {
           await pfFetch(
             credentials,
-            `/payment/transactions/${order.postfinance_transaction_id}/refund`,
+            `/payment/refunds`,
             "POST",
-            { amount: order.total_amount },
+            {
+              externalId: `${order.postfinance_transaction_id}-refund`,
+              type: "MERCHANT_INITIATED_ONLINE",
+              transaction: Number(order.postfinance_transaction_id),
+            },
           );
         } catch (e) {
-          throw new Error(`PostFinance refund failed: ${e instanceof Error ? e.message : String(e)}`);
+          throw new Error(`Payment refund failed. The order has not been rejected. Manual verification is required. PostFinance state: ${transactionState}. Details: ${e instanceof Error ? e.message : String(e)}`);
         }
         paymentAction = "Payment refunded";
         orderUpdate.payment_status = "refunded";
       } else {
-        paymentAction = `Payment status: ${order.payment_status}`;
+        // No valid money action for this state — do not reject the order.
+        throw new Error(`Cannot reject: PostFinance transaction is in unexpected state ${transactionState} (expected AUTHORIZED or COMPLETED)`);
       }
 
       newValidation = "rejected";
