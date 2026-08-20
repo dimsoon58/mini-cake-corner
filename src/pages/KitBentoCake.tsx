@@ -49,6 +49,7 @@ import candleDaisy from "@/assets/candle-daisy.png";
 import candleRibbon from "@/assets/candle-ribbon.png";
 import candlePinkCar from "@/assets/candle-pink-car.png";
 import candleRainbow from "@/assets/candle-rainbow.png";
+import diyKitBox from "@/assets/diy-kit-box.jpg";
 
 const BASE_PRICE = 45;
 
@@ -592,6 +593,16 @@ const KitBentoCake = () => {
         </div>
 
         {/* Fixed Bottom Bar */}
+        {/* Photo du kit, en bas de page */}
+        <div className="pt-4">
+          <img
+            src={diyKitBox}
+            alt={t("Bento Cake Studio DIY kit", "Kit DIY Bento Cake Studio")}
+            loading="lazy"
+            className="w-full max-w-md mx-auto"
+          />
+        </div>
+
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 shadow-lg z-50">
           <div className="container mx-auto flex items-center justify-between max-w-4xl">
             <div>
