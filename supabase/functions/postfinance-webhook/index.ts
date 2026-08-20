@@ -3,7 +3,7 @@
  *
  * URL a declarer dans PostFinance (Space > Settings > General > Webhook URLs),
  * puis un listener sur l'entite Transaction :
- *   https://fgqwisxcpadrqgbjfdqj.supabase.co/functions/v1/postfinance-webhook
+ *   https://ekciarsrdyismyevgkqg.supabase.co/functions/v1/postfinance-webhook
  *
  * Principe de securite : la notification recue n'est jamais crue sur parole.
  * Elle ne sert qu'a apprendre qu'une transaction a bouge ; l'etat reel est

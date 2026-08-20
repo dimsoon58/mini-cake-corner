@@ -19,9 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Client-side (VITE_) values — safe to expose, they ship in the built JS by design
-      VITE_SUPABASE_PROJECT_ID: fgqwisxcpadrqgbjfdqj
-      VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZncXdpc3hjcGFkcnFnYmpmZHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3MzU5NjIsImV4cCI6MjA4MjMxMTk2Mn0.gS4_CstGh26z5liN5PJ6jgF7Mht1u3UlfRyTW0qKpss
-      VITE_SUPABASE_URL: https://fgqwisxcpadrqgbjfdqj.supabase.co
+      VITE_SUPABASE_PROJECT_ID: ekciarsrdyismyevgkqg
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_r06FD7vRhva5JrCvL0pHfA__pu0UkXP
+      VITE_SUPABASE_URL: https://ekciarsrdyismyevgkqg.supabase.co
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
