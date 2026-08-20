@@ -19,6 +19,9 @@ import dotGallery3 from "@/assets/dot-gallery-3.jpg";
 import dotGallery4 from "@/assets/dot-gallery-4.jpg";
 import dotGallery5 from "@/assets/dot-gallery-5.jpg";
 import dotGallery6 from "@/assets/dot-gallery-6.jpg";
+import dotGallery7 from "@/assets/dot-gallery-7.jpg";
+import dotGallery8 from "@/assets/dot-gallery-8.jpg";
+import dotGallery9 from "@/assets/dot-gallery-9.jpg";
 
 /* Dot cake pricing: pack base price + per-dot surcharge for premium/deluxe
    flavours, split evenly across the chosen flavours. */
@@ -45,7 +48,10 @@ const tierNoteFr: Record<string, string> = {
 
 const INITIAL_CANDLES_SHOWN = 4;
 
-const dotGallery = [dotGallery1, dotGallery2, dotGallery3, dotGallery4, dotGallery5, dotGallery6];
+const dotGallery = [
+  dotGallery1, dotGallery2, dotGallery3, dotGallery4, dotGallery5,
+  dotGallery6, dotGallery7, dotGallery8, dotGallery9,
+];
 
 /* Galerie qui defile, meme principe que le carrousel de la page d'accueil */
 const DotGallery = () => {
