@@ -139,6 +139,22 @@ serve(async (req) => {
       console.error("Make webhook request failed:", webhookErr);
     }
 
+    // Best-effort admin notification — order + order_items are already
+    // safely saved above, so nothing here may affect that outcome. Run as a
+    // background task so this response never waits on it: any failure
+    // (thrown or returned via `error`) is only ever logged, and never
+    // affects the order, this response, or the Make webhook above.
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        const { error: notifyError } = await supabase.functions.invoke("notify-order", { body: { orderId } });
+        if (notifyError) {
+          console.error("notify-order returned an error (order still created):", notifyError);
+        }
+      } catch (notifyErr) {
+        console.error("notify-order invocation failed (order still created):", notifyErr);
+      }
+    })());
+
     return new Response(JSON.stringify({
       confirmed: true,
       justCreated: true,

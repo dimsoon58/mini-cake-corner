@@ -8,58 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ── Google Calendar helpers ──────────────────────────────────────────
-
-async function getGoogleAccessToken(serviceAccountKey: string): Promise<string> {
-  const key = JSON.parse(serviceAccountKey);
-  const header = { alg: "RS256", typ: "JWT" };
-  const now = Math.floor(Date.now() / 1000);
-  const claim = {
-    iss: key.client_email,
-    scope: "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/drive.file",
-    aud: "https://oauth2.googleapis.com/token",
-    exp: now + 3600,
-    iat: now,
-  };
-
-  const encoder = new TextEncoder();
-  const headerB64 = btoa(String.fromCharCode(...encoder.encode(JSON.stringify(header))))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  const claimB64 = btoa(String.fromCharCode(...encoder.encode(JSON.stringify(claim))))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-
-  const signInput = `${headerB64}.${claimB64}`;
-
-  const pemContents = key.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\n/g, "");
-  const binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
-
-  const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8", binaryKey,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false, ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, encoder.encode(signInput));
-  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-
-  const jwt = `${signInput}.${sigB64}`;
-
-  const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
-  });
-
-  const tokenData = await tokenResp.json();
-  if (!tokenResp.ok) throw new Error(`Google OAuth error: ${JSON.stringify(tokenData)}`);
-  return tokenData.access_token;
-}
-
-// Build a structured text block with all order details (shared between calendar & email)
 function formatDateCH(dateValue?: string): string {
   if (!dateValue) return "—";
   const [year, month, day] = dateValue.split("-");
@@ -77,146 +25,6 @@ function getOrderImageUrls(items: any[]): string[] {
       ? item.reference_images.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
       : []
   );
-}
-
-function buildOrderDetailsText(order: any, items: any[], paymentMethodLabel: string): string {
-  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
-  const invoiceNumber = order.invoice_number || "—";
-  const orderImageUrls = getOrderImageUrls(items);
-
-  const lines: string[] = [];
-  const pushBullet = (value?: string | null) => {
-    if (!value) return;
-    lines.push(`• ${value}`);
-  };
-
-  pushBullet(`Order number: ${orderNumber}`);
-  pushBullet(`Invoice number: ${invoiceNumber}`);
-  pushBullet(`Customer name: ${customerName(order)}`);
-  pushBullet(`Customer email: ${order.email}`);
-  pushBullet(`Customer phone: ${order.phone}`);
-  lines.push("");
-  pushBullet(`Pickup date: ${formatDateCH(order.pickup_delivery_date)}`);
-  if (order.pickup_delivery_slot) pushBullet(`Pickup time: ${order.pickup_delivery_slot}`);
-  pushBullet(`Pickup option: ${order.delivery_method === "delivery" ? `Delivery to ${order.delivery_address || "—"}` : "Pickup at store"}`);
-
-  items.forEach((item: any, i: number) => {
-    lines.push("");
-    pushBullet(items.length > 1 ? `Article ${i + 1}` : "Article details");
-    if (item.size) pushBullet(`Size: ${item.size}`);
-    if (item.flavors?.length) pushBullet(`Flavour: ${item.flavors.join(", ")}`);
-    if (item.shape) pushBullet(`Shape: ${item.shape}`);
-    if (item.design) pushBullet(`Design: ${item.design}`);
-    if (item.base_color) pushBullet(`Base color: ${item.base_color}`);
-    if (item.decoration_color) pushBullet(`Decoration color: ${item.decoration_color}`);
-    if (item.text_color) pushBullet(`Text color: ${item.text_color}`);
-    if (item.text_style) pushBullet(`Text style: ${item.text_style}`);
-    if (item.cake_text) pushBullet(`Text on cake: ${item.cake_text}`);
-
-    if (item.extra) {
-      pushBullet(`Extras: ${item.extra}`);
-      lines.push("");
-    }
-
-    if (item.candle_name) pushBullet(`Candles: ${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`);
-
-    if (item.item_comment?.trim()) pushBullet(`Additional note: ${item.item_comment.trim()}`);
-  });
-
-  if (orderImageUrls.length) {
-    lines.push("");
-    orderImageUrls.forEach((url, j) => {
-      pushBullet(`Reference image ${j + 1}: ${url}`);
-    });
-  }
-
-  if (order.order_comment) {
-    lines.push("");
-    pushBullet(`Delivery comment: ${order.order_comment}`);
-  }
-
-  lines.push("");
-  pushBullet(`Payment method: ${paymentMethodLabel}`);
-  pushBullet(`Total paid: CHF ${order.total_amount}`);
-
-  return lines.join("\n");
-}
-
-function extractPickupStartTime(slot?: string): { hours: number; minutes: number } | null {
-  if (!slot) return null;
-
-  // Supports both "12:00" and "12:00 – 13:00"
-  const match = slot.match(/(\d{1,2})\s*:\s*(\d{2})/);
-  if (!match) return null;
-
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-
-  if (
-    Number.isNaN(hours) ||
-    Number.isNaN(minutes) ||
-    hours < 0 ||
-    hours > 23 ||
-    minutes < 0 ||
-    minutes > 59
-  ) {
-    return null;
-  }
-
-  return { hours, minutes };
-}
-
-async function createCalendarEvent(accessToken: string, order: any, items: any[], paymentMethodLabel: string) {
-  const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
-
-  const description = buildOrderDetailsText(order, items, paymentMethodLabel);
-
-  const event: any = {
-    summary: `${customerName(order)} — ${orderNumber}`,
-    description,
-    colorId: "6",
-  };
-
-  const parsedPickup = extractPickupStartTime(order.pickup_delivery_slot);
-  if (parsedPickup && order.pickup_delivery_date) {
-    const startDate = new Date(
-      `${order.pickup_delivery_date}T${String(parsedPickup.hours).padStart(2, "0")}:${String(parsedPickup.minutes).padStart(2, "0")}:00`
-    );
-
-    if (!Number.isNaN(startDate.getTime())) {
-      const endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
-
-      event.start = {
-        dateTime: startDate.toISOString().replace("Z", ""),
-        timeZone: "Europe/Zurich",
-      };
-      event.end = {
-        dateTime: endDate.toISOString().replace("Z", ""),
-        timeZone: "Europe/Zurich",
-      };
-    } else {
-      event.start = { date: order.pickup_delivery_date, timeZone: "Europe/Zurich" };
-      event.end = { date: order.pickup_delivery_date, timeZone: "Europe/Zurich" };
-    }
-  } else {
-    event.start = { date: order.pickup_delivery_date, timeZone: "Europe/Zurich" };
-    event.end = { date: order.pickup_delivery_date, timeZone: "Europe/Zurich" };
-  }
-
-  const calendarId = encodeURIComponent("naglemelodie@gmail.com");
-  const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify(event),
-  });
-
-  const data = await resp.json();
-  if (!resp.ok) {
-    console.error("Calendar event creation failed:", data);
-    throw new Error(`Google Calendar error: ${JSON.stringify(data)}`);
-  }
-  console.log("Calendar event created:", data.id);
-  return data;
 }
 
 // ── Customer language helper ────────────────────────────────────────
@@ -292,7 +100,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
       <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
     </tr>`).join("");
 
-  const logoUrl = "https://mini-cake-corner.lovable.app/logo-new.png";
+  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-new.png";
 
   const html = `
 <!DOCTYPE html>
@@ -429,7 +237,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
-  const catalogLink = "https://mini-cake-corner.lovable.app/catalog";
+  const catalogLink = "https://dimsoon58.github.io/mini-cake-corner/catalog";
 
   const html = `
 <!DOCTYPE html>
@@ -547,7 +355,7 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
 
   // Fetch and embed logo (top-right)
   try {
-    const logoResp = await fetch("https://mini-cake-corner.lovable.app/logo-new.png");
+    const logoResp = await fetch("https://dimsoon58.github.io/mini-cake-corner/logo-new.png");
     const logoBytes = new Uint8Array(await logoResp.arrayBuffer());
     const logoImage = await pdfDoc.embedPng(logoBytes);
     const scale = 50 / logoImage.height;
@@ -702,64 +510,6 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
   return btoa(binary);
 }
 
-// ── Upload invoice PDF to Google Drive ──────────────────────────────
-
-async function uploadInvoiceToGoogleDrive(accessToken: string, pdfBase64: string, invoiceNumber: string) {
-  const FOLDER_ID = "1siujhqZbmYDyhaLdU-zi87o5kCPr0jV1";
-  const fileName = invoiceNumber || "invoice";
-
-  // Convert base64 to Uint8Array
-  const binaryStr = atob(pdfBase64);
-  const pdfBytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    pdfBytes[i] = binaryStr.charCodeAt(i);
-  }
-
-  // Use multipart upload with raw binary (not base64 Content-Transfer-Encoding)
-  const metadata = JSON.stringify({
-    name: `${fileName}.pdf`,
-    parents: [FOLDER_ID],
-  });
-
-  const boundary = "invoice_upload_boundary";
-  // Build multipart body with raw PDF bytes
-  const metadataPart = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`;
-  const filePart = `--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`;
-  const closing = `\r\n--${boundary}--`;
-
-  const encoder = new TextEncoder();
-  const metaBytes = encoder.encode(metadataPart);
-  const fileHeaderBytes = encoder.encode(filePart);
-  const closingBytes = encoder.encode(closing);
-
-  // Combine all parts into a single Uint8Array
-  const combined = new Uint8Array(metaBytes.length + fileHeaderBytes.length + pdfBytes.length + closingBytes.length);
-  combined.set(metaBytes, 0);
-  combined.set(fileHeaderBytes, metaBytes.length);
-  combined.set(pdfBytes, metaBytes.length + fileHeaderBytes.length);
-  combined.set(closingBytes, metaBytes.length + fileHeaderBytes.length + pdfBytes.length);
-
-  const resp = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": `multipart/related; boundary=${boundary}`,
-      },
-      body: combined,
-    }
-  );
-
-  const data = await resp.json();
-  if (!resp.ok) {
-    console.error("Google Drive upload failed:", data);
-    throw new Error(`Google Drive error: ${JSON.stringify(data)}`);
-  }
-  console.log("Invoice uploaded to Google Drive:", data.id, fileName);
-  return data;
-}
-
 // ── Token validation helper ─────────────────────────────────────────
 
 async function validateAndConsumeToken(supabase: any, orderId: string, token: string): Promise<void> {
@@ -880,7 +630,6 @@ serve(async (req) => {
     let newValidation: string;
     let paymentAction: string;
     const orderUpdate: Record<string, unknown> = {};
-    let calendarResult: any = null;
     let declineEmailResult: any = null;
     let approvalEmailResult: any = null;
 
@@ -914,16 +663,6 @@ serve(async (req) => {
       orderUpdate.order_validation = newValidation;
       console.log(`Order ${orderId} approved. ${paymentAction}`);
 
-      const gcKey = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
-      if (gcKey) {
-        try {
-          const accessToken = await getGoogleAccessToken(gcKey);
-          calendarResult = await createCalendarEvent(accessToken, order, orderItems, paymentMethodLabel);
-        } catch (e) {
-          console.error("Calendar error:", e);
-        }
-      }
-
       // Generate invoice PDF
       let invoicePdfBase64: string | null = null;
       try {
@@ -942,14 +681,23 @@ serve(async (req) => {
           console.error("Approval email error:", e);
         }
 
-        // Upload invoice PDF to Google Drive
-        if (invoicePdfBase64 && gcKey) {
+        // Upload invoice PDF to Supabase Storage (bucket: invoice)
+        if (invoicePdfBase64) {
           try {
-            const driveToken = await getGoogleAccessToken(gcKey);
             const invoiceNum = order.invoice_number || order.order_number || "invoice";
-            await uploadInvoiceToGoogleDrive(driveToken, invoicePdfBase64, invoiceNum);
+            const pdfBytes = Uint8Array.from(atob(invoicePdfBase64), (c) => c.charCodeAt(0));
+            const storagePath = `${invoiceNum}.pdf`;
+            const { error: invoiceUploadError } = await supabase.storage
+              .from("invoice")
+              .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
+
+            if (invoiceUploadError) {
+              console.error("Invoice storage upload error:", invoiceUploadError);
+            } else {
+              orderUpdate.invoice_path = storagePath;
+            }
           } catch (e) {
-            console.error("Google Drive invoice upload error:", e);
+            console.error("Invoice storage upload error:", e);
           }
         }
       }
@@ -1027,9 +775,9 @@ serve(async (req) => {
     try {
       const webhookOrderId = order.order_number || order.id;
       const webhookPayload = action === "approve"
-        ? { order_id: webhookOrderId, status: "accepted" }
-        : { order_id: webhookOrderId, status: "refused" };
-      await fetch("https://hook.eu1.make.com/kjb4hh8gai76a9g8o9ihtkolu4fd48d8", {
+        ? { order_id: webhookOrderId, supabase_id: order.id, status: "accepted" }
+        : { order_id: webhookOrderId, supabase_id: order.id, status: "refused" };
+      await fetch("https://hook.eu1.make.com/dmmtxutu1pwcu3w3al8c25gifbspag7r", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(webhookPayload),
@@ -1043,7 +791,6 @@ serve(async (req) => {
       success: true,
       status: newValidation,
       paymentAction,
-      calendarEvent: !!calendarResult,
       approvalEmailSent: !!approvalEmailResult,
       declineEmailSent: !!declineEmailResult,
     }), {

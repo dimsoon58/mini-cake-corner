@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
+const ADMIN_EMAILS = ["naglemelodie@gmail.com", "Elizabeth.potapushina@ehl.ch"];
 
 function formatDateCH(dateValue?: string): string {
   if (!dateValue) return "—";
@@ -216,7 +216,7 @@ serve(async (req) => {
       throw new Error("Failed to create action token");
     }
 
-    const siteUrl = "https://mini-cake-corner.lovable.app";
+    const siteUrl = "https://dimsoon58.github.io/mini-cake-corner";
     const results: { email?: any; errors: string[] } = { errors: [] };
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
