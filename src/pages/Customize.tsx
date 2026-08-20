@@ -486,6 +486,7 @@ const Customize = () => {
     
     addItem({
       id: "",
+      product: "bento_cake",
       orderDate: selections.orderDate ? format(selections.orderDate, "yyyy-MM-dd") : "",
       orderTime: "",
       size: selections.size || "",

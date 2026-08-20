@@ -31,6 +31,7 @@ const AdminOrder = () => {
   const token = searchParams.get("token");
 
   const [order, setOrder] = useState<any>(null);
+  const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pin, setPin] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -43,6 +44,12 @@ const AdminOrder = () => {
         .from("orders").select("*").eq("id", id).single();
       if (error) console.error("Error fetching order:", error);
       setOrder(data);
+
+      const { data: itemsData, error: itemsError } = await supabase
+        .from("order_items").select("*").eq("order_id", id).order("created_at", { ascending: true });
+      if (itemsError) console.error("Error fetching order_items:", itemsError);
+      setItems(itemsData || []);
+
       setLoading(false);
     };
     fetchOrder();
@@ -71,7 +78,7 @@ const AdminOrder = () => {
           ? t("✅ Order approved! Payment has been captured.", "✅ Commande approuvée ! Le paiement a été capturé.")
           : t("❌ Order rejected. Payment has been canceled.", "❌ Commande refusée. Le paiement a été annulé."),
       });
-      setOrder({ ...order, status: data.status });
+      setOrder({ ...order, order_validation: data.status });
     } catch (err) {
       setResult({ type: "error", message: err instanceof Error ? err.message : t("Unknown error", "Erreur inconnue") });
     } finally {
@@ -99,9 +106,8 @@ const AdminOrder = () => {
     );
   }
 
-  const details = order.order_details_json || {};
-  const items = details.items || [];
-  const isResolved = order.status !== "pending";
+  const isResolved = order.order_validation !== "pending";
+  const customerName = `${order.first_name || ""} ${order.last_name || ""}`.trim();
 
   return (
     <Layout>
@@ -114,11 +120,11 @@ const AdminOrder = () => {
               {order.order_number || `${t("Order", "Commande")} #${order.id.slice(0, 8).toUpperCase()}`}
             </h1>
             <span className={`ml-auto text-xs font-medium px-3 py-1 rounded-full ${
-              order.status === "pending" ? "bg-amber-100 text-amber-800" :
-              order.status === "approved" ? "bg-emerald-100 text-emerald-800" :
+              order.order_validation === "pending" ? "bg-amber-100 text-amber-800" :
+              order.order_validation === "approved" ? "bg-emerald-100 text-emerald-800" :
               "bg-red-100 text-red-800"
             }`}>
-              {order.status.toUpperCase()}
+              {order.order_validation.toUpperCase()}
             </span>
           </div>
 
@@ -136,21 +142,21 @@ const AdminOrder = () => {
           {/* Customer Info */}
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
             <h3 className="font-medium text-foreground mb-2">{t("👤 Customer Information", "👤 Informations client")}</h3>
-            <DetailRow label={t("Name", "Nom")} value={order.customer_name} />
-            <DetailRow label={t("Email", "E-mail")} value={order.customer_email} />
-            <DetailRow label={t("Phone", "Téléphone")} value={order.customer_phone} />
+            <DetailRow label={t("Name", "Nom")} value={customerName} />
+            <DetailRow label={t("Email", "E-mail")} value={order.email} />
+            <DetailRow label={t("Phone", "Téléphone")} value={order.phone} />
           </div>
 
           {/* Pickup / Delivery */}
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
             <h3 className="font-medium text-foreground mb-2">{t("📦 Pickup / Delivery", "📦 Retrait / Livraison")}</h3>
-            <DetailRow label={t("Date", "Date")} value={formatDateFromIso(order.order_date)} />
-            <DetailRow label={t("Time", "Heure")} value={details.pickupTime} />
-            <DetailRow label={t("Option", "Option")} value={order.delivery_option === "delivery" ? t("Delivery", "Livraison") : t("Pickup at store", "Retrait en boutique")} />
-            {order.delivery_option === "delivery" && (
+            <DetailRow label={t("Date", "Date")} value={formatDateFromIso(order.pickup_delivery_date)} />
+            <DetailRow label={t("Time", "Heure")} value={order.pickup_delivery_slot} />
+            <DetailRow label={t("Option", "Option")} value={order.delivery_method === "delivery" ? t("Delivery", "Livraison") : t("Pickup at store", "Retrait en boutique")} />
+            {order.delivery_method === "delivery" && (
               <DetailRow label={t("Address", "Adresse")} value={order.delivery_address} />
             )}
-            <DetailRow label={t("Delivery Notes", "Notes de livraison")} value={details.deliveryComment} />
+            <DetailRow label={t("Delivery Notes", "Notes de livraison")} value={order.order_comment} />
           </div>
 
           {/* Cake Items */}
@@ -158,36 +164,33 @@ const AdminOrder = () => {
             <div className="space-y-3">
               <h3 className="font-medium text-foreground">{t("🍰 Order Items", "🍰 Articles de la commande")} ({items.length})</h3>
               {items.map((item: any, i: number) => {
-                const candlesList = (item.candles || [])
-                  .filter((c: any) => c.quantity > 0)
-                  .map((c: any) => `${c.id}${c.hasPack ? " (pack)" : ""} ×${c.quantity}`)
-                  .join(", ");
+                const candlesList = item.candle_name
+                  ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
+                  : "";
 
                 return (
-                  <div key={i} className="rounded-lg border border-border p-4 space-y-1">
+                  <div key={item.id || i} className="rounded-lg border border-border p-4 space-y-1">
                     <div className="flex justify-between mb-2">
                       <span className="font-medium text-sm">{t("Cake", "Gâteau")} {i + 1}</span>
                       <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
                     </div>
-                    <DetailRow label={t("Size", "Taille")} value={item.sizeName} />
-                    <DetailRow label={t("Shape", "Forme")} value={item.shapeName} />
-                    <DetailRow label={t("Flavour", "Parfum")} value={item.flavorName} />
-                    <DetailRow label={t("Design / Style", "Design / Style")} value={item.styleName} />
-                    <DetailRow label={t("Base Colour", "Couleur de base")} value={item.baseColorName} />
-                    <DetailRow label={t("Decoration Colour", "Couleur de décoration")} value={item.decorationColorName} />
-                    {item.cakeText && (
+                    <DetailRow label={t("Size", "Taille")} value={item.size} />
+                    <DetailRow label={t("Shape", "Forme")} value={item.shape} />
+                    <DetailRow label={t("Flavour", "Parfum")} value={(item.flavors || []).join(", ")} />
+                    <DetailRow label={t("Design / Style", "Design / Style")} value={item.design} />
+                    <DetailRow label={t("Base Colour", "Couleur de base")} value={item.base_color} />
+                    <DetailRow label={t("Decoration Colour", "Couleur de décoration")} value={item.decoration_color} />
+                    {item.cake_text && (
                       <DetailRow
                         label={t("Text on Cake", "Texte sur le gâteau")}
-                        value={`"${item.cakeText}" (${item.textStyle || "normal"}, ${item.textColorName || "default"})`}
+                        value={`"${item.cake_text}" (${item.text_style || "normal"}, ${item.text_color || "default"})`}
                       />
                     )}
-                    {item.extrasNames?.length > 0 && (
-                      <DetailRow label={t("Extras", "Extras")} value={item.extrasNames.join(", ")} />
+                    {item.extra && (
+                      <DetailRow label={t("Extras", "Extras")} value={item.extra} />
                     )}
-                    <DetailRow label={t("Ribbon Colour", "Couleur du ruban")} value={item.ribbonColorName} />
-                    <DetailRow label={t("Butterfly Colour", "Couleur du papillon")} value={item.butterflyColorName} />
                     {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
-                    <DetailRow label={t("Special Instructions", "Instructions particulières")} value={item.comment} />
+                    <DetailRow label={t("Special Instructions", "Instructions particulières")} value={item.item_comment} />
                   </div>
                 );
               })}
@@ -201,8 +204,8 @@ const AdminOrder = () => {
              <DetailRow label={t("Invoice №", "Facture n°")} value={order.invoice_number || "—"} />
             <DetailRow label={t("Total", "Total")} value={`CHF ${order.total_amount}`} />
             <DetailRow label={t("Status", "Statut")} value={
-              order.status === "pending" ? t("⏳ Pending Approval (funds authorised)", "⏳ En attente d'approbation (fonds autorisés)") :
-              order.status === "approved" ? t("✅ Approved (payment captured)", "✅ Approuvée (paiement capturé)") :
+              order.order_validation === "pending" ? t("⏳ Pending Approval (funds authorised)", "⏳ En attente d'approbation (fonds autorisés)") :
+              order.order_validation === "approved" ? t("✅ Approved (payment captured)", "✅ Approuvée (paiement capturé)") :
               t("❌ Rejected (payment cancelled)", "❌ Refusée (paiement annulé)")
             } />
           </div>
@@ -244,10 +247,10 @@ const AdminOrder = () => {
             </div>
           ) : (
             <div className={`p-4 rounded-lg text-center ${
-              order.status === "approved" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"
+              order.order_validation === "approved" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"
             }`}>
               <p className="font-medium">
-                {order.status === "approved" ? t("✅ This order has been approved and payment captured.", "✅ Cette commande a été approuvée et le paiement capturé.") : t("❌ This order has been rejected and payment cancelled.", "❌ Cette commande a été refusée et le paiement annulé.")}
+                {order.order_validation === "approved" ? t("✅ This order has been approved and payment captured.", "✅ Cette commande a été approuvée et le paiement capturé.") : t("❌ This order has been rejected and payment cancelled.", "❌ Cette commande a été refusée et le paiement annulé.")}
               </p>
             </div>
           )}

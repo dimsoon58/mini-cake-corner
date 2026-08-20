@@ -8,6 +8,10 @@ export interface CandleCartItem {
 
 export interface CartItem {
   id: string;
+  /* Stable product-line id, independent of language — matches Supabase's
+     order_items.product enum (bento_cake / rectangle_cake / dot_cakes /
+     diy_kit / candles / edible_printing). */
+  product: string;
   orderDate: string;
   orderTime: string;
   size: string;
@@ -32,6 +36,10 @@ export interface CartItem {
   ribbonColorName: string;
   butterflyColor: string;
   butterflyColorName: string;
+  /* Only set by Catalog.tsx, for the Glitter / Glitter Cherries extras —
+     optional so every other add-to-cart page is unaffected. */
+  glitterColorName?: string;
+  glitterCherriesColorName?: string;
   candles: CandleCartItem[];
   comment: string;
   imageUrls: string[];

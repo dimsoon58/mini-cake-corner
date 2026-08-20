@@ -1,10 +1,6 @@
-project_id = "fgqwisxcpadrqgbjfdqj"
+project_id = "ekciarsrdyismyevgkqg"
 
 [functions.send-make-webhook]
-verify_jwt = false
-
-# PostFinance appelle cette URL depuis ses serveurs : elle doit rester publique.
-[functions.postfinance-webhook]
 verify_jwt = false
 
 # Test de connexion, a supprimer une fois l'integration validee.

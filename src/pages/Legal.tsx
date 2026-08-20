@@ -128,7 +128,7 @@ Les frais de livraison, le cas échéant, sont précisés lors du paiement. Les 
     titleFr: "Article 7 – Modalités de paiement",
     content: `Payment is made exclusively online at the time of order validation.
 
-Accepted payment methods include credit/debit cards and TWINT. Transactions are securely processed via the Stripe payment platform.
+Accepted payment methods include credit/debit cards and TWINT. Transactions are securely processed via the PostFinance payment platform.
 
 An order is considered final only upon confirmation of payment.
 
@@ -137,7 +137,7 @@ Bento Cake Studio SNC does not store any banking details. Payment information is
 Transfer of ownership of the products occurs only upon full payment of the purchase price.`,
     contentFr: `Le paiement s'effectue exclusivement en ligne au moment de la validation de la commande.
 
-Les moyens de paiement acceptés sont les cartes de crédit/débit et TWINT. Les transactions sont traitées de manière sécurisée via la plateforme de paiement Stripe.
+Les moyens de paiement acceptés sont les cartes de crédit/débit et TWINT. Les transactions sont traitées de manière sécurisée via la plateforme de paiement PostFinance.
 
 Une commande n'est réputée définitive qu'après confirmation du paiement.
 

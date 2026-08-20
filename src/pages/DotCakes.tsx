@@ -202,15 +202,13 @@ const DotCakes = () => {
       const fl = allFlavours.find((f) => f.id === id)!;
       return `${fl.name} (${tierByCategory[fl.category]?.label ?? fl.category})`;
     });
-    const candleDetails = Object.entries(candleSelections)
-      .map(([id, qty]) => {
-        const candle = kitCandles.find((c) => c.id === id);
-        return `${qty}x ${candle?.name}`;
-      })
-      .join("; ");
+    const selectedCandles = Object.entries(candleSelections)
+      .filter(([, qty]) => qty > 0)
+      .map(([id, quantity]) => ({ id, quantity, hasPack: false }));
 
     addItem({
       id: "",
+      product: "dot_cakes",
       orderDate: format(orderDate, "yyyy-MM-dd"),
       orderTime: "",
       size: "dot-cakes",
@@ -230,12 +228,12 @@ const DotCakes = () => {
       textColorName: "",
       textStyle: "normal",
       extras: [],
-      extrasNames: candleDetails ? [candleDetails] : [],
+      extrasNames: [],
       ribbonColor: "",
       ribbonColorName: "",
       butterflyColor: "",
       butterflyColorName: "",
-      candles: [],
+      candles: selectedCandles,
       comment: "",
       imageUrls: [],
       imageFiles: [],

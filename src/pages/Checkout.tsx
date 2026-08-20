@@ -4,9 +4,10 @@ import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
 import {
   sizes, shapes, styles, extras as catalogExtrasData,
-  getFlavorCategoryExtra, getCandleTotalPrice, candles as customisationCandles,
-  flavorCategories,
+  getFlavorCategoryExtra, getExtraPrice, getCandleTotalPrice, candles as customisationCandles,
+  flavorCategories, extraGroups,
 } from "@/data/customization";
+import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-import { EmbeddedStripeCheckout } from "@/components/EmbeddedCheckout";
+import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 
 // Country codes
 const COUNTRY_CODES = [
@@ -129,6 +130,98 @@ const detectZoneFromAddress = (address: string): typeof DELIVERY_ZONES[0] | null
 };
 
 const formatDisplayDate = (date: Date) => format(date, "dd.MM.yyyy");
+
+// Temporary compatibility field: pickup_delivery_datetime is being phased
+// out in favour of pickup_delivery_date + pickup_delivery_slot (kept filled
+// until nothing on the site or in Make/Notion still reads it). Picks the
+// slot's start time as the datetime; browser-local, same as the old
+// order_date-only behaviour this replaces.
+const buildPickupDeliveryDatetime = (date: Date, slot: string): string => {
+  const startTime = slot.split(/[–-]/)[0]?.trim() || "00:00";
+  const [hours, minutes] = startTime.split(":").map((n) => parseInt(n, 10));
+  const combined = new Date(date);
+  combined.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
+  return combined.toISOString();
+};
+
+// order_items.extra_type comes from the real catalog structure (customization.ts's
+// extraGroups: "Pearls", "Glitter", "Decorations"...), not from parsing text —
+// e.g. pearl-number and glitter resolve to "Pearls, Glitter", never left as a
+// copy of `extra` and never as the raw ids.
+const EXTRA_GROUP_BY_ID: Record<string, string> = {};
+extraGroups.forEach((group) => {
+  group.ids.forEach((id) => { EXTRA_GROUP_BY_ID[id] = group.label; });
+});
+
+// Builds order_items.extra / extra_type / extra_color as clean, readable
+// values (no raw JSON, no technical ids).
+const buildExtraFields = (item: {
+  extras: string[];
+  extrasNames: string[];
+  ribbonColorName: string;
+  butterflyColorName: string;
+  glitterColorName?: string;
+  glitterCherriesColorName?: string;
+}): { extra: string; extraType: string; extraColor: string } => {
+  const parts = [...item.extrasNames];
+  if (item.ribbonColorName) parts.push(`Ribbon: ${item.ribbonColorName}`);
+  if (item.butterflyColorName) parts.push(`Butterfly: ${item.butterflyColorName}`);
+  if (item.glitterColorName) parts.push(`Glitter: ${item.glitterColorName}`);
+  if (item.glitterCherriesColorName) parts.push(`Glitter Cherries: ${item.glitterCherriesColorName}`);
+  const cleanParts = parts.filter(Boolean);
+  const extra = cleanParts.join(", ");
+
+  // Structured lookup first: each extra's real catalog category.
+  const groupLabels = Array.from(new Set(
+    (item.extras || [])
+      .map((id) => EXTRA_GROUP_BY_ID[id])
+      .filter((label): label is string => Boolean(label))
+  ));
+  const colorParts = [
+    item.ribbonColorName,
+    item.butterflyColorName,
+    item.glitterColorName,
+    item.glitterCherriesColorName,
+  ].filter(Boolean);
+
+  let extraType = groupLabels.join(", ");
+  let extraColor = colorParts.join(", ");
+
+  // Ids with no catalog group (e.g. KitBentoCake's piping-bag option, which
+  // isn't in customization.ts's extras catalog at all) fall back to the
+  // single readable entry itself, which already embeds "Type: Colour(s)"
+  // (e.g. "3 Piping Bags: Sky Blue, Pink, Pastel Orange").
+  if (!extraType && cleanParts.length === 1) {
+    const [only] = cleanParts;
+    const colonIndex = only.indexOf(":");
+    if (colonIndex > -1) {
+      extraType = only.slice(0, colonIndex).replace(/^\d+\s+/, "").trim();
+      if (!extraColor) extraColor = only.slice(colonIndex + 1).trim();
+    } else {
+      extraType = only.replace(/^\d+\s+/, "").trim();
+    }
+  }
+
+  return { extra, extraType, extraColor };
+};
+
+// Builds order_items.candle_name / candle_quantity as clean readable values
+// (no raw candle JSON). A single candle type stores its own name/quantity;
+// multiple distinct types are joined into a readable list, with
+// candle_quantity summed so it stays a plain number either way.
+const buildCandleFields = (
+  candleSelections: { id: string; quantity: number }[],
+): { candleName: string; candleQuantity: number } => {
+  const active = candleSelections.filter((c) => c.quantity > 0);
+  if (active.length === 0) return { candleName: "", candleQuantity: 0 };
+  const names = active.map((c) =>
+    customisationCandles.find((x) => x.id === c.id)?.name
+    || kitBentoCandles.find((x) => x.id === c.id)?.name
+    || c.id
+  );
+  const totalQuantity = active.reduce((sum, c) => sum + c.quantity, 0);
+  return { candleName: names.join(", "), candleQuantity: totalQuantity };
+};
 
 const uploadImageFilesToStorage = async (
   allFiles: File[],
@@ -331,6 +424,7 @@ const Checkout = () => {
       }
 
       const orderId = crypto.randomUUID();
+      const slot = deliveryOption === "pickup" ? pickupTime : deliveryTime;
 
       // Collect all image files from cart items and upload to Supabase
       const allImageFiles = items.flatMap(item => item.imageFiles || []);
@@ -338,7 +432,8 @@ const Checkout = () => {
         toast({ title: status });
       });
 
-      // Build per-item image URLs (distribute back to items for order details)
+      // Build per-item image URLs (distribute back to items for their own
+      // order_items.reference_images row)
       let urlIndex = 0;
       const orderItemsWithImageUrls = items.map(item => {
         const itemFileCount = (item.imageFiles || []).length;
@@ -347,63 +442,101 @@ const Checkout = () => {
         return { ...item, imageUrls: itemUrls };
       });
 
-      // Build order details JSON for admin review
-      const orderDetailsJson = {
-        items: orderItemsWithImageUrls.map((item) => ({
-          size: item.size,
-          sizeName: item.sizeName,
-          shape: item.shape,
-          shapeName: item.shapeName,
-          flavor: item.flavor,
-          flavorName: item.flavorName,
-          style: item.style,
-          styleName: item.styleName,
-          baseColorName: item.baseColorName,
-          decorationColorName: item.decorationColorName,
-          cakeText: item.cakeText,
-          textColorName: item.textColorName,
-          textStyle: item.textStyle,
-          extras: item.extras,
-          extrasNames: item.extrasNames,
-          ribbonColorName: item.ribbonColorName,
-          butterflyColorName: item.butterflyColorName,
-          candles: item.candles,
-          orderTime: item.orderTime,
-          comment: item.comment,
-          imageUrls: item.imageUrls || [],
-          total: item.total,
-        })),
-        deliveryComment,
-        pickupTime: deliveryOption === "pickup" ? pickupTime : "",
-        deliveryTime: deliveryOption === "delivery" ? deliveryTime : "",
+      // Nothing is written to Supabase yet. The order only becomes real
+      // once PostFinance confirms the payment authorization — creating it
+      // here would leave a fake "order" behind (with a burnt order_number)
+      // for every abandoned or declined checkout. What we build below is
+      // staged into pending_payments by create-postfinance-payment, and only
+      // turned into real orders/order_items rows by confirm-postfinance-payment
+      // once the customer returns and the transaction is confirmed.
+      const orderData = {
+        id: orderId,
+        order_source: "website",
         lang,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone: fullPhoneNumber,
+        delivery_method: deliveryOption,
+        delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
+        delivery_zone: deliveryOption === "delivery" ? (detectedZone?.name ?? null) : null,
+        delivery_fee: deliveryOption === "delivery" ? deliveryPrice : 0,
+        pickup_delivery_date: formattedDate,
+        pickup_delivery_slot: slot,
+        // Temporary: kept filled until nothing still reads pickup_delivery_datetime.
+        pickup_delivery_datetime: buildPickupDeliveryDatetime(deliveryDate, slot),
+        order_comment: deliveryOption === "delivery" ? deliveryComment : null,
+        total_amount: totalPrice,
+        newsletter_subscription: subscribeNewsletter,
       };
 
-      // Save order to database with pending status
-      const { data: orderData, error: orderError } = await supabase.from("orders").insert({
-        id: orderId,
-        order_date: formattedDate,
-        customer_name: `${firstName} ${lastName}`,
-        customer_email: email,
-        customer_phone: fullPhoneNumber,
-        total_amount: totalPrice,
-        delivery_option: deliveryOption,
-        delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
-        newsletter_subscription: subscribeNewsletter,
-        status: "pending",
-        image_urls: orderImageUrls,
-        order_details_json: orderDetailsJson as any,
-      }).select("id").single();
+      // Each cake/product is its own order_items row, with its own real
+      // price — never orders.total_amount split evenly.
+      const orderItemsRows = orderItemsWithImageUrls.map((item) => {
+        const { extra, extraType, extraColor } = buildExtraFields(item);
 
-      if (orderError) {
-        console.error("Order save error:", orderError);
-        throw new Error("Impossible d'enregistrer la commande.");
-      }
+        // Standalone candle purchases (Candles.tsx) carry their candle in
+        // candleProduct* fields, not in item.candles — that array is only
+        // used for candles added on top of a cake (Catalog/DotCakes/KitBentoCake).
+        let candleName: string;
+        let candleQuantity: number;
+        let candlesPrice: number;
+        if (item.isCandleProduct) {
+          candleName = item.candleProductName || "";
+          candleQuantity = item.candleProductQty || 0;
+          candlesPrice = item.total;
+        } else {
+          const built = buildCandleFields(item.candles || []);
+          candleName = built.candleName;
+          candleQuantity = built.candleQuantity;
+          const distinctCandleIds = Array.from(new Set((item.candles || []).map((c) => c.id)));
+          candlesPrice = distinctCandleIds.reduce(
+            (sum, id) => sum + getCandleTotalPrice(id, item.candles || []),
+            0,
+          );
+        }
 
-      const createdOrderId = orderData?.id;
+        return {
+          order_id: orderId,
+          product: item.product,
+          size: item.size || null,
+          shape: item.shape || null,
+          flavors: item.flavorName ? item.flavorName.split(",").map((f) => f.trim()).filter(Boolean) : [],
+          design: item.style || null,
+          base_color: item.baseColor || null,
+          decoration_color: item.decorationColor || null,
+          cake_text: item.cakeText || null,
+          text_color: item.textColor || null,
+          text_style: item.textStyle || null,
+          extra,
+          extra_type: extraType,
+          extra_color: extraColor,
+          extras_price: (item.extras || []).reduce(
+            (sum, extraId) => sum + getExtraPrice(extraId, item.size),
+            0,
+          ),
+          candle_name: candleName,
+          candle_quantity: candleQuantity,
+          candles_price: candlesPrice,
+          reference_images: item.imageUrls || [],
+          item_comment: item.comment || null,
+          total: item.total,
+          // Kept temporarily alongside the clean fields above, in case
+          // anything downstream still reads the old shape.
+          ribbon_color: item.ribbonColorName || null,
+          butterfly_color: item.butterflyColorName || null,
+          extras: item.extras || [],
+          candles: item.candles || [],
+        };
+      });
 
-      // Build payload for embedded checkout
+      // Build payload for the payment page. `order`/`orderItems` are the
+      // real rows create-postfinance-payment stages into pending_payments —
+      // nothing has touched orders/order_items yet. `items` below is display-only,
+      // used solely to build the PostFinance payment page's line items.
       const payload = {
+        order: orderData,
+        orderItems: orderItemsRows,
         items: items.map((item) => ({
           sizeName: item.sizeName,
           shapeName: item.shapeName,
@@ -419,7 +552,8 @@ const Checkout = () => {
         deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
         deliveryFee: deliveryPrice,
         totalAmount: totalPrice,
-        orderId: createdOrderId || orderId,
+        orderId,
+        language: lang,
       };
 
       console.log("Setting up embedded checkout with:", {
@@ -905,16 +1039,16 @@ const Checkout = () => {
             </Button>
           </form>
 
-          {/* Embedded Stripe Checkout */}
+          {/* PostFinance Checkout */}
           {showEmbeddedCheckout && checkoutPayload && (
             <div className="mt-8 pt-6 border-t border-border">
               <h3 className="text-lg font-serif text-foreground mb-2">
                 {t("Complete Your Payment", "Finalisez votre paiement")}
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                {t("Please complete your payment below to confirm your order. All transactions are secured by Stripe.", "Veuillez finaliser votre paiement ci-dessous pour confirmer votre commande. Toutes les transactions sont sécurisées par Stripe.")}
+                {t("Please complete your payment below to confirm your order. All transactions are secured by PostFinance.", "Veuillez finaliser votre paiement ci-dessous pour confirmer votre commande. Toutes les transactions sont sécurisées par PostFinance.")}
               </p>
-              <EmbeddedStripeCheckout payload={checkoutPayload} />
+              <PostFinanceCheckout payload={checkoutPayload} />
             </div>
           )}
         </div>

@@ -44,6 +44,7 @@ const Printing = () => {
 
     addItem({
       id: "",
+      product: "edible_printing",
       orderDate: format(orderDate, "yyyy-MM-dd"),
       orderTime: "",
       size: "printing",

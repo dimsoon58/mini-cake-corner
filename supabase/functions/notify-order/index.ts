@@ -19,48 +19,38 @@ function row(label: string, value: string | undefined | null): string {
   return `<tr><td style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
 }
 
-async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string, token: string) {
-  const details = order.order_details_json || {};
-  const items = details.items || [];
+async function sendAdminEmail(resendApiKey: string, order: any, items: any[], siteUrl: string, token: string) {
   const reviewUrl = `${siteUrl}/admin/order/${order.id}?token=${token}`;
 
   const itemBlocks = items.map((item: any, i: number) => {
-    const candlesList = (item.candles || [])
-      .filter((c: any) => c.quantity > 0)
-      .map((c: any) => `${c.id}${c.hasPack ? " (pack)" : ""} ×${c.quantity}`)
-      .join(", ");
+    const candlesList = item.candle_name
+      ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
+      : "";
 
     return `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
-        <h4 style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">🍰 Gâteau ${i + 1} — CHF ${item.total}</h4>
+        <h4 style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">🍰 Article ${i + 1} — CHF ${item.total}</h4>
         <table style="width:100%;border-collapse:collapse;">
-          ${row("Taille", item.sizeName)}
-          ${row("Forme", item.shapeName)}
-          ${row("Parfum", item.flavorName)}
-          ${row("Design", item.styleName)}
-          ${row("Couleur de base", item.baseColorName)}
-          ${row("Couleur de déco", item.decorationColorName)}
-          ${row("Texte sur le gâteau", item.cakeText ? `"${item.cakeText}" (${item.textStyle || "normal"}, ${item.textColorName || "default"})` : null)}
-          ${row("Suppléments", item.extrasNames?.length > 0 ? item.extrasNames.join(", ") : null)}
-          ${row("Ruban", item.ribbonColorName)}
-          ${row("Papillon", item.butterflyColorName)}
+          ${row("Taille", item.size)}
+          ${row("Forme", item.shape)}
+          ${row("Parfum", (item.flavors || []).join(", "))}
+          ${row("Design", item.design)}
+          ${row("Couleur de base", item.base_color)}
+          ${row("Couleur de déco", item.decoration_color)}
+          ${row("Texte sur le gâteau", item.cake_text ? `"${item.cake_text}" (${item.text_style || "normal"}, ${item.text_color || "default"})` : null)}
+          ${row("Suppléments", item.extra || null)}
           ${row("Bougies", candlesList || null)}
-          ${row("Instructions", item.comment?.trim() || null)}
+          ${row("Instructions", item.item_comment?.trim() || null)}
         </table>
       </div>`;
   }).join("");
 
-  // Reference images from order-level image_urls column
-  const orderImageUrls: string[] = ((): string[] => {
-    if (Array.isArray(order.image_urls) && order.image_urls.length > 0) {
-      return order.image_urls.filter((u: unknown): u is string => typeof u === "string" && u.length > 0);
-    }
-    return items.flatMap((item: any) =>
-      Array.isArray(item?.imageUrls)
-        ? item.imageUrls.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
-        : []
-    );
-  })();
+  // Reference images live per-item now (order_items.reference_images)
+  const orderImageUrls: string[] = items.flatMap((item: any) =>
+    Array.isArray(item?.reference_images)
+      ? item.reference_images.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
+      : []
+  );
 
   const imagesBlock = orderImageUrls.length
     ? `
@@ -94,9 +84,9 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
         <div style="background:#f0f7ff;border-radius:12px;padding:20px;margin-bottom:20px;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">👤 Informations client</h3>
           <table style="border-collapse:collapse;width:100%;">
-            ${row("Nom", order.customer_name)}
-            ${row("Email", order.customer_email)}
-            ${row("Téléphone", order.customer_phone)}
+            ${row("Nom", `${order.first_name || ""} ${order.last_name || ""}`.trim())}
+            ${row("Email", order.email)}
+            ${row("Téléphone", order.phone)}
           </table>
         </div>
 
@@ -104,11 +94,11 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
         <div style="background:#f0fff4;border-radius:12px;padding:20px;margin-bottom:20px;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📦 Retrait / Livraison</h3>
           <table style="border-collapse:collapse;width:100%;">
-            ${row("Date", formatDateCH(order.order_date))}
-            ${row("Heure", details.pickupTime || "—")}
-            ${row("Option", order.delivery_option === "delivery" ? "🚚 Livraison" : "🏪 Retrait sur place")}
-            ${row("Adresse", order.delivery_option === "delivery" ? order.delivery_address : null)}
-            ${row("Remarques", details.deliveryComment || null)}
+            ${row("Date", formatDateCH(order.pickup_delivery_date))}
+            ${row("Créneau", order.pickup_delivery_slot || "—")}
+            ${row("Option", order.delivery_method === "delivery" ? "🚚 Livraison" : "🏪 Retrait sur place")}
+            ${row("Adresse", order.delivery_method === "delivery" ? order.delivery_address : null)}
+            ${row("Remarques", order.order_comment || null)}
           </table>
         </div>
 
@@ -170,7 +160,7 @@ async function sendAdminEmail(resendApiKey: string, order: any, siteUrl: string,
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: ADMIN_EMAILS,
-      subject: `🎂 Nouvelle commande Bento Cake ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.customer_name} (CHF ${order.total_amount})`,
+      subject: `🎂 Nouvelle commande Bento Cake ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.first_name || ""} ${order.last_name || ""} (CHF ${order.total_amount})`,
       html,
     }),
   });
@@ -204,6 +194,14 @@ serve(async (req) => {
 
     if (orderError || !order) throw new Error("Order not found");
 
+    // Every article of this order lives in its own order_items row — this
+    // is what makes the "Détails de commande" side of the email/Notion
+    // complete for multi-cake orders, not just the first item.
+    const { data: items, error: itemsError } = await supabase
+      .from("order_items").select("*").eq("order_id", orderId).order("created_at", { ascending: true });
+
+    if (itemsError) throw new Error(`Failed to load order_items: ${itemsError.message}`);
+
     // Generate a secure single-use token (no expiry enforced)
     const token = crypto.randomUUID() + "-" + crypto.randomUUID();
     const { error: tokenError } = await supabase
@@ -223,7 +221,7 @@ serve(async (req) => {
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (resendKey) {
-      try { results.email = await sendAdminEmail(resendKey, order, siteUrl, token); }
+      try { results.email = await sendAdminEmail(resendKey, order, items || [], siteUrl, token); }
       catch (e) { console.error("Email error:", e); results.errors.push(`Email: ${e instanceof Error ? e.message : String(e)}`); }
     } else { results.errors.push("RESEND_API_KEY not configured"); }
 

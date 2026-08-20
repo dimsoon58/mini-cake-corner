@@ -40,6 +40,7 @@ const Candles = () => {
 
     addItem({
       id: "",
+      product: "candles",
       orderDate: "",
       orderTime: "",
       size: "candles",
@@ -49,7 +50,7 @@ const Candles = () => {
       flavor: "",
       flavorName: "",
       style: "candles",
-      styleName: t("Candle Order", "Commande de bougies"),
+      styleName: "Candle Order",
       baseColor: "",
       baseColorName: "",
       decorationColor: "",
@@ -59,7 +60,10 @@ const Candles = () => {
       textColorName: "",
       textStyle: "normal",
       extras: [],
-      extrasNames: [`${qty}× ${candle.name}`],
+      // Candle name/quantity is carried via candleProductName/candleProductQty
+      // below and lands in order_items.candle_name/candle_quantity — kept out
+      // of extrasNames so it isn't duplicated into order_items.extra too.
+      extrasNames: [],
       ribbonColor: "",
       ribbonColorName: "",
       butterflyColor: "",

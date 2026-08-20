@@ -1,186 +1,148 @@
-/**
- * Client PostFinance Checkout pour les fonctions Supabase (Deno).
- *
- * Authentification officielle : un JSON Web Token signe en HS256, envoye dans
- * l'en-tete Authorization. La cle d'authentification fournie par PostFinance
- * est encodee en base64 et doit etre decodee avant de servir de secret.
- * Voir https://checkout.postfinance.ch/en-us/doc/api/web-service
- *
- * Les identifiants ne sont jamais ecrits ici : ils viennent des secrets
- * Supabase POSTFINANCE_SPACE_ID, POSTFINANCE_USER_ID et
- * POSTFINANCE_AUTHENTICATION_KEY.
- */
+export const POSTFINANCE_API_HOST = "https://checkout.postfinance.ch/api/v2.0";
 
-const HOST = "https://checkout.postfinance.ch";
+function base64UrlEncode(bytes: Uint8Array): string {
+  let binary = "";
+  bytes.forEach((b) => { binary += String.fromCharCode(b); });
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
 
-export function pfConfig() {
-  const spaceId = Deno.env.get("POSTFINANCE_SPACE_ID");
-  const userId = Deno.env.get("POSTFINANCE_USER_ID");
-  const authKey = Deno.env.get("POSTFINANCE_AUTHENTICATION_KEY");
-
-  const missing = [
-    !spaceId && "POSTFINANCE_SPACE_ID",
-    !userId && "POSTFINANCE_USER_ID",
-    !authKey && "POSTFINANCE_AUTHENTICATION_KEY",
-  ].filter(Boolean);
-
-  if (missing.length) {
-    throw new Error(
-      `Secrets PostFinance manquants : ${missing.join(", ")}. ` +
-        `A ajouter dans Supabase > Project Settings > Edge Functions > Secrets.`,
-    );
+function base64Decode(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
   }
-
-  return { spaceId: spaceId!, userId: userId!, authKey: authKey! };
+  return bytes;
 }
 
-function b64url(bytes: Uint8Array): string {
-  let s = "";
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function b64urlText(text: string): string {
-  return b64url(new TextEncoder().encode(text));
-}
-
-/** Decode la cle base64 fournie par PostFinance en octets bruts. */
-function decodeKey(authKey: string): Uint8Array {
-  const raw = atob(authKey.replace(/-/g, "+").replace(/_/g, "/"));
-  const out = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-  return out;
-}
-
-/**
- * Construit le JWT pour une requete donnee. Le chemin doit inclure la
- * query string exactement telle qu'elle sera envoyee.
- */
-async function buildJwt(requestPath: string, requestMethod: string): Promise<string> {
-  const { userId, authKey } = pfConfig();
-
-  const header = { alg: "HS256", typ: "JWT", ver: 1 };
-  const payload = {
-    sub: String(userId),
-    iat: Math.floor(Date.now() / 1000),
-    requestPath,
-    requestMethod: requestMethod.toUpperCase(),
-  };
-
-  const signingInput = `${b64urlText(JSON.stringify(header))}.${b64urlText(JSON.stringify(payload))}`;
-
+async function hmacSha256(
+  keyBytes: Uint8Array,
+  message: string
+): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
-    decodeKey(authKey),
+    keyBytes,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
   );
-  const sig = new Uint8Array(
-    await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signingInput)),
+
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(message)
   );
 
-  return `${signingInput}.${b64url(sig)}`;
+  return new Uint8Array(signature);
 }
 
-export interface PfResponse<T = unknown> {
-  ok: boolean;
-  status: number;
-  body: T;
-  raw: string;
-}
-
-/**
- * Appelle l'API PostFinance. `path` commence par "/" et ne contient pas le
- * spaceId : il est ajoute automatiquement en query string.
- */
-export async function pfRequest<T = unknown>(
+async function buildAuthHeader(
+  userId: string,
+  authenticationKey: string,
   path: string,
-  method: "GET" | "POST" = "GET",
+  method: string,
+): Promise<string> {
+  const header = { alg: "HS256", typ: "JWT", ver: 1 };
+
+  const payload = {
+    sub: userId,
+    iat: Math.floor(Date.now() / 1000),
+    requestPath: `/api/v2.0${path}`,
+    requestMethod: method,
+  };
+
+  const encodedHeader = base64UrlEncode(
+    new TextEncoder().encode(JSON.stringify(header))
+  );
+
+  const encodedPayload = base64UrlEncode(
+    new TextEncoder().encode(JSON.stringify(payload))
+  );
+
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+
+  const keyBytes = base64Decode(authenticationKey);
+  const signature = await hmacSha256(keyBytes, signingInput);
+  const encodedSignature = base64UrlEncode(signature);
+
+  return `Bearer ${signingInput}.${encodedSignature}`;
+}
+
+export interface PostFinanceCredentials {
+  spaceId: string;
+  userId: string;
+  authenticationKey: string;
+}
+
+export function getPostFinanceCredentials(): PostFinanceCredentials {
+  const spaceId = Deno.env.get("POSTFINANCE_SPACE_ID");
+  const userId = Deno.env.get("POSTFINANCE_USER_ID");
+  const authenticationKey =
+    Deno.env.get("POSTFINANCE_AUTHENTICATION_KEY");
+
+  if (!spaceId || !userId || !authenticationKey) {
+    throw new Error(
+      "PostFinance credentials are not configured " +
+      "(POSTFINANCE_SPACE_ID / POSTFINANCE_USER_ID / POSTFINANCE_AUTHENTICATION_KEY)"
+    );
+  }
+
+  return { spaceId, userId, authenticationKey };
+}
+
+export async function pfFetch(
+  credentials: PostFinanceCredentials,
+  path: string,
+  method: "GET" | "POST",
   body?: unknown,
-  extraQuery: Record<string, string> = {},
-): Promise<PfResponse<T>> {
-  const { spaceId } = pfConfig();
+): Promise<unknown> {
+  const authHeader = await buildAuthHeader(
+    credentials.userId,
+    credentials.authenticationKey,
+    path,
+    method
+  );
 
-  const qs = new URLSearchParams({ spaceId, ...extraQuery });
-  const requestPath = `${path}?${qs.toString()}`;
-  const jwt = await buildJwt(requestPath, method);
+  const headers: Record<string, string> = {
+    Authorization: authHeader,
+    space: credentials.spaceId,
+  };
 
-  const res = await fetch(`${HOST}${requestPath}`, {
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const resp = await fetch(`${POSTFINANCE_API_HOST}${path}`, {
     method,
-    headers: {
-      Authorization: `Bearer ${jwt}`,
-      "Content-Type": "application/json;charset=utf-8",
-      Accept: "application/json",
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  const raw = await res.text();
-  let parsed: unknown = null;
+  const raw = await resp.text();
+
+  let data: unknown = null;
   try {
-    parsed = raw ? JSON.parse(raw) : null;
+    data = raw ? JSON.parse(raw) : null;
   } catch {
-    parsed = raw;
+    data = raw;
   }
 
-  if (!res.ok) {
-    console.error("PostFinance", method, requestPath, "->", res.status, raw.slice(0, 800));
+  if (!resp.ok) {
+    console.error(
+      `PostFinance API error on ${method} ${path}:`,
+      resp.status,
+      data
+    );
+
+    throw new Error(
+      `PostFinance API error (${resp.status}): ${
+        typeof data === "string" ? data : JSON.stringify(data)
+      }`
+    );
   }
 
-  return { ok: res.ok, status: res.status, body: parsed as T, raw };
-}
-
-/* ------------------------------------------------------------------ */
-/* Operations utilisees par le site                                     */
-/* ------------------------------------------------------------------ */
-
-export const PF = {
-  createTransaction: (tx: unknown) => pfRequest("/api/transaction/create", "POST", tx),
-
-  readTransaction: (id: string | number) =>
-    pfRequest("/api/transaction/read", "GET", undefined, { id: String(id) }),
-
-  paymentPageUrl: (id: string | number) =>
-    pfRequest<string>("/api/transaction-payment-page/payment-page-url", "GET", undefined, {
-      id: String(id),
-    }),
-
-  /** Encaisse une transaction autorisee. */
-  complete: (id: string | number) =>
-    pfRequest("/api/transaction-completion/completeOnline", "POST", undefined, {
-      id: String(id),
-    }),
-
-  /** Libere une autorisation non encaissee. */
-  void: (id: string | number) =>
-    pfRequest("/api/transaction-void/voidOnline", "POST", undefined, { id: String(id) }),
-
-  /** Rembourse une transaction deja encaissee. */
-  refund: (transactionId: string | number, amount: number, reference: string) =>
-    pfRequest("/api/refund/refund", "POST", {
-      transaction: Number(transactionId),
-      amount,
-      externalId: reference,
-      merchantReference: reference,
-      type: "MERCHANT_INITIATED_ONLINE",
-    }),
-};
-
-/** Etats PostFinance -> statut de paiement stocke dans Supabase. */
-export function mapPaymentStatus(state: string | undefined): string | null {
-  switch ((state || "").toUpperCase()) {
-    case "AUTHORIZED":
-      return "authorized";
-    case "COMPLETED":
-    case "FULFILL":
-      return "paid";
-    case "DECLINE":
-    case "FAILED":
-      return "failed";
-    case "VOIDED":
-      return "voided";
-    default:
-      return null; // CREATE / PENDING / CONFIRMED / PROCESSING : on n'ecrit rien
-  }
+  return data;
 }
