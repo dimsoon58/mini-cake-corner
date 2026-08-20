@@ -7,6 +7,7 @@ import {
   getFlavorCategoryExtra, getExtraPrice, getCandleTotalPrice, candles as customisationCandles,
   flavorCategories,
 } from "@/data/customization";
+import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -184,7 +185,11 @@ const buildCandleFields = (
 ): { candleName: string; candleQuantity: number } => {
   const active = candleSelections.filter((c) => c.quantity > 0);
   if (active.length === 0) return { candleName: "", candleQuantity: 0 };
-  const names = active.map((c) => customisationCandles.find((x) => x.id === c.id)?.name || c.id);
+  const names = active.map((c) =>
+    customisationCandles.find((x) => x.id === c.id)?.name
+    || kitBentoCandles.find((x) => x.id === c.id)?.name
+    || c.id
+  );
   const totalQuantity = active.reduce((sum, c) => sum + c.quantity, 0);
   return { candleName: names.join(", "), candleQuantity: totalQuantity };
 };
@@ -467,7 +472,7 @@ const Checkout = () => {
           product: item.product,
           size: item.size || null,
           shape: item.shape || null,
-          flavors: item.flavor ? item.flavor.split(",").map((f) => f.trim()).filter(Boolean) : [],
+          flavors: item.flavorName ? item.flavorName.split(",").map((f) => f.trim()).filter(Boolean) : [],
           design: item.style || null,
           base_color: item.baseColor || null,
           decoration_color: item.decorationColor || null,

@@ -102,10 +102,18 @@ serve(async (req) => {
       throw new Error("Failed to save order");
     }
 
+    // order_number only exists once the trigger has run on the orders
+    // insert above — order_id stays the technical UUID (the real foreign
+    // key), order_number is added alongside it purely for readability.
+    const orderItemsWithOrderNumber = orderItems.map((item: Record<string, unknown>) => ({
+      ...item,
+      order_number: insertedOrder.order_number,
+    }));
+
     const { data: insertedItems, error: itemsError } =
       await supabase
         .from("order_items")
-        .insert(orderItems)
+        .insert(orderItemsWithOrderNumber)
         .select();
 
     if (itemsError) {
