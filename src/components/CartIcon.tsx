@@ -8,7 +8,7 @@ const CartIcon = () => {
   return (
     <Link
       to="/cart"
-      className="relative inline-flex items-center justify-center p-2 rounded-full hover:bg-muted transition-colors"
+      className="relative inline-flex items-center justify-center p-1 md:p-2 rounded-full hover:bg-muted transition-colors"
       aria-label={`Shopping cart with ${itemCount} items`}
     >
       <ShoppingBag className="h-6 w-6 text-foreground" strokeWidth={1.25} />

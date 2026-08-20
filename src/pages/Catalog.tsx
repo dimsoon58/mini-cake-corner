@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import CustomRequestForm from "@/components/CustomRequestForm";
-import { INSPIRATIONS as inspirationItems } from "@/pages/Inspiration";
+import { INSPIRATIONS as inspirationItems } from "@/data/inspirations";
 import { format, addDays } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -27,6 +27,7 @@ import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/custom
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
+import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { supabase } from "@/integrations/supabase/client";
 // @ts-ignore
 import "@fontsource/dancing-script";
@@ -82,6 +83,9 @@ import designDrawing from "@/assets/design-drawing-new.jpg";
 import drawing1 from "@/assets/drawing-1.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
 import rectangleCake from "@/assets/home-cat-rectangle.jpg";
+import rectangleSignature from "@/assets/rectangle-signature.jpg";
+import rectangleRaspberries from "@/assets/rectangle-raspberries.jpg";
+import rectangleFlowers from "@/assets/rectangle-flowers.jpg";
 import designRosesPlease2 from "@/assets/design-roses-please-2.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designButterflyGarden2 from "@/assets/design-butterfly-garden-2.jpg";
@@ -120,6 +124,22 @@ import boxBento from "@/assets/box-bento.png";
 import boxRetro from "@/assets/box-retro.png";
 import boxMedium from "@/assets/box-medium.png";
 import boxLarge from "@/assets/box-large.png";
+import bentoGallery1 from "@/assets/bento-gallery-1.jpg";
+import bentoGallery2 from "@/assets/bento-gallery-2.jpg";
+import bentoGallery3 from "@/assets/bento-gallery-3.jpg";
+import bentoGallery4 from "@/assets/bento-gallery-4.jpg";
+import bentoGallery5 from "@/assets/bento-gallery-5.jpg";
+import bentoGallery6 from "@/assets/bento-gallery-6.jpg";
+import bentoGallery7 from "@/assets/bento-gallery-7.jpg";
+import bentoGallery8 from "@/assets/bento-gallery-8.jpg";
+import bentoGallery9 from "@/assets/bento-gallery-9.jpg";
+import bentoGallery10 from "@/assets/bento-gallery-10.jpg";
+import bentoGallery11 from "@/assets/bento-gallery-11.jpg";
+import bentoGallery12 from "@/assets/bento-gallery-12.jpg";
+import bentoGallery13 from "@/assets/bento-gallery-13.jpg";
+import bentoGallery14 from "@/assets/bento-gallery-14.jpg";
+import bentoGallery15 from "@/assets/bento-gallery-15.jpg";
+import bentoGallery16 from "@/assets/bento-gallery-16.jpg";
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -148,7 +168,7 @@ const baseColors = [
 ];
 
 const sizes = [
-  { id: "bento", name: "Bento", price: 40, image: boxBento },
+  { id: "bento", name: "Bento Box", price: 40, image: boxBento },
   { id: "retro", name: "Retro Box", price: 45, image: boxRetro },
   { id: "medium", name: "Medium", price: 85, image: boxMedium },
   { id: "large", name: "Large", price: 165, image: boxLarge },
@@ -227,6 +247,11 @@ const ribbonColors = [
   { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
   { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
   { id: "black", name: "Black", color: "#000000" },
+];
+
+const genderColors = [
+  { id: "pink", name: "Pink", color: "#F9A8D4" },
+  { id: "blue", name: "Blue", color: "#93C5FD" },
 ];
 
 const butterflyColors = [
@@ -455,7 +480,7 @@ const catalog = [
     id: "rectangle-signature",
     name: "Signature Rectangle Cake",
     description: "Our signature rectangle cake, piped by hand.",
-    image: rectangleCake,
+    image: rectangleSignature,
     styleId: "rectangle-signature",
     styleName: "Signature Rectangle Cake",
     stylePrice: { rectangle: 0 },
@@ -465,19 +490,19 @@ const catalog = [
     id: "rectangle-raspberries",
     name: "Raspberries Rectangle Cake",
     description: "A rectangle cake covered with fresh raspberries.",
-    image: rectangleCake,
+    image: rectangleRaspberries,
     styleId: "rectangle-raspberries",
     styleName: "Raspberries Rectangle Cake",
     stylePrice: { rectangle: 0 },
     disableText: false,
   },
   {
-    id: "rectangle-strawberry",
-    name: "Strawberry Rectangle Cake",
-    description: "A rectangle cake covered with fresh strawberries.",
-    image: rectangleCake,
-    styleId: "rectangle-strawberry",
-    styleName: "Strawberry Rectangle Cake",
+    id: "rectangle-flowers",
+    name: "Flowers Rectangle Cake",
+    description: "A rectangle cake dressed with fresh flowers.",
+    image: rectangleFlowers,
+    styleId: "rectangle-flowers",
+    styleName: "Flowers Rectangle Cake",
     stylePrice: { rectangle: 0 },
     disableText: false,
   },
@@ -584,7 +609,7 @@ const designAllowedExtras: Record<string, string[]> = {
 // Collections: curated groupings shown as separate catalog sections
 const collections = [
   { title: "The Minimal Collection", anchor: "minimal", ids: ["normal-with-border", "normal-without-border"] },
-  { title: "The Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-strawberry"] },
+  { title: "The Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-flowers"] },
   { title: "The Vintage Collection", anchor: "vintage", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
   { title: "The Iconic Collection", anchor: "iconic", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
   { title: "The Original Collection", anchor: "original", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
@@ -672,6 +697,7 @@ interface CakeSelections {
   extras: string[];
   ribbonColor: string;
   butterflyColor: string;
+  genderColor: string;
   glitterColor: string;
   glitterCherriesColor: string;
   shagDesignPreference: number;
@@ -710,14 +736,14 @@ const collectionTitleFr: Record<string, string> = {
 const cakeNameFr: Record<string, string> = {
   "rectangle-signature": "Rectangle Signature",
   "rectangle-raspberries": "Rectangle aux Framboises",
-  "rectangle-strawberry": "Rectangle aux Fraises",
+  "rectangle-flowers": "Rectangle aux Fleurs",
   "normal-without-border": "Classique sans bordure",
   "normal-with-border": "Classique avec bordure",
 };
 const cakeDescFr: Record<string, string> = {
   "rectangle-signature": "Notre gâteau rectangle signature, poché à la main.",
   "rectangle-raspberries": "Un gâteau rectangle recouvert de framboises fraîches.",
-  "rectangle-strawberry": "Un gâteau rectangle recouvert de fraises fraîches.",
+  "rectangle-flowers": "Un gâteau rectangle habillé de fleurs fraîches.",
   "normal-without-border": "Une finition lisse, épurée et élégante",
   "normal-with-border": "Un gâteau classique avec une élégante bordure pochée",
   "heart-bomb": "Un gâteau romantique recouvert de délicates décorations en forme de cœur",
@@ -768,7 +794,19 @@ const styleNameFr: Record<string, string> = {
   "sprinkles-with-border": "Vermicelles avec bordure",
 };
 const sizeNameFr: Record<string, string> = {
-  bento: "Bento", retro: "Boîte rétro", medium: "Moyen", large: "Grand", rectangle: "Rectangle",
+  bento: "Bento Box", retro: "Retro Box", medium: "Moyen", large: "Grand", rectangle: "Rectangle",
+};
+
+/* Courte explication affichee sous chaque boite */
+const sizeDesc: Record<string, { en: string; fr: string }> = {
+  bento: {
+    en: "Classic bento box for minimal designs.",
+    fr: "Boîte bento classique, idéale pour les designs minimalistes.",
+  },
+  retro: {
+    en: "Square cake board, recommended for more detailed side decorations.",
+    fr: "Socle carré, recommandé pour les designs avec des décorations plus travaillées sur les côtés.",
+  },
 };
 const shapeNameFr: Record<string, string> = { round: "Rond", heart: "Cœur" };
 const flavorNameFr: Record<string, string> = {
@@ -888,7 +926,71 @@ const extraDescFr: Record<string, string> = {
   "printed-picture": "Une image imprimée comestible posée sur le gâteau.",
 };
 
-const Catalog = () => {
+interface CatalogProps {
+  /* Mode integre : on n'affiche que le panneau de personnalisation,
+     par-dessus une autre page (la galerie Inspirations par exemple). */
+  embedded?: boolean;
+  inspirationIndex?: number | null;
+  onEmbeddedClose?: () => void;
+}
+
+const bentoGallery = [
+  bentoGallery1, bentoGallery2, bentoGallery3, bentoGallery4, bentoGallery5, bentoGallery6,
+  bentoGallery7, bentoGallery8, bentoGallery9, bentoGallery10, bentoGallery11, bentoGallery12,
+  bentoGallery13, bentoGallery14, bentoGallery15, bentoGallery16,
+];
+
+/* Bandeau de photos qui defilent, en bas de la page Bento Cakes */
+const BentoGallery = () => {
+  const { t } = useLang();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: "left" | "right") => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollBy({ left: direction === "left" ? -288 : 288, behavior: "smooth" });
+  };
+
+  return (
+    <section className="pb-20">
+      <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-10">
+        {t("Our Creations", "Nos créations")}
+      </h2>
+      <div className="relative">
+        <button
+          onClick={() => scroll("left")}
+          aria-label={t("Previous", "Precedent")}
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background rounded-none p-2 shadow-md"
+        >
+          <ChevronLeft className="h-5 w-5 text-foreground" />
+        </button>
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {bentoGallery.map((photo, index) => (
+            <div key={index} className="flex-shrink-0 w-64 h-64 overflow-hidden">
+              <img
+                src={photo}
+                alt={`Bento Cake Studio creation ${index + 1}`}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => scroll("right")}
+          aria-label={t("Next", "Suivant")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background rounded-none p-2 shadow-md"
+        >
+          <ChevronRight className="h-5 w-5 text-foreground" />
+        </button>
+      </div>
+    </section>
+  );
+};
+
+const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }: CatalogProps) => {
   const { addItem } = useCart();
   const { toast } = useToast();
   const { t } = useLang();
@@ -920,6 +1022,7 @@ const Catalog = () => {
     extras: [],
     ribbonColor: "",
     butterflyColor: "",
+    genderColor: "",
     glitterColor: "",
     glitterCherriesColor: "",
     shagDesignPreference: 0,
@@ -961,6 +1064,7 @@ const Catalog = () => {
       extras: [],
       ribbonColor: "",
       butterflyColor: "",
+      genderColor: "",
       glitterColor: cake.styleId === "retro-ribbons-glitter" ? "pink" : "",
       glitterCherriesColor: "",
       shagDesignPreference: 0,
@@ -1214,6 +1318,11 @@ const Catalog = () => {
       return;
     }
 
+    if (selectedCake?.styleId === "gender-reveal" && !selections.genderColor) {
+      toast({ title: t("Inside colour required", "Couleur intérieure requise"), description: t("Please choose blue or pink for the inside of your cake.", "Veuillez choisir bleu ou rose pour l'intérieur de votre gâteau."), variant: "destructive" });
+      return;
+    }
+
     const designNeedsButterfly = selectedCake?.styleId === "butterfly-garden";
     if ((designNeedsButterfly || selections.extras.includes("butterfly")) && !selections.butterflyColor) {
       toast({ title: t("Butterfly Colour required", "Couleur du papillon requise"), description: t("Please select a colour for your butterfly.", "Veuillez sélectionner une couleur pour votre papillon."), variant: "destructive" });
@@ -1231,6 +1340,10 @@ const Catalog = () => {
       const botName = baseColors.find(c => c.id === selections.borderBottomColor)?.name;
       if (topName) decoColorNames.push(`Top border: ${topName}`);
       if (botName) decoColorNames.push(`Bottom border: ${botName}`);
+    }
+    if (selectedCake.styleId === "gender-reveal") {
+      const genderName = genderColors.find(c => c.id === selections.genderColor)?.name;
+      if (genderName) decoColorNames.push(`Inside: ${genderName}`);
     }
     const roseColorName = selections.roseColor ? baseColors.find(c => c.id === selections.roseColor)?.name : "";
     if (roseColorName) decoColorNames.push(`Roses: ${roseColorName}`);
@@ -1284,6 +1397,7 @@ const Catalog = () => {
       total: calculatePrice(),
     });
     setSheetOpen(false);
+    if (embedded) onEmbeddedClose?.();
     // Let the dialog finish its close animation before unmounting its content —
     // clearing it immediately can leave Radix's body pointer-events lock stuck.
     setTimeout(() => setSelectedCake(null), 350);
@@ -1293,11 +1407,8 @@ const Catalog = () => {
   const packCandles = candles.filter(c => c.hasPack);
   const individualCandles = candles.filter(c => !c.hasPack);
 
-  // Deep link from the Inspiration page: open the simplified panel
-  useEffect(() => {
-    const param = searchParams.get("inspiration");
-    if (param === null) return;
-    const index = parseInt(param, 10);
+  // Ouvre le panneau pour une photo d'inspiration donnee
+  const openInspiration = (index: number) => {
     if (isNaN(index) || index < 0 || index >= inspirationItems.length) return;
     handleSelectCake({
       id: `inspiration-${index + 1}`,
@@ -1309,11 +1420,28 @@ const Catalog = () => {
       stylePrice: inspirationItems[index].price,
       disableText: false,
     } as (typeof catalog)[number]);
+  };
+
+  // Lien direct /catalog?inspiration=N
+  useEffect(() => {
+    if (embedded) return;
+    const param = searchParams.get("inspiration");
+    if (param === null) return;
+    openInspiration(parseInt(param, 10));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Mode integre : la page parente pilote l'ouverture
+  useEffect(() => {
+    if (!embedded) return;
+    if (inspirationIndex === null || inspirationIndex === undefined) return;
+    openInspiration(inspirationIndex);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded, inspirationIndex]);
+
   // Arrivee depuis l'accueil avec une ancre : on descend jusqu'a la section
   useEffect(() => {
+    if (embedded) return;
     const ancre = window.location.hash.replace("#", "");
     if (!ancre) return;
     const cible = document.getElementById(ancre);
@@ -1323,113 +1451,19 @@ const Catalog = () => {
   }, []);
 
   useEffect(() => {
+    if (embedded) return;
     document.title = "Bento Cakes – Bento Cake Studio";
     return () => {
       document.title = "Bento Cake Studio Geneva";
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
-    <Layout>
-      <div className="container mx-auto px-4 py-16">
-        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6">
-          BENTO CAKES
-        </h1>
-        <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          {t("Choose a signature design and personalise the size, flavour, colours and message.", "Découvrez nos créations signature, choisissez votre design préféré et personnalisez chaque détail pour créer un gâteau à votre image.")}
-        </p>
-
-        <div className="max-w-6xl mx-auto space-y-20">
-          {collections.map((collection) => {
-            const cakes = collection.ids
-              .map((id) => catalog.find((c) => c.id === id))
-              .filter(Boolean) as typeof catalog;
-            if (cakes.length === 0) return null;
-            return (
-              <section key={collection.title} id={collection.anchor}>
-                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
-                  {t(collection.title, collectionTitleFr[collection.title] ?? collection.title)}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {cakes.map((cake) => (
-                    <div
-                      key={cake.id}
-                      className="relative rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
-                    >
-                      {(cake as any).bestSeller && (
-                        <span className="absolute top-3 right-3 z-20 bg-cream text-primary text-[10px] font-semibold uppercase tracking-[0.14em] px-3 py-1.5 shadow-sm">
-                          {t("Best Seller", "Best-seller")}
-                        </span>
-                      )}
-                      {cake.images && cake.images.length > 1 ? (
-                        <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
-                      ) : (
-                        <div className="aspect-square overflow-hidden bg-muted/30">
-                          <img
-                            src={cake.image}
-                            alt={cake.name}
-                            className={cn("w-full h-full object-cover hover:scale-105 transition-transform duration-300", cake.imagePosition)}
-                          />
-                        </div>
-                      )}
-                      <div className="p-6 text-center flex flex-col flex-1">
-                        <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
-                          {t(cake.name, cakeNameFr[cake.id] ?? cake.name)}
-                        </h3>
-                        <p className="text-muted-foreground text-sm mb-4">
-                          {t(cake.description, cakeDescFr[cake.id] ?? cake.description)}
-                        </p>
-                        <div className="mt-auto">
-                          <Button
-                            className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
-                            onClick={() => handleSelectCake(cake)}
-                          >
-                            {t("CHOOSE THIS STYLE", "CHOISIR CE MODÈLE")}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-
-          {/* Custom Request */}
-          <section>
-            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
-              {t("CUSTOM REQUEST", "CRÉATION SUR MESURE")}
-            </div>
-            <div className="text-center max-w-2xl mx-auto py-6">
-              <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
-                {t("Can't find what you're looking for?", "Vous ne trouvez pas ce que vous cherchez ?")}
-              </h3>
-              <p className="text-muted-foreground text-sm mb-10">
-                {t("Every cake in our collections can be personalised, but if you're dreaming of something completely different, we'd love to create a fully bespoke design just for you. Tell us about your idea, your colours and your occasion, and we'll bring it to life.", "Tous nos gâteaux sont personnalisables. Si vous avez une idée particulière, nous serons ravies de créer un gâteau entièrement sur mesure pour vous.")}
-              </p>
-              <p className="text-muted-foreground text-sm italic mb-10">
-                {t("Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.", "À noter : Nous répondons à votre demande sous 48 heures. Pour une meilleure disponibilité, nous vous recommandons de nous contacter au moins une semaine à l'avance.")}
-              </p>
-              {!showRequestForm ? (
-                <Button
-                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-6 text-[14px] font-medium"
-                  onClick={() => setShowRequestForm(true)}
-                >
-                  {t("REQUEST A CUSTOM CAKE", "Demander une création sur mesure")}
-                </Button>
-              ) : (
-                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                  <CustomRequestForm />
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-      </div>
-
+  const sheetBlock = (
+    <>
       {/* Catalog Sheet */}
       <TooltipProvider delayDuration={200}>
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open && embedded) onEmbeddedClose?.(); }}>
         <SheetContent className="w-[95vw] max-w-3xl max-h-[88vh] overflow-y-auto rounded-none p-6 md:p-10">
           <SheetHeader>
             <SheetTitle className="font-sans uppercase tracking-[0.105em] text-lg font-semibold">
@@ -1442,7 +1476,7 @@ const Catalog = () => {
           
           {selectedCake && (
             <div className="mt-6 space-y-6">
-              <div className="aspect-square rounded-none overflow-hidden bg-muted/30">
+              <div className="aspect-square w-full max-w-[300px] mx-auto rounded-none overflow-hidden bg-muted/30">
                 <img
                   src={selectedCake.image}
                   alt={selectedCake.name}
@@ -1505,7 +1539,11 @@ const Catalog = () => {
                       <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="text-xs max-w-[200px]">{t("Choose the size of your cake.", "Choisissez la taille de votre gâteau.")}</p>
+                      <p className="text-xs max-w-[260px]">
+                        {t("Choose the size of your cake.", "Choisissez la taille de votre gâteau.")}
+                        <br />
+                        {t(sizeInfoSummary.en, sizeInfoSummary.fr)}
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </label>
@@ -1516,12 +1554,24 @@ const Catalog = () => {
                   <SelectTrigger>
                     <SelectValue placeholder={t("Select size", "Choisir une taille")} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[95vw]">
                     {sizes.filter((size) => selectedCake && size.id in selectedCake.stylePrice).map((size) => (
                       <SelectItem key={size.id} value={size.id}>
-                        <div className="flex items-center gap-2">
-                          <img src={size.image} alt={size.name} className="w-8 h-8 object-contain flex-shrink-0" />
-                          <span>{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
+                        <div className="flex items-start gap-2 py-0.5 w-full">
+                          <img src={size.image} alt={size.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <span className="block">{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
+                            {sizeInfo[size.id] && (
+                              <span className="block text-xs text-primary/80 whitespace-normal leading-snug mt-0.5">
+                                {t(sizeInfo[size.id].en, sizeInfo[size.id].fr)}
+                              </span>
+                            )}
+                            {sizeDesc[size.id] && (
+                              <span className="block text-xs text-muted-foreground whitespace-normal leading-snug mt-0.5">
+                                {t(sizeDesc[size.id].en, sizeDesc[size.id].fr)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </SelectItem>
                     ))}
@@ -2090,6 +2140,28 @@ const Catalog = () => {
                   </div>
                 )}
 
+                {/* Gender Reveal, couleur interieure */}
+                {selectedCake?.styleId === "gender-reveal" && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">{t("Inside Colour", "Couleur intérieure")} <span className="text-destructive">*</span></p>
+                    <div className="flex flex-wrap gap-2">
+                      {genderColors.map((color) => (
+                        <button
+                          key={color.id}
+                          onClick={() => setSelections({ ...selections, genderColor: color.id })}
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                            selections.genderColor === color.id ? "ring-2 ring-primary" : ""
+                          )}
+                        >
+                          <div className="w-6 h-6 rounded-full border border-muted" style={{ backgroundColor: color.color }} />
+                          <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Butterfly Colour */}
                 {(selections.extras.includes("butterfly") || selectedCake?.styleId === "butterfly-garden") && (
                   <div className="space-y-2">
@@ -2318,6 +2390,112 @@ const Catalog = () => {
         </SheetContent>
       </Sheet>
       </TooltipProvider>
+    </>
+  );
+
+  if (embedded) return sheetBlock;
+
+  return (
+    <Layout>
+      <div className="container mx-auto px-4 py-16">
+        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6">
+          BENTO CAKES
+        </h1>
+        <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
+          {t("Choose a signature design and personalise the size, flavour, colours and message.", "Découvrez nos créations signature, choisissez votre design préféré et personnalisez chaque détail pour créer un gâteau à votre image.")}
+        </p>
+
+        <div className="max-w-6xl mx-auto space-y-20">
+          {collections.map((collection) => {
+            const cakes = collection.ids
+              .map((id) => catalog.find((c) => c.id === id))
+              .filter(Boolean) as typeof catalog;
+            if (cakes.length === 0) return null;
+            return (
+              <section key={collection.title} id={collection.anchor}>
+                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
+                  {t(collection.title, collectionTitleFr[collection.title] ?? collection.title)}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {cakes.map((cake) => (
+                    <div
+                      key={cake.id}
+                      className="relative rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
+                    >
+                      {(cake as any).bestSeller && (
+                        <span className="absolute top-3 right-3 z-20 bg-cream text-primary text-[10px] font-semibold uppercase tracking-[0.14em] px-3 py-1.5 shadow-sm">
+                          {t("Best Seller", "Best-seller")}
+                        </span>
+                      )}
+                      {cake.images && cake.images.length > 1 ? (
+                        <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
+                      ) : (
+                        <div className="aspect-square overflow-hidden bg-muted/30">
+                          <img
+                            src={cake.image}
+                            alt={cake.name}
+                            className={cn("w-full h-full object-cover hover:scale-105 transition-transform duration-300", cake.imagePosition)}
+                          />
+                        </div>
+                      )}
+                      <div className="p-6 text-center flex flex-col flex-1">
+                        <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
+                          {t(cake.name, cakeNameFr[cake.id] ?? cake.name)}
+                        </h3>
+                        <p className="text-muted-foreground text-sm mb-4">
+                          {t(cake.description, cakeDescFr[cake.id] ?? cake.description)}
+                        </p>
+                        <div className="mt-auto">
+                          <Button
+                            className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
+                            onClick={() => handleSelectCake(cake)}
+                          >
+                            {t("CHOOSE THIS STYLE", "CHOISIR CE MODÈLE")}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+
+          {/* Custom Request */}
+          <section>
+            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
+              {t("CUSTOM REQUEST", "CRÉATION SUR MESURE")}
+            </div>
+            <div className="text-center max-w-2xl mx-auto py-6">
+              <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
+                {t("Can't find what you're looking for?", "Vous ne trouvez pas ce que vous cherchez ?")}
+              </h3>
+              <p className="text-muted-foreground text-sm mb-10">
+                {t("Every cake in our collections can be personalised, but if you're dreaming of something completely different, we'd love to create a fully bespoke design just for you. Tell us about your idea, your colours and your occasion, and we'll bring it to life.", "Tous nos gâteaux sont personnalisables. Si vous avez une idée particulière, nous serons ravies de créer un gâteau entièrement sur mesure pour vous.")}
+              </p>
+              <p className="text-muted-foreground text-sm italic mb-10">
+                {t("Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.", "À noter : Nous répondons à votre demande sous 48 heures. Pour une meilleure disponibilité, nous vous recommandons de nous contacter au moins une semaine à l'avance.")}
+              </p>
+              {!showRequestForm ? (
+                <Button
+                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-6 text-[14px] font-medium"
+                  onClick={() => setShowRequestForm(true)}
+                >
+                  {t("REQUEST A CUSTOM CAKE", "Demander une création sur mesure")}
+                </Button>
+              ) : (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                  <CustomRequestForm />
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <BentoGallery />
+
+      {sheetBlock}
     </Layout>
   );
 };
