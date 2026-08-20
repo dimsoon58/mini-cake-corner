@@ -11,7 +11,7 @@ const SUCCESS_STATES = new Set(["AUTHORIZED", "COMPLETED", "FULFILL"]);
 const FAILURE_STATES = new Set(["FAILED", "DECLINE", "VOIDED"]);
 
 const MAKE_WEBHOOK_URL =
-  "https://hook.eu1.make.com/tomf1o371swpu1ee6yasivboiy19ys94";
+  "https://hook.eu1.make.com/umndao56d5dii1f1f7r1sv17ffegwdek";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
