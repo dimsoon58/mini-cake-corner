@@ -45,12 +45,12 @@ const ArchivesSlider = () => {
   };
 
   return (
-    <section className="py-20 bg-cream">
+    <section className="py-14 bg-cream">
       <div className="container mx-auto px-4">
-        <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-4">
+        <h2 className="font-sans text-xl md:text-2xl text-center uppercase tracking-[0.105em] text-foreground mb-3">
           {t("FROM THE ARCHIVES", "DANS LES ARCHIVES")}
         </h2>
-        <p className="text-center text-sm text-muted-foreground mb-12">
+        <p className="text-center text-sm text-muted-foreground mb-8">
           {t("A few moments from the last five years.", "Quelques moments des cinq dernières années.")}
         </p>
       </div>
@@ -69,8 +69,8 @@ const ArchivesSlider = () => {
           className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {["2021", "2022", "2023", "2024", "2025", "2026"].map((year) => (
-            <div key={year} className="snap-start flex-shrink-0 w-[70%] sm:w-[38%] lg:w-[22%]">
-              <PhotoSlot className="aspect-[3/4]" label={year} />
+            <div key={year} className="snap-start flex-shrink-0 w-[52%] sm:w-[30%] lg:w-[17%]">
+              <PhotoSlot className="aspect-square" label={year} />
             </div>
           ))}
         </div>
@@ -171,20 +171,20 @@ const OurStory = () => {
   return (
     <Layout>
       {/* Hero */}
-      <section className="bg-background pt-16 pb-12 md:pt-24 md:pb-16">
+      <section className="bg-background pt-10 pb-8 md:pt-16 md:pb-10">
         <div className="container mx-auto px-4 text-center">
-          <p className="font-sans uppercase tracking-[0.3em] text-[11px] text-primary/60 mb-6">
+          <p className="font-sans uppercase tracking-[0.3em] text-[10px] text-primary/60 mb-4">
             {t("BENTO CAKE STUDIO — GENEVA", "BENTO CAKE STUDIO — GENÈVE")}
           </p>
-          <h1 className="font-sans text-4xl md:text-6xl uppercase tracking-[0.105em] text-foreground">
+          <h1 className="font-sans text-3xl md:text-5xl uppercase tracking-[0.105em] text-foreground">
             {t("OUR STORY", "NOTRE HISTOIRE")}
           </h1>
-          <p className="font-serif italic text-xl md:text-2xl text-foreground/70 mt-6">
+          <p className="font-serif italic text-lg md:text-xl text-foreground/70 mt-4">
             {t("Five years of cakes, celebrations and creativity.", "Cinq ans de gâteaux, de célébrations et de créativité.")}
           </p>
         </div>
-        <div className="container mx-auto px-4 mt-12 md:mt-16">
-          <PhotoSlot className="aspect-[16/9] md:aspect-[21/9]" label={t("HERO PHOTO", "PHOTO PRINCIPALE")} />
+        <div className="container mx-auto px-4 mt-8 md:mt-10">
+          <PhotoSlot className="aspect-[16/7] md:aspect-[24/7] max-h-[380px]" label={t("HERO PHOTO", "PHOTO PRINCIPALE")} />
         </div>
       </section>
 
@@ -196,22 +196,22 @@ const OurStory = () => {
             return (
               <div
                 key={chapter.id}
-                className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-14 items-center py-12 md:py-20 border-t border-primary/10 first:border-t-0"
+                className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 items-center py-8 md:py-12 border-t border-primary/10 first:border-t-0"
               >
                 <div className={cn("order-1", imageOnLeft ? "md:order-2" : "md:order-1")}>
-                  <h2 className="font-sans text-xl md:text-2xl uppercase tracking-[0.105em] text-primary mb-6">
+                  <h2 className="font-sans text-lg md:text-xl uppercase tracking-[0.105em] text-primary mb-4">
                     {chapter.title}
                   </h2>
                   <div className="space-y-4">
                     {chapter.paragraphs.map((paragraph, i) => (
-                      <p key={i} className="text-[15px] md:text-base leading-relaxed text-foreground/85">
+                      <p key={i} className="text-sm md:text-[15px] leading-relaxed text-foreground/85">
                         {paragraph}
                       </p>
                     ))}
                   </div>
                 </div>
                 <div className={cn("order-2", imageOnLeft ? "md:order-1" : "md:order-2")}>
-                  <PhotoSlot className="aspect-[4/5]" label={chapter.id === "first-years" ? t("PHOTO", "PHOTO") : chapter.id} />
+                  <PhotoSlot className="aspect-[4/3] max-w-[420px] mx-auto" label={chapter.id === "first-years" ? t("PHOTO", "PHOTO") : chapter.id} />
                 </div>
               </div>
             );
@@ -220,41 +220,41 @@ const OurStory = () => {
       </section>
 
       {/* 2026, chapitre mis en avant */}
-      <section className="bg-primary text-primary-foreground py-16 md:py-24">
+      <section className="bg-primary text-primary-foreground py-12 md:py-16">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
             <div className="order-1">
-              <p className="font-sans uppercase tracking-[0.3em] text-[11px] opacity-70 mb-5">
+              <p className="font-sans uppercase tracking-[0.3em] text-[10px] opacity-70 mb-4">
                 {t("THE NEXT CHAPTER", "LA SUITE DE L'HISTOIRE")}
               </p>
-              <h2 className="font-sans text-3xl md:text-4xl uppercase tracking-[0.105em] mb-8">
+              <h2 className="font-sans text-2xl md:text-3xl uppercase tracking-[0.105em] mb-6">
                 {t("2026", "2026")}
               </h2>
               <div className="space-y-4">
                 {chapter2026.map((paragraph, i) => (
-                  <p key={i} className="text-[15px] md:text-base leading-relaxed opacity-95">
+                  <p key={i} className="text-sm md:text-[15px] leading-relaxed opacity-95">
                     {paragraph}
                   </p>
                 ))}
               </div>
             </div>
             <div className="order-2">
-              <PhotoSlot className="aspect-[4/5]" label="2026" light />
+              <PhotoSlot className="aspect-[4/3] max-w-[420px] mx-auto" label="2026" light />
             </div>
           </div>
         </div>
       </section>
 
       {/* Final */}
-      <section className="bg-background py-20 md:py-28">
+      <section className="bg-background py-14 md:py-20">
         <div className="container mx-auto px-4 text-center">
-          <p className="font-sans uppercase tracking-[0.2em] text-sm md:text-base text-primary mb-10">
+          <p className="font-sans uppercase tracking-[0.2em] text-xs md:text-sm text-primary mb-8">
             {t(
               "MORE CAKES. MORE CELEBRATIONS. MORE CREATIVITY.",
               "PLUS DE GÂTEAUX. PLUS DE CÉLÉBRATIONS. PLUS DE CRÉATIVITÉ."
             )}
           </p>
-          <p className="font-sans text-4xl sm:text-5xl md:text-7xl uppercase tracking-[0.105em] text-foreground leading-tight">
+          <p className="font-sans text-3xl sm:text-4xl md:text-6xl uppercase tracking-[0.105em] text-foreground leading-tight">
             LET THEM EAT CAKE.
           </p>
         </div>

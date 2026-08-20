@@ -229,6 +229,11 @@ const ribbonColors = [
   { id: "black", name: "Black", color: "#000000" },
 ];
 
+const genderColors = [
+  { id: "pink", name: "Pink", color: "#F9A8D4" },
+  { id: "blue", name: "Blue", color: "#93C5FD" },
+];
+
 const butterflyColors = [
   { id: "pink", name: "Pink", color: "#FFC0CB" },
   { id: "blue", name: "Blue", color: "#3B82F6" },
@@ -672,6 +677,7 @@ interface CakeSelections {
   extras: string[];
   ribbonColor: string;
   butterflyColor: string;
+  genderColor: string;
   glitterColor: string;
   glitterCherriesColor: string;
   shagDesignPreference: number;
@@ -920,6 +926,7 @@ const Catalog = () => {
     extras: [],
     ribbonColor: "",
     butterflyColor: "",
+    genderColor: "",
     glitterColor: "",
     glitterCherriesColor: "",
     shagDesignPreference: 0,
@@ -961,6 +968,7 @@ const Catalog = () => {
       extras: [],
       ribbonColor: "",
       butterflyColor: "",
+      genderColor: "",
       glitterColor: cake.styleId === "retro-ribbons-glitter" ? "pink" : "",
       glitterCherriesColor: "",
       shagDesignPreference: 0,
@@ -1214,6 +1222,11 @@ const Catalog = () => {
       return;
     }
 
+    if (selectedCake?.styleId === "gender-reveal" && !selections.genderColor) {
+      toast({ title: t("Inside colour required", "Couleur intérieure requise"), description: t("Please choose blue or pink for the inside of your cake.", "Veuillez choisir bleu ou rose pour l'intérieur de votre gâteau."), variant: "destructive" });
+      return;
+    }
+
     const designNeedsButterfly = selectedCake?.styleId === "butterfly-garden";
     if ((designNeedsButterfly || selections.extras.includes("butterfly")) && !selections.butterflyColor) {
       toast({ title: t("Butterfly Colour required", "Couleur du papillon requise"), description: t("Please select a colour for your butterfly.", "Veuillez sélectionner une couleur pour votre papillon."), variant: "destructive" });
@@ -1231,6 +1244,10 @@ const Catalog = () => {
       const botName = baseColors.find(c => c.id === selections.borderBottomColor)?.name;
       if (topName) decoColorNames.push(`Top border: ${topName}`);
       if (botName) decoColorNames.push(`Bottom border: ${botName}`);
+    }
+    if (selectedCake.styleId === "gender-reveal") {
+      const genderName = genderColors.find(c => c.id === selections.genderColor)?.name;
+      if (genderName) decoColorNames.push(`Inside: ${genderName}`);
     }
     const roseColorName = selections.roseColor ? baseColors.find(c => c.id === selections.roseColor)?.name : "";
     if (roseColorName) decoColorNames.push(`Roses: ${roseColorName}`);
@@ -1439,7 +1456,7 @@ const Catalog = () => {
           
           {selectedCake && (
             <div className="mt-6 space-y-6">
-              <div className="aspect-square rounded-none overflow-hidden bg-muted/30">
+              <div className="aspect-square w-full max-w-[220px] mx-auto rounded-none overflow-hidden bg-muted/30">
                 <img
                   src={selectedCake.image}
                   alt={selectedCake.name}
@@ -2080,6 +2097,28 @@ const Catalog = () => {
                           )}
                         >
                           <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                          <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Gender Reveal, couleur interieure */}
+                {selectedCake?.styleId === "gender-reveal" && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">{t("Inside Colour", "Couleur intérieure")} <span className="text-destructive">*</span></p>
+                    <div className="flex flex-wrap gap-2">
+                      {genderColors.map((color) => (
+                        <button
+                          key={color.id}
+                          onClick={() => setSelections({ ...selections, genderColor: color.id })}
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                            selections.genderColor === color.id ? "ring-2 ring-primary" : ""
+                          )}
+                        >
+                          <div className="w-6 h-6 rounded-full border border-muted" style={{ backgroundColor: color.color }} />
                           <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                         </button>
                       ))}

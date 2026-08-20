@@ -172,7 +172,6 @@ const KitBentoCake = () => {
   const [orderDate, setOrderDate] = useState<Date | undefined>();
   const [selectedShape, setSelectedShape] = useState("");
   const [selectedFlavor, setSelectedFlavor] = useState("");
-  const [selectedBaseColor, setSelectedBaseColor] = useState("");
   const [selectedPipingOption, setSelectedPipingOption] = useState("");
   const [pipingColors, setPipingColors] = useState<string[]>([]);
   const [candleSelections, setCandleSelections] = useState<{ [key: string]: number }>({});
@@ -184,7 +183,6 @@ const KitBentoCake = () => {
   // Refs for auto-scroll
   const shapeRef = useRef<HTMLDivElement>(null);
   const flavorRef = useRef<HTMLDivElement>(null);
-  const baseColorRef = useRef<HTMLDivElement>(null);
   const pipingRef = useRef<HTMLDivElement>(null);
   const candlesRef = useRef<HTMLDivElement>(null);
 
@@ -197,8 +195,7 @@ const KitBentoCake = () => {
   // Auto-scroll on selection
   useEffect(() => { if (orderDate) scrollToRef(shapeRef); }, [orderDate]);
   useEffect(() => { if (selectedShape) scrollToRef(flavorRef); }, [selectedShape]);
-  useEffect(() => { if (selectedFlavor) scrollToRef(baseColorRef); }, [selectedFlavor]);
-  useEffect(() => { if (selectedBaseColor) scrollToRef(pipingRef); }, [selectedBaseColor]);
+  useEffect(() => { if (selectedFlavor) scrollToRef(pipingRef); }, [selectedFlavor]);
 
   // Auto-scroll when piping is fully selected
   useEffect(() => {
@@ -211,8 +208,7 @@ const KitBentoCake = () => {
   // Visibility flags
   const showShape = !!orderDate;
   const showFlavor = showShape && !!selectedShape;
-  const showBaseColor = showFlavor && !!selectedFlavor;
-  const showPiping = showBaseColor && !!selectedBaseColor;
+  const showPiping = showFlavor && !!selectedFlavor;
   const pipingComplete = (() => {
     const option = pipingBagOptions.find(p => p.id === selectedPipingOption);
     return !!selectedPipingOption && pipingColors.length === (option?.count || 0);
@@ -293,7 +289,7 @@ const KitBentoCake = () => {
   };
 
   const isFormComplete = () => {
-    return !!orderDate && !!selectedShape && !!selectedFlavor && !!selectedBaseColor && pipingComplete;
+    return !!orderDate && !!selectedShape && !!selectedFlavor && pipingComplete;
   };
 
   const handleAddToCart = () => {
@@ -323,8 +319,8 @@ const KitBentoCake = () => {
       flavorName: getFlavorName(),
       style: "diy-kit",
       styleName: "DIY Kit",
-      baseColor: selectedBaseColor,
-      baseColorName: baseColors.find(c => c.id === selectedBaseColor)?.name || "",
+      baseColor: "",
+      baseColorName: "",
       decorationColor: "",
       decorationColorName: "",
       cakeText: "",
@@ -479,33 +475,6 @@ const KitBentoCake = () => {
             </section>
           )}
 
-          {/* Step 4: Base Colour */}
-          {showBaseColor && (
-            <section ref={baseColorRef} className="space-y-4">
-              <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em]">
-                {t("Choose Base Colour", "Choisir la couleur de base")}<RequiredAsterisk tooltipKey="baseColor" />
-              </h2>
-              <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
-                {baseColors.map((color) => (
-                  <button
-                    key={color.id}
-                    onClick={() => setSelectedBaseColor(color.id)}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-2 rounded-lg transition-all",
-                      selectedBaseColor === color.id && "ring-2 ring-primary bg-secondary"
-                    )}
-                  >
-                    <div
-                      className="w-10 h-10 rounded-full border-2 border-border shadow-sm"
-                      style={{ backgroundColor: color.color }}
-                    />
-                    <span className="text-xs text-center">{t(color.name, color.nameFr)}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
-
           {/* Step 5: Piping Bags */}
           {showPiping && (
             <section ref={pipingRef} className="space-y-6">
@@ -656,7 +625,6 @@ const KitBentoCake = () => {
               <p className="text-sm text-muted-foreground">{t("Date:", "Date :")} {orderDate ? format(orderDate, "dd.MM.yyyy") : ""}</p>
               <p className="text-sm text-muted-foreground">{t("Shape:", "Forme :")} {t(shapes.find(s => s.id === selectedShape)?.name || "", shapes.find(s => s.id === selectedShape)?.nameFr || "")}</p>
               <p className="text-sm text-muted-foreground">{t("Flavour:", "Parfum :")} {t(getFlavorName(), getFlavorNameFr())}</p>
-              <p className="text-sm text-muted-foreground">{t("Base Colour:", "Couleur de base :")} {t(baseColors.find(c => c.id === selectedBaseColor)?.name || "", baseColors.find(c => c.id === selectedBaseColor)?.nameFr || "")}</p>
               <p className="text-sm text-muted-foreground">
                 {t("Piping:", "Poches à douille :")} {t(pipingBagOptions.find(p => p.id === selectedPipingOption)?.name || "", pipingBagOptions.find(p => p.id === selectedPipingOption)?.nameFr || "")} - {pipingColors.map(id => { const c = baseColors.find(c => c.id === id); return c ? t(c.name, c.nameFr) : ""; }).join(", ")}
               </p>

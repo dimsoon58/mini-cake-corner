@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { ExternalLink, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useLang } from "@/context/LanguageContext";
 
 const PINTEREST_URL = "https://ch.pinterest.com/bentocakestudiosnc/_saved/";
@@ -180,7 +181,7 @@ export const INSPIRATIONS = [
 
 export const ALL_IMAGES = INSPIRATIONS.map((i) => i.src);
 
-const LazyImage = ({ src, index }: { src: string; index: number }) => {
+const LazyImage = ({ src, index, onOpen }: { src: string; index: number; onOpen: (index: number) => void }) => {
   const { t } = useLang();
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -204,7 +205,7 @@ const LazyImage = ({ src, index }: { src: string; index: number }) => {
 
   return (
     <div ref={ref} className="relative aspect-square rounded-none overflow-hidden bg-muted group">
-      <a href={PINTEREST_URL} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+      <button type="button" onClick={() => onOpen(index)} className="block w-full h-full" aria-label={t("Order this cake", "Commander ce gâteau")}>
         {isVisible && (
           <img
             src={src}
@@ -217,21 +218,31 @@ const LazyImage = ({ src, index }: { src: string; index: number }) => {
             }`}
           />
         )}
-      </a>
-      <Link
-        to={`/catalog?inspiration=${index}`}
+      </button>
+      <button
+        type="button"
+        onClick={() => onOpen(index)}
         aria-label={t("Order this cake", "Commander ce gâteau")}
         title={t("Order this cake", "Commander ce gâteau")}
         className="absolute bottom-2 right-2 bg-background/90 hover:bg-primary text-foreground hover:text-primary-foreground p-2.5 rounded-none shadow-md transition-colors"
       >
         <ShoppingBag className="w-4 h-4" strokeWidth={1.5} />
-      </Link>
+      </button>
     </div>
   );
 };
 
+const SIZE_LABELS: { key: "bento" | "retro" | "medium" | "large"; en: string; fr: string }[] = [
+  { key: "bento", en: "Bento", fr: "Bento" },
+  { key: "retro", en: "Retro", fr: "Rétro" },
+  { key: "medium", en: "Medium", fr: "Medium" },
+  { key: "large", en: "Large", fr: "Large" },
+];
+
 const Inspiration = () => {
   const { t } = useLang();
+  const navigate = useNavigate();
+  const [selected, setSelected] = useState<number | null>(null);
   const [visibleCount, setVisibleCount] = useState(IMAGES_PER_PAGE);
   const visibleImages = ALL_IMAGES.slice(0, visibleCount);
   const hasMore = visibleCount < ALL_IMAGES.length;
@@ -275,7 +286,7 @@ const Inspiration = () => {
         {/* Gallery Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {visibleImages.map((src, i) => (
-            <LazyImage key={i} src={src} index={i} />
+            <LazyImage key={i} src={src} index={i} onOpen={setSelected} />
           ))}
         </div>
 
@@ -303,6 +314,53 @@ const Inspiration = () => {
           </div>
         )}
       </main>
+
+      {/* Fenetre de commande, on reste sur la page Inspirations */}
+      <Dialog open={selected !== null} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+        <DialogContent className="w-[92vw] max-w-lg rounded-none p-0 overflow-hidden">
+          {selected !== null && (
+            <div>
+              <img
+                src={INSPIRATIONS[selected].src}
+                alt={t(`Bento Cake creation ${selected + 1}`, `Création Bento Cake ${selected + 1}`)}
+                className="w-full aspect-square object-cover"
+              />
+              <div className="p-6">
+                <p className="font-sans uppercase tracking-[0.105em] text-sm font-medium text-foreground mb-3">
+                  {t(`Inspiration #${selected + 1}`, `Inspiration n°${selected + 1}`)}
+                </p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  {t("Design supplement, added to the price of the cake:", "Supplément design, en plus du prix du gâteau :")}
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mb-6">
+                  {(() => {
+                    const prices = INSPIRATIONS[selected].price as Record<string, number | undefined>;
+                    return SIZE_LABELS.filter((size) => prices[size.key] !== undefined).map((size) => (
+                      <span key={size.key} className="text-sm text-foreground">
+                        {t(size.en, size.fr)}{" "}
+                        <span className="text-primary font-medium">+CHF {prices[size.key]}</span>
+                      </span>
+                    ));
+                  })()}
+                </div>
+                <Button
+                  onClick={() => navigate(`/catalog?inspiration=${selected}`)}
+                  className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] text-[13px] font-medium"
+                >
+                  {t("ORDER THIS CAKE", "COMMANDER CE GÂTEAU")}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setSelected(null)}
+                  className="w-full mt-3 text-xs uppercase tracking-[0.105em] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t("Back to inspirations", "Retour aux inspirations")}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
