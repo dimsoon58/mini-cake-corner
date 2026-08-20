@@ -11,117 +11,69 @@ const PaymentSuccess = () => {
   const { t } = useLang();
   const [searchParams] = useSearchParams();
   const { clearCart } = useCart();
-  const sessionId = searchParams.get("session_id");
-  const [processed, setProcessed] = useState(false);
-  const [orderStatus, setOrderStatus] = useState<string | null>(null);
+  // create-payment's successUrl is /payment-success?order=<orders.id> — the
+  // order (and every order_items row) already exists in Supabase by the
+  // time the customer lands here, created at checkout before payment.
+  const orderId = searchParams.get("order");
+  const [cleared, setCleared] = useState(false);
+  const [orderValidation, setOrderValidation] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sessionId || processed) return;
-
-    const processPayment = async () => {
-      try {
-        // If already linked, read current status directly
-        const { data: existingOrders } = await supabase
-          .from("orders")
-          .select("id, status")
-          .eq("stripe_session_id", sessionId)
-          .order("created_at", { ascending: false })
-          .limit(1);
-
-        if (existingOrders && existingOrders.length > 0) {
-          setOrderStatus(existingOrders[0].status);
-          // Fire Make webhook silently in the background
-          supabase.functions.invoke("send-make-webhook", {
-            body: { orderId: existingOrders[0].id },
-          }).catch((err) => console.warn("Make webhook failed (silent):", err));
-          clearCart();
-          setProcessed(true);
-          return;
-        }
-
-        // Otherwise link the most recent pending order
-        const { data: recentOrders } = await supabase
-          .from("orders")
-          .select("id, status")
-          .eq("status", "pending")
-          .is("stripe_session_id", null)
-          .order("created_at", { ascending: false })
-          .limit(1);
-
-        if (recentOrders && recentOrders.length > 0) {
-          const orderId = recentOrders[0].id;
-          setOrderStatus(recentOrders[0].status ?? "pending");
-
-          const { error: updateError } = await supabase
-            .from("orders")
-            .update({ stripe_session_id: sessionId })
-            .eq("id", orderId);
-
-          if (!updateError) {
-            await supabase.functions.invoke("notify-order", {
-              body: { orderId },
-            });
-            // Fire Make webhook silently in the background
-            supabase.functions.invoke("send-make-webhook", {
-              body: { orderId },
-            }).catch((err) => console.warn("Make webhook failed (silent):", err));
-          }
-        }
-
-        clearCart();
-        setProcessed(true);
-      } catch (err) {
-        console.error("Error processing payment success:", err);
-        clearCart();
-        setProcessed(true);
-      }
-    };
-
-    processPayment();
-  }, [sessionId, clearCart, processed]);
+    if (!orderId || cleared) return;
+    // Notifying staff (notify-order) and Make (send-make-webhook) is owned
+    // exclusively by postfinance-webhook.ts, on payment authorization —
+    // never triggered from here, to avoid a second path that could create
+    // duplicate Notion rows for the same order.
+    clearCart();
+    setCleared(true);
+  }, [orderId, cleared, clearCart]);
 
   useEffect(() => {
-    if (!sessionId || !processed || orderStatus === "approved" || orderStatus === "accepted" || orderStatus === "confirmed") return;
+    if (!orderId || orderValidation === "approved") return;
+    const id = orderId;
 
     let mounted = true;
 
-    const refreshOrderStatus = async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("status")
-        .eq("stripe_session_id", sessionId)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (mounted && data && data.length > 0) {
-        setOrderStatus(data[0].status);
+    const refreshOrderValidation = async () => {
+      // No public SELECT policy on orders — this goes through the
+      // SECURITY DEFINER get_order_validation RPC instead, which only ever
+      // returns the validation status for the id the customer already has
+      // from their own return URL.
+      const { data, error } = await supabase.rpc("get_order_validation", {
+        target_order_id: id,
+      });
+      if (error) {
+        console.error("Error fetching order validation:", error);
+        return;
+      }
+      if (mounted && data) {
+        setOrderValidation(data as string);
       }
     };
 
-    refreshOrderStatus();
-    const intervalId = setInterval(refreshOrderStatus, 5000);
+    refreshOrderValidation();
+    const intervalId = setInterval(refreshOrderValidation, 5000);
 
     return () => {
       mounted = false;
       clearInterval(intervalId);
     };
-  }, [sessionId, processed, orderStatus]);
+  }, [orderId, orderValidation]);
 
-  const isOrderConfirmed =
-    orderStatus === "approved" || orderStatus === "accepted" || orderStatus === "confirmed";
+  const isOrderConfirmed = orderValidation === "approved";
 
   return (
     <Layout>
       <main className="container mx-auto px-4 py-16 max-w-2xl text-center">
         <div className="bg-card rounded-lg shadow-md p-8">
           <CheckCircle className="w-16 h-16 text-primary mx-auto mb-6" />
-          
+
           {isOrderConfirmed ? (
             <>
               <h1 className="text-2xl font-serif text-foreground mb-4">
                 {t("Order Confirmed ✅", "Commande confirmée ✅")}
               </h1>
-              
+
               <p className="text-muted-foreground mb-8">
                 {t(
                   "Your order has been successfully placed and your payment has been processed.",
@@ -154,7 +106,7 @@ const PaymentSuccess = () => {
                   "Un grand merci pour votre commande chez Bento Cake Studio ! 🤍"
                 )}
               </h1>
-              
+
               <p className="text-muted-foreground mb-6">
                 {t(
                   "We truly appreciate your support and are so excited to create something special just for you.",

@@ -58,7 +58,7 @@ serve(async (req) => {
     // 1. La commande fait foi, pas le navigateur.
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, order_number, total_amount, customer_email, customer_name, payment_status, postfinance_transaction_id")
+      .select("id, order_number, total_amount, email, first_name, last_name, payment_status, postfinance_transaction_id")
       .eq("id", orderId)
       .single();
 
@@ -122,7 +122,7 @@ serve(async (req) => {
       currency: "CHF",
       lineItems: finalLineItems,
       merchantReference: String(order.order_number || order.id).slice(0, 100),
-      customerEmailAddress: order.customer_email,
+      customerEmailAddress: order.email,
       customerId: String(order.id),
       language: language === "fr" ? "fr-CH" : "en-GB",
       completionBehavior: "COMPLETE_DEFERRED",

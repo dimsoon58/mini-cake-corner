@@ -8,6 +8,10 @@ export interface CandleCartItem {
 
 export interface CartItem {
   id: string;
+  /* Stable product-line id, independent of language — matches Supabase's
+     order_items.product enum (bento_cake / rectangle_cake / dot_cakes /
+     diy_kit / candles / edible_printing). */
+  product: string;
   orderDate: string;
   orderTime: string;
   size: string;

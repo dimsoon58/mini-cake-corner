@@ -104,14 +104,14 @@ serve(async (req) => {
 
     let orderQuery = await supabase
       .from("orders")
-      .select("id, payment_status, status, total_amount")
+      .select("id, payment_status, total_amount")
       .eq("postfinance_transaction_id", String(transactionId))
       .maybeSingle();
 
     if (!orderQuery.data && metaOrderId) {
       orderQuery = await supabase
         .from("orders")
-        .select("id, payment_status, status, total_amount")
+        .select("id, payment_status, total_amount")
         .eq("id", metaOrderId)
         .maybeSingle();
     }

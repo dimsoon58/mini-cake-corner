@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
 import {
   sizes, shapes, styles, extras as catalogExtrasData,
-  getFlavorCategoryExtra, getCandleTotalPrice, candles as customisationCandles,
+  getFlavorCategoryExtra, getExtraPrice, getCandleTotalPrice, candles as customisationCandles,
   flavorCategories,
 } from "@/data/customization";
 import { Button } from "@/components/ui/button";
@@ -129,6 +129,65 @@ const detectZoneFromAddress = (address: string): typeof DELIVERY_ZONES[0] | null
 };
 
 const formatDisplayDate = (date: Date) => format(date, "dd.MM.yyyy");
+
+// Temporary compatibility field: pickup_delivery_datetime is being phased
+// out in favour of pickup_delivery_date + pickup_delivery_slot (kept filled
+// until nothing on the site or in Make/Notion still reads it). Picks the
+// slot's start time as the datetime; browser-local, same as the old
+// order_date-only behaviour this replaces.
+const buildPickupDeliveryDatetime = (date: Date, slot: string): string => {
+  const startTime = slot.split(/[–-]/)[0]?.trim() || "00:00";
+  const [hours, minutes] = startTime.split(":").map((n) => parseInt(n, 10));
+  const combined = new Date(date);
+  combined.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
+  return combined.toISOString();
+};
+
+// Builds order_items.extra / extra_type / extra_color as clean, readable
+// values (no raw JSON) from the cart item's already-readable Name fields.
+// When there's exactly one extra and it's formatted as "Type: Colour(s)"
+// (e.g. KitBentoCake's "3 Piping Bags: Sky Blue, Pink"), it's split into a
+// clean type/colour pair; otherwise extra_type/extra_color are left blank
+// and `extra` alone carries the full readable description.
+const buildExtraFields = (item: {
+  extrasNames: string[];
+  ribbonColorName: string;
+  butterflyColorName: string;
+}): { extra: string; extraType: string; extraColor: string } => {
+  const parts = [...item.extrasNames];
+  if (item.ribbonColorName) parts.push(`Ribbon: ${item.ribbonColorName}`);
+  if (item.butterflyColorName) parts.push(`Butterfly: ${item.butterflyColorName}`);
+  const cleanParts = parts.filter(Boolean);
+  const extra = cleanParts.join(", ");
+
+  let extraType = "";
+  let extraColor = "";
+  if (cleanParts.length === 1) {
+    const [only] = cleanParts;
+    const colonIndex = only.indexOf(":");
+    if (colonIndex > -1) {
+      extraType = only.slice(0, colonIndex).replace(/^\d+\s+/, "").trim();
+      extraColor = only.slice(colonIndex + 1).trim();
+    } else {
+      extraType = only.replace(/^\d+\s+/, "").trim();
+    }
+  }
+  return { extra, extraType, extraColor };
+};
+
+// Builds order_items.candle_name / candle_quantity as clean readable values
+// (no raw candle JSON). A single candle type stores its own name/quantity;
+// multiple distinct types are joined into a readable list, with
+// candle_quantity summed so it stays a plain number either way.
+const buildCandleFields = (
+  candleSelections: { id: string; quantity: number }[],
+): { candleName: string; candleQuantity: number } => {
+  const active = candleSelections.filter((c) => c.quantity > 0);
+  if (active.length === 0) return { candleName: "", candleQuantity: 0 };
+  const names = active.map((c) => customisationCandles.find((x) => x.id === c.id)?.name || c.id);
+  const totalQuantity = active.reduce((sum, c) => sum + c.quantity, 0);
+  return { candleName: names.join(", "), candleQuantity: totalQuantity };
+};
 
 const uploadImageFilesToStorage = async (
   allFiles: File[],
@@ -331,6 +390,7 @@ const Checkout = () => {
       }
 
       const orderId = crypto.randomUUID();
+      const slot = deliveryOption === "pickup" ? pickupTime : deliveryTime;
 
       // Collect all image files from cart items and upload to Supabase
       const allImageFiles = items.flatMap(item => item.imageFiles || []);
@@ -338,7 +398,8 @@ const Checkout = () => {
         toast({ title: status });
       });
 
-      // Build per-item image URLs (distribute back to items for order details)
+      // Build per-item image URLs (distribute back to items for their own
+      // order_items.reference_images row)
       let urlIndex = 0;
       const orderItemsWithImageUrls = items.map(item => {
         const itemFileCount = (item.imageFiles || []).length;
@@ -347,52 +408,28 @@ const Checkout = () => {
         return { ...item, imageUrls: itemUrls };
       });
 
-      // Build order details JSON for admin review
-      const orderDetailsJson = {
-        items: orderItemsWithImageUrls.map((item) => ({
-          size: item.size,
-          sizeName: item.sizeName,
-          shape: item.shape,
-          shapeName: item.shapeName,
-          flavor: item.flavor,
-          flavorName: item.flavorName,
-          style: item.style,
-          styleName: item.styleName,
-          baseColorName: item.baseColorName,
-          decorationColorName: item.decorationColorName,
-          cakeText: item.cakeText,
-          textColorName: item.textColorName,
-          textStyle: item.textStyle,
-          extras: item.extras,
-          extrasNames: item.extrasNames,
-          ribbonColorName: item.ribbonColorName,
-          butterflyColorName: item.butterflyColorName,
-          candles: item.candles,
-          orderTime: item.orderTime,
-          comment: item.comment,
-          imageUrls: item.imageUrls || [],
-          total: item.total,
-        })),
-        deliveryComment,
-        pickupTime: deliveryOption === "pickup" ? pickupTime : "",
-        deliveryTime: deliveryOption === "delivery" ? deliveryTime : "",
-        lang,
-      };
-
-      // Save order to database with pending status
+      // Save the order first — Supabase is the source of truth. order_number /
+      // invoice_number / order_validation / payment fields are left unset:
+      // the DB trigger and the payment webhook own those, never the client.
       const { data: orderData, error: orderError } = await supabase.from("orders").insert({
         id: orderId,
-        order_date: formattedDate,
-        customer_name: `${firstName} ${lastName}`,
-        customer_email: email,
-        customer_phone: fullPhoneNumber,
-        total_amount: totalPrice,
-        delivery_option: deliveryOption,
+        order_source: "website",
+        lang,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone: fullPhoneNumber,
+        delivery_method: deliveryOption,
         delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
+        delivery_zone: deliveryOption === "delivery" ? (detectedZone?.name ?? null) : null,
+        delivery_fee: deliveryOption === "delivery" ? deliveryPrice : 0,
+        pickup_delivery_date: formattedDate,
+        pickup_delivery_slot: slot,
+        // Temporary: kept filled until nothing still reads pickup_delivery_datetime.
+        pickup_delivery_datetime: buildPickupDeliveryDatetime(deliveryDate, slot),
+        order_comment: deliveryOption === "delivery" ? deliveryComment : null,
+        total_amount: totalPrice,
         newsletter_subscription: subscribeNewsletter,
-        status: "pending",
-        image_urls: orderImageUrls,
-        order_details_json: orderDetailsJson as any,
       }).select("id").single();
 
       if (orderError) {
@@ -400,7 +437,77 @@ const Checkout = () => {
         throw new Error("Impossible d'enregistrer la commande.");
       }
 
-      const createdOrderId = orderData?.id;
+      const createdOrderId = orderData?.id || orderId;
+
+      // Each cake/product is its own order_items row, with its own real
+      // price — never orders.total_amount split evenly. This must succeed
+      // before payment starts: the Make webhook (fired later, on payment
+      // authorization) reads order_items, not the cart.
+      const orderItemsRows = orderItemsWithImageUrls.map((item) => {
+        const { extra, extraType, extraColor } = buildExtraFields(item);
+
+        // Standalone candle purchases (Candles.tsx) carry their candle in
+        // candleProduct* fields, not in item.candles — that array is only
+        // used for candles added on top of a cake (Catalog/DotCakes/KitBentoCake).
+        let candleName: string;
+        let candleQuantity: number;
+        let candlesPrice: number;
+        if (item.isCandleProduct) {
+          candleName = item.candleProductName || "";
+          candleQuantity = item.candleProductQty || 0;
+          candlesPrice = item.total;
+        } else {
+          const built = buildCandleFields(item.candles || []);
+          candleName = built.candleName;
+          candleQuantity = built.candleQuantity;
+          const distinctCandleIds = Array.from(new Set((item.candles || []).map((c) => c.id)));
+          candlesPrice = distinctCandleIds.reduce(
+            (sum, id) => sum + getCandleTotalPrice(id, item.candles || []),
+            0,
+          );
+        }
+
+        return {
+          order_id: createdOrderId,
+          product: item.product,
+          size: item.size || null,
+          shape: item.shape || null,
+          flavors: item.flavor ? item.flavor.split(",").map((f) => f.trim()).filter(Boolean) : [],
+          design: item.style || null,
+          base_color: item.baseColor || null,
+          decoration_color: item.decorationColor || null,
+          cake_text: item.cakeText || null,
+          text_color: item.textColor || null,
+          text_style: item.textStyle || null,
+          extra,
+          extra_type: extraType,
+          extra_color: extraColor,
+          extras_price: (item.extras || []).reduce(
+            (sum, extraId) => sum + getExtraPrice(extraId, item.size),
+            0,
+          ),
+          candle_name: candleName,
+          candle_quantity: candleQuantity,
+          candles_price: candlesPrice,
+          reference_images: item.imageUrls || [],
+          item_comment: item.comment || null,
+          total: item.total,
+          // Kept temporarily alongside the clean fields above, in case
+          // anything downstream still reads the old shape.
+          ribbon_color: item.ribbonColorName || null,
+          butterfly_color: item.butterflyColorName || null,
+          extras: item.extras || [],
+          candles: item.candles || [],
+        };
+      });
+
+      const { error: itemsError } = await supabase.from("order_items").insert(orderItemsRows);
+
+      if (itemsError) {
+        console.error("Order items save error:", itemsError);
+        await supabase.from("orders").delete().eq("id", createdOrderId);
+        throw new Error("Impossible d'enregistrer les articles de la commande.");
+      }
 
       // Build payload for embedded checkout
       const payload = {
@@ -420,6 +527,7 @@ const Checkout = () => {
         deliveryFee: deliveryPrice,
         totalAmount: totalPrice,
         orderId: createdOrderId || orderId,
+        language: lang,
       };
 
       console.log("Setting up embedded checkout with:", {

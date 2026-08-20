@@ -211,6 +211,7 @@ const DotCakes = () => {
 
     addItem({
       id: "",
+      product: "dot_cakes",
       orderDate: format(orderDate, "yyyy-MM-dd"),
       orderTime: "",
       size: "dot-cakes",

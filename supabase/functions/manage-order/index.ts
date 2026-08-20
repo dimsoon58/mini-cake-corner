@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import { PF } from "../_shared/postfinance.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,27 +66,23 @@ function formatDateCH(dateValue?: string): string {
   return year && month && day ? `${day}.${month}.${year}` : dateValue;
 }
 
-function getOrderImageUrls(order: any): string[] {
-  if (Array.isArray(order?.image_urls) && order.image_urls.length > 0) {
-    return order.image_urls.filter((url: unknown): url is string => typeof url === "string" && url.length > 0);
-  }
+function customerName(order: any): string {
+  return `${order.first_name || ""} ${order.last_name || ""}`.trim();
+}
 
-  const details = order?.order_details_json || {};
-  const items = Array.isArray(details.items) ? details.items : [];
+// Reference images now live per-item, on order_items.reference_images.
+function getOrderImageUrls(items: any[]): string[] {
   return items.flatMap((item: any) =>
-    Array.isArray(item?.imageUrls)
-      ? item.imageUrls.filter((url: unknown): url is string => typeof url === "string" && url.length > 0)
+    Array.isArray(item?.reference_images)
+      ? item.reference_images.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
       : []
   );
 }
 
-function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
-  const details = order.order_details_json || {};
-  const items = details.items || [];
-  const pickupTime = details.pickupTime || "";
+function buildOrderDetailsText(order: any, items: any[], paymentMethodLabel: string): string {
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
   const invoiceNumber = order.invoice_number || "—";
-  const orderImageUrls = getOrderImageUrls(order);
+  const orderImageUrls = getOrderImageUrls(items);
 
   const lines: string[] = [];
   const pushBullet = (value?: string | null) => {
@@ -96,39 +92,35 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
 
   pushBullet(`Order number: ${orderNumber}`);
   pushBullet(`Invoice number: ${invoiceNumber}`);
-  pushBullet(`Customer name: ${order.customer_name}`);
-  pushBullet(`Customer email: ${order.customer_email}`);
-  pushBullet(`Customer phone: ${order.customer_phone}`);
+  pushBullet(`Customer name: ${customerName(order)}`);
+  pushBullet(`Customer email: ${order.email}`);
+  pushBullet(`Customer phone: ${order.phone}`);
   lines.push("");
-  pushBullet(`Pickup date: ${formatDateCH(order.order_date)}`);
-  if (pickupTime) pushBullet(`Pickup time: ${pickupTime}`);
-  pushBullet(`Pickup option: ${order.delivery_option === "delivery" ? `Delivery to ${order.delivery_address || "—"}` : "Pickup at store"}`);
+  pushBullet(`Pickup date: ${formatDateCH(order.pickup_delivery_date)}`);
+  if (order.pickup_delivery_slot) pushBullet(`Pickup time: ${order.pickup_delivery_slot}`);
+  pushBullet(`Pickup option: ${order.delivery_method === "delivery" ? `Delivery to ${order.delivery_address || "—"}` : "Pickup at store"}`);
 
   items.forEach((item: any, i: number) => {
     lines.push("");
-    pushBullet(items.length > 1 ? `Cake ${i + 1}` : "Cake details");
-    if (item.sizeName) pushBullet(`Cake size: ${item.sizeName}`);
-    if (item.flavorName) pushBullet(`Flavor: ${item.flavorName}`);
-    if (item.shapeName) pushBullet(`Shape: ${item.shapeName}`);
-    if (item.styleName) pushBullet(`Design: ${item.styleName}`);
-    if (item.baseColorName) pushBullet(`Base color: ${item.baseColorName}`);
-    if (item.decorationColorName) pushBullet(`Decoration color: ${item.decorationColorName}`);
-    if (item.textColorName) pushBullet(`Text color: ${item.textColorName}`);
-    if (item.textStyle) pushBullet(`Text style: ${item.textStyle}`);
-    if (item.cakeText) pushBullet(`Text on cake: ${item.cakeText}`);
+    pushBullet(items.length > 1 ? `Article ${i + 1}` : "Article details");
+    if (item.size) pushBullet(`Size: ${item.size}`);
+    if (item.flavors?.length) pushBullet(`Flavour: ${item.flavors.join(", ")}`);
+    if (item.shape) pushBullet(`Shape: ${item.shape}`);
+    if (item.design) pushBullet(`Design: ${item.design}`);
+    if (item.base_color) pushBullet(`Base color: ${item.base_color}`);
+    if (item.decoration_color) pushBullet(`Decoration color: ${item.decoration_color}`);
+    if (item.text_color) pushBullet(`Text color: ${item.text_color}`);
+    if (item.text_style) pushBullet(`Text style: ${item.text_style}`);
+    if (item.cake_text) pushBullet(`Text on cake: ${item.cake_text}`);
 
-    if (item.extrasNames?.length) {
-      pushBullet(`Extras: ${item.extrasNames.join(", ")}`);
+    if (item.extra) {
+      pushBullet(`Extras: ${item.extra}`);
       lines.push("");
     }
 
-    if (item.ribbonColorName) pushBullet(`Ribbon color: ${item.ribbonColorName}`);
-    if (item.butterflyColorName) pushBullet(`Butterfly color: ${item.butterflyColorName}`);
+    if (item.candle_name) pushBullet(`Candles: ${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`);
 
-    const candles = (item.candles || []).filter((c: any) => c.quantity > 0);
-    if (candles.length) pushBullet(`Candles: ${candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ")}`);
-
-    if (item.comment?.trim()) pushBullet(`Additional note: ${item.comment.trim()}`);
+    if (item.item_comment?.trim()) pushBullet(`Additional note: ${item.item_comment.trim()}`);
   });
 
   if (orderImageUrls.length) {
@@ -138,9 +130,9 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
     });
   }
 
-  if (details.deliveryComment) {
+  if (order.order_comment) {
     lines.push("");
-    pushBullet(`Delivery comment: ${details.deliveryComment}`);
+    pushBullet(`Delivery comment: ${order.order_comment}`);
   }
 
   lines.push("");
@@ -150,11 +142,11 @@ function buildOrderDetailsText(order: any, paymentMethodLabel: string): string {
   return lines.join("\n");
 }
 
-function extractPickupStartTime(pickupTime?: string): { hours: number; minutes: number } | null {
-  if (!pickupTime) return null;
+function extractPickupStartTime(slot?: string): { hours: number; minutes: number } | null {
+  if (!slot) return null;
 
   // Supports both "12:00" and "12:00 – 13:00"
-  const match = pickupTime.match(/(\d{1,2})\s*:\s*(\d{2})/);
+  const match = slot.match(/(\d{1,2})\s*:\s*(\d{2})/);
   if (!match) return null;
 
   const hours = Number(match[1]);
@@ -174,23 +166,21 @@ function extractPickupStartTime(pickupTime?: string): { hours: number; minutes: 
   return { hours, minutes };
 }
 
-async function createCalendarEvent(accessToken: string, order: any, paymentMethodLabel: string) {
-  const details = order.order_details_json || {};
-  const pickupTime = details.pickupTime || "";
+async function createCalendarEvent(accessToken: string, order: any, items: any[], paymentMethodLabel: string) {
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
 
-  const description = buildOrderDetailsText(order, paymentMethodLabel);
+  const description = buildOrderDetailsText(order, items, paymentMethodLabel);
 
   const event: any = {
-    summary: `${order.customer_name} — ${orderNumber}`,
+    summary: `${customerName(order)} — ${orderNumber}`,
     description,
     colorId: "6",
   };
 
-  const parsedPickup = extractPickupStartTime(pickupTime);
-  if (parsedPickup && order.order_date) {
+  const parsedPickup = extractPickupStartTime(order.pickup_delivery_slot);
+  if (parsedPickup && order.pickup_delivery_date) {
     const startDate = new Date(
-      `${order.order_date}T${String(parsedPickup.hours).padStart(2, "0")}:${String(parsedPickup.minutes).padStart(2, "0")}:00`
+      `${order.pickup_delivery_date}T${String(parsedPickup.hours).padStart(2, "0")}:${String(parsedPickup.minutes).padStart(2, "0")}:00`
     );
 
     if (!Number.isNaN(startDate.getTime())) {
@@ -205,12 +195,12 @@ async function createCalendarEvent(accessToken: string, order: any, paymentMetho
         timeZone: "Europe/Zurich",
       };
     } else {
-      event.start = { date: order.order_date, timeZone: "Europe/Zurich" };
-      event.end = { date: order.order_date, timeZone: "Europe/Zurich" };
+      event.start = { date: order.pickup_delivery_date, timeZone: "Europe/Zurich" };
+      event.end = { date: order.pickup_delivery_date, timeZone: "Europe/Zurich" };
     }
   } else {
-    event.start = { date: order.order_date, timeZone: "Europe/Zurich" };
-    event.end = { date: order.order_date, timeZone: "Europe/Zurich" };
+    event.start = { date: order.pickup_delivery_date, timeZone: "Europe/Zurich" };
+    event.end = { date: order.pickup_delivery_date, timeZone: "Europe/Zurich" };
   }
 
   const calendarId = encodeURIComponent("naglemelodie@gmail.com");
@@ -229,52 +219,23 @@ async function createCalendarEvent(accessToken: string, order: any, paymentMetho
   return data;
 }
 
-async function getPaymentMethodLabel(stripe: Stripe, paymentIntentId: string): Promise<string> {
-  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
-    expand: ["latest_charge"],
-  });
-
-  const latestCharge = paymentIntent.latest_charge && typeof paymentIntent.latest_charge !== "string"
-    ? paymentIntent.latest_charge as Stripe.Charge
-    : null;
-
-  const details = latestCharge?.payment_method_details;
-  if (details?.type === "twint") return "Twint";
-
-  if (details?.type === "card") {
-    const walletType = details.card?.wallet?.type;
-    if (walletType === "apple_pay") return "Apple Pay";
-    return "Card";
-  }
-
-  const fallbackType = paymentIntent.payment_method_types?.[0];
-  if (fallbackType === "twint") return "Twint";
-  if (fallbackType === "card") return "Card";
-
-  return "Card";
-}
-
 // ── Customer language helper ────────────────────────────────────────
-// The language the customer used on the website is stored in
-// order_details_json.lang by the checkout page. Customer-facing emails and
-// the invoice follow that language; French is the default.
+// orders.lang is written by Checkout.tsx directly (top-level column, no
+// longer nested in JSON). Customer-facing emails and the invoice follow
+// that language; French is the default.
 function getCustomerLang(order: any): "fr" | "en" {
-  const l = order?.order_details_json?.lang;
-  return l === "en" ? "en" : "fr";
+  return order?.lang === "en" ? "en" : "fr";
 }
 
 // ── Approval confirmation email ─────────────────────────────────────
 
-async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethodLabel: string, pdfBase64?: string | null) {
+async function sendApprovalEmail(resendApiKey: string, order: any, items: any[], paymentMethodLabel: string, pdfBase64?: string | null) {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
 
-  const details = order.order_details_json || {};
-  const items = details.items || [];
-  const pickupTime = details.pickupTime || "—";
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
 
-  const deliveryInfo = order.delivery_option === "delivery"
+  const deliveryInfo = order.delivery_method === "delivery"
     ? `${tr("Delivery to", "Livraison à")}: ${order.delivery_address || "—"}`
     : tr("Pickup at store", "Retrait sur place");
 
@@ -282,24 +243,23 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
     `<tr><td style="padding:6px 8px;color:#888;font-size:14px;width:40%;">${label}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${value}</td></tr>`;
 
   const cakeDetailsRows = items.map((item: any, i: number) => {
-    const candles = (item.candles || []).filter((c: any) => c.quantity > 0);
-    const candleStr = candles.length ? candles.map((c: any) => `${c.id} ×${c.quantity}${c.hasPack ? " (pack)" : ""}`).join(", ") : "";
+    const candleStr = item.candle_name
+      ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
+      : "";
 
     const rows: string[] = [];
-    if (item.sizeName) rows.push(row(tr("Size", "Taille"), item.sizeName));
-    if (item.flavorName) rows.push(row(tr("Flavour", "Parfum"), item.flavorName));
-    if (item.shapeName) rows.push(row(tr("Shape", "Forme"), item.shapeName));
-    if (item.styleName) rows.push(row(tr("Design", "Design"), item.styleName));
-    if (item.baseColorName) rows.push(row(tr("Base colour", "Couleur de base"), item.baseColorName));
-    if (item.decorationColorName) rows.push(row(tr("Decoration colour", "Couleur de décoration"), item.decorationColorName));
-    if (item.textColorName) rows.push(row(tr("Text colour", "Couleur du texte"), item.textColorName));
-    if (item.textStyle) rows.push(row(tr("Text style", "Style du texte"), item.textStyle));
-    if (item.cakeText) rows.push(row(tr("Text on cake", "Texte sur le gâteau"), item.cakeText));
-    if (item.extrasNames?.length) rows.push(row(tr("Extras", "Suppléments"), item.extrasNames.join(", ")));
-    if (item.ribbonColorName) rows.push(row(tr("Ribbon colour", "Couleur du ruban"), item.ribbonColorName));
-    if (item.butterflyColorName) rows.push(row(tr("Butterfly colour", "Couleur du papillon"), item.butterflyColorName));
+    if (item.size) rows.push(row(tr("Size", "Taille"), item.size));
+    if (item.flavors?.length) rows.push(row(tr("Flavour", "Parfum"), item.flavors.join(", ")));
+    if (item.shape) rows.push(row(tr("Shape", "Forme"), item.shape));
+    if (item.design) rows.push(row(tr("Design", "Design"), item.design));
+    if (item.base_color) rows.push(row(tr("Base colour", "Couleur de base"), item.base_color));
+    if (item.decoration_color) rows.push(row(tr("Decoration colour", "Couleur de décoration"), item.decoration_color));
+    if (item.text_color) rows.push(row(tr("Text colour", "Couleur du texte"), item.text_color));
+    if (item.text_style) rows.push(row(tr("Text style", "Style du texte"), item.text_style));
+    if (item.cake_text) rows.push(row(tr("Text on cake", "Texte sur le gâteau"), item.cake_text));
+    if (item.extra) rows.push(row(tr("Extras", "Suppléments"), item.extra));
     if (candleStr) rows.push(row(tr("Candles", "Bougies"), candleStr));
-    if (item.comment?.trim()) rows.push(row(tr("Additional note", "Remarque complémentaire"), item.comment.trim()));
+    if (item.item_comment?.trim()) rows.push(row(tr("Additional note", "Remarque complémentaire"), item.item_comment.trim()));
 
     return `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
@@ -310,8 +270,8 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
       </div>`;
   }).join("");
 
-  // Reference images block from order-level image_urls column
-  const orderImageUrls = getOrderImageUrls(order);
+  // Reference images block, from order_items.reference_images
+  const orderImageUrls = getOrderImageUrls(items);
   const orderImagesBlock = orderImageUrls.length
     ? `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
@@ -327,7 +287,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
   const itemSummaryRows = items.map((item: any) => `
     <tr>
       <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">
-        ${item.sizeName} ${item.shapeName} — ${item.flavorName}
+        ${item.size || ""} ${item.shape || ""} — ${(item.flavors || []).join(", ")}
       </td>
       <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
     </tr>`).join("");
@@ -341,7 +301,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
 <body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:24px;">
     <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-      
+
       <!-- Logo -->
       <div style="padding:28px 32px 0;text-align:center;">
         <img src="${logoUrl}" alt="Bento Cake Studio" style="height:64px;width:auto;" />
@@ -354,9 +314,9 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
 
       <div style="padding:24px 32px 32px;">
         <p style="color:#555;font-size:15px;line-height:1.7;">
-          ${tr("Dear", "Bonjour")} ${order.customer_name},
+          ${tr("Dear", "Bonjour")} ${customerName(order)},
         </p>
-        
+
         <p style="color:#555;font-size:15px;line-height:1.7;">
           ${tr(
             `Thank you for choosing Bento Cake Studio. Your order <strong>#${orderNumber}</strong> has been confirmed and will be prepared for you on the selected date.`,
@@ -368,8 +328,8 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
         <div style="background:#f0fff4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin:24px 0;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${tr("Pickup details", "Détails du retrait")}</h3>
           <table style="border-collapse:collapse;width:100%;">
-            ${row(tr("Date", "Date"), formatDateCH(order.order_date))}
-            ${pickupTime ? row(tr("Time", "Heure"), pickupTime) : ""}
+            ${row(tr("Date", "Date"), formatDateCH(order.pickup_delivery_date))}
+            ${order.pickup_delivery_slot ? row(tr("Time", "Heure"), order.pickup_delivery_slot) : ""}
             ${row(tr("Pickup option", "Mode de retrait"), deliveryInfo)}
             ${row(tr("Payment method", "Moyen de paiement"), paymentMethodLabel)}
           </table>
@@ -432,7 +392,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, paymentMethod
   const invoiceNum = order.invoice_number || orderNumber;
   const emailPayload: any = {
     from: "contact@bentocakestudio.ch",
-    to: [order.customer_email],
+    to: [order.email],
     bcc: ["facturesbentocakestudio@gmail.com"],
     subject: tr(`Order Confirmation — #${orderNumber}`, `Confirmation de commande — n° ${orderNumber}`),
     html,
@@ -478,14 +438,14 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
 <body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:24px;">
     <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-      
+
       <div style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
         <h1 style="color:#fff;font-size:24px;margin:0;font-weight:700;">Bento Cake Studio</h1>
       </div>
 
       <div style="padding:32px;">
-        <h2 style="color:#333;font-size:20px;margin:0 0 20px;">${tr("Dear", "Bonjour")} ${order.customer_name},</h2>
-        
+        <h2 style="color:#333;font-size:20px;margin:0 0 20px;">${tr("Dear", "Bonjour")} ${customerName(order)},</h2>
+
         <p style="color:#555;font-size:15px;line-height:1.7;">
           ${tr(
             "Thank you for choosing Bento Cake Studio. We truly appreciate your support.",
@@ -495,11 +455,11 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
 
         <p style="color:#555;font-size:15px;line-height:1.7;">
           ${tr(
-            `Unfortunately, we are unable to accept your order <strong>#${orderNumber}</strong> scheduled for <strong>${formatDateCH(order.order_date)}</strong> because we have already reached our maximum production capacity for that day.`,
-            `Malheureusement, nous ne pouvons pas accepter votre commande <strong>n° ${orderNumber}</strong> prévue le <strong>${formatDateCH(order.order_date)}</strong>, car notre capacité de production maximale est déjà atteinte pour cette journée.`
+            `Unfortunately, we are unable to accept your order <strong>#${orderNumber}</strong> scheduled for <strong>${formatDateCH(order.pickup_delivery_date)}</strong> because we have already reached our maximum production capacity for that day.`,
+            `Malheureusement, nous ne pouvons pas accepter votre commande <strong>n° ${orderNumber}</strong> prévue le <strong>${formatDateCH(order.pickup_delivery_date)}</strong>, car notre capacité de production maximale est déjà atteinte pour cette journée.`
           )}
         </p>
-        
+
         <p style="color:#555;font-size:15px;line-height:1.7;">
           ${tr(
             "Your payment has been fully refunded, and the amount should appear back in your account within a few business days.",
@@ -551,7 +511,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
     },
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
-      to: [order.customer_email],
+      to: [order.email],
       subject: tr(`Update Regarding Your Order #${orderNumber}`, `Mise à jour concernant votre commande n° ${orderNumber}`),
       html,
     }),
@@ -568,7 +528,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
 
 // ── Invoice PDF generation ──────────────────────────────────────────
 
-async function generateInvoicePdf(order: any): Promise<string> {
+async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
 
@@ -628,7 +588,7 @@ async function generateInvoicePdf(order: any): Promise<string> {
   const invoiceNumber = order.invoice_number || "—";
   const today = new Date();
   const invoiceDate = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
-  const orderDateParts = order.order_date?.split("-");
+  const orderDateParts = order.pickup_delivery_date?.split("-");
   const orderDateFormatted = orderDateParts
     ? `${orderDateParts[2]}/${orderDateParts[1]}/${orderDateParts[0]}`
     : "—";
@@ -655,18 +615,16 @@ async function generateInvoicePdf(order: any): Promise<string> {
   y -= 18;
   page.drawText(tr("Customer", "Client"), { x: margin, y, size: 11, font: fontBold, color: black });
   y -= 16;
-  page.drawText(tr(`Name: ${order.customer_name}`, `Nom : ${order.customer_name}`), { x: margin, y, size: 10, font: fontRegular, color: black });
+  page.drawText(tr(`Name: ${customerName(order)}`, `Nom : ${customerName(order)}`), { x: margin, y, size: 10, font: fontRegular, color: black });
   y -= 14;
   if (order.delivery_address) {
     page.drawText(tr(`Address: ${order.delivery_address}`, `Adresse : ${order.delivery_address}`), { x: margin, y, size: 10, font: fontRegular, color: black });
     y -= 14;
   }
-  page.drawText(tr(`Email: ${order.customer_email}`, `Email : ${order.customer_email}`), { x: margin, y, size: 10, font: fontRegular, color: black });
+  page.drawText(tr(`Email: ${order.email}`, `Email : ${order.email}`), { x: margin, y, size: 10, font: fontRegular, color: black });
 
   // Items table
   y -= 30;
-  const details = order.order_details_json || {};
-  const items = details.items || [];
 
   const col1 = margin;
   const col2 = 260;
@@ -698,16 +656,16 @@ async function generateInvoicePdf(order: any): Promise<string> {
     return Number.isInteger(n) ? `${n}.-` : n.toFixed(2);
   };
 
-  const rowItems = items.length > 0 ? items : [{ styleName: tr("Custom cake", "Gâteau personnalisé"), total: order.total_amount }];
+  const rowItems = items.length > 0 ? items : [{ design: tr("Custom cake", "Gâteau personnalisé"), total: order.total_amount }];
   let tableBot = headerBot;
 
   for (const item of rowItems) {
     y -= rowH;
     const rowBot = y - 5;
-    const desc = item.sizeName
-      ? `${item.sizeName}${item.flavorName ? " — " + item.flavorName : ""}`
-      : (item.styleName || tr("Custom cake", "Gâteau personnalisé"));
-    const total = item.total || order.total_amount;
+    const desc = item.size
+      ? `${item.size}${item.flavors?.length ? " — " + item.flavors.join(", ") : ""}`
+      : (item.design || tr("Custom cake", "Gâteau personnalisé"));
+    const total = item.total ?? order.total_amount;
 
     page.drawText(desc, { x: col1 + 5, y: y, size: 10, font: fontRegular, color: black });
     page.drawText("1", { x: col2 + 5, y: y, size: 10, font: fontRegular, color: black });
@@ -861,7 +819,7 @@ serve(async (req) => {
       throw new Error("Action must be 'approve', 'reject', or 'decline'");
     }
 
-    // If PIN is provided, verify it (admin page flow). 
+    // If PIN is provided, verify it (admin page flow).
     // If no PIN, token-only auth is sufficient (email link flow).
     if (pin) {
       const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
@@ -873,9 +831,6 @@ serve(async (req) => {
       }
     }
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not configured");
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -885,56 +840,65 @@ serve(async (req) => {
     // Validate and consume the single-use token
     await validateAndConsumeToken(supabase, orderId, token);
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-
     const { data: order, error: orderError } = await supabase
       .from("orders").select("*").eq("id", orderId).single();
 
     if (orderError || !order) throw new Error("Order not found");
 
-    if (order.status !== "pending") {
-      return new Response(JSON.stringify({ 
-        error: `Order has already been ${order.status}`,
-        status: order.status 
+    if (order.order_validation !== "pending") {
+      return new Response(JSON.stringify({
+        error: `Order has already been ${order.order_validation}`,
+        status: order.order_validation
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
       });
     }
 
-    let newStatus: string;
-    let stripeAction: string;
+    // Every article of this order lives in its own order_items row.
+    const { data: items, error: itemsFetchError } = await supabase
+      .from("order_items").select("*").eq("order_id", orderId).order("created_at", { ascending: true });
+
+    if (itemsFetchError) throw new Error(`Failed to load order_items: ${itemsFetchError.message}`);
+    const orderItems = items || [];
+
+    if (!order.postfinance_transaction_id) throw new Error("No PostFinance transaction found");
+
+    const paymentMethodLabel = order.payment_method || "PostFinance";
+
+    let newValidation: string;
+    let paymentAction: string;
+    const orderUpdate: Record<string, unknown> = {};
     let calendarResult: any = null;
     let declineEmailResult: any = null;
     let approvalEmailResult: any = null;
 
     if (action === "approve") {
-      if (!order.stripe_session_id) throw new Error("No Stripe session ID found");
-
-      const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
-      const paymentIntentId = session.payment_intent as string;
-
-      if (!paymentIntentId) throw new Error("No payment intent found");
-
-      const paymentMethodLabel = await getPaymentMethodLabel(stripe, paymentIntentId);
-      const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-      if (pi.status === "requires_capture") {
-        await stripe.paymentIntents.capture(paymentIntentId);
-        stripeAction = "Payment captured";
-      } else if (pi.status === "succeeded") {
-        stripeAction = "Payment already captured (auto-capture method)";
+      // The transaction was only authorised at checkout (COMPLETE_DEFERRED) —
+      // approving is what actually captures the funds.
+      if (order.payment_status === "authorized") {
+        const capture = await PF.complete(order.postfinance_transaction_id);
+        if (!capture.ok) {
+          throw new Error(`PostFinance capture failed (${capture.status}): ${capture.raw.slice(0, 400)}`);
+        }
+        paymentAction = "Payment captured via PostFinance";
+        orderUpdate.payment_status = "paid";
+        orderUpdate.paid_at = new Date().toISOString();
+      } else if (order.payment_status === "paid") {
+        paymentAction = "Payment already captured";
       } else {
-        stripeAction = `Payment intent status: ${pi.status}`;
+        paymentAction = `Payment status: ${order.payment_status}`;
       }
 
-      newStatus = "approved";
-      console.log(`Order ${orderId} approved. ${stripeAction}`);
+      newValidation = "approved";
+      orderUpdate.order_validation = newValidation;
+      console.log(`Order ${orderId} approved. ${paymentAction}`);
 
       const gcKey = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
       if (gcKey) {
         try {
           const accessToken = await getGoogleAccessToken(gcKey);
-          calendarResult = await createCalendarEvent(accessToken, order, paymentMethodLabel);
+          calendarResult = await createCalendarEvent(accessToken, order, orderItems, paymentMethodLabel);
         } catch (e) {
           console.error("Calendar error:", e);
         }
@@ -943,7 +907,7 @@ serve(async (req) => {
       // Generate invoice PDF
       let invoicePdfBase64: string | null = null;
       try {
-        invoicePdfBase64 = await generateInvoicePdf(order);
+        invoicePdfBase64 = await generateInvoicePdf(order, orderItems);
         console.log("Invoice PDF generated successfully");
       } catch (e) {
         console.error("Invoice PDF generation error:", e);
@@ -953,7 +917,7 @@ serve(async (req) => {
       const resendKeyApprove = Deno.env.get("RESEND_API_KEY");
       if (resendKeyApprove) {
         try {
-          approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order, paymentMethodLabel, invoicePdfBase64);
+          approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order, orderItems, paymentMethodLabel, invoicePdfBase64);
         } catch (e) {
           console.error("Approval email error:", e);
         }
@@ -970,28 +934,34 @@ serve(async (req) => {
         }
       }
     } else {
-      if (!order.stripe_session_id) throw new Error("No Stripe session ID found");
-
-      const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
-      const paymentIntentId = session.payment_intent as string;
-
-      if (paymentIntentId) {
-        const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-        if (pi.status === "requires_capture") {
-          await stripe.paymentIntents.cancel(paymentIntentId);
-          stripeAction = "Payment canceled (not captured)";
-        } else if (pi.status === "succeeded") {
-          await stripe.refunds.create({ payment_intent: paymentIntentId });
-          stripeAction = "Payment refunded";
-        } else {
-          stripeAction = `Payment intent status: ${pi.status}`;
+      // Reject: release the authorization, or refund if it was somehow
+      // already captured (shouldn't normally happen — capture only ever
+      // happens on approve — but stay defensive, same as before).
+      if (order.payment_status === "authorized") {
+        const voided = await PF.void(order.postfinance_transaction_id);
+        if (!voided.ok) {
+          throw new Error(`PostFinance void failed (${voided.status}): ${voided.raw.slice(0, 400)}`);
         }
+        paymentAction = "Authorization voided (not captured)";
+        orderUpdate.payment_status = "voided";
+      } else if (order.payment_status === "paid") {
+        const refunded = await PF.refund(
+          order.postfinance_transaction_id,
+          order.total_amount,
+          order.order_number || order.id,
+        );
+        if (!refunded.ok) {
+          throw new Error(`PostFinance refund failed (${refunded.status}): ${refunded.raw.slice(0, 400)}`);
+        }
+        paymentAction = "Payment refunded";
+        orderUpdate.payment_status = "refunded";
       } else {
-        stripeAction = "No payment intent to cancel";
+        paymentAction = `Payment status: ${order.payment_status}`;
       }
 
-      newStatus = "rejected";
-      console.log(`Order ${orderId} rejected. ${stripeAction}`);
+      newValidation = "rejected";
+      orderUpdate.order_validation = newValidation;
+      console.log(`Order ${orderId} rejected. ${paymentAction}`);
 
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (resendKey) {
@@ -1004,11 +974,11 @@ serve(async (req) => {
     }
 
     const { error: updateError } = await supabase
-      .from("orders").update({ status: newStatus }).eq("id", orderId);
+      .from("orders").update(orderUpdate).eq("id", orderId);
 
     if (updateError) {
-      console.error("Error updating order status:", updateError);
-      throw new Error("Failed to update order status");
+      console.error("Error updating order:", updateError);
+      throw new Error("Failed to update order");
     }
 
     // Notify Make.com webhook of status change
@@ -1027,10 +997,10 @@ serve(async (req) => {
       console.error("Make.com status webhook error:", e);
     }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      status: newStatus,
-      stripeAction,
+    return new Response(JSON.stringify({
+      success: true,
+      status: newValidation,
+      paymentAction,
       calendarEvent: !!calendarResult,
       approvalEmailSent: !!approvalEmailResult,
       declineEmailSent: !!declineEmailResult,

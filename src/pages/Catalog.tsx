@@ -1248,6 +1248,7 @@ const Catalog = () => {
 
     addItem({
       id: "",
+      product: selections.size === "rectangle" ? "rectangle_cake" : "bento_cake",
       orderDate: selections.orderDate ? format(selections.orderDate, "yyyy-MM-dd") : "",
       orderTime: "",
       size: selections.size,

@@ -303,16 +303,13 @@ const KitBentoCake = () => {
     }
 
     const pipingColorNames = pipingColors.map(id => baseColors.find(c => c.id === id)?.name || "").join(", ");
-    const candleDetails = Object.entries(candleSelections)
-      .filter(([_, qty]) => qty > 0)
-      .map(([id, qty]) => {
-        const candle = candles.find(c => c.id === id);
-        return `${qty}x ${candle?.name}`;
-      })
-      .join("; ");
+    const selectedCandles = Object.entries(candleSelections)
+      .filter(([, qty]) => qty > 0)
+      .map(([id, quantity]) => ({ id, quantity, hasPack: false }));
 
     const cartItem = {
       id: "",
+      product: "diy_kit",
       orderDate: orderDate ? format(orderDate, "yyyy-MM-dd") : "",
       orderTime: "",
       size: "kit-bento",
@@ -330,16 +327,15 @@ const KitBentoCake = () => {
       cakeText: "",
       textColor: "",
       textColorName: "",
-      extras: [`piping-${selectedPipingOption}`, ...Object.keys(candleSelections)],
+      extras: [`piping-${selectedPipingOption}`],
       extrasNames: [
         `${pipingBagOptions.find(p => p.id === selectedPipingOption)?.name}: ${pipingColorNames}`,
-        candleDetails
       ].filter(Boolean),
       ribbonColor: "",
       ribbonColorName: "",
       butterflyColor: "",
       butterflyColorName: "",
-      candles: [],
+      candles: selectedCandles,
       comment: "",
       imageUrls: [],
       imageFiles: [],
