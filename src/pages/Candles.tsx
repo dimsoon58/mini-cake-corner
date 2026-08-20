@@ -49,7 +49,7 @@ const Candles = () => {
       flavor: "",
       flavorName: "",
       style: "candles",
-      styleName: t("Candle Order", "Commande de bougies"),
+      styleName: "Candle Order",
       baseColor: "",
       baseColorName: "",
       decorationColor: "",
