@@ -123,6 +123,22 @@ import boxBento from "@/assets/box-bento.png";
 import boxRetro from "@/assets/box-retro.png";
 import boxMedium from "@/assets/box-medium.png";
 import boxLarge from "@/assets/box-large.png";
+import bentoGallery1 from "@/assets/bento-gallery-1.jpg";
+import bentoGallery2 from "@/assets/bento-gallery-2.jpg";
+import bentoGallery3 from "@/assets/bento-gallery-3.jpg";
+import bentoGallery4 from "@/assets/bento-gallery-4.jpg";
+import bentoGallery5 from "@/assets/bento-gallery-5.jpg";
+import bentoGallery6 from "@/assets/bento-gallery-6.jpg";
+import bentoGallery7 from "@/assets/bento-gallery-7.jpg";
+import bentoGallery8 from "@/assets/bento-gallery-8.jpg";
+import bentoGallery9 from "@/assets/bento-gallery-9.jpg";
+import bentoGallery10 from "@/assets/bento-gallery-10.jpg";
+import bentoGallery11 from "@/assets/bento-gallery-11.jpg";
+import bentoGallery12 from "@/assets/bento-gallery-12.jpg";
+import bentoGallery13 from "@/assets/bento-gallery-13.jpg";
+import bentoGallery14 from "@/assets/bento-gallery-14.jpg";
+import bentoGallery15 from "@/assets/bento-gallery-15.jpg";
+import bentoGallery16 from "@/assets/bento-gallery-16.jpg";
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -916,6 +932,62 @@ interface CatalogProps {
   inspirationIndex?: number | null;
   onEmbeddedClose?: () => void;
 }
+
+const bentoGallery = [
+  bentoGallery1, bentoGallery2, bentoGallery3, bentoGallery4, bentoGallery5, bentoGallery6,
+  bentoGallery7, bentoGallery8, bentoGallery9, bentoGallery10, bentoGallery11, bentoGallery12,
+  bentoGallery13, bentoGallery14, bentoGallery15, bentoGallery16,
+];
+
+/* Bandeau de photos qui defilent, en bas de la page Bento Cakes */
+const BentoGallery = () => {
+  const { t } = useLang();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: "left" | "right") => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollBy({ left: direction === "left" ? -288 : 288, behavior: "smooth" });
+  };
+
+  return (
+    <section className="pb-20">
+      <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-10">
+        {t("Our Creations", "Nos créations")}
+      </h2>
+      <div className="relative">
+        <button
+          onClick={() => scroll("left")}
+          aria-label={t("Previous", "Precedent")}
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background rounded-none p-2 shadow-md"
+        >
+          <ChevronLeft className="h-5 w-5 text-foreground" />
+        </button>
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {bentoGallery.map((photo, index) => (
+            <div key={index} className="flex-shrink-0 w-64 h-64 overflow-hidden">
+              <img
+                src={photo}
+                alt={`Bento Cake Studio creation ${index + 1}`}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => scroll("right")}
+          aria-label={t("Next", "Suivant")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background rounded-none p-2 shadow-md"
+        >
+          <ChevronRight className="h-5 w-5 text-foreground" />
+        </button>
+      </div>
+    </section>
+  );
+};
 
 const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }: CatalogProps) => {
   const { addItem } = useCart();
@@ -2410,6 +2482,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
           </section>
         </div>
       </div>
+
+      <BentoGallery />
 
       {sheetBlock}
     </Layout>
