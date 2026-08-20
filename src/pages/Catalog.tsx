@@ -1388,7 +1388,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
           
           {selectedCake && (
             <div className="mt-6 space-y-6">
-              <div className="aspect-square w-full max-w-[220px] mx-auto rounded-none overflow-hidden bg-muted/30">
+              <div className="aspect-square w-full max-w-[300px] mx-auto rounded-none overflow-hidden bg-muted/30">
                 <img
                   src={selectedCake.image}
                   alt={selectedCake.name}
