@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import CustomRequestForm from "@/components/CustomRequestForm";
-import { INSPIRATIONS as inspirationItems } from "@/pages/Inspiration";
+import { INSPIRATIONS as inspirationItems } from "@/data/inspirations";
 import { format, addDays } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -894,7 +894,15 @@ const extraDescFr: Record<string, string> = {
   "printed-picture": "Une image imprimée comestible posée sur le gâteau.",
 };
 
-const Catalog = () => {
+interface CatalogProps {
+  /* Mode integre : on n'affiche que le panneau de personnalisation,
+     par-dessus une autre page (la galerie Inspirations par exemple). */
+  embedded?: boolean;
+  inspirationIndex?: number | null;
+  onEmbeddedClose?: () => void;
+}
+
+const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }: CatalogProps) => {
   const { addItem } = useCart();
   const { toast } = useToast();
   const { t } = useLang();
@@ -1301,6 +1309,7 @@ const Catalog = () => {
       total: calculatePrice(),
     });
     setSheetOpen(false);
+    if (embedded) onEmbeddedClose?.();
     // Let the dialog finish its close animation before unmounting its content —
     // clearing it immediately can leave Radix's body pointer-events lock stuck.
     setTimeout(() => setSelectedCake(null), 350);
@@ -1310,11 +1319,8 @@ const Catalog = () => {
   const packCandles = candles.filter(c => c.hasPack);
   const individualCandles = candles.filter(c => !c.hasPack);
 
-  // Deep link from the Inspiration page: open the simplified panel
-  useEffect(() => {
-    const param = searchParams.get("inspiration");
-    if (param === null) return;
-    const index = parseInt(param, 10);
+  // Ouvre le panneau pour une photo d'inspiration donnee
+  const openInspiration = (index: number) => {
     if (isNaN(index) || index < 0 || index >= inspirationItems.length) return;
     handleSelectCake({
       id: `inspiration-${index + 1}`,
@@ -1326,11 +1332,28 @@ const Catalog = () => {
       stylePrice: inspirationItems[index].price,
       disableText: false,
     } as (typeof catalog)[number]);
+  };
+
+  // Lien direct /catalog?inspiration=N
+  useEffect(() => {
+    if (embedded) return;
+    const param = searchParams.get("inspiration");
+    if (param === null) return;
+    openInspiration(parseInt(param, 10));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Mode integre : la page parente pilote l'ouverture
+  useEffect(() => {
+    if (!embedded) return;
+    if (inspirationIndex === null || inspirationIndex === undefined) return;
+    openInspiration(inspirationIndex);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded, inspirationIndex]);
+
   // Arrivee depuis l'accueil avec une ancre : on descend jusqu'a la section
   useEffect(() => {
+    if (embedded) return;
     const ancre = window.location.hash.replace("#", "");
     if (!ancre) return;
     const cible = document.getElementById(ancre);
@@ -1340,113 +1363,19 @@ const Catalog = () => {
   }, []);
 
   useEffect(() => {
+    if (embedded) return;
     document.title = "Bento Cakes – Bento Cake Studio";
     return () => {
       document.title = "Bento Cake Studio Geneva";
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
-    <Layout>
-      <div className="container mx-auto px-4 py-16">
-        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6">
-          BENTO CAKES
-        </h1>
-        <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          {t("Choose a signature design and personalise the size, flavour, colours and message.", "Découvrez nos créations signature, choisissez votre design préféré et personnalisez chaque détail pour créer un gâteau à votre image.")}
-        </p>
-
-        <div className="max-w-6xl mx-auto space-y-20">
-          {collections.map((collection) => {
-            const cakes = collection.ids
-              .map((id) => catalog.find((c) => c.id === id))
-              .filter(Boolean) as typeof catalog;
-            if (cakes.length === 0) return null;
-            return (
-              <section key={collection.title} id={collection.anchor}>
-                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
-                  {t(collection.title, collectionTitleFr[collection.title] ?? collection.title)}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {cakes.map((cake) => (
-                    <div
-                      key={cake.id}
-                      className="relative rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
-                    >
-                      {(cake as any).bestSeller && (
-                        <span className="absolute top-3 right-3 z-20 bg-cream text-primary text-[10px] font-semibold uppercase tracking-[0.14em] px-3 py-1.5 shadow-sm">
-                          {t("Best Seller", "Best-seller")}
-                        </span>
-                      )}
-                      {cake.images && cake.images.length > 1 ? (
-                        <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
-                      ) : (
-                        <div className="aspect-square overflow-hidden bg-muted/30">
-                          <img
-                            src={cake.image}
-                            alt={cake.name}
-                            className={cn("w-full h-full object-cover hover:scale-105 transition-transform duration-300", cake.imagePosition)}
-                          />
-                        </div>
-                      )}
-                      <div className="p-6 text-center flex flex-col flex-1">
-                        <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
-                          {t(cake.name, cakeNameFr[cake.id] ?? cake.name)}
-                        </h3>
-                        <p className="text-muted-foreground text-sm mb-4">
-                          {t(cake.description, cakeDescFr[cake.id] ?? cake.description)}
-                        </p>
-                        <div className="mt-auto">
-                          <Button
-                            className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
-                            onClick={() => handleSelectCake(cake)}
-                          >
-                            {t("CHOOSE THIS STYLE", "CHOISIR CE MODÈLE")}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-
-          {/* Custom Request */}
-          <section>
-            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
-              {t("CUSTOM REQUEST", "CRÉATION SUR MESURE")}
-            </div>
-            <div className="text-center max-w-2xl mx-auto py-6">
-              <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
-                {t("Can't find what you're looking for?", "Vous ne trouvez pas ce que vous cherchez ?")}
-              </h3>
-              <p className="text-muted-foreground text-sm mb-10">
-                {t("Every cake in our collections can be personalised, but if you're dreaming of something completely different, we'd love to create a fully bespoke design just for you. Tell us about your idea, your colours and your occasion, and we'll bring it to life.", "Tous nos gâteaux sont personnalisables. Si vous avez une idée particulière, nous serons ravies de créer un gâteau entièrement sur mesure pour vous.")}
-              </p>
-              <p className="text-muted-foreground text-sm italic mb-10">
-                {t("Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.", "À noter : Nous répondons à votre demande sous 48 heures. Pour une meilleure disponibilité, nous vous recommandons de nous contacter au moins une semaine à l'avance.")}
-              </p>
-              {!showRequestForm ? (
-                <Button
-                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-6 text-[14px] font-medium"
-                  onClick={() => setShowRequestForm(true)}
-                >
-                  {t("REQUEST A CUSTOM CAKE", "Demander une création sur mesure")}
-                </Button>
-              ) : (
-                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                  <CustomRequestForm />
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-      </div>
-
+  const sheetBlock = (
+    <>
       {/* Catalog Sheet */}
       <TooltipProvider delayDuration={200}>
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open && embedded) onEmbeddedClose?.(); }}>
         <SheetContent className="w-[95vw] max-w-3xl max-h-[88vh] overflow-y-auto rounded-none p-6 md:p-10">
           <SheetHeader>
             <SheetTitle className="font-sans uppercase tracking-[0.105em] text-lg font-semibold">
@@ -2357,6 +2286,110 @@ const Catalog = () => {
         </SheetContent>
       </Sheet>
       </TooltipProvider>
+    </>
+  );
+
+  if (embedded) return sheetBlock;
+
+  return (
+    <Layout>
+      <div className="container mx-auto px-4 py-16">
+        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6">
+          BENTO CAKES
+        </h1>
+        <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
+          {t("Choose a signature design and personalise the size, flavour, colours and message.", "Découvrez nos créations signature, choisissez votre design préféré et personnalisez chaque détail pour créer un gâteau à votre image.")}
+        </p>
+
+        <div className="max-w-6xl mx-auto space-y-20">
+          {collections.map((collection) => {
+            const cakes = collection.ids
+              .map((id) => catalog.find((c) => c.id === id))
+              .filter(Boolean) as typeof catalog;
+            if (cakes.length === 0) return null;
+            return (
+              <section key={collection.title} id={collection.anchor}>
+                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
+                  {t(collection.title, collectionTitleFr[collection.title] ?? collection.title)}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {cakes.map((cake) => (
+                    <div
+                      key={cake.id}
+                      className="relative rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
+                    >
+                      {(cake as any).bestSeller && (
+                        <span className="absolute top-3 right-3 z-20 bg-cream text-primary text-[10px] font-semibold uppercase tracking-[0.14em] px-3 py-1.5 shadow-sm">
+                          {t("Best Seller", "Best-seller")}
+                        </span>
+                      )}
+                      {cake.images && cake.images.length > 1 ? (
+                        <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
+                      ) : (
+                        <div className="aspect-square overflow-hidden bg-muted/30">
+                          <img
+                            src={cake.image}
+                            alt={cake.name}
+                            className={cn("w-full h-full object-cover hover:scale-105 transition-transform duration-300", cake.imagePosition)}
+                          />
+                        </div>
+                      )}
+                      <div className="p-6 text-center flex flex-col flex-1">
+                        <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
+                          {t(cake.name, cakeNameFr[cake.id] ?? cake.name)}
+                        </h3>
+                        <p className="text-muted-foreground text-sm mb-4">
+                          {t(cake.description, cakeDescFr[cake.id] ?? cake.description)}
+                        </p>
+                        <div className="mt-auto">
+                          <Button
+                            className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
+                            onClick={() => handleSelectCake(cake)}
+                          >
+                            {t("CHOOSE THIS STYLE", "CHOISIR CE MODÈLE")}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+
+          {/* Custom Request */}
+          <section>
+            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
+              {t("CUSTOM REQUEST", "CRÉATION SUR MESURE")}
+            </div>
+            <div className="text-center max-w-2xl mx-auto py-6">
+              <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
+                {t("Can't find what you're looking for?", "Vous ne trouvez pas ce que vous cherchez ?")}
+              </h3>
+              <p className="text-muted-foreground text-sm mb-10">
+                {t("Every cake in our collections can be personalised, but if you're dreaming of something completely different, we'd love to create a fully bespoke design just for you. Tell us about your idea, your colours and your occasion, and we'll bring it to life.", "Tous nos gâteaux sont personnalisables. Si vous avez une idée particulière, nous serons ravies de créer un gâteau entièrement sur mesure pour vous.")}
+              </p>
+              <p className="text-muted-foreground text-sm italic mb-10">
+                {t("Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.", "À noter : Nous répondons à votre demande sous 48 heures. Pour une meilleure disponibilité, nous vous recommandons de nous contacter au moins une semaine à l'avance.")}
+              </p>
+              {!showRequestForm ? (
+                <Button
+                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-6 text-[14px] font-medium"
+                  onClick={() => setShowRequestForm(true)}
+                >
+                  {t("REQUEST A CUSTOM CAKE", "Demander une création sur mesure")}
+                </Button>
+              ) : (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                  <CustomRequestForm />
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {sheetBlock}
     </Layout>
   );
 };
