@@ -33,7 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-import { EmbeddedStripeCheckout } from "@/components/EmbeddedCheckout";
+import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 
 // Country codes
 const COUNTRY_CODES = [
@@ -1005,16 +1005,16 @@ const Checkout = () => {
             </Button>
           </form>
 
-          {/* Embedded Stripe Checkout */}
+          {/* PostFinance Checkout */}
           {showEmbeddedCheckout && checkoutPayload && (
             <div className="mt-8 pt-6 border-t border-border">
               <h3 className="text-lg font-serif text-foreground mb-2">
                 {t("Complete Your Payment", "Finalisez votre paiement")}
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                {t("Please complete your payment below to confirm your order. All transactions are secured by Stripe.", "Veuillez finaliser votre paiement ci-dessous pour confirmer votre commande. Toutes les transactions sont sécurisées par Stripe.")}
+                {t("Please complete your payment below to confirm your order. All transactions are secured by PostFinance.", "Veuillez finaliser votre paiement ci-dessous pour confirmer votre commande. Toutes les transactions sont sécurisées par PostFinance.")}
               </p>
-              <EmbeddedStripeCheckout payload={checkoutPayload} />
+              <PostFinanceCheckout payload={checkoutPayload} />
             </div>
           )}
         </div>

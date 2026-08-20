@@ -26,11 +26,10 @@ interface EmbeddedCheckoutProps {
 }
 
 // PostFinance Checkout is the payment provider: create-payment always
-// returns a hosted payment-page URL, never a Stripe clientSecret, so this
-// always redirects — on every surface (published site and Lovable preview
-// iframe alike), not just inside the iframe like the old Stripe-embedded
-// version did.
-export const EmbeddedStripeCheckout = ({ payload }: EmbeddedCheckoutProps) => {
+// returns a hosted PostFinance payment-page URL, so this always redirects
+// there — on every surface (published site and Lovable preview iframe
+// alike), never an embedded Stripe form.
+export const PostFinanceCheckout = ({ payload }: EmbeddedCheckoutProps) => {
   const [error, setError] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
