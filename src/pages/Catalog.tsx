@@ -1477,15 +1477,15 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   <SelectTrigger>
                     <SelectValue placeholder={t("Select size", "Choisir une taille")} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[95vw]">
                     {sizes.filter((size) => selectedCake && size.id in selectedCake.stylePrice).map((size) => (
                       <SelectItem key={size.id} value={size.id}>
-                        <div className="flex items-start gap-2 py-0.5">
+                        <div className="flex items-start gap-2 py-0.5 w-full">
                           <img src={size.image} alt={size.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <span className="block">{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
                             {sizeDesc[size.id] && (
-                              <span className="block text-xs text-muted-foreground whitespace-normal leading-snug mt-0.5 max-w-[260px]">
+                              <span className="block text-xs text-muted-foreground whitespace-normal leading-snug mt-0.5">
                                 {t(sizeDesc[size.id].en, sizeDesc[size.id].fr)}
                               </span>
                             )}
