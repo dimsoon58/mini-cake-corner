@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
-import { PF } from "../_shared/postfinance.ts";
+import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -864,6 +864,7 @@ serve(async (req) => {
 
     if (!order.postfinance_transaction_id) throw new Error("No PostFinance transaction found");
 
+    const credentials = getPostFinanceCredentials();
     const paymentMethodLabel = order.payment_method || "PostFinance";
 
     let newValidation: string;
@@ -876,10 +877,23 @@ serve(async (req) => {
     if (action === "approve") {
       // The transaction was only authorised at checkout (COMPLETE_DEFERRED) —
       // approving is what actually captures the funds.
+      //
+      // UNVERIFIED: manage-order.ts is not deployed live yet, unlike
+      // create-postfinance-payment/confirm-postfinance-payment. This POST
+      // path follows the same /payment/transactions/{id}/... convention
+      // those two confirmed-working calls use, but the exact completion
+      // endpoint name has not been checked against PostFinance's API
+      // reference or tested against a real transaction. Verify this before
+      // relying on it to capture real money.
       if (order.payment_status === "authorized") {
-        const capture = await PF.complete(order.postfinance_transaction_id);
-        if (!capture.ok) {
-          throw new Error(`PostFinance capture failed (${capture.status}): ${capture.raw.slice(0, 400)}`);
+        try {
+          await pfFetch(
+            credentials,
+            `/payment/transactions/${order.postfinance_transaction_id}/complete`,
+            "POST",
+          );
+        } catch (e) {
+          throw new Error(`PostFinance capture failed: ${e instanceof Error ? e.message : String(e)}`);
         }
         paymentAction = "Payment captured via PostFinance";
         orderUpdate.payment_status = "paid";
@@ -937,21 +951,31 @@ serve(async (req) => {
       // Reject: release the authorization, or refund if it was somehow
       // already captured (shouldn't normally happen — capture only ever
       // happens on approve — but stay defensive, same as before).
+      // Same caveat as the capture call above: void/refund endpoint names
+      // are unverified against PostFinance's real API — check before relying
+      // on them.
       if (order.payment_status === "authorized") {
-        const voided = await PF.void(order.postfinance_transaction_id);
-        if (!voided.ok) {
-          throw new Error(`PostFinance void failed (${voided.status}): ${voided.raw.slice(0, 400)}`);
+        try {
+          await pfFetch(
+            credentials,
+            `/payment/transactions/${order.postfinance_transaction_id}/void`,
+            "POST",
+          );
+        } catch (e) {
+          throw new Error(`PostFinance void failed: ${e instanceof Error ? e.message : String(e)}`);
         }
         paymentAction = "Authorization voided (not captured)";
         orderUpdate.payment_status = "voided";
       } else if (order.payment_status === "paid") {
-        const refunded = await PF.refund(
-          order.postfinance_transaction_id,
-          order.total_amount,
-          order.order_number || order.id,
-        );
-        if (!refunded.ok) {
-          throw new Error(`PostFinance refund failed (${refunded.status}): ${refunded.raw.slice(0, 400)}`);
+        try {
+          await pfFetch(
+            credentials,
+            `/payment/transactions/${order.postfinance_transaction_id}/refund`,
+            "POST",
+            { amount: order.total_amount },
+          );
+        } catch (e) {
+          throw new Error(`PostFinance refund failed: ${e instanceof Error ? e.message : String(e)}`);
         }
         paymentAction = "Payment refunded";
         orderUpdate.payment_status = "refunded";

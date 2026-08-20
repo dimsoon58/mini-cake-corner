@@ -412,9 +412,9 @@ const Checkout = () => {
       // once PostFinance confirms the payment authorization — creating it
       // here would leave a fake "order" behind (with a burnt order_number)
       // for every abandoned or declined checkout. What we build below is
-      // staged into pending_payments by create-payment, and only turned
-      // into real orders/order_items rows by postfinance-webhook on first
-      // confirmed authorization.
+      // staged into pending_payments by create-postfinance-payment, and only
+      // turned into real orders/order_items rows by confirm-postfinance-payment
+      // once the customer returns and the transaction is confirmed.
       const orderData = {
         id: orderId,
         order_source: "website",
@@ -497,8 +497,8 @@ const Checkout = () => {
       });
 
       // Build payload for the payment page. `order`/`orderItems` are the
-      // real rows create-payment stages into pending_payments — nothing
-      // has touched orders/order_items yet. `items` below is display-only,
+      // real rows create-postfinance-payment stages into pending_payments —
+      // nothing has touched orders/order_items yet. `items` below is display-only,
       // used solely to build the PostFinance payment page's line items.
       const payload = {
         order: orderData,

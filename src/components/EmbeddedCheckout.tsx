@@ -5,6 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface EmbeddedCheckoutProps {
   payload: {
+    orderId: string;
+    order: Record<string, unknown>;
+    orderItems: Record<string, unknown>[];
     items: Array<{
       sizeName: string;
       shapeName: string;
@@ -20,15 +23,13 @@ interface EmbeddedCheckoutProps {
     deliveryAddress?: string;
     deliveryFee: number;
     totalAmount: number;
-    orderId: string;
   };
   onComplete?: () => void;
 }
 
-// PostFinance Checkout is the payment provider: create-payment always
-// returns a hosted PostFinance payment-page URL, so this always redirects
-// there — on every surface (published site and Lovable preview iframe
-// alike), never an embedded Stripe form.
+// create-postfinance-payment always returns a hosted PostFinance
+// payment-page URL, so this always redirects there — on every surface
+// (published site and Lovable preview iframe alike).
 export const PostFinanceCheckout = ({ payload }: EmbeddedCheckoutProps) => {
   const [error, setError] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
@@ -36,7 +37,7 @@ export const PostFinanceCheckout = ({ payload }: EmbeddedCheckoutProps) => {
   useEffect(() => {
     const fetchRedirectUrl = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("create-payment", {
+        const { data, error } = await supabase.functions.invoke("create-postfinance-payment", {
           body: payload,
         });
 
@@ -45,8 +46,8 @@ export const PostFinanceCheckout = ({ payload }: EmbeddedCheckoutProps) => {
           return;
         }
 
-        if (data?.url) {
-          setRedirectUrl(data.url);
+        if (data?.paymentPageUrl) {
+          setRedirectUrl(data.paymentPageUrl);
         } else {
           setError("Impossible de créer la session de paiement");
         }

@@ -33,10 +33,12 @@ serve(async (req) => {
     }
 
     // Every article lives in its own order_items row — Supabase is the
-    // source of truth here, not the cart/browser. This must run after
-    // Checkout.tsx has finished inserting all of them (guaranteed: this
-    // function is only invoked from postfinance-webhook, on payment
-    // authorization, which always happens well after checkout submission).
+    // source of truth here, not the cart/browser.
+    //
+    // NOTE: nothing in the codebase currently invokes this function —
+    // confirm-postfinance-payment.ts sends its own direct fetch to Make
+    // instead, with the raw inserted order/order_items rows. This file is
+    // unused unless something is later wired up to call it.
     const { data: items, error: itemsError } = await supabaseClient
       .from("order_items")
       .select("*")
