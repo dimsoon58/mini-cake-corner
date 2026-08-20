@@ -82,6 +82,9 @@ import designDrawing from "@/assets/design-drawing-new.jpg";
 import drawing1 from "@/assets/drawing-1.jpg";
 import designRosesPlease from "@/assets/design-roses-please-new.jpg";
 import rectangleCake from "@/assets/home-cat-rectangle.jpg";
+import rectangleSignature from "@/assets/rectangle-signature.jpg";
+import rectangleRaspberries from "@/assets/rectangle-raspberries.jpg";
+import rectangleFlowers from "@/assets/rectangle-flowers.jpg";
 import designRosesPlease2 from "@/assets/design-roses-please-2.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designButterflyGarden2 from "@/assets/design-butterfly-garden-2.jpg";
@@ -460,7 +463,7 @@ const catalog = [
     id: "rectangle-signature",
     name: "Signature Rectangle Cake",
     description: "Our signature rectangle cake, piped by hand.",
-    image: rectangleCake,
+    image: rectangleSignature,
     styleId: "rectangle-signature",
     styleName: "Signature Rectangle Cake",
     stylePrice: { rectangle: 0 },
@@ -470,19 +473,19 @@ const catalog = [
     id: "rectangle-raspberries",
     name: "Raspberries Rectangle Cake",
     description: "A rectangle cake covered with fresh raspberries.",
-    image: rectangleCake,
+    image: rectangleRaspberries,
     styleId: "rectangle-raspberries",
     styleName: "Raspberries Rectangle Cake",
     stylePrice: { rectangle: 0 },
     disableText: false,
   },
   {
-    id: "rectangle-strawberry",
-    name: "Strawberry Rectangle Cake",
-    description: "A rectangle cake covered with fresh strawberries.",
-    image: rectangleCake,
-    styleId: "rectangle-strawberry",
-    styleName: "Strawberry Rectangle Cake",
+    id: "rectangle-flowers",
+    name: "Flowers Rectangle Cake",
+    description: "A rectangle cake dressed with fresh flowers.",
+    image: rectangleFlowers,
+    styleId: "rectangle-flowers",
+    styleName: "Flowers Rectangle Cake",
     stylePrice: { rectangle: 0 },
     disableText: false,
   },
@@ -589,7 +592,7 @@ const designAllowedExtras: Record<string, string[]> = {
 // Collections: curated groupings shown as separate catalog sections
 const collections = [
   { title: "The Minimal Collection", anchor: "minimal", ids: ["normal-with-border", "normal-without-border"] },
-  { title: "The Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-strawberry"] },
+  { title: "The Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-flowers"] },
   { title: "The Vintage Collection", anchor: "vintage", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
   { title: "The Iconic Collection", anchor: "iconic", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
   { title: "The Original Collection", anchor: "original", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
@@ -716,14 +719,14 @@ const collectionTitleFr: Record<string, string> = {
 const cakeNameFr: Record<string, string> = {
   "rectangle-signature": "Rectangle Signature",
   "rectangle-raspberries": "Rectangle aux Framboises",
-  "rectangle-strawberry": "Rectangle aux Fraises",
+  "rectangle-flowers": "Rectangle aux Fleurs",
   "normal-without-border": "Classique sans bordure",
   "normal-with-border": "Classique avec bordure",
 };
 const cakeDescFr: Record<string, string> = {
   "rectangle-signature": "Notre gâteau rectangle signature, poché à la main.",
   "rectangle-raspberries": "Un gâteau rectangle recouvert de framboises fraîches.",
-  "rectangle-strawberry": "Un gâteau rectangle recouvert de fraises fraîches.",
+  "rectangle-flowers": "Un gâteau rectangle habillé de fleurs fraîches.",
   "normal-without-border": "Une finition lisse, épurée et élégante",
   "normal-with-border": "Un gâteau classique avec une élégante bordure pochée",
   "heart-bomb": "Un gâteau romantique recouvert de délicates décorations en forme de cœur",
