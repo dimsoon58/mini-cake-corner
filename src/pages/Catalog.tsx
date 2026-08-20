@@ -151,7 +151,7 @@ const baseColors = [
 ];
 
 const sizes = [
-  { id: "bento", name: "Bento", price: 40, image: boxBento },
+  { id: "bento", name: "Bento Box", price: 40, image: boxBento },
   { id: "retro", name: "Retro Box", price: 45, image: boxRetro },
   { id: "medium", name: "Medium", price: 85, image: boxMedium },
   { id: "large", name: "Large", price: 165, image: boxLarge },
@@ -777,7 +777,19 @@ const styleNameFr: Record<string, string> = {
   "sprinkles-with-border": "Vermicelles avec bordure",
 };
 const sizeNameFr: Record<string, string> = {
-  bento: "Bento", retro: "Boîte rétro", medium: "Moyen", large: "Grand", rectangle: "Rectangle",
+  bento: "Bento Box", retro: "Retro Box", medium: "Moyen", large: "Grand", rectangle: "Rectangle",
+};
+
+/* Courte explication affichee sous chaque boite */
+const sizeDesc: Record<string, { en: string; fr: string }> = {
+  bento: {
+    en: "Classic bento box for minimal designs.",
+    fr: "Boîte bento classique, idéale pour les designs minimalistes.",
+  },
+  retro: {
+    en: "Square cake board, recommended for more detailed side decorations.",
+    fr: "Socle carré, recommandé pour les designs avec des décorations plus travaillées sur les côtés.",
+  },
 };
 const shapeNameFr: Record<string, string> = { round: "Rond", heart: "Cœur" };
 const flavorNameFr: Record<string, string> = {
@@ -1468,9 +1480,16 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   <SelectContent>
                     {sizes.filter((size) => selectedCake && size.id in selectedCake.stylePrice).map((size) => (
                       <SelectItem key={size.id} value={size.id}>
-                        <div className="flex items-center gap-2">
-                          <img src={size.image} alt={size.name} className="w-8 h-8 object-contain flex-shrink-0" />
-                          <span>{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
+                        <div className="flex items-start gap-2 py-0.5">
+                          <img src={size.image} alt={size.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <span className="block">{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
+                            {sizeDesc[size.id] && (
+                              <span className="block text-xs text-muted-foreground whitespace-normal leading-snug mt-0.5 max-w-[260px]">
+                                {t(sizeDesc[size.id].en, sizeDesc[size.id].fr)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </SelectItem>
                     ))}
