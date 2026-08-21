@@ -72,6 +72,26 @@ async function insertOrderItemsAndFinalize(
       console.error("notify-order invocation failed (order still created):", notifyErr);
     }
   })());
+
+  // Customer "order received" email — purely informational, never touches
+  // order_validation/payment_status, never captures/voids/refunds anything.
+  // This point in the function only ever runs once per real order: a later
+  // call for the same orderId hits the existingItems check above and never
+  // calls insertOrderItemsAndFinalize again once order_items exist, so this
+  // is naturally idempotent without needing a separate sent-flag — retries
+  // and polling can't trigger a second send. A fully independent background
+  // task from notify-order above: a failure in either one can never affect
+  // the other, and neither can affect the response or the Make webhook.
+  EdgeRuntime.waitUntil((async () => {
+    try {
+      const { error: receivedEmailError } = await supabase.functions.invoke("send-order-received-email", { body: { orderId: orderRecord.id } });
+      if (receivedEmailError) {
+        console.error("send-order-received-email returned an error (order still created):", receivedEmailError);
+      }
+    } catch (receivedEmailErr) {
+      console.error("send-order-received-email invocation failed (order still created):", receivedEmailErr);
+    }
+  })());
 }
 
 serve(async (req) => {
