@@ -510,10 +510,14 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
   return btoa(binary);
 }
 
-// ── Token validation helper ─────────────────────────────────────────
+// ── Token validation helpers ────────────────────────────────────────
+// Split in two so the token is only consumed once the PostFinance action
+// it authorises has actually succeeded: validateToken() just checks the
+// token exists and is unused (claims nothing yet); consumeToken() marks it
+// used, called only after capture/void/refund succeeds. If PostFinance
+// fails, the token is never consumed and the action can be retried.
 
-async function validateAndConsumeToken(supabase: any, orderId: string, token: string): Promise<void> {
-  // Find the token
+async function validateToken(supabase: any, orderId: string, token: string): Promise<{ id: string; used: boolean }> {
   const { data: tokenRecord, error: fetchError } = await supabase
     .from("order_action_tokens")
     .select("*")
@@ -525,18 +529,20 @@ async function validateAndConsumeToken(supabase: any, orderId: string, token: st
     throw new Error("Invalid or unknown action token");
   }
 
-  // Check if already used
   if (tokenRecord.used) {
     throw new Error("This action token has already been used");
   }
 
   // No expiry check: token remains valid until consumed (single-use).
 
-  // Mark as used
+  return tokenRecord;
+}
+
+async function consumeToken(supabase: any, tokenRecordId: string): Promise<void> {
   const { error: updateError } = await supabase
     .from("order_action_tokens")
     .update({ used: true, used_at: new Date().toISOString() })
-    .eq("id", tokenRecord.id);
+    .eq("id", tokenRecordId);
 
   if (updateError) {
     console.error("Failed to mark token as used:", updateError);
@@ -587,8 +593,10 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Validate and consume the single-use token
-    await validateAndConsumeToken(supabase, orderId, token);
+    // Validate the single-use token (existence + unused only — not consumed
+    // yet; consumeToken() runs later, only after the PostFinance action this
+    // token authorises has actually succeeded).
+    const tokenRecord = await validateToken(supabase, orderId, token);
 
     const { data: order, error: orderError } = await supabase
       .from("orders").select("*").eq("id", orderId).single();
@@ -663,6 +671,24 @@ serve(async (req) => {
       orderUpdate.order_validation = newValidation;
       console.log(`Order ${orderId} approved. ${paymentAction}`);
 
+      // Commit the authoritative order state to Supabase FIRST — before any
+      // invoice generation or customer email — so the customer can never
+      // receive a confirmation for a decision Supabase hasn't durably
+      // recorded yet.
+      const { error: updateError } = await supabase
+        .from("orders").update(orderUpdate).eq("id", orderId);
+
+      if (updateError) {
+        console.error("Error updating order:", updateError);
+        throw new Error("Failed to update order");
+      }
+
+      // The PostFinance action succeeded and the order update above has now
+      // succeeded too (either failure throws before reaching this point) —
+      // only now is the token consumed, so a failed order update can still
+      // be retried with the same token.
+      await consumeToken(supabase, tokenRecord.id);
+
       // Generate invoice PDF
       let invoicePdfBase64: string | null = null;
       try {
@@ -680,25 +706,34 @@ serve(async (req) => {
         } catch (e) {
           console.error("Approval email error:", e);
         }
+      }
 
-        // Upload invoice PDF to Supabase Storage (bucket: invoice)
-        if (invoicePdfBase64) {
-          try {
-            const invoiceNum = order.invoice_number || order.order_number || "invoice";
-            const pdfBytes = Uint8Array.from(atob(invoicePdfBase64), (c) => c.charCodeAt(0));
-            const storagePath = `${invoiceNum}.pdf`;
-            const { error: invoiceUploadError } = await supabase.storage
-              .from("invoice")
-              .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
+      // Upload invoice PDF to Supabase Storage (bucket: invoice) — independent
+      // of Resend: runs whether or not RESEND_API_KEY is configured, and
+      // whether or not the customer email above succeeded.
+      if (invoicePdfBase64) {
+        try {
+          const invoiceNum = order.invoice_number || order.order_number || "invoice";
+          const pdfBytes = Uint8Array.from(atob(invoicePdfBase64), (c) => c.charCodeAt(0));
+          const storagePath = `${invoiceNum}.pdf`;
+          const { error: invoiceUploadError } = await supabase.storage
+            .from("invoice")
+            .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
 
-            if (invoiceUploadError) {
-              console.error("Invoice storage upload error:", invoiceUploadError);
-            } else {
-              orderUpdate.invoice_path = storagePath;
+          if (invoiceUploadError) {
+            console.error("Invoice storage upload error:", invoiceUploadError);
+          } else {
+            // The order row was already committed above — persist the
+            // invoice path as a best-effort follow-up write. A failure here
+            // is logged only and never blocks or fails the response.
+            const { error: invoicePathError } = await supabase
+              .from("orders").update({ invoice_path: storagePath }).eq("id", orderId);
+            if (invoicePathError) {
+              console.error("Failed to persist invoice_path:", invoicePathError);
             }
-          } catch (e) {
-            console.error("Invoice storage upload error:", e);
           }
+        } catch (e) {
+          console.error("Invoice storage upload error:", e);
         }
       }
     } else {
@@ -727,6 +762,14 @@ serve(async (req) => {
         // The live payment_status enum has no "voided" value — "cancelled"
         // is the existing compatible status for a released authorization.
         orderUpdate.payment_status = "cancelled";
+      } else if (transactionState === "VOIDED") {
+        // Retry-safe: a previous attempt already voided the authorization
+        // (e.g. the order update failed after a successful void-online, so
+        // the token was never consumed and this request is a retry).
+        // Voiding is not idempotent on PostFinance's side, so do not call
+        // void-online again — just continue the order to rejected.
+        paymentAction = "Authorization already voided";
+        orderUpdate.payment_status = "cancelled";
       } else if (transactionState === "COMPLETED") {
         try {
           await pfFetch(
@@ -746,12 +789,29 @@ serve(async (req) => {
         orderUpdate.payment_status = "refunded";
       } else {
         // No valid money action for this state — do not reject the order.
-        throw new Error(`Cannot reject: PostFinance transaction is in unexpected state ${transactionState} (expected AUTHORIZED or COMPLETED)`);
+        throw new Error(`Cannot reject: PostFinance transaction is in unexpected state ${transactionState} (expected AUTHORIZED, VOIDED, or COMPLETED)`);
       }
 
       newValidation = "rejected";
       orderUpdate.order_validation = newValidation;
       console.log(`Order ${orderId} rejected. ${paymentAction}`);
+
+      // Commit the authoritative order state to Supabase FIRST — before the
+      // customer refusal email — so the customer can never receive an email
+      // for a decision Supabase hasn't durably recorded yet.
+      const { error: updateError } = await supabase
+        .from("orders").update(orderUpdate).eq("id", orderId);
+
+      if (updateError) {
+        console.error("Error updating order:", updateError);
+        throw new Error("Failed to update order");
+      }
+
+      // The PostFinance action succeeded and the order update above has now
+      // succeeded too (either failure throws before reaching this point) —
+      // only now is the token consumed, so a failed order update can still
+      // be retried with the same token.
+      await consumeToken(supabase, tokenRecord.id);
 
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (resendKey) {
@@ -761,14 +821,6 @@ serve(async (req) => {
           console.error("Decline email error:", e);
         }
       }
-    }
-
-    const { error: updateError } = await supabase
-      .from("orders").update(orderUpdate).eq("id", orderId);
-
-    if (updateError) {
-      console.error("Error updating order:", updateError);
-      throw new Error("Failed to update order");
     }
 
     // Notify Make.com webhook of status change
