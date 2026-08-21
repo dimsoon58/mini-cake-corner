@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { useCart } from "@/context/CartContext";
+import { useCart, VALID_PRODUCTS } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
@@ -438,6 +438,25 @@ const Checkout = () => {
             data.map((d: { booked_date: string }) => new Date(d.booked_date)),
           );
         }
+        return;
+      }
+
+      // Last line of defense: an item without a currently-valid product
+      // would make the whole order_items insert fail later (in
+      // confirm-postfinance-payment), long after the customer has paid —
+      // catch it here instead, before anything is sent to PostFinance or
+      // Supabase. Normal cart items always have one; this only fires for
+      // stale items left in localStorage from before this field existed.
+      const invalidProductItem = items.find((item) => !VALID_PRODUCTS.has(item.product));
+      if (invalidProductItem) {
+        toast({
+          title: t("Cart item needs to be re-added", "Un article du panier doit être ajouté à nouveau"),
+          description: t(
+            "One of your cart items is outdated. Please remove it and add it again before checking out.",
+            "Un article de votre panier est obsolète. Merci de le retirer et de l'ajouter à nouveau avant de valider votre commande."
+          ),
+          variant: "destructive",
+        });
         return;
       }
 

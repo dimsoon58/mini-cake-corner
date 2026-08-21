@@ -54,6 +54,20 @@ export interface CartItem {
   candleProductHasPack?: boolean;
 }
 
+// Mirrors Supabase's order_items.product enum (product_type) exactly. Kept
+// here, as the single source of truth, so any cart item lacking a currently
+// valid product — e.g. one added before this field existed, sitting in a
+// visitor's localStorage across a deploy — is dropped on load instead of
+// silently reaching checkout and failing the order_items insert later.
+export const VALID_PRODUCTS = new Set([
+  "bento_cake",
+  "rectangle_cake",
+  "dot_cakes",
+  "diy_kit",
+  "candles",
+  "edible_printing",
+]);
+
 interface CartContextType {
   items: CartItem[];
   addItem: (item: CartItem) => void;
@@ -72,8 +86,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
     if (!stored) return [];
     const parsed = JSON.parse(stored);
-    // Hydrate with empty imageFiles since File objects can't be serialized
-    return parsed.map((item: any) => ({ ...item, imageFiles: [] }));
+    // Hydrate with empty imageFiles since File objects can't be serialized.
+    // Drop any stored item without a currently-valid product — stale data
+    // left over from before this field existed (or from a renamed product
+    // type) must never resurface into a live cart again.
+    return parsed
+      .filter((item: any) => VALID_PRODUCTS.has(item?.product))
+      .map((item: any) => ({ ...item, imageFiles: [] }));
   });
 
   useEffect(() => {
