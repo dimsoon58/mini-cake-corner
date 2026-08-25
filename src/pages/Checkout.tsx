@@ -33,6 +33,7 @@ import { useCart, VALID_PRODUCTS } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 
@@ -50,6 +51,38 @@ const COUNTRY_CODES = [
   { code: "+31", country: "NL", flag: "🇳🇱" },
   { code: "+1", country: "US", flag: "🇺🇸" },
 ];
+
+// Splits a stored profile phone number (format not guaranteed — free-typed
+// at signup, no country-code selector on that page) into { countryCode,
+// localPhone } for the checkout's two-part phone field, so prefilling can
+// never produce a double country code.
+function splitPhoneForCheckout(rawPhone: string): { countryCode: string | null; localPhone: string } {
+  const trimmed = rawPhone.trim();
+
+  // "0041..." is the international "00" form of "+41..." — normalize it to
+  // "+41..." so it hits the same case as a "+41"-prefixed value below.
+  const normalized = trimmed.startsWith("0041") ? `+41${trimmed.slice(4)}` : trimmed;
+
+  // Match the longest code first so no shorter code can shadow a longer one
+  // that starts with the same digits (e.g. "+31" vs "+351").
+  const matchedCode = [...COUNTRY_CODES]
+    .sort((a, b) => b.code.length - a.code.length)
+    .find((cc) => normalized.startsWith(cc.code));
+
+  if (matchedCode) {
+    return { countryCode: matchedCode.code, localPhone: normalized.slice(matchedCode.code.length) };
+  }
+
+  // Swiss national format: a local number starting with a single 0
+  // (e.g. "079 123 45 67") is +41 with the leading 0 dropped.
+  if (/^0\d/.test(trimmed)) {
+    return { countryCode: "+41", localPhone: trimmed.replace(/^0+/, "") };
+  }
+
+  // Unrecognized format — don't guess: pass the value through unchanged and
+  // leave the country code selector on whatever it currently is.
+  return { countryCode: null, localPhone: trimmed };
+}
 
 // Generate 1-hour pickup time slots from 10:00 to 18:00
 const PICKUP_TIME_SLOTS = [
@@ -282,7 +315,7 @@ const Checkout = () => {
   const [searchParams] = useSearchParams();
   const [firstName, setFirstName] = useState("");
   const { t, lang } = useLang();
-  const [applyReward, setApplyReward] = useState(false);
+  const { user, profile } = useAuth();
   const [lastName, setLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
@@ -305,6 +338,23 @@ const Checkout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
   const [checkoutPayload, setCheckoutPayload] = useState<any>(null);
+
+  // Prefill from the logged-in customer's profile — never overwrites what
+  // they've already typed. Guest checkout (profile stays null) is untouched.
+  // Not depending on [firstName, lastName, email, phone] is intentional:
+  // this must only run when profile itself (re)loads, never on keystrokes.
+  useEffect(() => {
+    if (!profile) return;
+    setFirstName((prev) => prev || profile.first_name || "");
+    setLastName((prev) => prev || profile.last_name || "");
+    setEmail((prev) => prev || profile.email || user?.email || "");
+
+    if (profile.phone && !phone) {
+      const parsed = splitPhoneForCheckout(profile.phone);
+      if (parsed.countryCode) setCountryCode(parsed.countryCode);
+      setPhone(parsed.localPhone);
+    }
+  }, [profile, user]);
 
   // Fetch fully booked dates on mount
   useEffect(() => {
@@ -1008,23 +1058,6 @@ const Checkout = () => {
                 <span>{t("Total", "Total")}</span>
                 <span className="text-primary">CHF {totalPrice}</span>
               </div>
-            </div>
-
-            {/* Loyalty Rewards (UI-only, demo values) */}
-            <div className="border border-primary/40 bg-secondary/40 p-4 space-y-2 mt-2">
-              <p className="text-sm text-foreground">
-                {t("You have 125 points available.", "Vous avez 125 points disponibles.")}
-              </p>
-              <p className="text-sm text-foreground/80">
-                {t("Redeem 100 points to receive CHF 5 off this order.", "Utilisez 100 points pour obtenir CHF 5 de réduction sur cette commande.")}
-              </p>
-              <div className="flex items-center space-x-3 pt-1">
-                <Checkbox id="applyReward" checked={applyReward} onCheckedChange={(c) => setApplyReward(c === true)} />
-                <Label htmlFor="applyReward" className="text-sm cursor-pointer">{t("Apply my reward", "Utiliser ma récompense")}</Label>
-              </div>
-              <p className="text-xs text-muted-foreground pt-1">
-                {t(`You'll earn ${Math.floor(totalPrice)} points with this order.`, `Vous gagnerez ${Math.floor(totalPrice)} points avec cette commande.`)}
-              </p>
             </div>
 
             {/* Privacy Policy & Newsletter */}
