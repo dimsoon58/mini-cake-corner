@@ -25,6 +25,7 @@ interface OrderRow {
 }
 
 interface OrderItemRow {
+  product: string;
   size: string | null;
   shape: string | null;
   flavors: string[];
@@ -107,9 +108,21 @@ serve(async (req) => {
     }
 
     const productsSubtotal = orderItems.reduce((sum, item) => sum + item.total, 0);
-    const discountAmount = (welcomeDiscountClaimed && productsSubtotal > 0)
-      ? roundToCents(productsSubtotal * WELCOME_DISCOUNT_RATE)
-      : 0;
+
+    // Selects the single order_item the -10% applies to: candles ("product"
+    // === "candles") are entirely excluded from consideration whenever at
+    // least one non-candle product is in the cart, then the cheapest item
+    // in whatever pool remains is the one discounted. A candles-only cart
+    // falls back to discounting its cheapest candle line. A Dot Cakes pack
+    // is already a single order_item with a single total, so it's compared
+    // as one unit with no further splitting.
+    const nonCandleItems = orderItems.filter((item) => item.product !== "candles");
+    const discountPool = nonCandleItems.length > 0 ? nonCandleItems : orderItems;
+    const discountedItem = welcomeDiscountClaimed && discountPool.length > 0
+      ? discountPool.reduce((cheapest, item) => (item.total < cheapest.total ? item : cheapest), discountPool[0])
+      : null;
+
+    const discountAmount = discountedItem ? roundToCents(discountedItem.total * WELCOME_DISCOUNT_RATE) : 0;
     order.welcome_discount_amount = discountAmount;
 
     const lineItems = orderItems.map((item, i) => {
@@ -121,11 +134,10 @@ serve(async (req) => {
       ].filter(Boolean).join(" • ");
 
       // No PostFinance/Wallee line item type for a discount is confirmed in
-      // official docs, so each product line is proportionally reduced
-      // instead of adding an invented line type. The exact cent remainder
-      // is absorbed by the last line below so the sum is always exact.
-      const amount = discountAmount > 0
-        ? roundToCents(item.total * (1 - discountAmount / productsSubtotal))
+      // official docs, so the discount is subtracted directly from the one
+      // discounted line's amount instead of adding an invented line type.
+      const amount = item === discountedItem
+        ? roundToCents(item.total - discountAmount)
         : item.total;
 
       return {
@@ -137,16 +149,6 @@ serve(async (req) => {
         attributes: description ? { description: { label: "Details", value: description } } : undefined,
       };
     });
-
-    if (discountAmount > 0 && lineItems.length > 0) {
-      const targetProductsTotal = roundToCents(productsSubtotal - discountAmount);
-      const currentSum = roundToCents(lineItems.reduce((sum, li) => sum + li.amountIncludingTax, 0));
-      const drift = roundToCents(targetProductsTotal - currentSum);
-      if (drift !== 0) {
-        const last = lineItems[lineItems.length - 1];
-        last.amountIncludingTax = roundToCents(last.amountIncludingTax + drift);
-      }
-    }
 
     if (order.delivery_method === "delivery" && order.delivery_fee > 0) {
       lineItems.push({

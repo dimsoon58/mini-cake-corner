@@ -409,8 +409,21 @@ const Checkout = () => {
     && !profile?.welcome_discount_reserved_order_id
     && (!profile?.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date());
 
-  const estimatedWelcomeDiscount = (useWelcomeDiscount && welcomeVoucherEligible)
-    ? Math.round(itemsTotal * 0.10 * 100) / 100
+  // Mirrors, item for item, the selection rule enforced server-side in
+  // create-postfinance-payment: candles ("product" === "candles") are
+  // entirely excluded whenever at least one non-candle product is in the
+  // cart, then the cheapest item in whatever pool remains is discounted
+  // (a candles-only cart falls back to its cheapest candle line). Display
+  // only — the server independently recomputes and verifies this amount,
+  // never trusting this client-side value for anything financial.
+  const nonCandleItems = items.filter((item) => item.product !== "candles");
+  const discountPool = nonCandleItems.length > 0 ? nonCandleItems : items;
+  const discountedItem = discountPool.length > 0
+    ? discountPool.reduce((cheapest, item) => (item.total < cheapest.total ? item : cheapest), discountPool[0])
+    : null;
+
+  const estimatedWelcomeDiscount = (useWelcomeDiscount && welcomeVoucherEligible && discountedItem)
+    ? Math.round(discountedItem.total * 0.10 * 100) / 100
     : 0;
 
   const totalPrice = itemsTotal - estimatedWelcomeDiscount + (deliveryOption === "delivery" ? deliveryPrice : 0);
