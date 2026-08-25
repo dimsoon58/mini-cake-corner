@@ -240,16 +240,24 @@ const uploadImageFilesToStorage = async (
     const file = allFiles[i];
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
-    const filePath = `${year}/${month}/${orderId}/reference_${i}.${safeExt}`;
 
     let uploaded = false;
+    let uploadedPath = "";
     for (let attempt = 0; attempt < 3; attempt++) {
+      // A fresh unique path every attempt — never re-upload to the same key
+      // — so a retry is always a plain INSERT, never an UPDATE. With a fixed
+      // path and upsert:true, a retry that lands on a path a previous
+      // attempt already created becomes an UPDATE, which has no RLS policy
+      // and fails with "new row violates row-level security policy" even
+      // though INSERT is correctly allowed.
+      const filePath = `${year}/${month}/${orderId}/${crypto.randomUUID()}_reference_${i}.${safeExt}`;
       const { error: uploadError } = await supabase.storage
         .from("order-images")
-        .upload(filePath, file, { contentType: file.type, upsert: true });
+        .upload(filePath, file, { contentType: file.type, upsert: false });
 
       if (!uploadError) {
         uploaded = true;
+        uploadedPath = filePath;
         break;
       }
       console.warn(`Upload attempt ${attempt + 1} failed for reference_${i}:`, uploadError.message);
@@ -257,7 +265,7 @@ const uploadImageFilesToStorage = async (
     }
 
     if (uploaded) {
-      const { data } = supabase.storage.from("order-images").getPublicUrl(filePath);
+      const { data } = supabase.storage.from("order-images").getPublicUrl(uploadedPath);
       uploadedUrls.push(data.publicUrl);
     } else {
       console.error(`Failed to upload reference_${i} after 3 attempts`);
