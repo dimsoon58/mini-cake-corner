@@ -1,19 +1,31 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { User, X, Package, Gift, MapPin, UserCircle, Mail, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 
-/* UI-only account menu. No real authentication is wired yet:
-   `signedIn` is a local demo toggle so both states can be previewed. */
 const AccountMenu = ({ light = false }: { light?: boolean }) => {
   const { t } = useLang();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
-  const firstName = "there";
+  const { user, profile, signOut } = useAuth();
+  const signedIn = !!user;
+  const firstName = profile?.first_name || t("there", "vous");
 
   const close = () => setOpen(false);
+
+  const goTo = (path: string) => {
+    close();
+    navigate(path);
+  };
+
+  const handleLogOut = async () => {
+    await signOut();
+    close();
+    navigate("/");
+  };
 
   const menuItems = [
     { icon: Package, label: t("My Orders", "Mes commandes"), to: "/account/orders" },
@@ -50,14 +62,14 @@ const AccountMenu = ({ light = false }: { light?: boolean }) => {
                   {t("Sign in to manage your orders, save your details and enjoy a faster checkout.", "Connectez-vous pour gérer vos commandes, enregistrer vos informations et passer commande plus vite.")}
                 </p>
                 <Button
-                  onClick={() => setSignedIn(true)}
+                  onClick={() => goTo("/login")}
                   className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] text-[13px] font-medium mb-3"
                 >
                   {t("Sign In", "Se connecter")}
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setSignedIn(true)}
+                  onClick={() => goTo("/signup")}
                   className="w-full rounded-none border-primary text-primary hover:bg-primary/5 uppercase tracking-[0.105em] text-[13px] font-medium"
                 >
                   {t("Create an Account", "Créer un compte")}
@@ -88,7 +100,7 @@ const AccountMenu = ({ light = false }: { light?: boolean }) => {
                   ))}
                 </nav>
                 <button
-                  onClick={() => setSignedIn(false)}
+                  onClick={handleLogOut}
                   className="flex items-center gap-3 py-2.5 px-2 w-full text-sm text-foreground/70 hover:text-foreground border-t border-border/50 transition-colors"
                 >
                   <LogOut className="w-4 h-4" strokeWidth={1.5} />

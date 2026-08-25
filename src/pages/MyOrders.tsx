@@ -1,58 +1,91 @@
-import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
-/* UI-only page. Sample data below is placeholder for design preview;
-   real orders will be loaded once accounts are connected to the backend. */
-type SampleOrder = {
-  number: string;
-  date: string;
-  items: string;
-  total: number;
-  status: "confirmed" | "preparing" | "ready" | "completed";
+type CustomerOrder = {
+  id: string;
+  order_number: string | null;
+  pickup_delivery_date: string | null;
+  total_amount: number;
+  order_validation: string;
+  order_items: { design: string | null; size: string | null; flavors: string[] | null }[];
 };
 
-const upcomingOrders: SampleOrder[] = [
-  { number: "BCS-1042", date: "12.08.2026", items: "Heart Bomb (Medium), Strawberry", total: 65, status: "confirmed" },
-  { number: "BCS-1039", date: "05.08.2026", items: "Pearl Border × Retro (Large)", total: 90, status: "preparing" },
-];
+function formatDateCH(dateValue?: string | null): string {
+  if (!dateValue) return "—";
+  const [year, month, day] = dateValue.split("-");
+  return year && month && day ? `${day}.${month}.${year}` : dateValue;
+}
 
-const pastOrders: SampleOrder[] = [
-  { number: "BCS-0987", date: "20.06.2026", items: "Roses Please (Bento), Pistachio", total: 48, status: "completed" },
-  { number: "BCS-0921", date: "02.05.2026", items: "Rainbow Cake (Medium)", total: 58, status: "completed" },
-];
+function itemsSummary(items: CustomerOrder["order_items"]): string {
+  return items
+    .map((item) => item.size ? `${item.size}${item.flavors?.length ? ` — ${item.flavors.join(", ")}` : ""}` : (item.design || ""))
+    .filter(Boolean)
+    .join(", ");
+}
 
 const MyOrders = () => {
   const { t } = useLang();
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const [orders, setOrders] = useState<CustomerOrder[] | null>(null);
 
   useEffect(() => {
     document.title = "My Orders – Bento Cake Studio";
     return () => { document.title = "Bento Cake Studio Geneva"; };
   }, []);
 
-  const statusLabel = (s: SampleOrder["status"]) => ({
-    confirmed: t("Confirmed", "Confirmée"),
-    preparing: t("In preparation", "En préparation"),
-    ready: t("Ready for pickup", "Prête au retrait"),
-    completed: t("Completed", "Terminée"),
-  }[s]);
+  useEffect(() => {
+    if (!authLoading && !user) navigate("/login");
+  }, [authLoading, user, navigate]);
 
-  const OrderCard = ({ order, past }: { order: SampleOrder; past?: boolean }) => (
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("orders")
+      .select("id, order_number, pickup_delivery_date, total_amount, order_validation, order_items(design, size, flavors)")
+      .eq("customer_id", user.id)
+      .order("pickup_delivery_date", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Failed to load orders:", error);
+          setOrders([]);
+          return;
+        }
+        setOrders((data as unknown as CustomerOrder[]) ?? []);
+      });
+  }, [user]);
+
+  const statusLabel = (validation: string) => ({
+    pending: t("Pending confirmation", "En attente de confirmation"),
+    approved: t("Confirmed", "Confirmée"),
+    rejected: t("Declined", "Refusée"),
+  }[validation] ?? validation);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const upcomingOrders = (orders ?? []).filter((o) => !o.pickup_delivery_date || new Date(o.pickup_delivery_date) >= today);
+  const pastOrders = (orders ?? []).filter((o) => o.pickup_delivery_date && new Date(o.pickup_delivery_date) < today);
+
+  const OrderCard = ({ order, past }: { order: CustomerOrder; past?: boolean }) => (
     <div className="border border-border/60 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
         <div className="flex items-center gap-3 mb-1.5">
           <span className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground">
-            {order.number}
+            {order.order_number || order.id.slice(0, 8).toUpperCase()}
           </span>
           <span className="text-[11px] uppercase tracking-[0.105em] bg-secondary text-foreground/80 px-2.5 py-1">
-            {statusLabel(order.status)}
+            {statusLabel(order.order_validation)}
           </span>
         </div>
-        <p className="text-sm text-foreground/75">{order.items}</p>
+        <p className="text-sm text-foreground/75">{itemsSummary(order.order_items) || "—"}</p>
         <p className="text-xs text-muted-foreground mt-1">
-          {t("Date", "Date")}: {order.date} · CHF {order.total}
+          {t("Date", "Date")}: {formatDateCH(order.pickup_delivery_date)} · CHF {order.total_amount}
         </p>
       </div>
       {past && (
@@ -74,31 +107,37 @@ const MyOrders = () => {
           {t("My Orders", "Mes commandes")}
         </h1>
 
-        <section className="mb-12">
-          <h2 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-5">
-            {t("Upcoming Orders", "Commandes à venir")}
-          </h2>
-          <div className="space-y-4">
-            {upcomingOrders.length ? (
-              upcomingOrders.map((o) => <OrderCard key={o.number} order={o} />)
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("No upcoming orders.", "Aucune commande à venir.")}</p>
-            )}
-          </div>
-        </section>
+        {orders === null ? (
+          <p className="text-sm text-muted-foreground text-center">{t("Loading...", "Chargement...")}</p>
+        ) : (
+          <>
+            <section className="mb-12">
+              <h2 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-5">
+                {t("Upcoming Orders", "Commandes à venir")}
+              </h2>
+              <div className="space-y-4">
+                {upcomingOrders.length ? (
+                  upcomingOrders.map((o) => <OrderCard key={o.id} order={o} />)
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t("No upcoming orders.", "Aucune commande à venir.")}</p>
+                )}
+              </div>
+            </section>
 
-        <section>
-          <h2 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-5">
-            {t("Past Orders", "Commandes passées")}
-          </h2>
-          <div className="space-y-4">
-            {pastOrders.length ? (
-              pastOrders.map((o) => <OrderCard key={o.number} order={o} past />)
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("No past orders yet.", "Aucune commande passée.")}</p>
-            )}
-          </div>
-        </section>
+            <section>
+              <h2 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-5">
+                {t("Past Orders", "Commandes passées")}
+              </h2>
+              <div className="space-y-4">
+                {pastOrders.length ? (
+                  pastOrders.map((o) => <OrderCard key={o.id} order={o} past />)
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t("No past orders yet.", "Aucune commande passée.")}</p>
+                )}
+              </div>
+            </section>
+          </>
+        )}
       </main>
     </Layout>
   );

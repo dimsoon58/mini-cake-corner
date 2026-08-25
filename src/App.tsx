@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { CartProvider } from "@/context/CartContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { AuthProvider } from "@/context/AuthContext";
 
 import Index from "./pages/Index";
 import ProductDetail from "./pages/ProductDetail";
@@ -31,6 +32,11 @@ import Legal from "./pages/Legal";
 import OurStory from "./pages/OurStory";
 import MyOrders from "./pages/MyOrders";
 import LoyaltyRewards from "./pages/LoyaltyRewards";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Account from "./pages/Account";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +54,7 @@ const ScrollToTop = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
+    <AuthProvider>
     <CartProvider>
       <TooltipProvider>
         <Toaster />
@@ -82,6 +89,11 @@ const App = () => (
             <Route path="/privacy-policy" element={<Legal />} />
             <Route path="/account/orders" element={<MyOrders />} />
             <Route path="/account/rewards" element={<LoyaltyRewards />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -89,6 +101,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </CartProvider>
+    </AuthProvider>
     </LanguageProvider>
   </QueryClientProvider>
 );
