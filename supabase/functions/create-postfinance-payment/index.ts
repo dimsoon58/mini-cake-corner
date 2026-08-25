@@ -55,6 +55,18 @@ serve(async (req) => {
     if (!orderItems || orderItems.length === 0) throw new Error("orderItems is required");
     if (!order.email) throw new Error("Customer email is required");
 
+    // Never trust customer_id from the client payload — always stamp it
+    // server-side from the verified Auth session. The anon key is itself a
+    // valid JWT, so a guest checkout simply resolves to no user here (not
+    // an error) — getUser() failing/returning null just means "guest".
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } },
+    );
+    const { data: { user: authenticatedUser } } = await authClient.auth.getUser();
+    order.customer_id = authenticatedUser?.id ?? null;
+
     const lineItems = orderItems.map((item, i) => {
       const name = [item.size, item.shape].filter(Boolean).join(" ") || `Item ${i + 1}`;
       const description = [
