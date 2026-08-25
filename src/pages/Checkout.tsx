@@ -320,6 +320,7 @@ const Checkout = () => {
   // phone stays editable even then, since a customer may want a different
   // contact number for this specific order.
   const isLoggedIn = !!user;
+  const [useWelcomeDiscount, setUseWelcomeDiscount] = useState(false);
   const [lastName, setLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
@@ -396,7 +397,23 @@ const Checkout = () => {
   }, [deliveryOption, deliveryAddress]);
 
   const deliveryPrice = detectedZone?.price || 0;
-  const totalPrice = itemsTotal + (deliveryOption === "delivery" ? deliveryPrice : 0);
+
+  // Server-verified at create-postfinance-payment time — this is only a
+  // display estimate. A reservation already in flight
+  // (welcome_discount_reserved_order_id set) also hides the option, since
+  // the account isn't currently free to claim a new one.
+  const welcomeVoucherEligible = !!user
+    && !!user.email_confirmed_at
+    && profile?.welcome_discount_available === true
+    && !profile?.welcome_discount_used_at
+    && !profile?.welcome_discount_reserved_order_id
+    && (!profile?.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date());
+
+  const estimatedWelcomeDiscount = (useWelcomeDiscount && welcomeVoucherEligible)
+    ? Math.round(itemsTotal * 0.10 * 100) / 100
+    : 0;
+
+  const totalPrice = itemsTotal - estimatedWelcomeDiscount + (deliveryOption === "delivery" ? deliveryPrice : 0);
 
   // Build phone number with country code
   const fullPhoneNumber = `${countryCode}${phone.replace(/^0+/, '')}`;
@@ -653,6 +670,9 @@ const Checkout = () => {
         totalAmount: totalPrice,
         orderId,
         language: lang,
+        // Intent only — create-postfinance-payment independently verifies
+        // eligibility and computes the real discount server-side.
+        useWelcomeDiscount: useWelcomeDiscount && welcomeVoucherEligible,
       };
 
       console.log("Setting up embedded checkout with:", {
@@ -1053,6 +1073,26 @@ const Checkout = () => {
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {welcomeVoucherEligible && (
+                <div className="flex items-center space-x-3 py-2">
+                  <Checkbox
+                    id="useWelcomeDiscount"
+                    checked={useWelcomeDiscount}
+                    onCheckedChange={(c) => setUseWelcomeDiscount(c === true)}
+                  />
+                  <Label htmlFor="useWelcomeDiscount" className="text-sm cursor-pointer">
+                    {t("Use my welcome offer -10%", "Utiliser mon offre de bienvenue -10%")}
+                  </Label>
+                </div>
+              )}
+
+              {useWelcomeDiscount && welcomeVoucherEligible && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">{t("Welcome discount -10%", "Réduction bienvenue -10%")}</span>
+                  <span className="font-medium text-primary">- CHF {estimatedWelcomeDiscount.toFixed(2)}</span>
                 </div>
               )}
 

@@ -742,6 +742,34 @@ serve(async (req) => {
       orderUpdate.order_validation = newValidation;
       console.log(`Order ${orderId} approved. ${paymentAction}`);
 
+      // Welcome voucher finalization — runs BEFORE the orders update below,
+      // not after. order_validation only flips away from "pending" once this
+      // succeeds, so a retry with the same still-unconsumed token can always
+      // reach this block again (the early "already been X" gate above only
+      // blocks once order_validation itself has changed). The PostFinance
+      // capture above is already safe to re-run into (COMPLETED-state skips
+      // it), so a full retry of this branch is safe end-to-end.
+      // reserved_order_id is never cleared before this point, so 0 rows
+      // matched is always a genuine inconsistency, never an expected retry
+      // outcome — unlike the release path in the reject branch below.
+      if (order.welcome_discount_amount > 0 && order.customer_id) {
+        const { data: financeRows, error: voucherFinalizeError } = await supabase
+          .from("profiles")
+          .update({ welcome_discount_available: false, welcome_discount_used_at: new Date().toISOString() })
+          .eq("id", order.customer_id)
+          .eq("welcome_discount_reserved_order_id", orderId)
+          .select("id");
+
+        if (voucherFinalizeError) {
+          console.error("Failed to finalize welcome discount usage:", voucherFinalizeError);
+          throw new Error("Failed to finalize welcome discount usage");
+        }
+        if (!financeRows || financeRows.length === 0) {
+          console.error(`Welcome discount finalize matched 0 rows for order ${orderId}`);
+          throw new Error("Welcome discount finalize did not match the expected reservation");
+        }
+      }
+
       // Commit the authoritative order state to Supabase FIRST — before any
       // invoice generation or customer email — so the customer can never
       // receive a confirmation for a decision Supabase hasn't durably
@@ -881,6 +909,47 @@ serve(async (req) => {
       newValidation = "rejected";
       orderUpdate.order_validation = newValidation;
       console.log(`Order ${orderId} rejected. ${paymentAction}`);
+
+      // Welcome voucher release — runs BEFORE the orders update below, same
+      // reasoning as the finalize block in the approve branch: this keeps
+      // order_validation at "pending" until the release is durable, so a
+      // retry with the same token can always reach this block again. Unlike
+      // finalize, a retry AFTER a prior success will find 0 rows here
+      // (reserved_order_id was already cleared) — that is the correct,
+      // idempotent outcome and must not be treated as an error. Only an
+      // unexpected 0-row result where the reservation still points at this
+      // order is a genuine inconsistency.
+      if (order.welcome_discount_amount > 0 && order.customer_id) {
+        const { data: releaseRows, error: voucherReleaseError } = await supabase
+          .from("profiles")
+          .update({ welcome_discount_reserved_order_id: null, welcome_discount_reserved_at: null })
+          .eq("id", order.customer_id)
+          .eq("welcome_discount_reserved_order_id", orderId)
+          .select("id");
+
+        if (voucherReleaseError) {
+          console.error("Failed to release welcome discount reservation:", voucherReleaseError);
+          throw new Error("Failed to release welcome discount reservation");
+        }
+
+        if (!releaseRows || releaseRows.length === 0) {
+          const { data: currentProfile, error: profileCheckError } = await supabase
+            .from("profiles")
+            .select("welcome_discount_reserved_order_id")
+            .eq("id", order.customer_id)
+            .single();
+
+          if (profileCheckError) {
+            console.error("Failed to verify welcome discount release state:", profileCheckError);
+            throw new Error("Failed to verify welcome discount release");
+          }
+          if (currentProfile.welcome_discount_reserved_order_id === orderId) {
+            console.error(`Welcome discount release matched 0 rows for order ${orderId}, but reservation still points at it`);
+            throw new Error("Welcome discount release did not match the expected reservation");
+          }
+          // Otherwise: already released by a prior successful attempt — no-op, continue.
+        }
+      }
 
       // Commit the authoritative order state to Supabase FIRST — before the
       // customer refusal email — so the customer can never receive an email

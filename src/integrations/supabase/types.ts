@@ -275,6 +275,8 @@ export type Database = {
           updated_at: string
           welcome_discount_available: boolean | null
           welcome_discount_expires_at: string | null
+          welcome_discount_reserved_at: string | null
+          welcome_discount_reserved_order_id: string | null
           welcome_discount_used_at: string | null
         }
         Insert: {
@@ -290,6 +292,8 @@ export type Database = {
           updated_at?: string
           welcome_discount_available?: boolean | null
           welcome_discount_expires_at?: string | null
+          welcome_discount_reserved_at?: string | null
+          welcome_discount_reserved_order_id?: string | null
           welcome_discount_used_at?: string | null
         }
         Update: {
@@ -305,6 +309,8 @@ export type Database = {
           updated_at?: string
           welcome_discount_available?: boolean | null
           welcome_discount_expires_at?: string | null
+          welcome_discount_reserved_at?: string | null
+          welcome_discount_reserved_order_id?: string | null
           welcome_discount_used_at?: string | null
         }
         Relationships: []

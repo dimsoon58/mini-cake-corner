@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const SITE_BASE_URL = "https://dimsoon58.github.io/mini-cake-corner";
+const WELCOME_DISCOUNT_RATE = 0.10;
 
 interface OrderRow {
   first_name: string;
@@ -37,6 +38,14 @@ interface PaymentRequest {
   orderId: string;
   order: OrderRow;
   orderItems: OrderItemRow[];
+  // Client only ever expresses intent — the backend independently verifies
+  // eligibility and computes the real discount amount below. Never trust
+  // this flag alone for anything financial.
+  useWelcomeDiscount?: boolean;
+}
+
+function roundToCents(amount: number): number {
+  return Math.round(amount * 100) / 100;
 }
 
 serve(async (req) => {
@@ -48,7 +57,7 @@ serve(async (req) => {
     const credentials = getPostFinanceCredentials();
 
     const body: PaymentRequest = await req.json();
-    const { orderId, order, orderItems } = body;
+    const { orderId, order, orderItems, useWelcomeDiscount } = body;
 
     if (!orderId) throw new Error("orderId is required");
     if (!order) throw new Error("order is required");
@@ -67,6 +76,42 @@ serve(async (req) => {
     const { data: { user: authenticatedUser } } = await authClient.auth.getUser();
     order.customer_id = authenticatedUser?.id ?? null;
 
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
+
+    // Welcome voucher (-10% on products only, never on delivery). Reserved
+    // atomically via claim_welcome_discount() so two simultaneous checkouts
+    // for the same account can never both win it — see that function for
+    // the exact eligibility + concurrency rules (it also accounts for
+    // pending_payments, not just orders, when deciding a reservation is
+    // truly abandoned). Reserving here does NOT mark the voucher
+    // permanently used: that only happens in manage-order once the order is
+    // actually captured. If anything below fails before the customer
+    // reaches the PostFinance payment page, the reservation is released
+    // immediately (see the inner catch below) rather than sitting blocked
+    // for the 30-minute abandonment window.
+    let welcomeDiscountClaimed = false;
+    if (useWelcomeDiscount && authenticatedUser?.email_confirmed_at) {
+      const { data: claimed, error: claimError } = await supabase.rpc("claim_welcome_discount", {
+        p_customer_id: authenticatedUser.id,
+        p_order_id: orderId,
+      });
+      if (claimError) {
+        console.error("claim_welcome_discount error (proceeding at full price):", claimError);
+      } else if (claimed) {
+        welcomeDiscountClaimed = true;
+      }
+    }
+
+    const productsSubtotal = orderItems.reduce((sum, item) => sum + item.total, 0);
+    const discountAmount = (welcomeDiscountClaimed && productsSubtotal > 0)
+      ? roundToCents(productsSubtotal * WELCOME_DISCOUNT_RATE)
+      : 0;
+    order.welcome_discount_amount = discountAmount;
+
     const lineItems = orderItems.map((item, i) => {
       const name = [item.size, item.shape].filter(Boolean).join(" ") || `Item ${i + 1}`;
       const description = [
@@ -75,15 +120,33 @@ serve(async (req) => {
         item.extras?.length ? `Extras: ${item.extras.join(", ")}` : null,
       ].filter(Boolean).join(" • ");
 
+      // No PostFinance/Wallee line item type for a discount is confirmed in
+      // official docs, so each product line is proportionally reduced
+      // instead of adding an invented line type. The exact cent remainder
+      // is absorbed by the last line below so the sum is always exact.
+      const amount = discountAmount > 0
+        ? roundToCents(item.total * (1 - discountAmount / productsSubtotal))
+        : item.total;
+
       return {
         uniqueId: `item-${i}`,
         name,
         quantity: 1,
-        amountIncludingTax: item.total,
+        amountIncludingTax: amount,
         type: "PRODUCT",
         attributes: description ? { description: { label: "Details", value: description } } : undefined,
       };
     });
+
+    if (discountAmount > 0 && lineItems.length > 0) {
+      const targetProductsTotal = roundToCents(productsSubtotal - discountAmount);
+      const currentSum = roundToCents(lineItems.reduce((sum, li) => sum + li.amountIncludingTax, 0));
+      const drift = roundToCents(targetProductsTotal - currentSum);
+      if (drift !== 0) {
+        const last = lineItems[lineItems.length - 1];
+        last.amountIncludingTax = roundToCents(last.amountIncludingTax + drift);
+      }
+    }
 
     if (order.delivery_method === "delivery" && order.delivery_fee > 0) {
       lineItems.push({
@@ -94,6 +157,14 @@ serve(async (req) => {
         type: "SHIPPING",
       });
     }
+
+    // The frontend-sent total_amount is never trusted either — recomputed
+    // here from the same real numbers PostFinance is actually charging.
+    // (orderItems[].total and order.delivery_fee themselves still come from
+    // the client today — that broader price-integrity gap is a separate,
+    // deliberately out-of-scope piece of work, not part of this change.)
+    const deliveryFee = order.delivery_method === "delivery" ? order.delivery_fee : 0;
+    order.total_amount = roundToCents(productsSubtotal - discountAmount + deliveryFee);
 
     const transactionCreate = {
       currency: "CHF",
@@ -113,43 +184,56 @@ serve(async (req) => {
       },
     };
 
-    const transaction = await pfFetch(
-      credentials,
-      "/payment/transactions",
-      "POST",
-      transactionCreate
-    ) as { id: number };
+    try {
+      const transaction = await pfFetch(
+        credentials,
+        "/payment/transactions",
+        "POST",
+        transactionCreate
+      ) as { id: number };
 
-    const paymentPageUrl = await pfFetch(
-      credentials,
-      `/payment/transactions/${transaction.id}/payment-page-url`,
-      "GET",
-    ) as string;
+      const paymentPageUrl = await pfFetch(
+        credentials,
+        `/payment/transactions/${transaction.id}/payment-page-url`,
+        "GET",
+      ) as string;
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } },
-    );
+      const { error: stagingError } = await supabase.from("pending_payments").insert({
+        order_id: orderId,
+        postfinance_transaction_id: String(transaction.id),
+        payload: { order, orderItems },
+      });
 
-    const { error: stagingError } = await supabase.from("pending_payments").insert({
-      order_id: orderId,
-      postfinance_transaction_id: String(transaction.id),
-      payload: { order, orderItems },
-    });
+      if (stagingError) {
+        console.error("Failed to stage pending payment:", stagingError);
+        throw new Error("Failed to save pending payment");
+      }
 
-    if (stagingError) {
-      console.error("Failed to stage pending payment:", stagingError);
-      throw new Error("Failed to save pending payment");
+      return new Response(JSON.stringify({
+        transactionId: transaction.id,
+        paymentPageUrl,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } catch (innerError) {
+      // The customer never reached a usable payment page — this is a
+      // backend failure, not an abandoned checkout, so release the
+      // reservation immediately instead of leaving it blocked for 30
+      // minutes. Guarded to this exact customer + orderId so a concurrent,
+      // unrelated reservation can never be released by mistake.
+      if (welcomeDiscountClaimed && authenticatedUser) {
+        const { error: releaseError } = await supabase
+          .from("profiles")
+          .update({ welcome_discount_reserved_order_id: null, welcome_discount_reserved_at: null })
+          .eq("id", authenticatedUser.id)
+          .eq("welcome_discount_reserved_order_id", orderId);
+        if (releaseError) {
+          console.error("Failed to release welcome discount reservation:", releaseError);
+        }
+      }
+      throw innerError;
     }
-
-    return new Response(JSON.stringify({
-      transactionId: transaction.id,
-      paymentPageUrl,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
   } catch (error) {
     console.error("Error creating PostFinance transaction:", error);
 
