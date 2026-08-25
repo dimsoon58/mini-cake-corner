@@ -316,6 +316,10 @@ const Checkout = () => {
   const [firstName, setFirstName] = useState("");
   const { t, lang } = useLang();
   const { user, profile } = useAuth();
+  // Identity fields come from the account and are locked once signed in —
+  // phone stays editable even then, since a customer may want a different
+  // contact number for this specific order.
+  const isLoggedIn = !!user;
   const [lastName, setLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
@@ -734,6 +738,8 @@ const Checkout = () => {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder={t("Enter your first name", "Saisissez votre prénom")}
+                  readOnly={isLoggedIn}
+                  className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
                   required
                 />
               </div>
@@ -746,6 +752,8 @@ const Checkout = () => {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder={t("Enter your last name", "Saisissez votre nom")}
+                  readOnly={isLoggedIn}
+                  className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
                   required
                 />
               </div>
@@ -791,6 +799,8 @@ const Checkout = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t("Enter your email address", "Saisissez votre adresse e-mail")}
+                readOnly={isLoggedIn}
+                className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
                 required
               />
             </div>
