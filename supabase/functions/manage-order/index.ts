@@ -733,6 +733,8 @@ serve(async (req) => {
         orderUpdate.paid_at = new Date().toISOString();
       } else if (transactionState === "COMPLETED") {
         paymentAction = "Payment already captured";
+        orderUpdate.payment_status = "paid";
+        orderUpdate.paid_at = order.paid_at || new Date().toISOString();
       } else {
         // No valid money action for this state — do not approve the order.
         throw new Error(`Cannot approve: PostFinance transaction is in unexpected state ${transactionState} (expected AUTHORIZED or COMPLETED)`);
