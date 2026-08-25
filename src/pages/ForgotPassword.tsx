@@ -28,9 +28,14 @@ const ForgotPassword = () => {
     setIsSubmitting(false);
 
     if (error) {
+      console.error("resetPasswordForEmail error:", error);
+
+      const isRateLimited = /rate limit/i.test(error);
       toast({
         title: t("Something went wrong", "Une erreur est survenue"),
-        description: error,
+        description: isRateLimited
+          ? t("Too many attempts. Please wait a few minutes before trying again.", "Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.")
+          : error,
         variant: "destructive",
       });
       return;
