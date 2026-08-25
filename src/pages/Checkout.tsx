@@ -84,6 +84,36 @@ function splitPhoneForCheckout(rawPhone: string): { countryCode: string | null; 
   return { countryCode: null, localPhone: trimmed };
 }
 
+// Fixed voucher base price per (product, size) pair — must stay identical
+// to WELCOME_VOUCHER_BASE in create-postfinance-payment/index.ts (the
+// authoritative copy). Never a single size alone, so an inconsistent
+// combination can never resolve to a base. Intentionally NOT the live
+// catalogue price (e.g. retro/large differ from data/customization.ts and
+// Catalog.tsx today).
+const WELCOME_VOUCHER_BASE: Record<string, Record<string, number>> = {
+  bento_cake: { bento: 40, retro: 40, medium: 85, large: 160 },
+  rectangle_cake: { rectangle: 450 },
+  diy_kit: { "kit-bento": 40 },
+  edible_printing: { printing: 15 },
+  dot_cakes: {
+    "dot-cakes-4": 35,
+    "dot-cakes-6": 51,
+    "dot-cakes-9": 75,
+    "dot-cakes-12": 99,
+    "dot-cakes-20": 160,
+  },
+};
+
+// Display-only mirror of getWelcomeVoucherBase() in
+// create-postfinance-payment/index.ts. For Dot Cakes, item.size is written
+// pack-specific ("dot-cakes-6", set in DotCakes.tsx). Returns null when the
+// pair isn't in the fixed table above — including a stale cart still
+// carrying the old generic "dot-cakes" size — in which case the item is
+// never selected as the discounted one.
+function getWelcomeVoucherBase(item: { product: string; size: string }): number | null {
+  return WELCOME_VOUCHER_BASE[item.product]?.[item.size] ?? null;
+}
+
 // Generate 1-hour pickup time slots from 10:00 to 18:00
 const PICKUP_TIME_SLOTS = [
   "10:00 – 11:00",
@@ -412,18 +442,28 @@ const Checkout = () => {
   // Mirrors, item for item, the selection rule enforced server-side in
   // create-postfinance-payment: candles ("product" === "candles") are
   // entirely excluded whenever at least one non-candle product is in the
-  // cart, then the cheapest item in whatever pool remains is discounted
-  // (a candles-only cart falls back to its cheapest candle line). Display
-  // only — the server independently recomputes and verifies this amount,
-  // never trusting this client-side value for anything financial.
+  // cart. Among the remaining items, the one with the lowest VOUCHER BASE
+  // price wins (fixed per product type/size, never the real sale price
+  // which includes decorations/extras/supplements). A candles-only cart is
+  // the one exception that keeps using the real line total. Display only —
+  // the server independently recomputes and verifies this amount, never
+  // trusting this client-side value for anything financial.
   const nonCandleItems = items.filter((item) => item.product !== "candles");
-  const discountPool = nonCandleItems.length > 0 ? nonCandleItems : items;
-  const discountedItem = discountPool.length > 0
-    ? discountPool.reduce((cheapest, item) => (item.total < cheapest.total ? item : cheapest), discountPool[0])
-    : null;
+  const isCandlesOnlyCart = nonCandleItems.length === 0;
+
+  let discountedItem: (typeof items)[number] | null = null;
+  let discountedBase = 0;
+  for (const item of (isCandlesOnlyCart ? items : nonCandleItems)) {
+    const base = isCandlesOnlyCart ? item.total : getWelcomeVoucherBase(item);
+    if (base === null) continue;
+    if (discountedItem === null || base < discountedBase) {
+      discountedItem = item;
+      discountedBase = base;
+    }
+  }
 
   const estimatedWelcomeDiscount = (useWelcomeDiscount && welcomeVoucherEligible && discountedItem)
-    ? Math.round(discountedItem.total * 0.10 * 100) / 100
+    ? Math.round(discountedBase * 0.10 * 100) / 100
     : 0;
 
   const totalPrice = itemsTotal - estimatedWelcomeDiscount + (deliveryOption === "delivery" ? deliveryPrice : 0);

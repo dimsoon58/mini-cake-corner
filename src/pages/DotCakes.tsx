@@ -217,7 +217,10 @@ const DotCakes = () => {
       product: "dot_cakes",
       orderDate: format(orderDate, "yyyy-MM-dd"),
       orderTime: "",
-      size: "dot-cakes",
+      // Pack-specific (not the old generic "dot-cakes" literal) so the
+      // backend can determine the voucher base directly from this field
+      // instead of trusting a free-text display string.
+      size: `dot-cakes-${pack.size}`,
       sizeName: `Dot Cake Pack of ${pack.size}`,
       shape: "",
       shapeName: "",

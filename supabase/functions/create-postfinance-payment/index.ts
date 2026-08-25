@@ -10,6 +10,32 @@ const corsHeaders = {
 const SITE_BASE_URL = "https://dimsoon58.github.io/mini-cake-corner";
 const WELCOME_DISCOUNT_RATE = 0.10;
 
+// Fixed voucher base price per (product, size) pair — never a single size
+// alone, so an inconsistent combination like bento_cake + "rectangle" can
+// never resolve to a base (Catalog.tsx never actually produces that
+// combination — selections.size === "rectangle" always forces product to
+// "rectangle_cake" — but the request body is still client-supplied, so the
+// pair is validated as a whole regardless). Intentionally NOT the live
+// catalogue price (e.g. retro/large differ from data/customization.ts and
+// Catalog.tsx today): this table is dedicated to the voucher and must be
+// updated here explicitly if catalogue prices ever change. Dot Cakes packs
+// need no separate parsing step: order_items.size is written pack-specific
+// ("dot-cakes-6", set in DotCakes.tsx), so each pack is just one more
+// literal entry below.
+const WELCOME_VOUCHER_BASE: Record<string, Record<string, number>> = {
+  bento_cake: { bento: 40, retro: 40, medium: 85, large: 160 },
+  rectangle_cake: { rectangle: 450 },
+  diy_kit: { "kit-bento": 40 },
+  edible_printing: { printing: 15 },
+  dot_cakes: {
+    "dot-cakes-4": 35,
+    "dot-cakes-6": 51,
+    "dot-cakes-9": 75,
+    "dot-cakes-12": 99,
+    "dot-cakes-20": 160,
+  },
+};
+
 interface OrderRow {
   first_name: string;
   last_name: string;
@@ -47,6 +73,34 @@ interface PaymentRequest {
 
 function roundToCents(amount: number): number {
   return Math.round(amount * 100) / 100;
+}
+
+// Fixed voucher base price for a single order_item, resolved from the
+// (product, size) pair as a whole — never from item.size alone, and never
+// derived from any client-supplied number (item.total is never read here
+// in either direction). Returns null whenever the pair isn't a recognised
+// combination — including a stale cart still carrying the old, pre-pack
+// generic "dot-cakes" size, which simply isn't a key in the dot_cakes
+// table above — in which case the item is never selected as the
+// discounted one.
+function getWelcomeVoucherBase(item: OrderItemRow): number | null {
+  return WELCOME_VOUCHER_BASE[item.product]?.[item.size ?? ""] ?? null;
+}
+
+// Shared by both places a claimed-but-unusable reservation needs undoing:
+// a backend failure before the payment page is reached, and a claim that
+// resolved to no eligible item at all (see below). Guarded to this exact
+// customer + orderId so a concurrent, unrelated reservation can never be
+// released by mistake.
+async function releaseWelcomeDiscountReservation(supabase: any, customerId: string, orderId: string): Promise<void> {
+  const { error: releaseError } = await supabase
+    .from("profiles")
+    .update({ welcome_discount_reserved_order_id: null, welcome_discount_reserved_at: null })
+    .eq("id", customerId)
+    .eq("welcome_discount_reserved_order_id", orderId);
+  if (releaseError) {
+    console.error("Failed to release welcome discount reservation:", releaseError);
+  }
 }
 
 serve(async (req) => {
@@ -111,18 +165,54 @@ serve(async (req) => {
 
     // Selects the single order_item the -10% applies to: candles ("product"
     // === "candles") are entirely excluded from consideration whenever at
-    // least one non-candle product is in the cart, then the cheapest item
-    // in whatever pool remains is the one discounted. A candles-only cart
-    // falls back to discounting its cheapest candle line. A Dot Cakes pack
-    // is already a single order_item with a single total, so it's compared
-    // as one unit with no further splitting.
+    // least one non-candle product is in the cart. Among the remaining pool,
+    // the item with the lowest VOUCHER BASE price wins (fixed per product
+    // type/size — see WELCOME_VOUCHER_SIZE_BASE / _DOT_CAKES_PACK_BASE
+    // above — never the real sale price, which includes decorations/extras/
+    // supplements). A candles-only cart is the one exception that keeps
+    // using the real line total, exactly as before.
     const nonCandleItems = orderItems.filter((item) => item.product !== "candles");
-    const discountPool = nonCandleItems.length > 0 ? nonCandleItems : orderItems;
-    const discountedItem = welcomeDiscountClaimed && discountPool.length > 0
-      ? discountPool.reduce((cheapest, item) => (item.total < cheapest.total ? item : cheapest), discountPool[0])
-      : null;
+    const isCandlesOnlyCart = nonCandleItems.length === 0;
 
-    const discountAmount = discountedItem ? roundToCents(discountedItem.total * WELCOME_DISCOUNT_RATE) : 0;
+    let discountedItem: OrderItemRow | null = null;
+    let discountedBase = 0;
+    if (welcomeDiscountClaimed) {
+      orderItems.forEach((item) => {
+        if (!isCandlesOnlyCart && item.product === "candles") return;
+        // item.total is never used to determine or validate the base for a
+        // non-candle item — the base comes only from the closed-set
+        // product/size lookup in getWelcomeVoucherBase(). The candles-only
+        // fallback below is the sole, pre-existing exception.
+        const base = isCandlesOnlyCart ? item.total : getWelcomeVoucherBase(item);
+        if (base === null) return; // unrecognised product/size — never selected
+        if (discountedItem === null || base < discountedBase) {
+          discountedItem = item;
+          discountedBase = base;
+        }
+      });
+    }
+
+    // The reservation was taken (welcomeDiscountClaimed) but no eligible
+    // item resolved a base — most likely a stale cart still carrying a
+    // pre-migration value (e.g. the old generic "dot-cakes" size), or every
+    // item in the cart being candles-adjacent in some unrecognised way.
+    // Continuing here with discountAmount = 0 would silently leave
+    // welcome_discount_reserved_order_id pointing at this order forever:
+    // once the order exists (which it will, moments from now), the 30-
+    // minute abandonment check in claim_welcome_discount can never treat it
+    // as abandoned again, so the voucher would never become reclaimable.
+    // Release immediately and proceed at full price instead — consistent
+    // with how a claim_welcome_discount RPC error above is already handled
+    // (log and continue, never block the checkout over the voucher alone).
+    if (welcomeDiscountClaimed && discountedItem === null) {
+      console.error(`Welcome discount claimed for order ${orderId} but no eligible item resolved a base — releasing and proceeding at full price.`);
+      if (authenticatedUser) {
+        await releaseWelcomeDiscountReservation(supabase, authenticatedUser.id, orderId);
+      }
+      welcomeDiscountClaimed = false;
+    }
+
+    const discountAmount = discountedItem ? roundToCents(discountedBase * WELCOME_DISCOUNT_RATE) : 0;
     order.welcome_discount_amount = discountAmount;
 
     const lineItems = orderItems.map((item, i) => {
@@ -225,14 +315,7 @@ serve(async (req) => {
       // minutes. Guarded to this exact customer + orderId so a concurrent,
       // unrelated reservation can never be released by mistake.
       if (welcomeDiscountClaimed && authenticatedUser) {
-        const { error: releaseError } = await supabase
-          .from("profiles")
-          .update({ welcome_discount_reserved_order_id: null, welcome_discount_reserved_at: null })
-          .eq("id", authenticatedUser.id)
-          .eq("welcome_discount_reserved_order_id", orderId);
-        if (releaseError) {
-          console.error("Failed to release welcome discount reservation:", releaseError);
-        }
+        await releaseWelcomeDiscountReservation(supabase, authenticatedUser.id, orderId);
       }
       throw innerError;
     }
