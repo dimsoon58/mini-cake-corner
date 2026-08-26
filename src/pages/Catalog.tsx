@@ -2374,6 +2374,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                               onCommit={(entry) => setSelections((prev) => ({ ...prev, candles: upsertCandleSelection(prev.candles, entry) }))}
                               onRemove={() => setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, candle.id) }))}
                               imageClassName="h-28 w-28"
+                              compact
                             />
                           </div>
                         );

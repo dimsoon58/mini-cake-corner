@@ -78,7 +78,7 @@ export interface FamilyCandle {
 }
 
 export const ColorFamilyCandleCard = ({
-  candle, colors, existing, onCommit, onRemove, imageClassName = "h-40 w-40",
+  candle, colors, existing, onCommit, onRemove, imageClassName = "h-40 w-40", compact = false,
 }: {
   candle: FamilyCandle;
   colors: FamilyColor[];
@@ -89,6 +89,11 @@ export const ColorFamilyCandleCard = ({
   // a plain (non-coloured) candle — defaults to the size Candles.tsx has
   // always used, so that page renders exactly as before.
   imageClassName?: string;
+  // Tighter padding/spacing and drops the two pure-explanation helper lines
+  // (no control removed) — for screens where this card sits next to a much
+  // simpler plain-candle card and needs to be as close to it in height as
+  // possible. Defaults to false, so Candles.tsx is completely unaffected.
+  compact?: boolean;
 }) => {
   const { t } = useLang();
   const packSize = candle.packSize || 6;
@@ -119,14 +124,14 @@ export const ColorFamilyCandleCard = ({
 
   return (
     <Card className={cn("overflow-hidden", existing && "ring-2 ring-primary")}>
-      <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
+      <div className={cn("aspect-square flex items-center justify-center bg-secondary/20", compact ? "p-2" : "p-4")}>
         <img src={candle.image} alt={t(candle.name, candle.nameFr || candle.name)} className={cn(imageClassName, "object-contain")} />
       </div>
-      <CardContent className="p-4 text-center space-y-3">
-        <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground">
+      <CardContent className={cn("text-center", compact ? "p-2 space-y-1.5" : "p-4 space-y-3")}>
+        <h3 className={cn("font-sans tracking-[0.105em] font-semibold uppercase text-foreground", compact ? "text-[11px]" : "text-[13px]")}>
           {t(candle.name, candle.nameFr || candle.name)}
         </h3>
-        <p className="text-[11px] text-muted-foreground">
+        <p className={cn("text-muted-foreground", compact ? "text-[10px]" : "text-[11px]")}>
           CHF {candle.unitPrice}/pièce · Pack {packSize} = CHF {candle.packPrice}
         </p>
 
@@ -138,39 +143,45 @@ export const ColorFamilyCandleCard = ({
           </p>
         )}
 
-        <RadioGroup value={mode} onValueChange={(v) => setMode(v as "pack" | "piece")} className="flex justify-center gap-4">
+        <RadioGroup value={mode} onValueChange={(v) => setMode(v as "pack" | "piece")} className={cn("flex justify-center", compact ? "gap-3" : "gap-4")}>
           <div className="flex items-center space-x-1.5">
             <RadioGroupItem value="pack" id={`${candle.id}-mode-pack`} />
-            <Label htmlFor={`${candle.id}-mode-pack`} className="text-xs cursor-pointer">{t("Pack (assorted)", "Pack (assorti)")}</Label>
+            <Label htmlFor={`${candle.id}-mode-pack`} className={cn("cursor-pointer", compact ? "text-[11px]" : "text-xs")}>{t("Pack (assorted)", "Pack (assorti)")}</Label>
           </div>
           <div className="flex items-center space-x-1.5">
             <RadioGroupItem value="piece" id={`${candle.id}-mode-piece`} />
-            <Label htmlFor={`${candle.id}-mode-piece`} className="text-xs cursor-pointer">{t("By the piece", "À la pièce")}</Label>
+            <Label htmlFor={`${candle.id}-mode-piece`} className={cn("cursor-pointer", compact ? "text-[11px]" : "text-xs")}>{t("By the piece", "À la pièce")}</Label>
           </div>
         </RadioGroup>
 
         {mode === "pack" ? (
           <>
-            <p className="text-[10px] text-muted-foreground">
-              {t("Fixed colour assortment — no colour choice.", "Assortiment de couleurs fixe — pas de choix de couleur.")}
-            </p>
+            {!compact && (
+              <p className="text-[10px] text-muted-foreground">
+                {t("Fixed colour assortment — no colour choice.", "Assortiment de couleurs fixe — pas de choix de couleur.")}
+              </p>
+            )}
             <div className="flex items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={() => setPackCount((p) => Math.max(1, p - 1))}
                 disabled={packCount <= 1}
                 className={cn(
-                  "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
+                  "rounded-none flex items-center justify-center font-bold transition-all",
+                  compact ? "w-6 h-6 text-xs" : "w-7 h-7 text-sm",
                   packCount <= 1 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                 )}
               >−</button>
-              <span className="flex-1 text-center font-medium text-foreground text-sm">
+              <span className={cn("flex-1 text-center font-medium text-foreground", compact ? "text-xs" : "text-sm")}>
                 {packCount} {t("pack(s)", "pack(s)")} ({packCount * packSize} {t("pcs", "pièces")})
               </span>
               <button
                 type="button"
                 onClick={() => setPackCount((p) => p + 1)}
-                className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90"
+                className={cn(
+                  "rounded-none bg-primary text-primary-foreground flex items-center justify-center font-bold hover:bg-primary/90",
+                  compact ? "w-6 h-6 text-xs" : "w-7 h-7 text-sm"
+                )}
               >+</button>
             </div>
           </>
@@ -190,7 +201,8 @@ export const ColorFamilyCandleCard = ({
                     aria-label={t(color.en, color.fr)}
                     title={t(color.en, color.fr)}
                     className={cn(
-                      "h-8 w-8 rounded-full border-2 transition-all",
+                      "rounded-full border-2 transition-all",
+                      compact ? "h-6 w-6" : "h-8 w-8",
                       isSelected ? "border-primary ring-2 ring-primary ring-offset-1" : "border-border",
                       isDisabled && "opacity-30 cursor-not-allowed"
                     )}
@@ -208,7 +220,8 @@ export const ColorFamilyCandleCard = ({
                 onClick={() => changePieceQty(-1)}
                 disabled={pieceQty <= 1}
                 className={cn(
-                  "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
+                  "rounded-none flex items-center justify-center font-bold transition-all",
+                  compact ? "w-6 h-6 text-xs" : "w-7 h-7 text-sm",
                   pieceQty <= 1 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                 )}
               >−</button>
@@ -218,14 +231,17 @@ export const ColorFamilyCandleCard = ({
                 onClick={() => changePieceQty(1)}
                 disabled={pieceQty >= maxPieceQty}
                 className={cn(
-                  "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
+                  "rounded-none flex items-center justify-center font-bold transition-all",
+                  compact ? "w-6 h-6 text-xs" : "w-7 h-7 text-sm",
                   pieceQty >= maxPieceQty ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                 )}
               >+</button>
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              {t(`Max ${maxPieceQty} loose pieces — add a full pack beyond that.`, `Maximum ${maxPieceQty} pièces à l'unité — au-delà, ajoutez un pack complet.`)}
-            </p>
+            {!compact && (
+              <p className="text-[10px] text-muted-foreground">
+                {t(`Max ${maxPieceQty} loose pieces — add a full pack beyond that.`, `Maximum ${maxPieceQty} pièces à l'unité — au-delà, ajoutez un pack complet.`)}
+              </p>
+            )}
           </>
         )}
 
@@ -233,12 +249,19 @@ export const ColorFamilyCandleCard = ({
           <Button
             onClick={handleCommit}
             disabled={mode === "piece" && !isPieceValid}
-            className="flex-1 rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] tracking-[0.105em] uppercase"
+            className={cn(
+              "flex-1 rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] uppercase",
+              compact ? "text-[11px] h-8" : "text-[12px]"
+            )}
           >
             {existing ? t("Update", "Mettre à jour") : t("Add", "Ajouter")}
           </Button>
           {existing && (
-            <Button variant="outline" onClick={onRemove} className="rounded-none text-[12px] tracking-[0.105em] uppercase">
+            <Button
+              variant="outline"
+              onClick={onRemove}
+              className={cn("rounded-none tracking-[0.105em] uppercase", compact ? "text-[11px] h-8" : "text-[12px]")}
+            >
               {t("Remove", "Retirer")}
             </Button>
           )}

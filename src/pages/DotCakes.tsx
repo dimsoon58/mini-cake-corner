@@ -412,6 +412,7 @@ const DotCakes = () => {
                             onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
                             onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
                             imageClassName="h-56 w-56"
+                            compact
                           />
                         </div>
                       );

@@ -1031,6 +1031,7 @@ const CartItemEditor = ({
                   onCommit={onCandleSelectionCommit}
                   onRemove={() => onCandleSelectionRemove(candle.id)}
                   imageClassName="h-16 w-16"
+                  compact
                 />
               );
             }
