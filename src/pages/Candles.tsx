@@ -94,7 +94,9 @@ const Candles = () => {
       ribbonColorName: "",
       butterflyColor: "",
       butterflyColorName: "",
-      candles: [],
+      // Raw structured selection travels with the cart item — this is what
+      // create-postfinance-payment recomputes the price from server-side.
+      candles: [{ id: candle.id, quantity: qty, hasPack: false }],
       comment: "",
       imageUrls: [],
       imageFiles: [],
@@ -144,7 +146,11 @@ const Candles = () => {
       baseColor: "", baseColorName: "", decorationColor: "", decorationColorName: "",
       cakeText: "", textColor: "", textColorName: "", textStyle: "normal",
       extras: [], extrasNames: [], ribbonColor: "", ribbonColorName: "",
-      butterflyColor: "", butterflyColorName: "", candles: [],
+      butterflyColor: "", butterflyColorName: "",
+      // Raw structured selection travels with the cart item now — this is
+      // what create-postfinance-payment recomputes the price from. Never
+      // parsed back out of candleProductId, which is display-only.
+      candles: [entry],
       comment: "", imageUrls: [], imageFiles: [],
     };
 
@@ -229,7 +235,7 @@ const Candles = () => {
       ribbonColorName: "",
       butterflyColor: "",
       butterflyColorName: "",
-      candles: [],
+      candles: [{ id: NUMBER_CANDLE_ID, quantity: qty, hasPack: false, digit: numberCandleDigit }],
       comment: "",
       imageUrls: [],
       imageFiles: [],

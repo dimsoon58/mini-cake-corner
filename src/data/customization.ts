@@ -8,6 +8,9 @@ import boxRetro from "@/assets/box-retro.png";
 import boxMedium from "@/assets/box-medium.png";
 import boxLarge from "@/assets/box-large.png";
 import boxRectangle from "@/assets/home-cat-rectangle.jpg";
+import rectangleSignature from "@/assets/rectangle-signature.jpg";
+import rectangleRaspberries from "@/assets/rectangle-raspberries.jpg";
+import rectangleFlowers from "@/assets/rectangle-flowers.jpg";
 
 // Flavor images
 import flavorVanilla from "@/assets/flavor-vanilla.png";

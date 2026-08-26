@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
+import { priceOrderItem, type PricingInput } from "../_shared/pricing.ts";
+import { resolveDeliveryFee } from "../_shared/delivery-pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,6 +71,10 @@ interface PaymentRequest {
   // eligibility and computes the real discount amount below. Never trust
   // this flag alone for anything financial.
   useWelcomeDiscount?: boolean;
+  // Raw ids needed to recompute each item's real price server-side. Index-
+  // aligned with orderItems. Never used directly as a charge — always
+  // passed through priceOrderItem() first.
+  pricingItems: PricingInput[];
 }
 
 function roundToCents(amount: number): number {
@@ -112,12 +118,37 @@ serve(async (req) => {
     const credentials = getPostFinanceCredentials();
 
     const body: PaymentRequest = await req.json();
-    const { orderId, order, orderItems, useWelcomeDiscount } = body;
+    const { orderId, order, orderItems, useWelcomeDiscount, pricingItems } = body;
 
     if (!orderId) throw new Error("orderId is required");
     if (!order) throw new Error("order is required");
     if (!orderItems || orderItems.length === 0) throw new Error("orderItems is required");
     if (!order.email) throw new Error("Customer email is required");
+    if (!pricingItems || pricingItems.length !== orderItems.length) {
+      throw new Error("pricingItems is required and must match orderItems 1:1");
+    }
+
+    // Recompute and LOCK every item's real price before anything else below
+    // reads item.total — welcome-discount base selection, PostFinance line
+    // items, and order.total_amount all consume orderItems[i].total, so
+    // overwriting it here is what makes every downstream calculation
+    // trustworthy. Any single unresolved item aborts the whole order: no
+    // PostFinance transaction is created, nothing is staged.
+    for (let i = 0; i < orderItems.length; i++) {
+      const result = priceOrderItem(pricingItems[i]);
+      if (!result.ok) {
+        throw new Error(`Pricing rejected for item ${i} (${pricingItems[i]?.product}): ${result.reason}`);
+      }
+      orderItems[i].total = result.total;
+    }
+
+    // Delivery fee is never trusted from the client either — resolved
+    // independently from the address, same as product pricing above.
+    // An address whose postal code matches no known zone resolves to fee 0,
+    // matching existing client-side behaviour (not tightened here).
+    order.delivery_fee = order.delivery_method === "delivery"
+      ? resolveDeliveryFee(order.delivery_address ?? "").fee
+      : 0;
 
     // Never trust customer_id from the client payload — always stamp it
     // server-side from the verified Auth session. The anon key is itself a
@@ -252,9 +283,8 @@ serve(async (req) => {
 
     // The frontend-sent total_amount is never trusted either — recomputed
     // here from the same real numbers PostFinance is actually charging.
-    // (orderItems[].total and order.delivery_fee themselves still come from
-    // the client today — that broader price-integrity gap is a separate,
-    // deliberately out-of-scope piece of work, not part of this change.)
+    // orderItems[].total and order.delivery_fee are both server-computed
+    // above (priceOrderItem / resolveDeliveryFee), not client values.
     const deliveryFee = order.delivery_method === "delivery" ? order.delivery_fee : 0;
     order.total_amount = roundToCents(productsSubtotal - discountAmount + deliveryFee);
 

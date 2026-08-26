@@ -80,7 +80,6 @@ export const flavorCategories = [
     extraPrice: 2,
     flavors: [
       { id: "chocolate-lovers", name: "Chocolate Lovers", nameFr: "Amoureux du Chocolat", description: "Moist chocolate sponge with rich chocolate ganache", descriptionFr: "Génoise chocolat moelleuse et riche ganache au chocolat", image: flavorChocolateLovers },
-      { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", nameFr: "Amoureux du Chocolat x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", descriptionFr: "Génoise chocolat, coulis de framboise et ganache au chocolat", image: flavorChocolateLoverBerrylicious },
       { id: "dark-berrylicious", name: "Dark Berrylicious", nameFr: "Dark Berrylicious", description: "Fluffy chocolate sponge filled with a generous raspberry coulis and whipped cream", descriptionFr: "Génoise chocolat moelleuse garnie d'un généreux coulis de framboise et de crème fouettée", image: flavorDarkBerrylicious },
       { id: "white-berrylicious", name: "White Berrylicious", nameFr: "White Berrylicious", description: "Fluffy vanilla sponge filled with a generous raspberry coulis and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie d'un généreux coulis de framboise et de crème fouettée", image: flavorWhiteBerrylicious },
       { id: "salted-caramel", name: "Salted Butter Caramel", nameFr: "Caramel au Beurre Salé", description: "Fluffy vanilla sponge filled with caramel and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie de caramel et de crème fouettée", image: flavorSaltedCaramel },
@@ -92,6 +91,7 @@ export const flavorCategories = [
     nameFr: "Parfums Deluxe",
     extraPrice: 4,
     flavors: [
+      { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", nameFr: "Amoureux du Chocolat x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", descriptionFr: "Génoise chocolat, coulis de framboise et ganache au chocolat", image: flavorChocolateLoverBerrylicious },
       { id: "tiramisu", name: "Tiramisu", nameFr: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie de café frais et de crème fouettée", image: flavorTiramisu },
       { id: "praline", name: "Praline Obsession", nameFr: "Obsession Praliné", description: "Fluffy vanilla sponge filled with caramelised almond, hazelnut and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie d'amandes et de noisettes caramélisées et de crème fouettée", image: flavorPraline },
       { id: "passion-fruit", name: "Passion Fruit", nameFr: "Fruit de la Passion", description: "Fluffy vanilla sponge filled with fresh passion fruit curd and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie de curd de fruit de la passion et de crème fouettée", image: flavorPassionFruit },
@@ -268,7 +268,6 @@ const KitBentoCake = () => {
   const showCandles = showPiping && pipingComplete;
 
   const getFlavorCategoryPrice = () => {
-    if (selectedFlavor === "chocolate-lover-berrylicious") return 3;
     for (const category of flavorCategories) {
       if (category.flavors.some(f => f.id === selectedFlavor)) return category.extraPrice;
     }

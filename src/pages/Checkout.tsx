@@ -686,6 +686,20 @@ const Checkout = () => {
       const payload = {
         order: orderData,
         orderItems: orderItemsRows,
+        // Raw ids only — never a price. create-postfinance-payment recomputes
+        // orderItemsRows[i].total from this; item.total above no longer
+        // decides what gets charged.
+        pricingItems: orderItemsWithImageUrls.map((item) => ({
+          product: item.product,
+          size: item.size || null,
+          shape: item.shape || null,
+          flavors: item.isCandleProduct
+            ? []
+            : item.flavor ? item.flavor.split(",").map((f) => f.trim()).filter(Boolean) : [],
+          design: item.style || null,
+          extras: item.isCandleProduct ? [] : (item.extras || []),
+          candles: item.candles || [],
+        })),
         items: items.map((item) => ({
           sizeName: item.sizeName,
           shapeName: item.shapeName,
