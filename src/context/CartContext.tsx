@@ -52,6 +52,21 @@ export interface CartItem {
   candleProductImage?: string;
   candleProductQty?: number;
   candleProductHasPack?: boolean;
+  // Structured attribute for a candle variant (a digit, a colour, ...) —
+  // candleProductName stays the composed display string ("Number Candle –
+  // 7") for every existing consumer (Cart.tsx, order_items.candle_name,
+  // admin view, confirmation email); this field exists purely so that
+  // attribute is also available structured, without re-parsing the name.
+  candleProductVariant?: string;
+  // Fixed per-unit price for a candle line that is NEVER pack-eligible
+  // (the Number Candle, or a colour bought loose by the piece) — set once
+  // at add-to-cart time. When present, Cart.tsx's quantity +/- recomputes
+  // price from this directly instead of looking candleProductId back up
+  // in the candle catalogue, which composite ids like "shiny-spiral-blue"
+  // or "number-candle-7" were never going to match. Left unset for every
+  // other candle (packs, plain catalogue items), which keep using the
+  // existing catalogue-lookup recalculation unchanged.
+  candleProductUnitPrice?: number;
 }
 
 // Mirrors Supabase's order_items.product enum (product_type) exactly. Kept

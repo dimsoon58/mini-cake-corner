@@ -275,17 +275,37 @@ const Cart = () => {
     const item = items.find(i => i.id === itemId);
     if (!item || !item.isCandleProduct || !item.candleProductId) return;
     const newQty = Math.max(1, (item.candleProductQty || 1) + delta);
-    const candle = cartCandles.find(c => c.id === item.candleProductId);
-    let price = 0;
-    if (candle) {
-      if (candle.hasPack && newQty >= (candle.packSize || 6)) {
-        const packs = Math.floor(newQty / (candle.packSize || 6));
-        const remaining = newQty % (candle.packSize || 6);
-        price = packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
+
+    let price: number;
+    if (item.candleProductUnitPrice !== undefined) {
+      // Flat-rate line (Number Candle, or a colour bought loose by the
+      // piece) — the id here is composite ("shiny-spiral-blue",
+      // "number-candle-7") and was never going to match anything in
+      // cartCandles. The per-piece price was fixed at add-to-cart time and
+      // is never pack-eligible, so no catalogue lookup is needed at all.
+      price = item.candleProductUnitPrice * newQty;
+    } else {
+      // Regular catalogue candle (plain id, e.g. "puppy") or a full pack
+      // purchase (e.g. "shiny-spiral") — unchanged pack-aware lookup.
+      const candle = cartCandles.find(c => c.id === item.candleProductId);
+      if (candle) {
+        if (candle.hasPack && newQty >= (candle.packSize || 6)) {
+          const packs = Math.floor(newQty / (candle.packSize || 6));
+          const remaining = newQty % (candle.packSize || 6);
+          price = packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
+        } else {
+          price = candle.unitPrice * newQty;
+        }
       } else {
-        price = candle.unitPrice * newQty;
+        // Defensive fallback only — should not be reachable now that every
+        // flat-rate path sets candleProductUnitPrice above. Never silently
+        // zero the price: derive the per-unit rate from the item's own
+        // current total instead of dropping it.
+        const previousUnitPrice = item.candleProductQty ? item.total / item.candleProductQty : item.total;
+        price = previousUnitPrice * newQty;
       }
     }
+
     updateItem(itemId, {
       candleProductQty: newQty,
       sizeName: `${newQty}× ${item.candleProductName}`,
@@ -349,7 +369,15 @@ const Cart = () => {
                           </Button>
                         </div>
                         <div className="flex items-center gap-4">
-                          <img src={item.candleProductImage} alt={item.candleProductName} className="h-20 w-20 object-contain flex-shrink-0" />
+                          {item.candleProductImage ? (
+                            <img src={item.candleProductImage} alt={item.candleProductName} className="h-20 w-20 object-contain flex-shrink-0" />
+                          ) : (
+                            // Number Candle has no product photo — falls back to a plain
+                            // placeholder instead of a broken <img>.
+                            <div className="h-20 w-20 flex items-center justify-center flex-shrink-0 bg-secondary/20 text-3xl" aria-hidden="true">
+                              🕯️
+                            </div>
+                          )}
                           <div className="flex-1">
                             <p className="text-sm text-muted-foreground mb-2">{t("Candle", "Bougie")}</p>
                             <div className="flex items-center gap-2">
