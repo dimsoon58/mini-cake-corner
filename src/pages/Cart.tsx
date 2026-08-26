@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
-import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName } from "@/lib/candleCartHelpers";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
+import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import {
   sizes,
   shapes,
@@ -444,6 +445,8 @@ const Cart = () => {
                           getCandleUnitQty={(candleId) => getCandleUnitQty(item, candleId)}
                           getCandleItemPrice={(candleId) => getCandleItemPrice(candleId, item.candles || [])}
                           onNumberCandleDigitChange={(digit) => handleNumberCandleDigitChange(item.id, digit)}
+                          onCandleSelectionCommit={(entry) => recalcAndUpdate(item.id, { candles: upsertCandleSelection(item.candles || [], entry) })}
+                          onCandleSelectionRemove={(candleId) => recalcAndUpdate(item.id, { candles: removeCandleSelection(item.candles || [], candleId) })}
                         />
                       ) : (
                         <CartItemSummary item={item} />
@@ -612,6 +615,8 @@ interface CartItemEditorProps {
   getCandleUnitQty: (candleId: string) => number;
   getCandleItemPrice: (candleId: string) => number;
   onNumberCandleDigitChange: (digit: string) => void;
+  onCandleSelectionCommit: (entry: CandleSelection) => void;
+  onCandleSelectionRemove: (candleId: string) => void;
 }
 
 const CartItemEditor = ({
@@ -623,6 +628,7 @@ const CartItemEditor = ({
   onCommentChange, onImageFilesChange,
   onCandleQtyChange, getCandleUnitQty, getCandleItemPrice,
   onNumberCandleDigitChange,
+  onCandleSelectionCommit, onCandleSelectionRemove,
 }: CartItemEditorProps) => {
   const { t } = useLang();
   const showDecoColor = item.style !== "normal-without-border";
@@ -1018,6 +1024,20 @@ const CartItemEditor = ({
       <EditSection label={t("🕯️ Candles", "🕯️ Bougies")}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {cartCandles.map((candle) => {
+            const family = FAMILY_CANDLE_COLORS[candle.id];
+            if (family) {
+              return (
+                <ColorFamilyCandleCard
+                  key={candle.id}
+                  candle={candle}
+                  colors={family}
+                  existing={(item.candles || []).find((c: CandleSelection) => c.id === candle.id)}
+                  onCommit={onCandleSelectionCommit}
+                  onRemove={() => onCandleSelectionRemove(candle.id)}
+                />
+              );
+            }
+
             const qty = getCandleUnitQty(candle.id);
             const price = getCandleItemPrice(candle.id);
             const isPackApplied = candle.hasPack && qty >= (candle.packSize || 6);

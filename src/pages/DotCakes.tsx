@@ -13,7 +13,9 @@ import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
 import { flavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
-import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection } from "@/lib/candleCartHelpers";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
+import type { CandleSelection } from "@/context/CartContext";
+import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
 import dotGallery1 from "@/assets/dot-gallery-1.jpg";
 import dotGallery2 from "@/assets/dot-gallery-2.jpg";
@@ -120,7 +122,7 @@ const DotCakes = () => {
   const [orderDate, setOrderDate] = useState<Date | undefined>(() => (cartOrderDate ? new Date(cartOrderDate) : undefined));
   const [packSize, setPackSize] = useState<number | null>(null);
   const [selectedFlavours, setSelectedFlavours] = useState<string[]>([]);
-  const [candleSelections, setCandleSelections] = useState<Record<string, number>>({});
+  const [candleSelections, setCandleSelections] = useState<CandleSelection[]>([]);
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [showAllCandles, setShowAllCandles] = useState(false);
 
@@ -155,27 +157,16 @@ const DotCakes = () => {
     });
   };
 
-  const handleCandleQtyChange = (candleId: string, delta: number) => {
-    setCandleSelections((prev) => {
-      const next = Math.max(0, (prev[candleId] || 0) + delta);
-      const copy = { ...prev };
-      if (next === 0) delete copy[candleId];
-      else copy[candleId] = next;
-      return copy;
-    });
+  const handleCandleQtyChange = (candleId: string, delta: number) =>
+    setCandleSelections((prev) => changeSimpleCandleQty(prev, candleId, delta));
+
+  const getCandlePrice = (candleId: string) => {
+    const entry = candleSelections.find((c) => c.id === candleId);
+    if (!entry) return 0;
+    return priceCandleSelection(entry, kitCandles.find((c) => c.id === candleId), candleId === NUMBER_CANDLE_ID);
   };
 
-  const getCandlePrice = (candleId: string, qty: number) =>
-    priceCandleSelection(
-      { id: candleId, quantity: qty, hasPack: false },
-      kitCandles.find((c) => c.id === candleId),
-      candleId === NUMBER_CANDLE_ID
-    );
-
-  const candlesTotal = Object.entries(candleSelections).reduce(
-    (acc, [id, qty]) => acc + getCandlePrice(id, qty),
-    0
-  );
+  const candlesTotal = candleSelections.reduce((acc, entry) => acc + getCandlePrice(entry.id), 0);
 
   const total = useMemo(() => {
     if (!pack) return 0;
@@ -207,14 +198,9 @@ const DotCakes = () => {
       const fl = allFlavours.find((f) => f.id === id)!;
       return `${fl.name} (${tierByCategory[fl.category]?.label ?? fl.category})`;
     });
-    const selectedCandles = Object.entries(candleSelections)
-      .filter(([, qty]) => qty > 0)
-      .map(([id, quantity]) => ({
-        id,
-        quantity,
-        hasPack: false,
-        ...(id === NUMBER_CANDLE_ID ? { digit: numberCandleDigit } : {}),
-      }));
+    const selectedCandles = candleSelections.map((c) =>
+      c.id === NUMBER_CANDLE_ID ? { ...c, digit: numberCandleDigit } : c
+    );
 
     const added = addItem({
       id: "",
@@ -415,8 +401,22 @@ const DotCakes = () => {
               <div className="space-y-4">
                 <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
                   {kitCandles.slice(0, showAllCandles ? undefined : INITIAL_CANDLES_SHOWN).map((candle) => {
-                    const qty = candleSelections[candle.id] || 0;
-                    const price = getCandlePrice(candle.id, qty);
+                    const family = FAMILY_CANDLE_COLORS[candle.id];
+                    if (family) {
+                      return (
+                        <ColorFamilyCandleCard
+                          key={candle.id}
+                          candle={candle}
+                          colors={family}
+                          existing={candleSelections.find((c) => c.id === candle.id)}
+                          onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
+                          onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
+                        />
+                      );
+                    }
+
+                    const qty = getSimpleCandleQty(candleSelections, candle.id);
+                    const price = getCandlePrice(candle.id);
                     const hasPackApplied = candle.packSize && qty >= candle.packSize;
                     return (
                       <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
@@ -468,7 +468,7 @@ const DotCakes = () => {
                     <div className="h-56 w-56 mb-2 flex items-center justify-center bg-secondary/20">
                       <span className="text-6xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
                     </div>
-                    <Card className={cn("w-full transition-all", (candleSelections[NUMBER_CANDLE_ID] || 0) > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                    <Card className={cn("w-full transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
                       <CardContent className="p-2 text-center">
                         <h3 className="font-medium text-foreground text-xs mb-0.5">{t("Number Candle", "Bougie chiffre")}</h3>
                         <p className="text-[10px] text-muted-foreground mb-1.5">CHF {NUMBER_CANDLE_PRICE} / pièce</p>
@@ -483,16 +483,16 @@ const DotCakes = () => {
                           </SelectContent>
                         </Select>
                         <div className="flex items-center justify-center gap-1.5 mb-1">
-                          <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, -1)} disabled={(candleSelections[NUMBER_CANDLE_ID] || 0) === 0}
+                          <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, -1)} disabled={getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0}
                             className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
-                              (candleSelections[NUMBER_CANDLE_ID] || 0) === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                              getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                             )}>−</button>
-                          <span className="w-5 text-center font-medium text-foreground text-sm">{candleSelections[NUMBER_CANDLE_ID] || 0}</span>
+                          <span className="w-5 text-center font-medium text-foreground text-sm">{getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID)}</span>
                           <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, 1)}
                             className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
                         </div>
-                        {(candleSelections[NUMBER_CANDLE_ID] || 0) > 0 && (
-                          <p className="text-[10px] text-primary font-medium">CHF {getCandlePrice(NUMBER_CANDLE_ID, candleSelections[NUMBER_CANDLE_ID])}</p>
+                        {getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && (
+                          <p className="text-[10px] text-primary font-medium">CHF {getCandlePrice(NUMBER_CANDLE_ID)}</p>
                         )}
                       </CardContent>
                     </Card>

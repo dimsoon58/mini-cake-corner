@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
+import type { CandleSelection } from "@/context/CartContext";
+import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { candles } from "@/pages/KitBentoCake";
 import { getCandleTotalPrice } from "@/data/customization";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName } from "@/lib/candleCartHelpers";
@@ -23,65 +23,11 @@ import { useLang } from "@/context/LanguageContext";
 // ID/price/digit-list are shared with Catalog.tsx, DotCakes.tsx and
 // KitBentoCake.tsx, which also offer Number Candle as an embedded extra —
 // imported from KitBentoCake.tsx instead of redeclared here.
-
-// Colour choices for the 4 spiral families that can be bought loose, by the
-// piece — keyed by the matching candle.id in the `candles` array. A family
-// NOT in this map (all other candles, including the 4 new spiral models
-// below) keeps the plain single quantity stepper, unchanged.
-const FAMILY_CANDLE_COLORS: Record<string, { id: string; en: string; fr: string }[]> = {
-  "thick-spiral": [
-    { id: "green", en: "Green", fr: "Vert" },
-    { id: "blue", en: "Blue", fr: "Bleu" },
-    { id: "purple", en: "Purple", fr: "Violet" },
-    { id: "pink", en: "Pink", fr: "Rose" },
-    { id: "yellow", en: "Yellow", fr: "Jaune" },
-  ],
-  "shiny-spiral": [
-    { id: "red", en: "Red", fr: "Rouge" },
-    { id: "purple", en: "Purple", fr: "Violet" },
-    { id: "green", en: "Green", fr: "Vert" },
-    { id: "gold", en: "Gold", fr: "Or" },
-    { id: "pink", en: "Pink", fr: "Rose" },
-    { id: "blue", en: "Blue", fr: "Bleu" },
-  ],
-  "spiral-pastel": [
-    { id: "blue", en: "Blue", fr: "Bleu" },
-    { id: "purple", en: "Purple", fr: "Violet" },
-    { id: "dark-pink", en: "Dark Pink", fr: "Rose foncé" },
-    { id: "light-pink", en: "Light Pink", fr: "Rose clair" },
-    { id: "yellow", en: "Yellow", fr: "Jaune" },
-    { id: "green", en: "Green", fr: "Vert" },
-  ],
-  rainbow: [
-    { id: "turquoise", en: "Turquoise", fr: "Turquoise" },
-    { id: "dark-blue", en: "Dark Blue", fr: "Bleu foncé" },
-    { id: "blue", en: "Blue", fr: "Bleu" },
-    { id: "green", en: "Green", fr: "Vert" },
-    { id: "purple", en: "Purple", fr: "Violet" },
-    { id: "light-pink", en: "Light Pink", fr: "Rose clair" },
-    { id: "dark-pink", en: "Dark Pink", fr: "Rose foncé" },
-    { id: "yellow", en: "Yellow", fr: "Jaune" },
-    { id: "orange", en: "Orange", fr: "Orange" },
-  ],
-};
-
-// Approximate representative swatch colours for the colour picker UI only —
-// a visual reference for the customer, not product data. Covers every
-// colour id used across the 4 families above.
-const CANDLE_COLOR_SWATCH: Record<string, string> = {
-  green: "#4CAF50",
-  blue: "#3B82F6",
-  purple: "#8B5CF6",
-  pink: "#EC4899",
-  yellow: "#FBBF24",
-  red: "#EF4444",
-  gold: "#C9A227",
-  "dark-pink": "#DB2777",
-  "light-pink": "#F9A8D4",
-  turquoise: "#14B8A6",
-  "dark-blue": "#1E3A8A",
-  orange: "#F97316",
-};
+//
+// The 4 colour families' colour lists and swatch hex values, and the
+// Pack/Piece selection logic itself, live in ColorFamilyCandleCard — the
+// same component Catalog.tsx, DotCakes.tsx, KitBentoCake.tsx and Cart.tsx
+// use, so there is exactly one implementation of that logic in the app.
 
 const Candles = () => {
   const navigate = useNavigate();
@@ -90,53 +36,11 @@ const Candles = () => {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
 
-  // Pack vs. piece purchase state for the 4 colour families — keyed by
-  // candle.id, independent of the plain `quantities` stepper used by every
-  // other candle.
-  const [familyMode, setFamilyMode] = useState<Record<string, "pack" | "piece">>({});
-  const [familyPackCount, setFamilyPackCount] = useState<Record<string, number>>({});
-  const [familySelectedColors, setFamilySelectedColors] = useState<Record<string, string[]>>({});
-  const [familyPieceQty, setFamilyPieceQty] = useState<Record<string, number>>({});
-
-  const getFamilyMode = (id: string) => familyMode[id] ?? "pack";
-  const getFamilyPackCount = (id: string) => familyPackCount[id] ?? 1;
-  const getFamilySelectedColors = (id: string) => familySelectedColors[id] ?? [];
-  const getFamilyPieceQty = (id: string) => familyPieceQty[id] ?? 1;
-
-  const changeFamilyPackCount = (id: string, delta: number) => {
-    setFamilyPackCount((prev) => ({ ...prev, [id]: Math.max(1, getFamilyPackCount(id) + delta) }));
-  };
-
-  // Hard-capped at packSize - 1: this is what makes it structurally
-  // impossible to recompose a full pack (e.g. 6 loose pieces of one
-  // colour) through the "by the piece" path — the "+" button simply
-  // disables at the cap.
-  const changeFamilyPieceQty = (id: string, delta: number, maxQty: number) => {
-    const next = Math.min(maxQty, Math.max(1, getFamilyPieceQty(id) + delta));
-    // Quantity is now "how many distinct colours" — if it drops below the
-    // current selection, trim the most recently added colours so the
-    // selection never exceeds the new quantity.
-    setFamilySelectedColors((prev) => {
-      const current = prev[id] ?? [];
-      return current.length <= next ? prev : { ...prev, [id]: current.slice(0, next) };
-    });
-    setFamilyPieceQty((prev) => ({ ...prev, [id]: next }));
-  };
-
-  // Toggle one colour swatch — selecting is capped at the current piece
-  // quantity (the swatch is also visually disabled once the cap is hit),
-  // and an already-selected colour can always be deselected again. A
-  // colour can never appear twice: adding checks `includes` first.
-  const toggleFamilyColor = (id: string, colorId: string, maxSelectable: number) => {
-    setFamilySelectedColors((prev) => {
-      const current = prev[id] ?? [];
-      if (current.includes(colorId)) {
-        return { ...prev, [id]: current.filter((c) => c !== colorId) };
-      }
-      if (current.length >= maxSelectable) return prev;
-      return { ...prev, [id]: [...current, colorId] };
-    });
-  };
+  // Forces ColorFamilyCandleCard to remount (fresh draft) after each
+  // successful add — a standalone purchase here is always a brand-new cart
+  // line, never an edit of a persistent selection, so `existing` is always
+  // undefined and the card must reset itself between purchases.
+  const [familyResetKeys, setFamilyResetKeys] = useState<Record<string, number>>({});
 
   useEffect(() => {
     document.title = t("Candles – Bento Cake Studio", "Bougies – Bento Cake Studio");
@@ -218,140 +122,79 @@ const Candles = () => {
     setQuantities((prev) => ({ ...prev, [candle.id]: 1 }));
   };
 
-  const handleAddFamilyPackToCart = (candle: (typeof candles)[number]) => {
-    const packSize = candle.packSize || 6;
-    const packs = getFamilyPackCount(candle.id);
-    const qty = packs * packSize;
-    const price = priceCandleSelection({ id: candle.id, quantity: qty, hasPack: true }, candle, false);
-
-    addItem({
-      id: "",
-      product: "candles",
-      orderDate: "",
-      orderTime: "",
-      size: "candles",
-      // No colour in the name/variant here — a pack is always the fixed
-      // assortment, never a customer-chosen colour.
-      sizeName: `${qty}× ${candle.name}`,
-      shape: "",
-      shapeName: "",
-      flavor: "",
-      flavorName: "",
-      style: "candles",
-      styleName: "Candle Order",
-      baseColor: "",
-      baseColorName: "",
-      decorationColor: "",
-      decorationColorName: "",
-      cakeText: "",
-      textColor: "",
-      textColorName: "",
-      textStyle: "normal",
-      extras: [],
-      extrasNames: [],
-      ribbonColor: "",
-      ribbonColorName: "",
-      butterflyColor: "",
-      butterflyColorName: "",
-      candles: [],
-      comment: "",
-      imageUrls: [],
-      imageFiles: [],
-      total: price,
-      isCandleProduct: true,
-      candleProductId: candle.id,
-      candleProductName: candle.name,
-      candleProductQty: qty,
-      candleProductHasPack: true,
-    });
-
-    toast.success(
-      t(`${candle.name} added to your cart!`, `${candle.name} ajouté à votre panier !`),
-      {
-        action: {
-          label: t("View cart", "Voir le panier"),
-          onClick: () => navigate("/cart"),
-        },
-      }
-    );
-    setFamilyPackCount((prev) => ({ ...prev, [candle.id]: 1 }));
-  };
-
-  const handleAddFamilyPieceToCart = (candle: (typeof candles)[number]) => {
+  // Single handler for both Pack and Piece — ColorFamilyCandleCard already
+  // validated and built the CandleSelection (colours never duplicated,
+  // count matching quantity for piece mode, quantity always packSize-
+  // aligned for pack mode); this only converts it into the standalone
+  // CartItem fields and adds it.
+  const handleFamilyCommit = (candle: (typeof candles)[number]) => (entry: CandleSelection) => {
     const familyColors = FAMILY_CANDLE_COLORS[candle.id];
-    const selectedColorIds = getFamilySelectedColors(candle.id);
-    const qty = getFamilyPieceQty(candle.id);
-    // Guarded by the disabled "Add to Cart" button below — defensive no-op
-    // if this is ever reached with an incomplete colour selection.
-    if (selectedColorIds.length !== qty) return;
-    const resolveColorLabel = (colorId: string) => {
-      const color = familyColors.find((c) => c.id === colorId)!;
-      return t(color.en, color.fr);
+    const price = priceCandleSelection(entry, candle, false);
+    // Standalone purchases persist candleProductName directly as
+    // candle_name (Checkout.tsx never re-derives it for isCandleProduct
+    // items), so — unlike the embedded path, which stays English-only per
+    // Pass 1 — this base name is localized to the customer's current
+    // language at add time.
+    const localizedName = t(candle.name, candle.nameFr || candle.name);
+
+    const baseFields = {
+      id: "", product: "candles", orderDate: "", orderTime: "", size: "candles",
+      shape: "", shapeName: "", flavor: "", flavorName: "",
+      style: "candles", styleName: "Candle Order",
+      baseColor: "", baseColorName: "", decorationColor: "", decorationColorName: "",
+      cakeText: "", textColor: "", textColorName: "", textStyle: "normal",
+      extras: [], extrasNames: [], ribbonColor: "", ribbonColorName: "",
+      butterflyColor: "", butterflyColorName: "", candles: [],
+      comment: "", imageUrls: [], imageFiles: [],
     };
-    const colorLabels = selectedColorIds.map(resolveColorLabel);
-    const price = priceCandleSelection({ id: candle.id, quantity: qty, hasPack: false, colors: selectedColorIds }, candle, false);
-    const variantLabel = colorLabels.join(", ");
-    const label = composeCandleName({ colors: selectedColorIds }, candle.name, resolveColorLabel);
 
-    addItem({
-      id: "",
-      product: "candles",
-      orderDate: "",
-      orderTime: "",
-      size: "candles",
-      sizeName: `${qty}× ${label}`,
-      shape: "",
-      shapeName: "",
-      flavor: "",
-      flavorName: "",
-      style: "candles",
-      styleName: "Candle Order",
-      baseColor: "",
-      baseColorName: "",
-      decorationColor: "",
-      decorationColorName: "",
-      cakeText: "",
-      textColor: "",
-      textColorName: "",
-      textStyle: "normal",
-      extras: [],
-      extrasNames: [],
-      ribbonColor: "",
-      ribbonColorName: "",
-      butterflyColor: "",
-      butterflyColorName: "",
-      candles: [],
-      comment: "",
-      imageUrls: [],
-      imageFiles: [],
-      total: price,
-      isCandleProduct: true,
-      candleProductId: `${candle.id}-${selectedColorIds.slice().sort().join("-")}`,
-      candleProductName: label,
-      candleProductVariant: variantLabel,
-      candleProductQty: qty,
-      candleProductHasPack: false,
-      // Base model's real per-piece price — never pack-eligible here, so
-      // Cart.tsx can recompute on quantity change without needing to look
-      // this composite id up in the candle catalogue.
-      candleProductUnitPrice: candle.unitPrice,
-      // Duplicate colours are forbidden by construction, so this exact
-      // combination can't be "topped up" with +/- from the cart — the
-      // customer removes the line and re-selects from this page instead.
-      candleProductQtyLocked: true,
-    });
+    if (entry.colors) {
+      const resolveColorLabel = (colorId: string) => {
+        const color = familyColors.find((c) => c.id === colorId)!;
+        return t(color.en, color.fr);
+      };
+      const label = composeCandleName(entry, localizedName, resolveColorLabel);
+      const variantLabel = entry.colors.map(resolveColorLabel).join(", ");
+      addItem({
+        ...baseFields,
+        sizeName: `${entry.quantity}× ${label}`,
+        total: price,
+        isCandleProduct: true,
+        candleProductId: `${candle.id}-${entry.colors.slice().sort().join("-")}`,
+        candleProductName: label,
+        candleProductVariant: variantLabel,
+        candleProductQty: entry.quantity,
+        candleProductHasPack: false,
+        // Base model's real per-piece price — never pack-eligible here, so
+        // Cart.tsx can recompute on quantity change without needing to
+        // look this composite id up in the candle catalogue.
+        candleProductUnitPrice: candle.unitPrice,
+        // Duplicate colours are forbidden by construction, so this exact
+        // combination can't be "topped up" with +/- from the cart — the
+        // customer removes the line and re-selects from this page instead.
+        candleProductQtyLocked: true,
+      });
+      toast.success(t(`${label} added to your cart!`, `${label} ajouté à votre panier !`), {
+        action: { label: t("View cart", "Voir le panier"), onClick: () => navigate("/cart") },
+      });
+    } else {
+      // Pack mode — fixed assortment, no colour, stays quantity-adjustable in cart.
+      addItem({
+        ...baseFields,
+        sizeName: `${entry.quantity}× ${localizedName}`,
+        total: price,
+        isCandleProduct: true,
+        candleProductId: candle.id,
+        candleProductName: localizedName,
+        candleProductQty: entry.quantity,
+        candleProductHasPack: true,
+      });
+      toast.success(t(`${localizedName} added to your cart!`, `${localizedName} ajouté à votre panier !`), {
+        action: { label: t("View cart", "Voir le panier"), onClick: () => navigate("/cart") },
+      });
+    }
 
-    toast.success(
-      t(`${label} added to your cart!`, `${label} ajouté à votre panier !`),
-      {
-        action: {
-          label: t("View cart", "Voir le panier"),
-          onClick: () => navigate("/cart"),
-        },
-      }
-    );
-    setFamilyPieceQty((prev) => ({ ...prev, [candle.id]: 1 }));
-    setFamilySelectedColors((prev) => ({ ...prev, [candle.id]: [] }));
+    setFamilyResetKeys((prev) => ({ ...prev, [candle.id]: (prev[candle.id] ?? 0) + 1 }));
   };
 
   const handleAddNumberCandleToCart = () => {
@@ -431,177 +274,15 @@ const Candles = () => {
           {candles.map((candle) => {
             const familyColors = FAMILY_CANDLE_COLORS[candle.id];
             if (familyColors) {
-              const mode = getFamilyMode(candle.id);
-              const packSize = candle.packSize || 6;
-              const packs = getFamilyPackCount(candle.id);
-              const pieceQty = getFamilyPieceQty(candle.id);
-              const maxPieceQty = packSize - 1;
-              const selectedColorIds = getFamilySelectedColors(candle.id);
-
               return (
-                <Card
-                  key={candle.id}
-                  className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all"
-                >
-                  <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
-                    <img src={candle.image} alt={candle.name} className="h-40 w-40 object-contain" />
-                  </div>
-                  <CardContent className="p-4 text-center flex flex-col flex-1">
-                    <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-1">
-                      {candle.name}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground mb-3">
-                      CHF {candle.unitPrice}/pièce · Pack {packSize} = CHF {candle.packPrice}
-                    </p>
-
-                    <RadioGroup
-                      value={mode}
-                      onValueChange={(value) =>
-                        setFamilyMode((prev) => ({ ...prev, [candle.id]: value as "pack" | "piece" }))
-                      }
-                      className="flex justify-center gap-4 mb-3"
-                    >
-                      <div className="flex items-center space-x-1.5">
-                        <RadioGroupItem value="pack" id={`${candle.id}-mode-pack`} />
-                        <Label htmlFor={`${candle.id}-mode-pack`} className="text-xs cursor-pointer">
-                          {t("Pack (assorted)", "Pack (assorti)")}
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-1.5">
-                        <RadioGroupItem value="piece" id={`${candle.id}-mode-piece`} />
-                        <Label htmlFor={`${candle.id}-mode-piece`} className="text-xs cursor-pointer">
-                          {t("By the piece", "À la pièce")}
-                        </Label>
-                      </div>
-                    </RadioGroup>
-
-                    <div className="mt-auto space-y-3">
-                      {mode === "pack" ? (
-                        <>
-                          <p className="text-[10px] text-muted-foreground">
-                            {t(
-                              "Fixed colour assortment — no colour choice.",
-                              "Assortiment de couleurs fixe — pas de choix de couleur."
-                            )}
-                          </p>
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => changeFamilyPackCount(candle.id, -1)}
-                              disabled={packs <= 1}
-                              className={cn(
-                                "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
-                                packs <= 1
-                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                  : "bg-primary text-primary-foreground hover:bg-primary/90"
-                              )}
-                              aria-label={t("Decrease pack quantity", "Diminuer le nombre de packs")}
-                            >
-                              −
-                            </button>
-                            <span className="flex-1 text-center font-medium text-foreground text-sm">
-                              {packs} {t("pack(s)", "pack(s)")} ({packs * packSize} {t("pcs", "pièces")})
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => changeFamilyPackCount(candle.id, 1)}
-                              className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
-                              aria-label={t("Increase pack quantity", "Augmenter le nombre de packs")}
-                            >
-                              +
-                            </button>
-                          </div>
-                          <Button
-                            onClick={() => handleAddFamilyPackToCart(candle)}
-                            className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] tracking-[0.105em] uppercase"
-                          >
-                            {t("Add to Cart", "Ajouter au panier")}
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex flex-wrap justify-center gap-2">
-                            {familyColors.map((color) => {
-                              const isSelected = selectedColorIds.includes(color.id);
-                              const isDisabled = !isSelected && selectedColorIds.length >= pieceQty;
-                              return (
-                                <button
-                                  key={color.id}
-                                  type="button"
-                                  onClick={() => toggleFamilyColor(candle.id, color.id, pieceQty)}
-                                  disabled={isDisabled}
-                                  aria-pressed={isSelected}
-                                  aria-label={t(color.en, color.fr)}
-                                  title={t(color.en, color.fr)}
-                                  className={cn(
-                                    "h-8 w-8 rounded-full border-2 transition-all",
-                                    isSelected ? "border-primary ring-2 ring-primary ring-offset-1" : "border-border",
-                                    isDisabled && "opacity-30 cursor-not-allowed"
-                                  )}
-                                  style={{ backgroundColor: CANDLE_COLOR_SWATCH[color.id] }}
-                                />
-                              );
-                            })}
-                          </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            {t(
-                              `${selectedColorIds.length}/${pieceQty} colours selected`,
-                              `${selectedColorIds.length}/${pieceQty} couleurs sélectionnées`
-                            )}
-                          </p>
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => changeFamilyPieceQty(candle.id, -1, maxPieceQty)}
-                              disabled={pieceQty <= 1}
-                              className={cn(
-                                "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
-                                pieceQty <= 1
-                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                  : "bg-primary text-primary-foreground hover:bg-primary/90"
-                              )}
-                              aria-label={t("Decrease quantity", "Diminuer la quantité")}
-                            >
-                              −
-                            </button>
-                            <span className="w-6 text-center font-medium text-foreground text-sm">{pieceQty}</span>
-                            <button
-                              type="button"
-                              onClick={() => changeFamilyPieceQty(candle.id, 1, maxPieceQty)}
-                              disabled={pieceQty >= maxPieceQty}
-                              className={cn(
-                                "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
-                                pieceQty >= maxPieceQty
-                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                  : "bg-primary text-primary-foreground hover:bg-primary/90"
-                              )}
-                              aria-label={t("Increase quantity", "Augmenter la quantité")}
-                            >
-                              +
-                            </button>
-                          </div>
-                          {/* Hard cap at packSize - 1: the only way past this is the
-                              "Pack" mode above, which never exposes a colour choice —
-                              this is what keeps a curated pack from being recomposed
-                              as N loose pieces of a single colour. */}
-                          <p className="text-[10px] text-muted-foreground">
-                            {t(
-                              `Max ${maxPieceQty} loose pieces — add a full pack beyond that.`,
-                              `Maximum ${maxPieceQty} pièces à l'unité — au-delà, ajoutez un pack complet.`
-                            )}
-                          </p>
-                          <Button
-                            onClick={() => handleAddFamilyPieceToCart(candle)}
-                            disabled={selectedColorIds.length !== pieceQty}
-                            className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] tracking-[0.105em] uppercase"
-                          >
-                            {t("Add to Cart", "Ajouter au panier")}
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <ColorFamilyCandleCard
+                  key={`${candle.id}-${familyResetKeys[candle.id] ?? 0}`}
+                  candle={candle}
+                  colors={familyColors}
+                  existing={undefined}
+                  onCommit={handleFamilyCommit(candle)}
+                  onRemove={() => {}}
+                />
               );
             }
 

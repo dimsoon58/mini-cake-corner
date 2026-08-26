@@ -26,7 +26,8 @@ import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
 import { useCart } from "@/context/CartContext";
 import type { CandleSelection } from "@/context/CartContext";
-import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection } from "@/lib/candleCartHelpers";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
+import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
@@ -1107,27 +1108,10 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   };
 
   // Candle helpers
-  const handleCandleQuantityChange = (candleId: string, delta: number) => {
-    const existingIndex = selections.candles.findIndex((c) => c.id === candleId && !c.hasPack);
-    let newCandles = [...selections.candles];
-    
-    if (existingIndex >= 0) {
-      const newQty = newCandles[existingIndex].quantity + delta;
-      if (newQty <= 0) {
-        newCandles = newCandles.filter((_, i) => i !== existingIndex);
-      } else {
-        newCandles[existingIndex] = { ...newCandles[existingIndex], quantity: newQty };
-      }
-    } else if (delta > 0) {
-      newCandles.push({ id: candleId, quantity: 1, hasPack: false });
-    }
-    setSelections({ ...selections, candles: newCandles });
-  };
+  const handleCandleQuantityChange = (candleId: string, delta: number) =>
+    setSelections((prev) => ({ ...prev, candles: changeSimpleCandleQty(prev.candles, candleId, delta) }));
 
-  const getCandleUnitQuantity = (candleId: string) => {
-    const selection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
-    return selection?.quantity || 0;
-  };
+  const getCandleUnitQuantity = (candleId: string) => getSimpleCandleQty(selections.candles, candleId);
 
   const getCandleTotalPrice = (candleId: string) => {
     const entry = selections.candles.find((c) => c.id === candleId);
@@ -2373,6 +2357,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 <div className="space-y-2">
                   <div className="flex flex-wrap justify-center gap-3">
                     {candles.slice(0, showAllCandles ? undefined : 4).map((candle) => {
+                      const family = FAMILY_CANDLE_COLORS[candle.id];
+                      if (family) {
+                        return (
+                          <div key={candle.id} className="w-[calc(50%-6px)]">
+                            <ColorFamilyCandleCard
+                              candle={candle}
+                              colors={family}
+                              existing={selections.candles.find((c) => c.id === candle.id)}
+                              onCommit={(entry) => setSelections((prev) => ({ ...prev, candles: upsertCandleSelection(prev.candles, entry) }))}
+                              onRemove={() => setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, candle.id) }))}
+                            />
+                          </div>
+                        );
+                      }
+
                       const unitQty = getCandleUnitQuantity(candle.id);
                       const totalPrice = getCandleTotalPrice(candle.id);
                       const isPackApplied = candle.hasPack && unitQty >= (candle.packSize || 6);

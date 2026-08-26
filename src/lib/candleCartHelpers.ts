@@ -68,3 +68,36 @@ export const composeCandleName = (
   }
   return candleName;
 };
+
+export const getSimpleCandleQty = (selections: CandleSelection[], candleId: string): number =>
+  selections.find(c => c.id === candleId)?.quantity || 0;
+
+// Generic +/- for any plain-stepper candle — never used for a colour-piece
+// or explicit-pack entry, which are only ever created/edited through
+// ColorFamilyCandleCard's own commit/remove flow.
+export const changeSimpleCandleQty = (
+  selections: CandleSelection[], candleId: string, delta: number
+): CandleSelection[] => {
+  const idx = selections.findIndex(c => c.id === candleId);
+  if (idx >= 0) {
+    const newQty = selections[idx].quantity + delta;
+    if (newQty <= 0) return selections.filter((_, i) => i !== idx);
+    const copy = [...selections];
+    copy[idx] = { ...copy[idx], quantity: newQty };
+    return copy;
+  }
+  return delta > 0 ? [...selections, { id: candleId, quantity: 1, hasPack: false }] : selections;
+};
+
+export const upsertCandleSelection = (selections: CandleSelection[], entry: CandleSelection): CandleSelection[] => {
+  const idx = selections.findIndex(c => c.id === entry.id);
+  if (idx >= 0) {
+    const copy = [...selections];
+    copy[idx] = entry;
+    return copy;
+  }
+  return [...selections, entry];
+};
+
+export const removeCandleSelection = (selections: CandleSelection[], candleId: string): CandleSelection[] =>
+  selections.filter(c => c.id !== candleId);
