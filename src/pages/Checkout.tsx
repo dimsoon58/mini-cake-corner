@@ -317,6 +317,10 @@ const Checkout = () => {
   // contact number for this specific order.
   const isLoggedIn = !!user;
   const [useWelcomeDiscount, setUseWelcomeDiscount] = useState(false);
+  const [useReward, setUseReward] = useState(false);
+  // Raw text so the field can be empty/partial while typing — clamped only
+  // where it's actually consumed (estimatedRewardUsed / payload).
+  const [rewardAmountInput, setRewardAmountInput] = useState("");
   const [lastName, setLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
@@ -432,7 +436,23 @@ const Checkout = () => {
     ? Math.round(discountedBase * 0.10 * 100) / 100
     : 0;
 
-  const totalPrice = itemsTotal - estimatedWelcomeDiscount + (deliveryOption === "delivery" ? deliveryPrice : 0);
+  // Reward balance ("cagnotte") — display-only. profile.reward_balance is a
+  // server-maintained cache; this page never derives, recomputes, or
+  // second-guesses it — it just reads it and proposes an intention. The
+  // server independently verifies and caps the real usable amount at
+  // capture time.
+  const rewardBalance = profile?.reward_balance ?? 0;
+  const rewardEligible = !!user && rewardBalance >= 1;
+  // Products only, after the welcome discount, delivery excluded — matches
+  // the business rule; still just a display cap, never trusted as the real
+  // ceiling.
+  const maxRewardUsable = Math.max(0, Math.round((itemsTotal - estimatedWelcomeDiscount) * 100) / 100);
+  const requestedRewardAmount = Math.max(0, parseFloat(rewardAmountInput) || 0);
+  const estimatedRewardUsed = (useReward && rewardEligible)
+    ? Math.round(Math.min(requestedRewardAmount, rewardBalance, maxRewardUsable) * 100) / 100
+    : 0;
+
+  const totalPrice = itemsTotal - estimatedWelcomeDiscount - estimatedRewardUsed + (deliveryOption === "delivery" ? deliveryPrice : 0);
 
   // Build phone number with country code
   const fullPhoneNumber = combinePhoneNumber(countryCode, phone);
@@ -720,6 +740,12 @@ const Checkout = () => {
         // Intent only — create-postfinance-payment independently verifies
         // eligibility and computes the real discount server-side.
         useWelcomeDiscount: useWelcomeDiscount && welcomeVoucherEligible,
+        // Intent only — never the amount actually credited/debited. The
+        // backend independently verifies the real available balance, caps
+        // it, and reserves it. Requires backend support (reserve_reward_credit
+        // etc.) not yet implemented — safe to send regardless, current
+        // create-postfinance-payment simply ignores unknown fields.
+        rewardAmountToUse: estimatedRewardUsed,
       };
 
       console.log("Setting up embedded checkout with:", {
@@ -1148,6 +1174,57 @@ const Checkout = () => {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">{t("Welcome discount -10%", "Réduction bienvenue -10%")}</span>
                   <span className="font-medium text-primary">- CHF {estimatedWelcomeDiscount.toFixed(2)}</span>
+                </div>
+              )}
+
+              {rewardEligible && (
+                <div className="py-2 space-y-2">
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="useReward"
+                      checked={useReward}
+                      onCheckedChange={(c) => {
+                        const checked = c === true;
+                        setUseReward(checked);
+                        if (checked && !rewardAmountInput) {
+                          setRewardAmountInput(String(Math.min(rewardBalance, maxRewardUsable)));
+                        }
+                      }}
+                    />
+                    <Label htmlFor="useReward" className="text-sm cursor-pointer">
+                      {t(`Use my reward balance (CHF ${rewardBalance.toFixed(2)} available)`, `Utiliser ma cagnotte (CHF ${rewardBalance.toFixed(2)} disponible)`)}
+                    </Label>
+                  </div>
+                  {useReward && (
+                    <div className="flex items-center gap-2 pl-7">
+                      <span className="text-sm text-muted-foreground">CHF</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={Math.min(rewardBalance, maxRewardUsable)}
+                        step="0.05"
+                        value={rewardAmountInput}
+                        onChange={(e) => setRewardAmountInput(e.target.value)}
+                        className="w-28 h-9"
+                      />
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-9 px-2"
+                        onClick={() => setRewardAmountInput(String(Math.min(rewardBalance, maxRewardUsable)))}
+                      >
+                        {t("Use max", "Max")}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {estimatedRewardUsed > 0 && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">{t("Reward balance used", "Cagnotte utilisée")}</span>
+                  <span className="font-medium text-primary">- CHF {estimatedRewardUsed.toFixed(2)}</span>
                 </div>
               )}
 
