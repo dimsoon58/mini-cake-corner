@@ -317,10 +317,9 @@ const Checkout = () => {
   // contact number for this specific order.
   const isLoggedIn = !!user;
   const [useWelcomeDiscount, setUseWelcomeDiscount] = useState(false);
+  // No amount picker — enabling this always requests the maximum usable
+  // amount, computed below.
   const [useReward, setUseReward] = useState(false);
-  // Raw text so the field can be empty/partial while typing — clamped only
-  // where it's actually consumed (estimatedRewardUsed / payload).
-  const [rewardAmountInput, setRewardAmountInput] = useState("");
   const [lastName, setLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
@@ -447,9 +446,10 @@ const Checkout = () => {
   // the business rule; still just a display cap, never trusted as the real
   // ceiling.
   const maxRewardUsable = Math.max(0, Math.round((itemsTotal - estimatedWelcomeDiscount) * 100) / 100);
-  const requestedRewardAmount = Math.max(0, parseFloat(rewardAmountInput) || 0);
+  // No amount choice — enabling the option always requests the maximum
+  // usable amount (never more than what's left to pay on products).
   const estimatedRewardUsed = (useReward && rewardEligible)
-    ? Math.round(Math.min(requestedRewardAmount, rewardBalance, maxRewardUsable) * 100) / 100
+    ? Math.round(Math.min(rewardBalance, maxRewardUsable) * 100) / 100
     : 0;
 
   const totalPrice = itemsTotal - estimatedWelcomeDiscount - estimatedRewardUsed + (deliveryOption === "delivery" ? deliveryPrice : 0);
@@ -1178,46 +1178,15 @@ const Checkout = () => {
               )}
 
               {rewardEligible && (
-                <div className="py-2 space-y-2">
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="useReward"
-                      checked={useReward}
-                      onCheckedChange={(c) => {
-                        const checked = c === true;
-                        setUseReward(checked);
-                        if (checked && !rewardAmountInput) {
-                          setRewardAmountInput(String(Math.min(rewardBalance, maxRewardUsable)));
-                        }
-                      }}
-                    />
-                    <Label htmlFor="useReward" className="text-sm cursor-pointer">
-                      {t(`Use my reward balance (CHF ${rewardBalance.toFixed(2)} available)`, `Utiliser ma cagnotte (CHF ${rewardBalance.toFixed(2)} disponible)`)}
-                    </Label>
-                  </div>
-                  {useReward && (
-                    <div className="flex items-center gap-2 pl-7">
-                      <span className="text-sm text-muted-foreground">CHF</span>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={Math.min(rewardBalance, maxRewardUsable)}
-                        step="0.05"
-                        value={rewardAmountInput}
-                        onChange={(e) => setRewardAmountInput(e.target.value)}
-                        className="w-28 h-9"
-                      />
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        className="h-9 px-2"
-                        onClick={() => setRewardAmountInput(String(Math.min(rewardBalance, maxRewardUsable)))}
-                      >
-                        {t("Use max", "Max")}
-                      </Button>
-                    </div>
-                  )}
+                <div className="flex items-center space-x-3 py-2">
+                  <Checkbox
+                    id="useReward"
+                    checked={useReward}
+                    onCheckedChange={(c) => setUseReward(c === true)}
+                  />
+                  <Label htmlFor="useReward" className="text-sm cursor-pointer">
+                    {t(`Use my balance (CHF ${rewardBalance.toFixed(2)} available)`, `Utiliser ma cagnotte (CHF ${rewardBalance.toFixed(2)} disponible)`)}
+                  </Label>
                 </div>
               )}
 
