@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCart, CandleCartItem } from "@/context/CartContext";
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS } from "@/pages/KitBentoCake";
 import {
   sizes,
   shapes,
@@ -252,6 +254,15 @@ const Cart = () => {
     recalcAndUpdate(itemId, { candles: newCandles });
   };
 
+  const handleNumberCandleDigitChange = (itemId: string, digit: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    const newCandles = (item.candles || []).map((c: CandleCartItem) =>
+      c.id === NUMBER_CANDLE_ID ? { ...c, digit } : c
+    );
+    recalcAndUpdate(itemId, { candles: newCandles });
+  };
+
   const getCandleUnitQty = (item: typeof items[0], candleId: string) => {
     return (item.candles || []).find(c => c.id === candleId && !c.hasPack)?.quantity || 0;
   };
@@ -300,6 +311,10 @@ const Cart = () => {
   };
 
   const getCandleItemPrice = (candleId: string, itemCandles: CandleCartItem[]) => {
+    if (candleId === NUMBER_CANDLE_ID) {
+      const qty = itemCandles.find(c => c.id === NUMBER_CANDLE_ID)?.quantity || 0;
+      return qty * NUMBER_CANDLE_PRICE;
+    }
     const candle = cartCandles.find(c => c.id === candleId);
     if (!candle) return 0;
     const unitQty = (itemCandles || []).find(c => c.id === candleId && !c.hasPack)?.quantity || 0;
@@ -441,6 +456,7 @@ const Cart = () => {
                           onCandleQtyChange={(candleId, delta) => handleCandleQuantityChange(item.id, candleId, delta)}
                           getCandleUnitQty={(candleId) => getCandleUnitQty(item, candleId)}
                           getCandleItemPrice={(candleId) => getCandleItemPrice(candleId, item.candles || [])}
+                          onNumberCandleDigitChange={(digit) => handleNumberCandleDigitChange(item.id, digit)}
                         />
                       ) : (
                         <CartItemSummary item={item} />
@@ -494,6 +510,10 @@ const CartItemSummary = ({ item }: { item: any }) => {
   const candleEntries = (item.candles || [])
     .filter((c: CandleCartItem) => c.quantity > 0)
     .map((c: CandleCartItem) => {
+      if (c.id === NUMBER_CANDLE_ID) {
+        const label = `${t("Number Candle", "Bougie chiffre")}${c.digit ? ` – ${c.digit}` : ""}`;
+        return { name: label, qty: c.quantity, price: c.quantity * NUMBER_CANDLE_PRICE };
+      }
       const candle = cartCandles.find(x => x.id === c.id);
       const price = candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0;
       return { name: candle?.name || "", qty: c.quantity, price };
@@ -606,6 +626,7 @@ interface CartItemEditorProps {
   onCandleQtyChange: (candleId: string, delta: number) => void;
   getCandleUnitQty: (candleId: string) => number;
   getCandleItemPrice: (candleId: string) => number;
+  onNumberCandleDigitChange: (digit: string) => void;
 }
 
 const CartItemEditor = ({
@@ -616,6 +637,7 @@ const CartItemEditor = ({
   onGlitterColorChange, onGlitterCherriesColorChange,
   onCommentChange, onImageFilesChange,
   onCandleQtyChange, getCandleUnitQty, getCandleItemPrice,
+  onNumberCandleDigitChange,
 }: CartItemEditorProps) => {
   const { t } = useLang();
   const showDecoColor = item.style !== "normal-without-border";
@@ -1049,6 +1071,53 @@ const CartItemEditor = ({
               </div>
             );
           })}
+
+          {/* Number Candle — digit picker, no product photo, flat rate */}
+          {(() => {
+            const qty = getCandleUnitQty(NUMBER_CANDLE_ID);
+            const digit = (item.candles || []).find((c: CandleCartItem) => c.id === NUMBER_CANDLE_ID)?.digit || "0";
+            return (
+              <div
+                className={cn(
+                  "flex flex-col items-center p-2 rounded-lg border transition-all",
+                  qty > 0 ? "ring-2 ring-primary border-primary bg-secondary" : "border-border"
+                )}
+              >
+                <div className="h-16 w-16 mb-1 flex items-center justify-center bg-secondary/20">
+                  <span className="text-2xl font-bold text-primary" aria-hidden="true">{digit}</span>
+                </div>
+                <span className="text-xs font-medium text-foreground text-center">{t("Number Candle", "Bougie chiffre")}</span>
+                <span className="text-xs text-muted-foreground">CHF {NUMBER_CANDLE_PRICE}{t("/ea", "/pièce")}</span>
+                <Select value={digit} onValueChange={onNumberCandleDigitChange}>
+                  <SelectTrigger className="h-6 text-xs mt-1 w-16" aria-label={t("Choose a digit", "Choisir un chiffre")}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NUMBER_CANDLE_DIGITS.map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={() => onCandleQtyChange(NUMBER_CANDLE_ID, -1)}
+                    disabled={qty === 0}
+                    className="h-7 w-7 rounded-none border border-border flex items-center justify-center text-foreground disabled:opacity-30 hover:bg-muted"
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <span className="text-sm font-medium w-6 text-center text-foreground">{qty}</span>
+                  <button
+                    onClick={() => onCandleQtyChange(NUMBER_CANDLE_ID, 1)}
+                    className="h-7 w-7 rounded-none border border-border flex items-center justify-center text-foreground hover:bg-muted"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+                {qty > 0 && <span className="text-xs text-primary font-medium mt-1">CHF {qty * NUMBER_CANDLE_PRICE}</span>}
+              </div>
+            );
+          })()}
         </div>
       </EditSection>
     </div>

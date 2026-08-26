@@ -25,6 +25,7 @@ import ExtraImageLightbox from "@/components/ExtraImageLightbox";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
 import { useCart } from "@/context/CartContext";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS } from "@/pages/KitBentoCake";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
@@ -643,6 +644,7 @@ interface CandleSelection {
   id: string;
   quantity: number;
   hasPack: boolean;
+  digit?: string;
 }
 
 // Carousel component for catalog cards with multiple images
@@ -1034,6 +1036,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [showGlutenFree, setShowGlutenFree] = useState(false);
+  const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [selections, setSelections] = useState<CakeSelections>({
     orderDate: cartOrderDate ? new Date(cartOrderDate) : null,
@@ -1145,6 +1148,10 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   };
 
   const getCandleTotalPrice = (candleId: string) => {
+    if (candleId === NUMBER_CANDLE_ID) {
+      const qty = selections.candles.find((c) => c.id === NUMBER_CANDLE_ID)?.quantity || 0;
+      return qty * NUMBER_CANDLE_PRICE;
+    }
     const candle = candles.find((c) => c.id === candleId);
     if (!candle) return 0;
     
@@ -1163,7 +1170,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   };
 
   const getTotalCandlesPrice = () => {
-    return candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id), 0);
+    return candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id), 0)
+      + getCandleTotalPrice(NUMBER_CANDLE_ID);
   };
 
   const colorCfg = getColorConfig(selectedCake?.styleId);
@@ -1401,6 +1409,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     const extrasNames = selections.extras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
     const selectedRibbonColor = ribbonColors.find(c => c.id === selections.ribbonColor);
     const selectedButterflyColor = butterflyColors.find(c => c.id === selections.butterflyColor);
+    const candlesWithDigit = selections.candles.map((c) =>
+      c.id === NUMBER_CANDLE_ID ? { ...c, digit: numberCandleDigit } : c
+    );
 
     const added = addItem({
       id: "",
@@ -1431,7 +1442,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       butterflyColorName: selectedButterflyColor?.name || "",
       glitterColorName: glitterColors.find(c => c.id === selections.glitterColor)?.name || "",
       glitterCherriesColorName: glitterCherriesColors.find(c => c.id === selections.glitterCherriesColor)?.name || "",
-      candles: selections.candles,
+      candles: candlesWithDigit,
       comment: selectedCake.images && selectedCake.images.length > 1
         ? `[Preferred design: Option ${selections.shagDesignPreference + 1}]${selections.comment ? " " + selections.comment : ""}`
         : selections.comment,
@@ -2445,6 +2456,50 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         </div>
                       );
                     })}
+
+                    {/* Number Candle — digit picker, no product photo, flat rate */}
+                    <div className="flex flex-col items-center w-[calc(50%-6px)]">
+                      <div className="h-28 w-28 mb-1 flex items-center justify-center bg-secondary/20">
+                        <span className="text-4xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
+                      </div>
+                      <div className={cn(
+                        "w-full rounded-lg p-2 text-center transition-all",
+                        getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 ? "bg-white/90 ring-2 ring-primary" : "bg-white/60"
+                      )}>
+                        <p className="text-xs font-medium text-foreground">{t("Number Candle", "Bougie chiffre")}</p>
+                        <p className="text-[10px] text-muted-foreground mb-1">CHF {NUMBER_CANDLE_PRICE} {t("each", "/ pièce")}</p>
+                        <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
+                          <SelectTrigger className="h-7 text-xs mb-1.5" aria-label={t("Choose a digit", "Choisir un chiffre")}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {NUMBER_CANDLE_DIGITS.map((digit) => (
+                              <SelectItem key={digit} value={digit}>{digit}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleCandleQuantityChange(NUMBER_CANDLE_ID, -1)}
+                            disabled={getCandleUnitQuantity(NUMBER_CANDLE_ID) === 0}
+                            className={cn(
+                              "w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
+                              getCandleUnitQuantity(NUMBER_CANDLE_ID) === 0
+                                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}
+                          >−</button>
+                          <span className="w-5 text-center font-medium text-foreground text-sm">{getCandleUnitQuantity(NUMBER_CANDLE_ID)}</span>
+                          <button
+                            onClick={() => handleCandleQuantityChange(NUMBER_CANDLE_ID, 1)}
+                            className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                          >+</button>
+                        </div>
+                        {getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 && (
+                          <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {getCandleTotalPrice(NUMBER_CANDLE_ID)}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 

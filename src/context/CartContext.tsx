@@ -4,6 +4,7 @@ export interface CandleCartItem {
   id: string;
   quantity: number;
   hasPack: boolean;
+  digit?: string;
 }
 
 export interface CartItem {

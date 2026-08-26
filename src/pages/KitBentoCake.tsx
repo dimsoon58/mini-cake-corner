@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -194,6 +195,13 @@ export const candles = [
   { id: "yellow-car", name: "Yellow Car", nameFr: "Voiture Jaune", image: candleYellowCar, unitPrice: 2, hasPack: false },
 ];
 
+// Shared with Catalog.tsx, DotCakes.tsx, and Candles.tsx — single source of
+// truth for the Number Candle's id/price/digit list, instead of a copy in
+// every file that offers it.
+export const NUMBER_CANDLE_ID = "number-candle";
+export const NUMBER_CANDLE_PRICE = 5;
+export const NUMBER_CANDLE_DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
 const tooltipTexts: Record<string, string> = {
   date: "Date required to schedule the preparation of your order (minimum 4 days in advance).",
   shape: "Choose the shape of your cake.",
@@ -221,6 +229,7 @@ const KitBentoCake = () => {
   const [selectedPipingOption, setSelectedPipingOption] = useState("");
   const [pipingColors, setPipingColors] = useState<string[]>([]);
   const [candleSelections, setCandleSelections] = useState<{ [key: string]: number }>({});
+  const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
@@ -301,6 +310,7 @@ const KitBentoCake = () => {
   const getPipingPrice = () => pipingBagOptions.find(p => p.id === selectedPipingOption)?.price || 0;
 
   const getCandlePrice = (candleId: string, qty: number) => {
+    if (candleId === NUMBER_CANDLE_ID) return qty * NUMBER_CANDLE_PRICE;
     const candle = candles.find(c => c.id === candleId);
     if (!candle || qty === 0) return 0;
     if (candle.hasPack && candle.packPrice && candle.packSize) {
@@ -359,7 +369,12 @@ const KitBentoCake = () => {
     const pipingColorNames = pipingColors.map(id => baseColors.find(c => c.id === id)?.name || "").join(", ");
     const selectedCandles = Object.entries(candleSelections)
       .filter(([, qty]) => qty > 0)
-      .map(([id, quantity]) => ({ id, quantity, hasPack: false }));
+      .map(([id, quantity]) => ({
+        id,
+        quantity,
+        hasPack: false,
+        ...(id === NUMBER_CANDLE_ID ? { digit: numberCandleDigit } : {}),
+      }));
 
     const cartItem = {
       id: "",
@@ -696,6 +711,41 @@ const KitBentoCake = () => {
                       </div>
                     );
                   })}
+
+                  {/* Number Candle — digit picker, no product photo, flat rate */}
+                  <div className="flex flex-col items-center w-40 sm:w-48">
+                    <div className="h-56 w-56 mb-2 flex items-center justify-center bg-secondary/20">
+                      <span className="text-6xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
+                    </div>
+                    <Card className={cn("w-full transition-all", (candleSelections[NUMBER_CANDLE_ID] || 0) > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                      <CardContent className="p-2 text-center">
+                        <h3 className="font-medium text-foreground text-xs mb-0.5">{t("Number Candle", "Bougie chiffre")}</h3>
+                        <p className="text-[10px] text-muted-foreground mb-1.5">CHF {NUMBER_CANDLE_PRICE} / pièce</p>
+                        <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
+                          <SelectTrigger className="h-7 text-xs mb-1.5" aria-label={t("Choose a digit", "Choisir un chiffre")}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {NUMBER_CANDLE_DIGITS.map((digit) => (
+                              <SelectItem key={digit} value={digit}>{digit}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex items-center justify-center gap-1.5 mb-1">
+                          <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, -1)} disabled={(candleSelections[NUMBER_CANDLE_ID] || 0) === 0}
+                            className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
+                              (candleSelections[NUMBER_CANDLE_ID] || 0) === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}>−</button>
+                          <span className="w-5 text-center font-medium text-foreground text-sm">{candleSelections[NUMBER_CANDLE_ID] || 0}</span>
+                          <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, 1)}
+                            className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
+                        </div>
+                        {(candleSelections[NUMBER_CANDLE_ID] || 0) > 0 && (
+                          <p className="text-[10px] text-primary font-medium">CHF {getCandlePrice(NUMBER_CANDLE_ID, candleSelections[NUMBER_CANDLE_ID])}</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               </div>
 

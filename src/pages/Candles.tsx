@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
-import { candles } from "@/pages/KitBentoCake";
+import { candles, NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS } from "@/pages/KitBentoCake";
 import { getCandleTotalPrice } from "@/data/customization";
 import { useLang } from "@/context/LanguageContext";
 
@@ -19,10 +19,9 @@ import { useLang } from "@/context/LanguageContext";
 // candleProductName ("Number Candle – 7") for every existing display
 // consumer (Cart.tsx, order_items.candle_name, admin view, confirmation
 // email) — see the audit note on candleProductVariant in CartContext.tsx.
-//
-const NUMBER_CANDLE_PRICE = 5; // Confirmé
-const NUMBER_CANDLE_ID = "number-candle";
-const NUMBER_CANDLE_DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+// ID/price/digit-list are shared with Catalog.tsx, DotCakes.tsx and
+// KitBentoCake.tsx, which also offer Number Candle as an embedded extra —
+// imported from KitBentoCake.tsx instead of redeclared here.
 
 // Colour choices for the 4 spiral families that can be bought loose, by the
 // piece — keyed by the matching candle.id in the `candles` array. A family
