@@ -1237,18 +1237,21 @@ const Checkout = () => {
                 </Label>
               </div>
 
-              {/* Newsletter Checkbox - Optional */}
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="newsletter"
-                  checked={subscribeNewsletter}
-                  onCheckedChange={(checked) => setSubscribeNewsletter(checked === true)}
-                  className="mt-0.5"
-                />
-                <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
-                  {t("Unlock exclusive updates & offers ✨", "Recevez nos actualités et offres exclusives ✨")}
-                </Label>
-              </div>
+              {/* Newsletter Checkbox - Optional. Hidden for a logged-in
+                  customer already subscribed — nothing left to offer them. */}
+              {!(isLoggedIn && profile?.newsletter_subscription) && (
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="newsletter"
+                    checked={subscribeNewsletter}
+                    onCheckedChange={(checked) => setSubscribeNewsletter(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
+                    {t("Unlock exclusive updates & offers ✨", "Recevez nos actualités et offres exclusives ✨")}
+                  </Label>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}
