@@ -124,7 +124,14 @@ export const ColorFamilyCandleCard = ({
 
   return (
     <Card className={cn("overflow-hidden", existing && "ring-2 ring-primary")}>
-      <div className={cn("aspect-square flex items-center justify-center bg-secondary/20", compact ? "p-2" : "p-4")}>
+      {/* aspect-square ties this box's height to the CARD's width — on a
+          narrow flex column that's fine, but if the card is ever forced
+          wider than intended (e.g. by content overflow below), the square
+          balloons into a huge blank area above the photo. compact mode
+          drops aspect-square entirely so the box is only ever as tall as
+          the photo itself, regardless of the card's width. Non-compact
+          (Candles.tsx) keeps the original square behaviour unchanged. */}
+      <div className={cn("flex items-center justify-center bg-secondary/20", compact ? "p-2" : "aspect-square p-4")}>
         <img src={candle.image} alt={t(candle.name, candle.nameFr || candle.name)} className={cn(imageClassName, "object-contain")} />
       </div>
       <CardContent className={cn("text-center", compact ? "p-2 space-y-1.5" : "p-4 space-y-3")}>
@@ -143,7 +150,7 @@ export const ColorFamilyCandleCard = ({
           </p>
         )}
 
-        <RadioGroup value={mode} onValueChange={(v) => setMode(v as "pack" | "piece")} className={cn("flex justify-center", compact ? "gap-3" : "gap-4")}>
+        <RadioGroup value={mode} onValueChange={(v) => setMode(v as "pack" | "piece")} className={cn("flex flex-wrap justify-center", compact ? "gap-2" : "gap-4")}>
           <div className="flex items-center space-x-1.5">
             <RadioGroupItem value="pack" id={`${candle.id}-mode-pack`} />
             <Label htmlFor={`${candle.id}-mode-pack`} className={cn("cursor-pointer", compact ? "text-[11px]" : "text-xs")}>{t("Pack (assorted)", "Pack (assorti)")}</Label>
@@ -172,7 +179,7 @@ export const ColorFamilyCandleCard = ({
                   packCount <= 1 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                 )}
               >−</button>
-              <span className={cn("flex-1 text-center font-medium text-foreground", compact ? "text-xs" : "text-sm")}>
+              <span className={cn("flex-1 min-w-0 text-center font-medium text-foreground", compact ? "text-xs" : "text-sm")}>
                 {packCount} {t("pack(s)", "pack(s)")} ({packCount * packSize} {t("pcs", "pièces")})
               </span>
               <button

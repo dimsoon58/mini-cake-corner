@@ -1023,16 +1023,17 @@ const CartItemEditor = ({
             const family = FAMILY_CANDLE_COLORS[candle.id];
             if (family) {
               return (
-                <ColorFamilyCandleCard
-                  key={candle.id}
-                  candle={candle}
-                  colors={family}
-                  existing={(item.candles || []).find((c: CandleSelection) => c.id === candle.id)}
-                  onCommit={onCandleSelectionCommit}
-                  onRemove={() => onCandleSelectionRemove(candle.id)}
-                  imageClassName="h-16 w-16"
-                  compact
-                />
+                <div key={candle.id} className="min-w-0">
+                  <ColorFamilyCandleCard
+                    candle={candle}
+                    colors={family}
+                    existing={(item.candles || []).find((c: CandleSelection) => c.id === candle.id)}
+                    onCommit={onCandleSelectionCommit}
+                    onRemove={() => onCandleSelectionRemove(candle.id)}
+                    imageClassName="h-14 w-14"
+                    compact
+                  />
+                </div>
               );
             }
 

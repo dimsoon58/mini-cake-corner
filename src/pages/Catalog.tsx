@@ -2366,14 +2366,14 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       const family = FAMILY_CANDLE_COLORS[candle.id];
                       if (family) {
                         return (
-                          <div key={candle.id} className="w-[calc(50%-6px)]">
+                          <div key={candle.id} className="w-[calc(50%-6px)] min-w-0">
                             <ColorFamilyCandleCard
                               candle={candle}
                               colors={family}
                               existing={selections.candles.find((c) => c.id === candle.id)}
                               onCommit={(entry) => setSelections((prev) => ({ ...prev, candles: upsertCandleSelection(prev.candles, entry) }))}
                               onRemove={() => setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, candle.id) }))}
-                              imageClassName="h-28 w-28"
+                              imageClassName="h-24 w-24"
                               compact
                             />
                           </div>
@@ -2385,11 +2385,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       const isPackApplied = candle.hasPack && unitQty >= (candle.packSize || 6);
 
                       return (
-                        <div key={candle.id} className="flex flex-col items-center w-[calc(50%-6px)]">
+                        <div key={candle.id} className="flex flex-col items-center w-[calc(50%-6px)] min-w-0">
                           <img
                             src={candle.image}
                             alt={candle.name}
-                            className="h-28 w-28 object-contain mb-1"
+                            className="h-32 w-32 object-contain mb-1"
                           />
                           <div className={cn(
                             "w-full rounded-lg p-2 text-center transition-all",
@@ -2430,8 +2430,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     })}
 
                     {/* Number Candle — digit picker, no product photo, flat rate */}
-                    <div className="flex flex-col items-center w-[calc(50%-6px)]">
-                      <div className="h-28 w-28 mb-1 flex items-center justify-center bg-secondary/20">
+                    <div className="flex flex-col items-center w-[calc(50%-6px)] min-w-0">
+                      <div className="h-32 w-32 mb-1 flex items-center justify-center bg-secondary/20">
                         <span className="text-4xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
                       </div>
                       <div className={cn(
