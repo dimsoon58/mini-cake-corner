@@ -995,7 +995,7 @@ const BentoGallery = () => {
 };
 
 const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }: CatalogProps) => {
-  const { addItem } = useCart();
+  const { addItem, cartOrderDate } = useCart();
   const { toast } = useToast();
   const { t } = useLang();
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
@@ -1007,7 +1007,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [selections, setSelections] = useState<CakeSelections>({
-    orderDate: null,
+    orderDate: cartOrderDate ? new Date(cartOrderDate) : null,
     orderTime: "",
     size: "bento",
     shape: "round",
@@ -1049,7 +1049,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     const availableSizeIds = Object.keys(cake.stylePrice);
     const defaultSize = availableSizeIds.includes("bento") ? "bento" : availableSizeIds[0] || "bento";
     setSelections({
-      orderDate: null,
+      orderDate: cartOrderDate ? new Date(cartOrderDate) : null,
       orderTime: "",
       size: defaultSize,
       shape: "round",
@@ -1373,7 +1373,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     const selectedRibbonColor = ribbonColors.find(c => c.id === selections.ribbonColor);
     const selectedButterflyColor = butterflyColors.find(c => c.id === selections.butterflyColor);
 
-    addItem({
+    const added = addItem({
       id: "",
       product: selections.size === "rectangle" ? "rectangle_cake" : "bento_cake",
       orderDate: selections.orderDate ? format(selections.orderDate, "yyyy-MM-dd") : "",
@@ -1410,6 +1410,17 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       imageFiles: [...selections.commentImages],
       total: calculatePrice(),
     });
+    if (!added) {
+      toast({
+        title: t("Date mismatch", "Date incompatible"),
+        description: t(
+          "This item's date doesn't match the rest of your cart. Please place a separate order.",
+          "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
     setSheetOpen(false);
     if (embedded) onEmbeddedClose?.();
     // Let the dialog finish its close animation before unmounting its content —
@@ -1511,9 +1522,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
+                      disabled={!!cartOrderDate}
                       className={cn(
                         "w-full justify-start text-left font-normal",
-                        !selections.orderDate && "text-muted-foreground"
+                        !selections.orderDate && "text-muted-foreground",
+                        cartOrderDate && "opacity-60 cursor-not-allowed"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
@@ -1542,6 +1555,14 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     />
                   </PopoverContent>
                 </Popover>
+                {cartOrderDate && (
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      `All items in this order will be prepared for ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. To order for another date, please place a separate order.`,
+                      `Tous les articles de cette commande seront préparés pour le ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. Pour commander pour une autre date, veuillez passer une commande séparée.`
+                    )}
+                  </p>
+                )}
               </div>
 
               {/* Size Selection with box images */}

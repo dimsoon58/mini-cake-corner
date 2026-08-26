@@ -85,11 +85,12 @@ export const VALID_PRODUCTS = new Set([
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: CartItem) => void;
+  addItem: (item: CartItem) => boolean;
   updateItem: (id: string, updates: Partial<CartItem>) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   itemCount: number;
+  cartOrderDate: string | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -116,9 +117,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(serializable));
   }, [items]);
 
-  const addItem = (item: CartItem) => {
+  const addItem = (item: CartItem): boolean => {
+    if (item.orderDate) {
+      const existingDate = items.find((i) => i.orderDate)?.orderDate;
+      if (existingDate && existingDate !== item.orderDate) {
+        return false;
+      }
+    }
     const newItem = { ...item, id: Date.now().toString() };
     setItems((prev) => [...prev, newItem]);
+    return true;
   };
 
   const updateItem = (id: string, updates: Partial<CartItem>) => {
@@ -135,6 +143,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems([]);
   };
 
+  const cartOrderDate = items.find((i) => i.orderDate)?.orderDate || null;
+
   return (
     <CartContext.Provider
       value={{
@@ -144,6 +154,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         removeItem,
         clearCart,
         itemCount: items.length,
+        cartOrderDate,
       }}
     >
       {children}

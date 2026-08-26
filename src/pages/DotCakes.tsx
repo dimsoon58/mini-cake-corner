@@ -113,9 +113,9 @@ const SectionHeading = ({ children }: { children: React.ReactNode }) => (
 
 const DotCakes = () => {
   const navigate = useNavigate();
-  const { addItem } = useCart();
+  const { addItem, cartOrderDate } = useCart();
   const { t } = useLang();
-  const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
+  const [orderDate, setOrderDate] = useState<Date | undefined>(() => (cartOrderDate ? new Date(cartOrderDate) : undefined));
   const [packSize, setPackSize] = useState<number | null>(null);
   const [selectedFlavours, setSelectedFlavours] = useState<string[]>([]);
   const [candleSelections, setCandleSelections] = useState<Record<string, number>>({});
@@ -212,7 +212,7 @@ const DotCakes = () => {
       .filter(([, qty]) => qty > 0)
       .map(([id, quantity]) => ({ id, quantity, hasPack: false }));
 
-    addItem({
+    const added = addItem({
       id: "",
       product: "dot_cakes",
       orderDate: format(orderDate, "yyyy-MM-dd"),
@@ -248,6 +248,10 @@ const DotCakes = () => {
       imageFiles: [],
       total,
     });
+    if (!added) {
+      toast.error(t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."));
+      return;
+    }
     toast.success(t("Dot cakes added to your cart!", "Dot cakes ajoutés à votre panier !"));
     navigate("/cart");
   };
@@ -279,9 +283,11 @@ const DotCakes = () => {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
+                    disabled={!!cartOrderDate}
                     className={cn(
                       "w-full max-w-[320px] justify-start text-left font-normal rounded-none px-3 text-sm",
-                      !orderDate && "text-muted-foreground"
+                      !orderDate && "text-muted-foreground",
+                      cartOrderDate && "opacity-60 cursor-not-allowed"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
@@ -301,6 +307,14 @@ const DotCakes = () => {
                 </PopoverContent>
               </Popover>
             </div>
+            {cartOrderDate && (
+              <p className="text-center text-xs text-muted-foreground">
+                {t(
+                  `All items in this order will be prepared for ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. To order for another date, please place a separate order.`,
+                  `Tous les articles de cette commande seront préparés pour le ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. Pour commander pour une autre date, veuillez passer une commande séparée.`
+                )}
+              </p>
+            )}
           </section>
 
           {/* 2. Choose quantity, appears once a date is selected */}

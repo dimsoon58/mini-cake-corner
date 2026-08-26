@@ -171,10 +171,10 @@ const tooltipTextsFr: Record<string, string> = {
 
 const KitBentoCake = () => {
   const { t } = useLang();
-  const { addItem } = useCart();
+  const { addItem, cartOrderDate } = useCart();
   const navigate = useNavigate();
 
-  const [orderDate, setOrderDate] = useState<Date | undefined>();
+  const [orderDate, setOrderDate] = useState<Date | undefined>(() => (cartOrderDate ? new Date(cartOrderDate) : undefined));
   const [selectedShape, setSelectedShape] = useState("");
   const [selectedFlavor, setSelectedFlavor] = useState("");
   const [selectedPipingOption, setSelectedPipingOption] = useState("");
@@ -344,7 +344,11 @@ const KitBentoCake = () => {
       total: totalPrice,
     };
 
-    addItem(cartItem);
+    const added = addItem(cartItem);
+    if (!added) {
+      toast.error(t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."));
+      return;
+    }
     setShowCartSheet(true);
   };
 
@@ -394,9 +398,11 @@ const KitBentoCake = () => {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
+                    disabled={!!cartOrderDate}
                     className={cn(
                       "w-full max-w-[320px] justify-start text-left font-normal rounded-none px-3 text-sm",
-                      !orderDate && "text-muted-foreground"
+                      !orderDate && "text-muted-foreground",
+                      cartOrderDate && "opacity-60 cursor-not-allowed"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
@@ -417,6 +423,14 @@ const KitBentoCake = () => {
                 </PopoverContent>
               </Popover>
             </div>
+            {cartOrderDate && (
+              <p className="text-center text-xs text-muted-foreground">
+                {t(
+                  `All items in this order will be prepared for ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. To order for another date, please place a separate order.`,
+                  `Tous les articles de cette commande seront préparés pour le ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. Pour commander pour une autre date, veuillez passer une commande séparée.`
+                )}
+              </p>
+            )}
           </section>
 
           {/* Step 2: Shape */}

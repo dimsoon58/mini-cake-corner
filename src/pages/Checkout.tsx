@@ -461,6 +461,20 @@ const Checkout = () => {
       return;
     }
 
+    const datedItems = items.filter((i) => i.orderDate);
+    const mismatchedDates = datedItems.some((i) => i.orderDate !== datedItems[0]?.orderDate);
+    if (mismatchedDates) {
+      toast({
+        title: t("Order dates do not match", "Les dates de commande ne correspondent pas"),
+        description: t(
+          "Please make sure every item in your cart has the same pickup date, or place separate orders.",
+          "Merci de vérifier que tous les articles de votre panier ont la même date de retrait, ou de passer des commandes séparées."
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (deliveryOption === "delivery" && !deliveryAddress.trim()) {
       toast({
         title: t("Please enter your delivery address", "Veuillez saisir votre adresse de livraison"),

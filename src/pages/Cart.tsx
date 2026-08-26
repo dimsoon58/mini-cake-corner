@@ -1,23 +1,19 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 // @ts-ignore
 import "@fontsource/dancing-script";
 import { Link } from "react-router-dom";
 import ExtraImageLightbox from "@/components/ExtraImageLightbox";
-import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCart, CandleCartItem } from "@/context/CartContext";
-import { ShoppingBag, Trash2, ArrowLeft, Pencil, CalendarIcon, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
+import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
-import { supabase } from "@/integrations/supabase/client";
 import {
   sizes,
   shapes,
@@ -93,20 +89,9 @@ const formatDateFromIso = (dateValue: string) => {
 };
 
 const Cart = () => {
-  const { items, removeItem, updateItem, clearCart, itemCount } = useCart();
+  const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate } = useCart();
   const { t } = useLang();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
-
-  useEffect(() => {
-    const fetchBookedDates = async () => {
-      const { data, error } = await supabase.rpc('get_fully_booked_dates');
-      if (!error && data) {
-        setFullyBookedDates(data.map((d: { booked_date: string }) => new Date(d.booked_date)));
-      }
-    };
-    fetchBookedDates();
-  }, []);
 
   const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
 
@@ -356,6 +341,15 @@ const Cart = () => {
                 <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive">{t("Clear All", "Tout supprimer")}</Button>
               </div>
 
+              {cartOrderDate && (
+                <div className="mb-4 rounded-md bg-muted/30 p-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
+                  <span>📅 {t("This order will be prepared for", "Cette commande sera préparée pour le")} {formatDateFromIso(cartOrderDate)}</span>
+                  <Button variant="link" size="sm" onClick={clearCart} className="text-destructive h-auto p-0">
+                    {t("Order for a different date", "Commander pour une autre date")}
+                  </Button>
+                </div>
+              )}
+
               {items.map((item) => {
                 const isEditing = editingItemId === item.id;
                 if (item.isCandleProduct) {
@@ -423,8 +417,6 @@ const Cart = () => {
                       {isEditing ? (
                         <CartItemEditor
                           item={item}
-                          fullyBookedDates={fullyBookedDates}
-                          onDateChange={(date) => updateItem(item.id, { orderDate: format(date, "yyyy-MM-dd") })}
                           onSizeChange={(v) => handleSizeChange(item.id, v)}
                           onFlavorChange={(v) => handleFlavorChange(item.id, v)}
                           onStyleChange={(v) => handleStyleChange(item.id, v)}
@@ -590,8 +582,6 @@ const CartItemSummary = ({ item }: { item: any }) => {
 /* ---------- Editor ---------- */
 interface CartItemEditorProps {
   item: any;
-  fullyBookedDates: Date[];
-  onDateChange: (date: Date) => void;
   onSizeChange: (v: string) => void;
   onFlavorChange: (v: string) => void;
   onStyleChange: (v: string) => void;
@@ -613,8 +603,8 @@ interface CartItemEditorProps {
 }
 
 const CartItemEditor = ({
-  item, fullyBookedDates,
-  onDateChange, onSizeChange, onFlavorChange, onStyleChange,
+  item,
+  onSizeChange, onFlavorChange, onStyleChange,
   onBaseColorChange, onDecoColorChange, onTextChange, onTextColorChange, onTextStyleChange,
   onToggleExtra, onRibbonColorChange, onButterflyColorChange,
   onGlitterColorChange, onGlitterCherriesColorChange,
@@ -658,32 +648,9 @@ const CartItemEditor = ({
   return (
     <TooltipProvider delayDuration={200}>
     <div className="space-y-6">
-      {/* Date */}
-      <EditSection label={t("Pickup Date", "Date de retrait")} tooltip={t("Order preparation date (minimum 4 days in advance)", "Date de préparation de la commande (minimum 4 jours à l'avance)")} required>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !item.orderDate && "text-muted-foreground")}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {item.orderDate ? formatDateFromIso(item.orderDate) : <span>{t("Pick a date", "Choisir une date")}</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={item.orderDate ? new Date(item.orderDate) : undefined}
-              onSelect={(date) => { if (date) onDateChange(date); }}
-              disabled={(date) => {
-                const minDate = addDays(new Date(), 4);
-                minDate.setHours(0, 0, 0, 0);
-                if (date < minDate) return true;
-                return fullyBookedDates.some(b => b.toDateString() === date.toDateString());
-              }}
-              initialFocus
-              className="p-3 pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
-      </EditSection>
+      {item.orderDate && (
+        <p className="text-sm text-muted-foreground">📅 {formatDateFromIso(item.orderDate)}</p>
+      )}
 
       {/* Size with box images */}
       <EditSection label={t("Size", "Taille")} tooltip={t(`Choose the size of your cake. ${sizeInfoSummary.en}`, `Choisissez la taille de votre gâteau. ${sizeInfoSummary.fr}`)} required>
