@@ -1044,11 +1044,11 @@ const CartItemEditor = ({
               <div
                 key={candle.id}
                 className={cn(
-                  "flex flex-col items-center p-2 rounded-lg border transition-all",
+                  "flex flex-col items-center p-2 rounded-lg border transition-all min-w-0",
                   qty > 0 ? "ring-2 ring-primary border-primary bg-secondary" : "border-border"
                 )}
               >
-                <img src={candle.image} alt={candle.name} className="h-16 w-16 object-contain mb-1" />
+                <img src={candle.image} alt={candle.name} className="h-20 w-20 object-contain mb-1" />
                 <span className="text-xs font-medium text-foreground text-center">{candle.name}</span>
                 <span className="text-xs text-muted-foreground">CHF {candle.unitPrice}{t("/ea", "/pièce")}</span>
                 {candle.hasPack && (
@@ -1083,11 +1083,11 @@ const CartItemEditor = ({
             return (
               <div
                 className={cn(
-                  "flex flex-col items-center p-2 rounded-lg border transition-all",
+                  "flex flex-col items-center p-2 rounded-lg border transition-all min-w-0",
                   qty > 0 ? "ring-2 ring-primary border-primary bg-secondary" : "border-border"
                 )}
               >
-                <div className="h-16 w-16 mb-1 flex items-center justify-center bg-secondary/20">
+                <div className="h-20 w-20 mb-1 flex items-center justify-center bg-secondary/20">
                   <span className="text-2xl font-bold text-primary" aria-hidden="true">{digit}</span>
                 </div>
                 <span className="text-xs font-medium text-foreground text-center">{t("Number Candle", "Bougie chiffre")}</span>

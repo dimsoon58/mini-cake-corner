@@ -404,7 +404,7 @@ const DotCakes = () => {
                     const family = FAMILY_CANDLE_COLORS[candle.id];
                     if (family) {
                       return (
-                        <div key={candle.id} className="w-40 sm:w-48">
+                        <div key={candle.id} className="w-40 sm:w-48 min-w-0">
                           <ColorFamilyCandleCard
                             candle={candle}
                             colors={family}
@@ -422,7 +422,7 @@ const DotCakes = () => {
                     const price = getCandlePrice(candle.id);
                     const hasPackApplied = candle.packSize && qty >= candle.packSize;
                     return (
-                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
+                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48 min-w-0">
                         <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-56 w-56 object-contain mb-2" />
                         <Card className={cn("w-full transition-all", qty > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
                           <CardContent className="p-2 text-center">
@@ -467,7 +467,7 @@ const DotCakes = () => {
                   })}
 
                   {/* Number Candle — digit picker, no product photo, flat rate */}
-                  <div className="flex flex-col items-center w-40 sm:w-48">
+                  <div className="flex flex-col items-center w-40 sm:w-48 min-w-0">
                     <div className="h-56 w-56 mb-2 flex items-center justify-center bg-secondary/20">
                       <span className="text-6xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
                     </div>
