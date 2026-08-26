@@ -221,19 +221,19 @@ const candles = [
 ];
 
 const catalogExtras = [
-  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 3, retro: 4, medium: 5, large: 8 }, image: extraGoldLeaves },
-  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 }, image: extraCherries },
-  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 }, image: extraGlitterCherries },
-  { id: "scattered-pearl", name: "Scattered Pearls", price: { bento: 2, retro: 4, medium: 6, large: 8 }, image: designScatteredPearls },
-  { id: "glitter", name: "Glitter", price: { bento: 5, retro: 5, medium: 10, large: 12 }, image: extraGlitter },
-  { id: "glitter-base", name: "Glitter Base", price: { bento: 8, retro: 8, medium: 10, large: 12 }, image: designGlitterCake },
+  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 3, retro: 4, medium: 5, large: 8, rectangle: 12 }, image: extraGoldLeaves },
+  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12, rectangle: 20 }, image: extraCherries },
+  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15, rectangle: 25 }, image: extraGlitterCherries },
+  { id: "scattered-pearl", name: "Scattered Pearls", price: { bento: 2, retro: 4, medium: 6, large: 8, rectangle: 15 }, image: designScatteredPearls },
+  { id: "glitter", name: "Glitter", price: { bento: 5, retro: 5, medium: 10, large: 12, rectangle: 25 }, image: extraGlitter },
+  { id: "glitter-base", name: "Glitter Base", price: { bento: 8, retro: 8, medium: 10, large: 12, rectangle: 25 }, image: designGlitterCake },
   { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 10, medium: 15, large: 20 }, image: designGlitterInAir },
-  { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 10, medium: 17, large: 25 }, image: designPearlBorders },
-  { id: "retro", name: "Retro", price: { retro: 6, medium: 10, large: 15 }, image: extraRetro },
-  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10 }, image: extraRibbons },
-  { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6 }, image: designPearlNumber },
-  { id: "butterfly", name: "Butterfly", price: { retro: 6, medium: 8, large: 10 }, image: extraButterfly },
-  { id: "sprinkles", name: "Sprinkles", price: { bento: 3, retro: 4, medium: 5, large: 6 }, image: extraSprinkles },
+  { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 10, medium: 17, large: 25, rectangle: 60 }, image: designPearlBorders },
+  { id: "retro", name: "Retro", price: { retro: 6, medium: 10, large: 15, rectangle: 30 }, image: extraRetro },
+  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10, rectangle: 20 }, image: extraRibbons },
+  { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6, rectangle: 10 }, image: designPearlNumber },
+  { id: "butterfly", name: "Butterfly", price: { retro: 6, medium: 8, large: 10, rectangle: 20 }, image: extraButterfly },
+  { id: "sprinkles", name: "Sprinkles", price: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 }, image: extraSprinkles },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 }, image: extraPrintedPicture },
 ];
 
@@ -284,7 +284,7 @@ const catalog = [
     image: styleNormalWithoutBorder,
     styleId: "normal-without-border",
     styleName: "Normal without border",
-    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 },
     disableText: false,
   },
   {
@@ -294,7 +294,7 @@ const catalog = [
     image: styleNormalWithBorder,
     styleId: "normal-with-border",
     styleName: "Normal with border",
-    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 },
     disableText: false,
   },
   {
@@ -305,7 +305,7 @@ const catalog = [
     image: designHeartBomb,
     styleId: "heart-bomb",
     styleName: "Heart Bomb",
-    stylePrice: { bento: 3, retro: 5, medium: 10, large: 15 },
+    stylePrice: { bento: 3, retro: 5, medium: 10, large: 15, rectangle: 20 },
     disableText: false,
   },
   {
@@ -316,7 +316,7 @@ const catalog = [
     images: [designRetroCake, retroCake1, retroCake2, retroCake3],
     styleId: "retro-vintage",
     styleName: "Retro / Vintage",
-    stylePrice: { retro: 6, medium: 10, large: 15 },
+    stylePrice: { retro: 6, medium: 10, large: 15, rectangle: 30 },
     disableText: false,
   },
   {
@@ -326,7 +326,7 @@ const catalog = [
     image: designGlitterCherries,
     styleId: "glitter-cherries-retro",
     styleName: "Glitter Cherries on a Retro Cake",
-    stylePrice: { retro: 13, medium: 20, large: 30 },
+    stylePrice: { retro: 13, medium: 20, large: 30, rectangle: 55 },
     disableText: false,
   },
   {
@@ -337,7 +337,7 @@ const catalog = [
     image: designPearlBorders,
     styleId: "pearl-border-retro",
     styleName: "Pearl Border × Retro Decoration",
-    stylePrice: { retro: 40, medium: 67, large: 98 },
+    stylePrice: { retro: 40, medium: 67, large: 98, rectangle: 225 },
     disableText: false,
   },
   {
@@ -348,7 +348,7 @@ const catalog = [
     images: [retroRibbons2, retroRibbons1],
     styleId: "retro-ribbons",
     styleName: "Retro × Ribbons",
-    stylePrice: { retro: 11, medium: 18, large: 25 },
+    stylePrice: { retro: 11, medium: 18, large: 25, rectangle: 50 },
     disableText: false,
   },
   {
@@ -359,7 +359,7 @@ const catalog = [
     images: [designRosesPlease, designRosesPlease2],
     styleId: "roses-please",
     styleName: "Roses Please",
-    stylePrice: { bento: 6, retro: 8, medium: 15, large: 20 },
+    stylePrice: { bento: 6, retro: 8, medium: 15, large: 20, rectangle: 40 },
     disableText: false,
   },
   {
@@ -369,7 +369,7 @@ const catalog = [
     image: designRetroGlitter,
     styleId: "retro-glitter-cake",
     styleName: "Retro Glitter Cake",
-    stylePrice: { retro: 11, medium: 20, large: 27 },
+    stylePrice: { retro: 11, medium: 20, large: 27, rectangle: 55 },
     disableText: false,
   },
   {
@@ -391,7 +391,7 @@ const catalog = [
     images: [designShagCake, shagCake1, shagCake2, shagCake3],
     styleId: "shag-cake",
     styleName: "Shag Cake",
-    stylePrice: { retro: 12, medium: 20, large: 30 },
+    stylePrice: { retro: 12, medium: 20, large: 30, rectangle: 50 },
     disableText: false,
   },
   {
@@ -401,7 +401,7 @@ const catalog = [
     image: designRainbowCake,
     styleId: "rainbow-cake",
     styleName: "Rainbow Cake",
-    stylePrice: { retro: 15, medium: 20, large: 30 },
+    stylePrice: { retro: 15, medium: 20, large: 30, rectangle: 50 },
     disableText: false,
   },
   {
@@ -423,7 +423,7 @@ const catalog = [
     imagePosition: "object-[center_70%]",
     styleId: "cherries-retro",
     styleName: "Cherries on a Retro Cake",
-    stylePrice: { retro: 10, medium: 18, large: 27 },
+    stylePrice: { retro: 10, medium: 18, large: 27, rectangle: 50 },
     disableText: false,
   },
   {
@@ -433,7 +433,7 @@ const catalog = [
     image: designScatteredPearls,
     styleId: "scattered-retro-pearls",
     styleName: "Scattered Retro Pearls",
-    stylePrice: { retro: 10, medium: 16, large: 23 },
+    stylePrice: { retro: 10, medium: 16, large: 23, rectangle: 45 },
     disableText: false,
   },
   {
@@ -443,7 +443,7 @@ const catalog = [
     image: designGoldLeaves,
     styleId: "gold-leaves-style",
     styleName: "Gold Leaves",
-    stylePrice: { bento: 3, retro: 4, medium: 5, large: 8 },
+    stylePrice: { bento: 3, retro: 4, medium: 5, large: 8, rectangle: 12 },
     disableText: false,
   },
   {
@@ -453,7 +453,7 @@ const catalog = [
     image: designGoldenCake,
     styleId: "golden-cake",
     styleName: "Golden Cake",
-    stylePrice: { retro: 15, medium: 25, large: 40 },
+    stylePrice: { retro: 15, medium: 25, large: 40, rectangle: 70 },
     disableText: false,
   },
   {
@@ -463,7 +463,7 @@ const catalog = [
     image: designPearlNumber,
     styleId: "pearl-number",
     styleName: "Pearl Number",
-    stylePrice: { bento: 6, retro: 6, medium: 6, large: 6 },
+    stylePrice: { bento: 6, retro: 6, medium: 6, large: 6, rectangle: 10 },
     disableText: false,
   },
   {
@@ -514,7 +514,7 @@ const catalog = [
     images: [designButterflyGarden, designButterflyGarden2],
     styleId: "butterfly-garden",
     styleName: "Butterfly Garden",
-    stylePrice: { retro: 10, medium: 15, large: 20 },
+    stylePrice: { retro: 10, medium: 15, large: 20, rectangle: 35 },
     disableText: false,
   },
   {
@@ -524,7 +524,7 @@ const catalog = [
     image: designGlitterCake,
     styleId: "glitter-base",
     styleName: "Glitter Base",
-    stylePrice: { bento: 8, retro: 8, medium: 10, large: 12 },
+    stylePrice: { bento: 8, retro: 8, medium: 10, large: 12, rectangle: 25 },
     disableText: false,
   },
   {
@@ -535,7 +535,7 @@ const catalog = [
     images: [designGenderReveal, genderReveal2, genderReveal3],
     styleId: "gender-reveal",
     styleName: "Gender Reveal",
-    stylePrice: { bento: 5, retro: 5, medium: 10, large: 15 },
+    stylePrice: { bento: 5, retro: 5, medium: 10, large: 15, rectangle: 40 },
     disableText: false,
   },
   {
@@ -545,7 +545,7 @@ const catalog = [
     image: designSprinklesWithBorder,
     styleId: "sprinkles-with-border",
     styleName: "Sprinkles with Border",
-    stylePrice: { bento: 3, retro: 4, medium: 5, large: 6 },
+    stylePrice: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 },
     disableText: false,
   },
 ];
@@ -1135,12 +1135,22 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
   const colorCfg = getColorConfig(selectedCake?.styleId);
   const allowedExtras = selectedCake ? designAllowedExtras[selectedCake.styleId] : undefined;
+  // Rectangle further restricts whatever the design already allows below —
+  // on top of, never instead of, the per-design exclusion/allow-list: an
+  // extra with no "rectangle" key in catalogExtras[].price is unavailable
+  // for that size regardless of what the design itself would otherwise permit.
+  const rectangleIncompatibleExtras = selections.size === "rectangle"
+    ? catalogExtras.filter((e) => !("rectangle" in e.price)).map((e) => e.id)
+    : [];
   const excludedExtras = colorCfg.hideExtras || (allowedExtras && allowedExtras.length === 0)
     ? catalogExtras.map((e) => e.id)
     : selectedCake
-      ? getExcludedExtras(selectedCake.styleId).filter(
-          (id) => !allowedExtras || !allowedExtras.includes(id)
-        )
+      ? [
+          ...getExcludedExtras(selectedCake.styleId).filter(
+            (id) => !allowedExtras || !allowedExtras.includes(id)
+          ),
+          ...rectangleIncompatibleExtras,
+        ]
       : [];
   const extrasHiddenForDesign =
     colorCfg.hideExtras || (allowedExtras !== undefined && allowedExtras.length === 0);
