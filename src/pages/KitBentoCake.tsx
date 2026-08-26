@@ -29,6 +29,7 @@ import flavorSaltedCaramel from "@/assets/flavor-salted-caramel-new.png";
 import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
 import flavorTiramisu from "@/assets/flavor-tiramisu-new.png";
 import flavorPraline from "@/assets/flavor-praline.png";
+import flavorPistachio from "@/assets/flavor-pistachio.png";
 import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
 
 // Candle images
@@ -93,6 +94,46 @@ export const flavorCategories = [
       { id: "vanilla-gf", name: "Vanilla Gluten-Free", nameFr: "Vanille Gluten-Free", description: "Fluffy gluten-free vanilla sponge with whipped cream", descriptionFr: "Génoise vanille sans gluten, moelleuse et crème fouettée", image: flavorVanilla },
       { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", nameFr: "Red Velvet Gluten-Free", description: "Fluffy gluten-free vanilla & chocolate sponge with whipped cream", descriptionFr: "Génoise vanille et chocolat sans gluten, moelleuse et crème fouettée", image: flavorRedVelvet },
       { id: "chocolate-gf", name: "Chocolate Gluten-Free", nameFr: "Chocolat Gluten-Free", description: "Fluffy gluten-free chocolate sponge with whipped cream", descriptionFr: "Génoise chocolat sans gluten, moelleuse et crème fouettée", image: flavorChocolate },
+    ],
+  },
+];
+
+// The 3 existing simple GF flavours above stay physically inside "Deluxe
+// Flavors" — this array is imported live by DotCakes.tsx and must not
+// change shape, or DotCakes silently gains/loses flavours. This page's own
+// picker instead visually re-groups them into the "Gluten-Free" section
+// below by filtering them out of the rendered Deluxe cards (see JSX).
+const GLUTEN_FREE_IDS_IN_DELUXE = ["vanilla-gf", "red-velvet-gf", "chocolate-gf"];
+const glutenFreeClassicFlavors = flavorCategories
+  .find((c) => c.name === "Deluxe Flavors")!
+  .flavors.filter((f) => GLUTEN_FREE_IDS_IN_DELUXE.includes(f.id));
+
+// Separate export, NOT merged into `flavorCategories` — DotCakes.tsx imports
+// that array directly with no filtering, so adding categories to it would
+// silently make these new flavours selectable (and free, via its
+// tierByCategory fallback) on Dot Cakes too.
+export const glutenFreeFlavorCategories = [
+  {
+    name: "Gluten-Free Premium",
+    nameFr: "Sans Gluten Premium",
+    extraPrice: 6,
+    flavors: [
+      { id: "chocolate-gf-berrylicious", name: "Chocolate GF × Berrylicious", nameFr: "Chocolat sans gluten x Berrylicious", image: flavorDarkBerrylicious },
+      { id: "vanilla-gf-berrylicious", name: "Vanilla GF × Berrylicious", nameFr: "Vanille sans gluten x Berrylicious", image: flavorWhiteBerrylicious },
+      { id: "lemon-curd-gf", name: "Lemon Curd Gluten-free", nameFr: "Lemon curd sans gluten", image: flavorLemonCurd },
+      { id: "chocolate-lovers-gf", name: "Chocolate Lovers Gluten-free", nameFr: "Amateurs de chocolat sans gluten", image: flavorChocolateLovers },
+    ],
+  },
+  {
+    name: "Gluten-Free Deluxe",
+    nameFr: "Sans Gluten Deluxe",
+    extraPrice: 8,
+    flavors: [
+      { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", nameFr: "Fleur d'oranger sans gluten", image: flavorVanilla },
+      { id: "pistachio-gf", name: "Pistachio Gluten-free", nameFr: "Pistache sans gluten", image: flavorPistachio },
+      { id: "tiramisu-gf", name: "Tiramisu Gluten-free", nameFr: "Tiramisu sans gluten", image: flavorTiramisu },
+      { id: "passion-fruit-gf", name: "Passion Fruit Gluten-free", nameFr: "Fruit de la passion sans gluten", image: flavorPassionFruit },
+      { id: "praline-gf", name: "Praline Gluten-free", nameFr: "Praliné sans gluten", image: flavorPraline },
     ],
   },
 ];
@@ -182,6 +223,7 @@ const KitBentoCake = () => {
   const [candleSelections, setCandleSelections] = useState<{ [key: string]: number }>({});
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [showAllCandles, setShowAllCandles] = useState(false);
+  const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
 
   const minDate = addDays(new Date(), 4);
 
@@ -225,6 +267,9 @@ const KitBentoCake = () => {
     for (const category of flavorCategories) {
       if (category.flavors.some(f => f.id === selectedFlavor)) return category.extraPrice;
     }
+    for (const category of glutenFreeFlavorCategories) {
+      if (category.flavors.some(f => f.id === selectedFlavor)) return category.extraPrice;
+    }
     return 0;
   };
 
@@ -233,11 +278,19 @@ const KitBentoCake = () => {
       const flavor = category.flavors.find(f => f.id === selectedFlavor);
       if (flavor) return flavor.name;
     }
+    for (const category of glutenFreeFlavorCategories) {
+      const flavor = category.flavors.find(f => f.id === selectedFlavor);
+      if (flavor) return flavor.name;
+    }
     return "";
   };
 
   const getFlavorNameFr = () => {
     for (const category of flavorCategories) {
+      const flavor = category.flavors.find(f => f.id === selectedFlavor);
+      if (flavor) return flavor.nameFr;
+    }
+    for (const category of glutenFreeFlavorCategories) {
       const flavor = category.flavors.find(f => f.id === selectedFlavor);
       if (flavor) return flavor.nameFr;
     }
@@ -458,14 +511,18 @@ const KitBentoCake = () => {
               <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em]">
                 {t("Choose Flavour", "Choisir le parfum")}<RequiredAsterisk tooltipKey="flavor" />
               </h2>
-              {flavorCategories.map((category) => (
+              {flavorCategories.map((category) => {
+                const visibleFlavors = category.name === "Deluxe Flavors"
+                  ? category.flavors.filter((f) => !GLUTEN_FREE_IDS_IN_DELUXE.includes(f.id))
+                  : category.flavors;
+                return (
                 <div key={category.name} className="space-y-3">
                   <h3 className="text-lg font-medium">
                     {t(category.name.replace("Flavors", "Flavours"), category.nameFr)}
                     {category.extraPrice > 0 && <span className="text-muted-foreground ml-2">(+CHF {category.extraPrice})</span>}
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {category.flavors.map((flavor) => (
+                    {visibleFlavors.map((flavor) => (
                       <div
                         key={flavor.id}
                         className={cn(
@@ -485,7 +542,54 @@ const KitBentoCake = () => {
                     ))}
                   </div>
                 </div>
-              ))}
+                );
+              })}
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setShowGlutenFreeFlavors((v) => !v)}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  {showGlutenFreeFlavors
+                    ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
+                    : t("See gluten-free flavours", "Voir les parfums sans gluten")}
+                </button>
+                {showGlutenFreeFlavors && (
+                  <>
+                    {[
+                      { label: t("Gluten-Free Classic", "Sans Gluten Classique"), price: 4, flavors: glutenFreeClassicFlavors },
+                      ...glutenFreeFlavorCategories.map((c) => ({ label: t(c.name.replace(" Flavors", ""), c.nameFr), price: c.extraPrice, flavors: c.flavors })),
+                    ].map((group) => (
+                      <div key={group.label} className="space-y-3">
+                        <h3 className="text-lg font-medium">
+                          {group.label} <span className="text-muted-foreground ml-2">(+CHF {group.price})</span>
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {group.flavors.map((flavor) => (
+                            <div
+                              key={flavor.id}
+                              className={cn(
+                                "bg-card rounded-none overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer",
+                                selectedFlavor === flavor.id && "ring-2 ring-primary"
+                              )}
+                              onClick={() => setSelectedFlavor(flavor.id)}
+                            >
+                              <div className="aspect-square overflow-hidden bg-muted/30 p-4">
+                                <img src={flavor.image} alt={t(flavor.name, flavor.nameFr)} className="w-full h-full object-contain" />
+                              </div>
+                              <div className="p-3 text-center">
+                                <p className="font-sans font-medium text-sm">{t(flavor.name, flavor.nameFr)}</p>
+                                <AllergenDisplay flavorId={flavor.id} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
               <AllergenNotice className="pt-2" />
             </section>
           )}

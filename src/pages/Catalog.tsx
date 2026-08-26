@@ -13,7 +13,7 @@ import {
   DialogTitle as SheetTitle,
   DialogDescription as SheetDescription,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectLabel, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
@@ -197,7 +197,26 @@ const flavors = [
   { id: "vanilla-gf", name: "Vanilla Gluten-Free", image: flavorVanilla, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
   { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", image: flavorRedVelvet, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
   { id: "chocolate-gf", name: "Chocolate Gluten-Free", image: flavorChocolate, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
+  { id: "chocolate-gf-berrylicious", name: "Chocolate GF × Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
+  { id: "vanilla-gf-berrylicious", name: "Vanilla GF × Berrylicious", image: flavorWhiteBerrylicious, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
+  { id: "lemon-curd-gf", name: "Lemon Curd Gluten-free", image: flavorLemonCurd, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
+  { id: "chocolate-lovers-gf", name: "Chocolate Lovers Gluten-free", image: flavorChocolateLovers, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
+  { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", image: flavorVanilla, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
+  { id: "pistachio-gf", name: "Pistachio Gluten-free", image: flavorPistachio, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
+  { id: "tiramisu-gf", name: "Tiramisu Gluten-free", image: flavorTiramisu, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
+  { id: "passion-fruit-gf", name: "Passion Fruit Gluten-free", image: flavorPassionFruit, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
+  { id: "praline-gf", name: "Praline Gluten-free", image: flavorPraline, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
 ];
+
+const CLASSIC_FLAVOR_IDS = ["vanilla", "red-velvet", "chocolate"];
+const GLUTEN_FREE_FLAVOR_IDS = [
+  "vanilla-gf", "red-velvet-gf", "chocolate-gf",
+  "chocolate-gf-berrylicious", "vanilla-gf-berrylicious", "lemon-curd-gf", "chocolate-lovers-gf",
+  "orange-blossom-gf", "pistachio-gf", "tiramisu-gf", "passion-fruit-gf", "praline-gf",
+];
+const classicFlavors = flavors.filter((f) => CLASSIC_FLAVOR_IDS.includes(f.id));
+const glutenFreeFlavors = flavors.filter((f) => GLUTEN_FREE_FLAVOR_IDS.includes(f.id));
+const gourmetFlavors = flavors.filter((f) => !CLASSIC_FLAVOR_IDS.includes(f.id) && !GLUTEN_FREE_FLAVOR_IDS.includes(f.id));
 
 const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
@@ -830,6 +849,15 @@ const flavorNameFr: Record<string, string> = {
   "vanilla-gf": "Vanille sans gluten",
   "red-velvet-gf": "Red Velvet sans gluten",
   "chocolate-gf": "Chocolat sans gluten",
+  "chocolate-gf-berrylicious": "Chocolat sans gluten x Berrylicious",
+  "vanilla-gf-berrylicious": "Vanille sans gluten x Berrylicious",
+  "lemon-curd-gf": "Lemon curd sans gluten",
+  "chocolate-lovers-gf": "Amateurs de chocolat sans gluten",
+  "orange-blossom-gf": "Fleur d'oranger sans gluten",
+  "pistachio-gf": "Pistache sans gluten",
+  "tiramisu-gf": "Tiramisu sans gluten",
+  "passion-fruit-gf": "Fruit de la passion sans gluten",
+  "praline-gf": "Praliné sans gluten",
 };
 const extraNameFr: Record<string, string> = {
   "gold-leaves": "Feuilles d'or",
@@ -1005,6 +1033,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
+  const [showGlutenFree, setShowGlutenFree] = useState(false);
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [selections, setSelections] = useState<CakeSelections>({
     orderDate: cartOrderDate ? new Date(cartOrderDate) : null,
@@ -1652,36 +1681,63 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <TooltipContent><p className="text-xs max-w-[200px]">{t("Please select the flavour of your cake.", "Veuillez sélectionner le parfum de votre gâteau.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
-                <Select
-                  value={selections.flavor}
-                  onValueChange={(value) => setSelections({ ...selections, flavor: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("Select flavour", "Choisir un parfum")} />
-                  </SelectTrigger>
-                  <SelectContent nativeScroll>
-                    {flavors.map((flavor) => {
-                      const extra = flavor.extraPrice[selections.size as keyof typeof flavor.extraPrice] || 0;
-                      const info = allergenMap[flavor.id];
-                      return (
-                        <SelectItem key={flavor.id} value={flavor.id}>
-                          <div className="flex items-start gap-2">
-                            <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
-                            <div>
-                            <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
-                            {info && (
-                              <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                                {info.warn && <span aria-hidden="true">⚠️ </span>}
-                                <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
-                              </div>
-                            )}
+                {(() => {
+                  const renderFlavorOption = (flavor: typeof flavors[number]) => {
+                    const extra = flavor.extraPrice[selections.size as keyof typeof flavor.extraPrice] || 0;
+                    const info = allergenMap[flavor.id];
+                    return (
+                      <SelectItem key={flavor.id} value={flavor.id}>
+                        <div className="flex items-start gap-2">
+                          <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
+                          <div>
+                          <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
+                          {info && (
+                            <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                              {info.warn && <span aria-hidden="true">⚠️ </span>}
+                              <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
                             </div>
+                          )}
                           </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+                        </div>
+                      </SelectItem>
+                    );
+                  };
+                  return (
+                    <Select
+                      value={selections.flavor}
+                      onValueChange={(value) => setSelections({ ...selections, flavor: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("Select flavour", "Choisir un parfum")} />
+                      </SelectTrigger>
+                      <SelectContent nativeScroll>
+                        <SelectGroup>
+                          <SelectLabel>{t("Classics", "Classiques")}</SelectLabel>
+                          {classicFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>{t("Gourmet / with filling", "Gourmands / avec filling")}</SelectLabel>
+                          {gourmetFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                        {showGlutenFree && (
+                          <SelectGroup>
+                            <SelectLabel>{t("Gluten-free", "Sans gluten")}</SelectLabel>
+                            {glutenFreeFlavors.map(renderFlavorOption)}
+                          </SelectGroup>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
+                {!showGlutenFree && (
+                  <button
+                    type="button"
+                    onClick={() => setShowGlutenFree(true)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {t("See gluten-free flavours", "Voir les parfums sans gluten")}
+                  </button>
+                )}
                 <AllergenNotice className="pt-1" />
               </div>
 

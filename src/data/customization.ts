@@ -153,6 +153,27 @@ export const flavorCategories = [
       { id: "chocolate-gf", name: "Chocolate Gluten-free", description: "Fluffy gluten-free chocolate sponge with whipped cream", image: flavorChocolate },
     ],
   },
+  {
+    name: "Gluten-Free Premium",
+    extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 },
+    flavors: [
+      { id: "chocolate-gf-berrylicious", name: "Chocolate GF × Berrylicious", image: flavorDarkBerrylicious /* TODO: real product photo */ },
+      { id: "vanilla-gf-berrylicious", name: "Vanilla GF × Berrylicious", image: flavorWhiteBerrylicious /* TODO: real product photo */ },
+      { id: "lemon-curd-gf", name: "Lemon Curd Gluten-free", image: flavorLemonCurd /* TODO: real product photo */ },
+      { id: "chocolate-lovers-gf", name: "Chocolate Lovers Gluten-free", image: flavorChocolateLovers /* TODO: real product photo */ },
+    ],
+  },
+  {
+    name: "Gluten-Free Deluxe",
+    extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 },
+    flavors: [
+      { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", image: flavorVanilla /* TODO: no equivalent photo exists — needs a real one */ },
+      { id: "pistachio-gf", name: "Pistachio Gluten-free", image: flavorPistachio /* TODO: real product photo */ },
+      { id: "tiramisu-gf", name: "Tiramisu Gluten-free", image: flavorTiramisu /* TODO: real product photo */ },
+      { id: "passion-fruit-gf", name: "Passion Fruit Gluten-free", image: flavorPassionFruit /* TODO: real product photo */ },
+      { id: "praline-gf", name: "Praline Gluten-free", image: flavorPraline /* TODO: real product photo */ },
+    ],
+  },
 ];
 
 export const allFlavors = flavorCategories.flatMap(c => c.flavors);
@@ -315,18 +336,19 @@ export const getExtraPrice = (extraId: string, sizeId: string): number => {
   return extra.price[sizeId] || 0;
 };
 
-const flavorPriceOverrides: Record<string, Record<string, number>> = {
-  "chocolate-lover-berrylicious": { bento: 3, retro: 3, medium: 6, large: 10 },
-};
-
 export const getFlavorCategoryExtra = (flavorId: string, sizeId: string): number => {
-  const override = flavorPriceOverrides[flavorId];
-  if (override && sizeId) return override[sizeId] || 0;
+  // The DIY Kit is a single fixed-size product priced on the same flavour
+  // tier as the Bento cake size — its cart item stores size "kit-bento",
+  // which isn't a key in any category's size-keyed extraPrice map, so this
+  // alias makes the cart/checkout display line up with what KitBentoCake.tsx
+  // actually charges (computed entirely separately from this function).
+  // Display-only — never affects the real charge.
+  const normalizedSizeId = sizeId === "kit-bento" ? "bento" : sizeId;
   const category = flavorCategories.find(cat =>
     cat.flavors.some(f => f.id === flavorId)
   );
-  if (!category || !sizeId) return 0;
-  return category.extraPrice[sizeId as keyof typeof category.extraPrice] || 0;
+  if (!category || !normalizedSizeId) return 0;
+  return category.extraPrice[normalizedSizeId as keyof typeof category.extraPrice] || 0;
 };
 
 export interface CandleSelection {
