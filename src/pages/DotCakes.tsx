@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
-import { flavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
+import { flavorCategories, glutenFreeFlavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
@@ -42,12 +42,16 @@ const tierByCategory: Record<string, { label: string; surcharge: number; note: s
   "Standard Flavors": { label: "Standard Flavours", surcharge: 0, note: "included" },
   "Special Flavors": { label: "Premium Flavours", surcharge: 1.5, note: "+CHF 1.50 per Dot Cake" },
   "Deluxe Flavors": { label: "Deluxe Flavours", surcharge: 2.5, note: "+CHF 2.50 per Dot Cake" },
+  "Gluten-Free Premium": { label: "Gluten-Free Premium", surcharge: 3.5, note: "+CHF 3.50 per Dot Cake" },
+  "Gluten-Free Deluxe": { label: "Gluten-Free Deluxe", surcharge: 5, note: "+CHF 5.00 per Dot Cake" },
 };
 
 const tierNoteFr: Record<string, string> = {
   "included": "inclus",
   "+CHF 1.50 per Dot Cake": "+CHF 1.50 par Dot Cake",
   "+CHF 2.50 per Dot Cake": "+CHF 2.50 par Dot Cake",
+  "+CHF 3.50 per Dot Cake": "+CHF 3.50 par Dot Cake",
+  "+CHF 5.00 per Dot Cake": "+CHF 5.00 par Dot Cake",
 };
 
 const INITIAL_CANDLES_SHOWN = 4;
@@ -137,7 +141,7 @@ const DotCakes = () => {
 
   const allFlavours = useMemo(
     () =>
-      flavorCategories.flatMap((cat) =>
+      [...flavorCategories, ...glutenFreeFlavorCategories].flatMap((cat) =>
         cat.flavors.map((fl) => ({ ...fl, category: cat.name }))
       ),
     []
@@ -338,6 +342,8 @@ const DotCakes = () => {
             <div className="text-xs text-muted-foreground text-center space-y-0.5">
               <p>{t("Premium flavour: +CHF 1.50 per Dot Cake", "Parfum Premium : +CHF 1.50 par Dot Cake")}</p>
               <p>{t("Deluxe flavour: +CHF 2.50 per Dot Cake", "Parfum Deluxe : +CHF 2.50 par Dot Cake")}</p>
+              <p>{t("Gluten-Free Premium flavour: +CHF 3.50 per Dot Cake", "Parfum Sans Gluten Premium : +CHF 3.50 par Dot Cake")}</p>
+              <p>{t("Gluten-Free Deluxe flavour: +CHF 5.00 per Dot Cake", "Parfum Sans Gluten Deluxe : +CHF 5.00 par Dot Cake")}</p>
             </div>
           </section>
           )}
@@ -351,7 +357,7 @@ const DotCakes = () => {
               <p className="text-center text-sm text-muted-foreground">
                 {selectedFlavours.length}/{pack.flavours} {t("selected", "sélectionnés")}
               </p>
-              {flavorCategories.map((category) => {
+              {[...flavorCategories, ...glutenFreeFlavorCategories].map((category) => {
                 const tier = tierByCategory[category.name];
                 return (
                   <div key={category.name} className="space-y-3">
