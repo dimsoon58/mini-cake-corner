@@ -39,44 +39,16 @@ import {
   getFlavorCategoryExtra,
 } from "@/data/customization";
 
-// Import images for catalogExtras
-import extraGoldLeaves from "@/assets/extra-gold-leaves.png";
-import extraCherries from "@/assets/extra-cherries-new.jpg";
-import extraGlitterCherries from "@/assets/extra-glitter-cherries-new.jpg";
-import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
-import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
-import extraGlitter from "@/assets/extra-glitter-new.jpg";
-import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
-import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
-import extraRetro from "@/assets/extra-retro.png";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
-import extraDrawing from "@/assets/extra-drawing.png";
-import extraHeart from "@/assets/extra-heart.png";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
-import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
-import extraPrintedPicture from "@/assets/extra-printed-picture.png";
-import extraButterfly from "@/assets/extra-butterfly-new.jpg";
-import extraRibbons from "@/assets/extra-ribbons-new.jpg";
-import extraSprinkles from "@/assets/extra-sprinkles-new2.jpg";
 
-const catalogExtras = [
-  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 5, large: 8 }, image: extraGoldLeaves },
-  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 }, image: extraCherries },
-  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 }, image: extraGlitterCherries },
-  { id: "scattered-pearl", name: "Scattered Pearls", price: { bento: 2, retro: 4, medium: 5, large: 6 }, image: designScatteredPearls },
-  { id: "glitter", name: "Glitter", price: { bento: 4, retro: 4, medium: 8, large: 10 }, image: extraGlitter },
-  { id: "glitter-base", name: "Glitter Base", price: { bento: 6, retro: 8, medium: 10, large: 12 }, image: designGlitterCake },
-  { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 12, medium: 15, large: 20 }, image: designGlitterInAir },
-  { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 8, medium: 15, large: 20 }, image: designPearlBorders },
-  { id: "retro", name: "Retro", price: { retro: 5, medium: 15, large: 20 }, image: extraRetro },
-  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10 }, image: extraRibbons },
-  { id: "drawing", name: "Drawing", price: { bento: 5, retro: 5, medium: 8, large: 10 }, image: extraDrawing },
-  { id: "heart", name: "Heart", price: { bento: 3, retro: 5, medium: 10, large: 15 }, image: extraHeart },
-  { id: "butterfly", name: "Butterfly", price: { bento: 4, retro: 6, medium: 8, large: 10 }, image: extraButterfly },
-  { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designPearlNumber },
-  { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 }, image: extraPrintedPicture },
-  { id: "sprinkles", name: "Sprinkles", price: { bento: 2, retro: 4, medium: 4, large: 6 }, image: extraSprinkles },
-];
+// DIY Kit is a single fixed size ("kit-bento"), never part of the standard
+// bento/retro/medium/large/rectangle tables — these mirror KitBentoCake.tsx's
+// real values (BASE_PRICE, shapes, pipingBagOptions) for both display and
+// real-total recompute here in the cart.
+const DIY_KIT_BASE_PRICE = 40;
+const DIY_KIT_SHAPE_EXTRA: Record<string, number> = { round: 0, heart: 3 };
+const DIY_KIT_PIPING_PRICE: Record<string, number> = { "piping-2-bags": 0, "piping-3-bags": 2 };
 
 // Candles reordered: packs first, then individuals
 const cartCandles = [
@@ -100,16 +72,28 @@ const Cart = () => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
     const merged = { ...item, ...updates };
-    // Calculate extras price from catalogExtras
-    const extrasPrice = (merged.extras || []).reduce((acc: number, extraId: string) => {
-      const extra = catalogExtras.find(e => e.id === extraId);
-      if (!extra) return acc;
-      return acc + (extra.price[merged.size as keyof typeof extra.price] || 0);
-    }, 0);
-    const newTotal = calculateCartItemTotal(
-      merged.size, merged.shape, merged.flavor, merged.style,
-      [], merged.candles || []
-    ) + extrasPrice;
+    let newTotal: number;
+    if (merged.product === "diy_kit") {
+      const shapeExtra = DIY_KIT_SHAPE_EXTRA[merged.shape] ?? 0;
+      const flavorExtra = getFlavorCategoryExtra(merged.flavor, merged.size);
+      const pipingPrice = (merged.extras || []).reduce(
+        (acc: number, extraId: string) => acc + (DIY_KIT_PIPING_PRICE[extraId] ?? 0), 0
+      );
+      const candlesPrice = (merged.candles || []).reduce(
+        (acc: number, entry: CandleSelection) =>
+          acc + priceCandleSelection(entry, cartCandles.find(c => c.id === entry.id), entry.id === NUMBER_CANDLE_ID),
+        0
+      );
+      newTotal = DIY_KIT_BASE_PRICE + shapeExtra + flavorExtra + pipingPrice + candlesPrice;
+    } else {
+      // Was passing [] for extras and adding a separately (buggy) computed
+      // extrasPrice on top — calculateCartItemTotal already prices extras
+      // correctly via the canonical extras table (rectangle included).
+      newTotal = calculateCartItemTotal(
+        merged.size, merged.shape, merged.flavor, merged.style,
+        merged.extras || [], merged.candles || []
+      );
+    }
     updateItem(itemId, { ...updates, total: newTotal });
   };
 
@@ -151,7 +135,7 @@ const Cart = () => {
       const filteredExtras = currentExtras.filter(e => !excluded.includes(e));
       if (filteredExtras.length !== currentExtras.length) {
         updates.extras = filteredExtras;
-        updates.extrasNames = filteredExtras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
+        updates.extrasNames = filteredExtras.map(id => extras.find(e => e.id === id)?.name || "");
         // Clear color selections for removed extras
         if (!filteredExtras.includes("glitter")) updates.glitterColor = "";
         if (!filteredExtras.includes("ribbons")) { updates.ribbonColor = ""; updates.ribbonColorName = ""; }
@@ -193,7 +177,7 @@ const Cart = () => {
     let newExtrasNames: string[];
     if (currentExtras.includes(extraId)) {
       newExtras = currentExtras.filter(e => e !== extraId);
-      newExtrasNames = newExtras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
+      newExtrasNames = newExtras.map(id => extras.find(e => e.id === id)?.name || "");
       const updates: Record<string, any> = { extras: newExtras, extrasNames: newExtrasNames };
       // Clear related color selections when deselecting
       if (extraId === "glitter") updates.glitterColor = "";
@@ -203,7 +187,7 @@ const Cart = () => {
       recalcAndUpdate(itemId, updates);
     } else {
       newExtras = [...currentExtras, extraId];
-      newExtrasNames = newExtras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
+      newExtrasNames = newExtras.map(id => extras.find(e => e.id === id)?.name || "");
       recalcAndUpdate(itemId, { extras: newExtras, extrasNames: newExtrasNames });
     }
   };
@@ -493,10 +477,13 @@ const Cart = () => {
 /* ---------- Summary (read-only view) ---------- */
 const CartItemSummary = ({ item }: { item: any }) => {
   const { t } = useLang();
+  const isDiyKit = item.product === "diy_kit";
   const sizeObj = sizes.find(s => s.id === item.size);
-  const sizePrice = sizeObj?.price || 0;
+  const sizePrice = isDiyKit ? DIY_KIT_BASE_PRICE : (sizeObj?.price || 0);
   const shapeObj = shapes.find(s => s.id === item.shape);
-  const shapeExtra = shapeObj ? (shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0) : 0;
+  const shapeExtra = isDiyKit
+    ? (DIY_KIT_SHAPE_EXTRA[item.shape] ?? 0)
+    : (shapeObj ? shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0 : 0);
   const flavorExtra = getFlavorCategoryExtra(item.flavor, item.size);
   const styleObj = styles.find(s => s.id === item.style);
   const styleExtra = styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0;
@@ -512,12 +499,17 @@ const CartItemSummary = ({ item }: { item: any }) => {
     })
     .filter((e: any) => e.name);
 
-  const extraEntries = (item.extras || []).map((extraId: string) => {
-    const extra = catalogExtras.find(e => e.id === extraId);
-    if (!extra) return null;
-    const price = extra.price[item.size as keyof typeof extra.price] || 0;
-    return { name: extra.name, price };
-  }).filter(Boolean) as { name: string; price: number }[];
+  const extraEntries = isDiyKit
+    ? (item.extras || []).map((extraId: string, i: number) => ({
+        name: item.extrasNames?.[i] || extraId,
+        price: DIY_KIT_PIPING_PRICE[extraId] ?? 0,
+      }))
+    : (item.extras || []).map((extraId: string) => {
+        const extra = extras.find(e => e.id === extraId);
+        if (!extra) return null;
+        const price = extra.price[item.size as keyof typeof extra.price] || 0;
+        return { name: extra.name, price };
+      }).filter(Boolean) as { name: string; price: number }[];
 
   const candlesTotal = candleEntries.reduce((sum: number, e: any) => sum + e.price, 0);
   const extrasTotal = extraEntries.reduce((sum: number, e: any) => sum + e.price, 0);
@@ -544,13 +536,13 @@ const CartItemSummary = ({ item }: { item: any }) => {
             <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
           </div>
         )}
-        {styleExtra > 0 && (
+        {!isDiyKit && styleExtra > 0 && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
             <span className="text-foreground">+ CHF {styleExtra}</span>
           </div>
         )}
-        {styleExtra === 0 && item.styleName && (
+        {!isDiyKit && styleExtra === 0 && item.styleName && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
             <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
@@ -664,7 +656,7 @@ const CartItemEditor = ({
     onImageFilesChange(currentFiles.filter((_: File, i: number) => i !== index));
   };
 
-  const getExtraPriceForSize = (extra: typeof catalogExtras[0]) => {
+  const getExtraPriceForSize = (extra: typeof extras[0]) => {
     return extra.price[item.size as keyof typeof extra.price] || 0;
   };
 
@@ -823,8 +815,8 @@ const CartItemEditor = ({
       <EditSection label={t("✨ Extra", "✨ Suppléments")} tooltip={t("You can add any additional elements to personalise your design.", "Vous pouvez ajouter des éléments supplémentaires pour personnaliser votre design.")}>
         {extraGroups.map((group) => {
           const visibleExtras = group.ids
-            .map(id => catalogExtras.find(e => e.id === id))
-            .filter((extra): extra is typeof catalogExtras[0] => !!extra && !excludedExtras.includes(extra.id))
+            .map(id => extras.find(e => e.id === id))
+            .filter((extra): extra is typeof extras[0] => !!extra && !excludedExtras.includes(extra.id))
             .filter(extra => {
               const price = extra.price[item.size as keyof typeof extra.price];
               return price !== undefined && price > 0;
