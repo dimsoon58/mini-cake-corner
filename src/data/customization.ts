@@ -1,5 +1,6 @@
 // Shared customisation data used by Customise page, Cart, and Checkout
-import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE } from "@/pages/KitBentoCake";
+import type { CandleSelection } from "@/context/CartContext";
+import { NUMBER_CANDLE_ID, priceCandleSelection } from "@/lib/candleCartHelpers";
 
 // Box images
 import boxBento from "@/assets/box-bento.png";
@@ -352,29 +353,10 @@ export const getFlavorCategoryExtra = (flavorId: string, sizeId: string): number
   return category.extraPrice[normalizedSizeId as keyof typeof category.extraPrice] || 0;
 };
 
-export interface CandleSelection {
-  id: string;
-  quantity: number;
-  hasPack: boolean;
-  digit?: string;
-}
-
 export const getCandleTotalPrice = (candleId: string, candleSelections: CandleSelection[]): number => {
-  if (candleId === NUMBER_CANDLE_ID) {
-    const qty = candleSelections.filter(c => c.id === NUMBER_CANDLE_ID).reduce((sum, c) => sum + c.quantity, 0);
-    return qty * NUMBER_CANDLE_PRICE;
-  }
-  const candle = candles.find(c => c.id === candleId);
-  if (!candle) return 0;
-  const unitSelection = candleSelections.find(c => c.id === candleId && !c.hasPack);
-  const unitQty = unitSelection?.quantity || 0;
-  if (unitQty === 0) return 0;
-  if (candle.hasPack && unitQty >= (candle.packSize || 6)) {
-    const packs = Math.floor(unitQty / (candle.packSize || 6));
-    const remaining = unitQty % (candle.packSize || 6);
-    return packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
-  }
-  return candle.unitPrice * unitQty;
+  const entry = candleSelections.find(c => c.id === candleId);
+  if (!entry) return 0;
+  return priceCandleSelection(entry, candles.find(c => c.id === candleId), candleId === NUMBER_CANDLE_ID);
 };
 
 export const calculateCartItemTotal = (
@@ -393,8 +375,7 @@ export const calculateCartItemTotal = (
   const flavorExtra = getFlavorCategoryExtra(flavorId, sizeId);
   const styleExtra = getStylePrice(styleId, sizeId);
   const extrasPrice = selectedExtras.reduce((acc, extraId) => acc + getExtraPrice(extraId, sizeId), 0);
-  const candlesPrice = candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id, candleSelections), 0)
-    + getCandleTotalPrice(NUMBER_CANDLE_ID, candleSelections);
+  const candlesPrice = candleSelections.reduce((acc, entry) => acc + getCandleTotalPrice(entry.id, candleSelections), 0);
   return sizePrice + shapeExtra + flavorExtra + styleExtra + extrasPrice + candlesPrice;
 };
 

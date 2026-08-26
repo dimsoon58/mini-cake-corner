@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
-import { flavorCategories, candles as kitCandles, NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS } from "@/pages/KitBentoCake";
+import { flavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection } from "@/lib/candleCartHelpers";
 import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
 import dotGallery1 from "@/assets/dot-gallery-1.jpg";
 import dotGallery2 from "@/assets/dot-gallery-2.jpg";
@@ -164,17 +165,12 @@ const DotCakes = () => {
     });
   };
 
-  const getCandlePrice = (candleId: string, qty: number) => {
-    if (candleId === NUMBER_CANDLE_ID) return qty * NUMBER_CANDLE_PRICE;
-    const candle = kitCandles.find((c) => c.id === candleId);
-    if (!candle || qty === 0) return 0;
-    if (candle.hasPack && candle.packPrice && candle.packSize) {
-      const fullPacks = Math.floor(qty / candle.packSize);
-      const remainder = qty % candle.packSize;
-      return fullPacks * candle.packPrice + remainder * candle.unitPrice;
-    }
-    return qty * candle.unitPrice;
-  };
+  const getCandlePrice = (candleId: string, qty: number) =>
+    priceCandleSelection(
+      { id: candleId, quantity: qty, hasPack: false },
+      kitCandles.find((c) => c.id === candleId),
+      candleId === NUMBER_CANDLE_ID
+    );
 
   const candlesTotal = Object.entries(candleSelections).reduce(
     (acc, [id, qty]) => acc + getCandlePrice(id, qty),
@@ -424,10 +420,10 @@ const DotCakes = () => {
                     const hasPackApplied = candle.packSize && qty >= candle.packSize;
                     return (
                       <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
-                        <img src={candle.image} alt={candle.name} className="h-56 w-56 object-contain mb-2" />
+                        <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-56 w-56 object-contain mb-2" />
                         <Card className={cn("w-full transition-all", qty > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
                           <CardContent className="p-2 text-center">
-                            <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                            <h3 className="font-medium text-foreground text-xs mb-0.5">{t(candle.name, candle.nameFr)}</h3>
                             {candle.hasPack ? (
                               <p className="text-[10px] text-muted-foreground mb-1">
                                 CHF {candle.unitPrice}/pièce · Pack {candle.packSize}: CHF {candle.packPrice}

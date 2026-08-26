@@ -9,8 +9,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
-import { candles, NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS } from "@/pages/KitBentoCake";
+import { candles } from "@/pages/KitBentoCake";
 import { getCandleTotalPrice } from "@/data/customization";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName } from "@/lib/candleCartHelpers";
 import { useLang } from "@/context/LanguageContext";
 
 // A single "Number Candle" card with a 0–9 picker, kept entirely local to
@@ -221,7 +222,7 @@ const Candles = () => {
     const packSize = candle.packSize || 6;
     const packs = getFamilyPackCount(candle.id);
     const qty = packs * packSize;
-    const price = packs * (candle.packPrice || 0);
+    const price = priceCandleSelection({ id: candle.id, quantity: qty, hasPack: true }, candle, false);
 
     addItem({
       id: "",
@@ -283,13 +284,14 @@ const Candles = () => {
     // Guarded by the disabled "Add to Cart" button below — defensive no-op
     // if this is ever reached with an incomplete colour selection.
     if (selectedColorIds.length !== qty) return;
-    const colorLabels = selectedColorIds.map((colorId) => {
+    const resolveColorLabel = (colorId: string) => {
       const color = familyColors.find((c) => c.id === colorId)!;
       return t(color.en, color.fr);
-    });
-    const price = qty * candle.unitPrice;
+    };
+    const colorLabels = selectedColorIds.map(resolveColorLabel);
+    const price = priceCandleSelection({ id: candle.id, quantity: qty, hasPack: false, colors: selectedColorIds }, candle, false);
     const variantLabel = colorLabels.join(", ");
-    const label = `${candle.name} – ${variantLabel}`;
+    const label = composeCandleName({ colors: selectedColorIds }, candle.name, resolveColorLabel);
 
     addItem({
       id: "",
@@ -354,8 +356,8 @@ const Candles = () => {
 
   const handleAddNumberCandleToCart = () => {
     const qty = getQty(NUMBER_CANDLE_ID);
-    const price = NUMBER_CANDLE_PRICE * qty;
-    const label = `${t("Number Candle", "Bougie chiffre")} – ${numberCandleDigit}`;
+    const price = priceCandleSelection({ id: NUMBER_CANDLE_ID, quantity: qty, hasPack: false, digit: numberCandleDigit }, undefined, true);
+    const label = composeCandleName({ digit: numberCandleDigit }, t("Number Candle", "Bougie chiffre"));
 
     addItem({
       id: "",

@@ -9,13 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useCart, CandleCartItem } from "@/context/CartContext";
+import { useCart, CandleSelection } from "@/context/CartContext";
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
-import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS } from "@/pages/KitBentoCake";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName } from "@/lib/candleCartHelpers";
 import {
   sizes,
   shapes,
@@ -31,13 +31,11 @@ import {
   glitterColors,
   glitterCherriesColors,
   calculateCartItemTotal,
-  CandleSelection,
   getExcludedExtras,
   extraGroups,
   extraDescriptions,
   getAvailableSizesForStyle,
   getFlavorCategoryExtra,
-  getCandleTotalPrice,
 } from "@/data/customization";
 
 // Import images for catalogExtras
@@ -238,7 +236,7 @@ const Cart = () => {
   const handleCandleQuantityChange = (itemId: string, candleId: string, delta: number) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
-    const currentCandles: CandleCartItem[] = item.candles || [];
+    const currentCandles: CandleSelection[] = item.candles || [];
     const existingIndex = currentCandles.findIndex(c => c.id === candleId && !c.hasPack);
     let newCandles = [...currentCandles];
     if (existingIndex >= 0) {
@@ -257,7 +255,7 @@ const Cart = () => {
   const handleNumberCandleDigitChange = (itemId: string, digit: string) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
-    const newCandles = (item.candles || []).map((c: CandleCartItem) =>
+    const newCandles = (item.candles || []).map((c: CandleSelection) =>
       c.id === NUMBER_CANDLE_ID ? { ...c, digit } : c
     );
     recalcAndUpdate(itemId, { candles: newCandles });
@@ -310,21 +308,10 @@ const Cart = () => {
     });
   };
 
-  const getCandleItemPrice = (candleId: string, itemCandles: CandleCartItem[]) => {
-    if (candleId === NUMBER_CANDLE_ID) {
-      const qty = itemCandles.find(c => c.id === NUMBER_CANDLE_ID)?.quantity || 0;
-      return qty * NUMBER_CANDLE_PRICE;
-    }
-    const candle = cartCandles.find(c => c.id === candleId);
-    if (!candle) return 0;
-    const unitQty = (itemCandles || []).find(c => c.id === candleId && !c.hasPack)?.quantity || 0;
-    if (unitQty === 0) return 0;
-    if (candle.hasPack && unitQty >= (candle.packSize || 6)) {
-      const packs = Math.floor(unitQty / (candle.packSize || 6));
-      const remaining = unitQty % (candle.packSize || 6);
-      return packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
-    }
-    return candle.unitPrice * unitQty;
+  const getCandleItemPrice = (candleId: string, itemCandles: CandleSelection[]) => {
+    const entry = (itemCandles || []).find(c => c.id === candleId);
+    if (!entry) return 0;
+    return priceCandleSelection(entry, cartCandles.find(c => c.id === candleId), candleId === NUMBER_CANDLE_ID);
   };
 
   return (
@@ -508,15 +495,13 @@ const CartItemSummary = ({ item }: { item: any }) => {
   const styleExtra = styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0;
 
   const candleEntries = (item.candles || [])
-    .filter((c: CandleCartItem) => c.quantity > 0)
-    .map((c: CandleCartItem) => {
-      if (c.id === NUMBER_CANDLE_ID) {
-        const label = `${t("Number Candle", "Bougie chiffre")}${c.digit ? ` – ${c.digit}` : ""}`;
-        return { name: label, qty: c.quantity, price: c.quantity * NUMBER_CANDLE_PRICE };
-      }
+    .filter((c: CandleSelection) => c.quantity > 0)
+    .map((c: CandleSelection) => {
       const candle = cartCandles.find(x => x.id === c.id);
-      const price = candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0;
-      return { name: candle?.name || "", qty: c.quantity, price };
+      const baseName = c.id === NUMBER_CANDLE_ID ? t("Number Candle", "Bougie chiffre") : (candle?.name || "");
+      const name = composeCandleName(c, baseName);
+      const price = priceCandleSelection(c, candle, c.id === NUMBER_CANDLE_ID);
+      return { name, qty: c.quantity, price };
     })
     .filter((e: any) => e.name);
 
@@ -1075,7 +1060,7 @@ const CartItemEditor = ({
           {/* Number Candle — digit picker, no product photo, flat rate */}
           {(() => {
             const qty = getCandleUnitQty(NUMBER_CANDLE_ID);
-            const digit = (item.candles || []).find((c: CandleCartItem) => c.id === NUMBER_CANDLE_ID)?.digit || "0";
+            const digit = (item.candles || []).find((c: CandleSelection) => c.id === NUMBER_CANDLE_ID)?.digit || "0";
             return (
               <div
                 className={cn(

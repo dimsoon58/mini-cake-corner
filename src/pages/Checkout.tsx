@@ -7,7 +7,8 @@ import {
   getFlavorCategoryExtra, getExtraPrice, getCandleTotalPrice, candles as customisationCandles,
   flavorCategories, extraGroups,
 } from "@/data/customization";
-import { candles as kitBentoCandles, NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE } from "@/pages/KitBentoCake";
+import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, composeCandleName } from "@/lib/candleCartHelpers";
 import {
   COUNTRY_CODES,
   normalizeEmail,
@@ -234,16 +235,18 @@ const buildExtraFields = (item: {
 // multiple distinct types are joined into a readable list, with
 // candle_quantity summed so it stays a plain number either way.
 const buildCandleFields = (
-  candleSelections: { id: string; quantity: number; digit?: string }[],
+  candleSelections: { id: string; quantity: number; hasPack?: boolean; colors?: string[]; digit?: string }[],
 ): { candleName: string; candleQuantity: number } => {
   const active = candleSelections.filter((c) => c.quantity > 0);
   if (active.length === 0) return { candleName: "", candleQuantity: 0 };
   const names = active.map((c) => {
     // Persisted candle_name stays English-only, matching sizeName/flavorName/etc.
-    if (c.id === NUMBER_CANDLE_ID) return `Number Candle${c.digit ? ` – ${c.digit}` : ""}`;
-    return customisationCandles.find((x) => x.id === c.id)?.name
-      || kitBentoCandles.find((x) => x.id === c.id)?.name
-      || c.id;
+    const baseName = c.id === NUMBER_CANDLE_ID
+      ? "Number Candle"
+      : customisationCandles.find((x) => x.id === c.id)?.name
+        || kitBentoCandles.find((x) => x.id === c.id)?.name
+        || c.id;
+    return composeCandleName(c, baseName);
   });
   const totalQuantity = active.reduce((sum, c) => sum + c.quantity, 0);
   return { candleName: names.join(", "), candleQuantity: totalQuantity };
@@ -1055,13 +1058,13 @@ const Checkout = () => {
                     const candleEntries = (item.candles || [])
                       .filter((c: any) => c.quantity > 0)
                       .map((c: any) => {
-                        if (c.id === NUMBER_CANDLE_ID) {
-                          const label = `${t("Number Candle", "Bougie chiffre")}${c.digit ? ` – ${c.digit}` : ""}`;
-                          return { name: label, qty: c.quantity, price: c.quantity * NUMBER_CANDLE_PRICE };
-                        }
                         const candle = customisationCandles.find(x => x.id === c.id);
-                        const price = candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0;
-                        return { name: candle?.name || "", qty: c.quantity, price };
+                        const baseName = c.id === NUMBER_CANDLE_ID ? t("Number Candle", "Bougie chiffre") : (candle?.name || "");
+                        const name = composeCandleName(c, baseName);
+                        const price = c.id === NUMBER_CANDLE_ID
+                          ? c.quantity * NUMBER_CANDLE_PRICE
+                          : (candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0);
+                        return { name, qty: c.quantity, price };
                       })
                       .filter((e: any) => e.name);
 

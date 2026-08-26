@@ -25,7 +25,8 @@ import ExtraImageLightbox from "@/components/ExtraImageLightbox";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
 import { useCart } from "@/context/CartContext";
-import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS } from "@/pages/KitBentoCake";
+import type { CandleSelection } from "@/context/CartContext";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection } from "@/lib/candleCartHelpers";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
@@ -640,13 +641,6 @@ const collections = [
   { title: "The Personalised Collection", anchor: "personalised", ids: ["printed-picture", "gender-reveal", "drawing"] },
 ];
 
-interface CandleSelection {
-  id: string;
-  quantity: number;
-  hasPack: boolean;
-  digit?: string;
-}
-
 // Carousel component for catalog cards with multiple images
 const CatalogCarousel = ({ images, name, imagePositions }: { images: string[]; name: string; imagePositions?: string[] }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
@@ -925,6 +919,10 @@ const colourFr: Record<string, string> = {
 const candleNameFr: Record<string, string> = {
   "blue-ombre": "Dégradé bleu",
   "thick-spiral": "Spirale épaisse",
+  "pink-gold-spiral": "Spirale or rose",
+  "silver-spiral": "Spirale argent",
+  "gold-spiral": "Spirale or",
+  "spiral-champagne": "Spirale champagne",
   "shiny-spiral": "Spirale brillante",
   "spiral-pastel": "Spirale pastel",
   "rainbow": "Arc-en-ciel",
@@ -1126,52 +1124,19 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     setSelections({ ...selections, candles: newCandles });
   };
 
-  const handleToggleCandlePack = (candleId: string) => {
-    const existingIndex = selections.candles.findIndex((c) => c.id === candleId && c.hasPack);
-    let newCandles = [...selections.candles];
-    
-    if (existingIndex >= 0) {
-      newCandles = newCandles.filter((_, i) => i !== existingIndex);
-    } else {
-      newCandles.push({ id: candleId, quantity: 1, hasPack: true });
-    }
-    setSelections({ ...selections, candles: newCandles });
-  };
-
   const getCandleUnitQuantity = (candleId: string) => {
     const selection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
     return selection?.quantity || 0;
   };
 
-  const isCandlePackSelected = (candleId: string) => {
-    return selections.candles.some((c) => c.id === candleId && c.hasPack);
-  };
-
   const getCandleTotalPrice = (candleId: string) => {
-    if (candleId === NUMBER_CANDLE_ID) {
-      const qty = selections.candles.find((c) => c.id === NUMBER_CANDLE_ID)?.quantity || 0;
-      return qty * NUMBER_CANDLE_PRICE;
-    }
-    const candle = candles.find((c) => c.id === candleId);
-    if (!candle) return 0;
-    
-    const unitSelection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
-    const unitQty = unitSelection?.quantity || 0;
-    
-    if (unitQty === 0) return 0;
-    
-    if (candle.hasPack && unitQty >= (candle.packSize || 6)) {
-      const packs = Math.floor(unitQty / (candle.packSize || 6));
-      const remaining = unitQty % (candle.packSize || 6);
-      return packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
-    }
-    
-    return candle.unitPrice * unitQty;
+    const entry = selections.candles.find((c) => c.id === candleId);
+    if (!entry) return 0;
+    return priceCandleSelection(entry, candles.find((c) => c.id === candleId), candleId === NUMBER_CANDLE_ID);
   };
 
   const getTotalCandlesPrice = () => {
-    return candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id), 0)
-      + getCandleTotalPrice(NUMBER_CANDLE_ID);
+    return selections.candles.reduce((sum, entry) => sum + getCandleTotalPrice(entry.id), 0);
   };
 
   const colorCfg = getColorConfig(selectedCake?.styleId);

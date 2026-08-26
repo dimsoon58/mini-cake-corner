@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { format, addDays } from "date-fns";
 import { CalendarIcon, Check, ShoppingCart, ChevronDown, ChevronUp } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection } from "@/lib/candleCartHelpers";
 import { useNavigate } from "react-router-dom";
 import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
 import { toast } from "sonner";
@@ -195,13 +196,6 @@ export const candles = [
   { id: "yellow-car", name: "Yellow Car", nameFr: "Voiture Jaune", image: candleYellowCar, unitPrice: 2, hasPack: false },
 ];
 
-// Shared with Catalog.tsx, DotCakes.tsx, and Candles.tsx — single source of
-// truth for the Number Candle's id/price/digit list, instead of a copy in
-// every file that offers it.
-export const NUMBER_CANDLE_ID = "number-candle";
-export const NUMBER_CANDLE_PRICE = 5;
-export const NUMBER_CANDLE_DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
-
 const tooltipTexts: Record<string, string> = {
   date: "Date required to schedule the preparation of your order (minimum 4 days in advance).",
   shape: "Choose the shape of your cake.",
@@ -309,17 +303,12 @@ const KitBentoCake = () => {
   const getShapePrice = () => shapes.find(s => s.id === selectedShape)?.extraPrice || 0;
   const getPipingPrice = () => pipingBagOptions.find(p => p.id === selectedPipingOption)?.price || 0;
 
-  const getCandlePrice = (candleId: string, qty: number) => {
-    if (candleId === NUMBER_CANDLE_ID) return qty * NUMBER_CANDLE_PRICE;
-    const candle = candles.find(c => c.id === candleId);
-    if (!candle || qty === 0) return 0;
-    if (candle.hasPack && candle.packPrice && candle.packSize) {
-      const packs = Math.floor(qty / candle.packSize);
-      const remainder = qty % candle.packSize;
-      return packs * candle.packPrice + remainder * candle.unitPrice;
-    }
-    return qty * candle.unitPrice;
-  };
+  const getCandlePrice = (candleId: string, qty: number) =>
+    priceCandleSelection(
+      { id: candleId, quantity: qty, hasPack: false },
+      candles.find(c => c.id === candleId),
+      candleId === NUMBER_CANDLE_ID
+    );
 
   const getCandlesTotal = () => {
     let total = 0;

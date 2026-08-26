@@ -1,9 +1,17 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export interface CandleCartItem {
+// Canonical shape for a candle attached to a cart item — used both for
+// candles added directly on the Candles page and for candles added on top
+// of a cake (Catalog/DotCakes/KitBentoCake). `colors` and `digit` are only
+// ever set together with the id they apply to: a colour-family "by the
+// piece" selection sets `colors` (never duplicated, length === quantity);
+// the Number Candle sets `digit`; every other candle (packs, plain items)
+// leaves both unset.
+export interface CandleSelection {
   id: string;
   quantity: number;
   hasPack: boolean;
+  colors?: string[];
   digit?: string;
 }
 
@@ -41,7 +49,7 @@ export interface CartItem {
      optional so every other add-to-cart page is unaffected. */
   glitterColorName?: string;
   glitterCherriesColorName?: string;
-  candles: CandleCartItem[];
+  candles: CandleSelection[];
   comment: string;
   imageUrls: string[];
   imageFiles: File[];
