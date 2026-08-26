@@ -207,6 +207,9 @@ export const styles = [
   { id: "glitter-base", name: "Glitter Base", price: { bento: 8, retro: 8, medium: 10, large: 12, rectangle: 25 } as Record<string, number>, image: designGlitterCake },
   { id: "gender-reveal", name: "Gender Reveal", price: { bento: 5, retro: 5, medium: 10, large: 15, rectangle: 40 } as Record<string, number>, image: designGenderReveal },
   { id: "sprinkles-with-border", name: "Sprinkles with Border", price: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 } as Record<string, number>, image: designSprinklesWithBorder },
+  { id: "rectangle-signature", name: "Signature Rectangle Cake", price: { rectangle: 30 } as Record<string, number>, image: rectangleSignature },
+  { id: "rectangle-raspberries", name: "Raspberries Rectangle Cake", price: { rectangle: 60 } as Record<string, number>, image: rectangleRaspberries },
+  { id: "rectangle-flowers", name: "Flowers Rectangle Cake", price: { rectangle: 45 } as Record<string, number>, image: rectangleFlowers },
 ];
 
 export const extraDescriptions: Record<string, string> = {

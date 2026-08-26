@@ -306,6 +306,10 @@ const Cart = () => {
       sizeName: `${newQty}× ${item.candleProductName}`,
       extrasNames: [`${newQty}× ${item.candleProductName}`],
       total: price,
+      // Keep the raw structured selection (sent to create-postfinance-payment
+      // for server-side recompute) in sync with candleProductQty — otherwise
+      // a +/- edit here would leave item.candles[0].quantity stale.
+      candles: item.candles?.length ? [{ ...item.candles[0], quantity: newQty }] : item.candles,
     });
   };
 

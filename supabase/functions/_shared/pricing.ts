@@ -192,16 +192,17 @@ function priceCandle(entry: CandleInput): PricingResult {
     return { ok: true, total: candle.unitPrice * entry.quantity };
   }
 
-  if (entry.hasPack) {
-    if (!candle.hasPack) return fail(`${entry.id} has no pack mode`);
-    const packSize = candle.packSize ?? 6;
-    if (!Number.isInteger(entry.quantity) || entry.quantity < packSize || entry.quantity % packSize !== 0) {
-      return fail("pack quantity must be an exact positive multiple of the pack size");
-    }
-    return { ok: true, total: (entry.quantity / packSize) * (candle.packPrice ?? 0) };
-  }
-
   if (!Number.isInteger(entry.quantity) || entry.quantity < 1) return fail("invalid candle quantity");
+
+  // `entry.hasPack` is not consulted for pricing beyond this point — it's
+  // display-only (mirrors candleProductHasPack in the cart), same as the
+  // live candleCartHelpers.ts. Embedded pack purchases (ColorFamilyCandleCard)
+  // only ever produce an exact multiple of packSize, so this formula prices
+  // them identically to a stricter "exact multiple" rule; standalone pack
+  // purchases can be adjusted by +/-1 in Cart.tsx down to any quantity, and
+  // this auto-threshold formula (packs + loose remainder) is what Cart.tsx's
+  // own local calculation already charges for that case — requiring an
+  // exact multiple here would reject a cart edit that has always worked.
   if (candle.hasPack && entry.quantity >= (candle.packSize ?? 6)) {
     const packSize = candle.packSize ?? 6;
     const packs = Math.floor(entry.quantity / packSize);
