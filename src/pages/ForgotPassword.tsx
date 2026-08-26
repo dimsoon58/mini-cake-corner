@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
+import { normalizeEmail } from "@/lib/identity";
 
 const ForgotPassword = () => {
   const { t } = useLang();
@@ -24,7 +25,7 @@ const ForgotPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const { error } = await resetPassword(email);
+    const { error } = await resetPassword(normalizeEmail(email));
     setIsSubmitting(false);
 
     if (error) {
@@ -62,7 +63,14 @@ const ForgotPassword = () => {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <Label htmlFor="email">{t("Email", "Email")}</Label>
-              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setEmail((prev) => normalizeEmail(prev))}
+              />
             </div>
 
             <Button

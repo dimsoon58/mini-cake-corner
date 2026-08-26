@@ -483,7 +483,7 @@ const catalog = [
     image: rectangleSignature,
     styleId: "rectangle-signature",
     styleName: "Signature Rectangle Cake",
-    stylePrice: { rectangle: 0 },
+    stylePrice: { rectangle: 30 },
     disableText: false,
   },
   {
@@ -493,7 +493,7 @@ const catalog = [
     image: rectangleRaspberries,
     styleId: "rectangle-raspberries",
     styleName: "Raspberries Rectangle Cake",
-    stylePrice: { rectangle: 0 },
+    stylePrice: { rectangle: 60 },
     disableText: false,
   },
   {
@@ -503,7 +503,7 @@ const catalog = [
     image: rectangleFlowers,
     styleId: "rectangle-flowers",
     styleName: "Flowers Rectangle Cake",
-    stylePrice: { rectangle: 0 },
+    stylePrice: { rectangle: 45 },
     disableText: false,
   },
   {

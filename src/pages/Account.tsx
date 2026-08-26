@@ -9,11 +9,20 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  COUNTRY_CODES,
+  normalizeName,
+  sanitizePhoneLocalInput,
+  combinePhoneNumber,
+  splitPhoneNumber,
+  formatPhoneForDisplay,
+} from "@/lib/identity";
 
 function formatDateCH(dateValue?: string | null): string {
   if (!dateValue) return "—";
@@ -30,6 +39,7 @@ const Account = () => {
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
   const [birthDate, setBirthDate] = useState<Date | undefined>(undefined);
   const [newsletterSubscription, setNewsletterSubscription] = useState(false);
@@ -46,9 +56,15 @@ const Account = () => {
 
   const startEditing = () => {
     if (!profile) return;
-    setFirstName(profile.first_name ?? "");
-    setLastName(profile.last_name ?? "");
-    setPhone(profile.phone ?? "");
+    setFirstName(profile.first_name ? normalizeName(profile.first_name) : "");
+    setLastName(profile.last_name ? normalizeName(profile.last_name) : "");
+    if (profile.phone) {
+      const parsed = splitPhoneNumber(profile.phone);
+      if (parsed.countryCode) setCountryCode(parsed.countryCode);
+      setPhone(parsed.localPhone);
+    } else {
+      setPhone("");
+    }
     setBirthDate(profile.birth_date ? new Date(profile.birth_date) : undefined);
     setNewsletterSubscription(!!profile.newsletter_subscription);
     setEditing(true);
@@ -65,9 +81,9 @@ const Account = () => {
     const { error } = await supabase
       .from("profiles")
       .update({
-        first_name: firstName,
-        last_name: lastName,
-        phone,
+        first_name: normalizeName(firstName),
+        last_name: normalizeName(lastName),
+        phone: combinePhoneNumber(countryCode, phone),
         birth_date: birthDate ? format(birthDate, "yyyy-MM-dd") : null,
         newsletter_subscription: newsletterSubscription,
       })
@@ -139,17 +155,50 @@ const Account = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">{t("First Name", "Prénom")}</Label>
-                  <Input id="firstName" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                  <Input
+                    id="firstName"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    onBlur={() => setFirstName((prev) => normalizeName(prev))}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="lastName">{t("Last Name", "Nom")}</Label>
-                  <Input id="lastName" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                  <Input
+                    id="lastName"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    onBlur={() => setLastName((prev) => normalizeName(prev))}
+                  />
                 </div>
               </div>
 
               <div>
                 <Label htmlFor="phone">{t("Phone", "Téléphone")}</Label>
-                <Input id="phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <div className="flex gap-2">
+                  <Select value={countryCode} onValueChange={setCountryCode}>
+                    <SelectTrigger className="w-[100px] shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_CODES.map((cc) => (
+                        <SelectItem key={cc.code} value={cc.code}>
+                          {cc.flag} {cc.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(sanitizePhoneLocalInput(e.target.value, countryCode))}
+                  />
+                </div>
               </div>
 
               <div className="flex flex-col">
@@ -212,9 +261,12 @@ const Account = () => {
             </form>
           ) : (
             <div className="border border-border/60 px-5">
-              {row(t("Name", "Nom"), `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || "—")}
+              {row(
+                t("Name", "Nom"),
+                `${profile.first_name ? normalizeName(profile.first_name) : ""} ${profile.last_name ? normalizeName(profile.last_name) : ""}`.trim() || "—"
+              )}
               {row(t("Email", "Email"), profile.email ?? user.email ?? "—")}
-              {row(t("Phone", "Téléphone"), profile.phone ?? "—")}
+              {row(t("Phone", "Téléphone"), profile.phone ? formatPhoneForDisplay(profile.phone) : "—")}
               {row(t("Date of Birth", "Date de naissance"), formatDateCH(profile.birth_date))}
               {row(t("Newsletter", "Newsletter"), profile.newsletter_subscription ? t("Subscribed", "Abonné(e)") : t("Not subscribed", "Non abonné(e)"))}
             </div>

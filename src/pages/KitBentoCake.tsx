@@ -51,7 +51,7 @@ import candlePinkCar from "@/assets/candle-pink-car.png";
 import candleRainbow from "@/assets/candle-rainbow.png";
 import diyKitBox from "@/assets/diy-kit-box.jpg";
 
-const BASE_PRICE = 45;
+const BASE_PRICE = 40;
 
 const shapes = [
   { id: "round", name: "Round", nameFr: "Rond", extraPrice: 0 },

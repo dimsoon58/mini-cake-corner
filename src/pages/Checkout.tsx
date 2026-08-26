@@ -8,6 +8,14 @@ import {
   flavorCategories, extraGroups,
 } from "@/data/customization";
 import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
+import {
+  COUNTRY_CODES,
+  normalizeEmail,
+  normalizeName,
+  sanitizePhoneLocalInput,
+  combinePhoneNumber,
+  splitPhoneNumber,
+} from "@/lib/identity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,53 +44,6 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
-
-// Country codes
-const COUNTRY_CODES = [
-  { code: "+41", country: "CH", flag: "🇨🇭" },
-  { code: "+33", country: "FR", flag: "🇫🇷" },
-  { code: "+49", country: "DE", flag: "🇩🇪" },
-  { code: "+39", country: "IT", flag: "🇮🇹" },
-  { code: "+43", country: "AT", flag: "🇦🇹" },
-  { code: "+32", country: "BE", flag: "🇧🇪" },
-  { code: "+44", country: "UK", flag: "🇬🇧" },
-  { code: "+34", country: "ES", flag: "🇪🇸" },
-  { code: "+351", country: "PT", flag: "🇵🇹" },
-  { code: "+31", country: "NL", flag: "🇳🇱" },
-  { code: "+1", country: "US", flag: "🇺🇸" },
-];
-
-// Splits a stored profile phone number (format not guaranteed — free-typed
-// at signup, no country-code selector on that page) into { countryCode,
-// localPhone } for the checkout's two-part phone field, so prefilling can
-// never produce a double country code.
-function splitPhoneForCheckout(rawPhone: string): { countryCode: string | null; localPhone: string } {
-  const trimmed = rawPhone.trim();
-
-  // "0041..." is the international "00" form of "+41..." — normalize it to
-  // "+41..." so it hits the same case as a "+41"-prefixed value below.
-  const normalized = trimmed.startsWith("0041") ? `+41${trimmed.slice(4)}` : trimmed;
-
-  // Match the longest code first so no shorter code can shadow a longer one
-  // that starts with the same digits (e.g. "+31" vs "+351").
-  const matchedCode = [...COUNTRY_CODES]
-    .sort((a, b) => b.code.length - a.code.length)
-    .find((cc) => normalized.startsWith(cc.code));
-
-  if (matchedCode) {
-    return { countryCode: matchedCode.code, localPhone: normalized.slice(matchedCode.code.length) };
-  }
-
-  // Swiss national format: a local number starting with a single 0
-  // (e.g. "079 123 45 67") is +41 with the leading 0 dropped.
-  if (/^0\d/.test(trimmed)) {
-    return { countryCode: "+41", localPhone: trimmed.replace(/^0+/, "") };
-  }
-
-  // Unrecognized format — don't guess: pass the value through unchanged and
-  // leave the country code selector on whatever it currently is.
-  return { countryCode: null, localPhone: trimmed };
-}
 
 // Fixed voucher base price per (product, size) pair — must stay identical
 // to WELCOME_VOUCHER_BASE in create-postfinance-payment/index.ts (the
@@ -380,12 +341,12 @@ const Checkout = () => {
   // this must only run when profile itself (re)loads, never on keystrokes.
   useEffect(() => {
     if (!profile) return;
-    setFirstName((prev) => prev || profile.first_name || "");
-    setLastName((prev) => prev || profile.last_name || "");
-    setEmail((prev) => prev || profile.email || user?.email || "");
+    setFirstName((prev) => prev || (profile.first_name ? normalizeName(profile.first_name) : ""));
+    setLastName((prev) => prev || (profile.last_name ? normalizeName(profile.last_name) : ""));
+    setEmail((prev) => prev || normalizeEmail(profile.email || user?.email || ""));
 
     if (profile.phone && !phone) {
-      const parsed = splitPhoneForCheckout(profile.phone);
+      const parsed = splitPhoneNumber(profile.phone);
       if (parsed.countryCode) setCountryCode(parsed.countryCode);
       setPhone(parsed.localPhone);
     }
@@ -469,7 +430,7 @@ const Checkout = () => {
   const totalPrice = itemsTotal - estimatedWelcomeDiscount + (deliveryOption === "delivery" ? deliveryPrice : 0);
 
   // Build phone number with country code
-  const fullPhoneNumber = `${countryCode}${phone.replace(/^0+/, '')}`;
+  const fullPhoneNumber = combinePhoneNumber(countryCode, phone);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -622,9 +583,9 @@ const Checkout = () => {
         id: orderId,
         order_source: "website",
         lang,
-        first_name: firstName,
-        last_name: lastName,
-        email,
+        first_name: normalizeName(firstName),
+        last_name: normalizeName(lastName),
+        email: normalizeEmail(email),
         phone: fullPhoneNumber,
         delivery_method: deliveryOption,
         delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
@@ -810,6 +771,7 @@ const Checkout = () => {
                   id="firstName"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
+                  onBlur={() => setFirstName((prev) => normalizeName(prev))}
                   placeholder={t("Enter your first name", "Saisissez votre prénom")}
                   readOnly={isLoggedIn}
                   className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
@@ -824,6 +786,7 @@ const Checkout = () => {
                   id="lastName"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
+                  onBlur={() => setLastName((prev) => normalizeName(prev))}
                   placeholder={t("Enter your last name", "Saisissez votre nom")}
                   readOnly={isLoggedIn}
                   className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
@@ -853,8 +816,9 @@ const Checkout = () => {
                 <Input
                   id="phone"
                   type="tel"
+                  inputMode="numeric"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\s/g, ''))}
+                  onChange={(e) => setPhone(sanitizePhoneLocalInput(e.target.value, countryCode))}
                   placeholder="79 123 45 67"
                   required
                 />
@@ -871,6 +835,7 @@ const Checkout = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setEmail((prev) => normalizeEmail(prev))}
                 placeholder={t("Enter your email address", "Saisissez votre adresse e-mail")}
                 readOnly={isLoggedIn}
                 className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}

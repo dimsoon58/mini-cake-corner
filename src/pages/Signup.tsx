@@ -9,10 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
+import {
+  COUNTRY_CODES,
+  normalizeEmail,
+  normalizeName,
+  sanitizePhoneLocalInput,
+  combinePhoneNumber,
+} from "@/lib/identity";
 
 const Signup = () => {
   const { t } = useLang();
@@ -23,6 +31,7 @@ const Signup = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
   const [birthDate, setBirthDate] = useState<Date | undefined>(undefined);
   const [password, setPassword] = useState("");
@@ -52,10 +61,10 @@ const Signup = () => {
 
     setIsSubmitting(true);
     const { error } = await signUp({
-      firstName,
-      lastName,
-      email,
-      phone,
+      firstName: normalizeName(firstName),
+      lastName: normalizeName(lastName),
+      email: normalizeEmail(email),
+      phone: combinePhoneNumber(countryCode, phone),
       birthDate: format(birthDate, "yyyy-MM-dd"),
       password,
       newsletterSubscription,
@@ -103,22 +112,63 @@ const Signup = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="firstName">{t("First Name", "Prénom")}</Label>
-              <Input id="firstName" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <Input
+                id="firstName"
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                onBlur={() => setFirstName((prev) => normalizeName(prev))}
+              />
             </div>
             <div>
               <Label htmlFor="lastName">{t("Last Name", "Nom")}</Label>
-              <Input id="lastName" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <Input
+                id="lastName"
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                onBlur={() => setLastName((prev) => normalizeName(prev))}
+              />
             </div>
           </div>
 
           <div>
             <Label htmlFor="email">{t("Email", "Email")}</Label>
-            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => setEmail((prev) => normalizeEmail(prev))}
+            />
           </div>
 
           <div>
             <Label htmlFor="phone">{t("Phone", "Téléphone")}</Label>
-            <Input id="phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <div className="flex gap-2">
+              <Select value={countryCode} onValueChange={setCountryCode}>
+                <SelectTrigger className="w-[100px] shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRY_CODES.map((cc) => (
+                    <SelectItem key={cc.code} value={cc.code}>
+                      {cc.flag} {cc.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                required
+                value={phone}
+                onChange={(e) => setPhone(sanitizePhoneLocalInput(e.target.value, countryCode))}
+                placeholder="79 123 45 67"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col">
