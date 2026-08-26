@@ -211,15 +211,21 @@ const flavors = [
   { id: "praline-gf", name: "Praline Gluten-free", image: flavorPraline, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
 ];
 
-const CLASSIC_FLAVOR_IDS = ["vanilla", "red-velvet", "chocolate"];
-const GLUTEN_FREE_FLAVOR_IDS = [
-  "vanilla-gf", "red-velvet-gf", "chocolate-gf",
-  "chocolate-gf-berrylicious", "vanilla-gf-berrylicious", "lemon-curd-gf", "chocolate-lovers-gf",
-  "orange-blossom-gf", "pistachio-gf", "tiramisu-gf", "passion-fruit-gf", "praline-gf",
-];
-const classicFlavors = flavors.filter((f) => CLASSIC_FLAVOR_IDS.includes(f.id));
-const glutenFreeFlavors = flavors.filter((f) => GLUTEN_FREE_FLAVOR_IDS.includes(f.id));
-const gourmetFlavors = flavors.filter((f) => !CLASSIC_FLAVOR_IDS.includes(f.id) && !GLUTEN_FREE_FLAVOR_IDS.includes(f.id));
+// Menu grouping only — purely a display concern, independent from the
+// per-flavor extraPrice values above, which are untouched.
+const STANDARD_FLAVOR_IDS = ["vanilla", "red-velvet", "chocolate"];
+const PREMIUM_FLAVOR_IDS = ["chocolate-lovers", "dark-berrylicious", "white-berrylicious", "salted-caramel", "lemon-curd"];
+const DELUXE_FLAVOR_IDS = ["chocolate-lover-berrylicious", "tiramisu", "praline", "pistachio-lovers", "passion-fruit"];
+const GF_STANDARD_FLAVOR_IDS = ["vanilla-gf", "red-velvet-gf", "chocolate-gf"];
+const GF_PREMIUM_FLAVOR_IDS = ["chocolate-gf-berrylicious", "vanilla-gf-berrylicious", "lemon-curd-gf", "chocolate-lovers-gf"];
+const GF_DELUXE_FLAVOR_IDS = ["orange-blossom-gf", "pistachio-gf", "tiramisu-gf", "passion-fruit-gf", "praline-gf"];
+
+const standardFlavors = flavors.filter((f) => STANDARD_FLAVOR_IDS.includes(f.id));
+const premiumFlavors = flavors.filter((f) => PREMIUM_FLAVOR_IDS.includes(f.id));
+const deluxeFlavors = flavors.filter((f) => DELUXE_FLAVOR_IDS.includes(f.id));
+const glutenFreeStandardFlavors = flavors.filter((f) => GF_STANDARD_FLAVOR_IDS.includes(f.id));
+const glutenFreePremiumFlavors = flavors.filter((f) => GF_PREMIUM_FLAVOR_IDS.includes(f.id));
+const glutenFreeDeluxeFlavors = flavors.filter((f) => GF_DELUXE_FLAVOR_IDS.includes(f.id));
 
 const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
@@ -1034,7 +1040,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
-  const [showGlutenFree, setShowGlutenFree] = useState(false);
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [selections, setSelections] = useState<CakeSelections>({
@@ -1672,32 +1677,33 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       </SelectTrigger>
                       <SelectContent nativeScroll>
                         <SelectGroup>
-                          <SelectLabel>{t("Classics", "Classiques")}</SelectLabel>
-                          {classicFlavors.map(renderFlavorOption)}
+                          <SelectLabel>{t("Standard", "Standard")}</SelectLabel>
+                          {standardFlavors.map(renderFlavorOption)}
                         </SelectGroup>
                         <SelectGroup>
-                          <SelectLabel>{t("Gourmet / with filling", "Gourmands / avec filling")}</SelectLabel>
-                          {gourmetFlavors.map(renderFlavorOption)}
+                          <SelectLabel>{t("Premium", "Premium")}</SelectLabel>
+                          {premiumFlavors.map(renderFlavorOption)}
                         </SelectGroup>
-                        {showGlutenFree && (
-                          <SelectGroup>
-                            <SelectLabel>{t("Gluten-free", "Sans gluten")}</SelectLabel>
-                            {glutenFreeFlavors.map(renderFlavorOption)}
-                          </SelectGroup>
-                        )}
+                        <SelectGroup>
+                          <SelectLabel>{t("Deluxe", "Deluxe")}</SelectLabel>
+                          {deluxeFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>{t("Gluten-Free — Standard", "Sans Gluten — Standard")}</SelectLabel>
+                          {glutenFreeStandardFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>{t("Gluten-Free — Premium", "Sans Gluten — Premium")}</SelectLabel>
+                          {glutenFreePremiumFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>{t("Gluten-Free — Deluxe", "Sans Gluten — Deluxe")}</SelectLabel>
+                          {glutenFreeDeluxeFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                   );
                 })()}
-                {!showGlutenFree && (
-                  <button
-                    type="button"
-                    onClick={() => setShowGlutenFree(true)}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    {t("See gluten-free flavours", "Voir les parfums sans gluten")}
-                  </button>
-                )}
                 <AllergenNotice className="pt-1" />
               </div>
 
@@ -2367,6 +2373,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                               existing={selections.candles.find((c) => c.id === candle.id)}
                               onCommit={(entry) => setSelections((prev) => ({ ...prev, candles: upsertCandleSelection(prev.candles, entry) }))}
                               onRemove={() => setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, candle.id) }))}
+                              imageClassName="h-28 w-28"
                             />
                           </div>
                         );

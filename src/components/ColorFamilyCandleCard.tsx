@@ -78,13 +78,17 @@ export interface FamilyCandle {
 }
 
 export const ColorFamilyCandleCard = ({
-  candle, colors, existing, onCommit, onRemove,
+  candle, colors, existing, onCommit, onRemove, imageClassName = "h-40 w-40",
 }: {
   candle: FamilyCandle;
   colors: FamilyColor[];
   existing?: CandleSelection;
   onCommit: (entry: CandleSelection) => void;
   onRemove: () => void;
+  // Lets each screen match this card's photo to its own reference size for
+  // a plain (non-coloured) candle — defaults to the size Candles.tsx has
+  // always used, so that page renders exactly as before.
+  imageClassName?: string;
 }) => {
   const { t } = useLang();
   const packSize = candle.packSize || 6;
@@ -116,7 +120,7 @@ export const ColorFamilyCandleCard = ({
   return (
     <Card className={cn("overflow-hidden", existing && "ring-2 ring-primary")}>
       <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
-        <img src={candle.image} alt={t(candle.name, candle.nameFr || candle.name)} className="h-40 w-40 object-contain" />
+        <img src={candle.image} alt={t(candle.name, candle.nameFr || candle.name)} className={cn(imageClassName, "object-contain")} />
       </div>
       <CardContent className="p-4 text-center space-y-3">
         <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground">

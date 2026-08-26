@@ -1038,6 +1038,7 @@ const CartItemEditor = ({
                   existing={(item.candles || []).find((c: CandleSelection) => c.id === candle.id)}
                   onCommit={onCandleSelectionCommit}
                   onRemove={() => onCandleSelectionRemove(candle.id)}
+                  imageClassName="h-16 w-16"
                 />
               );
             }

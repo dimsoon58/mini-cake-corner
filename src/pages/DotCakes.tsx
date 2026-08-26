@@ -404,14 +404,16 @@ const DotCakes = () => {
                     const family = FAMILY_CANDLE_COLORS[candle.id];
                     if (family) {
                       return (
-                        <ColorFamilyCandleCard
-                          key={candle.id}
-                          candle={candle}
-                          colors={family}
-                          existing={candleSelections.find((c) => c.id === candle.id)}
-                          onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
-                          onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
-                        />
+                        <div key={candle.id} className="w-40 sm:w-48">
+                          <ColorFamilyCandleCard
+                            candle={candle}
+                            colors={family}
+                            existing={candleSelections.find((c) => c.id === candle.id)}
+                            onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
+                            onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
+                            imageClassName="h-56 w-56"
+                          />
+                        </div>
                       );
                     }
 
