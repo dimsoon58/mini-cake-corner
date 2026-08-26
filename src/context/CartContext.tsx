@@ -67,6 +67,11 @@ export interface CartItem {
   // other candle (packs, plain catalogue items), which keep using the
   // existing catalogue-lookup recalculation unchanged.
   candleProductUnitPrice?: number;
+  // When true, Cart.tsx hides the +/- quantity stepper for this line and
+  // only offers removal — used for the colour-piece candle families, where
+  // quantity IS the count of distinct colours already chosen, so it can't
+  // be bumped without picking another colour on the Candles page.
+  candleProductQtyLocked?: boolean;
 }
 
 // Mirrors Supabase's order_items.product enum (product_type) exactly. Kept

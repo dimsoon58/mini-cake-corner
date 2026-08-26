@@ -65,6 +65,24 @@ const FAMILY_CANDLE_COLORS: Record<string, { id: string; en: string; fr: string 
   ],
 };
 
+// Approximate representative swatch colours for the colour picker UI only —
+// a visual reference for the customer, not product data. Covers every
+// colour id used across the 4 families above.
+const CANDLE_COLOR_SWATCH: Record<string, string> = {
+  green: "#4CAF50",
+  blue: "#3B82F6",
+  purple: "#8B5CF6",
+  pink: "#EC4899",
+  yellow: "#FBBF24",
+  red: "#EF4444",
+  gold: "#C9A227",
+  "dark-pink": "#DB2777",
+  "light-pink": "#F9A8D4",
+  turquoise: "#14B8A6",
+  "dark-blue": "#1E3A8A",
+  orange: "#F97316",
+};
+
 const Candles = () => {
   const navigate = useNavigate();
   const { t } = useLang();
@@ -77,12 +95,12 @@ const Candles = () => {
   // other candle.
   const [familyMode, setFamilyMode] = useState<Record<string, "pack" | "piece">>({});
   const [familyPackCount, setFamilyPackCount] = useState<Record<string, number>>({});
-  const [familyColorId, setFamilyColorId] = useState<Record<string, string>>({});
+  const [familySelectedColors, setFamilySelectedColors] = useState<Record<string, string[]>>({});
   const [familyPieceQty, setFamilyPieceQty] = useState<Record<string, number>>({});
 
   const getFamilyMode = (id: string) => familyMode[id] ?? "pack";
   const getFamilyPackCount = (id: string) => familyPackCount[id] ?? 1;
-  const getFamilyColorId = (id: string) => familyColorId[id] ?? FAMILY_CANDLE_COLORS[id][0].id;
+  const getFamilySelectedColors = (id: string) => familySelectedColors[id] ?? [];
   const getFamilyPieceQty = (id: string) => familyPieceQty[id] ?? 1;
 
   const changeFamilyPackCount = (id: string, delta: number) => {
@@ -94,10 +112,30 @@ const Candles = () => {
   // colour) through the "by the piece" path — the "+" button simply
   // disables at the cap.
   const changeFamilyPieceQty = (id: string, delta: number, maxQty: number) => {
-    setFamilyPieceQty((prev) => ({
-      ...prev,
-      [id]: Math.min(maxQty, Math.max(1, getFamilyPieceQty(id) + delta)),
-    }));
+    const next = Math.min(maxQty, Math.max(1, getFamilyPieceQty(id) + delta));
+    // Quantity is now "how many distinct colours" — if it drops below the
+    // current selection, trim the most recently added colours so the
+    // selection never exceeds the new quantity.
+    setFamilySelectedColors((prev) => {
+      const current = prev[id] ?? [];
+      return current.length <= next ? prev : { ...prev, [id]: current.slice(0, next) };
+    });
+    setFamilyPieceQty((prev) => ({ ...prev, [id]: next }));
+  };
+
+  // Toggle one colour swatch — selecting is capped at the current piece
+  // quantity (the swatch is also visually disabled once the cap is hit),
+  // and an already-selected colour can always be deselected again. A
+  // colour can never appear twice: adding checks `includes` first.
+  const toggleFamilyColor = (id: string, colorId: string, maxSelectable: number) => {
+    setFamilySelectedColors((prev) => {
+      const current = prev[id] ?? [];
+      if (current.includes(colorId)) {
+        return { ...prev, [id]: current.filter((c) => c !== colorId) };
+      }
+      if (current.length >= maxSelectable) return prev;
+      return { ...prev, [id]: [...current, colorId] };
+    });
   };
 
   useEffect(() => {
@@ -241,12 +279,18 @@ const Candles = () => {
 
   const handleAddFamilyPieceToCart = (candle: (typeof candles)[number]) => {
     const familyColors = FAMILY_CANDLE_COLORS[candle.id];
-    const colorId = getFamilyColorId(candle.id);
-    const color = familyColors.find((c) => c.id === colorId) ?? familyColors[0];
+    const selectedColorIds = getFamilySelectedColors(candle.id);
     const qty = getFamilyPieceQty(candle.id);
+    // Guarded by the disabled "Add to Cart" button below — defensive no-op
+    // if this is ever reached with an incomplete colour selection.
+    if (selectedColorIds.length !== qty) return;
+    const colorLabels = selectedColorIds.map((colorId) => {
+      const color = familyColors.find((c) => c.id === colorId)!;
+      return t(color.en, color.fr);
+    });
     const price = qty * candle.unitPrice;
-    const colorLabel = t(color.en, color.fr);
-    const label = `${candle.name} – ${colorLabel}`;
+    const variantLabel = colorLabels.join(", ");
+    const label = `${candle.name} – ${variantLabel}`;
 
     addItem({
       id: "",
@@ -281,15 +325,19 @@ const Candles = () => {
       imageFiles: [],
       total: price,
       isCandleProduct: true,
-      candleProductId: `${candle.id}-${color.id}`,
+      candleProductId: `${candle.id}-${selectedColorIds.slice().sort().join("-")}`,
       candleProductName: label,
-      candleProductVariant: colorLabel,
+      candleProductVariant: variantLabel,
       candleProductQty: qty,
       candleProductHasPack: false,
       // Base model's real per-piece price — never pack-eligible here, so
       // Cart.tsx can recompute on quantity change without needing to look
       // this composite id up in the candle catalogue.
       candleProductUnitPrice: candle.unitPrice,
+      // Duplicate colours are forbidden by construction, so this exact
+      // combination can't be "topped up" with +/- from the cart — the
+      // customer removes the line and re-selects from this page instead.
+      candleProductQtyLocked: true,
     });
 
     toast.success(
@@ -302,6 +350,7 @@ const Candles = () => {
       }
     );
     setFamilyPieceQty((prev) => ({ ...prev, [candle.id]: 1 }));
+    setFamilySelectedColors((prev) => ({ ...prev, [candle.id]: [] }));
   };
 
   const handleAddNumberCandleToCart = () => {
@@ -386,7 +435,7 @@ const Candles = () => {
               const packs = getFamilyPackCount(candle.id);
               const pieceQty = getFamilyPieceQty(candle.id);
               const maxPieceQty = packSize - 1;
-              const colorId = getFamilyColorId(candle.id);
+              const selectedColorIds = getFamilySelectedColors(candle.id);
 
               return (
                 <Card
@@ -470,23 +519,35 @@ const Candles = () => {
                         </>
                       ) : (
                         <>
-                          <Select
-                            value={colorId}
-                            onValueChange={(value) =>
-                              setFamilyColorId((prev) => ({ ...prev, [candle.id]: value }))
-                            }
-                          >
-                            <SelectTrigger className="w-full" aria-label={t("Choose a colour", "Choisir une couleur")}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {familyColors.map((color) => (
-                                <SelectItem key={color.id} value={color.id}>
-                                  {t(color.en, color.fr)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="flex flex-wrap justify-center gap-2">
+                            {familyColors.map((color) => {
+                              const isSelected = selectedColorIds.includes(color.id);
+                              const isDisabled = !isSelected && selectedColorIds.length >= pieceQty;
+                              return (
+                                <button
+                                  key={color.id}
+                                  type="button"
+                                  onClick={() => toggleFamilyColor(candle.id, color.id, pieceQty)}
+                                  disabled={isDisabled}
+                                  aria-pressed={isSelected}
+                                  aria-label={t(color.en, color.fr)}
+                                  title={t(color.en, color.fr)}
+                                  className={cn(
+                                    "h-8 w-8 rounded-full border-2 transition-all",
+                                    isSelected ? "border-primary ring-2 ring-primary ring-offset-1" : "border-border",
+                                    isDisabled && "opacity-30 cursor-not-allowed"
+                                  )}
+                                  style={{ backgroundColor: CANDLE_COLOR_SWATCH[color.id] }}
+                                />
+                              );
+                            })}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            {t(
+                              `${selectedColorIds.length}/${pieceQty} colours selected`,
+                              `${selectedColorIds.length}/${pieceQty} couleurs sélectionnées`
+                            )}
+                          </p>
                           <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"
@@ -530,6 +591,7 @@ const Candles = () => {
                           </p>
                           <Button
                             onClick={() => handleAddFamilyPieceToCart(candle)}
+                            disabled={selectedColorIds.length !== pieceQty}
                             className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] tracking-[0.105em] uppercase"
                           >
                             {t("Add to Cart", "Ajouter au panier")}

@@ -258,7 +258,7 @@ const Cart = () => {
 
   const handleCandleProductQty = (itemId: string, delta: number) => {
     const item = items.find(i => i.id === itemId);
-    if (!item || !item.isCandleProduct || !item.candleProductId) return;
+    if (!item || !item.isCandleProduct || !item.candleProductId || item.candleProductQtyLocked) return;
     const newQty = Math.max(1, (item.candleProductQty || 1) + delta);
 
     let price: number;
@@ -374,23 +374,29 @@ const Cart = () => {
                           )}
                           <div className="flex-1">
                             <p className="text-sm text-muted-foreground mb-2">{t("Candle", "Bougie")}</p>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleCandleProductQty(item.id, -1)}
-                                disabled={(item.candleProductQty || 1) <= 1}
-                                className={cn(
-                                  "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
-                                  (item.candleProductQty || 1) <= 1
-                                    ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                    : "bg-primary text-primary-foreground hover:bg-primary/90"
-                                )}
-                              >−</button>
-                              <span className="w-6 text-center font-medium text-foreground text-sm">{item.candleProductQty || 1}</span>
-                              <button
-                                onClick={() => handleCandleProductQty(item.id, 1)}
-                                className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
-                              >+</button>
-                            </div>
+                            {item.candleProductQtyLocked ? (
+                              <p className="text-sm font-medium text-foreground">
+                                {t("Quantity", "Quantité")}: {item.candleProductQty || 1}
+                              </p>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleCandleProductQty(item.id, -1)}
+                                  disabled={(item.candleProductQty || 1) <= 1}
+                                  className={cn(
+                                    "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
+                                    (item.candleProductQty || 1) <= 1
+                                      ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  )}
+                                >−</button>
+                                <span className="w-6 text-center font-medium text-foreground text-sm">{item.candleProductQty || 1}</span>
+                                <button
+                                  onClick={() => handleCandleProductQty(item.id, 1)}
+                                  className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
+                                >+</button>
+                              </div>
+                            )}
                           </div>
                           <span className="font-semibold text-primary whitespace-nowrap">CHF {item.total}</span>
                         </div>
