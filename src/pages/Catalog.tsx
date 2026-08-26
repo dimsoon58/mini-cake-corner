@@ -798,7 +798,7 @@ const styleNameFr: Record<string, string> = {
   "sprinkles-with-border": "Vermicelles avec bordure",
 };
 const sizeNameFr: Record<string, string> = {
-  bento: "Bento Box", retro: "Retro Box", medium: "Moyen", large: "Grand", rectangle: "Rectangle",
+  bento: "Bento Box", retro: "Retro Box", medium: "Moyen", large: "Large", rectangle: "Rectangle",
 };
 
 /* Courte explication affichee sous chaque boite */
