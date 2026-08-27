@@ -112,7 +112,7 @@ serve(async (req) => {
   }
 
   const { user, email_data } = payload;
-  const { email_action_type, token_hash, redirect_to, token } = email_data;
+  const { email_action_type, token_hash, token_hash_new, token_new, redirect_to, token } = email_data;
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 
   try {
@@ -141,11 +141,38 @@ serve(async (req) => {
       }
 
       case "email_change": {
-        const changeUrl = buildVerifyUrl(supabaseUrl, token_hash, "email_change", redirect_to);
-        await sendViaResend(resendApiKey, user.email, "Confirm Your New Email", wrapEmail(`
-          <h2 style="margin-top:0;">Confirm your new email address</h2>
-          ${buttonHtml(changeUrl, "Confirm new email")}
-        `));
+        // Secure Email Change ON → two OTPs are present, two emails are
+        // required. Per Supabase's docs, the token/hash pairing is REVERSED
+        // for backward-compat reasons: the CURRENT address (user.email)
+        // verifies with `token` + `token_hash_new`, while the NEW address
+        // (user.new_email) verifies with `token_new` + `token_hash`. Mixing
+        // these up sends each recipient the other one's link.
+        if (token_new && token_hash_new) {
+          const currentEmailUrl = buildVerifyUrl(supabaseUrl, token_hash_new, "email_change", redirect_to);
+          const newEmailUrl = buildVerifyUrl(supabaseUrl, token_hash, "email_change", redirect_to);
+
+          await sendViaResend(resendApiKey, user.email, "Confirm Your Email Change", wrapEmail(`
+            <h2 style="margin-top:0;">Confirm your email change</h2>
+            <p>We received a request to change the email address on your account. Click below to confirm from this, your current address.</p>
+            ${buttonHtml(currentEmailUrl, "Confirm email change")}
+          `));
+
+          if (user.new_email) {
+            await sendViaResend(resendApiKey, user.new_email, "Confirm Your New Email", wrapEmail(`
+              <h2 style="margin-top:0;">Confirm your new email address</h2>
+              ${buttonHtml(newEmailUrl, "Confirm new email")}
+            `));
+          } else {
+            console.error("email_change: Secure Email Change is on but user.new_email is missing — new-address confirmation email not sent.");
+          }
+        } else {
+          // Secure Email Change OFF → a single OTP, sent to the new address.
+          const changeUrl = buildVerifyUrl(supabaseUrl, token_hash, "email_change", redirect_to);
+          await sendViaResend(resendApiKey, user.new_email || user.email, "Confirm Your New Email", wrapEmail(`
+            <h2 style="margin-top:0;">Confirm your new email address</h2>
+            ${buttonHtml(changeUrl, "Confirm new email")}
+          `));
+        }
         break;
       }
 
