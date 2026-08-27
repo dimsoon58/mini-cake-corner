@@ -3,6 +3,12 @@ project_id = "ekciarsrdyismyevgkqg"
 [functions.send-make-webhook]
 verify_jwt = false
 
+# Called by Supabase Auth's Send Email Hook itself, not by an end user —
+# authenticated via the standardwebhooks signature (SEND_EMAIL_HOOK_SECRET)
+# inside the function, never a user JWT.
+[functions.send-auth-email]
+verify_jwt = false
+
 # Test de connexion, a supprimer une fois l'integration validee.
 [functions.postfinance-selftest]
 verify_jwt = false
