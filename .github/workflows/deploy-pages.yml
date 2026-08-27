@@ -29,10 +29,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      # Served at the root of the custom domain (bentocakestudio.ch), not
-      # under /mini-cake-corner/ — that subpath only applied to the plain
-      # github.io project-page URL.
-      - run: npx vite build --base=/
+      - run: npx vite build --base=/mini-cake-corner/
       - name: Keep preview out of search engines (noindex only on Pages)
         run: perl -pi -e 's|</head>|<meta name="robots" content="noindex, nofollow" />\n</head>|' dist/index.html
       - name: SPA fallback for deep links
