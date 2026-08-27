@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
   COUNTRY_CODES,
   normalizeEmail,
@@ -21,6 +22,14 @@ import {
   sanitizePhoneLocalInput,
   combinePhoneNumber,
 } from "@/lib/identity";
+
+const RESEND_COOLDOWN_SECONDS = 120;
+
+function formatCountdown(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 const Signup = () => {
   const { t } = useLang();
@@ -38,6 +47,9 @@ const Signup = () => {
   const [newsletterSubscription, setNewsletterSubscription] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+  const [isResending, setIsResending] = useState(false);
+  const [resendNotice, setResendNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     document.title = "Create Account – Bento Cake Studio";
@@ -47,6 +59,40 @@ const Signup = () => {
   useEffect(() => {
     if (user) navigate("/account");
   }, [user, navigate]);
+
+  // Ticks the resend cooldown down every second while the "Check your
+  // email" screen is showing. One interval for the whole screen — a resend
+  // simply resets resendCooldown back to 120 and this keeps decrementing it.
+  useEffect(() => {
+    if (!submitted) return;
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [submitted]);
+
+  const handleResend = async () => {
+    setIsResending(true);
+    setResendNotice(null);
+    // Same normalized email actually used at signup — never re-read a
+    // possibly-different value, and never recreates the account.
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: normalizeEmail(email),
+    });
+    setIsResending(false);
+
+    if (error) {
+      setResendNotice({ type: "error", message: error.message });
+      return;
+    }
+
+    setResendNotice({
+      type: "success",
+      message: t("Confirmation email sent again.", "Email de confirmation renvoyé."),
+    });
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +142,27 @@ const Signup = () => {
               "Nous avons envoyé un lien de confirmation à votre adresse email. Merci de le confirmer avant de vous connecter."
             )}
           </p>
+
+          <div className="mt-6 space-y-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={resendCooldown > 0 || isResending}
+              onClick={handleResend}
+              className="rounded-none uppercase tracking-[0.105em] text-[12px] font-medium"
+            >
+              {resendCooldown > 0
+                ? `${t("Resend in", "Renvoyer dans")} ${formatCountdown(resendCooldown)}`
+                : isResending
+                  ? t("Sending...", "Envoi...")
+                  : t("Resend email", "Renvoyer l'email")}
+            </Button>
+            {resendNotice && (
+              <p className={cn("text-sm", resendNotice.type === "error" ? "text-destructive" : "text-foreground/75")}>
+                {resendNotice.message}
+              </p>
+            )}
+          </div>
         </main>
       </Layout>
     );
