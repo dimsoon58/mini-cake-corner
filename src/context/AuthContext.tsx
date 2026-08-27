@@ -20,6 +20,10 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  // True once a profile fetch has failed and not yet succeeded since — lets
+  // a page distinguish "still loading" from "gave up, profile unavailable"
+  // instead of showing an infinite spinner on failure.
+  profileError: boolean;
   signUp: (fields: SignUpFields) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -37,6 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileError, setProfileError] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -46,8 +51,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .single();
     if (error) {
       console.error("Failed to load profile:", error);
+      // Previously just returned here, leaving `profile` null forever with
+      // no signal that the fetch failed — any page gating on `!profile`
+      // alone (e.g. Account.tsx) would spin on "Loading..." indefinitely.
+      setProfileError(true);
       return;
     }
+    setProfileError(false);
     setProfile(data);
   };
 
@@ -123,7 +133,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ session, user, profile, loading, signUp, signIn, signOut, resetPassword, updatePassword, refreshProfile }}
+      value={{ session, user, profile, loading, profileError, signUp, signIn, signOut, resetPassword, updatePassword, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>

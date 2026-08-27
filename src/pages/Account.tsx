@@ -34,7 +34,7 @@ const Account = () => {
   const { t } = useLang();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, profile, loading, refreshProfile } = useAuth();
+  const { user, profile, loading, profileError, refreshProfile } = useAuth();
 
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -105,6 +105,24 @@ const Account = () => {
       title: t("Profile updated", "Profil mis à jour"),
     });
   };
+
+  // profileError means fetchProfile actually failed (not just "still in
+  // flight") — showing "Loading..." forever here was the bug: this branch
+  // now breaks out with a retry instead of spinning indefinitely.
+  if (!loading && user && !profile && profileError) {
+    return (
+      <Layout>
+        <main className="max-w-2xl mx-auto px-6 py-24 text-center space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {t("We couldn't load your account. Please try again.", "Impossible de charger votre compte. Veuillez réessayer.")}
+          </p>
+          <Button variant="outline" onClick={() => refreshProfile()} className="rounded-none">
+            {t("Retry", "Réessayer")}
+          </Button>
+        </main>
+      </Layout>
+    );
+  }
 
   if (loading || !user || !profile) {
     return (
