@@ -311,7 +311,7 @@ const Checkout = () => {
   const [searchParams] = useSearchParams();
   const [firstName, setFirstName] = useState("");
   const { t, lang } = useLang();
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   // Identity fields come from the account and are locked once signed in —
   // phone stays editable even then, since a customer may want a different
   // contact number for this specific order.
@@ -762,7 +762,8 @@ const Checkout = () => {
       setCheckoutPayload(payload);
       setShowEmbeddedCheckout(true);
 
-      // Send to Brevo if newsletter is checked
+      // Send to Brevo if newsletter is checked — non-blocking, a Brevo
+      // hiccup must never stop the order from going through.
       if (subscribeNewsletter) {
         try {
           await supabase.functions.invoke("subscribe-newsletter", {
@@ -775,6 +776,28 @@ const Checkout = () => {
           console.log("Newsletter subscription sent to Brevo");
         } catch (newsletterErr) {
           console.error("Newsletter subscription error (non-blocking):", newsletterErr);
+        }
+
+        // Logged-in customer only — a guest never gets a profiles row
+        // created just for this. Keeps profiles.newsletter_subscription in
+        // sync so Make/Notion (which reads this column) reflects reality,
+        // and so this checkbox stays hidden for them on their next
+        // checkout. Independent try/catch: a failure here must not affect
+        // the Brevo call above or the order itself.
+        if (isLoggedIn && user) {
+          try {
+            const { error: profileUpdateError } = await supabase
+              .from("profiles")
+              .update({ newsletter_subscription: true })
+              .eq("id", user.id);
+            if (profileUpdateError) {
+              console.error("Failed to update profile newsletter_subscription (non-blocking):", profileUpdateError);
+            } else {
+              await refreshProfile();
+            }
+          } catch (profileErr) {
+            console.error("Profile newsletter_subscription update error (non-blocking):", profileErr);
+          }
         }
       }
     } catch (err) {
