@@ -11,6 +11,7 @@ interface SubscribeRequest {
   email: string;
   firstName?: string;
   lastName?: string;
+  action?: "subscribe" | "unsubscribe";
 }
 
 serve(async (req) => {
@@ -35,10 +36,37 @@ serve(async (req) => {
     }
 
     const body: SubscribeRequest = await req.json();
-    const { email, firstName, lastName } = body;
+    const { email, firstName, lastName, action = "subscribe" } = body;
 
     if (!email || !email.includes("@")) {
       throw new Error("A valid email is required");
+    }
+
+    if (action === "unsubscribe") {
+      const response = await fetch(`${BREVO_BASE_URL}/contacts/${encodeURIComponent(email.trim().toLowerCase())}`, {
+        method: "PUT",
+        headers: {
+          "api-key": brevoApiKey,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({ unlinkListIds: [listId] }),
+      });
+
+      // 204 = removed from the list. 404 = contact was never in Brevo to
+      // begin with — nothing to undo, treat as a no-op success rather than
+      // an error.
+      if (response.status === 204 || response.status === 404) {
+        console.log("Brevo unsubscribe successful:", response.status);
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      const unsubscribeErrorData = await response.text();
+      console.error("Brevo unsubscribe error:", response.status, unsubscribeErrorData);
+      throw new Error(`Brevo API error [${response.status}]: ${unsubscribeErrorData}`);
     }
 
     const attributes: Record<string, string> = {};

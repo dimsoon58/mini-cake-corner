@@ -92,6 +92,20 @@ const Account = () => {
       }
     }
 
+    const isUnsubscribing = !!profile?.newsletter_subscription && !newsletterSubscription;
+    if (isUnsubscribing) {
+      try {
+        await supabase.functions.invoke("subscribe-newsletter", {
+          body: {
+            email: user.email,
+            action: "unsubscribe",
+          },
+        });
+      } catch (newsletterErr) {
+        console.error("Newsletter unsubscribe error (non-blocking):", newsletterErr);
+      }
+    }
+
     setIsSaving(true);
     // Only the fields a customer is allowed to change — reward_balance and
     // welcome_discount_* are never sent from here (and are now protected
