@@ -74,6 +74,24 @@ const Account = () => {
     e.preventDefault();
     if (!user) return;
 
+    // Only when actually transitioning from not-subscribed to subscribed —
+    // matches the checkout's behaviour exactly. Non-blocking: a Brevo
+    // hiccup must never prevent the rest of the profile from saving.
+    const isNewlySubscribing = !profile?.newsletter_subscription && newsletterSubscription;
+    if (isNewlySubscribing) {
+      try {
+        await supabase.functions.invoke("subscribe-newsletter", {
+          body: {
+            email: user.email,
+            firstName: normalizeName(firstName),
+            lastName: normalizeName(lastName),
+          },
+        });
+      } catch (newsletterErr) {
+        console.error("Newsletter subscription error (non-blocking):", newsletterErr);
+      }
+    }
+
     setIsSaving(true);
     // Only the fields a customer is allowed to change — reward_balance and
     // welcome_discount_* are never sent from here (and are now protected
