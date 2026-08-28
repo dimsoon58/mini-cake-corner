@@ -401,12 +401,17 @@ const Checkout = () => {
   // display estimate. A reservation already in flight
   // (welcome_discount_reserved_order_id set) also hides the option, since
   // the account isn't currently free to claim a new one.
+  // welcome_discount_expires_at (3 months from account creation) is read
+  // directly from Supabase as the source of truth — never recomputed
+  // client-side. A missing expiry no longer defaults to "never expires":
+  // it must be a real, present, future date.
   const welcomeVoucherEligible = !!user
     && !!user.email_confirmed_at
     && profile?.welcome_discount_available === true
     && !profile?.welcome_discount_used_at
     && !profile?.welcome_discount_reserved_order_id
-    && (!profile?.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date());
+    && !!profile?.welcome_discount_expires_at
+    && new Date(profile.welcome_discount_expires_at) > new Date();
 
   // Mirrors, item for item, the selection rule enforced server-side in
   // create-postfinance-payment: candles ("product" === "candles") are
