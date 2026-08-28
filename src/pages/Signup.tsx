@@ -126,6 +126,22 @@ const Signup = () => {
       return;
     }
 
+    // Non-blocking — a Brevo hiccup must never prevent the account from
+    // being reported as created (the account already exists at this point).
+    if (newsletterSubscription) {
+      try {
+        await supabase.functions.invoke("subscribe-newsletter", {
+          body: {
+            email: normalizeEmail(email),
+            firstName: normalizeName(firstName),
+            lastName: normalizeName(lastName),
+          },
+        });
+      } catch (newsletterErr) {
+        console.error("Newsletter subscription error (non-blocking):", newsletterErr);
+      }
+    }
+
     setSubmitted(true);
   };
 
