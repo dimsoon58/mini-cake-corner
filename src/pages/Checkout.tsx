@@ -1341,7 +1341,17 @@ const Checkout = () => {
                       {t("Unlock exclusive updates & offers ✨", "Recevez nos actualités et offres exclusives ✨")}
                     </Label>
                     <p className="text-xs text-foreground/50 mt-1">
-                      {t("Subscribe to our newsletter to unlock 10% off your first order.", "Inscrivez-vous à notre newsletter pour débloquer -10 % sur votre première commande.")}
+                      {isLoggedIn ? (
+                        t("Subscribe to our newsletter to unlock 10% off your first order.", "Inscrivez-vous à notre newsletter pour débloquer -10 % sur votre première commande.")
+                      ) : (
+                        <>
+                          {t("Want 10% off your first order? ", "Vous voulez -10 % sur votre première commande ? ")}
+                          <Link to="/signup" className="underline hover:text-foreground/80">
+                            {t("Create an account", "Créez un compte")}
+                          </Link>
+                          {t(" and subscribe to our newsletter.", " et inscrivez-vous à notre newsletter.")}
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
