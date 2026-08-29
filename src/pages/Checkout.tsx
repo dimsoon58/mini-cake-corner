@@ -401,17 +401,36 @@ const Checkout = () => {
   // display estimate. A reservation already in flight
   // (welcome_discount_reserved_order_id set) also hides the option, since
   // the account isn't currently free to claim a new one.
-  // welcome_discount_expires_at (3 months from account creation) is read
-  // directly from Supabase as the source of truth — never recomputed
-  // client-side. A missing expiry no longer defaults to "never expires":
-  // it must be a real, present, future date.
-  const welcomeVoucherEligible = !!user
+  // welcome_discount_expires_at is read directly from Supabase as the
+  // source of truth — never recomputed client-side. !!profile guards
+  // against treating a not-yet-loaded profile as eligible.
+  const baseWelcomeDiscountEligible = !!user
     && !!user.email_confirmed_at
-    && profile?.welcome_discount_available === true
+    && !!profile
     && !profile?.welcome_discount_used_at
-    && !profile?.welcome_discount_reserved_order_id
+    && !profile?.welcome_discount_reserved_order_id;
+
+  // Genuinely already active in the DB right now.
+  const welcomeVoucherEligible = baseWelcomeDiscountEligible
+    && profile?.welcome_discount_available === true
     && !!profile?.welcome_discount_expires_at
     && new Date(profile.welcome_discount_expires_at) > new Date();
+
+  // Not active yet, but checking the newsletter box in this same checkout
+  // would activate it (via the DB trigger) before payment is requested —
+  // genuinely means "transitioning right now": the trigger only fires on
+  // an actual change of newsletter_subscription, so if it's already true
+  // in profiles this isn't a transition and must not claim to be one. A
+  // missing expiry means "never subscribed before" — first-time eligible.
+  // An existing expiry must still be in the future — an expired date never
+  // becomes eligible again, no matter what's checked.
+  const justSubscribingNow = baseWelcomeDiscountEligible
+    && subscribeNewsletter
+    && profile?.newsletter_subscription !== true
+    && !welcomeVoucherEligible
+    && (!profile?.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date());
+
+  const canUseWelcomeDiscountNow = welcomeVoucherEligible || justSubscribingNow;
 
   // Mirrors, item for item, the selection rule enforced server-side in
   // create-postfinance-payment: candles ("product" === "candles") are
@@ -436,7 +455,7 @@ const Checkout = () => {
     }
   }
 
-  const estimatedWelcomeDiscount = (useWelcomeDiscount && welcomeVoucherEligible && discountedItem)
+  const estimatedWelcomeDiscount = (useWelcomeDiscount && canUseWelcomeDiscountNow && discountedItem)
     ? Math.round(discountedBase * 0.10 * 100) / 100
     : 0;
 
@@ -704,6 +723,87 @@ const Checkout = () => {
         };
       });
 
+      // Newsletter activation runs BEFORE the payload is built and BEFORE
+      // create-postfinance-payment is called (not after, as it used to) —
+      // deliberately, so if useWelcomeDiscount depends on justSubscribingNow,
+      // the DB trigger has already flipped welcome_discount_available by
+      // the time claim_welcome_discount runs server-side, and so we know
+      // for certain whether the activation actually succeeded before
+      // deciding whether the discount can be requested at all.
+      let brevoSucceeded = true; // meaningful only if subscribeNewsletter attempts a call below
+      let newsletterProfileUpdateSucceeded = true; // meaningful only if isLoggedIn && user attempts a call below
+
+      if (subscribeNewsletter) {
+        try {
+          const { error: brevoError } = await supabase.functions.invoke("subscribe-newsletter", {
+            body: {
+              email,
+              firstName,
+              lastName,
+            },
+          });
+          if (brevoError) {
+            console.error("Newsletter subscription error:", brevoError);
+            brevoSucceeded = false;
+          } else {
+            console.log("Newsletter subscription sent to Brevo");
+          }
+        } catch (newsletterErr) {
+          console.error("Newsletter subscription error:", newsletterErr);
+          brevoSucceeded = false;
+        }
+
+        // Logged-in customer only — a guest never gets a profiles row
+        // created just for this. Keeps profiles.newsletter_subscription in
+        // sync so Make/Notion (which reads this column) reflects reality,
+        // and so this checkbox stays hidden for them on their next
+        // checkout.
+        if (isLoggedIn && user) {
+          try {
+            const { error: profileUpdateError } = await supabase
+              .from("profiles")
+              .update({ newsletter_subscription: true })
+              .eq("id", user.id);
+            if (profileUpdateError) {
+              console.error("Failed to update profile newsletter_subscription:", profileUpdateError);
+              newsletterProfileUpdateSucceeded = false;
+            } else {
+              await refreshProfile();
+            }
+          } catch (profileErr) {
+            console.error("Profile newsletter_subscription update error:", profileErr);
+            newsletterProfileUpdateSucceeded = false;
+          }
+        }
+      }
+
+      const newsletterActivationSucceeded = brevoSucceeded && newsletterProfileUpdateSucceeded;
+
+      // The welcome discount checkbox was only checkable BECAUSE of
+      // justSubscribingNow (not already independently eligible in the DB).
+      // If either half of the activation that was supposed to unlock it
+      // just failed, stop here rather than silently charging full price
+      // for something the customer explicitly asked to redeem. A checkout
+      // NOT relying on justSubscribingNow for its discount is unaffected —
+      // a Brevo/profile hiccup stays non-blocking for it, same as before.
+      if (useWelcomeDiscount && justSubscribingNow && !newsletterActivationSucceeded) {
+        setIsSubmitting(false);
+        toast({
+          title: t("Could not activate your welcome offer", "Impossible d'activer votre offre de bienvenue"),
+          description: t(
+            "We couldn't confirm your newsletter subscription, so your welcome discount couldn't be activated. Please try again.",
+            "Nous n'avons pas pu confirmer votre inscription à la newsletter, donc votre réduction de bienvenue n'a pas pu être activée. Merci de réessayer."
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // The actual, verified outcome — distinct from canUseWelcomeDiscountNow,
+      // which is only the pre-submit display estimate.
+      const canApplyWelcomeDiscountToThisOrder = welcomeVoucherEligible
+        || (justSubscribingNow && newsletterActivationSucceeded);
+
       // Build payload for the payment page. `order`/`orderItems` are the
       // real rows create-postfinance-payment stages into pending_payments —
       // nothing has touched orders/order_items yet. `items` below is display-only,
@@ -744,7 +844,7 @@ const Checkout = () => {
         language: lang,
         // Intent only — create-postfinance-payment independently verifies
         // eligibility and computes the real discount server-side.
-        useWelcomeDiscount: useWelcomeDiscount && welcomeVoucherEligible,
+        useWelcomeDiscount: useWelcomeDiscount && canApplyWelcomeDiscountToThisOrder,
         // Intent only — never the amount actually credited/debited. The
         // backend independently verifies the real available balance, caps
         // it, and reserves it. Requires backend support (reserve_reward_credit
@@ -761,45 +861,6 @@ const Checkout = () => {
 
       setCheckoutPayload(payload);
       setShowEmbeddedCheckout(true);
-
-      // Send to Brevo if newsletter is checked — non-blocking, a Brevo
-      // hiccup must never stop the order from going through.
-      if (subscribeNewsletter) {
-        try {
-          await supabase.functions.invoke("subscribe-newsletter", {
-            body: {
-              email,
-              firstName,
-              lastName,
-            },
-          });
-          console.log("Newsletter subscription sent to Brevo");
-        } catch (newsletterErr) {
-          console.error("Newsletter subscription error (non-blocking):", newsletterErr);
-        }
-
-        // Logged-in customer only — a guest never gets a profiles row
-        // created just for this. Keeps profiles.newsletter_subscription in
-        // sync so Make/Notion (which reads this column) reflects reality,
-        // and so this checkbox stays hidden for them on their next
-        // checkout. Independent try/catch: a failure here must not affect
-        // the Brevo call above or the order itself.
-        if (isLoggedIn && user) {
-          try {
-            const { error: profileUpdateError } = await supabase
-              .from("profiles")
-              .update({ newsletter_subscription: true })
-              .eq("id", user.id);
-            if (profileUpdateError) {
-              console.error("Failed to update profile newsletter_subscription (non-blocking):", profileUpdateError);
-            } else {
-              await refreshProfile();
-            }
-          } catch (profileErr) {
-            console.error("Profile newsletter_subscription update error (non-blocking):", profileErr);
-          }
-        }
-      }
     } catch (err) {
       console.error("Checkout submit error:", err);
       toast({
@@ -1185,7 +1246,7 @@ const Checkout = () => {
                 </div>
               )}
 
-              {welcomeVoucherEligible && (
+              {canUseWelcomeDiscountNow && (
                 <div className="flex items-center space-x-3 py-2">
                   <Checkbox
                     id="useWelcomeDiscount"
@@ -1198,7 +1259,7 @@ const Checkout = () => {
                 </div>
               )}
 
-              {useWelcomeDiscount && welcomeVoucherEligible && (
+              {useWelcomeDiscount && canUseWelcomeDiscountNow && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">{t("Welcome discount -10%", "Réduction bienvenue -10%")}</span>
                   <span className="font-medium text-primary">- CHF {estimatedWelcomeDiscount.toFixed(2)}</span>
