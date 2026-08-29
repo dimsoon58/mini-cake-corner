@@ -56,23 +56,23 @@ const AccountMenu = ({ light = false }: { light?: boolean }) => {
             {!signedIn ? (
               <div>
                 <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold mb-2">
-                  {t("Welcome back", "Bon retour")}
+                  {t("10% OFF YOUR FIRST ORDER", "-10 % SUR VOTRE PREMIÈRE COMMANDE")}
                 </h3>
                 <p className="text-sm text-foreground/70 leading-relaxed mb-5">
-                  {t("Sign in to manage your orders, save your details and enjoy a faster checkout.", "Connectez-vous pour gérer vos commandes, enregistrer vos informations et passer commande plus vite.")}
+                  {t("Create an account and subscribe to our newsletter to unlock your welcome offer.", "Créez votre compte et inscrivez-vous à notre newsletter pour débloquer votre offre de bienvenue.")}
                 </p>
                 <Button
-                  onClick={() => goTo("/login")}
+                  onClick={() => goTo("/signup")}
                   className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] text-[13px] font-medium mb-3"
                 >
-                  {t("Sign In", "Se connecter")}
+                  {t("CREATE MY ACCOUNT", "CRÉER MON COMPTE")}
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => goTo("/signup")}
+                  onClick={() => goTo("/login")}
                   className="w-full rounded-none border-primary text-primary hover:bg-primary/5 uppercase tracking-[0.105em] text-[13px] font-medium"
                 >
-                  {t("Create an Account", "Créer un compte")}
+                  {t("Sign In", "Se connecter")}
                 </Button>
                 <button
                   onClick={close}

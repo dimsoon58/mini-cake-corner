@@ -187,9 +187,15 @@ const Signup = () => {
   return (
     <Layout>
       <main className="max-w-md mx-auto px-6 py-16">
-        <h1 className="font-sans uppercase tracking-[0.105em] text-3xl text-foreground mb-10 text-center">
+        <h1 className="font-sans uppercase tracking-[0.105em] text-3xl text-foreground mb-3 text-center">
           {t("Create an Account", "Créer un compte")}
         </h1>
+        <p className="text-sm text-foreground/70 text-center mb-10 leading-relaxed">
+          {t(
+            "Create your account to access your orders, loyalty rewards and exclusive benefits.",
+            "Créez votre compte pour accéder à vos commandes, vos avantages fidélité et vos offres exclusives."
+          )}
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
@@ -297,9 +303,14 @@ const Signup = () => {
               checked={newsletterSubscription}
               onCheckedChange={(c) => setNewsletterSubscription(c === true)}
             />
-            <Label htmlFor="newsletter" className="text-sm font-normal cursor-pointer">
-              {t("Subscribe to our newsletter", "S'abonner à notre newsletter")}
-            </Label>
+            <div>
+              <Label htmlFor="newsletter" className="text-sm font-normal cursor-pointer">
+                {t("Subscribe to our newsletter & unlock 10% off your first order", "Inscrivez-vous à notre newsletter et débloquez -10 % sur votre première commande")}
+              </Label>
+              <p className="text-xs text-foreground/50 mt-1">
+                {t("Your welcome offer is valid for 3 months and can be used once.", "Votre offre de bienvenue est valable 3 mois et utilisable une seule fois.")}
+              </p>
+            </div>
           </div>
 
           <Button

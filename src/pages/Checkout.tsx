@@ -1336,9 +1336,14 @@ const Checkout = () => {
                     onCheckedChange={(checked) => setSubscribeNewsletter(checked === true)}
                     className="mt-0.5"
                   />
-                  <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
-                    {t("Unlock exclusive updates & offers ✨", "Recevez nos actualités et offres exclusives ✨")}
-                  </Label>
+                  <div>
+                    <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
+                      {t("Unlock exclusive updates & offers ✨", "Recevez nos actualités et offres exclusives ✨")}
+                    </Label>
+                    <p className="text-xs text-foreground/50 mt-1">
+                      {t("Subscribe to our newsletter to unlock 10% off your first order.", "Inscrivez-vous à notre newsletter pour débloquer -10 % sur votre première commande.")}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
