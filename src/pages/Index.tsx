@@ -191,30 +191,9 @@ const Index = () => {
   return (
     <Layout overlayHero>
       {/* Hero Section */}
-      <section className="relative text-primary-foreground overflow-hidden min-h-[88vh]">
-        {/* Fond flou, simple prolongement du mur pour eviter les bandes */}
+      <section className="relative text-primary-foreground overflow-hidden min-h-[65vh] md:min-h-0 md:aspect-video">
         <video
-          className="absolute inset-0 w-full h-full object-cover scale-125 blur-3xl"
-          src={heroVideo}
-          poster={heroPoster}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          aria-hidden="true"
-        />
-        {/* Video complete, jamais rognee, aux bords fondus dans le fond */}
-        <video
-          className="absolute inset-0 w-full h-full object-contain"
-          style={{
-            WebkitMaskImage:
-              "linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)",
-            WebkitMaskComposite: "source-in",
-            maskImage:
-              "linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)",
-            maskComposite: "intersect",
-          }}
+          className="absolute inset-0 w-full h-full object-cover"
           src={heroVideo}
           poster={heroPoster}
           autoPlay
