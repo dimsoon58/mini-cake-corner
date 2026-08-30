@@ -335,3 +335,131 @@ All colors MUST be HSL.
     font-size: 13px !important;
   }
 }
+
+/* ===========================================================================
+   Cookiebot — module de consentement persistant (privacy trigger + fenêtre)
+   ---------------------------------------------------------------------------
+   Habillage visuel UNIQUEMENT (couleurs, tailles, arrondis). Aucune logique
+   Cookiebot touchée : Change consent / Withdraw consent restent les boutons
+   natifs #CookiebotWidget-btn-change / #CookiebotWidget-btn-withdraw.
+   Les règles internes du widget Cookiebot n'utilisent pas !important, un
+   simple !important suffit ici. Bleu Cookiebot #1032CF → #78020C.
+   Palette : fond #FFF9DB · texte #4B2E1F · principale #78020C
+   =========================================================================== */
+
+/* ---- Le rond / privacy trigger ---- */
+#CookiebotWidget {
+  background-color: #78020C !important;
+  box-shadow: 0 6px 20px rgba(75, 46, 31, 0.28) !important;
+}
+#CookiebotWidget:not(.CookiebotWidget-open) {
+  border-radius: 50% !important;
+}
+#CookiebotWidget.CookiebotWidget-open {
+  background: #FFF9DB !important;
+  border: 1px solid rgba(120, 2, 12, 0.22) !important;
+  border-radius: 14px !important;
+}
+#CookiebotWidget .CookiebotWidget-logo svg circle { fill: #FFF9DB !important; }
+#CookiebotWidget .CookiebotWidget-logo svg path { fill: #78020C !important; }
+#CookiebotWidget :focus-visible { outline-color: #78020C !important; }
+
+/* ---- La fenêtre du module ---- */
+#CookiebotWidget #CookiebotWidget-widgetContent {
+  background-color: #FFF9DB !important;
+  border-radius: 14px !important;
+  width: min(340px, calc(100vw - 24px)) !important;
+}
+#CookiebotWidget .CookiebotWidget-contents,
+#CookiebotWidget .CookiebotWidget-contents * {
+  color: #4B2E1F !important;
+}
+#CookiebotWidget .CookiebotWidget-header {
+  border-bottom: 1px solid rgba(75, 46, 31, 0.15) !important;
+  min-height: 0 !important;
+  padding: 10px 14px !important;
+}
+#CookiebotWidget .CookiebotWidget-header strong {
+  font-size: 14px !important;
+  color: #4B2E1F !important;
+}
+#CookiebotWidget .CookiebotWidget-header .CookiebotWidget-close {
+  width: 34px !important;
+  height: 34px !important;
+}
+#CookiebotWidget .CookiebotWidget-header .CookiebotWidget-close svg { fill: #4B2E1F !important; }
+#CookiebotWidget .CookiebotWidget-body { padding: 0 !important; }
+#CookiebotWidget .CookiebotWidget-body-inner { padding: 12px 14px 6px !important; }
+#CookiebotWidget .CookiebotWidget-state {
+  font-size: 12.5px !important;
+  color: #4B2E1F !important;
+  margin-bottom: 4px !important;
+  display: block !important;
+}
+#CookiebotWidget .CookiebotWidget-consents-list { margin: 0 0 12px !important; }
+#CookiebotWidget .CookiebotWidget-consents-list ul li {
+  font-size: 12.5px !important;
+  color: #4B2E1F !important;
+  min-height: 0 !important;
+  padding: 2px 0 !important;
+  line-height: 1.35 !important;
+}
+#CookiebotWidget .CookiebotWidget-body .CookiebotWidget-consents-list li svg { fill: #4B2E1F !important; }
+#CookiebotWidget .CookiebotWidget-body .CookiebotWidget-consents-list li.CookiebotWidget-approved svg { fill: #78020C !important; }
+#CookiebotWidget .CookiebotWidget-consent-details button {
+  color: #78020C !important;
+  font-size: 12.5px !important;
+  margin-bottom: 6px !important;
+}
+#CookiebotWidget .CookiebotWidget-consent-details button svg { fill: #78020C !important; }
+#CookiebotWidget .CookiebotWidget-consent-details .CookiebotWidget-consent-details-box {
+  background-color: #F6EFCB !important;
+  border: 1px solid rgba(120, 2, 12, 0.15) !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  font-size: 12px !important;
+}
+#CookiebotWidget .CookiebotWidget-main-logo { display: none !important; }
+#CookiebotWidget .CookiebotWidget-body-inner::-webkit-scrollbar-thumb { background: #78020C !important; }
+#CookiebotWidget .CookiebotWidget-body-inner::-webkit-scrollbar-track { background: rgba(120, 2, 12, 0.15) !important; }
+
+/* ---- Boutons Withdraw consent / Change consent (fonctions natives conservées) ---- */
+#CookiebotWidget #CookiebotWidget-buttons {
+  padding: 10px 14px 12px !important;
+  border-top: 1px solid rgba(75, 46, 31, 0.15) !important;
+}
+#CookiebotWidget #CookiebotWidget-buttons button {
+  border-radius: 9px !important;
+  min-height: 42px !important;
+  padding: 9px 14px !important;
+  font-size: 13px !important;
+  margin-bottom: 7px !important;
+}
+#CookiebotWidget #CookiebotWidget-buttons button:last-child { margin-bottom: 0 !important; }
+#CookiebotWidget #CookiebotWidget-buttons #CookiebotWidget-btn-change {
+  background-color: #78020C !important;
+  border-color: #78020C !important;
+  color: #FFF9DB !important;
+}
+#CookiebotWidget #CookiebotWidget-buttons #CookiebotWidget-btn-withdraw {
+  background-color: transparent !important;
+  border-color: #78020C !important;
+  color: #78020C !important;
+}
+#CookiebotWidget #CookiebotWidget-buttons #CookiebotWidget-btn-withdraw:disabled { border-color: #4B2E1F !important; }
+#CookiebotWidget #CookiebotWidget-buttons #CookiebotWidget-btn-withdraw .CookiebotWidgetSpinner.CookiebotWidget-active { border-color: #78020C !important; }
+
+/* ---- Fond derrière la fenêtre ---- */
+#CookiebotWidget + #CookiebotWidgetUnderlay { background: rgba(75, 46, 31, 0.42) !important; }
+
+/* ---- Mobile : fenêtre quasi pleine largeur ---- */
+@media (max-width: 600px) {
+  #CookiebotWidget #CookiebotWidget-widgetContent {
+    width: calc(100vw - 24px) !important;
+    max-width: none !important;
+  }
+  #CookiebotWidget #CookiebotWidget-buttons button {
+    font-size: 14px !important;
+    min-height: 46px !important;
+  }
+}
