@@ -250,6 +250,7 @@ All colors MUST be HSL.
 }
 #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyButtonsWrapper {
   display: flex !important;
+  flex-direction: row !important;        /* Cookiebot force « column » en mobile */
   flex-wrap: wrap !important;
   gap: 7px !important;
   width: 100% !important;
@@ -290,7 +291,7 @@ All colors MUST be HSL.
   font-size: 11.5px !important;
 }
 
-/* Mobile : petite carte en bas, pas de plein écran ------------------------- */
+/* Mobile : petite carte discrète en bas, très compacte -------------------- */
 @media (max-width: 600px) {
   #CybotCookiebotDialog#CybotCookiebotDialog {
     right: 12px !important;
@@ -298,18 +299,59 @@ All colors MUST be HSL.
     left: 12px !important;               /* ≈ calc(100% - 24px) de large */
     width: auto !important;
     max-width: none !important;
-    max-height: 60vh !important;
+    max-height: 310px !important;        /* carte discrète : ~300 px max */
+    border-radius: 12px !important;
+    font-size: 12px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogHeader {
+    padding: 4px 12px 0 !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogNav {
+    padding: 0 4px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogNavItemLink {
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentTitle {
+    font-size: 12.5px !important;
+    margin-bottom: 2px !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentText {
-    max-height: 84px !important;
+    font-size: 11.5px !important;
+    max-height: 46px !important;         /* texte compact, scrollable */
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotScrollContainer,
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBody {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBody {
+    padding-top: 4px !important;
+    padding-bottom: 2px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogBodyLevelButtonWrapper {
+    margin: 1px 0 !important;
+    padding: 1px 0 !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogBodyLevelButtonDescription {
+    font-size: 11.5px !important;
+  }
+  /* Pied : Accepter + Refuser sur une ligne, « Allow selection » en lien dessous */
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyButtons {
+    padding: 6px 12px 8px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyButtonsWrapper {
+    gap: 6px !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogBodyButton {
-    flex: 1 1 100% !important;           /* boutons pleine largeur, lisibles */
-    padding: 11px !important;
-    font-size: 14px !important;
+    flex: 1 1 0 !important;
+    padding: 9px 10px !important;
+    font-size: 13px !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection {
-    font-size: 13px !important;
+    flex: 1 1 100% !important;
+    font-size: 12px !important;
     padding: 2px !important;
   }
 }
