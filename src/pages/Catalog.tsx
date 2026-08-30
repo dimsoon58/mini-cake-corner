@@ -1586,7 +1586,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   </SelectTrigger>
                   <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[95vw]">
                     {sizes.filter((size) => selectedCake && size.id in selectedCake.stylePrice).map((size) => (
-                      <SelectItem key={size.id} value={size.id}>
+                      <SelectItem
+                        key={size.id}
+                        value={size.id}
+                        itemText={`${t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF ${size.price}`}
+                      >
                         <div className="flex items-start gap-2 py-0.5 w-full">
                           <img src={size.image} alt={size.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
                           <div className="min-w-0 flex-1">
@@ -1652,7 +1656,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     const extra = flavor.extraPrice[selections.size as keyof typeof flavor.extraPrice] || 0;
                     const info = allergenMap[flavor.id];
                     return (
-                      <SelectItem key={flavor.id} value={flavor.id}>
+                      <SelectItem
+                        key={flavor.id}
+                        value={flavor.id}
+                        itemText={`${t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)}${extra > 0 ? ` (+CHF ${extra})` : ""}`}
+                      >
                         <div className="flex items-start gap-2">
                           <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
                           <div>
