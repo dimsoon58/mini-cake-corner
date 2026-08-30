@@ -194,7 +194,7 @@ const Index = () => {
       <section className="relative text-primary-foreground overflow-hidden min-h-[88vh]">
         {/* Fond flou, simple prolongement du mur pour eviter les bandes */}
         <video
-          className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl"
+          className="absolute inset-0 w-full h-full object-cover scale-125 blur-3xl"
           src={heroVideo}
           poster={heroPoster}
           autoPlay
@@ -204,9 +204,17 @@ const Index = () => {
           preload="auto"
           aria-hidden="true"
         />
-        {/* Video complete, jamais rognee */}
+        {/* Video complete, jamais rognee, aux bords fondus dans le fond */}
         <video
           className="absolute inset-0 w-full h-full object-contain"
+          style={{
+            WebkitMaskImage:
+              "linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)",
+            WebkitMaskComposite: "source-in",
+            maskImage:
+              "linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)",
+            maskComposite: "intersect",
+          }}
           src={heroVideo}
           poster={heroPoster}
           autoPlay
