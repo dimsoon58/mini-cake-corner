@@ -49,10 +49,38 @@ function wrapEmail(bodyHtml: string): string {
 }
 
 function buttonHtml(url: string, label: string): string {
+  // Only the button carries the link. The full URL is deliberately not
+  // printed below it: a raw link in the body raises the spam score, and the
+  // link is still present in the plain-text part for any client that needs
+  // it. The href itself is unchanged.
   return `<div style="text-align:center;margin:28px 0;">
     <a href="${url}" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:600;font-size:14px;">${label}</a>
-  </div>
-  <p style="font-size:12px;color:#888;word-break:break-all;">${url}</p>`;
+  </div>`;
+}
+
+// Plain-text fallback derived from the HTML we already built, so the two
+// parts always match. Sending multipart (html + text) instead of HTML-only
+// materially improves inbox placement at Gmail / Outlook / Bluewin. The
+// button's href is pulled through as "Label: URL" so the link stays usable
+// in text-only clients.
+function htmlToText(html: string): string {
+  return html
+    .replace(
+      /<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi,
+      (_m, href, label) => `${String(label).replace(/<[^>]+>/g, "").trim()}: ${href}`,
+    )
+    .replace(/<\/(p|h1|h2|h3|div)>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 // Reconstructs the same link Supabase's own default {{ .ConfirmationURL }}
@@ -72,7 +100,18 @@ async function sendViaResend(apiKey: string, to: string, subject: string, html: 
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: FROM, to: [to], subject, html }),
+    body: JSON.stringify({
+      from: FROM,
+      to: [to],
+      subject,
+      html,
+      // Multipart: HTML-only auth mail is a strong spam signal.
+      text: htmlToText(html),
+      reply_to: "contact@bentocakestudio.ch",
+      // Unique per message so Gmail/Outlook never thread or clip successive
+      // auth emails together.
+      headers: { "X-Entity-Ref-ID": crypto.randomUUID() },
+    }),
   });
   const data = await resp.json();
   if (!resp.ok) {
