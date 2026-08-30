@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { CartProvider } from "@/context/CartContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { trackViewItem } from "@/lib/analytics";
+import { trackViewItem, onAnalyticsReady } from "@/lib/analytics";
 
 import Index from "./pages/Index";
 import ProductDetail from "./pages/ProductDetail";
@@ -53,6 +53,11 @@ const ScrollToTop = () => {
   return null;
 };
 
+// SPA page_view is NOT sent from here: GA4 Enhanced Measurement ("Page
+// changes based on browser history events") already emits exactly one
+// page_view per React Router navigation. Adding a manual one would double
+// every SPA page view. Verified in production.
+
 // GA4 view_item — the cake/candle/kit/printing configurator pages are the
 // product pages. One place, one event per navigation onto such a page.
 const PRODUCT_ROUTES: Record<string, string> = {
@@ -67,7 +72,11 @@ const ViewItemTracker = () => {
   const { pathname } = useLocation();
   useEffect(() => {
     const product = PRODUCT_ROUTES[pathname];
-    if (product) trackViewItem(product);
+    if (!product) return;
+    // Fires view_item once — now if consent is already granted, or the moment
+    // the visitor accepts cookies while still on this page. The returned
+    // cleanup cancels it on navigation, so it never fires for a page left.
+    return onAnalyticsReady(() => trackViewItem(product));
   }, [pathname]);
   return null;
 };

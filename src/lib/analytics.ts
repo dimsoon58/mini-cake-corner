@@ -62,11 +62,11 @@ export function trackEvent(name: string, params: Record<string, unknown> = {}): 
 }
 
 /**
- * Like `trackEvent`, but for events fired on page/route mount, where
- * Cookiebot + gtag.js may still be loading on a fresh page load even though
- * consent was granted in a previous session. Retries briefly until gtag is
- * ready; gives up immediately if the visitor has answered the banner
- * without granting "statistics", and gives up after ~6s otherwise.
+ * Like `trackEvent`, but for events fired on page/route mount where gtag.js
+ * may still be loading on a fresh page load for an ALREADY-consented visitor.
+ * Retries every 250ms for ~6s, but only while consent is (or turns out to be)
+ * granted — it never waits for an undecided visitor to accept, so it can't
+ * replay a backlog of events after a late consent.
  */
 export function trackEventWhenReady(
   name: string,
@@ -75,11 +75,82 @@ export function trackEventWhenReady(
 ): void {
   if (typeof window === "undefined") return;
   const w = window as any;
-  // Banner answered, statistics refused -> never send.
-  if (w.Cookiebot?.hasResponse === true && w.Cookiebot?.consent?.statistics !== true) return;
+  const cb = w.Cookiebot;
+  // Cookiebot has loaded and reported the choice:
+  if (cb && cb.consent) {
+    // Not granted (declined or not yet decided) -> do not send, do not wait.
+    if (cb.consent.statistics !== true) return;
+    // Granted -> fall through and keep retrying only until gtag is ready.
+  }
+  // else: Cookiebot script still downloading — a returning visitor's stored
+  // "granted" may still resolve; keep trying through the short window.
   if (trackEvent(name, params)) return;
   if (attemptsLeft <= 0) return;
   setTimeout(() => trackEventWhenReady(name, params, attemptsLeft - 1), 250);
+}
+
+/**
+ * Run `cb` exactly once, as soon as Analytics consent is granted AND gtag is
+ * ready — whether that is immediately, after the load settles, or when the
+ * visitor accepts cookies while still on this page (the one deliberate
+ * "fire after consent" case, used for the current page's `view_item`).
+ * Returns a cleanup that cancels a still-pending run; call it when navigating
+ * away so nothing fires retroactively for a page the visitor already left.
+ * Never runs `cb` if the banner is answered without granting "statistics".
+ */
+export function onAnalyticsReady(cb: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const w = window as any;
+  let done = false;
+  let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const finish = () => {
+    done = true;
+    if (pollTimer) clearTimeout(pollTimer);
+    w.removeEventListener?.("CookiebotOnAccept", onConsentEvent);
+    w.removeEventListener?.("CookiebotOnDecline", onConsentEvent);
+    w.removeEventListener?.("CookiebotOnConsentReady", onConsentEvent);
+  };
+
+  const attempt = (): boolean => {
+    if (done) return true;
+    if (consentGranted()) {
+      try {
+        cb();
+      } catch {
+        /* ignore */
+      }
+      finish();
+      return true;
+    }
+    // Banner answered without statistics -> give up for good.
+    if (w.Cookiebot?.hasResponse === true && w.Cookiebot?.consent?.statistics !== true) {
+      finish();
+      return true;
+    }
+    return false;
+  };
+
+  function onConsentEvent() {
+    attempt();
+  }
+
+  if (attempt()) return finish;
+
+  // Not ready yet: watch for a later accept (no time limit) and poll for
+  // gtag to finish loading (bounded — after that only an accept can trigger).
+  w.addEventListener?.("CookiebotOnAccept", onConsentEvent);
+  w.addEventListener?.("CookiebotOnDecline", onConsentEvent);
+  w.addEventListener?.("CookiebotOnConsentReady", onConsentEvent);
+
+  const poll = (left: number) => {
+    if (done) return;
+    if (attempt() || left <= 0) return; // stop polling; the accept listener stays
+    pollTimer = setTimeout(() => poll(left - 1), 250);
+  };
+  poll(60);
+
+  return finish;
 }
 
 /** Build a GA4 `items[]` entry from a cart line. */
@@ -125,15 +196,25 @@ export function cartItemsValue(items: CartItem[]): number {
   return round2(items.reduce((sum, it) => sum + it.total, 0));
 }
 
-/** `view_item` for a product line the visitor is currently configuring. */
+/**
+ * `view_item` for a product line the visitor is currently configuring.
+ * Caller (ViewItemTracker) wraps this in `onAnalyticsReady`, so by the time
+ * it runs consent is granted and gtag is loaded — a plain send is enough.
+ */
 export function trackViewItem(product: string): void {
   const cat = PRODUCT_CATALOG[product];
   if (!cat) return;
-  trackEventWhenReady("view_item", {
+  trackEvent("view_item", {
     currency: "CHF",
     items: [{ item_id: product, item_name: cat.item_name, item_category: cat.item_category }],
   });
 }
+
+/*
+ * No `trackPageView` here on purpose: GA4 Enhanced Measurement ("Page changes
+ * based on browser history events") already sends one page_view per SPA route
+ * change. A manual page_view would double-count. Verified in production.
+ */
 
 export function trackAddToCart(item: CartItem): void {
   const ga = cartItemToGA4Item(item);
