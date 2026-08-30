@@ -319,7 +319,7 @@ All colors MUST be HSL.
   display: none !important;
 }
 
-/* Mobile : petite carte compacte en bas, pas de plein écran ------------- */
+/* Mobile : carte réduite au minimum, en bas, pas de plein écran --------- */
 @media (max-width: 600px) {
   #CybotCookiebotDialog#CybotCookiebotDialog {
     right: 12px !important;
@@ -327,12 +327,36 @@ All colors MUST be HSL.
     left: 12px !important;               /* ≈ calc(100% - 24px) de large */
     width: auto !important;
     max-width: none !important;
-    max-height: 270px !important;
+    max-height: 230px !important;
     border-radius: 12px !important;
+    font-size: 11.5px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogHeader {
+    padding: 2px 12px 0 !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBody {
+    padding: 6px 12px 2px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentTitle {
+    font-size: 12px !important;
+    margin-bottom: 1px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentText {
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogNav {
+    padding: 3px 12px 5px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogNavDetails::after {
+    font-size: 10.5px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyButtons {
+    padding: 6px 12px 8px !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogBodyButton {
-    padding: 10px !important;
-    font-size: 13px !important;
+    padding: 8px 10px !important;
+    font-size: 12.5px !important;
   }
 }
 
@@ -369,6 +393,11 @@ All colors MUST be HSL.
   background-color: #FFF9DB !important;
   border-radius: 14px !important;
   width: min(340px, calc(100vw - 24px)) !important;
+}
+/* Cookiebot force min-height: 360px ici — on laisse la carte se dimensionner
+   à son contenu pour un rendu compact. */
+#CookiebotWidget .CookiebotWidget-contents {
+  min-height: 0 !important;
 }
 #CookiebotWidget .CookiebotWidget-contents,
 #CookiebotWidget .CookiebotWidget-contents * {
@@ -452,14 +481,43 @@ All colors MUST be HSL.
 /* ---- Fond derrière la fenêtre ---- */
 #CookiebotWidget + #CookiebotWidgetUnderlay { background: rgba(75, 46, 31, 0.42) !important; }
 
-/* ---- Mobile : fenêtre quasi pleine largeur ---- */
+/* ---- Mobile : fenêtre quasi pleine largeur et compacte ---- */
 @media (max-width: 600px) {
   #CookiebotWidget #CookiebotWidget-widgetContent {
     width: calc(100vw - 24px) !important;
     max-width: none !important;
   }
+  #CookiebotWidget .CookiebotWidget-header {
+    padding: 8px 12px !important;
+  }
+  #CookiebotWidget .CookiebotWidget-header strong {
+    font-size: 13px !important;
+  }
+  #CookiebotWidget .CookiebotWidget-header .CookiebotWidget-close {
+    width: 30px !important;
+    height: 30px !important;
+  }
+  #CookiebotWidget .CookiebotWidget-body-inner {
+    padding: 8px 12px 4px !important;
+  }
+  #CookiebotWidget .CookiebotWidget-state,
+  #CookiebotWidget .CookiebotWidget-consents-list ul li,
+  #CookiebotWidget .CookiebotWidget-consent-details button {
+    font-size: 11.5px !important;
+  }
+  #CookiebotWidget .CookiebotWidget-consents-list {
+    margin: 0 0 8px !important;
+  }
+  #CookiebotWidget .CookiebotWidget-consents-list ul li {
+    padding: 1px 0 !important;
+  }
+  #CookiebotWidget #CookiebotWidget-buttons {
+    padding: 8px 12px 10px !important;
+  }
   #CookiebotWidget #CookiebotWidget-buttons button {
-    font-size: 14px !important;
-    min-height: 46px !important;
+    font-size: 12.5px !important;
+    min-height: 38px !important;
+    padding: 8px 12px !important;
+    margin-bottom: 6px !important;
   }
 }
