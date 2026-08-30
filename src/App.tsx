@@ -6,6 +6,8 @@ import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { CartProvider } from "@/context/CartContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { AuthProvider } from "@/context/AuthContext";
+import { trackViewItem, onAnalyticsReady } from "@/lib/analytics";
 
 import Index from "./pages/Index";
 import ProductDetail from "./pages/ProductDetail";
@@ -31,6 +33,12 @@ import Legal from "./pages/Legal";
 import OurStory from "./pages/OurStory";
 import MyOrders from "./pages/MyOrders";
 import LoyaltyRewards from "./pages/LoyaltyRewards";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import AuthConfirm from "./pages/AuthConfirm";
+import Account from "./pages/Account";
 
 const queryClient = new QueryClient();
 
@@ -45,15 +53,45 @@ const ScrollToTop = () => {
   return null;
 };
 
+// SPA page_view is NOT sent from here: GA4 Enhanced Measurement ("Page
+// changes based on browser history events") already emits exactly one
+// page_view per React Router navigation. Adding a manual one would double
+// every SPA page view. Verified in production.
+
+// GA4 view_item — the cake/candle/kit/printing configurator pages are the
+// product pages. One place, one event per navigation onto such a page.
+const PRODUCT_ROUTES: Record<string, string> = {
+  "/catalog": "bento_cake",
+  "/dot-cakes": "dot_cakes",
+  "/candles": "candles",
+  "/kit-bento-cake": "diy_kit",
+  "/printing": "edible_printing",
+};
+
+const ViewItemTracker = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const product = PRODUCT_ROUTES[pathname];
+    if (!product) return;
+    // Fires view_item once — now if consent is already granted, or the moment
+    // the visitor accepts cookies while still on this page. The returned
+    // cleanup cancels it on navigation, so it never fires for a page left.
+    return onAnalyticsReady(() => trackViewItem(product));
+  }, [pathname]);
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
+    <AuthProvider>
     <CartProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter basename={import.meta.env.BASE_URL}>
           <ScrollToTop />
+          <ViewItemTracker />
           <Routes>
             <Route path="/" element={<Index />} />
             
@@ -82,6 +120,12 @@ const App = () => (
             <Route path="/privacy-policy" element={<Legal />} />
             <Route path="/account/orders" element={<MyOrders />} />
             <Route path="/account/rewards" element={<LoyaltyRewards />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/auth/confirm" element={<AuthConfirm />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -89,6 +133,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </CartProvider>
+    </AuthProvider>
     </LanguageProvider>
   </QueryClientProvider>
 );

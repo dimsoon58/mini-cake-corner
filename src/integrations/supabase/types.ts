@@ -55,6 +55,7 @@ export type Database = {
       orders: {
         Row: {
           created_at: string
+          customer_id: string | null
           delivery_address: string | null
           delivery_fee: number
           delivery_method: string
@@ -79,10 +80,14 @@ export type Database = {
           pickup_delivery_datetime: string
           pickup_delivery_slot: string | null
           postfinance_transaction_id: string | null
+          reward_amount_earned: number | null
+          reward_amount_used: number | null
           total_amount: number
+          welcome_discount_amount: number | null
         }
         Insert: {
           created_at?: string
+          customer_id?: string | null
           delivery_address?: string | null
           delivery_fee?: number
           delivery_method: string
@@ -107,10 +112,14 @@ export type Database = {
           pickup_delivery_datetime: string
           pickup_delivery_slot?: string | null
           postfinance_transaction_id?: string | null
+          reward_amount_earned?: number | null
+          reward_amount_used?: number | null
           total_amount: number
+          welcome_discount_amount?: number | null
         }
         Update: {
           created_at?: string
+          customer_id?: string | null
           delivery_address?: string | null
           delivery_fee?: number
           delivery_method?: string
@@ -135,7 +144,10 @@ export type Database = {
           pickup_delivery_datetime?: string
           pickup_delivery_slot?: string | null
           postfinance_transaction_id?: string | null
+          reward_amount_earned?: number | null
+          reward_amount_used?: number | null
           total_amount?: number
+          welcome_discount_amount?: number | null
         }
         Relationships: []
       }
@@ -242,6 +254,108 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          birth_date: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          newsletter_subscription: boolean | null
+          phone: string | null
+          reward_balance: number | null
+          updated_at: string
+          welcome_discount_available: boolean | null
+          welcome_discount_expires_at: string | null
+          welcome_discount_reserved_at: string | null
+          welcome_discount_reserved_order_id: string | null
+          welcome_discount_used_at: string | null
+        }
+        Insert: {
+          birth_date?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          newsletter_subscription?: boolean | null
+          phone?: string | null
+          reward_balance?: number | null
+          updated_at?: string
+          welcome_discount_available?: boolean | null
+          welcome_discount_expires_at?: string | null
+          welcome_discount_reserved_at?: string | null
+          welcome_discount_reserved_order_id?: string | null
+          welcome_discount_used_at?: string | null
+        }
+        Update: {
+          birth_date?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          newsletter_subscription?: boolean | null
+          phone?: string | null
+          reward_balance?: number | null
+          updated_at?: string
+          welcome_discount_available?: boolean | null
+          welcome_discount_expires_at?: string | null
+          welcome_discount_reserved_at?: string | null
+          welcome_discount_reserved_order_id?: string | null
+          welcome_discount_used_at?: string | null
+        }
+        Relationships: []
+      }
+      reward_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          customer_id: string
+          expires_at: string | null
+          id: string
+          note: string | null
+          order_id: string | null
+          type: "earned" | "spent" | "expired" | "adjustment"
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          customer_id: string
+          expires_at?: string | null
+          id?: string
+          note?: string | null
+          order_id?: string | null
+          type: "earned" | "spent" | "expired" | "adjustment"
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer_id?: string
+          expires_at?: string | null
+          id?: string
+          note?: string | null
+          order_id?: string | null
+          type?: "earned" | "spent" | "expired" | "adjustment"
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reward_transactions_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"

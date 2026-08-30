@@ -8,10 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
-import { flavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
+import { flavorCategories, glutenFreeFlavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
+import type { CandleSelection } from "@/context/CartContext";
+import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
 import { FlavorDesc } from "@/data/flavorDesc";
 import dotGallery1 from "@/assets/dot-gallery-1.jpg";
@@ -39,12 +43,16 @@ const tierByCategory: Record<string, { label: string; surcharge: number; note: s
   "Standard Flavors": { label: "Standard Flavours", surcharge: 0, note: "included" },
   "Special Flavors": { label: "Premium Flavours", surcharge: 1.5, note: "+CHF 1.50 per Dot Cake" },
   "Deluxe Flavors": { label: "Deluxe Flavours", surcharge: 2.5, note: "+CHF 2.50 per Dot Cake" },
+  "Gluten-Free Premium": { label: "Gluten-Free Premium", surcharge: 3.5, note: "+CHF 3.50 per Dot Cake" },
+  "Gluten-Free Deluxe": { label: "Gluten-Free Deluxe", surcharge: 5, note: "+CHF 5.00 per Dot Cake" },
 };
 
 const tierNoteFr: Record<string, string> = {
   "included": "inclus",
   "+CHF 1.50 per Dot Cake": "+CHF 1.50 par Dot Cake",
   "+CHF 2.50 per Dot Cake": "+CHF 2.50 par Dot Cake",
+  "+CHF 3.50 per Dot Cake": "+CHF 3.50 par Dot Cake",
+  "+CHF 5.00 per Dot Cake": "+CHF 5.00 par Dot Cake",
 };
 
 const INITIAL_CANDLES_SHOWN = 4;
@@ -114,12 +122,13 @@ const SectionHeading = ({ children }: { children: React.ReactNode }) => (
 
 const DotCakes = () => {
   const navigate = useNavigate();
-  const { addItem } = useCart();
+  const { addItem, cartOrderDate } = useCart();
   const { t } = useLang();
-  const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
+  const [orderDate, setOrderDate] = useState<Date | undefined>(() => (cartOrderDate ? new Date(cartOrderDate) : undefined));
   const [packSize, setPackSize] = useState<number | null>(null);
   const [selectedFlavours, setSelectedFlavours] = useState<string[]>([]);
-  const [candleSelections, setCandleSelections] = useState<Record<string, number>>({});
+  const [candleSelections, setCandleSelections] = useState<CandleSelection[]>([]);
+  const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [showAllCandles, setShowAllCandles] = useState(false);
 
   useEffect(() => {
@@ -133,7 +142,7 @@ const DotCakes = () => {
 
   const allFlavours = useMemo(
     () =>
-      flavorCategories.flatMap((cat) =>
+      [...flavorCategories, ...glutenFreeFlavorCategories].flatMap((cat) =>
         cat.flavors.map((fl) => ({ ...fl, category: cat.name }))
       ),
     []
@@ -153,31 +162,16 @@ const DotCakes = () => {
     });
   };
 
-  const handleCandleQtyChange = (candleId: string, delta: number) => {
-    setCandleSelections((prev) => {
-      const next = Math.max(0, (prev[candleId] || 0) + delta);
-      const copy = { ...prev };
-      if (next === 0) delete copy[candleId];
-      else copy[candleId] = next;
-      return copy;
-    });
+  const handleCandleQtyChange = (candleId: string, delta: number) =>
+    setCandleSelections((prev) => changeSimpleCandleQty(prev, candleId, delta));
+
+  const getCandlePrice = (candleId: string) => {
+    const entry = candleSelections.find((c) => c.id === candleId);
+    if (!entry) return 0;
+    return priceCandleSelection(entry, kitCandles.find((c) => c.id === candleId), candleId === NUMBER_CANDLE_ID);
   };
 
-  const getCandlePrice = (candleId: string, qty: number) => {
-    const candle = kitCandles.find((c) => c.id === candleId);
-    if (!candle || qty === 0) return 0;
-    if (candle.hasPack && candle.packPrice && candle.packSize) {
-      const fullPacks = Math.floor(qty / candle.packSize);
-      const remainder = qty % candle.packSize;
-      return fullPacks * candle.packPrice + remainder * candle.unitPrice;
-    }
-    return qty * candle.unitPrice;
-  };
-
-  const candlesTotal = Object.entries(candleSelections).reduce(
-    (acc, [id, qty]) => acc + getCandlePrice(id, qty),
-    0
-  );
+  const candlesTotal = candleSelections.reduce((acc, entry) => acc + getCandlePrice(entry.id), 0);
 
   const total = useMemo(() => {
     if (!pack) return 0;
@@ -209,16 +203,19 @@ const DotCakes = () => {
       const fl = allFlavours.find((f) => f.id === id)!;
       return `${fl.name} (${tierByCategory[fl.category]?.label ?? fl.category})`;
     });
-    const selectedCandles = Object.entries(candleSelections)
-      .filter(([, qty]) => qty > 0)
-      .map(([id, quantity]) => ({ id, quantity, hasPack: false }));
+    const selectedCandles = candleSelections.map((c) =>
+      c.id === NUMBER_CANDLE_ID ? { ...c, digit: numberCandleDigit } : c
+    );
 
-    addItem({
+    const added = addItem({
       id: "",
       product: "dot_cakes",
       orderDate: format(orderDate, "yyyy-MM-dd"),
       orderTime: "",
-      size: "dot-cakes",
+      // Pack-specific (not the old generic "dot-cakes" literal) so the
+      // backend can determine the voucher base directly from this field
+      // instead of trusting a free-text display string.
+      size: `dot-cakes-${pack.size}`,
       sizeName: `Dot Cake Pack of ${pack.size}`,
       shape: "",
       shapeName: "",
@@ -246,6 +243,10 @@ const DotCakes = () => {
       imageFiles: [],
       total,
     });
+    if (!added) {
+      toast.error(t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."));
+      return;
+    }
     toast.success(t("Dot cakes added to your cart!", "Dot cakes ajoutés à votre panier !"));
     navigate("/cart");
   };
@@ -277,9 +278,11 @@ const DotCakes = () => {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
+                    disabled={!!cartOrderDate}
                     className={cn(
                       "w-full max-w-[320px] justify-start text-left font-normal rounded-none px-3 text-sm",
-                      !orderDate && "text-muted-foreground"
+                      !orderDate && "text-muted-foreground",
+                      cartOrderDate && "opacity-60 cursor-not-allowed"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
@@ -299,6 +302,14 @@ const DotCakes = () => {
                 </PopoverContent>
               </Popover>
             </div>
+            {cartOrderDate && (
+              <p className="text-center text-xs text-muted-foreground">
+                {t(
+                  `All items in this order will be prepared for ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. To order for another date, please place a separate order.`,
+                  `Tous les articles de cette commande seront préparés pour le ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. Pour commander pour une autre date, veuillez passer une commande séparée.`
+                )}
+              </p>
+            )}
           </section>
 
           {/* 2. Choose quantity, appears once a date is selected */}
@@ -332,6 +343,8 @@ const DotCakes = () => {
             <div className="text-xs text-muted-foreground text-center space-y-0.5">
               <p>{t("Premium flavour: +CHF 1.50 per Dot Cake", "Parfum Premium : +CHF 1.50 par Dot Cake")}</p>
               <p>{t("Deluxe flavour: +CHF 2.50 per Dot Cake", "Parfum Deluxe : +CHF 2.50 par Dot Cake")}</p>
+              <p>{t("Gluten-Free Premium flavour: +CHF 3.50 per Dot Cake", "Parfum Sans Gluten Premium : +CHF 3.50 par Dot Cake")}</p>
+              <p>{t("Gluten-Free Deluxe flavour: +CHF 5.00 per Dot Cake", "Parfum Sans Gluten Deluxe : +CHF 5.00 par Dot Cake")}</p>
             </div>
           </section>
           )}
@@ -345,7 +358,7 @@ const DotCakes = () => {
               <p className="text-center text-sm text-muted-foreground">
                 {selectedFlavours.length}/{pack.flavours} {t("selected", "sélectionnés")}
               </p>
-              {flavorCategories.map((category) => {
+              {[...flavorCategories, ...glutenFreeFlavorCategories].map((category) => {
                 const tier = tierByCategory[category.name];
                 return (
                   <div key={category.name} className="space-y-3">
@@ -396,15 +409,32 @@ const DotCakes = () => {
               <div className="space-y-4">
                 <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
                   {kitCandles.slice(0, showAllCandles ? undefined : INITIAL_CANDLES_SHOWN).map((candle) => {
-                    const qty = candleSelections[candle.id] || 0;
-                    const price = getCandlePrice(candle.id, qty);
+                    const family = FAMILY_CANDLE_COLORS[candle.id];
+                    if (family) {
+                      return (
+                        <div key={candle.id} className="w-40 sm:w-48 min-w-0">
+                          <ColorFamilyCandleCard
+                            candle={candle}
+                            colors={family}
+                            existing={candleSelections.find((c) => c.id === candle.id)}
+                            onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
+                            onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
+                            imageClassName="h-56 w-56"
+                            compact
+                          />
+                        </div>
+                      );
+                    }
+
+                    const qty = getSimpleCandleQty(candleSelections, candle.id);
+                    const price = getCandlePrice(candle.id);
                     const hasPackApplied = candle.packSize && qty >= candle.packSize;
                     return (
-                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
-                        <img src={candle.image} alt={candle.name} className="h-56 w-56 object-contain mb-2" />
+                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48 min-w-0">
+                        <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-56 w-56 object-contain mb-2" />
                         <Card className={cn("w-full transition-all", qty > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
                           <CardContent className="p-2 text-center">
-                            <h3 className="font-medium text-foreground text-xs mb-0.5">{candle.name}</h3>
+                            <h3 className="font-medium text-foreground text-xs mb-0.5">{t(candle.name, candle.nameFr)}</h3>
                             {candle.hasPack ? (
                               <p className="text-[10px] text-muted-foreground mb-1">
                                 CHF {candle.unitPrice}/pièce · Pack {candle.packSize}: CHF {candle.packPrice}
@@ -443,6 +473,41 @@ const DotCakes = () => {
                       </div>
                     );
                   })}
+
+                  {/* Number Candle — digit picker, no product photo, flat rate */}
+                  <div className="flex flex-col items-center w-40 sm:w-48 min-w-0">
+                    <div className="h-56 w-56 mb-2 flex items-center justify-center bg-secondary/20">
+                      <span className="text-6xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
+                    </div>
+                    <Card className={cn("w-full transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                      <CardContent className="p-2 text-center">
+                        <h3 className="font-medium text-foreground text-xs mb-0.5">{t("Number Candle", "Bougie chiffre")}</h3>
+                        <p className="text-[10px] text-muted-foreground mb-1.5">CHF {NUMBER_CANDLE_PRICE} / pièce</p>
+                        <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
+                          <SelectTrigger className="h-7 text-xs mb-1.5" aria-label={t("Choose a digit", "Choisir un chiffre")}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {NUMBER_CANDLE_DIGITS.map((digit) => (
+                              <SelectItem key={digit} value={digit}>{digit}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex items-center justify-center gap-1.5 mb-1">
+                          <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, -1)} disabled={getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0}
+                            className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
+                              getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}>−</button>
+                          <span className="w-5 text-center font-medium text-foreground text-sm">{getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID)}</span>
+                          <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, 1)}
+                            className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
+                        </div>
+                        {getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && (
+                          <p className="text-[10px] text-primary font-medium">CHF {getCandlePrice(NUMBER_CANDLE_ID)}</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               </div>
 

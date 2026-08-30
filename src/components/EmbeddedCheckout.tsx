@@ -23,6 +23,9 @@ interface EmbeddedCheckoutProps {
     deliveryAddress?: string;
     deliveryFee: number;
     totalAmount: number;
+    // Intent only — create-postfinance-payment independently verifies
+    // eligibility and computes the real discount amount server-side.
+    useWelcomeDiscount?: boolean;
   };
   onComplete?: () => void;
 }

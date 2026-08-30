@@ -1,10 +1,16 @@
 // Shared customisation data used by Customise page, Cart, and Checkout
+import type { CandleSelection } from "@/context/CartContext";
+import { NUMBER_CANDLE_ID, priceCandleSelection } from "@/lib/candleCartHelpers";
 
 // Box images
 import boxBento from "@/assets/box-bento.png";
 import boxRetro from "@/assets/box-retro.png";
 import boxMedium from "@/assets/box-medium.png";
 import boxLarge from "@/assets/box-large.png";
+import boxRectangle from "@/assets/home-cat-rectangle.jpg";
+import rectangleSignature from "@/assets/rectangle-signature.jpg";
+import rectangleRaspberries from "@/assets/rectangle-raspberries.jpg";
+import rectangleFlowers from "@/assets/rectangle-flowers.jpg";
 
 // Flavor images
 import flavorVanilla from "@/assets/flavor-vanilla.png";
@@ -109,6 +115,7 @@ export const sizes = [
   { id: "retro", name: "Retro Box", description: "Perfect for up to 4 people", price: 45, image: boxRetro },
   { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 85, image: boxMedium },
   { id: "large", name: "Large", description: "Ideal for up to 16 people", price: 165, image: boxLarge },
+  { id: "rectangle", name: "Rectangle", description: "Perfect for larger gatherings", price: 450, image: boxRectangle },
 ];
 
 export const shapes = [
@@ -119,7 +126,7 @@ export const shapes = [
 export const flavorCategories = [
   {
     name: "Standard Flavors",
-    extraPrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+    extraPrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 },
     flavors: [
       { id: "vanilla", name: "Vanilla", description: "Fluffy vanilla sponge with whipped cream", image: flavorVanilla },
       { id: "red-velvet", name: "Red Velvet", description: "Fluffy vanilla and chocolate sponge with whipped cream", image: flavorRedVelvet },
@@ -128,7 +135,7 @@ export const flavorCategories = [
   },
   {
     name: "Special Flavors",
-    extraPrice: { bento: 2, retro: 2, medium: 5, large: 10 },
+    extraPrice: { bento: 2, retro: 2, medium: 5, large: 10, rectangle: 20 },
     flavors: [
       { id: "chocolate-lovers", name: "Chocolate Lovers", description: "Moist chocolate sponge with rich chocolate ganache", image: flavorChocolateLovers },
       { id: "dark-berrylicious", name: "Dark Berrylicious", description: "Fluffy chocolate sponge filled with a generous raspberry coulis and whipped cream", image: flavorDarkBerrylicious },
@@ -139,7 +146,7 @@ export const flavorCategories = [
   },
   {
     name: "Deluxe Flavors",
-    extraPrice: { bento: 4, retro: 4, medium: 10, large: 15 },
+    extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 },
     flavors: [
       { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", image: flavorChocolateLoverBerrylicious },
       { id: "tiramisu", name: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", image: flavorTiramisu },
@@ -151,34 +158,58 @@ export const flavorCategories = [
       { id: "chocolate-gf", name: "Chocolate Gluten-free", description: "Fluffy gluten-free chocolate sponge with whipped cream", image: flavorChocolate },
     ],
   },
+  {
+    name: "Gluten-Free Premium",
+    extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 },
+    flavors: [
+      { id: "chocolate-gf-berrylicious", name: "Chocolate GF × Berrylicious", image: flavorDarkBerrylicious /* TODO: real product photo */ },
+      { id: "vanilla-gf-berrylicious", name: "Vanilla GF × Berrylicious", image: flavorWhiteBerrylicious /* TODO: real product photo */ },
+      { id: "lemon-curd-gf", name: "Lemon Curd Gluten-free", image: flavorLemonCurd /* TODO: real product photo */ },
+      { id: "chocolate-lovers-gf", name: "Chocolate Lovers Gluten-free", image: flavorChocolateLovers /* TODO: real product photo */ },
+    ],
+  },
+  {
+    name: "Gluten-Free Deluxe",
+    extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 },
+    flavors: [
+      { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", image: flavorVanilla /* TODO: no equivalent photo exists — needs a real one */ },
+      { id: "pistachio-gf", name: "Pistachio Gluten-free", image: flavorPistachio /* TODO: real product photo */ },
+      { id: "tiramisu-gf", name: "Tiramisu Gluten-free", image: flavorTiramisu /* TODO: real product photo */ },
+      { id: "passion-fruit-gf", name: "Passion Fruit Gluten-free", image: flavorPassionFruit /* TODO: real product photo */ },
+      { id: "praline-gf", name: "Praline Gluten-free", image: flavorPraline /* TODO: real product photo */ },
+    ],
+  },
 ];
 
 export const allFlavors = flavorCategories.flatMap(c => c.flavors);
 
 export const styles = [
-  { id: "normal-without-border", name: "Normal without border", price: { bento: 0, retro: 0, medium: 0, large: 0 } as Record<string, number>, image: styleNormalWithoutBorder },
-  { id: "normal-with-border", name: "Normal with border", price: { bento: 0, retro: 0, medium: 0, large: 0 } as Record<string, number>, image: styleNormalWithBorder },
-  { id: "heart-bomb", name: "Heart Bomb", price: { bento: 3, retro: 5, medium: 10, large: 15 } as Record<string, number>, image: designHeartBomb },
-  { id: "retro-vintage", name: "Retro / Vintage", price: { retro: 6, medium: 10, large: 15 } as Record<string, number>, image: designRetroCake },
-  { id: "glitter-cherries-retro", name: "Glitter Cherries × Retro", price: { retro: 13, medium: 20, large: 30 } as Record<string, number>, image: designGlitterCherries },
-  { id: "pearl-border-retro", name: "Pearl Border × Retro", price: { retro: 40, medium: 67, large: 98 } as Record<string, number>, image: designPearlBorders },
-  { id: "retro-ribbons", name: "Retro × Ribbons", price: { retro: 11, medium: 18, large: 25 } as Record<string, number>, image: designRibbons },
-  { id: "roses-please", name: "Roses Please", price: { bento: 6, retro: 8, medium: 15, large: 20 } as Record<string, number>, image: designRosesPlease },
-  { id: "retro-glitter-cake", name: "Retro Glitter Cake", price: { retro: 11, medium: 20, large: 27 } as Record<string, number>, image: designRetroGlitter },
+  { id: "normal-without-border", name: "Normal without border", price: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 } as Record<string, number>, image: styleNormalWithoutBorder },
+  { id: "normal-with-border", name: "Normal with border", price: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 } as Record<string, number>, image: styleNormalWithBorder },
+  { id: "heart-bomb", name: "Heart Bomb", price: { bento: 3, retro: 5, medium: 10, large: 15, rectangle: 20 } as Record<string, number>, image: designHeartBomb },
+  { id: "retro-vintage", name: "Retro / Vintage", price: { retro: 6, medium: 10, large: 15, rectangle: 30 } as Record<string, number>, image: designRetroCake },
+  { id: "glitter-cherries-retro", name: "Glitter Cherries × Retro", price: { retro: 13, medium: 20, large: 30, rectangle: 55 } as Record<string, number>, image: designGlitterCherries },
+  { id: "pearl-border-retro", name: "Pearl Border × Retro", price: { retro: 40, medium: 67, large: 98, rectangle: 225 } as Record<string, number>, image: designPearlBorders },
+  { id: "retro-ribbons", name: "Retro × Ribbons", price: { retro: 11, medium: 18, large: 25, rectangle: 50 } as Record<string, number>, image: designRibbons },
+  { id: "roses-please", name: "Roses Please", price: { bento: 6, retro: 8, medium: 15, large: 20, rectangle: 40 } as Record<string, number>, image: designRosesPlease },
+  { id: "retro-glitter-cake", name: "Retro Glitter Cake", price: { retro: 11, medium: 20, large: 27, rectangle: 55 } as Record<string, number>, image: designRetroGlitter },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 } as Record<string, number>, image: designPrintedPicture },
-  { id: "shag-cake", name: "Shag Cake", price: { retro: 12, medium: 20, large: 30 } as Record<string, number>, image: designShagCake, secondImage: designShagCake2 },
-  { id: "rainbow-cake", name: "Rainbow Cake", price: { retro: 15, medium: 20, large: 30 } as Record<string, number>, image: designRainbowCake },
+  { id: "shag-cake", name: "Shag Cake", price: { retro: 12, medium: 20, large: 30, rectangle: 50 } as Record<string, number>, image: designShagCake, secondImage: designShagCake2 },
+  { id: "rainbow-cake", name: "Rainbow Cake", price: { retro: 15, medium: 20, large: 30, rectangle: 50 } as Record<string, number>, image: designRainbowCake },
   { id: "custom-drawing", name: "Custom Drawing", price: { bento: 8, retro: 8, medium: 10, large: 15 } as Record<string, number>, image: designDrawing },
-  { id: "cherries-retro", name: "Cherries × Retro", price: { retro: 10, medium: 18, large: 27 } as Record<string, number>, image: designCherries },
-  { id: "scattered-retro-pearls", name: "Scattered Retro Pearls", price: { retro: 10, medium: 16, large: 23 } as Record<string, number>, image: designScatteredPearls },
-  { id: "gold-leaves-style", name: "Gold Leaves", price: { bento: 3, retro: 4, medium: 5, large: 8 } as Record<string, number>, image: designGoldLeaves },
-  { id: "golden-cake", name: "Golden Cake", price: { retro: 15, medium: 25, large: 40 } as Record<string, number>, image: designGoldenCake },
-  { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6 } as Record<string, number>, image: designPearlNumber },
+  { id: "cherries-retro", name: "Cherries × Retro", price: { retro: 10, medium: 18, large: 27, rectangle: 50 } as Record<string, number>, image: designCherries },
+  { id: "scattered-retro-pearls", name: "Scattered Retro Pearls", price: { retro: 10, medium: 16, large: 23, rectangle: 45 } as Record<string, number>, image: designScatteredPearls },
+  { id: "gold-leaves-style", name: "Gold Leaves", price: { bento: 3, retro: 4, medium: 5, large: 8, rectangle: 12 } as Record<string, number>, image: designGoldLeaves },
+  { id: "golden-cake", name: "Golden Cake", price: { retro: 15, medium: 25, large: 40, rectangle: 70 } as Record<string, number>, image: designGoldenCake },
+  { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6, rectangle: 10 } as Record<string, number>, image: designPearlNumber },
   { id: "retro-ribbons-glitter", name: "Retro × Ribbons Glitter in the Air", price: { retro: 21, medium: 33, large: 45 } as Record<string, number>, image: designGlitterInAir },
-  { id: "butterfly-garden", name: "Butterfly Garden", price: { retro: 10, medium: 15, large: 20 } as Record<string, number>, image: designButterflyGarden },
-  { id: "glitter-base", name: "Glitter Base", price: { bento: 8, retro: 8, medium: 10, large: 12 } as Record<string, number>, image: designGlitterCake },
-  { id: "gender-reveal", name: "Gender Reveal", price: { bento: 5, retro: 5, medium: 10, large: 15 } as Record<string, number>, image: designGenderReveal },
-  { id: "sprinkles-with-border", name: "Sprinkles with Border", price: { bento: 3, retro: 4, medium: 5, large: 6 } as Record<string, number>, image: designSprinklesWithBorder },
+  { id: "butterfly-garden", name: "Butterfly Garden", price: { retro: 10, medium: 15, large: 20, rectangle: 35 } as Record<string, number>, image: designButterflyGarden },
+  { id: "glitter-base", name: "Glitter Base", price: { bento: 8, retro: 8, medium: 10, large: 12, rectangle: 25 } as Record<string, number>, image: designGlitterCake },
+  { id: "gender-reveal", name: "Gender Reveal", price: { bento: 5, retro: 5, medium: 10, large: 15, rectangle: 40 } as Record<string, number>, image: designGenderReveal },
+  { id: "sprinkles-with-border", name: "Sprinkles with Border", price: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 } as Record<string, number>, image: designSprinklesWithBorder },
+  { id: "rectangle-signature", name: "Signature Rectangle Cake", price: { rectangle: 30 } as Record<string, number>, image: rectangleSignature },
+  { id: "rectangle-raspberries", name: "Raspberries Rectangle Cake", price: { rectangle: 60 } as Record<string, number>, image: rectangleRaspberries },
+  { id: "rectangle-flowers", name: "Flowers Rectangle Cake", price: { rectangle: 45 } as Record<string, number>, image: rectangleFlowers },
 ];
 
 export const extraDescriptions: Record<string, string> = {
@@ -201,22 +232,22 @@ export const extraDescriptions: Record<string, string> = {
 };
 
 export const extras = [
-  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 3, retro: 4, medium: 5, large: 8 } as Record<string, number>, image: extraGoldLeaves },
-  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 } as Record<string, number>, image: extraCherries },
-  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 } as Record<string, number>, image: extraGlitterCherries },
-  { id: "scattered-pearl", name: "Scattered Pearls", price: { bento: 2, retro: 4, medium: 6, large: 8 } as Record<string, number>, image: designScatteredPearls },
-  { id: "glitter", name: "Glitter", price: { bento: 5, retro: 5, medium: 10, large: 12 } as Record<string, number>, image: extraGlitter },
-  { id: "glitter-base", name: "Glitter Base", price: { bento: 8, retro: 8, medium: 10, large: 12 } as Record<string, number>, image: designGlitterCake },
+  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 3, retro: 4, medium: 5, large: 8, rectangle: 12 } as Record<string, number>, image: extraGoldLeaves },
+  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12, rectangle: 20 } as Record<string, number>, image: extraCherries },
+  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15, rectangle: 25 } as Record<string, number>, image: extraGlitterCherries },
+  { id: "scattered-pearl", name: "Scattered Pearls", price: { bento: 2, retro: 4, medium: 6, large: 8, rectangle: 15 } as Record<string, number>, image: designScatteredPearls },
+  { id: "glitter", name: "Glitter", price: { bento: 5, retro: 5, medium: 10, large: 12, rectangle: 25 } as Record<string, number>, image: extraGlitter },
+  { id: "glitter-base", name: "Glitter Base", price: { bento: 8, retro: 8, medium: 10, large: 12, rectangle: 25 } as Record<string, number>, image: designGlitterCake },
   { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 10, medium: 15, large: 20 } as Record<string, number>, image: designGlitterInAir },
-  { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 10, medium: 17, large: 25 } as Record<string, number>, image: designPearlBorders },
-  { id: "retro", name: "Retro", price: { retro: 6, medium: 10, large: 15 } as Record<string, number>, image: extraRetro },
-  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10 } as Record<string, number>, image: extraRibbons },
+  { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 10, medium: 17, large: 25, rectangle: 60 } as Record<string, number>, image: designPearlBorders },
+  { id: "retro", name: "Retro", price: { retro: 6, medium: 10, large: 15, rectangle: 30 } as Record<string, number>, image: extraRetro },
+  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10, rectangle: 20 } as Record<string, number>, image: extraRibbons },
   { id: "drawing", name: "Drawing", price: { bento: 5, retro: 5, medium: 8, large: 10 } as Record<string, number>, image: extraDrawing },
   { id: "heart", name: "Heart", price: { bento: 3, retro: 5, medium: 10, large: 15 } as Record<string, number>, image: extraHeart },
-  { id: "butterfly", name: "Butterfly", price: { retro: 6, medium: 8, large: 10 } as Record<string, number>, image: extraButterfly },
-  { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6 } as Record<string, number>, image: designPearlNumber },
+  { id: "butterfly", name: "Butterfly", price: { retro: 6, medium: 8, large: 10, rectangle: 20 } as Record<string, number>, image: extraButterfly },
+  { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6, rectangle: 10 } as Record<string, number>, image: designPearlNumber },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 } as Record<string, number>, image: extraPrintedPicture },
-  { id: "sprinkles", name: "Sprinkles", price: { bento: 3, retro: 4, medium: 5, large: 6 } as Record<string, number>, image: extraSprinkles },
+  { id: "sprinkles", name: "Sprinkles", price: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 } as Record<string, number>, image: extraSprinkles },
 ];
 
 export const candles = [
@@ -237,6 +268,10 @@ export const candles = [
   { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
+  { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "silver-spiral", name: "Silver Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "gold-spiral", name: "Gold Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "spiral-champagne", name: "Spiral Champagne", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
 ];
 
 export const extraGroups = [
@@ -309,38 +344,25 @@ export const getExtraPrice = (extraId: string, sizeId: string): number => {
   return extra.price[sizeId] || 0;
 };
 
-const flavorPriceOverrides: Record<string, Record<string, number>> = {
-  "chocolate-lover-berrylicious": { bento: 3, retro: 3, medium: 6, large: 10 },
-};
-
 export const getFlavorCategoryExtra = (flavorId: string, sizeId: string): number => {
-  const override = flavorPriceOverrides[flavorId];
-  if (override && sizeId) return override[sizeId] || 0;
+  // The DIY Kit is a single fixed-size product priced on the same flavour
+  // tier as the Bento cake size — its cart item stores size "kit-bento",
+  // which isn't a key in any category's size-keyed extraPrice map, so this
+  // alias makes the cart/checkout display line up with what KitBentoCake.tsx
+  // actually charges (computed entirely separately from this function).
+  // Display-only — never affects the real charge.
+  const normalizedSizeId = sizeId === "kit-bento" ? "bento" : sizeId;
   const category = flavorCategories.find(cat =>
     cat.flavors.some(f => f.id === flavorId)
   );
-  if (!category || !sizeId) return 0;
-  return category.extraPrice[sizeId as keyof typeof category.extraPrice] || 0;
+  if (!category || !normalizedSizeId) return 0;
+  return category.extraPrice[normalizedSizeId as keyof typeof category.extraPrice] || 0;
 };
 
-export interface CandleSelection {
-  id: string;
-  quantity: number;
-  hasPack: boolean;
-}
-
 export const getCandleTotalPrice = (candleId: string, candleSelections: CandleSelection[]): number => {
-  const candle = candles.find(c => c.id === candleId);
-  if (!candle) return 0;
-  const unitSelection = candleSelections.find(c => c.id === candleId && !c.hasPack);
-  const unitQty = unitSelection?.quantity || 0;
-  if (unitQty === 0) return 0;
-  if (candle.hasPack && unitQty >= (candle.packSize || 6)) {
-    const packs = Math.floor(unitQty / (candle.packSize || 6));
-    const remaining = unitQty % (candle.packSize || 6);
-    return packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
-  }
-  return candle.unitPrice * unitQty;
+  const entry = candleSelections.find(c => c.id === candleId);
+  if (!entry) return 0;
+  return priceCandleSelection(entry, candles.find(c => c.id === candleId), candleId === NUMBER_CANDLE_ID);
 };
 
 export const calculateCartItemTotal = (
@@ -359,7 +381,7 @@ export const calculateCartItemTotal = (
   const flavorExtra = getFlavorCategoryExtra(flavorId, sizeId);
   const styleExtra = getStylePrice(styleId, sizeId);
   const extrasPrice = selectedExtras.reduce((acc, extraId) => acc + getExtraPrice(extraId, sizeId), 0);
-  const candlesPrice = candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id, candleSelections), 0);
+  const candlesPrice = candleSelections.reduce((acc, entry) => acc + getCandleTotalPrice(entry.id, candleSelections), 0);
   return sizePrice + shapeExtra + flavorExtra + styleExtra + extrasPrice + candlesPrice;
 };
 

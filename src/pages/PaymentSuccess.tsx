@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle, Clock, Sparkles, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { firePurchaseOnce } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
 import { useLang } from "@/context/LanguageContext";
 import Layout from "@/components/Layout";
@@ -46,6 +47,12 @@ const PaymentSuccess = () => {
       if (!mounted) return;
 
       if (data?.confirmed) {
+        // Real, backend-confirmed payment (PostFinance transaction in a
+        // success state + order row created). GA4 purchase is sent from
+        // here — never merely because this page rendered — and firePurchaseOnce
+        // guarantees a single send per transaction across the 4s poll,
+        // refreshes and revisits.
+        firePurchaseOnce(id);
         setOrderValidation(data.orderValidation ?? "pending");
       } else if (data?.failed) {
         setPaymentFailed(true);

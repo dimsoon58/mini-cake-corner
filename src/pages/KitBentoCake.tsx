@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -12,6 +13,9 @@ import { cn } from "@/lib/utils";
 import { format, addDays } from "date-fns";
 import { CalendarIcon, Check, ShoppingCart, ChevronDown, ChevronUp } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
+import type { CandleSelection } from "@/context/CartContext";
+import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { useNavigate } from "react-router-dom";
 import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
 import { FlavorDesc } from "@/data/flavorDesc";
@@ -30,6 +34,7 @@ import flavorSaltedCaramel from "@/assets/flavor-salted-caramel-new.png";
 import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
 import flavorTiramisu from "@/assets/flavor-tiramisu-new.png";
 import flavorPraline from "@/assets/flavor-praline.png";
+import flavorPistachio from "@/assets/flavor-pistachio.png";
 import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
 
 // Candle images
@@ -52,7 +57,7 @@ import candlePinkCar from "@/assets/candle-pink-car.png";
 import candleRainbow from "@/assets/candle-rainbow.png";
 import diyKitBox from "@/assets/diy-kit-box.jpg";
 
-const BASE_PRICE = 45;
+const BASE_PRICE = 40;
 
 const shapes = [
   { id: "round", name: "Round", nameFr: "Rond", extraPrice: 0 },
@@ -76,7 +81,6 @@ export const flavorCategories = [
     extraPrice: 2,
     flavors: [
       { id: "chocolate-lovers", name: "Chocolate Lovers", nameFr: "Amoureux du Chocolat", description: "Moist chocolate sponge with rich chocolate ganache", descriptionFr: "Génoise chocolat moelleuse et riche ganache au chocolat", image: flavorChocolateLovers },
-      { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", nameFr: "Amoureux du Chocolat x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", descriptionFr: "Génoise chocolat, coulis de framboise et ganache au chocolat", image: flavorChocolateLoverBerrylicious },
       { id: "dark-berrylicious", name: "Dark Berrylicious", nameFr: "Dark Berrylicious", description: "Fluffy chocolate sponge filled with a generous raspberry coulis and whipped cream", descriptionFr: "Génoise chocolat moelleuse garnie d'un généreux coulis de framboise et de crème fouettée", image: flavorDarkBerrylicious },
       { id: "white-berrylicious", name: "White Berrylicious", nameFr: "White Berrylicious", description: "Fluffy vanilla sponge filled with a generous raspberry coulis and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie d'un généreux coulis de framboise et de crème fouettée", image: flavorWhiteBerrylicious },
       { id: "salted-caramel", name: "Salted Butter Caramel", nameFr: "Caramel au Beurre Salé", description: "Fluffy vanilla sponge filled with caramel and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie de caramel et de crème fouettée", image: flavorSaltedCaramel },
@@ -88,12 +92,53 @@ export const flavorCategories = [
     nameFr: "Parfums Deluxe",
     extraPrice: 4,
     flavors: [
+      { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", nameFr: "Amoureux du Chocolat x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", descriptionFr: "Génoise chocolat, coulis de framboise et ganache au chocolat", image: flavorChocolateLoverBerrylicious },
       { id: "tiramisu", name: "Tiramisu", nameFr: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie de café frais et de crème fouettée", image: flavorTiramisu },
       { id: "praline", name: "Praline Obsession", nameFr: "Obsession Praliné", description: "Fluffy vanilla sponge filled with caramelised almond, hazelnut and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie d'amandes et de noisettes caramélisées et de crème fouettée", image: flavorPraline },
       { id: "passion-fruit", name: "Passion Fruit", nameFr: "Fruit de la Passion", description: "Fluffy vanilla sponge filled with fresh passion fruit curd and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie de curd de fruit de la passion et de crème fouettée", image: flavorPassionFruit },
       { id: "vanilla-gf", name: "Vanilla Gluten-Free", nameFr: "Vanille Gluten-Free", description: "Fluffy gluten-free vanilla sponge with whipped cream", descriptionFr: "Génoise vanille sans gluten, moelleuse et crème fouettée", image: flavorVanilla },
       { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", nameFr: "Red Velvet Gluten-Free", description: "Fluffy gluten-free vanilla & chocolate sponge with whipped cream", descriptionFr: "Génoise vanille et chocolat sans gluten, moelleuse et crème fouettée", image: flavorRedVelvet },
       { id: "chocolate-gf", name: "Chocolate Gluten-Free", nameFr: "Chocolat Gluten-Free", description: "Fluffy gluten-free chocolate sponge with whipped cream", descriptionFr: "Génoise chocolat sans gluten, moelleuse et crème fouettée", image: flavorChocolate },
+    ],
+  },
+];
+
+// The 3 existing simple GF flavours above stay physically inside "Deluxe
+// Flavors" — this array is imported live by DotCakes.tsx and must not
+// change shape, or DotCakes silently gains/loses flavours. This page's own
+// picker instead visually re-groups them into the "Gluten-Free" section
+// below by filtering them out of the rendered Deluxe cards (see JSX).
+const GLUTEN_FREE_IDS_IN_DELUXE = ["vanilla-gf", "red-velvet-gf", "chocolate-gf"];
+const glutenFreeClassicFlavors = flavorCategories
+  .find((c) => c.name === "Deluxe Flavors")!
+  .flavors.filter((f) => GLUTEN_FREE_IDS_IN_DELUXE.includes(f.id));
+
+// Separate export, NOT merged into `flavorCategories` — DotCakes.tsx imports
+// that array directly with no filtering, so adding categories to it would
+// silently make these new flavours selectable (and free, via its
+// tierByCategory fallback) on Dot Cakes too.
+export const glutenFreeFlavorCategories = [
+  {
+    name: "Gluten-Free Premium",
+    nameFr: "Sans Gluten Premium",
+    extraPrice: 6,
+    flavors: [
+      { id: "chocolate-gf-berrylicious", name: "Chocolate GF × Berrylicious", nameFr: "Chocolat sans gluten x Berrylicious", image: flavorDarkBerrylicious },
+      { id: "vanilla-gf-berrylicious", name: "Vanilla GF × Berrylicious", nameFr: "Vanille sans gluten x Berrylicious", image: flavorWhiteBerrylicious },
+      { id: "lemon-curd-gf", name: "Lemon Curd Gluten-free", nameFr: "Lemon curd sans gluten", image: flavorLemonCurd },
+      { id: "chocolate-lovers-gf", name: "Chocolate Lovers Gluten-free", nameFr: "Amateurs de chocolat sans gluten", image: flavorChocolateLovers },
+    ],
+  },
+  {
+    name: "Gluten-Free Deluxe",
+    nameFr: "Sans Gluten Deluxe",
+    extraPrice: 8,
+    flavors: [
+      { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", nameFr: "Fleur d'oranger sans gluten", image: flavorVanilla },
+      { id: "pistachio-gf", name: "Pistachio Gluten-free", nameFr: "Pistache sans gluten", image: flavorPistachio },
+      { id: "tiramisu-gf", name: "Tiramisu Gluten-free", nameFr: "Tiramisu sans gluten", image: flavorTiramisu },
+      { id: "passion-fruit-gf", name: "Passion Fruit Gluten-free", nameFr: "Fruit de la passion sans gluten", image: flavorPassionFruit },
+      { id: "praline-gf", name: "Praline Gluten-free", nameFr: "Praliné sans gluten", image: flavorPraline },
     ],
   },
 ];
@@ -133,6 +178,10 @@ export const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
   { id: "blue-ombre", name: "Blue Ombré", nameFr: "Ombré Bleu", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "thick-spiral", name: "Thick Spiral", nameFr: "Spirale Épaisse", image: candleThickSpiral, unitPrice: 2, hasPack: true, packPrice: 10, packSize: 6 },
+  { id: "pink-gold-spiral", name: "Pink Gold Spiral", nameFr: "Spirale Or Rose", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "silver-spiral", name: "Silver Spiral", nameFr: "Spirale Argent", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "gold-spiral", name: "Gold Spiral", nameFr: "Spirale Or", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "spiral-champagne", name: "Spiral Champagne", nameFr: "Spirale Champagne", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "shiny-spiral", name: "Shiny Spiral", nameFr: "Spirale Brillante", image: candleShinySpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "spiral-pastel", name: "Pastel Spiral", nameFr: "Spirale Pastel", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "rainbow", name: "Rainbow", nameFr: "Arc-en-ciel", image: candleRainbow, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
@@ -168,17 +217,19 @@ const tooltipTextsFr: Record<string, string> = {
 
 const KitBentoCake = () => {
   const { t } = useLang();
-  const { addItem } = useCart();
+  const { addItem, cartOrderDate } = useCart();
   const navigate = useNavigate();
 
-  const [orderDate, setOrderDate] = useState<Date | undefined>();
+  const [orderDate, setOrderDate] = useState<Date | undefined>(() => (cartOrderDate ? new Date(cartOrderDate) : undefined));
   const [selectedShape, setSelectedShape] = useState("");
   const [selectedFlavor, setSelectedFlavor] = useState("");
   const [selectedPipingOption, setSelectedPipingOption] = useState("");
   const [pipingColors, setPipingColors] = useState<string[]>([]);
-  const [candleSelections, setCandleSelections] = useState<{ [key: string]: number }>({});
+  const [candleSelections, setCandleSelections] = useState<CandleSelection[]>([]);
+  const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [showAllCandles, setShowAllCandles] = useState(false);
+  const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
 
   const minDate = addDays(new Date(), 4);
 
@@ -218,8 +269,10 @@ const KitBentoCake = () => {
   const showCandles = showPiping && pipingComplete;
 
   const getFlavorCategoryPrice = () => {
-    if (selectedFlavor === "chocolate-lover-berrylicious") return 3;
     for (const category of flavorCategories) {
+      if (category.flavors.some(f => f.id === selectedFlavor)) return category.extraPrice;
+    }
+    for (const category of glutenFreeFlavorCategories) {
       if (category.flavors.some(f => f.id === selectedFlavor)) return category.extraPrice;
     }
     return 0;
@@ -227,6 +280,10 @@ const KitBentoCake = () => {
 
   const getFlavorName = () => {
     for (const category of flavorCategories) {
+      const flavor = category.flavors.find(f => f.id === selectedFlavor);
+      if (flavor) return flavor.name;
+    }
+    for (const category of glutenFreeFlavorCategories) {
       const flavor = category.flavors.find(f => f.id === selectedFlavor);
       if (flavor) return flavor.name;
     }
@@ -238,46 +295,30 @@ const KitBentoCake = () => {
       const flavor = category.flavors.find(f => f.id === selectedFlavor);
       if (flavor) return flavor.nameFr;
     }
+    for (const category of glutenFreeFlavorCategories) {
+      const flavor = category.flavors.find(f => f.id === selectedFlavor);
+      if (flavor) return flavor.nameFr;
+    }
     return "";
   };
 
   const getShapePrice = () => shapes.find(s => s.id === selectedShape)?.extraPrice || 0;
   const getPipingPrice = () => pipingBagOptions.find(p => p.id === selectedPipingOption)?.price || 0;
 
-  const getCandlePrice = (candleId: string, qty: number) => {
-    const candle = candles.find(c => c.id === candleId);
-    if (!candle || qty === 0) return 0;
-    if (candle.hasPack && candle.packPrice && candle.packSize) {
-      const packs = Math.floor(qty / candle.packSize);
-      const remainder = qty % candle.packSize;
-      return packs * candle.packPrice + remainder * candle.unitPrice;
-    }
-    return qty * candle.unitPrice;
+  const getCandlePrice = (candleId: string) => {
+    const entry = candleSelections.find(c => c.id === candleId);
+    if (!entry) return 0;
+    return priceCandleSelection(entry, candles.find(c => c.id === candleId), candleId === NUMBER_CANDLE_ID);
   };
 
-  const getCandlesTotal = () => {
-    let total = 0;
-    Object.entries(candleSelections).forEach(([candleId, qty]) => {
-      total += getCandlePrice(candleId, qty);
-    });
-    return total;
-  };
+  const getCandlesTotal = () => candleSelections.reduce((sum, entry) => sum + getCandlePrice(entry.id), 0);
 
   const totalPrice = useMemo(() => {
     return BASE_PRICE + getShapePrice() + getFlavorCategoryPrice() + getPipingPrice() + getCandlesTotal();
   }, [selectedShape, selectedFlavor, selectedPipingOption, candleSelections]);
 
-  const handleCandleQtyChange = (candleId: string, delta: number) => {
-    setCandleSelections(prev => {
-      const current = prev[candleId] || 0;
-      const newQty = Math.max(0, current + delta);
-      if (newQty === 0) {
-        const { [candleId]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [candleId]: newQty };
-    });
-  };
+  const handleCandleQtyChange = (candleId: string, delta: number) =>
+    setCandleSelections(prev => changeSimpleCandleQty(prev, candleId, delta));
 
   const handlePipingColorToggle = (colorId: string) => {
     const option = pipingBagOptions.find(p => p.id === selectedPipingOption);
@@ -301,9 +342,9 @@ const KitBentoCake = () => {
     }
 
     const pipingColorNames = pipingColors.map(id => baseColors.find(c => c.id === id)?.name || "").join(", ");
-    const selectedCandles = Object.entries(candleSelections)
-      .filter(([, qty]) => qty > 0)
-      .map(([id, quantity]) => ({ id, quantity, hasPack: false }));
+    const selectedCandles = candleSelections.map((c) =>
+      c.id === NUMBER_CANDLE_ID ? { ...c, digit: numberCandleDigit } : c
+    );
 
     const cartItem = {
       id: "",
@@ -341,7 +382,11 @@ const KitBentoCake = () => {
       total: totalPrice,
     };
 
-    addItem(cartItem);
+    const added = addItem(cartItem);
+    if (!added) {
+      toast.error(t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."));
+      return;
+    }
     setShowCartSheet(true);
   };
 
@@ -391,9 +436,11 @@ const KitBentoCake = () => {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
+                    disabled={!!cartOrderDate}
                     className={cn(
                       "w-full max-w-[320px] justify-start text-left font-normal rounded-none px-3 text-sm",
-                      !orderDate && "text-muted-foreground"
+                      !orderDate && "text-muted-foreground",
+                      cartOrderDate && "opacity-60 cursor-not-allowed"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
@@ -414,6 +461,14 @@ const KitBentoCake = () => {
                 </PopoverContent>
               </Popover>
             </div>
+            {cartOrderDate && (
+              <p className="text-center text-xs text-muted-foreground">
+                {t(
+                  `All items in this order will be prepared for ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. To order for another date, please place a separate order.`,
+                  `Tous les articles de cette commande seront préparés pour le ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. Pour commander pour une autre date, veuillez passer une commande séparée.`
+                )}
+              </p>
+            )}
           </section>
 
           {/* Step 2: Shape */}
@@ -441,14 +496,18 @@ const KitBentoCake = () => {
               <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em]">
                 {t("Choose Flavour", "Choisir le parfum")}<RequiredAsterisk tooltipKey="flavor" />
               </h2>
-              {flavorCategories.map((category) => (
+              {flavorCategories.map((category) => {
+                const visibleFlavors = category.name === "Deluxe Flavors"
+                  ? category.flavors.filter((f) => !GLUTEN_FREE_IDS_IN_DELUXE.includes(f.id))
+                  : category.flavors;
+                return (
                 <div key={category.name} className="space-y-3">
                   <h3 className="text-lg font-medium">
                     {t(category.name.replace("Flavors", "Flavours"), category.nameFr)}
                     {category.extraPrice > 0 && <span className="text-muted-foreground ml-2">(+CHF {category.extraPrice})</span>}
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {category.flavors.map((flavor) => (
+                    {visibleFlavors.map((flavor) => (
                       <div
                         key={flavor.id}
                         className={cn(
@@ -469,7 +528,54 @@ const KitBentoCake = () => {
                     ))}
                   </div>
                 </div>
-              ))}
+                );
+              })}
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setShowGlutenFreeFlavors((v) => !v)}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  {showGlutenFreeFlavors
+                    ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
+                    : t("See gluten-free flavours", "Voir les parfums sans gluten")}
+                </button>
+                {showGlutenFreeFlavors && (
+                  <>
+                    {[
+                      { label: t("Gluten-Free Classic", "Sans Gluten Classique"), price: 4, flavors: glutenFreeClassicFlavors },
+                      ...glutenFreeFlavorCategories.map((c) => ({ label: t(c.name.replace(" Flavors", ""), c.nameFr), price: c.extraPrice, flavors: c.flavors })),
+                    ].map((group) => (
+                      <div key={group.label} className="space-y-3">
+                        <h3 className="text-lg font-medium">
+                          {group.label} <span className="text-muted-foreground ml-2">(+CHF {group.price})</span>
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {group.flavors.map((flavor) => (
+                            <div
+                              key={flavor.id}
+                              className={cn(
+                                "bg-card rounded-none overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer",
+                                selectedFlavor === flavor.id && "ring-2 ring-primary"
+                              )}
+                              onClick={() => setSelectedFlavor(flavor.id)}
+                            >
+                              <div className="aspect-square overflow-hidden bg-muted/30 p-4">
+                                <img src={flavor.image} alt={t(flavor.name, flavor.nameFr)} className="w-full h-full object-contain" />
+                              </div>
+                              <div className="p-3 text-center">
+                                <p className="font-sans font-medium text-sm">{t(flavor.name, flavor.nameFr)}</p>
+                                <AllergenDisplay flavorId={flavor.id} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
               <AllergenNotice className="pt-2" />
             </section>
           )}
@@ -542,8 +648,22 @@ const KitBentoCake = () => {
               <div className="space-y-4">
                 <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
                   {candles.slice(0, showAllCandles ? undefined : INITIAL_CANDLES_SHOWN).map((candle) => {
-                    const qty = candleSelections[candle.id] || 0;
-                    const price = getCandlePrice(candle.id, qty);
+                    const family = FAMILY_CANDLE_COLORS[candle.id];
+                    if (family) {
+                      return (
+                        <ColorFamilyCandleCard
+                          key={candle.id}
+                          candle={candle}
+                          colors={family}
+                          existing={candleSelections.find((c) => c.id === candle.id)}
+                          onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
+                          onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
+                        />
+                      );
+                    }
+
+                    const qty = getSimpleCandleQty(candleSelections, candle.id);
+                    const price = getCandlePrice(candle.id);
                     const hasPackApplied = candle.packSize && qty >= candle.packSize;
 
                     return (
@@ -576,6 +696,41 @@ const KitBentoCake = () => {
                       </div>
                     );
                   })}
+
+                  {/* Number Candle — digit picker, no product photo, flat rate */}
+                  <div className="flex flex-col items-center w-40 sm:w-48">
+                    <div className="h-56 w-56 mb-2 flex items-center justify-center bg-secondary/20">
+                      <span className="text-6xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
+                    </div>
+                    <Card className={cn("w-full transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                      <CardContent className="p-2 text-center">
+                        <h3 className="font-medium text-foreground text-xs mb-0.5">{t("Number Candle", "Bougie chiffre")}</h3>
+                        <p className="text-[10px] text-muted-foreground mb-1.5">CHF {NUMBER_CANDLE_PRICE} / pièce</p>
+                        <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
+                          <SelectTrigger className="h-7 text-xs mb-1.5" aria-label={t("Choose a digit", "Choisir un chiffre")}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {NUMBER_CANDLE_DIGITS.map((digit) => (
+                              <SelectItem key={digit} value={digit}>{digit}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex items-center justify-center gap-1.5 mb-1">
+                          <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, -1)} disabled={getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0}
+                            className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
+                              getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}>−</button>
+                          <span className="w-5 text-center font-medium text-foreground text-sm">{getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID)}</span>
+                          <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, 1)}
+                            className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
+                        </div>
+                        {getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && (
+                          <p className="text-[10px] text-primary font-medium">CHF {getCandlePrice(NUMBER_CANDLE_ID)}</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               </div>
 

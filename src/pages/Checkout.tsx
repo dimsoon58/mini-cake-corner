@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
 import {
@@ -8,6 +8,15 @@ import {
   flavorCategories, extraGroups,
 } from "@/data/customization";
 import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, composeCandleName } from "@/lib/candleCartHelpers";
+import {
+  COUNTRY_CODES,
+  normalizeEmail,
+  normalizeName,
+  sanitizePhoneLocalInput,
+  combinePhoneNumber,
+  splitPhoneNumber,
+} from "@/lib/identity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,27 +38,50 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { useCart } from "@/context/CartContext";
+import { useCart, VALID_PRODUCTS } from "@/context/CartContext";
+import {
+  trackEvent,
+  trackEventWhenReady,
+  cartItemsToGA4Items,
+  cartItemsValue,
+  stashPurchaseSnapshot,
+} from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 
-// Country codes
-const COUNTRY_CODES = [
-  { code: "+41", country: "CH", flag: "🇨🇭" },
-  { code: "+33", country: "FR", flag: "🇫🇷" },
-  { code: "+49", country: "DE", flag: "🇩🇪" },
-  { code: "+39", country: "IT", flag: "🇮🇹" },
-  { code: "+43", country: "AT", flag: "🇦🇹" },
-  { code: "+32", country: "BE", flag: "🇧🇪" },
-  { code: "+44", country: "UK", flag: "🇬🇧" },
-  { code: "+34", country: "ES", flag: "🇪🇸" },
-  { code: "+351", country: "PT", flag: "🇵🇹" },
-  { code: "+31", country: "NL", flag: "🇳🇱" },
-  { code: "+1", country: "US", flag: "🇺🇸" },
-];
+// Fixed voucher base price per (product, size) pair — must stay identical
+// to WELCOME_VOUCHER_BASE in create-postfinance-payment/index.ts (the
+// authoritative copy). Never a single size alone, so an inconsistent
+// combination can never resolve to a base. Intentionally NOT the live
+// catalogue price (e.g. retro/large differ from data/customization.ts and
+// Catalog.tsx today).
+const WELCOME_VOUCHER_BASE: Record<string, Record<string, number>> = {
+  bento_cake: { bento: 40, retro: 40, medium: 85, large: 160 },
+  rectangle_cake: { rectangle: 450 },
+  diy_kit: { "kit-bento": 40 },
+  edible_printing: { printing: 15 },
+  dot_cakes: {
+    "dot-cakes-4": 35,
+    "dot-cakes-6": 51,
+    "dot-cakes-9": 75,
+    "dot-cakes-12": 99,
+    "dot-cakes-20": 160,
+  },
+};
+
+// Display-only mirror of getWelcomeVoucherBase() in
+// create-postfinance-payment/index.ts. For Dot Cakes, item.size is written
+// pack-specific ("dot-cakes-6", set in DotCakes.tsx). Returns null when the
+// pair isn't in the fixed table above — including a stale cart still
+// carrying the old generic "dot-cakes" size — in which case the item is
+// never selected as the discounted one.
+function getWelcomeVoucherBase(item: { product: string; size: string }): number | null {
+  return WELCOME_VOUCHER_BASE[item.product]?.[item.size] ?? null;
+}
 
 // Generate 1-hour pickup time slots from 10:00 to 18:00
 const PICKUP_TIME_SLOTS = [
@@ -210,15 +242,19 @@ const buildExtraFields = (item: {
 // multiple distinct types are joined into a readable list, with
 // candle_quantity summed so it stays a plain number either way.
 const buildCandleFields = (
-  candleSelections: { id: string; quantity: number }[],
+  candleSelections: { id: string; quantity: number; hasPack?: boolean; colors?: string[]; digit?: string }[],
 ): { candleName: string; candleQuantity: number } => {
   const active = candleSelections.filter((c) => c.quantity > 0);
   if (active.length === 0) return { candleName: "", candleQuantity: 0 };
-  const names = active.map((c) =>
-    customisationCandles.find((x) => x.id === c.id)?.name
-    || kitBentoCandles.find((x) => x.id === c.id)?.name
-    || c.id
-  );
+  const names = active.map((c) => {
+    // Persisted candle_name stays English-only, matching sizeName/flavorName/etc.
+    const baseName = c.id === NUMBER_CANDLE_ID
+      ? "Number Candle"
+      : customisationCandles.find((x) => x.id === c.id)?.name
+        || kitBentoCandles.find((x) => x.id === c.id)?.name
+        || c.id;
+    return composeCandleName(c, baseName);
+  });
   const totalQuantity = active.reduce((sum, c) => sum + c.quantity, 0);
   return { candleName: names.join(", "), candleQuantity: totalQuantity };
 };
@@ -240,16 +276,24 @@ const uploadImageFilesToStorage = async (
     const file = allFiles[i];
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
-    const filePath = `${year}/${month}/${orderId}/reference_${i}.${safeExt}`;
 
     let uploaded = false;
+    let uploadedPath = "";
     for (let attempt = 0; attempt < 3; attempt++) {
+      // A fresh unique path every attempt — never re-upload to the same key
+      // — so a retry is always a plain INSERT, never an UPDATE. With a fixed
+      // path and upsert:true, a retry that lands on a path a previous
+      // attempt already created becomes an UPDATE, which has no RLS policy
+      // and fails with "new row violates row-level security policy" even
+      // though INSERT is correctly allowed.
+      const filePath = `${year}/${month}/${orderId}/${crypto.randomUUID()}_reference_${i}.${safeExt}`;
       const { error: uploadError } = await supabase.storage
         .from("order-images")
-        .upload(filePath, file, { contentType: file.type, upsert: true });
+        .upload(filePath, file, { contentType: file.type, upsert: false });
 
       if (!uploadError) {
         uploaded = true;
+        uploadedPath = filePath;
         break;
       }
       console.warn(`Upload attempt ${attempt + 1} failed for reference_${i}:`, uploadError.message);
@@ -257,7 +301,7 @@ const uploadImageFilesToStorage = async (
     }
 
     if (uploaded) {
-      const { data } = supabase.storage.from("order-images").getPublicUrl(filePath);
+      const { data } = supabase.storage.from("order-images").getPublicUrl(uploadedPath);
       uploadedUrls.push(data.publicUrl);
     } else {
       console.error(`Failed to upload reference_${i} after 3 attempts`);
@@ -271,9 +315,18 @@ const uploadImageFilesToStorage = async (
 const Checkout = () => {
   const { items, clearCart } = useCart();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [firstName, setFirstName] = useState("");
   const { t, lang } = useLang();
-  const [applyReward, setApplyReward] = useState(false);
+  const { user, profile, refreshProfile } = useAuth();
+  // Identity fields come from the account and are locked once signed in —
+  // phone stays editable even then, since a customer may want a different
+  // contact number for this specific order.
+  const isLoggedIn = !!user;
+  const [useWelcomeDiscount, setUseWelcomeDiscount] = useState(false);
+  // No amount picker — enabling this always requests the maximum usable
+  // amount, computed below.
+  const [useReward, setUseReward] = useState(false);
   const [lastName, setLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
@@ -297,6 +350,23 @@ const Checkout = () => {
   const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
   const [checkoutPayload, setCheckoutPayload] = useState<any>(null);
 
+  // Prefill from the logged-in customer's profile — never overwrites what
+  // they've already typed. Guest checkout (profile stays null) is untouched.
+  // Not depending on [firstName, lastName, email, phone] is intentional:
+  // this must only run when profile itself (re)loads, never on keystrokes.
+  useEffect(() => {
+    if (!profile) return;
+    setFirstName((prev) => prev || (profile.first_name ? normalizeName(profile.first_name) : ""));
+    setLastName((prev) => prev || (profile.last_name ? normalizeName(profile.last_name) : ""));
+    setEmail((prev) => prev || normalizeEmail(profile.email || user?.email || ""));
+
+    if (profile.phone && !phone) {
+      const parsed = splitPhoneNumber(profile.phone);
+      if (parsed.countryCode) setCountryCode(parsed.countryCode);
+      setPhone(parsed.localPhone);
+    }
+  }, [profile, user]);
+
   // Fetch fully booked dates on mount
   useEffect(() => {
     const fetchBookedDates = async () => {
@@ -308,18 +378,131 @@ const Checkout = () => {
     fetchBookedDates();
   }, []);
 
+  // PostFinance's failedUrl brings the customer straight back here with
+  // ?payment=failed — cart is left untouched (nothing here calls
+  // clearCart()) so they can retry immediately.
+  useEffect(() => {
+    if (searchParams.get("payment") === "failed") {
+      toast({
+        title: t("Payment failed", "Échec du paiement"),
+        description: t(
+          "Payment failed. Please try again or use another payment method.",
+          "Le paiement a échoué. Veuillez réessayer ou utiliser un autre moyen de paiement."
+        ),
+        variant: "destructive",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // GA4 funnel guards — each step at most once per Checkout mount.
+  const beginCheckoutSentRef = useRef(false);
+  const shippingInfoSentRef = useRef(false);
+  const paymentInfoSentRef = useRef(false);
+
+  // begin_checkout — the customer has reached the checkout with a cart.
+  useEffect(() => {
+    if (beginCheckoutSentRef.current || items.length === 0) return;
+    beginCheckoutSentRef.current = true;
+    trackEventWhenReady("begin_checkout", {
+      currency: "CHF",
+      value: cartItemsValue(items),
+      items: cartItemsToGA4Items(items),
+    });
+  }, [items]);
+
   const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
-  
+
   const detectedZone = useMemo(() => {
     if (deliveryOption !== "delivery" || !deliveryAddress.trim()) return null;
     return detectZoneFromAddress(deliveryAddress);
   }, [deliveryOption, deliveryAddress]);
 
   const deliveryPrice = detectedZone?.price || 0;
-  const totalPrice = itemsTotal + (deliveryOption === "delivery" ? deliveryPrice : 0);
+
+  // Server-verified at create-postfinance-payment time — this is only a
+  // display estimate. A reservation already in flight
+  // (welcome_discount_reserved_order_id set) also hides the option, since
+  // the account isn't currently free to claim a new one.
+  // welcome_discount_expires_at is read directly from Supabase as the
+  // source of truth — never recomputed client-side. !!profile guards
+  // against treating a not-yet-loaded profile as eligible.
+  const baseWelcomeDiscountEligible = !!user
+    && !!user.email_confirmed_at
+    && !!profile
+    && !profile?.welcome_discount_used_at
+    && !profile?.welcome_discount_reserved_order_id;
+
+  // Genuinely already active in the DB right now.
+  const welcomeVoucherEligible = baseWelcomeDiscountEligible
+    && profile?.welcome_discount_available === true
+    && !!profile?.welcome_discount_expires_at
+    && new Date(profile.welcome_discount_expires_at) > new Date();
+
+  // Not active yet, but checking the newsletter box in this same checkout
+  // would activate it (via the DB trigger) before payment is requested —
+  // genuinely means "transitioning right now": the trigger only fires on
+  // an actual change of newsletter_subscription, so if it's already true
+  // in profiles this isn't a transition and must not claim to be one. A
+  // missing expiry means "never subscribed before" — first-time eligible.
+  // An existing expiry must still be in the future — an expired date never
+  // becomes eligible again, no matter what's checked.
+  const justSubscribingNow = baseWelcomeDiscountEligible
+    && subscribeNewsletter
+    && profile?.newsletter_subscription !== true
+    && !welcomeVoucherEligible
+    && (!profile?.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date());
+
+  const canUseWelcomeDiscountNow = welcomeVoucherEligible || justSubscribingNow;
+
+  // Mirrors, item for item, the selection rule enforced server-side in
+  // create-postfinance-payment: candles ("product" === "candles") are
+  // entirely excluded whenever at least one non-candle product is in the
+  // cart. Among the remaining items, the one with the lowest VOUCHER BASE
+  // price wins (fixed per product type/size, never the real sale price
+  // which includes decorations/extras/supplements). A candles-only cart is
+  // the one exception that keeps using the real line total. Display only —
+  // the server independently recomputes and verifies this amount, never
+  // trusting this client-side value for anything financial.
+  const nonCandleItems = items.filter((item) => item.product !== "candles");
+  const isCandlesOnlyCart = nonCandleItems.length === 0;
+
+  let discountedItem: (typeof items)[number] | null = null;
+  let discountedBase = 0;
+  for (const item of (isCandlesOnlyCart ? items : nonCandleItems)) {
+    const base = isCandlesOnlyCart ? item.total : getWelcomeVoucherBase(item);
+    if (base === null) continue;
+    if (discountedItem === null || base < discountedBase) {
+      discountedItem = item;
+      discountedBase = base;
+    }
+  }
+
+  const estimatedWelcomeDiscount = (useWelcomeDiscount && canUseWelcomeDiscountNow && discountedItem)
+    ? Math.round(discountedBase * 0.10 * 100) / 100
+    : 0;
+
+  // Reward balance ("cagnotte") — display-only. profile.reward_balance is a
+  // server-maintained cache; this page never derives, recomputes, or
+  // second-guesses it — it just reads it and proposes an intention. The
+  // server independently verifies and caps the real usable amount at
+  // capture time.
+  const rewardBalance = profile?.reward_balance ?? 0;
+  const rewardEligible = !!user && rewardBalance >= 1;
+  // Products only, after the welcome discount, delivery excluded — matches
+  // the business rule; still just a display cap, never trusted as the real
+  // ceiling.
+  const maxRewardUsable = Math.max(0, Math.round((itemsTotal - estimatedWelcomeDiscount) * 100) / 100);
+  // No amount choice — enabling the option always requests the maximum
+  // usable amount (never more than what's left to pay on products).
+  const estimatedRewardUsed = (useReward && rewardEligible)
+    ? Math.round(Math.min(rewardBalance, maxRewardUsable) * 100) / 100
+    : 0;
+
+  const totalPrice = itemsTotal - estimatedWelcomeDiscount - estimatedRewardUsed + (deliveryOption === "delivery" ? deliveryPrice : 0);
 
   // Build phone number with country code
-  const fullPhoneNumber = `${countryCode}${phone.replace(/^0+/, '')}`;
+  const fullPhoneNumber = combinePhoneNumber(countryCode, phone);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,6 +528,20 @@ const Checkout = () => {
     if (!deliveryDate) {
       toast({
         title: t("Please select a delivery date", "Veuillez sélectionner une date"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const datedItems = items.filter((i) => i.orderDate);
+    const mismatchedDates = datedItems.some((i) => i.orderDate !== datedItems[0]?.orderDate);
+    if (mismatchedDates) {
+      toast({
+        title: t("Order dates do not match", "Les dates de commande ne correspondent pas"),
+        description: t(
+          "Please make sure every item in your cart has the same pickup date, or place separate orders.",
+          "Merci de vérifier que tous les articles de votre panier ont la même date de retrait, ou de passer des commandes séparées."
+        ),
         variant: "destructive",
       });
       return;
@@ -387,6 +584,22 @@ const Checkout = () => {
       return;
     }
 
+    // GA4 add_shipping_info — pickup vs delivery (and zone) is now fully
+    // chosen and validated. Fired before the availability re-check / payload
+    // build so it reflects the moment the delivery choice is confirmed.
+    if (!shippingInfoSentRef.current) {
+      shippingInfoSentRef.current = true;
+      trackEvent("add_shipping_info", {
+        currency: "CHF",
+        value: cartItemsValue(items),
+        shipping_tier:
+          deliveryOption === "delivery"
+            ? detectedZone?.name || "delivery"
+            : "pickup",
+        items: cartItemsToGA4Items(items),
+      });
+    }
+
     setShowEmbeddedCheckout(false);
     setIsSubmitting(true);
 
@@ -423,6 +636,25 @@ const Checkout = () => {
         return;
       }
 
+      // Last line of defense: an item without a currently-valid product
+      // would make the whole order_items insert fail later (in
+      // confirm-postfinance-payment), long after the customer has paid —
+      // catch it here instead, before anything is sent to PostFinance or
+      // Supabase. Normal cart items always have one; this only fires for
+      // stale items left in localStorage from before this field existed.
+      const invalidProductItem = items.find((item) => !VALID_PRODUCTS.has(item.product));
+      if (invalidProductItem) {
+        toast({
+          title: t("Cart item needs to be re-added", "Un article du panier doit être ajouté à nouveau"),
+          description: t(
+            "One of your cart items is outdated. Please remove it and add it again before checking out.",
+            "Un article de votre panier est obsolète. Merci de le retirer et de l'ajouter à nouveau avant de valider votre commande."
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
+
       const orderId = crypto.randomUUID();
       const slot = deliveryOption === "pickup" ? pickupTime : deliveryTime;
 
@@ -453,9 +685,9 @@ const Checkout = () => {
         id: orderId,
         order_source: "website",
         lang,
-        first_name: firstName,
-        last_name: lastName,
-        email,
+        first_name: normalizeName(firstName),
+        last_name: normalizeName(lastName),
+        email: normalizeEmail(email),
         phone: fullPhoneNumber,
         delivery_method: deliveryOption,
         delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
@@ -530,6 +762,87 @@ const Checkout = () => {
         };
       });
 
+      // Newsletter activation runs BEFORE the payload is built and BEFORE
+      // create-postfinance-payment is called (not after, as it used to) —
+      // deliberately, so if useWelcomeDiscount depends on justSubscribingNow,
+      // the DB trigger has already flipped welcome_discount_available by
+      // the time claim_welcome_discount runs server-side, and so we know
+      // for certain whether the activation actually succeeded before
+      // deciding whether the discount can be requested at all.
+      let brevoSucceeded = true; // meaningful only if subscribeNewsletter attempts a call below
+      let newsletterProfileUpdateSucceeded = true; // meaningful only if isLoggedIn && user attempts a call below
+
+      if (subscribeNewsletter) {
+        try {
+          const { error: brevoError } = await supabase.functions.invoke("subscribe-newsletter", {
+            body: {
+              email,
+              firstName,
+              lastName,
+            },
+          });
+          if (brevoError) {
+            console.error("Newsletter subscription error:", brevoError);
+            brevoSucceeded = false;
+          } else {
+            console.log("Newsletter subscription sent to Brevo");
+          }
+        } catch (newsletterErr) {
+          console.error("Newsletter subscription error:", newsletterErr);
+          brevoSucceeded = false;
+        }
+
+        // Logged-in customer only — a guest never gets a profiles row
+        // created just for this. Keeps profiles.newsletter_subscription in
+        // sync so Make/Notion (which reads this column) reflects reality,
+        // and so this checkbox stays hidden for them on their next
+        // checkout.
+        if (isLoggedIn && user) {
+          try {
+            const { error: profileUpdateError } = await supabase
+              .from("profiles")
+              .update({ newsletter_subscription: true })
+              .eq("id", user.id);
+            if (profileUpdateError) {
+              console.error("Failed to update profile newsletter_subscription:", profileUpdateError);
+              newsletterProfileUpdateSucceeded = false;
+            } else {
+              await refreshProfile();
+            }
+          } catch (profileErr) {
+            console.error("Profile newsletter_subscription update error:", profileErr);
+            newsletterProfileUpdateSucceeded = false;
+          }
+        }
+      }
+
+      const newsletterActivationSucceeded = brevoSucceeded && newsletterProfileUpdateSucceeded;
+
+      // The welcome discount checkbox was only checkable BECAUSE of
+      // justSubscribingNow (not already independently eligible in the DB).
+      // If either half of the activation that was supposed to unlock it
+      // just failed, stop here rather than silently charging full price
+      // for something the customer explicitly asked to redeem. A checkout
+      // NOT relying on justSubscribingNow for its discount is unaffected —
+      // a Brevo/profile hiccup stays non-blocking for it, same as before.
+      if (useWelcomeDiscount && justSubscribingNow && !newsletterActivationSucceeded) {
+        setIsSubmitting(false);
+        toast({
+          title: t("Could not activate your welcome offer", "Impossible d'activer votre offre de bienvenue"),
+          description: t(
+            "We couldn't confirm your newsletter subscription, so your welcome discount couldn't be activated. Please try again.",
+            "Nous n'avons pas pu confirmer votre inscription à la newsletter, donc votre réduction de bienvenue n'a pas pu être activée. Merci de réessayer."
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // The actual, verified outcome — distinct from canUseWelcomeDiscountNow,
+      // which is only the pre-submit display estimate.
+      const canApplyWelcomeDiscountToThisOrder = welcomeVoucherEligible
+        || (justSubscribingNow && newsletterActivationSucceeded);
+
       // Build payload for the payment page. `order`/`orderItems` are the
       // real rows create-postfinance-payment stages into pending_payments —
       // nothing has touched orders/order_items yet. `items` below is display-only,
@@ -537,6 +850,20 @@ const Checkout = () => {
       const payload = {
         order: orderData,
         orderItems: orderItemsRows,
+        // Raw ids only — never a price. create-postfinance-payment recomputes
+        // orderItemsRows[i].total from this; item.total above no longer
+        // decides what gets charged.
+        pricingItems: orderItemsWithImageUrls.map((item) => ({
+          product: item.product,
+          size: item.size || null,
+          shape: item.shape || null,
+          flavors: item.isCandleProduct
+            ? []
+            : item.flavor ? item.flavor.split(",").map((f) => f.trim()).filter(Boolean) : [],
+          design: item.style || null,
+          extras: item.isCandleProduct ? [] : (item.extras || []),
+          candles: item.candles || [],
+        })),
         items: items.map((item) => ({
           sizeName: item.sizeName,
           shapeName: item.shapeName,
@@ -554,6 +881,15 @@ const Checkout = () => {
         totalAmount: totalPrice,
         orderId,
         language: lang,
+        // Intent only — create-postfinance-payment independently verifies
+        // eligibility and computes the real discount server-side.
+        useWelcomeDiscount: useWelcomeDiscount && canApplyWelcomeDiscountToThisOrder,
+        // Intent only — never the amount actually credited/debited. The
+        // backend independently verifies the real available balance, caps
+        // it, and reserves it. Requires backend support (reserve_reward_credit
+        // etc.) not yet implemented — safe to send regardless, current
+        // create-postfinance-payment simply ignores unknown fields.
+        rewardAmountToUse: estimatedRewardUsed,
       };
 
       console.log("Setting up embedded checkout with:", {
@@ -562,24 +898,30 @@ const Checkout = () => {
         deliveryOption: payload.deliveryOption,
       });
 
+      // GA4 — the order is finalised and the customer is about to be handed
+      // to PostFinance. Record the real order figures now so `purchase` can
+      // be reported accurately later (the cart is cleared before the
+      // payment-success page runs), keyed by this orderId = transaction_id.
+      const ga4Items = cartItemsToGA4Items(items);
+      stashPurchaseSnapshot({
+        transaction_id: orderId,
+        currency: "CHF",
+        value: totalPrice,
+        shipping: deliveryOption === "delivery" ? deliveryPrice : 0,
+        items: ga4Items,
+      });
+      if (!paymentInfoSentRef.current) {
+        paymentInfoSentRef.current = true;
+        trackEvent("add_payment_info", {
+          currency: "CHF",
+          value: totalPrice,
+          payment_type: "PostFinance Checkout",
+          items: ga4Items,
+        });
+      }
+
       setCheckoutPayload(payload);
       setShowEmbeddedCheckout(true);
-
-      // Send to Brevo if newsletter is checked
-      if (subscribeNewsletter) {
-        try {
-          await supabase.functions.invoke("subscribe-newsletter", {
-            body: {
-              email,
-              firstName,
-              lastName,
-            },
-          });
-          console.log("Newsletter subscription sent to Brevo");
-        } catch (newsletterErr) {
-          console.error("Newsletter subscription error (non-blocking):", newsletterErr);
-        }
-      }
     } catch (err) {
       console.error("Checkout submit error:", err);
       toast({
@@ -638,7 +980,10 @@ const Checkout = () => {
                   id="firstName"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
+                  onBlur={() => setFirstName((prev) => normalizeName(prev))}
                   placeholder={t("Enter your first name", "Saisissez votre prénom")}
+                  readOnly={isLoggedIn}
+                  className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
                   required
                 />
               </div>
@@ -650,7 +995,10 @@ const Checkout = () => {
                   id="lastName"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
+                  onBlur={() => setLastName((prev) => normalizeName(prev))}
                   placeholder={t("Enter your last name", "Saisissez votre nom")}
+                  readOnly={isLoggedIn}
+                  className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
                   required
                 />
               </div>
@@ -677,8 +1025,9 @@ const Checkout = () => {
                 <Input
                   id="phone"
                   type="tel"
+                  inputMode="numeric"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\s/g, ''))}
+                  onChange={(e) => setPhone(sanitizePhoneLocalInput(e.target.value, countryCode))}
                   placeholder="79 123 45 67"
                   required
                 />
@@ -695,7 +1044,10 @@ const Checkout = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setEmail((prev) => normalizeEmail(prev))}
                 placeholder={t("Enter your email address", "Saisissez votre adresse e-mail")}
+                readOnly={isLoggedIn}
+                className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
                 required
               />
             </div>
@@ -897,8 +1249,12 @@ const Checkout = () => {
                       .filter((c: any) => c.quantity > 0)
                       .map((c: any) => {
                         const candle = customisationCandles.find(x => x.id === c.id);
-                        const price = candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0;
-                        return { name: candle?.name || "", qty: c.quantity, price };
+                        const baseName = c.id === NUMBER_CANDLE_ID ? t("Number Candle", "Bougie chiffre") : (candle?.name || "");
+                        const name = composeCandleName(c, baseName);
+                        const price = c.id === NUMBER_CANDLE_ID
+                          ? c.quantity * NUMBER_CANDLE_PRICE
+                          : (candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0);
+                        return { name, qty: c.quantity, price };
                       })
                       .filter((e: any) => e.name);
 
@@ -951,6 +1307,46 @@ const Checkout = () => {
                 </div>
               )}
 
+              {canUseWelcomeDiscountNow && (
+                <div className="flex items-center space-x-3 py-2">
+                  <Checkbox
+                    id="useWelcomeDiscount"
+                    checked={useWelcomeDiscount}
+                    onCheckedChange={(c) => setUseWelcomeDiscount(c === true)}
+                  />
+                  <Label htmlFor="useWelcomeDiscount" className="text-sm cursor-pointer">
+                    {t("Use my welcome offer -10%", "Utiliser mon offre de bienvenue -10%")}
+                  </Label>
+                </div>
+              )}
+
+              {useWelcomeDiscount && canUseWelcomeDiscountNow && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">{t("Welcome discount -10%", "Réduction bienvenue -10%")}</span>
+                  <span className="font-medium text-primary">- CHF {estimatedWelcomeDiscount.toFixed(2)}</span>
+                </div>
+              )}
+
+              {rewardEligible && (
+                <div className="flex items-center space-x-3 py-2">
+                  <Checkbox
+                    id="useReward"
+                    checked={useReward}
+                    onCheckedChange={(c) => setUseReward(c === true)}
+                  />
+                  <Label htmlFor="useReward" className="text-sm cursor-pointer">
+                    {t(`Use my balance (CHF ${rewardBalance.toFixed(2)} available)`, `Utiliser ma cagnotte (CHF ${rewardBalance.toFixed(2)} disponible)`)}
+                  </Label>
+                </div>
+              )}
+
+              {estimatedRewardUsed > 0 && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">{t("Reward balance used", "Cagnotte utilisée")}</span>
+                  <span className="font-medium text-primary">- CHF {estimatedRewardUsed.toFixed(2)}</span>
+                </div>
+              )}
+
               {deliveryOption === "delivery" && deliveryPrice > 0 && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">
@@ -963,23 +1359,6 @@ const Checkout = () => {
                 <span>{t("Total", "Total")}</span>
                 <span className="text-primary">CHF {totalPrice}</span>
               </div>
-            </div>
-
-            {/* Loyalty Rewards (UI-only, demo values) */}
-            <div className="border border-primary/40 bg-secondary/40 p-4 space-y-2 mt-2">
-              <p className="text-sm text-foreground">
-                {t("You have 125 points available.", "Vous avez 125 points disponibles.")}
-              </p>
-              <p className="text-sm text-foreground/80">
-                {t("Redeem 100 points to receive CHF 5 off this order.", "Utilisez 100 points pour obtenir CHF 5 de réduction sur cette commande.")}
-              </p>
-              <div className="flex items-center space-x-3 pt-1">
-                <Checkbox id="applyReward" checked={applyReward} onCheckedChange={(c) => setApplyReward(c === true)} />
-                <Label htmlFor="applyReward" className="text-sm cursor-pointer">{t("Apply my reward", "Utiliser ma récompense")}</Label>
-              </div>
-              <p className="text-xs text-muted-foreground pt-1">
-                {t(`You'll earn ${Math.floor(totalPrice)} points with this order.`, `Vous gagnerez ${Math.floor(totalPrice)} points avec cette commande.`)}
-              </p>
             </div>
 
             {/* Privacy Policy & Newsletter */}
@@ -1008,18 +1387,36 @@ const Checkout = () => {
                 </Label>
               </div>
 
-              {/* Newsletter Checkbox - Optional */}
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="newsletter"
-                  checked={subscribeNewsletter}
-                  onCheckedChange={(checked) => setSubscribeNewsletter(checked === true)}
-                  className="mt-0.5"
-                />
-                <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
-                  {t("Unlock exclusive updates & offers ✨", "Recevez nos actualités et offres exclusives ✨")}
-                </Label>
-              </div>
+              {/* Newsletter Checkbox - Optional. Hidden for a logged-in
+                  customer already subscribed — nothing left to offer them. */}
+              {!(isLoggedIn && profile?.newsletter_subscription) && (
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="newsletter"
+                    checked={subscribeNewsletter}
+                    onCheckedChange={(checked) => setSubscribeNewsletter(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
+                      {t("Unlock exclusive updates & offers ✨", "Recevez nos actualités et offres exclusives ✨")}
+                    </Label>
+                    <p className="text-xs text-foreground/50 mt-1">
+                      {isLoggedIn ? (
+                        t("Subscribe to our newsletter to unlock 10% off your first order.", "Inscrivez-vous à notre newsletter pour débloquer -10 % sur votre première commande.")
+                      ) : (
+                        <>
+                          {t("Want 10% off your first order? ", "Vous voulez -10 % sur votre première commande ? ")}
+                          <Link to="/signup" className="underline hover:text-foreground/80">
+                            {t("Create an account", "Créez un compte")}
+                          </Link>
+                          {t(" and subscribe to our newsletter.", " et inscrivez-vous à notre newsletter.")}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}

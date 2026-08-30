@@ -19,6 +19,18 @@ const GLUTEN_FREE: AllergenInfo = {
   fr: "Œufs, lait",
 };
 
+const GLUTEN_FREE_PISTACHIO: AllergenInfo = {
+  en: "Eggs, milk, pistachios",
+  fr: "Œufs, lait, pistaches",
+  warn: true,
+};
+
+const GLUTEN_FREE_ALMONDS_HAZELNUTS: AllergenInfo = {
+  en: "Eggs, milk, almonds, hazelnuts",
+  fr: "Œufs, lait, amandes, noisettes",
+  warn: true,
+};
+
 export const allergenMap: Record<string, AllergenInfo> = {
   // Standard
   "vanilla": STANDARD,
@@ -49,6 +61,15 @@ export const allergenMap: Record<string, AllergenInfo> = {
   "vanilla-gf": GLUTEN_FREE,
   "red-velvet-gf": GLUTEN_FREE,
   "chocolate-gf": GLUTEN_FREE,
+  "chocolate-gf-berrylicious": GLUTEN_FREE,
+  "vanilla-gf-berrylicious": GLUTEN_FREE,
+  "lemon-curd-gf": GLUTEN_FREE,
+  "chocolate-lovers-gf": GLUTEN_FREE,
+  "orange-blossom-gf": GLUTEN_FREE,
+  "pistachio-gf": GLUTEN_FREE_PISTACHIO,
+  "tiramisu-gf": GLUTEN_FREE,
+  "passion-fruit-gf": GLUTEN_FREE,
+  "praline-gf": GLUTEN_FREE_ALMONDS_HAZELNUTS,
 };
 
 /** Allergen line shown under a flavour name */

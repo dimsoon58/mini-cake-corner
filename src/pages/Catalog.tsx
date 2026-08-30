@@ -13,7 +13,7 @@ import {
   DialogTitle as SheetTitle,
   DialogDescription as SheetDescription,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectLabel, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +25,9 @@ import ExtraImageLightbox from "@/components/ExtraImageLightbox";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
 import { useCart } from "@/context/CartContext";
+import type { CandleSelection } from "@/context/CartContext";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
+import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
@@ -198,12 +201,41 @@ const flavors = [
   { id: "vanilla-gf", name: "Vanilla Gluten-Free", image: flavorVanilla, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
   { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", image: flavorRedVelvet, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
   { id: "chocolate-gf", name: "Chocolate Gluten-Free", image: flavorChocolate, extraPrice: { bento: 4, retro: 4, medium: 10, large: 15, rectangle: 30 } },
+  { id: "chocolate-gf-berrylicious", name: "Chocolate GF × Berrylicious", image: flavorDarkBerrylicious, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
+  { id: "vanilla-gf-berrylicious", name: "Vanilla GF × Berrylicious", image: flavorWhiteBerrylicious, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
+  { id: "lemon-curd-gf", name: "Lemon Curd Gluten-free", image: flavorLemonCurd, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
+  { id: "chocolate-lovers-gf", name: "Chocolate Lovers Gluten-free", image: flavorChocolateLovers, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
+  { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", image: flavorVanilla, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
+  { id: "pistachio-gf", name: "Pistachio Gluten-free", image: flavorPistachio, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
+  { id: "tiramisu-gf", name: "Tiramisu Gluten-free", image: flavorTiramisu, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
+  { id: "passion-fruit-gf", name: "Passion Fruit Gluten-free", image: flavorPassionFruit, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
+  { id: "praline-gf", name: "Praline Gluten-free", image: flavorPraline, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
 ];
+
+// Menu grouping only — purely a display concern, independent from the
+// per-flavor extraPrice values above, which are untouched.
+const STANDARD_FLAVOR_IDS = ["vanilla", "red-velvet", "chocolate"];
+const PREMIUM_FLAVOR_IDS = ["chocolate-lovers", "dark-berrylicious", "white-berrylicious", "salted-caramel", "lemon-curd"];
+const DELUXE_FLAVOR_IDS = ["chocolate-lover-berrylicious", "tiramisu", "praline", "pistachio-lovers", "passion-fruit"];
+const GF_STANDARD_FLAVOR_IDS = ["vanilla-gf", "red-velvet-gf", "chocolate-gf"];
+const GF_PREMIUM_FLAVOR_IDS = ["chocolate-gf-berrylicious", "vanilla-gf-berrylicious", "lemon-curd-gf", "chocolate-lovers-gf"];
+const GF_DELUXE_FLAVOR_IDS = ["orange-blossom-gf", "pistachio-gf", "tiramisu-gf", "passion-fruit-gf", "praline-gf"];
+
+const standardFlavors = flavors.filter((f) => STANDARD_FLAVOR_IDS.includes(f.id));
+const premiumFlavors = flavors.filter((f) => PREMIUM_FLAVOR_IDS.includes(f.id));
+const deluxeFlavors = flavors.filter((f) => DELUXE_FLAVOR_IDS.includes(f.id));
+const glutenFreeStandardFlavors = flavors.filter((f) => GF_STANDARD_FLAVOR_IDS.includes(f.id));
+const glutenFreePremiumFlavors = flavors.filter((f) => GF_PREMIUM_FLAVOR_IDS.includes(f.id));
+const glutenFreeDeluxeFlavors = flavors.filter((f) => GF_DELUXE_FLAVOR_IDS.includes(f.id));
 
 const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
   { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
+  { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "silver-spiral", name: "Silver Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "gold-spiral", name: "Gold Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "spiral-champagne", name: "Spiral Champagne", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "rainbow", name: "Rainbow", image: candleRainbow, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
@@ -222,19 +254,19 @@ const candles = [
 ];
 
 const catalogExtras = [
-  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 3, retro: 4, medium: 5, large: 8 }, image: extraGoldLeaves },
-  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 }, image: extraCherries },
-  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 }, image: extraGlitterCherries },
-  { id: "scattered-pearl", name: "Scattered Pearls", price: { bento: 2, retro: 4, medium: 6, large: 8 }, image: designScatteredPearls },
-  { id: "glitter", name: "Glitter", price: { bento: 5, retro: 5, medium: 10, large: 12 }, image: extraGlitter },
-  { id: "glitter-base", name: "Glitter Base", price: { bento: 8, retro: 8, medium: 10, large: 12 }, image: designGlitterCake },
+  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 3, retro: 4, medium: 5, large: 8, rectangle: 12 }, image: extraGoldLeaves },
+  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12, rectangle: 20 }, image: extraCherries },
+  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15, rectangle: 25 }, image: extraGlitterCherries },
+  { id: "scattered-pearl", name: "Scattered Pearls", price: { bento: 2, retro: 4, medium: 6, large: 8, rectangle: 15 }, image: designScatteredPearls },
+  { id: "glitter", name: "Glitter", price: { bento: 5, retro: 5, medium: 10, large: 12, rectangle: 25 }, image: extraGlitter },
+  { id: "glitter-base", name: "Glitter Base", price: { bento: 8, retro: 8, medium: 10, large: 12, rectangle: 25 }, image: designGlitterCake },
   { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 10, medium: 15, large: 20 }, image: designGlitterInAir },
-  { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 10, medium: 17, large: 25 }, image: designPearlBorders },
-  { id: "retro", name: "Retro", price: { retro: 6, medium: 10, large: 15 }, image: extraRetro },
-  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10 }, image: extraRibbons },
-  { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6 }, image: designPearlNumber },
-  { id: "butterfly", name: "Butterfly", price: { retro: 6, medium: 8, large: 10 }, image: extraButterfly },
-  { id: "sprinkles", name: "Sprinkles", price: { bento: 3, retro: 4, medium: 5, large: 6 }, image: extraSprinkles },
+  { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 10, medium: 17, large: 25, rectangle: 60 }, image: designPearlBorders },
+  { id: "retro", name: "Retro", price: { retro: 6, medium: 10, large: 15, rectangle: 30 }, image: extraRetro },
+  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10, rectangle: 20 }, image: extraRibbons },
+  { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6, rectangle: 10 }, image: designPearlNumber },
+  { id: "butterfly", name: "Butterfly", price: { retro: 6, medium: 8, large: 10, rectangle: 20 }, image: extraButterfly },
+  { id: "sprinkles", name: "Sprinkles", price: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 }, image: extraSprinkles },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 }, image: extraPrintedPicture },
 ];
 
@@ -285,7 +317,7 @@ const catalog = [
     image: styleNormalWithoutBorder,
     styleId: "normal-without-border",
     styleName: "Normal without border",
-    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 },
     disableText: false,
   },
   {
@@ -295,7 +327,7 @@ const catalog = [
     image: styleNormalWithBorder,
     styleId: "normal-with-border",
     styleName: "Normal with border",
-    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 },
     disableText: false,
   },
   {
@@ -306,7 +338,7 @@ const catalog = [
     image: designHeartBomb,
     styleId: "heart-bomb",
     styleName: "Heart Bomb",
-    stylePrice: { bento: 3, retro: 5, medium: 10, large: 15 },
+    stylePrice: { bento: 3, retro: 5, medium: 10, large: 15, rectangle: 20 },
     disableText: false,
   },
   {
@@ -317,7 +349,7 @@ const catalog = [
     images: [designRetroCake, retroCake1, retroCake2, retroCake3],
     styleId: "retro-vintage",
     styleName: "Retro / Vintage",
-    stylePrice: { retro: 6, medium: 10, large: 15 },
+    stylePrice: { retro: 6, medium: 10, large: 15, rectangle: 30 },
     disableText: false,
   },
   {
@@ -327,7 +359,7 @@ const catalog = [
     image: designGlitterCherries,
     styleId: "glitter-cherries-retro",
     styleName: "Glitter Cherries on a Retro Cake",
-    stylePrice: { retro: 13, medium: 20, large: 30 },
+    stylePrice: { retro: 13, medium: 20, large: 30, rectangle: 55 },
     disableText: false,
   },
   {
@@ -338,7 +370,7 @@ const catalog = [
     image: designPearlBorders,
     styleId: "pearl-border-retro",
     styleName: "Pearl Border × Retro Decoration",
-    stylePrice: { retro: 40, medium: 67, large: 98 },
+    stylePrice: { retro: 40, medium: 67, large: 98, rectangle: 225 },
     disableText: false,
   },
   {
@@ -349,7 +381,7 @@ const catalog = [
     images: [retroRibbons2, retroRibbons1],
     styleId: "retro-ribbons",
     styleName: "Retro × Ribbons",
-    stylePrice: { retro: 11, medium: 18, large: 25 },
+    stylePrice: { retro: 11, medium: 18, large: 25, rectangle: 50 },
     disableText: false,
   },
   {
@@ -360,7 +392,7 @@ const catalog = [
     images: [designRosesPlease, designRosesPlease2],
     styleId: "roses-please",
     styleName: "Roses Please",
-    stylePrice: { bento: 6, retro: 8, medium: 15, large: 20 },
+    stylePrice: { bento: 6, retro: 8, medium: 15, large: 20, rectangle: 40 },
     disableText: false,
   },
   {
@@ -370,7 +402,7 @@ const catalog = [
     image: designRetroGlitter,
     styleId: "retro-glitter-cake",
     styleName: "Retro Glitter Cake",
-    stylePrice: { retro: 11, medium: 20, large: 27 },
+    stylePrice: { retro: 11, medium: 20, large: 27, rectangle: 55 },
     disableText: false,
   },
   {
@@ -392,7 +424,7 @@ const catalog = [
     images: [designShagCake, shagCake1, shagCake2, shagCake3],
     styleId: "shag-cake",
     styleName: "Shag Cake",
-    stylePrice: { retro: 12, medium: 20, large: 30 },
+    stylePrice: { retro: 12, medium: 20, large: 30, rectangle: 50 },
     disableText: false,
   },
   {
@@ -402,7 +434,7 @@ const catalog = [
     image: designRainbowCake,
     styleId: "rainbow-cake",
     styleName: "Rainbow Cake",
-    stylePrice: { retro: 15, medium: 20, large: 30 },
+    stylePrice: { retro: 15, medium: 20, large: 30, rectangle: 50 },
     disableText: false,
   },
   {
@@ -424,7 +456,7 @@ const catalog = [
     imagePosition: "object-[center_70%]",
     styleId: "cherries-retro",
     styleName: "Cherries on a Retro Cake",
-    stylePrice: { retro: 10, medium: 18, large: 27 },
+    stylePrice: { retro: 10, medium: 18, large: 27, rectangle: 50 },
     disableText: false,
   },
   {
@@ -434,7 +466,7 @@ const catalog = [
     image: designScatteredPearls,
     styleId: "scattered-retro-pearls",
     styleName: "Scattered Retro Pearls",
-    stylePrice: { retro: 10, medium: 16, large: 23 },
+    stylePrice: { retro: 10, medium: 16, large: 23, rectangle: 45 },
     disableText: false,
   },
   {
@@ -444,7 +476,7 @@ const catalog = [
     image: designGoldLeaves,
     styleId: "gold-leaves-style",
     styleName: "Gold Leaves",
-    stylePrice: { bento: 3, retro: 4, medium: 5, large: 8 },
+    stylePrice: { bento: 3, retro: 4, medium: 5, large: 8, rectangle: 12 },
     disableText: false,
   },
   {
@@ -454,7 +486,7 @@ const catalog = [
     image: designGoldenCake,
     styleId: "golden-cake",
     styleName: "Golden Cake",
-    stylePrice: { retro: 15, medium: 25, large: 40 },
+    stylePrice: { retro: 15, medium: 25, large: 40, rectangle: 70 },
     disableText: false,
   },
   {
@@ -464,7 +496,7 @@ const catalog = [
     image: designPearlNumber,
     styleId: "pearl-number",
     styleName: "Pearl Number",
-    stylePrice: { bento: 6, retro: 6, medium: 6, large: 6 },
+    stylePrice: { bento: 6, retro: 6, medium: 6, large: 6, rectangle: 10 },
     disableText: false,
   },
   {
@@ -484,7 +516,7 @@ const catalog = [
     image: rectangleSignature,
     styleId: "rectangle-signature",
     styleName: "Signature Rectangle Cake",
-    stylePrice: { rectangle: 0 },
+    stylePrice: { rectangle: 30 },
     disableText: false,
   },
   {
@@ -494,7 +526,7 @@ const catalog = [
     image: rectangleRaspberries,
     styleId: "rectangle-raspberries",
     styleName: "Raspberries Rectangle Cake",
-    stylePrice: { rectangle: 0 },
+    stylePrice: { rectangle: 60 },
     disableText: false,
   },
   {
@@ -504,7 +536,7 @@ const catalog = [
     image: rectangleFlowers,
     styleId: "rectangle-flowers",
     styleName: "Flowers Rectangle Cake",
-    stylePrice: { rectangle: 0 },
+    stylePrice: { rectangle: 45 },
     disableText: false,
   },
   {
@@ -515,7 +547,7 @@ const catalog = [
     images: [designButterflyGarden, designButterflyGarden2],
     styleId: "butterfly-garden",
     styleName: "Butterfly Garden",
-    stylePrice: { retro: 10, medium: 15, large: 20 },
+    stylePrice: { retro: 10, medium: 15, large: 20, rectangle: 35 },
     disableText: false,
   },
   {
@@ -525,7 +557,7 @@ const catalog = [
     image: designGlitterCake,
     styleId: "glitter-base",
     styleName: "Glitter Base",
-    stylePrice: { bento: 8, retro: 8, medium: 10, large: 12 },
+    stylePrice: { bento: 8, retro: 8, medium: 10, large: 12, rectangle: 25 },
     disableText: false,
   },
   {
@@ -536,7 +568,7 @@ const catalog = [
     images: [designGenderReveal, genderReveal2, genderReveal3],
     styleId: "gender-reveal",
     styleName: "Gender Reveal",
-    stylePrice: { bento: 5, retro: 5, medium: 10, large: 15 },
+    stylePrice: { bento: 5, retro: 5, medium: 10, large: 15, rectangle: 40 },
     disableText: false,
   },
   {
@@ -546,7 +578,7 @@ const catalog = [
     image: designSprinklesWithBorder,
     styleId: "sprinkles-with-border",
     styleName: "Sprinkles with Border",
-    stylePrice: { bento: 3, retro: 4, medium: 5, large: 6 },
+    stylePrice: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 },
     disableText: false,
   },
 ];
@@ -616,12 +648,6 @@ const collections = [
   { title: "The Original Collection", anchor: "original", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
   { title: "The Personalised Collection", anchor: "personalised", ids: ["printed-picture", "gender-reveal", "drawing"] },
 ];
-
-interface CandleSelection {
-  id: string;
-  quantity: number;
-  hasPack: boolean;
-}
 
 // Carousel component for catalog cards with multiple images
 const CatalogCarousel = ({ images, name, imagePositions }: { images: string[]; name: string; imagePositions?: string[] }) => {
@@ -795,7 +821,7 @@ const styleNameFr: Record<string, string> = {
   "sprinkles-with-border": "Vermicelles avec bordure",
 };
 const sizeNameFr: Record<string, string> = {
-  bento: "Bento Box", retro: "Retro Box", medium: "Moyen", large: "Grand", rectangle: "Rectangle",
+  bento: "Bento Box", retro: "Retro Box", medium: "Moyen", large: "Large", rectangle: "Rectangle",
 };
 
 /* Courte explication affichee sous chaque boite */
@@ -827,6 +853,15 @@ const flavorNameFr: Record<string, string> = {
   "vanilla-gf": "Vanille sans gluten",
   "red-velvet-gf": "Red Velvet sans gluten",
   "chocolate-gf": "Chocolat sans gluten",
+  "chocolate-gf-berrylicious": "Chocolat sans gluten x Berrylicious",
+  "vanilla-gf-berrylicious": "Vanille sans gluten x Berrylicious",
+  "lemon-curd-gf": "Lemon curd sans gluten",
+  "chocolate-lovers-gf": "Amateurs de chocolat sans gluten",
+  "orange-blossom-gf": "Fleur d'oranger sans gluten",
+  "pistachio-gf": "Pistache sans gluten",
+  "tiramisu-gf": "Tiramisu sans gluten",
+  "passion-fruit-gf": "Fruit de la passion sans gluten",
+  "praline-gf": "Praliné sans gluten",
 };
 const extraNameFr: Record<string, string> = {
   "gold-leaves": "Feuilles d'or",
@@ -892,6 +927,10 @@ const colourFr: Record<string, string> = {
 const candleNameFr: Record<string, string> = {
   "blue-ombre": "Dégradé bleu",
   "thick-spiral": "Spirale épaisse",
+  "pink-gold-spiral": "Spirale or rose",
+  "silver-spiral": "Spirale argent",
+  "gold-spiral": "Spirale or",
+  "spiral-champagne": "Spirale champagne",
   "shiny-spiral": "Spirale brillante",
   "spiral-pastel": "Spirale pastel",
   "rainbow": "Arc-en-ciel",
@@ -992,7 +1031,7 @@ const BentoGallery = () => {
 };
 
 const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }: CatalogProps) => {
-  const { addItem } = useCart();
+  const { addItem, cartOrderDate } = useCart();
   const { toast } = useToast();
   const { t } = useLang();
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
@@ -1002,9 +1041,10 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
+  const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [selections, setSelections] = useState<CakeSelections>({
-    orderDate: null,
+    orderDate: cartOrderDate ? new Date(cartOrderDate) : null,
     orderTime: "",
     size: "bento",
     shape: "round",
@@ -1046,7 +1086,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     const availableSizeIds = Object.keys(cake.stylePrice);
     const defaultSize = availableSizeIds.includes("bento") ? "bento" : availableSizeIds[0] || "bento";
     setSelections({
-      orderDate: null,
+      orderDate: cartOrderDate ? new Date(cartOrderDate) : null,
       orderTime: "",
       size: defaultSize,
       shape: "round",
@@ -1074,74 +1114,39 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   };
 
   // Candle helpers
-  const handleCandleQuantityChange = (candleId: string, delta: number) => {
-    const existingIndex = selections.candles.findIndex((c) => c.id === candleId && !c.hasPack);
-    let newCandles = [...selections.candles];
-    
-    if (existingIndex >= 0) {
-      const newQty = newCandles[existingIndex].quantity + delta;
-      if (newQty <= 0) {
-        newCandles = newCandles.filter((_, i) => i !== existingIndex);
-      } else {
-        newCandles[existingIndex] = { ...newCandles[existingIndex], quantity: newQty };
-      }
-    } else if (delta > 0) {
-      newCandles.push({ id: candleId, quantity: 1, hasPack: false });
-    }
-    setSelections({ ...selections, candles: newCandles });
-  };
+  const handleCandleQuantityChange = (candleId: string, delta: number) =>
+    setSelections((prev) => ({ ...prev, candles: changeSimpleCandleQty(prev.candles, candleId, delta) }));
 
-  const handleToggleCandlePack = (candleId: string) => {
-    const existingIndex = selections.candles.findIndex((c) => c.id === candleId && c.hasPack);
-    let newCandles = [...selections.candles];
-    
-    if (existingIndex >= 0) {
-      newCandles = newCandles.filter((_, i) => i !== existingIndex);
-    } else {
-      newCandles.push({ id: candleId, quantity: 1, hasPack: true });
-    }
-    setSelections({ ...selections, candles: newCandles });
-  };
-
-  const getCandleUnitQuantity = (candleId: string) => {
-    const selection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
-    return selection?.quantity || 0;
-  };
-
-  const isCandlePackSelected = (candleId: string) => {
-    return selections.candles.some((c) => c.id === candleId && c.hasPack);
-  };
+  const getCandleUnitQuantity = (candleId: string) => getSimpleCandleQty(selections.candles, candleId);
 
   const getCandleTotalPrice = (candleId: string) => {
-    const candle = candles.find((c) => c.id === candleId);
-    if (!candle) return 0;
-    
-    const unitSelection = selections.candles.find((c) => c.id === candleId && !c.hasPack);
-    const unitQty = unitSelection?.quantity || 0;
-    
-    if (unitQty === 0) return 0;
-    
-    if (candle.hasPack && unitQty >= (candle.packSize || 6)) {
-      const packs = Math.floor(unitQty / (candle.packSize || 6));
-      const remaining = unitQty % (candle.packSize || 6);
-      return packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
-    }
-    
-    return candle.unitPrice * unitQty;
+    const entry = selections.candles.find((c) => c.id === candleId);
+    if (!entry) return 0;
+    return priceCandleSelection(entry, candles.find((c) => c.id === candleId), candleId === NUMBER_CANDLE_ID);
   };
 
   const getTotalCandlesPrice = () => {
-    return candles.reduce((acc, candle) => acc + getCandleTotalPrice(candle.id), 0);
+    return selections.candles.reduce((sum, entry) => sum + getCandleTotalPrice(entry.id), 0);
   };
 
   const colorCfg = getColorConfig(selectedCake?.styleId);
   const allowedExtras = selectedCake ? designAllowedExtras[selectedCake.styleId] : undefined;
+  // Rectangle further restricts whatever the design already allows below —
+  // on top of, never instead of, the per-design exclusion/allow-list: an
+  // extra with no "rectangle" key in catalogExtras[].price is unavailable
+  // for that size regardless of what the design itself would otherwise permit.
+  const rectangleIncompatibleExtras = selections.size === "rectangle"
+    ? catalogExtras.filter((e) => !("rectangle" in e.price)).map((e) => e.id)
+    : [];
   const excludedExtras = colorCfg.hideExtras || (allowedExtras && allowedExtras.length === 0)
     ? catalogExtras.map((e) => e.id)
     : selectedCake
-      ? getExcludedExtras(selectedCake.styleId).filter(
-          (id) => !allowedExtras || !allowedExtras.includes(id)
-        )
+      ? [
+          ...getExcludedExtras(selectedCake.styleId).filter(
+            (id) => !allowedExtras || !allowedExtras.includes(id)
+          ),
+          ...rectangleIncompatibleExtras,
+        ]
       : [];
   const extrasHiddenForDesign =
     colorCfg.hideExtras || (allowedExtras !== undefined && allowedExtras.length === 0);
@@ -1359,8 +1364,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     const extrasNames = selections.extras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
     const selectedRibbonColor = ribbonColors.find(c => c.id === selections.ribbonColor);
     const selectedButterflyColor = butterflyColors.find(c => c.id === selections.butterflyColor);
+    const candlesWithDigit = selections.candles.map((c) =>
+      c.id === NUMBER_CANDLE_ID ? { ...c, digit: numberCandleDigit } : c
+    );
 
-    addItem({
+    const added = addItem({
       id: "",
       product: selections.size === "rectangle" ? "rectangle_cake" : "bento_cake",
       orderDate: selections.orderDate ? format(selections.orderDate, "yyyy-MM-dd") : "",
@@ -1389,7 +1397,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       butterflyColorName: selectedButterflyColor?.name || "",
       glitterColorName: glitterColors.find(c => c.id === selections.glitterColor)?.name || "",
       glitterCherriesColorName: glitterCherriesColors.find(c => c.id === selections.glitterCherriesColor)?.name || "",
-      candles: selections.candles,
+      candles: candlesWithDigit,
       comment: selectedCake.images && selectedCake.images.length > 1
         ? `[Preferred design: Option ${selections.shagDesignPreference + 1}]${selections.comment ? " " + selections.comment : ""}`
         : selections.comment,
@@ -1397,6 +1405,17 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       imageFiles: [...selections.commentImages],
       total: calculatePrice(),
     });
+    if (!added) {
+      toast({
+        title: t("Date mismatch", "Date incompatible"),
+        description: t(
+          "This item's date doesn't match the rest of your cart. Please place a separate order.",
+          "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
     setSheetOpen(false);
     if (embedded) onEmbeddedClose?.();
     // Let the dialog finish its close animation before unmounting its content —
@@ -1498,9 +1517,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
+                      disabled={!!cartOrderDate}
                       className={cn(
                         "w-full justify-start text-left font-normal",
-                        !selections.orderDate && "text-muted-foreground"
+                        !selections.orderDate && "text-muted-foreground",
+                        cartOrderDate && "opacity-60 cursor-not-allowed"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
@@ -1529,6 +1550,14 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     />
                   </PopoverContent>
                 </Popover>
+                {cartOrderDate && (
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      `All items in this order will be prepared for ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. To order for another date, please place a separate order.`,
+                      `Tous les articles de cette commande seront préparés pour le ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. Pour commander pour une autre date, veuillez passer une commande séparée.`
+                    )}
+                  </p>
+                )}
               </div>
 
               {/* Size Selection with box images */}
@@ -1618,41 +1647,69 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <TooltipContent><p className="text-xs max-w-[200px]">{t("Please select the flavour of your cake.", "Veuillez sélectionner le parfum de votre gâteau.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
-                <Select
-                  value={selections.flavor}
-                  onValueChange={(value) => setSelections({ ...selections, flavor: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("Select flavour", "Choisir un parfum")} />
-                  </SelectTrigger>
-                  <SelectContent nativeScroll>
-                    {flavors.map((flavor) => {
-                      const extra = flavor.extraPrice[selections.size as keyof typeof flavor.extraPrice] || 0;
-                      const info = allergenMap[flavor.id];
-                      return (
-                        <SelectItem key={flavor.id} value={flavor.id}>
-                          <div className="flex items-start gap-2">
-                            <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
-                            <div>
-                            <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
-                            {flavorDescMap[flavor.id] && (
-                              <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
-                                {t(flavorDescMap[flavor.id].en, flavorDescMap[flavor.id].fr)}
-                              </div>
-                            )}
-                            {info && (
-                              <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                                {info.warn && <span aria-hidden="true">⚠️ </span>}
-                                <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
-                              </div>
-                            )}
+                {(() => {
+                  const renderFlavorOption = (flavor: typeof flavors[number]) => {
+                    const extra = flavor.extraPrice[selections.size as keyof typeof flavor.extraPrice] || 0;
+                    const info = allergenMap[flavor.id];
+                    return (
+                      <SelectItem key={flavor.id} value={flavor.id}>
+                        <div className="flex items-start gap-2">
+                          <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
+                          <div>
+                          <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
+                          {flavorDescMap[flavor.id] && (
+                            <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
+                              {t(flavorDescMap[flavor.id].en, flavorDescMap[flavor.id].fr)}
                             </div>
+                          )}
+                          {info && (
+                            <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                              {info.warn && <span aria-hidden="true">⚠️ </span>}
+                              <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
+                            </div>
+                          )}
                           </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+                        </div>
+                      </SelectItem>
+                    );
+                  };
+                  return (
+                    <Select
+                      value={selections.flavor}
+                      onValueChange={(value) => setSelections({ ...selections, flavor: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("Select flavour", "Choisir un parfum")} />
+                      </SelectTrigger>
+                      <SelectContent nativeScroll>
+                        <SelectGroup>
+                          <SelectLabel>{t("Standard", "Standard")}</SelectLabel>
+                          {standardFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>{t("Premium", "Premium")}</SelectLabel>
+                          {premiumFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>{t("Deluxe", "Deluxe")}</SelectLabel>
+                          {deluxeFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>{t("Gluten-Free — Standard", "Sans Gluten — Standard")}</SelectLabel>
+                          {glutenFreeStandardFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>{t("Gluten-Free — Premium", "Sans Gluten — Premium")}</SelectLabel>
+                          {glutenFreePremiumFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>{t("Gluten-Free — Deluxe", "Sans Gluten — Deluxe")}</SelectLabel>
+                          {glutenFreeDeluxeFlavors.map(renderFlavorOption)}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
                 <AllergenNotice className="pt-1" />
               </div>
 
@@ -2312,16 +2369,33 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 <div className="space-y-2">
                   <div className="flex flex-wrap justify-center gap-3">
                     {candles.slice(0, showAllCandles ? undefined : 4).map((candle) => {
+                      const family = FAMILY_CANDLE_COLORS[candle.id];
+                      if (family) {
+                        return (
+                          <div key={candle.id} className="w-[calc(50%-6px)] min-w-0">
+                            <ColorFamilyCandleCard
+                              candle={candle}
+                              colors={family}
+                              existing={selections.candles.find((c) => c.id === candle.id)}
+                              onCommit={(entry) => setSelections((prev) => ({ ...prev, candles: upsertCandleSelection(prev.candles, entry) }))}
+                              onRemove={() => setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, candle.id) }))}
+                              imageClassName="h-24 w-24"
+                              compact
+                            />
+                          </div>
+                        );
+                      }
+
                       const unitQty = getCandleUnitQuantity(candle.id);
                       const totalPrice = getCandleTotalPrice(candle.id);
                       const isPackApplied = candle.hasPack && unitQty >= (candle.packSize || 6);
 
                       return (
-                        <div key={candle.id} className="flex flex-col items-center w-[calc(50%-6px)]">
+                        <div key={candle.id} className="flex flex-col items-center w-[calc(50%-6px)] min-w-0">
                           <img
                             src={candle.image}
                             alt={candle.name}
-                            className="h-28 w-28 object-contain mb-1"
+                            className="h-32 w-32 object-contain mb-1"
                           />
                           <div className={cn(
                             "w-full rounded-lg p-2 text-center transition-all",
@@ -2360,6 +2434,50 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         </div>
                       );
                     })}
+
+                    {/* Number Candle — digit picker, no product photo, flat rate */}
+                    <div className="flex flex-col items-center w-[calc(50%-6px)] min-w-0">
+                      <div className="h-32 w-32 mb-1 flex items-center justify-center bg-secondary/20">
+                        <span className="text-4xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
+                      </div>
+                      <div className={cn(
+                        "w-full rounded-lg p-2 text-center transition-all",
+                        getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 ? "bg-white/90 ring-2 ring-primary" : "bg-white/60"
+                      )}>
+                        <p className="text-xs font-medium text-foreground">{t("Number Candle", "Bougie chiffre")}</p>
+                        <p className="text-[10px] text-muted-foreground mb-1">CHF {NUMBER_CANDLE_PRICE} {t("each", "/ pièce")}</p>
+                        <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
+                          <SelectTrigger className="h-7 text-xs mb-1.5" aria-label={t("Choose a digit", "Choisir un chiffre")}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {NUMBER_CANDLE_DIGITS.map((digit) => (
+                              <SelectItem key={digit} value={digit}>{digit}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleCandleQuantityChange(NUMBER_CANDLE_ID, -1)}
+                            disabled={getCandleUnitQuantity(NUMBER_CANDLE_ID) === 0}
+                            className={cn(
+                              "w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
+                              getCandleUnitQuantity(NUMBER_CANDLE_ID) === 0
+                                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}
+                          >−</button>
+                          <span className="w-5 text-center font-medium text-foreground text-sm">{getCandleUnitQuantity(NUMBER_CANDLE_ID)}</span>
+                          <button
+                            onClick={() => handleCandleQuantityChange(NUMBER_CANDLE_ID, 1)}
+                            className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                          >+</button>
+                        </div>
+                        {getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 && (
+                          <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {getCandleTotalPrice(NUMBER_CANDLE_ID)}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 

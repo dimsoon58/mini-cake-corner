@@ -3,22 +3,23 @@ import { useState, useRef, useEffect } from "react";
 import "@fontsource/dancing-script";
 import { Link } from "react-router-dom";
 import ExtraImageLightbox from "@/components/ExtraImageLightbox";
-import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useCart, CandleCartItem } from "@/context/CartContext";
-import { ShoppingBag, Trash2, ArrowLeft, Pencil, CalendarIcon, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
+import { useCart, CandleSelection } from "@/context/CartContext";
+import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
+import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
+import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
+import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import {
   sizes,
   shapes,
@@ -34,53 +35,23 @@ import {
   glitterColors,
   glitterCherriesColors,
   calculateCartItemTotal,
-  CandleSelection,
   getExcludedExtras,
   extraGroups,
   extraDescriptions,
   getAvailableSizesForStyle,
   getFlavorCategoryExtra,
-  getCandleTotalPrice,
 } from "@/data/customization";
 
-// Import images for catalogExtras
-import extraGoldLeaves from "@/assets/extra-gold-leaves.png";
-import extraCherries from "@/assets/extra-cherries-new.jpg";
-import extraGlitterCherries from "@/assets/extra-glitter-cherries-new.jpg";
-import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
-import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
-import extraGlitter from "@/assets/extra-glitter-new.jpg";
-import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
-import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
-import extraRetro from "@/assets/extra-retro.png";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
-import extraDrawing from "@/assets/extra-drawing.png";
-import extraHeart from "@/assets/extra-heart.png";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
-import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
-import extraPrintedPicture from "@/assets/extra-printed-picture.png";
-import extraButterfly from "@/assets/extra-butterfly-new.jpg";
-import extraRibbons from "@/assets/extra-ribbons-new.jpg";
-import extraSprinkles from "@/assets/extra-sprinkles-new2.jpg";
 
-const catalogExtras = [
-  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 2, retro: 4, medium: 5, large: 8 }, image: extraGoldLeaves },
-  { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12 }, image: extraCherries },
-  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15 }, image: extraGlitterCherries },
-  { id: "scattered-pearl", name: "Scattered Pearls", price: { bento: 2, retro: 4, medium: 5, large: 6 }, image: designScatteredPearls },
-  { id: "glitter", name: "Glitter", price: { bento: 4, retro: 4, medium: 8, large: 10 }, image: extraGlitter },
-  { id: "glitter-base", name: "Glitter Base", price: { bento: 6, retro: 8, medium: 10, large: 12 }, image: designGlitterCake },
-  { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 12, medium: 15, large: 20 }, image: designGlitterInAir },
-  { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 8, medium: 15, large: 20 }, image: designPearlBorders },
-  { id: "retro", name: "Retro", price: { retro: 5, medium: 15, large: 20 }, image: extraRetro },
-  { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10 }, image: extraRibbons },
-  { id: "drawing", name: "Drawing", price: { bento: 5, retro: 5, medium: 8, large: 10 }, image: extraDrawing },
-  { id: "heart", name: "Heart", price: { bento: 3, retro: 5, medium: 10, large: 15 }, image: extraHeart },
-  { id: "butterfly", name: "Butterfly", price: { bento: 4, retro: 6, medium: 8, large: 10 }, image: extraButterfly },
-  { id: "pearl-number", name: "Pearl Number", price: { bento: 5, retro: 5, medium: 5, large: 5 }, image: designPearlNumber },
-  { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 }, image: extraPrintedPicture },
-  { id: "sprinkles", name: "Sprinkles", price: { bento: 2, retro: 4, medium: 4, large: 6 }, image: extraSprinkles },
-];
+// DIY Kit is a single fixed size ("kit-bento"), never part of the standard
+// bento/retro/medium/large/rectangle tables — these mirror KitBentoCake.tsx's
+// real values (BASE_PRICE, shapes, pipingBagOptions) for both display and
+// real-total recompute here in the cart.
+const DIY_KIT_BASE_PRICE = 40;
+const DIY_KIT_SHAPE_EXTRA: Record<string, number> = { round: 0, heart: 3 };
+const DIY_KIT_PIPING_PRICE: Record<string, number> = { "piping-2-bags": 0, "piping-3-bags": 2 };
 
 // Candles reordered: packs first, then individuals
 const cartCandles = [
@@ -94,37 +65,57 @@ const formatDateFromIso = (dateValue: string) => {
 };
 
 const Cart = () => {
-  const { items, removeItem, updateItem, clearCart, itemCount } = useCart();
+  const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate } = useCart();
   const { t } = useLang();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
-
-  useEffect(() => {
-    const fetchBookedDates = async () => {
-      const { data, error } = await supabase.rpc('get_fully_booked_dates');
-      if (!error && data) {
-        setFullyBookedDates(data.map((d: { booked_date: string }) => new Date(d.booked_date)));
-      }
-    };
-    fetchBookedDates();
-  }, []);
 
   const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
+
+  // GA4 view_cart — once when the cart page opens with something in it.
+  const viewCartSentRef = useRef(false);
+  useEffect(() => {
+    if (viewCartSentRef.current || items.length === 0) return;
+    viewCartSentRef.current = true;
+    trackEventWhenReady("view_cart", {
+      currency: "CHF",
+      value: cartItemsValue(items),
+      items: cartItemsToGA4Items(items),
+    });
+  }, [items]);
+
+  // "Clear all" — emit remove_from_cart per line, then clear (clearCart
+  // itself is intentionally event-free; see CartContext).
+  const handleClearAll = () => {
+    items.forEach((it) => trackRemoveFromCart(it));
+    clearCart();
+  };
 
   const recalcAndUpdate = (itemId: string, updates: Record<string, any>) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
     const merged = { ...item, ...updates };
-    // Calculate extras price from catalogExtras
-    const extrasPrice = (merged.extras || []).reduce((acc: number, extraId: string) => {
-      const extra = catalogExtras.find(e => e.id === extraId);
-      if (!extra) return acc;
-      return acc + (extra.price[merged.size as keyof typeof extra.price] || 0);
-    }, 0);
-    const newTotal = calculateCartItemTotal(
-      merged.size, merged.shape, merged.flavor, merged.style,
-      [], merged.candles || []
-    ) + extrasPrice;
+    let newTotal: number;
+    if (merged.product === "diy_kit") {
+      const shapeExtra = DIY_KIT_SHAPE_EXTRA[merged.shape] ?? 0;
+      const flavorExtra = getFlavorCategoryExtra(merged.flavor, merged.size);
+      const pipingPrice = (merged.extras || []).reduce(
+        (acc: number, extraId: string) => acc + (DIY_KIT_PIPING_PRICE[extraId] ?? 0), 0
+      );
+      const candlesPrice = (merged.candles || []).reduce(
+        (acc: number, entry: CandleSelection) =>
+          acc + priceCandleSelection(entry, cartCandles.find(c => c.id === entry.id), entry.id === NUMBER_CANDLE_ID),
+        0
+      );
+      newTotal = DIY_KIT_BASE_PRICE + shapeExtra + flavorExtra + pipingPrice + candlesPrice;
+    } else {
+      // Was passing [] for extras and adding a separately (buggy) computed
+      // extrasPrice on top — calculateCartItemTotal already prices extras
+      // correctly via the canonical extras table (rectangle included).
+      newTotal = calculateCartItemTotal(
+        merged.size, merged.shape, merged.flavor, merged.style,
+        merged.extras || [], merged.candles || []
+      );
+    }
     updateItem(itemId, { ...updates, total: newTotal });
   };
 
@@ -166,7 +157,7 @@ const Cart = () => {
       const filteredExtras = currentExtras.filter(e => !excluded.includes(e));
       if (filteredExtras.length !== currentExtras.length) {
         updates.extras = filteredExtras;
-        updates.extrasNames = filteredExtras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
+        updates.extrasNames = filteredExtras.map(id => extras.find(e => e.id === id)?.name || "");
         // Clear color selections for removed extras
         if (!filteredExtras.includes("glitter")) updates.glitterColor = "";
         if (!filteredExtras.includes("ribbons")) { updates.ribbonColor = ""; updates.ribbonColorName = ""; }
@@ -208,7 +199,7 @@ const Cart = () => {
     let newExtrasNames: string[];
     if (currentExtras.includes(extraId)) {
       newExtras = currentExtras.filter(e => e !== extraId);
-      newExtrasNames = newExtras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
+      newExtrasNames = newExtras.map(id => extras.find(e => e.id === id)?.name || "");
       const updates: Record<string, any> = { extras: newExtras, extrasNames: newExtrasNames };
       // Clear related color selections when deselecting
       if (extraId === "glitter") updates.glitterColor = "";
@@ -218,7 +209,7 @@ const Cart = () => {
       recalcAndUpdate(itemId, updates);
     } else {
       newExtras = [...currentExtras, extraId];
-      newExtrasNames = newExtras.map(id => catalogExtras.find(e => e.id === id)?.name || "");
+      newExtrasNames = newExtras.map(id => extras.find(e => e.id === id)?.name || "");
       recalcAndUpdate(itemId, { extras: newExtras, extrasNames: newExtrasNames });
     }
   };
@@ -252,7 +243,7 @@ const Cart = () => {
   const handleCandleQuantityChange = (itemId: string, candleId: string, delta: number) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
-    const currentCandles: CandleCartItem[] = item.candles || [];
+    const currentCandles: CandleSelection[] = item.candles || [];
     const existingIndex = currentCandles.findIndex(c => c.id === candleId && !c.hasPack);
     let newCandles = [...currentCandles];
     if (existingIndex >= 0) {
@@ -268,44 +259,70 @@ const Cart = () => {
     recalcAndUpdate(itemId, { candles: newCandles });
   };
 
+  const handleNumberCandleDigitChange = (itemId: string, digit: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    const newCandles = (item.candles || []).map((c: CandleSelection) =>
+      c.id === NUMBER_CANDLE_ID ? { ...c, digit } : c
+    );
+    recalcAndUpdate(itemId, { candles: newCandles });
+  };
+
   const getCandleUnitQty = (item: typeof items[0], candleId: string) => {
     return (item.candles || []).find(c => c.id === candleId && !c.hasPack)?.quantity || 0;
   };
 
   const handleCandleProductQty = (itemId: string, delta: number) => {
     const item = items.find(i => i.id === itemId);
-    if (!item || !item.isCandleProduct || !item.candleProductId) return;
+    if (!item || !item.isCandleProduct || !item.candleProductId || item.candleProductQtyLocked) return;
     const newQty = Math.max(1, (item.candleProductQty || 1) + delta);
-    const candle = cartCandles.find(c => c.id === item.candleProductId);
-    let price = 0;
-    if (candle) {
-      if (candle.hasPack && newQty >= (candle.packSize || 6)) {
-        const packs = Math.floor(newQty / (candle.packSize || 6));
-        const remaining = newQty % (candle.packSize || 6);
-        price = packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
+
+    let price: number;
+    if (item.candleProductUnitPrice !== undefined) {
+      // Flat-rate line (Number Candle, or a colour bought loose by the
+      // piece) — the id here is composite ("shiny-spiral-blue",
+      // "number-candle-7") and was never going to match anything in
+      // cartCandles. The per-piece price was fixed at add-to-cart time and
+      // is never pack-eligible, so no catalogue lookup is needed at all.
+      price = item.candleProductUnitPrice * newQty;
+    } else {
+      // Regular catalogue candle (plain id, e.g. "puppy") or a full pack
+      // purchase (e.g. "shiny-spiral") — unchanged pack-aware lookup.
+      const candle = cartCandles.find(c => c.id === item.candleProductId);
+      if (candle) {
+        if (candle.hasPack && newQty >= (candle.packSize || 6)) {
+          const packs = Math.floor(newQty / (candle.packSize || 6));
+          const remaining = newQty % (candle.packSize || 6);
+          price = packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
+        } else {
+          price = candle.unitPrice * newQty;
+        }
       } else {
-        price = candle.unitPrice * newQty;
+        // Defensive fallback only — should not be reachable now that every
+        // flat-rate path sets candleProductUnitPrice above. Never silently
+        // zero the price: derive the per-unit rate from the item's own
+        // current total instead of dropping it.
+        const previousUnitPrice = item.candleProductQty ? item.total / item.candleProductQty : item.total;
+        price = previousUnitPrice * newQty;
       }
     }
+
     updateItem(itemId, {
       candleProductQty: newQty,
       sizeName: `${newQty}× ${item.candleProductName}`,
       extrasNames: [`${newQty}× ${item.candleProductName}`],
       total: price,
+      // Keep the raw structured selection (sent to create-postfinance-payment
+      // for server-side recompute) in sync with candleProductQty — otherwise
+      // a +/- edit here would leave item.candles[0].quantity stale.
+      candles: item.candles?.length ? [{ ...item.candles[0], quantity: newQty }] : item.candles,
     });
   };
 
-  const getCandleItemPrice = (candleId: string, itemCandles: CandleCartItem[]) => {
-    const candle = cartCandles.find(c => c.id === candleId);
-    if (!candle) return 0;
-    const unitQty = (itemCandles || []).find(c => c.id === candleId && !c.hasPack)?.quantity || 0;
-    if (unitQty === 0) return 0;
-    if (candle.hasPack && unitQty >= (candle.packSize || 6)) {
-      const packs = Math.floor(unitQty / (candle.packSize || 6));
-      const remaining = unitQty % (candle.packSize || 6);
-      return packs * (candle.packPrice || 0) + remaining * candle.unitPrice;
-    }
-    return candle.unitPrice * unitQty;
+  const getCandleItemPrice = (candleId: string, itemCandles: CandleSelection[]) => {
+    const entry = (itemCandles || []).find(c => c.id === candleId);
+    if (!entry) return 0;
+    return priceCandleSelection(entry, cartCandles.find(c => c.id === candleId), candleId === NUMBER_CANDLE_ID);
   };
 
   return (
@@ -334,8 +351,17 @@ const Cart = () => {
             <div className="lg:col-span-2 space-y-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">{t("Your Items", "Vos articles")}</h2>
-                <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive">{t("Clear All", "Tout supprimer")}</Button>
+                <Button variant="ghost" size="sm" onClick={handleClearAll} className="text-destructive hover:text-destructive">{t("Clear All", "Tout supprimer")}</Button>
               </div>
+
+              {cartOrderDate && (
+                <div className="mb-4 rounded-md bg-muted/30 p-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
+                  <span>📅 {t("This order will be prepared for", "Cette commande sera préparée pour le")} {formatDateFromIso(cartOrderDate)}</span>
+                  <Button variant="link" size="sm" onClick={handleClearAll} className="text-destructive h-auto p-0">
+                    {t("Order for a different date", "Commander pour une autre date")}
+                  </Button>
+                </div>
+              )}
 
               {items.map((item) => {
                 const isEditing = editingItemId === item.id;
@@ -350,26 +376,40 @@ const Cart = () => {
                           </Button>
                         </div>
                         <div className="flex items-center gap-4">
-                          <img src={item.candleProductImage} alt={item.candleProductName} className="h-20 w-20 object-contain flex-shrink-0" />
+                          {item.candleProductImage ? (
+                            <img src={item.candleProductImage} alt={item.candleProductName} className="h-20 w-20 object-contain flex-shrink-0" />
+                          ) : (
+                            // Number Candle has no product photo — falls back to a plain
+                            // placeholder instead of a broken <img>.
+                            <div className="h-20 w-20 flex items-center justify-center flex-shrink-0 bg-secondary/20 text-3xl" aria-hidden="true">
+                              🕯️
+                            </div>
+                          )}
                           <div className="flex-1">
                             <p className="text-sm text-muted-foreground mb-2">{t("Candle", "Bougie")}</p>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleCandleProductQty(item.id, -1)}
-                                disabled={(item.candleProductQty || 1) <= 1}
-                                className={cn(
-                                  "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
-                                  (item.candleProductQty || 1) <= 1
-                                    ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                    : "bg-primary text-primary-foreground hover:bg-primary/90"
-                                )}
-                              >−</button>
-                              <span className="w-6 text-center font-medium text-foreground text-sm">{item.candleProductQty || 1}</span>
-                              <button
-                                onClick={() => handleCandleProductQty(item.id, 1)}
-                                className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
-                              >+</button>
-                            </div>
+                            {item.candleProductQtyLocked ? (
+                              <p className="text-sm font-medium text-foreground">
+                                {t("Quantity", "Quantité")}: {item.candleProductQty || 1}
+                              </p>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleCandleProductQty(item.id, -1)}
+                                  disabled={(item.candleProductQty || 1) <= 1}
+                                  className={cn(
+                                    "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
+                                    (item.candleProductQty || 1) <= 1
+                                      ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  )}
+                                >−</button>
+                                <span className="w-6 text-center font-medium text-foreground text-sm">{item.candleProductQty || 1}</span>
+                                <button
+                                  onClick={() => handleCandleProductQty(item.id, 1)}
+                                  className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
+                                >+</button>
+                              </div>
+                            )}
                           </div>
                           <span className="font-semibold text-primary whitespace-nowrap">CHF {item.total}</span>
                         </div>
@@ -396,8 +436,6 @@ const Cart = () => {
                       {isEditing ? (
                         <CartItemEditor
                           item={item}
-                          fullyBookedDates={fullyBookedDates}
-                          onDateChange={(date) => updateItem(item.id, { orderDate: format(date, "yyyy-MM-dd") })}
                           onSizeChange={(v) => handleSizeChange(item.id, v)}
                           onFlavorChange={(v) => handleFlavorChange(item.id, v)}
                           onStyleChange={(v) => handleStyleChange(item.id, v)}
@@ -416,6 +454,9 @@ const Cart = () => {
                           onCandleQtyChange={(candleId, delta) => handleCandleQuantityChange(item.id, candleId, delta)}
                           getCandleUnitQty={(candleId) => getCandleUnitQty(item, candleId)}
                           getCandleItemPrice={(candleId) => getCandleItemPrice(candleId, item.candles || [])}
+                          onNumberCandleDigitChange={(digit) => handleNumberCandleDigitChange(item.id, digit)}
+                          onCandleSelectionCommit={(entry) => recalcAndUpdate(item.id, { candles: upsertCandleSelection(item.candles || [], entry) })}
+                          onCandleSelectionRemove={(candleId) => recalcAndUpdate(item.id, { candles: removeCandleSelection(item.candles || [], candleId) })}
                         />
                       ) : (
                         <CartItemSummary item={item} />
@@ -458,29 +499,39 @@ const Cart = () => {
 /* ---------- Summary (read-only view) ---------- */
 const CartItemSummary = ({ item }: { item: any }) => {
   const { t } = useLang();
+  const isDiyKit = item.product === "diy_kit";
   const sizeObj = sizes.find(s => s.id === item.size);
-  const sizePrice = sizeObj?.price || 0;
+  const sizePrice = isDiyKit ? DIY_KIT_BASE_PRICE : (sizeObj?.price || 0);
   const shapeObj = shapes.find(s => s.id === item.shape);
-  const shapeExtra = shapeObj ? (shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0) : 0;
+  const shapeExtra = isDiyKit
+    ? (DIY_KIT_SHAPE_EXTRA[item.shape] ?? 0)
+    : (shapeObj ? shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0 : 0);
   const flavorExtra = getFlavorCategoryExtra(item.flavor, item.size);
   const styleObj = styles.find(s => s.id === item.style);
   const styleExtra = styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0;
 
   const candleEntries = (item.candles || [])
-    .filter((c: CandleCartItem) => c.quantity > 0)
-    .map((c: CandleCartItem) => {
+    .filter((c: CandleSelection) => c.quantity > 0)
+    .map((c: CandleSelection) => {
       const candle = cartCandles.find(x => x.id === c.id);
-      const price = candle ? getCandleTotalPrice(candle.id, item.candles || []) : 0;
-      return { name: candle?.name || "", qty: c.quantity, price };
+      const baseName = c.id === NUMBER_CANDLE_ID ? t("Number Candle", "Bougie chiffre") : (candle?.name || "");
+      const name = composeCandleName(c, baseName);
+      const price = priceCandleSelection(c, candle, c.id === NUMBER_CANDLE_ID);
+      return { name, qty: c.quantity, price };
     })
     .filter((e: any) => e.name);
 
-  const extraEntries = (item.extras || []).map((extraId: string) => {
-    const extra = catalogExtras.find(e => e.id === extraId);
-    if (!extra) return null;
-    const price = extra.price[item.size as keyof typeof extra.price] || 0;
-    return { name: extra.name, price };
-  }).filter(Boolean) as { name: string; price: number }[];
+  const extraEntries = isDiyKit
+    ? (item.extras || []).map((extraId: string, i: number) => ({
+        name: item.extrasNames?.[i] || extraId,
+        price: DIY_KIT_PIPING_PRICE[extraId] ?? 0,
+      }))
+    : (item.extras || []).map((extraId: string) => {
+        const extra = extras.find(e => e.id === extraId);
+        if (!extra) return null;
+        const price = extra.price[item.size as keyof typeof extra.price] || 0;
+        return { name: extra.name, price };
+      }).filter(Boolean) as { name: string; price: number }[];
 
   const candlesTotal = candleEntries.reduce((sum: number, e: any) => sum + e.price, 0);
   const extrasTotal = extraEntries.reduce((sum: number, e: any) => sum + e.price, 0);
@@ -507,13 +558,13 @@ const CartItemSummary = ({ item }: { item: any }) => {
             <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
           </div>
         )}
-        {styleExtra > 0 && (
+        {!isDiyKit && styleExtra > 0 && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
             <span className="text-foreground">+ CHF {styleExtra}</span>
           </div>
         )}
-        {styleExtra === 0 && item.styleName && (
+        {!isDiyKit && styleExtra === 0 && item.styleName && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
             <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
@@ -563,8 +614,6 @@ const CartItemSummary = ({ item }: { item: any }) => {
 /* ---------- Editor ---------- */
 interface CartItemEditorProps {
   item: any;
-  fullyBookedDates: Date[];
-  onDateChange: (date: Date) => void;
   onSizeChange: (v: string) => void;
   onFlavorChange: (v: string) => void;
   onStyleChange: (v: string) => void;
@@ -583,16 +632,21 @@ interface CartItemEditorProps {
   onCandleQtyChange: (candleId: string, delta: number) => void;
   getCandleUnitQty: (candleId: string) => number;
   getCandleItemPrice: (candleId: string) => number;
+  onNumberCandleDigitChange: (digit: string) => void;
+  onCandleSelectionCommit: (entry: CandleSelection) => void;
+  onCandleSelectionRemove: (candleId: string) => void;
 }
 
 const CartItemEditor = ({
-  item, fullyBookedDates,
-  onDateChange, onSizeChange, onFlavorChange, onStyleChange,
+  item,
+  onSizeChange, onFlavorChange, onStyleChange,
   onBaseColorChange, onDecoColorChange, onTextChange, onTextColorChange, onTextStyleChange,
   onToggleExtra, onRibbonColorChange, onButterflyColorChange,
   onGlitterColorChange, onGlitterCherriesColorChange,
   onCommentChange, onImageFilesChange,
   onCandleQtyChange, getCandleUnitQty, getCandleItemPrice,
+  onNumberCandleDigitChange,
+  onCandleSelectionCommit, onCandleSelectionRemove,
 }: CartItemEditorProps) => {
   const { t } = useLang();
   const showDecoColor = item.style !== "normal-without-border";
@@ -624,39 +678,16 @@ const CartItemEditor = ({
     onImageFilesChange(currentFiles.filter((_: File, i: number) => i !== index));
   };
 
-  const getExtraPriceForSize = (extra: typeof catalogExtras[0]) => {
+  const getExtraPriceForSize = (extra: typeof extras[0]) => {
     return extra.price[item.size as keyof typeof extra.price] || 0;
   };
 
   return (
     <TooltipProvider delayDuration={200}>
     <div className="space-y-6">
-      {/* Date */}
-      <EditSection label={t("Pickup Date", "Date de retrait")} tooltip={t("Order preparation date (minimum 4 days in advance)", "Date de préparation de la commande (minimum 4 jours à l'avance)")} required>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !item.orderDate && "text-muted-foreground")}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {item.orderDate ? formatDateFromIso(item.orderDate) : <span>{t("Pick a date", "Choisir une date")}</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={item.orderDate ? new Date(item.orderDate) : undefined}
-              onSelect={(date) => { if (date) onDateChange(date); }}
-              disabled={(date) => {
-                const minDate = addDays(new Date(), 4);
-                minDate.setHours(0, 0, 0, 0);
-                if (date < minDate) return true;
-                return fullyBookedDates.some(b => b.toDateString() === date.toDateString());
-              }}
-              initialFocus
-              className="p-3 pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
-      </EditSection>
+      {item.orderDate && (
+        <p className="text-sm text-muted-foreground">📅 {formatDateFromIso(item.orderDate)}</p>
+      )}
 
       {/* Size with box images */}
       <EditSection label={t("Size", "Taille")} tooltip={t(`Choose the size of your cake. ${sizeInfoSummary.en}`, `Choisissez la taille de votre gâteau. ${sizeInfoSummary.fr}`)} required>
@@ -809,8 +840,8 @@ const CartItemEditor = ({
       <EditSection label={t("✨ Extra", "✨ Suppléments")} tooltip={t("You can add any additional elements to personalise your design.", "Vous pouvez ajouter des éléments supplémentaires pour personnaliser votre design.")}>
         {extraGroups.map((group) => {
           const visibleExtras = group.ids
-            .map(id => catalogExtras.find(e => e.id === id))
-            .filter((extra): extra is typeof catalogExtras[0] => !!extra && !excludedExtras.includes(extra.id))
+            .map(id => extras.find(e => e.id === id))
+            .filter((extra): extra is typeof extras[0] => !!extra && !excludedExtras.includes(extra.id))
             .filter(extra => {
               const price = extra.price[item.size as keyof typeof extra.price];
               return price !== undefined && price > 0;
@@ -1014,6 +1045,23 @@ const CartItemEditor = ({
       <EditSection label={t("🕯️ Candles", "🕯️ Bougies")}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {cartCandles.map((candle) => {
+            const family = FAMILY_CANDLE_COLORS[candle.id];
+            if (family) {
+              return (
+                <div key={candle.id} className="min-w-0">
+                  <ColorFamilyCandleCard
+                    candle={candle}
+                    colors={family}
+                    existing={(item.candles || []).find((c: CandleSelection) => c.id === candle.id)}
+                    onCommit={onCandleSelectionCommit}
+                    onRemove={() => onCandleSelectionRemove(candle.id)}
+                    imageClassName="h-14 w-14"
+                    compact
+                  />
+                </div>
+              );
+            }
+
             const qty = getCandleUnitQty(candle.id);
             const price = getCandleItemPrice(candle.id);
             const isPackApplied = candle.hasPack && qty >= (candle.packSize || 6);
@@ -1021,11 +1069,11 @@ const CartItemEditor = ({
               <div
                 key={candle.id}
                 className={cn(
-                  "flex flex-col items-center p-2 rounded-lg border transition-all",
+                  "flex flex-col items-center p-2 rounded-lg border transition-all min-w-0",
                   qty > 0 ? "ring-2 ring-primary border-primary bg-secondary" : "border-border"
                 )}
               >
-                <img src={candle.image} alt={candle.name} className="h-16 w-16 object-contain mb-1" />
+                <img src={candle.image} alt={candle.name} className="h-20 w-20 object-contain mb-1" />
                 <span className="text-xs font-medium text-foreground text-center">{candle.name}</span>
                 <span className="text-xs text-muted-foreground">CHF {candle.unitPrice}{t("/ea", "/pièce")}</span>
                 {candle.hasPack && (
@@ -1052,6 +1100,53 @@ const CartItemEditor = ({
               </div>
             );
           })}
+
+          {/* Number Candle — digit picker, no product photo, flat rate */}
+          {(() => {
+            const qty = getCandleUnitQty(NUMBER_CANDLE_ID);
+            const digit = (item.candles || []).find((c: CandleSelection) => c.id === NUMBER_CANDLE_ID)?.digit || "0";
+            return (
+              <div
+                className={cn(
+                  "flex flex-col items-center p-2 rounded-lg border transition-all min-w-0",
+                  qty > 0 ? "ring-2 ring-primary border-primary bg-secondary" : "border-border"
+                )}
+              >
+                <div className="h-20 w-20 mb-1 flex items-center justify-center bg-secondary/20">
+                  <span className="text-2xl font-bold text-primary" aria-hidden="true">{digit}</span>
+                </div>
+                <span className="text-xs font-medium text-foreground text-center">{t("Number Candle", "Bougie chiffre")}</span>
+                <span className="text-xs text-muted-foreground">CHF {NUMBER_CANDLE_PRICE}{t("/ea", "/pièce")}</span>
+                <Select value={digit} onValueChange={onNumberCandleDigitChange}>
+                  <SelectTrigger className="h-6 text-xs mt-1 w-16" aria-label={t("Choose a digit", "Choisir un chiffre")}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NUMBER_CANDLE_DIGITS.map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={() => onCandleQtyChange(NUMBER_CANDLE_ID, -1)}
+                    disabled={qty === 0}
+                    className="h-7 w-7 rounded-none border border-border flex items-center justify-center text-foreground disabled:opacity-30 hover:bg-muted"
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <span className="text-sm font-medium w-6 text-center text-foreground">{qty}</span>
+                  <button
+                    onClick={() => onCandleQtyChange(NUMBER_CANDLE_ID, 1)}
+                    className="h-7 w-7 rounded-none border border-border flex items-center justify-center text-foreground hover:bg-muted"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+                {qty > 0 && <span className="text-xs text-primary font-medium mt-1">CHF {qty * NUMBER_CANDLE_PRICE}</span>}
+              </div>
+            );
+          })()}
         </div>
       </EditSection>
     </div>

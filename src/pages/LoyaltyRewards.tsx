@@ -1,28 +1,46 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
-
-/* UI-only. Balance/target are placeholders for design preview;
-   real points will come from the backend once accounts are connected. */
-const BALANCE = 125;
-const TARGET = 200;
+import { useAuth } from "@/context/AuthContext";
 
 const LoyaltyRewards = () => {
   const { t } = useLang();
-  const remaining = Math.max(TARGET - BALANCE, 0);
-  const pct = Math.min(Math.round((BALANCE / TARGET) * 100), 100);
+  const navigate = useNavigate();
+  const { user, profile, loading } = useAuth();
 
   useEffect(() => {
     document.title = "Loyalty Rewards – Bento Cake Studio";
     return () => { document.title = "Bento Cake Studio Geneva"; };
   }, []);
 
+  useEffect(() => {
+    if (!loading && !user) navigate("/login");
+  }, [loading, user, navigate]);
+
   const rules = [
-    t("Earn 1 point for every CHF 1 spent.", "Gagnez 1 point pour chaque CHF 1 dépensé."),
-    t("100 points = CHF 5 discount on your next order.", "100 points = CHF 5 de réduction sur votre prochaine commande."),
-    t("Redeem your points directly at checkout.", "Utilisez vos points directement au paiement."),
-    t("The more you order, the more you save.", "Plus vous commandez, plus vous économisez."),
+    t("Earn 3.5% back on every order, credited to your reward balance.", "Gagnez 3,5% de cagnotte sur chaque commande."),
+    t("Calculated on the amount actually paid for products, excluding delivery fees.", "Calculée sur le montant réellement payé pour les produits, hors frais de livraison."),
+    t("Reward earned on an order can only be used on a later order, never the same one.", "La cagnotte gagnée sur une commande ne peut être utilisée que sur une commande suivante."),
+    t("Each amount earned is valid for 12 months.", "Chaque montant gagné est valable 12 mois."),
   ];
+
+  if (loading || !user || !profile) {
+    return (
+      <Layout>
+        <main className="max-w-2xl mx-auto px-6 py-24 text-center text-sm text-muted-foreground">
+          {t("Loading...", "Chargement...")}
+        </main>
+      </Layout>
+    );
+  }
+
+  const voucherAvailable =
+    profile.welcome_discount_available &&
+    !profile.welcome_discount_used_at &&
+    (!profile.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date());
+
+  const balance = profile.reward_balance ?? 0;
 
   return (
     <Layout>
@@ -33,29 +51,23 @@ const LoyaltyRewards = () => {
 
         <div className="border border-border/60 p-8 mb-10 text-center">
           <p className="text-sm uppercase tracking-[0.105em] text-muted-foreground mb-2">
-            {t("Current Balance", "Solde actuel")}
+            {t("Reward Balance", "Solde cagnotte")}
           </p>
-          <p className="font-sans text-4xl md:text-5xl font-semibold text-primary mb-6">
-            {BALANCE} {t("Points", "Points")}
+          <p className="font-sans text-4xl md:text-5xl font-semibold text-primary">
+            CHF {balance.toFixed(2)}
           </p>
+        </div>
 
-          <div className="w-full h-2.5 bg-secondary overflow-hidden mb-2">
-            <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+        {voucherAvailable && (
+          <div className="border border-primary bg-secondary/40 p-6 mb-10 text-center">
+            <p className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-primary mb-2">
+              {t("Welcome Voucher Available", "Voucher de bienvenue disponible")}
+            </p>
+            <p className="text-sm text-foreground/80 leading-relaxed">
+              {t("-10% off your next order — automatically applied once at checkout.", "-10% sur votre prochaine commande — appliqué automatiquement, une seule fois, au paiement.")}
+            </p>
           </div>
-          <p className="text-sm text-foreground/75 mb-1">{BALANCE} / {TARGET} {t("Points", "Points")}</p>
-          <p className="text-sm text-primary font-medium">
-            {t(`Only ${remaining} points until your next reward!`, `Plus que ${remaining} points avant votre prochaine récompense !`)}
-          </p>
-        </div>
-
-        <div className="border border-primary bg-secondary/40 p-6 mb-10 text-center">
-          <p className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-primary mb-2">
-            {t("Your Birthday Treat", "Votre cadeau d'anniversaire")}
-          </p>
-          <p className="text-sm text-foreground/80 leading-relaxed">
-            {t("Every year, during your birthday month, enjoy 10% off your order, or a free pack of candles on us. Just add your date of birth in your account details.", "Chaque année, pendant le mois de votre anniversaire, profitez de 10% de réduction sur votre commande, ou d'un paquet de bougies offert. Ajoutez simplement votre date de naissance dans les détails de votre compte.")}
-          </p>
-        </div>
+        )}
 
         <div>
           <h2 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-4">
