@@ -155,9 +155,33 @@ export type PurchaseSnapshot = {
  */
 export function stashPurchaseSnapshot(snapshot: PurchaseSnapshot): void {
   try {
-    localStorage.setItem(purchaseSnapshotKey(snapshot.transaction_id), JSON.stringify(snapshot));
+    pruneStaleSnapshots();
+    localStorage.setItem(
+      purchaseSnapshotKey(snapshot.transaction_id),
+      JSON.stringify({ ...snapshot, _ts: Date.now() }),
+    );
   } catch {
     /* private mode / quota — purchase just won't be reported for this order */
+  }
+}
+
+// Drop snapshots for orders that were started but never confirmed (payment
+// abandoned/declined) after ~14 days, so localStorage can't accumulate.
+function pruneStaleSnapshots(): void {
+  const MAX_AGE = 14 * 24 * 60 * 60 * 1000;
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith("ga4_purchase_") || key === PURCHASE_SENT_KEY) continue;
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key) || "{}");
+        if (!parsed._ts || Date.now() - parsed._ts > MAX_AGE) localStorage.removeItem(key);
+      } catch {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    /* ignore */
   }
 }
 
