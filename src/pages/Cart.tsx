@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 // @ts-ignore
 import "@fontsource/dancing-script";
 import { Link } from "react-router-dom";
@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCart, CandleSelection } from "@/context/CartContext";
+import { trackEvent, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
@@ -67,6 +68,25 @@ const Cart = () => {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
+
+  // GA4 view_cart — once when the cart page opens with something in it.
+  const viewCartSentRef = useRef(false);
+  useEffect(() => {
+    if (viewCartSentRef.current || items.length === 0) return;
+    viewCartSentRef.current = true;
+    trackEvent("view_cart", {
+      currency: "CHF",
+      value: cartItemsValue(items),
+      items: cartItemsToGA4Items(items),
+    });
+  }, [items]);
+
+  // "Clear all" — emit remove_from_cart per line, then clear (clearCart
+  // itself is intentionally event-free; see CartContext).
+  const handleClearAll = () => {
+    items.forEach((it) => trackRemoveFromCart(it));
+    clearCart();
+  };
 
   const recalcAndUpdate = (itemId: string, updates: Record<string, any>) => {
     const item = items.find(i => i.id === itemId);
@@ -329,13 +349,13 @@ const Cart = () => {
             <div className="lg:col-span-2 space-y-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">{t("Your Items", "Vos articles")}</h2>
-                <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive">{t("Clear All", "Tout supprimer")}</Button>
+                <Button variant="ghost" size="sm" onClick={handleClearAll} className="text-destructive hover:text-destructive">{t("Clear All", "Tout supprimer")}</Button>
               </div>
 
               {cartOrderDate && (
                 <div className="mb-4 rounded-md bg-muted/30 p-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
                   <span>📅 {t("This order will be prepared for", "Cette commande sera préparée pour le")} {formatDateFromIso(cartOrderDate)}</span>
-                  <Button variant="link" size="sm" onClick={clearCart} className="text-destructive h-auto p-0">
+                  <Button variant="link" size="sm" onClick={handleClearAll} className="text-destructive h-auto p-0">
                     {t("Order for a different date", "Commander pour une autre date")}
                   </Button>
                 </div>

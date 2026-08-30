@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { CartProvider } from "@/context/CartContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { trackViewItem } from "@/lib/analytics";
 
 import Index from "./pages/Index";
 import ProductDetail from "./pages/ProductDetail";
@@ -52,6 +53,25 @@ const ScrollToTop = () => {
   return null;
 };
 
+// GA4 view_item — the cake/candle/kit/printing configurator pages are the
+// product pages. One place, one event per navigation onto such a page.
+const PRODUCT_ROUTES: Record<string, string> = {
+  "/catalog": "bento_cake",
+  "/dot-cakes": "dot_cakes",
+  "/candles": "candles",
+  "/kit-bento-cake": "diy_kit",
+  "/printing": "edible_printing",
+};
+
+const ViewItemTracker = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const product = PRODUCT_ROUTES[pathname];
+    if (product) trackViewItem(product);
+  }, [pathname]);
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
@@ -62,6 +82,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter basename={import.meta.env.BASE_URL}>
           <ScrollToTop />
+          <ViewItemTracker />
           <Routes>
             <Route path="/" element={<Index />} />
             

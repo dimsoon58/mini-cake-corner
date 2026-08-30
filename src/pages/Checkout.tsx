@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
@@ -39,6 +39,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useCart, VALID_PRODUCTS } from "@/context/CartContext";
+import {
+  trackEvent,
+  cartItemsToGA4Items,
+  cartItemsValue,
+  stashPurchaseSnapshot,
+} from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
@@ -388,8 +394,24 @@ const Checkout = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // GA4 funnel guards — each step at most once per Checkout mount.
+  const beginCheckoutSentRef = useRef(false);
+  const shippingInfoSentRef = useRef(false);
+  const paymentInfoSentRef = useRef(false);
+
+  // begin_checkout — the customer has reached the checkout with a cart.
+  useEffect(() => {
+    if (beginCheckoutSentRef.current || items.length === 0) return;
+    beginCheckoutSentRef.current = true;
+    trackEvent("begin_checkout", {
+      currency: "CHF",
+      value: cartItemsValue(items),
+      items: cartItemsToGA4Items(items),
+    });
+  }, [items]);
+
   const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
-  
+
   const detectedZone = useMemo(() => {
     if (deliveryOption !== "delivery" || !deliveryAddress.trim()) return null;
     return detectZoneFromAddress(deliveryAddress);
@@ -559,6 +581,22 @@ const Checkout = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // GA4 add_shipping_info — pickup vs delivery (and zone) is now fully
+    // chosen and validated. Fired before the availability re-check / payload
+    // build so it reflects the moment the delivery choice is confirmed.
+    if (!shippingInfoSentRef.current) {
+      shippingInfoSentRef.current = true;
+      trackEvent("add_shipping_info", {
+        currency: "CHF",
+        value: cartItemsValue(items),
+        shipping_tier:
+          deliveryOption === "delivery"
+            ? detectedZone?.name || "delivery"
+            : "pickup",
+        items: cartItemsToGA4Items(items),
+      });
     }
 
     setShowEmbeddedCheckout(false);
@@ -858,6 +896,28 @@ const Checkout = () => {
         totalAmount: payload.totalAmount,
         deliveryOption: payload.deliveryOption,
       });
+
+      // GA4 — the order is finalised and the customer is about to be handed
+      // to PostFinance. Record the real order figures now so `purchase` can
+      // be reported accurately later (the cart is cleared before the
+      // payment-success page runs), keyed by this orderId = transaction_id.
+      const ga4Items = cartItemsToGA4Items(items);
+      stashPurchaseSnapshot({
+        transaction_id: orderId,
+        currency: "CHF",
+        value: totalPrice,
+        shipping: deliveryOption === "delivery" ? deliveryPrice : 0,
+        items: ga4Items,
+      });
+      if (!paymentInfoSentRef.current) {
+        paymentInfoSentRef.current = true;
+        trackEvent("add_payment_info", {
+          currency: "CHF",
+          value: totalPrice,
+          payment_type: "PostFinance Checkout",
+          items: ga4Items,
+        });
+      }
 
       setCheckoutPayload(payload);
       setShowEmbeddedCheckout(true);

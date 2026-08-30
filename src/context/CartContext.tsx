@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { trackAddToCart, trackRemoveFromCart } from "@/lib/analytics";
 
 // Canonical shape for a candle attached to a cart item — used both for
 // candles added directly on the Candles page and for candles added on top
@@ -140,6 +141,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
     const newItem = { ...item, id: Date.now().toString() };
     setItems((prev) => [...prev, newItem]);
+    // GA4 add_to_cart — fired here so every "Add to cart" surface (Catalog,
+    // Dot Cakes, Candles, DIY Kit, Printing, …) is covered once, and only
+    // when the item is genuinely accepted into the cart.
+    trackAddToCart(newItem);
     return true;
   };
 
@@ -150,6 +155,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeItem = (id: string) => {
+    // GA4 remove_from_cart — only for an explicit single-line removal.
+    // clearCart() stays event-free: it is also used after a successful order
+    // and on the payment-success page, where the items were purchased, not
+    // removed. Cart.tsx's "Clear all" emits remove_from_cart itself.
+    const gone = items.find((item) => item.id === id);
+    if (gone) trackRemoveFromCart(gone);
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
