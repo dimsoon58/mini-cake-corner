@@ -131,8 +131,20 @@ export function onAnalyticsReady(cb: () => void): () => void {
     return false;
   };
 
+  const poll = (left: number) => {
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
+    }
+    if (done) return;
+    if (attempt() || left <= 0) return; // stop polling; the accept listener stays
+    pollTimer = setTimeout(() => poll(left - 1), 250);
+  };
+
   function onConsentEvent() {
-    attempt();
+    // A choice just came in. If it's an accept but gtag is still loading,
+    // poll a few more seconds so `cb` still runs once gtag is ready.
+    if (!attempt()) poll(40);
   }
 
   if (attempt()) return finish;
@@ -142,12 +154,6 @@ export function onAnalyticsReady(cb: () => void): () => void {
   w.addEventListener?.("CookiebotOnAccept", onConsentEvent);
   w.addEventListener?.("CookiebotOnDecline", onConsentEvent);
   w.addEventListener?.("CookiebotOnConsentReady", onConsentEvent);
-
-  const poll = (left: number) => {
-    if (done) return;
-    if (attempt() || left <= 0) return; // stop polling; the accept listener stays
-    pollTimer = setTimeout(() => poll(left - 1), 250);
-  };
   poll(60);
 
   return finish;
