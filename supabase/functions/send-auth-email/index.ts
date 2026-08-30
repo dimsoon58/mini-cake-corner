@@ -58,11 +58,11 @@ function buttonHtml(url: string, label: string): string {
   </div>`;
 }
 
-// Plain-text fallback derived from the HTML we already built, so the two
-// parts always match. Sending multipart (html + text) instead of HTML-only
-// materially improves inbox placement at Gmail / Outlook / Bluewin. The
-// button's href is pulled through as "Label: URL" so the link stays usable
-// in text-only clients.
+// Explicit plain-text part, derived from the HTML we already built so the
+// two always match. Resend already synthesises a text/plain alternative on
+// its own; providing our own just makes that part deterministic (clean
+// wording, the button href pulled through as "Label: URL") instead of
+// auto-generated. Minor robustness improvement, not a deliverability fix.
 function htmlToText(html: string): string {
   return html
     .replace(
@@ -105,7 +105,7 @@ async function sendViaResend(apiKey: string, to: string, subject: string, html: 
       to: [to],
       subject,
       html,
-      // Multipart: HTML-only auth mail is a strong spam signal.
+      // Explicit text part (Resend also auto-generates one) — see htmlToText.
       text: htmlToText(html),
       reply_to: "contact@bentocakestudio.ch",
       // Unique per message so Gmail/Outlook never thread or clip successive
