@@ -13,6 +13,7 @@ import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
 import { flavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
 import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
+import { FlavorDesc } from "@/data/flavorDesc";
 import dotGallery1 from "@/assets/dot-gallery-1.jpg";
 import dotGallery2 from "@/assets/dot-gallery-2.jpg";
 import dotGallery3 from "@/assets/dot-gallery-3.jpg";
@@ -373,6 +374,7 @@ const DotCakes = () => {
                             </div>
                             <div className="p-3 text-center">
                               <p className="font-sans font-medium text-sm tracking-[0.105em]">{flavor.name}</p>
+                              <FlavorDesc flavorId={flavor.id} />
                               <AllergenDisplay flavorId={flavor.id} />
                             </div>
                           </div>

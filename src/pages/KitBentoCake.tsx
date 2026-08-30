@@ -14,6 +14,7 @@ import { CalendarIcon, Check, ShoppingCart, ChevronDown, ChevronUp } from "lucid
 import { useCart } from "@/context/CartContext";
 import { useNavigate } from "react-router-dom";
 import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
+import { FlavorDesc } from "@/data/flavorDesc";
 import { toast } from "sonner";
 import { useLang } from "@/context/LanguageContext";
 
@@ -461,6 +462,7 @@ const KitBentoCake = () => {
                         </div>
                         <div className="p-3 text-center">
                           <p className="font-sans font-medium text-sm">{t(flavor.name, flavor.nameFr)}</p>
+                          <FlavorDesc flavorId={flavor.id} />
                           <AllergenDisplay flavorId={flavor.id} />
                         </div>
                       </div>

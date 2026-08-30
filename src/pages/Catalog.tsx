@@ -28,6 +28,7 @@ import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
+import { flavorDescMap } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
 // @ts-ignore
 import "@fontsource/dancing-script";
@@ -1634,6 +1635,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                             <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
                             <div>
                             <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
+                            {flavorDescMap[flavor.id] && (
+                              <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
+                                {t(flavorDescMap[flavor.id].en, flavorDescMap[flavor.id].fr)}
+                              </div>
+                            )}
                             {info && (
                               <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
                                 {info.warn && <span aria-hidden="true">⚠️ </span>}

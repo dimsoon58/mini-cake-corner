@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
+import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
 import {
   sizes,
@@ -697,8 +698,11 @@ const CartItemEditor = ({
                 item.flavor === flavor.id ? "ring-2 ring-primary bg-secondary border-primary" : "border-border hover:bg-muted/50"
               )}
             >
-              <img src={flavor.image} alt={flavor.name} className="h-10 w-10 object-contain rounded" />
-              <span className="text-xs font-medium text-foreground leading-tight">{flavor.name}</span>
+              <img src={flavor.image} alt={flavor.name} className="h-10 w-10 object-contain rounded flex-shrink-0" />
+              <span className="min-w-0">
+                <span className="block text-xs font-medium text-foreground leading-tight">{flavor.name}</span>
+                <FlavorDesc flavorId={flavor.id} className="mt-0.5" />
+              </span>
             </button>
           )))}
         </div>
