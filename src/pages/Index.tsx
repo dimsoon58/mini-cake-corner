@@ -192,9 +192,21 @@ const Index = () => {
     <Layout overlayHero>
       {/* Hero Section */}
       <section className="relative text-primary-foreground overflow-hidden min-h-[88vh]">
+        {/* Fond flou, simple prolongement du mur pour eviter les bandes */}
         <video
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ objectPosition: "center 65%" }}
+          className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl"
+          src={heroVideo}
+          poster={heroPoster}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          aria-hidden="true"
+        />
+        {/* Video complete, jamais rognee */}
+        <video
+          className="absolute inset-0 w-full h-full object-contain"
           src={heroVideo}
           poster={heroPoster}
           autoPlay
