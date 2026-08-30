@@ -106,7 +106,7 @@ const Signup = () => {
     }
 
     setIsSubmitting(true);
-    const { error } = await signUp({
+    const { error, code } = await signUp({
       firstName: normalizeName(firstName),
       lastName: normalizeName(lastName),
       email: normalizeEmail(email),
@@ -118,9 +118,34 @@ const Signup = () => {
     setIsSubmitting(false);
 
     if (error) {
+      // Supabase only returns an explicit error here for the non-obfuscated
+      // cases (an already-registered CONFIRMED email returns a fake success
+      // instead — handled below by the "Check your email" screen, unchanged).
+      const alreadyExists =
+        code === "user_already_exists" || code === "email_exists" || /already registered/i.test(error);
+      const badEmailFormat = code === "validation_failed" || /invalid format/i.test(error);
+
+      let description: string;
+      if (alreadyExists) {
+        description = t(
+          "An account already exists with this email. Please sign in or reset your password.",
+          "Un compte existe déjà avec cet email. Connectez-vous ou réinitialisez votre mot de passe."
+        );
+      } else if (badEmailFormat) {
+        description = t("Please enter a valid email address.", "Veuillez saisir une adresse email valide.");
+      } else {
+        // Never surface a raw Supabase message to the customer — log it for
+        // debugging, show a safe generic line.
+        console.error("Signup error (unhandled):", { code, error });
+        description = t(
+          "Something went wrong while creating your account. Please try again.",
+          "Une erreur est survenue lors de la création du compte. Veuillez réessayer."
+        );
+      }
+
       toast({
         title: t("Could not create account", "Impossible de créer le compte"),
-        description: error,
+        description,
         variant: "destructive",
       });
       return;
@@ -157,6 +182,20 @@ const Signup = () => {
               "We've sent a confirmation link to your email address. Please confirm it before signing in.",
               "Nous avons envoyé un lien de confirmation à votre adresse email. Merci de le confirmer avant de vous connecter."
             )}
+          </p>
+
+          {/* Neutral hint — no lookup, makes no claim about whether an
+              account already exists. */}
+          <p className="mt-4 text-xs text-foreground/55 leading-relaxed">
+            {t("Already have an account with this email? ", "Vous avez peut-être déjà un compte avec cette adresse ? ")}
+            <Link to="/login" className="text-primary hover:text-primary/80 underline">
+              {t("Sign in", "Connectez-vous")}
+            </Link>
+            {t(" or ", " ou ")}
+            <Link to="/forgot-password" className="text-primary hover:text-primary/80 underline">
+              {t("reset your password", "réinitialisez votre mot de passe")}
+            </Link>
+            .
           </p>
 
           <div className="mt-6 space-y-2">

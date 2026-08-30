@@ -24,8 +24,12 @@ interface AuthContextType {
   // a page distinguish "still loading" from "gave up, profile unavailable"
   // instead of showing an infinite spinner on failure.
   profileError: boolean;
-  signUp: (fields: SignUpFields) => Promise<{ error: string | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  // `code` is Supabase's stable AuthError code (e.g. "invalid_credentials",
+  // "email_not_confirmed", "user_already_exists") when present — used by the
+  // Login/Signup pages to pick the right message. `error` stays the raw
+  // message for logging/fallback; it is never shown verbatim to the user.
+  signUp: (fields: SignUpFields) => Promise<{ error: string | null; code: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; code: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
@@ -103,12 +107,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
       },
     });
-    return { error: error?.message ?? null };
+    return { error: error?.message ?? null, code: (error as { code?: string } | null)?.code ?? null };
   };
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    return { error: error?.message ?? null, code: (error as { code?: string } | null)?.code ?? null };
   };
 
   const signOut = async () => {
