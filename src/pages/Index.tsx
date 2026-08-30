@@ -194,7 +194,7 @@ const Index = () => {
       <section className="relative text-primary-foreground overflow-hidden min-h-[88vh]">
         <video
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ objectPosition: "center 50%" }}
+          style={{ objectPosition: "center 65%" }}
           src={heroVideo}
           poster={heroPoster}
           autoPlay
