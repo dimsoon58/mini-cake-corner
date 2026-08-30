@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { useCart, VALID_PRODUCTS } from "@/context/CartContext";
 import {
   trackEvent,
+  trackEventWhenReady,
   cartItemsToGA4Items,
   cartItemsValue,
   stashPurchaseSnapshot,
@@ -403,7 +404,7 @@ const Checkout = () => {
   useEffect(() => {
     if (beginCheckoutSentRef.current || items.length === 0) return;
     beginCheckoutSentRef.current = true;
-    trackEvent("begin_checkout", {
+    trackEventWhenReady("begin_checkout", {
       currency: "CHF",
       value: cartItemsValue(items),
       items: cartItemsToGA4Items(items),

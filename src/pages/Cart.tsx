@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCart, CandleSelection } from "@/context/CartContext";
-import { trackEvent, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
+import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
@@ -74,7 +74,7 @@ const Cart = () => {
   useEffect(() => {
     if (viewCartSentRef.current || items.length === 0) return;
     viewCartSentRef.current = true;
-    trackEvent("view_cart", {
+    trackEventWhenReady("view_cart", {
       currency: "CHF",
       value: cartItemsValue(items),
       items: cartItemsToGA4Items(items),

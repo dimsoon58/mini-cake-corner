@@ -61,6 +61,27 @@ export function trackEvent(name: string, params: Record<string, unknown> = {}): 
   }
 }
 
+/**
+ * Like `trackEvent`, but for events fired on page/route mount, where
+ * Cookiebot + gtag.js may still be loading on a fresh page load even though
+ * consent was granted in a previous session. Retries briefly until gtag is
+ * ready; gives up immediately if the visitor has answered the banner
+ * without granting "statistics", and gives up after ~6s otherwise.
+ */
+export function trackEventWhenReady(
+  name: string,
+  params: Record<string, unknown> = {},
+  attemptsLeft = 24,
+): void {
+  if (typeof window === "undefined") return;
+  const w = window as any;
+  // Banner answered, statistics refused -> never send.
+  if (w.Cookiebot?.hasResponse === true && w.Cookiebot?.consent?.statistics !== true) return;
+  if (trackEvent(name, params)) return;
+  if (attemptsLeft <= 0) return;
+  setTimeout(() => trackEventWhenReady(name, params, attemptsLeft - 1), 250);
+}
+
 /** Build a GA4 `items[]` entry from a cart line. */
 export function cartItemToGA4Item(item: CartItem, index?: number): GA4Item {
   const cat = PRODUCT_CATALOG[item.product];
@@ -108,7 +129,7 @@ export function cartItemsValue(items: CartItem[]): number {
 export function trackViewItem(product: string): void {
   const cat = PRODUCT_CATALOG[product];
   if (!cat) return;
-  trackEvent("view_item", {
+  trackEventWhenReady("view_item", {
     currency: "CHF",
     items: [{ item_id: product, item_name: cat.item_name, item_category: cat.item_category }],
   });
