@@ -106,3 +106,210 @@ All colors MUST be HSL.
     line-height: 1.3;
   }
 }
+
+/* ===========================================================================
+   Cookiebot — habillage visuel Bento Cake Studio (CSS uniquement)
+   ---------------------------------------------------------------------------
+   Bandeau Cookiebot STANDARD conservé tel quel : aucune logique, aucun JS,
+   aucun réglage de consentement / blocking mode modifié. On ne fait que
+   redessiner la boîte native via ses sélecteurs officiels.
+   Le double #id (#CybotCookiebotDialog#CybotCookiebotDialog) sert uniquement
+   à passer devant les règles internes de Cookiebot qui utilisent aussi
+   !important (notamment le centrage et l'animation de translation).
+   Palette : fond #FFF9DB · texte #4B2E1F · principale #78020C
+   =========================================================================== */
+
+/* La boîte : petite carte, plus de modale plein écran ------------------------ */
+#CybotCookiebotDialog#CybotCookiebotDialog {
+  position: fixed !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: 20px !important;
+  left: 20px !important;                 /* desktop : bas-gauche */
+  transform: none !important;
+  transition: none !important;           /* pas de slide : la carte apparaît nette */
+  width: 330px !important;
+  max-width: calc(100vw - 40px) !important;
+  max-height: min(70vh, 430px) !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(120, 2, 12, 0.20) !important;
+  box-shadow: 0 10px 30px rgba(75, 46, 31, 0.22) !important;
+  background: #FFF9DB !important;
+  color: #4B2E1F !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+
+#CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogContentWrapper {
+  width: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Fond uniforme crème sur tous les panneaux internes ------------------------- */
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogHeader,
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogNav,
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogTabContent,
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBody,
+#CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotScrollContainer,
+#CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotScrollArea,
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogFooter,
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogDetailBody {
+  background: transparent !important;
+}
+
+/* Zone de contenu scrollable pour garder la carte basse -------------------- */
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogTabContent {
+  overflow-y: auto !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+/* Header compact + on masque le logo « powered by » pour gagner de la hauteur */
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogHeader {
+  padding: 6px 14px 0 !important;
+  min-height: 0 !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogPoweredbyCybot,
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogPoweredbyImage {
+  display: none !important;
+}
+
+/* Onglets -------------------------------------------------------------------- */
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogNav {
+  padding: 0 6px !important;
+  border-bottom: 1px solid rgba(75, 46, 31, 0.15) !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogNavItemLink {
+  padding: 7px 10px !important;
+  font-size: 12px !important;
+  color: #4B2E1F !important;
+  border: 0 !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogNavItemLink.CybotCookiebotDialogActive {
+  color: #78020C !important;
+  border-bottom: 2px solid #78020C !important;
+  font-weight: 600 !important;
+}
+
+/* Corps : titre + texte compacts (texte scrollable, jamais tronqué) --------- */
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentTitle {
+  font-size: 13.5px !important;
+  margin-bottom: 3px !important;
+  color: #4B2E1F !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentText {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  max-height: 66px !important;
+  overflow-y: auto !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentText p,
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogDetailBodyContentTextOverview {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotScrollContainer,
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBody {
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBody {
+  padding-top: 6px !important;
+  padding-bottom: 4px !important;
+}
+
+/* Interrupteurs de catégories : plus serrés, actifs en bordeaux ------------- */
+#CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogBodyLevelButtonWrapper {
+  margin: 2px 0 !important;
+  padding: 2px 0 !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogBodyLevelButtonDescription {
+  font-size: 12px !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogBodyLevelButton:checked + .CybotCookiebotDialogBodyLevelButtonSlider {
+  background-color: #78020C !important;
+}
+
+/* Pied : boutons compacts -------------------------------------------------- */
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogFooter {
+  padding: 0 !important;
+  border-top: 1px solid rgba(75, 46, 31, 0.15) !important;
+  flex: 0 0 auto !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyButtons {
+  padding: 8px 14px 10px !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyButtonsWrapper {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 7px !important;
+  width: 100% !important;
+}
+#CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogBodyButton {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 9px 12px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  border-radius: 9px !important;
+  border: 1px solid #78020C !important;
+  text-align: center !important;
+}
+/* Accepter : plein bordeaux */
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll {
+  background: #78020C !important;
+  color: #FFF9DB !important;
+  order: 1 !important;
+}
+/* Refuser : discret, contour bordeaux */
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyButtonDecline {
+  background: transparent !important;
+  color: #78020C !important;
+  order: 2 !important;
+}
+/* Autoriser la sélection : lien discret, pleine largeur, sous les 2 boutons */
+#CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection {
+  order: 3 !important;
+  flex: 1 1 100% !important;
+  background: transparent !important;
+  border: 0 !important;
+  color: #4B2E1F !important;
+  text-decoration: underline !important;
+  font-weight: 500 !important;
+  padding: 1px !important;
+  font-size: 11.5px !important;
+}
+
+/* Mobile : petite carte en bas, pas de plein écran ------------------------- */
+@media (max-width: 600px) {
+  #CybotCookiebotDialog#CybotCookiebotDialog {
+    right: 12px !important;
+    bottom: 12px !important;
+    left: 12px !important;               /* ≈ calc(100% - 24px) de large */
+    width: auto !important;
+    max-width: none !important;
+    max-height: 60vh !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentText {
+    max-height: 84px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogBodyButton {
+    flex: 1 1 100% !important;           /* boutons pleine largeur, lisibles */
+    padding: 11px !important;
+    font-size: 14px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection {
+    font-size: 13px !important;
+    padding: 2px !important;
+  }
+}
