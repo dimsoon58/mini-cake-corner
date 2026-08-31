@@ -120,7 +120,7 @@ const Contact = () => {
 
           {/* Need Help Form */}
           <div className="border border-border rounded-lg p-6 md:p-8 mt-12">
-            <h2 className="text-2xl font-serif text-foreground mb-2">{t("Need Help?", "Besoin d'aide ?")}</h2>
+            <h2 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-2">{t("Need Help?", "Besoin d'aide ?")}</h2>
             <p className="text-muted-foreground mb-6">
               {t("Fill out the form below and we'll get back to you as soon as possible.", "Remplissez le formulaire ci-dessous et nous vous répondrons dès que possible.")}
             </p>
@@ -130,7 +130,7 @@ const Contact = () => {
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
                   <span className="text-3xl">✓</span>
                 </div>
-                <h3 className="font-serif text-2xl text-foreground mb-3">{t("Thank You", "Merci")}</h3>
+                <h3 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-3">{t("Thank You", "Merci")}</h3>
                 <p className="text-muted-foreground leading-relaxed mb-6">
                   {t("We've received your message and will get back to you shortly.", "Nous avons bien reçu votre message et vous répondrons sous peu.")}
                 </p>
