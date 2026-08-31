@@ -123,7 +123,7 @@ export const ColorFamilyCandleCard = ({
   };
 
   return (
-    <Card className={cn("overflow-hidden", existing && "ring-2 ring-primary")}>
+    <Card className={cn("flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all", existing && "ring-2 ring-primary")}>
       {/* aspect-square ties this box's height to the CARD's width — on a
           narrow flex column that's fine, but if the card is ever forced
           wider than intended (e.g. by content overflow below), the square
