@@ -193,7 +193,7 @@ const Index = () => {
       {/* Hero Section */}
       <section className="relative text-primary-foreground overflow-hidden min-h-[65vh] md:min-h-0 md:aspect-video">
         <video
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover scale-[1.01]"
           src={heroVideo}
           poster={heroPoster}
           autoPlay
