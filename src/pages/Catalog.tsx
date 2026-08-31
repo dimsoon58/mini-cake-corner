@@ -1665,7 +1665,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               </div>
 
               {/* Shape Selection */}
-              {shapes.filter(s => selections.size in s.extraPrice).length > 0 && <div className="space-y-2">
+              {!["rectangle-signature","rectangle-raspberries","rectangle-flowers"].includes(selectedCake?.styleId ?? "") && shapes.filter(s => selections.size in s.extraPrice).length > 0 && <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
                   {t("Shape", "Forme")} <span className="text-destructive">*</span>
                   <Tooltip>
