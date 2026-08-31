@@ -76,8 +76,8 @@ export const flavorCategories = [
     ],
   },
   {
-    name: "Special Flavors",
-    nameFr: "Parfums Spéciaux",
+    name: "Premium Flavors",
+    nameFr: "Parfums Premium",
     extraPrice: 2,
     flavors: [
       { id: "chocolate-lovers", name: "Chocolate Lovers", nameFr: "Chocolate Lovers", description: "Moist chocolate sponge with rich chocolate ganache", descriptionFr: "Génoise chocolat moelleuse et riche ganache au chocolat", image: flavorChocolateLovers },
@@ -95,29 +95,28 @@ export const flavorCategories = [
       { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", nameFr: "Chocolate Lover x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", descriptionFr: "Génoise chocolat, coulis de framboise et ganache au chocolat", image: flavorChocolateLoverBerrylicious },
       { id: "tiramisu", name: "Tiramisu", nameFr: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie de café frais et de crème fouettée", image: flavorTiramisu },
       { id: "praline", name: "Praline Obsession", nameFr: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelised almond, hazelnut and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie d'amandes et de noisettes caramélisées et de crème fouettée", image: flavorPraline },
+      { id: "pistachio-lovers", name: "Pistachio Lovers", nameFr: "Pistachio Lovers", description: "Fluffy vanilla sponge filled with pistachio cream and whipped cream", descriptionFr: "Génoise vanille garnie de crème pistache et crème fouettée", image: flavorPistachio },
       { id: "passion-fruit", name: "Passion Fruit", nameFr: "Passion Fruit", description: "Fluffy vanilla sponge filled with fresh passion fruit curd and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie de curd de fruit de la passion et de crème fouettée", image: flavorPassionFruit },
-      { id: "vanilla-gf", name: "Vanilla Gluten-Free", nameFr: "Vanilla Gluten-Free", description: "Fluffy gluten-free vanilla sponge with whipped cream", descriptionFr: "Génoise vanille sans gluten, moelleuse et crème fouettée", image: flavorVanilla },
-      { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", nameFr: "Red Velvet Gluten-Free", description: "Fluffy gluten-free vanilla & chocolate sponge with whipped cream", descriptionFr: "Génoise vanille et chocolat sans gluten, moelleuse et crème fouettée", image: flavorRedVelvet },
-      { id: "chocolate-gf", name: "Chocolate Gluten-Free", nameFr: "Chocolate Gluten-Free", description: "Fluffy gluten-free chocolate sponge with whipped cream", descriptionFr: "Génoise chocolat sans gluten, moelleuse et crème fouettée", image: flavorChocolate },
     ],
   },
 ];
-
-// The 3 existing simple GF flavours above stay physically inside "Deluxe
-// Flavors" — this array is imported live by DotCakes.tsx and must not
-// change shape, or DotCakes silently gains/loses flavours. This page's own
-// picker instead visually re-groups them into the "Gluten-Free" section
-// below by filtering them out of the rendered Deluxe cards (see JSX).
-const GLUTEN_FREE_IDS_IN_DELUXE = ["vanilla-gf", "red-velvet-gf", "chocolate-gf"];
-const glutenFreeClassicFlavors = flavorCategories
-  .find((c) => c.name === "Deluxe Flavors")!
-  .flavors.filter((f) => GLUTEN_FREE_IDS_IN_DELUXE.includes(f.id));
 
 // Separate export, NOT merged into `flavorCategories` — DotCakes.tsx imports
 // that array directly with no filtering, so adding categories to it would
 // silently make these new flavours selectable (and free, via its
 // tierByCategory fallback) on Dot Cakes too.
 export const glutenFreeFlavorCategories = [
+  {
+    name: "Gluten-Free Standard",
+    nameFr: "Sans Gluten Standard",
+    extraPrice: 0,
+    flavors: [
+      { id: "vanilla-gf", name: "Vanilla Gluten-Free", nameFr: "Vanilla Gluten-Free", description: "Fluffy gluten-free vanilla sponge with whipped cream", descriptionFr: "Génoise vanille sans gluten, moelleuse et crème fouettée", image: flavorVanilla },
+      { id: "red-velvet-gf", name: "Red Velvet Gluten-Free", nameFr: "Red Velvet Gluten-Free", description: "Fluffy gluten-free vanilla and chocolate sponge with whipped cream", descriptionFr: "Génoise vanille et chocolat sans gluten, moelleuse et crème fouettée", image: flavorRedVelvet },
+      { id: "chocolate-gf", name: "Chocolate Gluten-Free", nameFr: "Chocolate Gluten-Free", description: "Fluffy gluten-free chocolate sponge with whipped cream", descriptionFr: "Génoise chocolat sans gluten, moelleuse et crème fouettée", image: flavorChocolate },
+    ],
+  },
+
   {
     name: "Gluten-Free Premium",
     nameFr: "Sans Gluten Premium",
@@ -519,9 +518,7 @@ const KitBentoCake = () => {
                 {t("Choose Flavour", "Choisir le parfum")}<RequiredAsterisk tooltipKey="flavor" />
               </h2>
               {flavorCategories.map((category) => {
-                const visibleFlavors = category.name === "Deluxe Flavors"
-                  ? category.flavors.filter((f) => !GLUTEN_FREE_IDS_IN_DELUXE.includes(f.id))
-                  : category.flavors;
+                const visibleFlavors = category.flavors;
                 return (
                 <div key={category.name} className="space-y-3">
                   <h3 className="text-lg font-medium">
@@ -566,7 +563,6 @@ const KitBentoCake = () => {
                 {showGlutenFreeFlavors && (
                   <>
                     {[
-                      { label: t("Gluten-Free Classic", "Sans Gluten Classique"), price: 4, flavors: glutenFreeClassicFlavors },
                       ...glutenFreeFlavorCategories.map((c) => ({ label: t(c.name.replace(" Flavors", ""), c.nameFr), price: c.extraPrice, flavors: c.flavors })),
                     ].map((group) => (
                       <div key={group.label} className="space-y-3">
