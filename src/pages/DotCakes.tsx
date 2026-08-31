@@ -442,7 +442,7 @@ const DotCakes = () => {
                     const hasPackApplied = candle.packSize && qty >= candle.packSize;
                     return (
                       <div key={candle.id} className="w-40 sm:w-48 min-w-0">
-                        <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", qty > 0 && "ring-2 ring-primary")}>
+                        <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all border-0 shadow-none", qty > 0 && "ring-2 ring-primary")}>
                           <div className="flex items-center justify-center bg-secondary/20 p-2">
                             <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-56 w-56 object-contain" />
                           </div>
