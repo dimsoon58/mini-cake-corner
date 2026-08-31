@@ -8,27 +8,27 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Brand refs (Canva): jaune #FDF8E1, brun #4B2E1F, rouge #78020C */
+    /* Brand refs (Canva): jaune #FDF8E1, brun #351E13, rouge #78020C */
     --background: 49 88% 94%;
-    --foreground: 20 42% 21%;
+    --foreground: 20 48% 14%;
 
     --card: 49 80% 97%;
-    --card-foreground: 20 42% 21%;
+    --card-foreground: 20 48% 14%;
 
     --popover: 49 80% 97%;
-    --popover-foreground: 20 42% 21%;
+    --popover-foreground: 20 48% 14%;
 
     --primary: 355 97% 24%;
     --primary-foreground: 49 88% 94%;
 
     --secondary: 46 60% 89%;
-    --secondary-foreground: 20 42% 21%;
+    --secondary-foreground: 20 48% 14%;
 
     --muted: 46 50% 89%;
-    --muted-foreground: 20 30% 35%;
+    --muted-foreground: 20 35% 26%;
 
     --accent: 49 70% 90%;
-    --accent-foreground: 20 42% 21%;
+    --accent-foreground: 20 48% 14%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
@@ -131,7 +131,7 @@ All colors MUST be HSL.
    Le double #id (#CybotCookiebotDialog#CybotCookiebotDialog) sert uniquement
    à passer devant les règles internes de Cookiebot qui utilisent aussi
    !important (centrage, animation de translation).
-   Palette : fond #FFF9DB · texte #4B2E1F · principale #78020C
+   Palette : fond #FFF9DB · texte #351E13 · principale #78020C
    =========================================================================== */
 
 /* La boîte : petite carte discrète, bas-gauche ----------------------------- */
@@ -154,7 +154,7 @@ All colors MUST be HSL.
   border: 1px solid rgba(120, 2, 12, 0.20) !important;
   box-shadow: 0 8px 24px rgba(75, 46, 31, 0.20) !important;
   background: #FFF9DB !important;
-  color: #4B2E1F !important;
+  color: #351E13 !important;
   font-size: 12px !important;
   line-height: 1.4 !important;
 }
@@ -245,7 +245,7 @@ All colors MUST be HSL.
 #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogNavDetails::after {
   content: "Cookie settings";
   font-size: 11px !important;
-  color: #4B2E1F !important;
+  color: #351E13 !important;
   opacity: 0.7;
   text-decoration: underline !important;
 }
@@ -271,7 +271,7 @@ All colors MUST be HSL.
 #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentTitle {
   font-size: 13px !important;
   margin-bottom: 2px !important;
-  color: #4B2E1F !important;
+  color: #351E13 !important;
 }
 #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentText {
   font-size: 11.5px !important;
@@ -375,7 +375,7 @@ All colors MUST be HSL.
    natifs #CookiebotWidget-btn-change / #CookiebotWidget-btn-withdraw.
    Les règles internes du widget Cookiebot n'utilisent pas !important, un
    simple !important suffit ici. Bleu Cookiebot #1032CF → #78020C.
-   Palette : fond #FFF9DB · texte #4B2E1F · principale #78020C
+   Palette : fond #FFF9DB · texte #351E13 · principale #78020C
    =========================================================================== */
 
 /* ---- Le rond / privacy trigger ---- */
@@ -408,7 +408,7 @@ All colors MUST be HSL.
 }
 #CookiebotWidget .CookiebotWidget-contents,
 #CookiebotWidget .CookiebotWidget-contents * {
-  color: #4B2E1F !important;
+  color: #351E13 !important;
 }
 #CookiebotWidget .CookiebotWidget-header {
   border-bottom: 1px solid rgba(75, 46, 31, 0.15) !important;
@@ -417,30 +417,30 @@ All colors MUST be HSL.
 }
 #CookiebotWidget .CookiebotWidget-header strong {
   font-size: 14px !important;
-  color: #4B2E1F !important;
+  color: #351E13 !important;
 }
 #CookiebotWidget .CookiebotWidget-header .CookiebotWidget-close {
   width: 34px !important;
   height: 34px !important;
 }
-#CookiebotWidget .CookiebotWidget-header .CookiebotWidget-close svg { fill: #4B2E1F !important; }
+#CookiebotWidget .CookiebotWidget-header .CookiebotWidget-close svg { fill: #351E13 !important; }
 #CookiebotWidget .CookiebotWidget-body { padding: 0 !important; }
 #CookiebotWidget .CookiebotWidget-body-inner { padding: 12px 14px 6px !important; }
 #CookiebotWidget .CookiebotWidget-state {
   font-size: 12.5px !important;
-  color: #4B2E1F !important;
+  color: #351E13 !important;
   margin-bottom: 4px !important;
   display: block !important;
 }
 #CookiebotWidget .CookiebotWidget-consents-list { margin: 0 0 12px !important; }
 #CookiebotWidget .CookiebotWidget-consents-list ul li {
   font-size: 12.5px !important;
-  color: #4B2E1F !important;
+  color: #351E13 !important;
   min-height: 0 !important;
   padding: 2px 0 !important;
   line-height: 1.35 !important;
 }
-#CookiebotWidget .CookiebotWidget-body .CookiebotWidget-consents-list li svg { fill: #4B2E1F !important; }
+#CookiebotWidget .CookiebotWidget-body .CookiebotWidget-consents-list li svg { fill: #351E13 !important; }
 #CookiebotWidget .CookiebotWidget-body .CookiebotWidget-consents-list li.CookiebotWidget-approved svg { fill: #78020C !important; }
 #CookiebotWidget .CookiebotWidget-consent-details button {
   color: #78020C !important;
@@ -482,7 +482,7 @@ All colors MUST be HSL.
   border-color: #78020C !important;
   color: #78020C !important;
 }
-#CookiebotWidget #CookiebotWidget-buttons #CookiebotWidget-btn-withdraw:disabled { border-color: #4B2E1F !important; }
+#CookiebotWidget #CookiebotWidget-buttons #CookiebotWidget-btn-withdraw:disabled { border-color: #351E13 !important; }
 #CookiebotWidget #CookiebotWidget-buttons #CookiebotWidget-btn-withdraw .CookiebotWidgetSpinner.CookiebotWidget-active { border-color: #78020C !important; }
 
 /* ---- Fond derrière la fenêtre ---- */

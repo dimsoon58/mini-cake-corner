@@ -641,12 +641,12 @@ const designAllowedExtras: Record<string, string[]> = {
 
 // Collections: curated groupings shown as separate catalog sections
 const collections = [
-  { title: "The Minimal Collection", anchor: "minimal", ids: ["normal-with-border", "normal-without-border"] },
-  { title: "The Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-flowers"] },
   { title: "The Vintage Collection", anchor: "vintage", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
   { title: "The Iconic Collection", anchor: "iconic", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
+  { title: "The Minimal Collection", anchor: "minimal", ids: ["normal-with-border", "normal-without-border"] },
   { title: "The Original Collection", anchor: "original", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
   { title: "The Personalised Collection", anchor: "personalised", ids: ["printed-picture", "gender-reveal", "drawing"] },
+  { title: "The Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-flowers"] },
 ];
 
 // Carousel component for catalog cards with multiple images
