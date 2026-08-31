@@ -99,6 +99,13 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  /* Typographie generale d'un cran au-dessus : toutes les tailles du site
+     sont exprimees en rem, donc changer la base les augmente toutes
+     proportionnellement, sans toucher a une seule page. */
+  html {
+    font-size: 17px;
+  }
+
   body {
     @apply bg-background text-foreground;
     /* Brand: Montserrat, espacement 105, interligne 1.3 */

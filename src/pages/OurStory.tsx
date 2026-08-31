@@ -249,7 +249,7 @@ const OurStory = () => {
             )}
           </p>
           <p className="font-sans text-3xl sm:text-4xl md:text-6xl uppercase tracking-[0.105em] text-foreground leading-tight">
-            LET THEM EAT CAKE.
+            LET THEM EAT CAKES.
           </p>
         </div>
       </section>
