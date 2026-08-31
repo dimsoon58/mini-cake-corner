@@ -193,7 +193,7 @@ const OurStory = () => {
                 className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 items-center py-8 md:py-12 border-t border-primary/10 first:border-t-0"
               >
                 <div className={cn("order-1", imageOnLeft ? "md:order-2" : "md:order-1")}>
-                  <h2 className="font-sans text-lg md:text-xl uppercase tracking-[0.105em] text-primary mb-4">
+                  <h2 className="font-sans text-lg md:text-xl uppercase tracking-[0.105em] text-foreground mb-4">
                     {chapter.title}
                   </h2>
                   <div className="space-y-4">
@@ -242,7 +242,7 @@ const OurStory = () => {
       {/* Final */}
       <section className="bg-background py-14 md:py-20">
         <div className="container mx-auto px-4 text-center">
-          <p className="font-sans uppercase tracking-[0.2em] text-xs md:text-sm text-primary mb-8">
+          <p className="font-sans uppercase tracking-[0.2em] text-xs md:text-sm text-foreground mb-8">
             {t(
               "MORE CAKES. MORE CELEBRATIONS. MORE CREATIVITY.",
               "PLUS DE GÂTEAUX. PLUS DE CÉLÉBRATIONS. PLUS DE CRÉATIVITÉ."
