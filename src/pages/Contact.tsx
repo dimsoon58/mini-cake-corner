@@ -234,7 +234,7 @@ const Contact = () => {
                   )}
                 </div>
 
-                <Button type="submit" className="w-full rounded-full" size="lg">
+                <Button type="submit" className="w-full rounded-none" size="lg">
                   {t("Send Message", "Envoyer le message")}
                 </Button>
               </form>

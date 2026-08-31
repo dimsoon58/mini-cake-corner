@@ -120,7 +120,7 @@ const Inspiration = () => {
             <Button
               onClick={loadMore}
               size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-2.5 text-base font-medium tracking-wide rounded-full"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-2.5 text-base font-medium tracking-wide rounded-none"
             >
               {t("Load More", "Voir plus")}
             </Button>
