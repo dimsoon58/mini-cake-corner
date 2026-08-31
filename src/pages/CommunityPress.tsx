@@ -47,7 +47,7 @@ const CommunityPress = () => {
                 <h3 className="font-serif text-xl font-semibold text-foreground mb-1">
                   {article.title}
                 </h3>
-                <p className="text-sm text-primary font-medium mb-3">
+                <p className="text-sm text-foreground font-medium mb-3">
                   {article.subtitle}
                 </p>
                 <p className="text-muted-foreground text-sm leading-relaxed">
@@ -77,7 +77,7 @@ const CommunityPress = () => {
                   />
                 </div>
                 <div className="p-5">
-                  <p className="text-sm text-primary font-medium mb-2">{item.subtitle}</p>
+                  <p className="text-sm text-foreground font-medium mb-2">{item.subtitle}</p>
                   <p className="text-muted-foreground text-sm leading-relaxed">
                     {item.description}
                   </p>
