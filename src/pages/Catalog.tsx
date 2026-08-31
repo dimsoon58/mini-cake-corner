@@ -1047,6 +1047,40 @@ const BentoGallery = () => {
   );
 };
 
+
+const CakeCardImage = ({ images, name }: { images: string[]; name: string }) => {
+  const [idx, setIdx] = React.useState(0);
+  const timer = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const handleEnter = () => {
+    if (images.length <= 1) return;
+    let i = 0;
+    timer.current = setInterval(() => {
+      i = (i + 1) % images.length;
+      setIdx(i);
+    }, 900);
+  };
+  const handleLeave = () => {
+    if (timer.current) clearInterval(timer.current);
+    setIdx(0);
+  };
+  return (
+    <div
+      className="aspect-square overflow-hidden bg-muted/30 relative cursor-pointer"
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
+    >
+      {images.map((src, i) => (
+        <img
+          key={i}
+          src={src}
+          alt={name}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${i === idx ? "opacity-100" : "opacity-0"}`}
+        />
+      ))}
+    </div>
+  );
+};
+
 const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }: CatalogProps) => {
   const { addItem, cartOrderDate } = useCart();
   const { toast } = useToast();
@@ -2573,18 +2607,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         </span>
                       )}
                       {cake.images && cake.images.length > 1 ? (
-                        <div className="aspect-square overflow-hidden bg-muted/30 relative group cursor-pointer">
-                          <img
-                            src={cake.images[0]}
-                            alt={cake.name}
-                            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 group-hover:opacity-0"
-                          />
-                          <img
-                            src={cake.images[1]}
-                            alt={cake.name}
-                            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-hover:opacity-100"
-                          />
-                        </div>
+                        <CakeCardImage images={cake.images} name={cake.name} />
                       ) : (
                         <div className="aspect-square overflow-hidden bg-muted/30">
                           <img
