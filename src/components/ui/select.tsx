@@ -124,7 +124,12 @@ const SelectItem = React.forwardRef<
 
     {itemText !== undefined ? (
       <>
-        <SelectPrimitive.ItemText>{itemText}</SelectPrimitive.ItemText>
+        {/* Le libelle court sert uniquement au champ ferme : on le masque
+            dans la liste ouverte, sinon il apparait en double au-dessus
+            du contenu detaille de l'option. */}
+        <span className="hidden">
+          <SelectPrimitive.ItemText>{itemText}</SelectPrimitive.ItemText>
+        </span>
         {children}
       </>
     ) : (
