@@ -22,7 +22,7 @@ import imgPaint from "@/assets/design-drawing-new.jpg";
 import imgPrivate from "@/assets/corporate-event-2.png";
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-  <h2 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-4xl text-center text-foreground mb-4">
+  <h2 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-4xl text-center text-foreground mb-12">
     {children}
   </h2>
 );
