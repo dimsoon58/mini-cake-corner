@@ -2573,7 +2573,18 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         </span>
                       )}
                       {cake.images && cake.images.length > 1 ? (
-                        <CatalogCarousel images={cake.images} name={cake.name} imagePositions={(cake as any).imagePositions} />
+                        <div className="aspect-square overflow-hidden bg-muted/30 relative group cursor-pointer">
+                          <img
+                            src={cake.images[0]}
+                            alt={cake.name}
+                            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 group-hover:opacity-0"
+                          />
+                          <img
+                            src={cake.images[1]}
+                            alt={cake.name}
+                            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-hover:opacity-100"
+                          />
+                        </div>
                       ) : (
                         <div className="aspect-square overflow-hidden bg-muted/30">
                           <img
