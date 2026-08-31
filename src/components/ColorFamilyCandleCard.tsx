@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -100,7 +100,7 @@ export const ColorFamilyCandleCard = ({
   const maxPieceQty = packSize - 1;
 
   const [mode, setMode] = useState<"pack" | "piece">(existing?.colors ? "piece" : "pack");
-  const [packCount, setPackCount] = useState(existing?.hasPack ? Math.max(1, Math.round(existing.quantity / packSize)) : 1);
+  const [packCount, setPackCount] = useState(existing?.hasPack ? Math.max(1, Math.round(existing.quantity / packSize)) : (compact ? 0 : 1));
   const [pieceQty, setPieceQty] = useState(existing?.colors ? existing.colors.length : 1);
   const [selectedColors, setSelectedColors] = useState<string[]>(existing?.colors ?? []);
 
@@ -116,6 +116,24 @@ export const ColorFamilyCandleCard = ({
   };
 
   const isPieceValid = selectedColors.length === pieceQty;
+
+  /* Dans une commande de gateau (mode compact), cette carte se comporte comme
+     les bougies simples : le reglage de la quantite suffit, il n'y a pas de
+     bouton de validation. `touched` evite d'ajouter la bougie toute seule
+     tant que la cliente n'a rien reglé. */
+  const [touched, setTouched] = useState(false);
+  const markTouched = () => setTouched(true);
+
+  useEffect(() => {
+    if (!compact || !touched) return;
+    if (mode === "pack") {
+      if (packCount > 0) onCommit({ id: candle.id, quantity: packCount * packSize, hasPack: true });
+      else onRemove();
+    } else if (isPieceValid) {
+      onCommit({ id: candle.id, quantity: pieceQty, hasPack: false, colors: selectedColors });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact, touched, mode, packCount, pieceQty, selectedColors]);
 
   const handleCommit = () => {
     if (mode === "pack") onCommit({ id: candle.id, quantity: packCount * packSize, hasPack: true });
@@ -150,7 +168,7 @@ export const ColorFamilyCandleCard = ({
           </p>
         )}
 
-        <RadioGroup value={mode} onValueChange={(v) => setMode(v as "pack" | "piece")} className={cn("flex flex-wrap justify-center", compact ? "gap-2" : "gap-4")}>
+        <RadioGroup value={mode} onValueChange={(v) => { markTouched(); setMode(v as "pack" | "piece"); }} className={cn("flex flex-wrap justify-center", compact ? "gap-2" : "gap-4")}>
           <div className="flex items-center space-x-1.5">
             <RadioGroupItem value="pack" id={`${candle.id}-mode-pack`} />
             <Label htmlFor={`${candle.id}-mode-pack`} className={cn("cursor-pointer", compact ? "text-[11px]" : "text-xs")}>{t("Pack (assorted)", "Pack (assorti)")}</Label>
@@ -171,12 +189,12 @@ export const ColorFamilyCandleCard = ({
             <div className="flex items-center justify-center gap-2">
               <button
                 type="button"
-                onClick={() => setPackCount((p) => Math.max(1, p - 1))}
-                disabled={packCount <= 1}
+                onClick={() => { markTouched(); setPackCount((p) => Math.max(compact ? 0 : 1, p - 1)); }}
+                disabled={packCount <= (compact ? 0 : 1)}
                 className={cn(
                   "rounded-none flex items-center justify-center font-bold transition-all",
                   compact ? "w-6 h-6 text-xs" : "w-7 h-7 text-sm",
-                  packCount <= 1 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  packCount <= (compact ? 0 : 1) ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                 )}
               >−</button>
               <span className={cn("flex-1 min-w-0 text-center font-medium text-foreground", compact ? "text-xs" : "text-sm")}>
@@ -184,7 +202,7 @@ export const ColorFamilyCandleCard = ({
               </span>
               <button
                 type="button"
-                onClick={() => setPackCount((p) => p + 1)}
+                onClick={() => { markTouched(); setPackCount((p) => p + 1); }}
                 className={cn(
                   "rounded-none bg-primary text-primary-foreground flex items-center justify-center font-bold hover:bg-primary/90",
                   compact ? "w-6 h-6 text-xs" : "w-7 h-7 text-sm"
@@ -202,7 +220,7 @@ export const ColorFamilyCandleCard = ({
                   <button
                     key={color.id}
                     type="button"
-                    onClick={() => toggleColor(color.id)}
+                    onClick={() => { markTouched(); toggleColor(color.id); }}
                     disabled={isDisabled}
                     aria-pressed={isSelected}
                     aria-label={t(color.en, color.fr)}
@@ -224,7 +242,7 @@ export const ColorFamilyCandleCard = ({
             <div className="flex items-center justify-center gap-2">
               <button
                 type="button"
-                onClick={() => changePieceQty(-1)}
+                onClick={() => { markTouched(); changePieceQty(-1); }}
                 disabled={pieceQty <= 1}
                 className={cn(
                   "rounded-none flex items-center justify-center font-bold transition-all",
@@ -235,7 +253,7 @@ export const ColorFamilyCandleCard = ({
               <span className="w-6 text-center font-medium text-foreground text-sm">{pieceQty}</span>
               <button
                 type="button"
-                onClick={() => changePieceQty(1)}
+                onClick={() => { markTouched(); changePieceQty(1); }}
                 disabled={pieceQty >= maxPieceQty}
                 className={cn(
                   "rounded-none flex items-center justify-center font-bold transition-all",
@@ -252,6 +270,7 @@ export const ColorFamilyCandleCard = ({
           </>
         )}
 
+        {!compact && (
         <div className="flex gap-2">
           <Button
             onClick={handleCommit}
@@ -273,6 +292,7 @@ export const ColorFamilyCandleCard = ({
             </Button>
           )}
         </div>
+        )}
       </CardContent>
     </Card>
   );
