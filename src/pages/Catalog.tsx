@@ -2598,11 +2598,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
                           {t(cake.name, cakeNameFr[cake.id] ?? cake.name)}
                         </h3>
-                        <p className="text-muted-foreground text-sm mb-2">
+                        <p className="text-muted-foreground text-sm mb-2 flex-1">
                           {t(cake.description, cakeDescFr[cake.id] ?? cake.description)}
                         </p>
                         {(cake as any).priceRange && (
-                          <p className="text-xs font-semibold tracking-[0.12em] text-foreground/50 uppercase mb-4">
+                          <p className="text-xs font-light tracking-[0.12em] text-primary uppercase mb-4">
                             {(cake as any).priceRange}
                           </p>
                         )}
