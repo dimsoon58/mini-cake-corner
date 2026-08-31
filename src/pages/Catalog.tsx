@@ -2507,7 +2507,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               </div>
 
               <Button
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg rounded-none"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-lg rounded-none"
                 onClick={handleAddToCart}
               >
                 <ShoppingBag className="w-5 h-5 mr-2" />
@@ -2606,7 +2606,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               </p>
               {!showRequestForm ? (
                 <Button
-                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-6 text-[14px] font-medium"
+                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-3 text-[14px] font-medium"
                   onClick={() => setShowRequestForm(true)}
                 >
                   {t("REQUEST A CUSTOM CAKE", "Demander une création sur mesure")}

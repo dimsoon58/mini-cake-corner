@@ -282,7 +282,7 @@ const CustomRequestForm = () => {
 
       <Button
         type="submit"
-        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
+        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
       >
         {t("SEND MY REQUEST", "ENVOYER MA DEMANDE")}
       </Button>
