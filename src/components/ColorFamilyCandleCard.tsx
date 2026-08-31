@@ -261,7 +261,7 @@ export const ColorFamilyCandleCard = ({
               compact ? "text-[11px] h-8" : "text-[12px]"
             )}
           >
-            {existing ? t("Update", "Mettre à jour") : t("Add", "Ajouter")}
+            {existing ? t("Update", "Mettre à jour") : t("Add to Cart", "Ajouter au panier")}
           </Button>
           {existing && (
             <Button
