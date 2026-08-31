@@ -1049,8 +1049,8 @@ const BentoGallery = () => {
 
 
 const CakeCardImage = ({ images, name }: { images: string[]; name: string }) => {
-  const [idx, setIdx] = React.useState(0);
-  const timer = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const [idx, setIdx] = useState(0);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleEnter = () => {
     if (images.length <= 1) return;
     let i = 0;
