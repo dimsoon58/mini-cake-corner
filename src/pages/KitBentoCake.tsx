@@ -667,9 +667,11 @@ const KitBentoCake = () => {
                     const hasPackApplied = candle.packSize && qty >= candle.packSize;
 
                     return (
-                      <div key={candle.id} className="flex flex-col items-center w-40 sm:w-48">
-                        <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-56 w-56 object-contain mb-2" />
-                        <Card className={cn("w-full transition-all", qty > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                      <div key={candle.id} className="w-40 sm:w-48">
+                        <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", qty > 0 && "ring-2 ring-primary")}>
+                          <div className="flex items-center justify-center bg-secondary/20 p-2">
+                            <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-56 w-56 object-contain" />
+                          </div>
                           <CardContent className="p-2 text-center">
                             <h3 className="font-medium text-foreground text-xs mb-0.5">{t(candle.name, candle.nameFr)}</h3>
                             {candle.hasPack ? (
@@ -698,11 +700,11 @@ const KitBentoCake = () => {
                   })}
 
                   {/* Number Candle — digit picker, no product photo, flat rate */}
-                  <div className="flex flex-col items-center w-40 sm:w-48">
-                    <div className="h-56 w-56 mb-2 flex items-center justify-center bg-secondary/20">
-                      <span className="text-6xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
-                    </div>
-                    <Card className={cn("w-full transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 ? "ring-2 ring-primary bg-white/80" : "bg-white/60")}>
+                  <div className="w-40 sm:w-48">
+                    <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
+                      <div className="h-56 flex items-center justify-center bg-secondary/20 p-2">
+                        <span className="text-6xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
+                      </div>
                       <CardContent className="p-2 text-center">
                         <h3 className="font-medium text-foreground text-xs mb-0.5">{t("Number Candle", "Bougie chiffre")}</h3>
                         <p className="text-[10px] text-muted-foreground mb-1.5">CHF {NUMBER_CANDLE_PRICE} / pièce</p>

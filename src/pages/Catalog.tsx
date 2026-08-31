@@ -2399,16 +2399,12 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       const isPackApplied = candle.hasPack && unitQty >= (candle.packSize || 6);
 
                       return (
-                        <div key={candle.id} className="flex flex-col items-center w-[calc(50%-6px)] min-w-0">
-                          <img
-                            src={candle.image}
-                            alt={candle.name}
-                            className="h-32 w-32 object-contain mb-1"
-                          />
-                          <div className={cn(
-                            "w-full rounded-lg p-2 text-center transition-all",
-                            unitQty > 0 ? "bg-white/90 ring-2 ring-primary" : "bg-white/60"
-                          )}>
+                        <div key={candle.id} className="w-[calc(50%-6px)] min-w-0">
+                          <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all", unitQty > 0 && "ring-2 ring-primary")}>
+                          <div className="flex items-center justify-center bg-secondary/20 p-2">
+                            <img src={candle.image} alt={candle.name} className="h-32 w-32 object-contain" />
+                          </div>
+                          <div className="p-2 text-center">
                             <p className="text-xs font-medium text-foreground">{t(candle.name, candleNameFr[candle.id] ?? candle.name)}</p>
                             {candle.hasPack ? (
                               <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}{t("/ea", "/pièce")} · {t("Pack", "Pack")} {candle.packSize} = CHF {candle.packPrice}</p>
@@ -2439,19 +2435,18 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                               <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {totalPrice}</p>
                             )}
                           </div>
+                          </div>
                         </div>
                       );
                     })}
 
                     {/* Number Candle — digit picker, no product photo, flat rate */}
-                    <div className="flex flex-col items-center w-[calc(50%-6px)] min-w-0">
-                      <div className="h-32 w-32 mb-1 flex items-center justify-center bg-secondary/20">
+                    <div className="w-[calc(50%-6px)] min-w-0">
+                      <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all", getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
+                      <div className="h-32 flex items-center justify-center bg-secondary/20 p-2">
                         <span className="text-4xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
                       </div>
-                      <div className={cn(
-                        "w-full rounded-lg p-2 text-center transition-all",
-                        getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 ? "bg-white/90 ring-2 ring-primary" : "bg-white/60"
-                      )}>
+                      <div className="p-2 text-center">
                         <p className="text-xs font-medium text-foreground">{t("Number Candle", "Bougie chiffre")}</p>
                         <p className="text-[10px] text-muted-foreground mb-1">CHF {NUMBER_CANDLE_PRICE} {t("each", "/ pièce")}</p>
                         <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
@@ -2484,6 +2479,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         {getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 && (
                           <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {getCandleTotalPrice(NUMBER_CANDLE_ID)}</p>
                         )}
+                      </div>
                       </div>
                     </div>
                   </div>
