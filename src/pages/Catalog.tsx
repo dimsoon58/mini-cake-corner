@@ -314,20 +314,22 @@ const catalog = [
     id: "normal-without-border",
     name: "Normal without Border",
     description: "A smooth, clean and elegant finish",
+    priceRange: "CHF 40 – 170",
     image: styleNormalWithoutBorder,
     styleId: "normal-without-border",
     styleName: "Normal without border",
-    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 },
+    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
     disableText: false,
   },
   {
     id: "normal-with-border",
     name: "Normal with Border",
     description: "Classic cake with elegant piped border",
+    priceRange: "CHF 40 – 170",
     image: styleNormalWithBorder,
     styleId: "normal-with-border",
     styleName: "Normal with border",
-    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 },
+    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
     disableText: false,
   },
   {
@@ -338,7 +340,8 @@ const catalog = [
     image: designHeartBomb,
     styleId: "heart-bomb",
     styleName: "Heart Bomb",
-    stylePrice: { bento: 3, retro: 5, medium: 10, large: 15, rectangle: 20 },
+    priceRange: "CHF 43 – 185",
+    stylePrice: { bento: 3, retro: 5, medium: 10, large: 15 },
     disableText: false,
   },
   {
@@ -349,7 +352,8 @@ const catalog = [
     images: [designRetroCake, retroCake1, retroCake2, retroCake3],
     styleId: "retro-vintage",
     styleName: "Retro / Vintage",
-    stylePrice: { retro: 6, medium: 10, large: 15, rectangle: 30 },
+    priceRange: "CHF 51 – 185",
+    stylePrice: { retro: 6, medium: 10, large: 15 },
     disableText: false,
   },
   {
@@ -370,7 +374,8 @@ const catalog = [
     image: designPearlBorders,
     styleId: "pearl-border-retro",
     styleName: "Pearl Border × Retro Decoration",
-    stylePrice: { retro: 40, medium: 67, large: 98, rectangle: 225 },
+    priceRange: "CHF 85 – 268",
+    stylePrice: { retro: 40, medium: 67, large: 98 },
     disableText: false,
   },
   {
@@ -392,7 +397,8 @@ const catalog = [
     images: [designRosesPlease, designRosesPlease2],
     styleId: "roses-please",
     styleName: "Roses Please",
-    stylePrice: { bento: 6, retro: 8, medium: 15, large: 20, rectangle: 40 },
+    priceRange: "CHF 46 – 190",
+    stylePrice: { bento: 6, retro: 8, medium: 15, large: 20 },
     disableText: false,
   },
   {
@@ -413,6 +419,7 @@ const catalog = [
     images: [designPrintedPicture, printedPicture1],
     styleId: "printed-picture",
     styleName: "Printed Picture",
+    priceRange: "CHF 55 – 185",
     stylePrice: { bento: 15, retro: 15, medium: 15, large: 15 },
     disableText: true,
   },
@@ -424,7 +431,8 @@ const catalog = [
     images: [designShagCake, shagCake1, shagCake2, shagCake3],
     styleId: "shag-cake",
     styleName: "Shag Cake",
-    stylePrice: { retro: 12, medium: 20, large: 30, rectangle: 50 },
+    priceRange: "CHF 57 – 200",
+    stylePrice: { retro: 12, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -434,7 +442,8 @@ const catalog = [
     image: designRainbowCake,
     styleId: "rainbow-cake",
     styleName: "Rainbow Cake",
-    stylePrice: { retro: 15, medium: 20, large: 30, rectangle: 50 },
+    priceRange: "CHF 60 – 200",
+    stylePrice: { retro: 15, medium: 20, large: 30 },
     disableText: false,
   },
   {
@@ -445,6 +454,7 @@ const catalog = [
     images: [designDrawing, drawing1],
     styleId: "custom-drawing",
     styleName: "Custom Drawing",
+    priceRange: "CHF 48 – 185",
     stylePrice: { bento: 8, retro: 8, medium: 10, large: 15 },
     disableText: false,
   },
@@ -486,7 +496,8 @@ const catalog = [
     image: designGoldenCake,
     styleId: "golden-cake",
     styleName: "Golden Cake",
-    stylePrice: { retro: 15, medium: 25, large: 40, rectangle: 70 },
+    priceRange: "CHF 60 – 210",
+    stylePrice: { retro: 15, medium: 25, large: 40 },
     disableText: false,
   },
   {
@@ -506,6 +517,7 @@ const catalog = [
     image: designGlitterInAir,
     styleId: "retro-ribbons-glitter",
     styleName: "Retro × Glitter in the Air",
+    priceRange: "CHF 66 – 215",
     stylePrice: { retro: 21, medium: 33, large: 45 },
     disableText: true,
   },
@@ -513,6 +525,7 @@ const catalog = [
     id: "rectangle-signature",
     name: "Signature Rectangle Cake",
     description: "Our signature rectangle cake, piped by hand.",
+    priceRange: "CHF 480",
     image: rectangleSignature,
     styleId: "rectangle-signature",
     styleName: "Signature Rectangle Cake",
@@ -523,6 +536,7 @@ const catalog = [
     id: "rectangle-raspberries",
     name: "Raspberries Rectangle Cake",
     description: "A rectangle cake covered with fresh raspberries.",
+    priceRange: "CHF 510",
     image: rectangleRaspberries,
     styleId: "rectangle-raspberries",
     styleName: "Raspberries Rectangle Cake",
@@ -533,6 +547,7 @@ const catalog = [
     id: "rectangle-flowers",
     name: "Flowers Rectangle Cake",
     description: "A rectangle cake dressed with fresh flowers.",
+    priceRange: "CHF 495",
     image: rectangleFlowers,
     styleId: "rectangle-flowers",
     styleName: "Flowers Rectangle Cake",
@@ -547,7 +562,8 @@ const catalog = [
     images: [designButterflyGarden, designButterflyGarden2],
     styleId: "butterfly-garden",
     styleName: "Butterfly Garden",
-    stylePrice: { retro: 10, medium: 15, large: 20, rectangle: 35 },
+    priceRange: "CHF 55 – 190",
+    stylePrice: { retro: 10, medium: 15, large: 20 },
     disableText: false,
   },
   {
@@ -568,7 +584,8 @@ const catalog = [
     images: [designGenderReveal, genderReveal2, genderReveal3],
     styleId: "gender-reveal",
     styleName: "Gender Reveal",
-    stylePrice: { bento: 5, retro: 5, medium: 10, large: 15, rectangle: 40 },
+    priceRange: "CHF 45 – 185",
+    stylePrice: { bento: 5, retro: 5, medium: 10, large: 15 },
     disableText: false,
   },
   {
@@ -1614,7 +1631,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               </div>
 
               {/* Shape Selection */}
-              <div className="space-y-2">
+              {shapes.filter(s => selections.size in s.extraPrice).length > 0 && <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
                   {t("Shape", "Forme")} <span className="text-destructive">*</span>
                   <Tooltip>
@@ -1640,7 +1657,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     })}
                   </SelectContent>
                 </Select>
-              </div>
+              </div>}
 
               {/* Flavor Selection */}
               <div className="space-y-2">
@@ -1739,7 +1756,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               </div>
 
               {/* Shag Cake Design Preference */}
-              {selectedCake?.images && selectedCake.images.length > 1 && !["retro-vintage", "shag-cake", "printed-picture", "custom-drawing"].includes(selectedCake.styleId) && (
+              {selectedCake?.images && selectedCake.images.length > 1 && !["retro-vintage", "shag-cake", "printed-picture", "custom-drawing", "roses-please", "butterfly-garden", "gender-reveal"].includes(selectedCake.styleId) && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">{t("Choose your preferred design", "Choisissez votre design préféré")}</label>
                   <div className="grid grid-cols-2 gap-3">
@@ -2570,9 +2587,14 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
                           {t(cake.name, cakeNameFr[cake.id] ?? cake.name)}
                         </h3>
-                        <p className="text-muted-foreground text-sm mb-4">
+                        <p className="text-muted-foreground text-sm mb-2">
                           {t(cake.description, cakeDescFr[cake.id] ?? cake.description)}
                         </p>
+                        {(cake as any).priceRange && (
+                          <p className="text-xs font-semibold tracking-[0.12em] text-foreground/50 uppercase mb-4">
+                            {(cake as any).priceRange}
+                          </p>
+                        )}
                         <div className="mt-auto">
                           <Button
                             className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
