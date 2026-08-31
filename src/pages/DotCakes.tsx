@@ -185,16 +185,27 @@ const DotCakes = () => {
     return Math.round((sum + candlesTotal) * 100) / 100;
   }, [pack, selectedFlavours, candlesTotal]);
 
+  /* Champs obligatoires : on previent ET on remonte au bon endroit */
+  const dateSectionRef = useRef<HTMLElement>(null);
+  const packSectionRef = useRef<HTMLElement>(null);
+  const flavourSectionRef = useRef<HTMLElement>(null);
+  const focusSection = (ref: { current: HTMLElement | null }) => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   const handleOrder = () => {
     if (!orderDate) {
+      focusSection(dateSectionRef);
       toast.error(t("Please choose your pick-up date (minimum 4 days' notice).", "Veuillez choisir votre date de retrait (minimum 4 jours à l'avance)."));
       return;
     }
     if (!pack) {
+      focusSection(packSectionRef);
       toast.error(t("Please choose a pack.", "Veuillez choisir un pack."));
       return;
     }
     if (selectedFlavours.length === 0) {
+      focusSection(flavourSectionRef);
       toast.error(t("Please choose up to " + pack.flavours + " flavours (at least one).", "Veuillez choisir jusqu'à " + pack.flavours + " parfums (au moins un)."));
       return;
     }
@@ -266,7 +277,7 @@ const DotCakes = () => {
 
         <div className="max-w-4xl mx-auto space-y-14">
           {/* 1. Pick-up date */}
-          <section className="space-y-3">
+          <section ref={dateSectionRef} className="space-y-3">
             <SectionHeading>
               {t("Choose Your Date", "Choisissez votre date")}<span className="text-destructive ml-1">*</span>
             </SectionHeading>
@@ -314,7 +325,7 @@ const DotCakes = () => {
 
           {/* 2. Choose quantity, appears once a date is selected */}
           {orderDate && (
-          <section className="space-y-4">
+          <section ref={packSectionRef} className="space-y-4">
             <SectionHeading>
               {t("Choose Your Quantity", "Choisissez votre quantité")}<span className="text-destructive ml-1">*</span>
             </SectionHeading>
@@ -351,7 +362,7 @@ const DotCakes = () => {
 
           {/* 3. Flavour selection, DIY Kit style tiles */}
           {pack && (
-            <section className="space-y-6">
+            <section ref={flavourSectionRef} className="space-y-6">
               <SectionHeading>
                 {t("Choose up to " + pack.flavours + " Flavours", "Choisissez jusqu'à " + pack.flavours + " parfums")}<span className="text-destructive ml-1">*</span>
               </SectionHeading>

@@ -234,6 +234,7 @@ const KitBentoCake = () => {
   const minDate = addDays(new Date(), 4);
 
   // Refs for auto-scroll
+  const dateRef = useRef<HTMLElement>(null);
   const shapeRef = useRef<HTMLDivElement>(null);
   const flavorRef = useRef<HTMLDivElement>(null);
   const pipingRef = useRef<HTMLDivElement>(null);
@@ -336,6 +337,27 @@ const KitBentoCake = () => {
   };
 
   const handleAddToCart = () => {
+    /* Champ obligatoire manquant : message precis et retour au bon endroit */
+    if (!orderDate) {
+      dateRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      toast.error(t("Please choose your pick-up date.", "Veuillez choisir votre date de retrait."));
+      return;
+    }
+    if (!selectedShape) {
+      shapeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      toast.error(t("Please choose a shape.", "Veuillez choisir une forme."));
+      return;
+    }
+    if (!selectedFlavor) {
+      flavorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      toast.error(t("Please choose a flavour.", "Veuillez choisir un parfum."));
+      return;
+    }
+    if (!pipingComplete) {
+      pipingRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      toast.error(t("Please choose your piping bags and their colours.", "Veuillez choisir vos poches à douille et leurs couleurs."));
+      return;
+    }
     if (!isFormComplete()) {
       toast.error(t("Please complete all required selections before proceeding.", "Veuillez compléter toutes les sélections requises avant de continuer."));
       return;
@@ -426,7 +448,7 @@ const KitBentoCake = () => {
 
         <div className="max-w-4xl mx-auto space-y-12">
           {/* Step 1: Date */}
-          <section className="space-y-4">
+          <section ref={dateRef} className="space-y-4">
             <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em]">
               {t("Choose Your Pickup Date", "Choisir votre date de retrait")}<RequiredAsterisk tooltipKey="date" />
             </h2>
