@@ -484,8 +484,8 @@ const Cart = () => {
                     <span className="text-foreground">{t("Total", "Total")}</span>
                     <span className="text-primary">CHF {totalPrice}</span>
                   </div>
-                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-base font-medium tracking-wide rounded-md" size="lg" asChild><Link to="/checkout">{t("Proceed to Checkout", "Passer la commande")}</Link></Button>
-                  <Button variant="outline" className="w-full rounded-md" asChild><Link to="/catalog">{t("Add Another Cake", "Ajouter un autre gâteau")}</Link></Button>
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-base font-medium tracking-wide rounded-none" size="lg" asChild><Link to="/checkout">{t("Proceed to Checkout", "Passer la commande")}</Link></Button>
+                  <Button variant="outline" className="w-full rounded-none" asChild><Link to="/catalog">{t("Add Another Cake", "Ajouter un autre gâteau")}</Link></Button>
                 </CardContent>
               </Card>
             </div>
