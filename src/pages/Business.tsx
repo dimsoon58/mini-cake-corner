@@ -164,7 +164,7 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
+        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
       >
         {isSubmitting ? t("Sending…", "Envoi…") : t("Send my enquiry", "Envoyer ma demande")}
       </Button>
@@ -354,7 +354,7 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
+        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
       >
         {isSubmitting ? t("Sending…", "Envoi…") : t("Send my enquiry", "Envoyer ma demande")}
       </Button>
@@ -446,7 +446,7 @@ const HospitalityForm = ({ onSuccess }: { onSuccess: () => void }) => {
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
+        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
       >
         {isSubmitting ? t("Sending…", "Envoi…") : t("Send my enquiry", "Envoyer ma demande")}
       </Button>
@@ -663,7 +663,7 @@ const Business = () => {
                 <div className="mt-auto">
                   <Button
                     onClick={() => openCategory(card.id)}
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
                   >
                     {t(card.cta, card.ctaFr)}
                   </Button>
@@ -715,7 +715,7 @@ const Business = () => {
                 />
                 <Button
                   onClick={() => setView("form")}
-                  className="w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
+                  className="w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
                 >
                   {t("Complete the Form", "Remplir le formulaire")}
                 </Button>
@@ -754,7 +754,7 @@ const Business = () => {
                 </p>
                 <Button
                   onClick={() => setView("form")}
-                  className="w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
+                  className="w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
                 >
                   {t("Request a Quote", "Demander un devis")}
                 </Button>
@@ -821,7 +821,7 @@ const Business = () => {
                 </div>
                 <Button
                   onClick={() => setView("form")}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
                 >
                   {t("Complete the Form", "Remplir le formulaire")}
                 </Button>

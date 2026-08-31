@@ -344,7 +344,7 @@ const Cart = () => {
             <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-6" strokeWidth={1.25} />
             <h2 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-4">{t("Your cart is empty", "Votre panier est vide")}</h2>
             <p className="text-muted-foreground mb-8">{t("Start customizing your perfect cake!", "Composez le gâteau parfait !")}</p>
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3 text-base font-medium tracking-wide rounded-full" asChild><Link to="/catalog">{t("Customise Your Cake", "Personnalisez votre gâteau")}</Link></Button>
+            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-2.5 text-base font-medium tracking-wide rounded-full" asChild><Link to="/catalog">{t("Customise Your Cake", "Personnalisez votre gâteau")}</Link></Button>
           </div>
         ) : (
           <div className="grid lg:grid-cols-3 gap-8">
@@ -484,7 +484,7 @@ const Cart = () => {
                     <span className="text-foreground">{t("Total", "Total")}</span>
                     <span className="text-primary">CHF {totalPrice}</span>
                   </div>
-                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-base font-medium tracking-wide rounded-full" size="lg" asChild><Link to="/checkout">{t("Proceed to Checkout", "Passer la commande")}</Link></Button>
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-base font-medium tracking-wide rounded-full" size="lg" asChild><Link to="/checkout">{t("Proceed to Checkout", "Passer la commande")}</Link></Button>
                   <Button variant="outline" className="w-full rounded-full" asChild><Link to="/catalog">{t("Add Another Cake", "Ajouter un autre gâteau")}</Link></Button>
                 </CardContent>
               </Card>

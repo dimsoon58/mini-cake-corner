@@ -213,7 +213,7 @@ const Index = () => {
           </p>
           <Button
             size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3 text-[14px] font-medium tracking-[0.105em] rounded-none"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-2.5 text-[14px] font-medium tracking-[0.105em] rounded-none"
             asChild
           >
             <Link to="/catalog">{t("SHOP NOW", "COMMANDER")}</Link>
@@ -339,7 +339,7 @@ const Index = () => {
             </p>
             <Button
               size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3 text-[14px] font-medium tracking-[0.105em] rounded-none"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-2.5 text-[14px] font-medium tracking-[0.105em] rounded-none"
               asChild
             >
               <Link to="/catalog">{t("SHOP NOW", "COMMANDER")}</Link>

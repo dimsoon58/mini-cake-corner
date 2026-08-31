@@ -2507,7 +2507,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               </div>
 
               <Button
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-lg rounded-none"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-lg rounded-none"
                 onClick={handleAddToCart}
               >
                 <ShoppingBag className="w-5 h-5 mr-2" />
@@ -2541,7 +2541,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
             if (cakes.length === 0) return null;
             return (
               <section key={collection.title} id={collection.anchor}>
-                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
+                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-10">
                   {t(collection.title, collectionTitleFr[collection.title] ?? collection.title)}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -2591,7 +2591,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
           {/* Custom Request */}
           <section>
-            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-3 mb-10">
+            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-10">
               {t("CUSTOM REQUEST", "CRÉATION SUR MESURE")}
             </div>
             <div className="text-center max-w-2xl mx-auto py-6">
@@ -2606,7 +2606,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               </p>
               {!showRequestForm ? (
                 <Button
-                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-3 text-[14px] font-medium"
+                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] px-10 py-2.5 text-[14px] font-medium"
                   onClick={() => setShowRequestForm(true)}
                 >
                   {t("REQUEST A CUSTOM CAKE", "Demander une création sur mesure")}

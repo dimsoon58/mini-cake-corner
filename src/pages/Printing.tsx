@@ -206,7 +206,7 @@ const Printing = () => {
           </div>
           <Button
             onClick={handleAddToCart}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
           >
             {t("Add to Cart", "Ajouter au panier")}
           </Button>

@@ -548,7 +548,7 @@ const DotCakes = () => {
               </div>
               <Button
                 onClick={handleOrder}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-base font-medium tracking-[0.105em] rounded-none"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-base font-medium tracking-[0.105em] rounded-none"
               >
                 {t("ADD TO BASKET", "AJOUTER AU PANIER")}
               </Button>

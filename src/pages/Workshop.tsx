@@ -230,7 +230,7 @@ const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenCh
                 <Textarea id="pw-message" rows={4} {...register("message")} />
                 {errors.message && <p className="text-sm text-destructive">{fe(errors.message.message)}</p>}
               </div>
-              <Button type="submit" disabled={isSubmitting} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none">
+              <Button type="submit" disabled={isSubmitting} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none">
                 {isSubmitting ? t("Sending…", "Envoi…") : t("Send my enquiry", "Envoyer ma demande")}
               </Button>
             </form>
@@ -273,7 +273,7 @@ const Workshop = () => {
             onClick={() =>
               document.getElementById("experiences")?.scrollIntoView({ behavior: "smooth" })
             }
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-2.5 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
           >
             {t("BOOK A WORKSHOP", "RÉSERVER VOTRE ATELIER")}
           </Button>
