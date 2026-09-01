@@ -224,75 +224,85 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
   const catalogLink = "https://dimsoon58.github.io/mini-cake-corner/catalog";
-
   const html = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;padding:24px;">
-    <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+<body style="margin:0;padding:0;background:#78020C;font-family:Georgia,'Times New Roman',serif;">
+  <div style="max-width:600px;margin:0 auto;">
 
-      <div style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
-        <h1 style="color:#fff;font-size:24px;margin:0;font-weight:700;">Bento Cake Studio</h1>
+    <div style="background:#FDF8E1;margin:0 20px;">
+      <div style="padding:36px 40px 0;text-align:center;">
+        <img src="https://dimsoon58.github.io/mini-cake-corner/logo-new.png" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <div style="padding:32px;">
-        <h2 style="color:#333;font-size:20px;margin:0 0 20px;">${tr("Dear", "Bonjour")} ${customerName(order)},</h2>
+      <div style="padding:0 40px 36px;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
+          ${tr("Dear", "Bonjour")} ${customerName(order)},
+        </p>
 
-        <p style="color:#555;font-size:15px;line-height:1.7;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr(
             "Thank you for choosing Bento Cake Studio. We truly appreciate your support.",
-            "Merci d’avoir choisi Bento Cake Studio. Votre confiance nous touche beaucoup."
+            "Merci d'avoir choisi Bento Cake Studio. Votre confiance nous touche beaucoup."
           )}
         </p>
 
-        <p style="color:#555;font-size:15px;line-height:1.7;">
-          ${tr(
-            `Unfortunately, we are unable to accept your order <strong>#${orderNumber}</strong> scheduled for <strong>${formatDateCH(order.pickup_delivery_date)}</strong> because we have already reached our maximum production capacity for that day.`,
-            `Malheureusement, nous ne pouvons pas accepter votre commande <strong>n° ${orderNumber}</strong> prévue le <strong>${formatDateCH(order.pickup_delivery_date)}</strong>, car notre capacité de production maximale est déjà atteinte pour cette journée.`
-          )}
-        </p>
+        <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:0 0 20px;">
+          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
+            ${tr(
+              `Unfortunately, we are unable to accept your order <strong>#${orderNumber}</strong> scheduled for <strong>${formatDateCH(order.pickup_delivery_date)}</strong> because we have already reached our maximum production capacity for that day.`,
+              `Malheureusement, nous ne pouvons pas accepter votre commande <strong>n° ${orderNumber}</strong> prévue le <strong>${formatDateCH(order.pickup_delivery_date)}</strong>, car notre capacité de production maximale est déjà atteinte pour cette journée.`
+            )}
+          </p>
+        </div>
 
-        <p style="color:#555;font-size:15px;line-height:1.7;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
           ${tr(
             "Your payment has been fully refunded, and the amount should appear back in your account within a few business days.",
             "Votre paiement a été intégralement remboursé ; le montant devrait apparaître sur votre compte sous quelques jours ouvrables."
           )}
         </p>
 
-        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;margin:24px 0;">
-          <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${tr("Order details", "Détails de la commande")}</h3>
-          <table style="border-collapse:collapse;width:100%;">
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">${tr("Order", "Commande")}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">#${orderNumber}</td></tr>
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">${tr("Amount", "Montant")}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">CHF ${order.total_amount}</td></tr>
-            <tr><td style="padding:6px 8px;color:#888;font-size:14px;">${tr("Status", "Statut")}</td><td style="padding:6px 8px;color:#dc2626;font-size:14px;font-weight:600;">${tr("Refunded", "Remboursé")}</td></tr>
-          </table>
-        </div>
+        <p style="color:#78020C;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+          ${tr("Order details", "Détails de la commande")}
+        </p>
+        <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;margin:0 0 24px;">
+          <tr style="border-bottom:1px solid #D4C89A;">
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order", "Commande")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">#${orderNumber}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Amount", "Montant")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+          </tr>
+          <tr style="background:#78020C;">
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Status", "Statut")}</td>
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Refunded", "Remboursé")}</td>
+          </tr>
+        </table>
 
-        <p style="color:#555;font-size:15px;line-height:1.7;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
           ${tr(
             "We sincerely apologise for the inconvenience. If you'd like, you are welcome to place a new order for another available date. We would love to create something special for you.",
             "Nous sommes sincèrement désolées pour la gêne occasionnée. Si vous le souhaitez, vous pouvez passer une nouvelle commande pour une autre date disponible. Ce sera un plaisir de créer quelque chose de spécial pour vous."
           )}
         </p>
 
-        <div style="text-align:center;margin:28px 0;">
-          <a href="${catalogLink}" style="display:inline-block;background:#333;color:#fff;padding:14px 36px;border-radius:10px;text-decoration:none;font-size:16px;font-weight:600;">
+        <div style="text-align:center;margin:0 0 28px;">
+          <a href="${catalogLink}" style="display:inline-block;background:#78020C;color:#FDF8E1;padding:14px 36px;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
             ${tr("Browse Our Catalogue", "Découvrir notre catalogue")}
           </a>
         </div>
 
-        <p style="color:#555;font-size:15px;line-height:1.7;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0;border-top:1px solid #D4C89A;padding-top:20px;">
           ${tr("Warm regards", "Bien chaleureusement")},<br>
-          <strong>${tr("The Bento Cake Studio Team", "L’équipe Bento Cake Studio")}</strong> 🤍
+          <strong>Bento Cake Studio</strong> 🤍
         </p>
       </div>
-
-      <div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
-        <p style="color:#aaa;font-size:11px;margin:0;">${tr("Bento Cake Studio · Geneva, Switzerland", "Bento Cake Studio · Genève, Suisse")}</p>
-      </div>
     </div>
+
+    <div style="height:24px;background:#78020C;"></div>
   </div>
 </body>
 </html>`;
