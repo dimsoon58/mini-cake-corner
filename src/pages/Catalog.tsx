@@ -661,7 +661,7 @@ const collections = [
   { title: "The Best Sellers Collection", anchor: "best-sellers", ids: ["retro-cake", "roses-please", "pearl-border-retro"] },
   { title: "The Iconic Collection", anchor: "iconic", ids: ["shag-cake", "butterfly-garden", "heart-bomb"] },
   { title: "The Minimal Collection", anchor: "minimal", ids: ["normal-with-border", "normal-without-border"] },
-  { title: "The Original Collection", anchor: "original", ids: ["golden-cake", "rainbow-cake", "retro-glitter-cake"] },
+  { title: "The Original Collection", anchor: "original", ids: ["golden-cake", "rainbow-cake", "retro-ribbons"] },
   { title: "The Personalised Collection", anchor: "personalised", ids: ["printed-picture", "gender-reveal", "drawing"] },
   { title: "The Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-flowers"] },
 ];
