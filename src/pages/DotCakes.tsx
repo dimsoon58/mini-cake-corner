@@ -236,6 +236,7 @@ const DotCakes = () => {
         </div>
       </div>
 
+      <div className="max-w-6xl mx-auto w-full">
       <div className="flex min-h-[calc(100vh-112px)]">
         {/* SIDEBAR */}
         <aside className="hidden lg:flex flex-col w-72 min-w-72 border-r border-border bg-card px-7 py-8 gap-6">
@@ -298,7 +299,7 @@ const DotCakes = () => {
         </aside>
 
         {/* MAIN */}
-        <main className="flex-1 px-6 md:px-12 py-10 max-w-3xl">
+        <main className="flex-1 px-6 md:px-12 py-10 max-w-3xl mx-auto">
           <h1 className="font-sans text-4xl md:text-5xl tracking-[0.105em] uppercase text-foreground mb-2 font-semibold">
             {t("Dot Cakes", "Dot Cakes")}
           </h1>
@@ -653,6 +654,7 @@ const DotCakes = () => {
             </div>
           )}
         </main>
+      </div>
       </div>
 
       {/* Gallery */}
