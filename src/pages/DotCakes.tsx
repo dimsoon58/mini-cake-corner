@@ -226,73 +226,8 @@ const DotCakes = () => {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto w-full px-6 py-10">
-        <button onClick={() => navigate(-1)}
-          className="flex items-center gap-2 mb-8 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft className="w-3.5 h-3.5" />
-          {t("Back", "Retour")}
-        </button>
-      <div className="flex gap-12 items-start">
+      <div className="flex justify-center">
         {/* SIDEBAR */}
-        <aside className="hidden lg:flex flex-col w-72 min-w-72 shrink-0">
-          <div className="border border-border px-7 py-8 flex flex-col gap-6">
-          <div>
-            <p className="font-sans text-[13px] font-bold uppercase tracking-[0.12em] text-foreground mb-1">
-              {t("Dot Cakes", "Dot Cakes")}
-            </p>
-            <p className="text-[13px] text-muted-foreground leading-relaxed">
-              {t("Soft sponge, light whipped cream and colourful sprinkles, in small formats made for sharing.", "Une génoise moelleuse, une crème fouettée légère et des sprinkles colorés réunis dans de petits formats à partager.")}
-            </p>
-          </div>
-
-          <hr className="border-border" />
-
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
-              {t("Your order", "Votre commande")}
-            </p>
-            <div className="flex justify-between text-[13px] py-1">
-              <span className="text-muted-foreground">{t("Date", "Date")}</span>
-              <span className="font-medium">{orderDate ? format(orderDate, "dd.MM.yyyy") : "—"}</span>
-            </div>
-            <div className="flex justify-between text-[13px] py-1">
-              <span className="text-muted-foreground">{t("Pack", "Pack")}</span>
-              <span className="font-medium">{pack ? t("Pack of " + pack.size, "Pack de " + pack.size) : "—"}</span>
-            </div>
-            <div className="flex justify-between text-[13px] py-1">
-              <span className="text-muted-foreground">{t("Flavours", "Parfums")}</span>
-              <span className="font-medium">{selectedFlavours.length > 0 ? selectedFlavours.length : "—"}</span>
-            </div>
-            {candlesTotal > 0 && (
-              <div className="flex justify-between text-[13px] py-1">
-                <span className="text-muted-foreground">{t("Candles", "Bougies")}</span>
-                <span className="font-medium">CHF {candlesTotal.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-[13px] py-3 border-t border-border mt-2">
-              <span className="font-semibold uppercase tracking-[0.08em]">{t("Total", "Total")}</span>
-              <span className="font-semibold">{pack ? `CHF ${total.toFixed(2)}` : "—"}</span>
-            </div>
-          </div>
-
-          {flavourNames.length > 0 && (
-            <>
-              <hr className="border-border" />
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
-                  {t("Selected flavours", "Parfums sélectionnés")}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {flavourNames.map((name) => (
-                    <span key={name} className="bg-secondary text-foreground text-[11px] font-medium px-2.5 py-1 tracking-[0.04em]">
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-          </div>
-        </aside>
 
         {/* MAIN */}
         <main className="flex-1 px-6 md:px-12 py-10 max-w-3xl mx-auto">
