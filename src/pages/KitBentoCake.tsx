@@ -416,7 +416,7 @@ const KitBentoCake = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 pt-12">
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
           {t("DIY KIT", "DIY KIT")}
         </h1>
