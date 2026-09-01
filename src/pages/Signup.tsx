@@ -276,8 +276,8 @@ const Signup = () => {
             <Label htmlFor="phone">{t("Phone", "Téléphone")}</Label>
             <div className="flex gap-2">
               <Select value={countryCode} onValueChange={setCountryCode}>
-                <SelectTrigger className="w-[100px] shrink-0">
-                  <SelectValue />
+                <SelectTrigger className="w-[110px] shrink-0">
+                  <span className="flex items-center gap-1 text-sm leading-none">{COUNTRY_CODES.find(c => c.code === countryCode)?.flag} {countryCode}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {COUNTRY_CODES.map((cc) => (
