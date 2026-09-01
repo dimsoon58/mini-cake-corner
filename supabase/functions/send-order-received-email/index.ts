@@ -31,7 +31,7 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
   const row = (label: string, value: string) =>
     `<tr><td style="padding:6px 8px;color:#888;font-size:14px;width:45%;">${label}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${value}</td></tr>`;
 
-  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-new.png";
+  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
   const subject = tr(`We've received your order ${orderNumber} 🎂`, `Nous avons bien reçu votre commande ${orderNumber} 🎂`);
 
   const html = `

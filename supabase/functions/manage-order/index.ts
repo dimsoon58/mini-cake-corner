@@ -100,7 +100,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
       <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
     </tr>`).join("");
 
-  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-new.png";
+  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
   const html = `
 <!DOCTYPE html>
 <html>
@@ -233,7 +233,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
 
     <div style="background:#FDF8E1;margin:0 20px;">
       <div style="padding:36px 40px 0;text-align:center;">
-        <img src="https://dimsoon58.github.io/mini-cake-corner/logo-new.png" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
+        <img src="https://dimsoon58.github.io/mini-cake-corner/logo-red.png" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
       </div>
 
       <div style="padding:0 40px 36px;">

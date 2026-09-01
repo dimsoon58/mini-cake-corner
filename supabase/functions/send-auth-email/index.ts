@@ -10,7 +10,7 @@ import { Webhook } from "npm:standardwebhooks@1.0.0";
 
 const RESEND_URL = "https://api.resend.com/emails";
 const FROM = "Bento Cake Studio <contact@bentocakestudio.ch>";
-const LOGO_URL = "https://dimsoon58.github.io/mini-cake-corner/logo-new.png";
+const LOGO_URL = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
 // Matches AuthConfirm.tsx's route — update this alongside SITE_BASE_URL in
 // the other Edge Functions the day bentocakestudio.ch actually goes live.
 const SITE_URL = "https://dimsoon58.github.io/mini-cake-corner";
