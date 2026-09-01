@@ -537,3 +537,11 @@ All colors MUST be HSL.
   border-radius: 0 !important;
   padding: 2px 4px !important;
 }
+
+/* Hide duplicate caption label in dropdown calendar */
+.rdp-caption_label {
+  display: none !important;
+}
+.rdp-vhidden {
+  display: none !important;
+}
