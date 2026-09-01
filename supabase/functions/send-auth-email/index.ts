@@ -32,17 +32,18 @@ interface HookPayload {
 function wrapEmail(bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html>
-<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;background:#fff;">
-    <div style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
-      <img src="${LOGO_URL}" alt="Bento Cake Studio" style="height:56px;width:auto;" />
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#78020C;font-family:Georgia,'Times New Roman',serif;">
+  <div style="max-width:520px;margin:0 auto;">
+    <div style="background:#FDF8E1;margin:0 20px;">
+      <div style="padding:36px 40px 0;text-align:center;">
+        <img src="${LOGO_URL}" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
+      </div>
+      <div style="padding:0 40px 36px;color:#351E13;font-size:15px;line-height:1.8;">
+        ${bodyHtml}
+      </div>
     </div>
-    <div style="padding:32px;color:#333;font-size:15px;line-height:1.6;">
-      ${bodyHtml}
-    </div>
-    <div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
-      <p style="color:#aaa;font-size:11px;margin:0;">Bento Cake Studio · Geneva, Switzerland</p>
-    </div>
+    <div style="height:24px;background:#78020C;"></div>
   </div>
 </body>
 </html>`;
@@ -54,7 +55,7 @@ function buttonHtml(url: string, label: string): string {
   // link is still present in the plain-text part for any client that needs
   // it. The href itself is unchanged.
   return `<div style="text-align:center;margin:28px 0;">
-    <a href="${url}" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:600;font-size:14px;">${label}</a>
+    <a href="${url}" style="display:inline-block;background:#78020C;color:#FDF8E1;text-decoration:none;padding:14px 32px;font-weight:700;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
   </div>`;
 }
 
