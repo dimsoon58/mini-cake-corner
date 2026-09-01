@@ -233,15 +233,6 @@ const KitBentoCake = () => {
 
   const minDate = addDays(new Date(), 4);
 
-  // Refs for auto-scroll
-
-    setTimeout(() => {
-    }, 150);
-  };
-
-  // Auto-scroll on selection
-
-  // Auto-scroll when piping is fully selected
   useEffect(() => {
     const option = pipingBagOptions.find(p => p.id === selectedPipingOption);
     if (option && pipingColors.length === option.count) {
