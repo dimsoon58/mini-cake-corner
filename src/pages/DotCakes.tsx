@@ -112,6 +112,7 @@ const DotCakes = () => {
   const [candleSelections, setCandleSelections] = useState<CandleSelection[]>([]);
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [showAllCandles, setShowAllCandles] = useState(false);
+  const [showGlutenFree, setShowGlutenFree] = useState(false);
 
   useEffect(() => {
     document.title = t("Dot Cakes – Bento Cake Studio", "Dot Cakes – Bento Cake Studio");
@@ -366,7 +367,20 @@ const DotCakes = () => {
                 <span className="text-sm text-muted-foreground">{selectedFlavours.length}/{pack.flavours} {t("selected", "sélectionnés")}</span>
               </div>
 
-              {[...flavorCategories, ...glutenFreeFlavorCategories].map((category) => {
+              {/* Nav buttons at top */}
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={goBack}
+                  className="rounded-none border-border text-[11px] font-semibold uppercase tracking-[0.12em] px-6 py-2.5">
+                  ← {t("Back", "Retour")}
+                </Button>
+                <Button onClick={goNext}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-semibold uppercase tracking-[0.12em] rounded-none px-8 py-2.5">
+                  {t("Next", "Suivant")} →
+                </Button>
+              </div>
+
+              {/* Standard flavours */}
+              {flavorCategories.map((category) => {
                 const tier = tierByCategory[category.name];
                 return (
                   <div key={category.name} className="space-y-3">
@@ -403,8 +417,56 @@ const DotCakes = () => {
                   </div>
                 );
               })}
+
+              {/* Gluten-free toggle */}
+              <button onClick={() => setShowGlutenFree(!showGlutenFree)}
+                className="flex items-center gap-2 text-sm font-semibold text-primary uppercase tracking-[0.08em] py-2 hover:underline">
+                <ChevronDown className={cn("w-4 h-4 transition-transform", showGlutenFree && "rotate-180")} />
+                {showGlutenFree ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten") : t("See all gluten-free flavours", "Voir les parfums sans gluten")}
+              </button>
+
+              {/* Gluten-free flavours */}
+              {showGlutenFree && glutenFreeFlavorCategories.map((category) => {
+                const tier = tierByCategory[category.name];
+                return (
+                  <div key={category.name} className="space-y-3">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {t(tier?.label ?? category.name, "Parfums " + (tier?.label ?? category.name).replace(" Flavours", ""))}
+                      {tier && tier.surcharge > 0 && (
+                        <span className="text-muted-foreground ml-2 font-normal">({t(tier.note, tierNoteFr[tier.note] ?? tier.note)})</span>
+                      )}
+                    </h3>
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                      {category.flavors.map((flavor) => {
+                        const isSelected = selectedFlavours.includes(flavor.id);
+                        const atCap = !isSelected && selectedFlavours.length >= pack.flavours;
+                        return (
+                          <div key={flavor.id}
+                            className={cn(
+                              "bg-card rounded-none overflow-hidden shadow-sm transition-shadow cursor-pointer",
+                              isSelected && "ring-2 ring-primary",
+                              atCap ? "opacity-40 cursor-not-allowed" : "hover:shadow-lg"
+                            )}
+                            onClick={() => !atCap && toggleFlavour(flavor.id)}>
+                            <div className="aspect-square overflow-hidden bg-muted/30 p-2">
+                              <img src={flavor.image} alt={flavor.name} className="w-full h-full object-contain" />
+                            </div>
+                            <div className="p-3 text-center">
+                              <p className="font-sans font-medium text-sm tracking-[0.105em]">{flavor.name}</p>
+                              <FlavorDesc flavorId={flavor.id} />
+                              <AllergenDisplay flavorId={flavor.id} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
               <AllergenNotice className="pt-2" />
 
+              {/* Nav buttons at bottom too */}
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={goBack}
                   className="rounded-none border-border text-[11px] font-semibold uppercase tracking-[0.12em] px-6 py-2.5">
