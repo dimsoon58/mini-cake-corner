@@ -225,21 +225,16 @@ const DotCakes = () => {
 
   return (
     <Layout>
-      {/* Back link */}
-      <div className="border-b border-border bg-background">
-        <div className="container mx-auto px-6">
-          <button onClick={() => navigate(-1)}
-            className="flex items-center gap-2 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronLeft className="w-3.5 h-3.5" />
-            {t("Back", "Retour")}
-          </button>
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto w-full">
-      <div className="flex min-h-[calc(100vh-112px)]">
+      <div className="max-w-6xl mx-auto w-full px-6 py-10">
+        <button onClick={() => navigate(-1)}
+          className="flex items-center gap-2 mb-8 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronLeft className="w-3.5 h-3.5" />
+          {t("Back", "Retour")}
+        </button>
+      <div className="flex gap-12 items-start">
         {/* SIDEBAR */}
-        <aside className="hidden lg:flex flex-col w-72 min-w-72 border-r border-border bg-card px-7 py-8 gap-6">
+        <aside className="hidden lg:flex flex-col w-72 min-w-72 shrink-0">
+          <div className="border border-border px-7 py-8 flex flex-col gap-6">
           <div>
             <p className="font-sans text-[13px] font-bold uppercase tracking-[0.12em] text-foreground mb-1">
               {t("Dot Cakes", "Dot Cakes")}
@@ -296,14 +291,15 @@ const DotCakes = () => {
               </div>
             </>
           )}
+          </div>
         </aside>
 
         {/* MAIN */}
         <main className="flex-1 px-6 md:px-12 py-10 max-w-3xl mx-auto">
-          <h1 className="font-sans text-4xl md:text-5xl tracking-[0.105em] uppercase text-foreground mb-2 font-semibold">
+          <h1 className="font-sans text-4xl md:text-5xl tracking-[0.105em] uppercase text-foreground mb-2 font-semibold text-center">
             {t("Dot Cakes", "Dot Cakes")}
           </h1>
-          <p className="text-muted-foreground mb-10 text-sm">
+          <p className="text-muted-foreground mb-10 text-sm text-center">
             {t("Soft sponge, light whipped cream and colourful sprinkles, in small formats made for sharing.", "Une génoise moelleuse, une crème fouettée légère et des sprinkles colorés réunis dans de petits formats à partager.")}
           </p>
 
