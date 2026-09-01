@@ -38,38 +38,32 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;padding:24px;">
-    <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+<body style="margin:0;padding:0;background:#78020C;font-family:Georgia,'Times New Roman',serif;">
+  <div style="max-width:600px;margin:0 auto;">
 
-      <!-- Logo -->
-      <div style="padding:28px 32px 0;text-align:center;">
-        <img src="${logoUrl}" alt="Bento Cake Studio" style="height:64px;width:auto;" />
+    <div style="background:#FDF8E1;margin:0 20px;">
+      <div style="padding:36px 40px 0;text-align:center;">
+        <img src="${logoUrl}" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <!-- Header -->
-      <div style="padding:20px 32px 8px;text-align:center;">
-        <h1 style="color:#333;font-size:22px;margin:0;font-weight:700;">${subject}</h1>
-      </div>
-
-      <div style="padding:24px 32px 32px;">
-        <p style="color:#555;font-size:15px;line-height:1.7;">
+      <div style="padding:0 40px 36px;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Hello", "Bonjour")} ${firstName},
         </p>
 
-        <p style="color:#555;font-size:15px;line-height:1.7;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Thank you for your order at Bento Cake Studio 🤍", "Merci pour votre commande chez Bento Cake Studio 🤍")}
         </p>
 
-        <p style="color:#555;font-size:15px;line-height:1.7;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">
           ${tr(
             `We have successfully received your order <strong>#${orderNumber}</strong> along with your payment request.`,
             `Nous avons bien reçu votre commande <strong>n° ${orderNumber}</strong> ainsi que votre demande de paiement.`
           )}
         </p>
 
-        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin:20px 0;">
-          <p style="color:#555;font-size:14px;line-height:1.6;margin:0;">
+        <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:0 0 20px;">
+          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
             ${tr(
               "Your order is currently pending validation by our team. We will review the details of your order and confirm as soon as possible whether we can fulfil it.",
               "Votre commande est actuellement en attente de validation par notre équipe. Nous allons vérifier les détails de votre commande et vous confirmer dans les plus brefs délais si nous pouvons la réaliser."
@@ -77,23 +71,37 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
           </p>
         </div>
 
-        <p style="color:#555;font-size:15px;line-height:1.7;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 28px;">
           ${tr(
             "You will then receive a new email confirming the acceptance, or if necessary, the refusal of your order.",
             "Vous recevrez ensuite un nouvel email pour vous confirmer l'acceptation ou, si nécessaire, le refus de votre commande."
           )}
         </p>
 
-        <h3 style="color:#333;font-size:15px;margin:24px 0 8px;font-weight:600;">${tr("Summary", "Récapitulatif")}</h3>
-        <table style="border-collapse:collapse;width:100%;">
-          ${row(tr("Order number", "Numéro de commande"), orderNumber)}
-          ${row(tr("Pickup/delivery date", "Date de retrait/livraison"), formatDateCH(order.pickup_delivery_date))}
-          ${order.pickup_delivery_slot ? row(tr("Time slot", "Créneau"), order.pickup_delivery_slot) : ""}
-          ${row(tr("Method", "Mode"), deliveryInfo)}
-          ${row(tr("Total amount", "Montant total"), `CHF ${order.total_amount}`)}
+        <p style="color:#78020C;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+          ${tr("Summary", "Récapitulatif")}
+        </p>
+        <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;">
+          <tr style="border-bottom:1px solid #D4C89A;">
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order number", "Numéro de commande")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${formatDateCH(order.pickup_delivery_date)}</td>
+          </tr>
+          ${order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid #D4C89A;"><td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Time slot", "Créneau")}</td><td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${order.pickup_delivery_slot}</td></tr>` : ""}
+          <tr style="border-bottom:1px solid #D4C89A;">
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Method", "Mode")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${deliveryInfo}</td>
+          </tr>
+          <tr style="background:#78020C;">
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total amount", "Montant total")}</td>
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+          </tr>
         </table>
 
-        <p style="color:#555;font-size:14px;line-height:1.7;margin-top:24px;">
+        <p style="color:#351E13;font-size:13px;line-height:1.7;margin:24px 0 0;border-top:1px solid #D4C89A;padding-top:20px;">
           <strong>${tr("Important:", "Important :")}</strong><br/>
           ${tr(
             "Your order is not yet definitively confirmed until you receive our acceptance email.",
@@ -101,16 +109,14 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
           )}
         </p>
 
-        <p style="color:#555;font-size:15px;line-height:1.7;margin-top:24px;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:24px 0 0;">
           ${tr("Thank you for your trust,", "Merci pour votre confiance,")}<br>
           <strong>Bento Cake Studio</strong> 🤍
         </p>
       </div>
-
-      <div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
-        <p style="color:#aaa;font-size:11px;margin:0;">${tr("Bento Cake Studio · Geneva, Switzerland", "Bento Cake Studio · Genève, Suisse")}</p>
-      </div>
     </div>
+
+    <div style="height:24px;background:#78020C;"></div>
   </div>
 </body>
 </html>`;
