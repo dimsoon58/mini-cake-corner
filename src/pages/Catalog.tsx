@@ -658,10 +658,10 @@ const designAllowedExtras: Record<string, string[]> = {
 
 // Collections: curated groupings shown as separate catalog sections
 const collections = [
-  { title: "The Vintage Collection", anchor: "vintage", ids: ["retro-cake", "golden-cake", "pearl-border-retro"] },
-  { title: "The Iconic Collection", anchor: "iconic", ids: ["roses-please", "butterfly-garden", "heart-bomb"] },
+  { title: "The Best Sellers Collection", anchor: "best-sellers", ids: ["retro-cake", "roses-please", "pearl-border-retro"] },
+  { title: "The Iconic Collection", anchor: "iconic", ids: ["shag-cake", "butterfly-garden", "heart-bomb"] },
   { title: "The Minimal Collection", anchor: "minimal", ids: ["normal-with-border", "normal-without-border"] },
-  { title: "The Original Collection", anchor: "original", ids: ["shag-cake", "rainbow-cake", "retro-ribbons-glitter"] },
+  { title: "The Original Collection", anchor: "original", ids: ["golden-cake", "rainbow-cake", "retro-glitter-cake"] },
   { title: "The Personalised Collection", anchor: "personalised", ids: ["printed-picture", "gender-reveal", "drawing"] },
   { title: "The Rectangle Cakes", anchor: "rectangle-cakes", ids: ["rectangle-signature", "rectangle-raspberries", "rectangle-flowers"] },
 ];
@@ -772,7 +772,7 @@ const textStyles = [
 const collectionTitleFr: Record<string, string> = {
   "The Minimal Collection": "La collection Minimaliste",
   "The Rectangle Cakes": "The Rectangle Cakes",
-  "The Vintage Collection": "La collection Vintage",
+  "The Best Sellers Collection": "La collection Best Sellers",
   "The Iconic Collection": "La collection Iconique",
   "The Original Collection": "La collection Originale",
   "The Personalised Collection": "La collection Personnalisée",
