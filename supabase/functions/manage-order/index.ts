@@ -105,7 +105,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;">
+<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:600px;margin:0 auto;">
 
     <div style="background:#FDF8E1;margin:0 20px;">
@@ -228,7 +228,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;">
+<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:600px;margin:0 auto;">
 
     <div style="background:#FDF8E1;margin:0 20px;">

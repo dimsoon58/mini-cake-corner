@@ -33,7 +33,7 @@ function wrapEmail(bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;">
+<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:520px;margin:0 auto;">
     <div style="background:#FDF8E1;margin:0 20px;">
       <div style="padding:36px 40px 0;text-align:center;">
@@ -55,7 +55,7 @@ function buttonHtml(url: string, label: string): string {
   // link is still present in the plain-text part for any client that needs
   // it. The href itself is unchanged.
   return `<div style="text-align:center;margin:28px 0;">
-    <a href="${url}" style="display:inline-block;background:#78020C;color:#FDF8E1;text-decoration:none;padding:14px 32px;font-weight:700;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
+    <a href="${url}" style="display:inline-block;background:#78020C;color:#FDF8E1;text-decoration:none;padding:14px 32px;font-weight:400;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
   </div>`;
 }
 
