@@ -231,10 +231,10 @@ const DotCakes = () => {
 
         {/* MAIN */}
         <main className="max-w-2xl mx-auto py-12 px-4">
-          <h1 className="font-sans text-4xl md:text-5xl tracking-[0.105em] uppercase text-foreground mb-2 font-semibold text-center">
+          <h1 className="font-sans text-4xl md:text-5xl tracking-[0.105em] uppercase text-foreground mb-6 font-semibold text-center">
             {t("Dot Cakes", "Dot Cakes")}
           </h1>
-          <p className="text-muted-foreground mb-10 text-sm text-center">
+          <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
             {t("Soft sponge, light whipped cream and colourful sprinkles, in small formats made for sharing.", "Une génoise moelleuse, une crème fouettée légère et des sprinkles colorés réunis dans de petits formats à partager.")}
           </p>
 
@@ -273,7 +273,7 @@ const DotCakes = () => {
 
           {/* STEP 1: DATE */}
           {step === 1 && (
-            <div className="space-y-6 max-w-lg mx-auto">
+            <div className="space-y-6 max-w-2xl mx-auto">
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Choose Your Date", "Choisissez votre date")}<span className="text-destructive ml-1">*</span>
               </h2>
@@ -318,7 +318,7 @@ const DotCakes = () => {
 
           {/* STEP 2: PACK */}
           {step === 2 && (
-            <div className="space-y-6 max-w-lg mx-auto">
+            <div className="space-y-6 max-w-2xl mx-auto">
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Choose Your Quantity", "Choisissez votre quantité")}<span className="text-destructive ml-1">*</span>
               </h2>
@@ -420,7 +420,7 @@ const DotCakes = () => {
 
           {/* STEP 4: CANDLES */}
           {step === 4 && (
-            <div className="space-y-6 max-w-lg mx-auto">
+            <div className="space-y-6 max-w-2xl mx-auto">
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Add Candles (Optional)", "Ajouter des bougies (optionnel)")}
               </h2>
@@ -535,7 +535,7 @@ const DotCakes = () => {
 
           {/* STEP 5: CONFIRM */}
           {step === 5 && pack && orderDate && (
-            <div className="space-y-6 max-w-lg mx-auto">
+            <div className="space-y-6 max-w-2xl mx-auto">
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Review & Confirm", "Vérifier et confirmer")}
               </h2>
