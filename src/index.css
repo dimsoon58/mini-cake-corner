@@ -528,3 +528,12 @@ All colors MUST be HSL.
     margin-bottom: 6px !important;
   }
 }
+
+/* Calendar dropdown selects - force light mode */
+.rdp-dropdown {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 0 !important;
+  padding: 2px 4px !important;
+}
