@@ -1440,7 +1440,7 @@ const Checkout = () => {
           {/* PostFinance Checkout */}
           {showEmbeddedCheckout && checkoutPayload && (
             <div className="mt-8 pt-6 border-t border-border">
-              <h3 className="text-lg font-serif text-foreground mb-2">
+              <h3 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-2">
                 {t("Complete Your Payment", "Finalisez votre paiement")}
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
