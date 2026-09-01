@@ -948,13 +948,13 @@ const Checkout = () => {
           {t("Back to Cart", "Retour au panier")}
         </Link>
 
-        <div className="bg-card rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-serif text-foreground mb-6">
+        <div className="bg-card shadow-md p-6">
+          <h2 className="font-sans uppercase tracking-[0.105em] text-xl text-foreground mb-6 font-semibold">
             {t("Contact Information", "Coordonnées")}
           </h2>
 
           {items.length === 0 && (
-            <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4">
+            <div className="mb-6 border border-border bg-muted/30 p-4">
               <p className="text-sm text-muted-foreground">
                 {t("Your cart is empty. Please add a cake before proceeding to payment.", "Votre panier est vide. Ajoutez un gâteau avant de procéder au paiement.")}
               </p>
@@ -983,7 +983,7 @@ const Checkout = () => {
                   onBlur={() => setFirstName((prev) => normalizeName(prev))}
                   placeholder={t("Enter your first name", "Saisissez votre prénom")}
                   readOnly={isLoggedIn}
-                  className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
+                  className={cn("rounded-none", isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
                   required
                 />
               </div>
@@ -998,7 +998,7 @@ const Checkout = () => {
                   onBlur={() => setLastName((prev) => normalizeName(prev))}
                   placeholder={t("Enter your last name", "Saisissez votre nom")}
                   readOnly={isLoggedIn}
-                  className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
+                  className={cn("rounded-none", isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
                   required
                 />
               </div>
@@ -1011,7 +1011,7 @@ const Checkout = () => {
               </Label>
               <div className="flex gap-2">
                 <Select value={countryCode} onValueChange={setCountryCode}>
-                  <SelectTrigger className="w-[100px] shrink-0">
+                  <SelectTrigger className="w-[100px] shrink-0 rounded-none">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1026,6 +1026,7 @@ const Checkout = () => {
                   id="phone"
                   type="tel"
                   inputMode="numeric"
+                  className="rounded-none"
                   value={phone}
                   onChange={(e) => setPhone(sanitizePhoneLocalInput(e.target.value, countryCode))}
                   placeholder="79 123 45 67"
@@ -1047,7 +1048,7 @@ const Checkout = () => {
                 onBlur={() => setEmail((prev) => normalizeEmail(prev))}
                 placeholder={t("Enter your email address", "Saisissez votre adresse e-mail")}
                 readOnly={isLoggedIn}
-                className={cn(isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
+                className={cn("rounded-none", isLoggedIn && "bg-muted text-muted-foreground cursor-not-allowed")}
                 required
               />
             </div>
@@ -1060,7 +1061,7 @@ const Checkout = () => {
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "w-full justify-start text-left font-normal rounded-none",
                       !deliveryDate && "text-muted-foreground"
                     )}
                   >
@@ -1107,7 +1108,7 @@ const Checkout = () => {
                 }}
                 className="flex flex-col space-y-2"
               >
-                <div className="flex items-center space-x-3 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer">
+                <div className="flex items-center space-x-3 p-3 border border-border hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="pickup" id="pickup" />
                   <Label htmlFor="pickup" className="cursor-pointer flex-1">
                     <span className="font-medium">{t("Pick-up", "Retrait")}</span>
@@ -1116,7 +1117,7 @@ const Checkout = () => {
                     </p>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-3 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer">
+                <div className="flex items-center space-x-3 p-3 border border-border hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="delivery" id="delivery" />
                   <Label htmlFor="delivery" className="cursor-pointer flex-1">
                     <span className="font-medium">{t("Delivery", "Livraison")}</span>
@@ -1133,7 +1134,7 @@ const Checkout = () => {
               <div className="space-y-2">
                 <Label>{t("Pick-up Time", "Heure de retrait")} <span className="text-destructive">*</span></Label>
                 <Select value={pickupTime} onValueChange={setPickupTime}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full rounded-none">
                     <SelectValue placeholder={t("Select a pickup time", "Choisir une heure de retrait")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1149,7 +1150,7 @@ const Checkout = () => {
 
             {/* Delivery Details - Only shown when delivery is selected */}
             {deliveryOption === "delivery" && (
-              <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+              <div className="space-y-4 p-4 bg-muted/30 border border-border">
                 <h3 className="font-medium text-foreground">{t("Delivery Details", "Détails de la livraison")}</h3>
                 
                 {/* Address Input */}
@@ -1181,7 +1182,7 @@ const Checkout = () => {
                 <div className="space-y-2">
                   <Label>{t("Delivery Time Slot", "Créneau de livraison")} <span className="text-destructive">*</span></Label>
                   <Select value={deliveryTime} onValueChange={setDeliveryTime}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full rounded-none">
                       <SelectValue placeholder={t("Select a delivery time slot", "Choisir un créneau de livraison")} />
                     </SelectTrigger>
                     <SelectContent>
