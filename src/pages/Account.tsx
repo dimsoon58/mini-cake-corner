@@ -270,6 +270,7 @@ const Account = () => {
                       selected={birthDate}
                       onSelect={setBirthDate}
                       captionLayout="dropdown"
+                      classNames={{ caption_label: "hidden", nav: "hidden" }}
                       fromYear={1920}
                       toYear={new Date().getFullYear()}
                       disabled={(date) => date > new Date()}
