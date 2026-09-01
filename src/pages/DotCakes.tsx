@@ -225,12 +225,12 @@ const DotCakes = () => {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto w-full px-6 py-10">
+      <div className="container mx-auto px-4">
       <div className="flex justify-center">
         {/* SIDEBAR */}
 
         {/* MAIN */}
-        <main className="flex-1 px-6 md:px-12 py-10 max-w-3xl mx-auto">
+        <main className="max-w-2xl mx-auto py-12 px-4">
           <h1 className="font-sans text-4xl md:text-5xl tracking-[0.105em] uppercase text-foreground mb-2 font-semibold text-center">
             {t("Dot Cakes", "Dot Cakes")}
           </h1>
@@ -273,7 +273,7 @@ const DotCakes = () => {
 
           {/* STEP 1: DATE */}
           {step === 1 && (
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-lg mx-auto">
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Choose Your Date", "Choisissez votre date")}<span className="text-destructive ml-1">*</span>
               </h2>
@@ -318,7 +318,7 @@ const DotCakes = () => {
 
           {/* STEP 2: PACK */}
           {step === 2 && (
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-lg mx-auto">
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Choose Your Quantity", "Choisissez votre quantité")}<span className="text-destructive ml-1">*</span>
               </h2>
@@ -358,7 +358,7 @@ const DotCakes = () => {
 
           {/* STEP 3: FLAVOURS */}
           {step === 3 && pack && (
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-2xl mx-auto">
               <div className="flex items-center justify-between">
                 <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                   {t("Choose up to " + pack.flavours + " Flavours", "Choisissez jusqu'à " + pack.flavours + " parfums")}<span className="text-destructive ml-1">*</span>
@@ -420,7 +420,7 @@ const DotCakes = () => {
 
           {/* STEP 4: CANDLES */}
           {step === 4 && (
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-lg mx-auto">
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Add Candles (Optional)", "Ajouter des bougies (optionnel)")}
               </h2>
@@ -535,7 +535,7 @@ const DotCakes = () => {
 
           {/* STEP 5: CONFIRM */}
           {step === 5 && pack && orderDate && (
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-lg mx-auto">
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Review & Confirm", "Vérifier et confirmer")}
               </h2>
