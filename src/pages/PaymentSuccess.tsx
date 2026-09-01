@@ -74,11 +74,11 @@ const PaymentSuccess = () => {
   return (
     <Layout>
       <main className="container mx-auto px-4 py-16 max-w-2xl text-center">
-        <div className="bg-card rounded-lg shadow-md p-8">
+        <div className="bg-card shadow-md p-8">
           {paymentFailed ? (
             <>
               <XCircle className="w-16 h-16 text-destructive mx-auto mb-6" />
-              <h1 className="text-2xl font-serif text-foreground mb-4">
+              <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
                 {t("Payment Not Completed", "Paiement non abouti")}
               </h1>
               <p className="text-muted-foreground mb-8">
@@ -94,8 +94,8 @@ const PaymentSuccess = () => {
 
               {isOrderConfirmed ? (
                 <>
-                  <h1 className="text-2xl font-serif text-foreground mb-4">
-                    {t("Order Confirmed ✅", "Commande confirmée ✅")}
+                  <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
+                    {t("Order Confirmed", "Commande confirmée")}
                   </h1>
 
                   <p className="text-muted-foreground mb-8">
@@ -109,7 +109,7 @@ const PaymentSuccess = () => {
                     {t("You may close this page.", "Vous pouvez fermer cette page.")}
                   </p>
 
-                  <div className="bg-secondary border border-border rounded-lg p-4 mb-6">
+                  <div className="bg-secondary border border-border p-4 mb-6">
                     <div className="flex items-center justify-center gap-2 mb-2">
                       <Sparkles className="w-5 h-5 text-primary" />
                       <p className="font-medium text-foreground">{t("Preparing Your Order", "Préparation de votre commande")}</p>
@@ -124,10 +124,10 @@ const PaymentSuccess = () => {
                 </>
               ) : (
                 <>
-                  <h1 className="text-2xl font-serif text-foreground mb-4">
+                  <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
                     {t(
-                      "Thank you so much for ordering from Bento Cake Studio! 🤍",
-                      "Un grand merci pour votre commande chez Bento Cake Studio ! 🤍"
+                      "Thank you so much for ordering from Bento Cake Studio",
+                      "Un grand merci pour votre commande chez Bento Cake Studio"
                     )}
                   </h1>
 
@@ -138,7 +138,7 @@ const PaymentSuccess = () => {
                     )}
                   </p>
 
-                  <div className="bg-muted border border-border rounded-lg p-4 mb-6">
+                  <div className="bg-muted border border-border p-4 mb-6">
                     <div className="flex items-center justify-center gap-2 mb-2">
                       <Clock className="w-5 h-5 text-primary" />
                       <p className="font-medium text-foreground">{t("Order Pending Approval", "Commande en attente de confirmation")}</p>
@@ -153,8 +153,8 @@ const PaymentSuccess = () => {
 
                   <p className="text-muted-foreground mb-8">
                     {t(
-                      "We can't wait for you to enjoy your cake! 🎂✨",
-                      "Nous avons hâte que vous savouriez votre gâteau ! 🎂✨"
+                      "We can't wait for you to enjoy your cake!",
+                      "Nous avons hâte que vous savouriez votre gâteau !"
                     )}
                   </p>
                 </>
