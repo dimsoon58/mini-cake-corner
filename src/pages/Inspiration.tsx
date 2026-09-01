@@ -80,7 +80,7 @@ const Inspiration = () => {
       <main className="container mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="font-sans text-3xl sm:text-4xl md:text-6xl uppercase tracking-[0.105em] text-foreground leading-tight mb-4 font-semibold">
+          <h1 className="font-sans text-4xl md:text-5xl text-center uppercase tracking-[0.105em] text-foreground mb-6 font-semibold">
             {t("Inspirations", "Inspirations")}
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
