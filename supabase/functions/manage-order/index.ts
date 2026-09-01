@@ -104,8 +104,8 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:Georgia,'Times New Roman',serif;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
+<body style="margin:0;padding:0;background:#78020C;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;">
   <div style="max-width:600px;margin:0 auto;">
 
     <div style="background:#FDF8E1;margin:0 20px;">
@@ -125,7 +125,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
           )}
         </p>
 
-        <p style="color:#78020C;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Pickup details", "Détails du retrait")}
         </p>
         <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;margin:0 0 24px;">
@@ -139,14 +139,14 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
 
         ${orderImagesBlock}
 
-        <p style="color:#78020C;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
+        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
           ${tr("Order summary", "Récapitulatif de la commande")}
         </p>
         <table style="width:100%;border-collapse:collapse;border:1px solid #D4C89A;margin-bottom:24px;">
           <thead>
             <tr style="border-bottom:1px solid #D4C89A;background:#F5EDCC;">
-              <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7A6540;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
-              <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7A6540;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
+              <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7A6540;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
+              <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7A6540;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
             </tr>
           </thead>
           <tbody>
@@ -154,8 +154,8 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
           </tbody>
           <tfoot>
             <tr style="background:#78020C;">
-              <td style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FDF8E1;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
-              <td style="padding:10px 14px;font-size:15px;font-weight:700;color:#FDF8E1;text-align:right;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+              <td style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
+              <td style="padding:10px 14px;font-size:15px;font-weight:700;color:#FDF8E1;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
             </tr>
           </tfoot>
         </table>
@@ -227,8 +227,8 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:Georgia,'Times New Roman',serif;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
+<body style="margin:0;padding:0;background:#78020C;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;">
   <div style="max-width:600px;margin:0 auto;">
 
     <div style="background:#FDF8E1;margin:0 20px;">
@@ -264,21 +264,21 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
           )}
         </p>
 
-        <p style="color:#78020C;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Order details", "Détails de la commande")}
         </p>
         <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;margin:0 0 24px;">
           <tr style="border-bottom:1px solid #D4C89A;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order", "Commande")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">#${orderNumber}</td>
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order", "Commande")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">#${orderNumber}</td>
           </tr>
           <tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Amount", "Montant")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Amount", "Montant")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
           </tr>
           <tr style="background:#78020C;">
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Status", "Statut")}</td>
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Refunded", "Remboursé")}</td>
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Status", "Statut")}</td>
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Refunded", "Remboursé")}</td>
           </tr>
         </table>
 
@@ -290,7 +290,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
         </p>
 
         <div style="text-align:center;margin:0 0 28px;">
-          <a href="${catalogLink}" style="display:inline-block;background:#78020C;color:#FDF8E1;padding:14px 36px;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <a href="${catalogLink}" style="display:inline-block;background:#78020C;color:#FDF8E1;padding:14px 36px;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
             ${tr("Browse Our Catalogue", "Découvrir notre catalogue")}
           </a>
         </div>

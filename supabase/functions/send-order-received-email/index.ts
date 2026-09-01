@@ -37,8 +37,8 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:Georgia,'Times New Roman',serif;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
+<body style="margin:0;padding:0;background:#78020C;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;">
   <div style="max-width:600px;margin:0 auto;">
 
     <div style="background:#FDF8E1;margin:0 20px;">
@@ -78,26 +78,26 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
           )}
         </p>
 
-        <p style="color:#78020C;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Summary", "Récapitulatif")}
         </p>
         <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;">
           <tr style="border-bottom:1px solid #D4C89A;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order number", "Numéro de commande")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order number", "Numéro de commande")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
           </tr>
           <tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${formatDateCH(order.pickup_delivery_date)}</td>
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${formatDateCH(order.pickup_delivery_date)}</td>
           </tr>
-          ${order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid #D4C89A;"><td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Time slot", "Créneau")}</td><td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${order.pickup_delivery_slot}</td></tr>` : ""}
+          ${order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid #D4C89A;"><td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Time slot", "Créneau")}</td><td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${order.pickup_delivery_slot}</td></tr>` : ""}
           <tr style="border-bottom:1px solid #D4C89A;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Method", "Mode")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${deliveryInfo}</td>
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Method", "Mode")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${deliveryInfo}</td>
           </tr>
           <tr style="background:#78020C;">
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total amount", "Montant total")}</td>
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total amount", "Montant total")}</td>
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
           </tr>
         </table>
 
