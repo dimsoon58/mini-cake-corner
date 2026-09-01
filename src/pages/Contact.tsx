@@ -70,7 +70,7 @@ const Contact = () => {
         <div className="space-y-8 text-foreground leading-relaxed">
           <div className="space-y-2">
             <p className="font-semibold">
-              {t("Questions? Our team is here to help. Contact us on WhatsApp:", "Des questions ? Notre équipe est là pour vous aider. Contactez-nous sur WhatsApp :")}{" "}
+              {t("QUESTIONS? OUR TEAM IS HERE TO HELP.", "QUESTIONS ? NOTRE ÉQUIPE EST LÀ POUR VOUS AIDER.")}<br />{t("Contact us on WhatsApp:", "Contactez-nous sur WhatsApp :")}{" "}
               <a
                 href="https://wa.me/41783379500"
                 target="_blank"
@@ -103,9 +103,9 @@ const Contact = () => {
           </div>
 
           {/* Ordering info */}
-          <div className="bg-muted/50 border border-border rounded-lg p-6 space-y-3">
+          <div className="bg-muted/50 border border-border rounded-none p-6 space-y-3">
             <h2 className="text-lg font-sans font-semibold text-foreground">
-              {t("Important Ordering Information", "Informations importantes de commande")}
+              {t("IMPORTANT ORDERING INFORMATION", "INFORMATIONS IMPORTANTES DE COMMANDE")}
             </h2>
             <p className="text-justify">
               {lang === "fr" ? (<>Tous nos gâteaux sont préparés à la commande, nous n'avons donc pas de gâteaux prêts à l'avance. Pour passer commande, un <strong>délai minimum de 4 jours</strong> est requis. Nous vous <strong>recommandons vivement de commander au moins 1 semaine à l'avance</strong> pour garantir la disponibilité.</>) : (<>All of our cakes are made fresh upon order, which means we don't have any ready cakes. To place an order, a <strong>minimum of 4 days advance notice</strong> is required. However, we <strong>strongly recommend ordering at least 1 week in advance</strong> to ensure availability.</>)}
@@ -119,7 +119,7 @@ const Contact = () => {
           </div>
 
           {/* Need Help Form */}
-          <div className="border border-border rounded-lg p-6 md:p-8 mt-12">
+          <div className="border border-border rounded-none p-6 md:p-8 mt-12">
             <h2 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-2">{t("Need Help?", "Besoin d'aide ?")}</h2>
             <p className="text-muted-foreground mb-6">
               {t("Fill out the form below and we'll get back to you as soon as possible.", "Remplissez le formulaire ci-dessous et nous vous répondrons dès que possible.")}
@@ -208,7 +208,7 @@ const Contact = () => {
                     onChange={handleFileChange}
                   />
                   {file ? (
-                    <div className="flex items-center gap-3 border border-border rounded-md px-3 py-2 text-sm">
+                    <div className="flex items-center gap-3 border border-border rounded-none px-3 py-2 text-sm">
                       <span className="truncate flex-1">{file.name}</span>
                       <button
                         type="button"
