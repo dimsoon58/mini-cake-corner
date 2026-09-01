@@ -56,7 +56,7 @@ const workshops = [
     ],
     ctaLabel: "Book Now",
     ctaLabelFr: "Réserver",
-    ctaTo: "/contact",
+    ctaTo: "/workshop-booking?type=signature",
   },
   {
     emoji: "",
@@ -84,7 +84,7 @@ const workshops = [
     ],
     ctaLabel: "Book Now",
     ctaLabelFr: "Réserver",
-    ctaTo: "/contact",
+    ctaTo: "/workshop-booking?type=paint",
   },
 ];
 

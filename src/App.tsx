@@ -27,6 +27,8 @@ import Inspiration from "./pages/Inspiration";
 import KitBentoCake from "./pages/KitBentoCake";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import AdminOrder from "./pages/AdminOrder";
+import WorkshopBooking from "./pages/WorkshopBooking";
+import BookingConfirmation from "./pages/BookingConfirmation";
 import OrderAction from "./pages/OrderAction";
 import NotFound from "./pages/NotFound";
 import Legal from "./pages/Legal";
@@ -104,6 +106,8 @@ const App = () => (
             <Route path="/candles" element={<Candles />} />
             <Route path="/printing" element={<Printing />} />
             <Route path="/workshop" element={<Workshop />} />
+            <Route path="/workshop-booking" element={<WorkshopBooking />} />
+            <Route path="/workshop-confirmation" element={<BookingConfirmation />} />
             <Route path="/kit-bento-cake" element={<KitBentoCake />} />
             <Route path="/inspiration" element={<Inspiration />} />
             <Route path="/about" element={<OurStory />} />

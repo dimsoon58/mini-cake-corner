@@ -545,3 +545,31 @@ All colors MUST be HSL.
 .rdp-vhidden {
   display: none !important;
 }
+
+/* Hide duplicate text values in calendar dropdowns */
+.rdp-dropdown_month span,
+.rdp-dropdown_year span,
+.rdp-dropdown_month ~ span,
+.rdp-dropdown_year ~ span,
+.rdp-caption_dropdowns .rdp-caption_label {
+  display: none !important;
+}
+
+/* Force hide all caption labels and nav chevrons in dropdown calendar */
+.rdp-caption_label,
+.rdp-nav,
+.rdp-nav_button,
+.rdp-caption_dropdowns span:not(.rdp-vhidden) {
+  display: none !important;
+}
+.rdp-caption_dropdowns {
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+/* Hide chevron icons inside dropdown wrappers */
+.rdp-dropdown_month svg,
+.rdp-dropdown_year svg {
+  display: none !important;
+}
