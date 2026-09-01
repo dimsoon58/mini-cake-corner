@@ -117,7 +117,7 @@ const Login = () => {
   return (
     <Layout>
       <main className="max-w-md mx-auto px-6 py-16">
-        <h1 className="font-sans uppercase tracking-[0.105em] text-3xl text-foreground mb-10 text-center">
+        <h1 className="font-sans uppercase tracking-[0.105em] text-3xl text-foreground mb-10 text-center font-semibold">
           {t("Sign In", "Se connecter")}
         </h1>
 

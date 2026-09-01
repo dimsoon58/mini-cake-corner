@@ -266,7 +266,7 @@ const Candles = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-16">
-        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6">
+        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
           {t("CANDLES", "BOUGIES")}
         </h1>
         <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">

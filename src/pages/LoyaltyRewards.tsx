@@ -45,7 +45,7 @@ const LoyaltyRewards = () => {
   return (
     <Layout>
       <main className="max-w-2xl mx-auto px-6 py-16">
-        <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-4xl text-foreground mb-12 text-center">
+        <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-4xl text-foreground mb-12 text-center font-semibold">
           {t("Loyalty Rewards", "Programme de fidélité")}
         </h1>
 
