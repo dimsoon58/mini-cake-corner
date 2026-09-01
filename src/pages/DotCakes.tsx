@@ -367,18 +367,6 @@ const DotCakes = () => {
                 <span className="text-sm text-muted-foreground">{selectedFlavours.length}/{pack.flavours} {t("selected", "sélectionnés")}</span>
               </div>
 
-              {/* Nav buttons at top */}
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={goBack}
-                  className="rounded-none border-border text-[11px] font-semibold uppercase tracking-[0.12em] px-6 py-2.5">
-                  ← {t("Back", "Retour")}
-                </Button>
-                <Button onClick={goNext}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-semibold uppercase tracking-[0.12em] rounded-none px-8 py-2.5">
-                  {t("Next", "Suivant")} →
-                </Button>
-              </div>
-
               {/* Standard flavours */}
               {flavorCategories.map((category) => {
                 const tier = tierByCategory[category.name];
@@ -466,7 +454,6 @@ const DotCakes = () => {
 
               <AllergenNotice className="pt-2" />
 
-              {/* Nav buttons at bottom too */}
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={goBack}
                   className="rounded-none border-border text-[11px] font-semibold uppercase tracking-[0.12em] px-6 py-2.5">
