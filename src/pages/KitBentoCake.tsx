@@ -408,9 +408,9 @@ const KitBentoCake = () => {
     if (step === 3 && !selectedFlavor) { toast.error(t("Please choose a flavour.", "Veuillez choisir un parfum.")); return; }
     if (step === 4 && !pipingComplete) { toast.error(t("Please choose your piping bags and their colours.", "Veuillez choisir vos poches à douille et leurs couleurs.")); return; }
     setStep((s) => Math.min(s + 1, 6));
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const goBack = () => { setStep((s) => Math.max(s - 1, 1)); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const goBack = () => { setStep((s) => Math.max(s - 1, 1)); };
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [step]);
 
   const stepLabels = [t("Date","Date"), t("Shape","Forme"), t("Flavour","Parfum"), t("Piping","Poches"), t("Candles","Bougies"), t("Confirm","Confirmer")];
 
