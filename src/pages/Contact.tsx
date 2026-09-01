@@ -70,7 +70,7 @@ const Contact = () => {
         <div className="space-y-8 text-foreground leading-relaxed">
           <div className="space-y-2">
             <p className="font-semibold">
-              {t("QUESTIONS? OUR TEAM IS HERE TO HELP.", "QUESTIONS ? NOTRE ÉQUIPE EST LÀ POUR VOUS AIDER.")}<br />{t("Contact us on WhatsApp:", "Contactez-nous sur WhatsApp :")}{" "}
+              {t("QUESTIONS? OUR TEAM IS HERE TO HELP.", "QUESTIONS ? NOTRE ÉQUIPE EST LÀ POUR VOUS AIDER.")}<br /><br />{t("Contact us on WhatsApp:", "Contactez-nous sur WhatsApp :")}{" "}
               <a
                 href="https://wa.me/41783379500"
                 target="_blank"
