@@ -379,7 +379,7 @@ const DotCakes = () => {
                         <span className="text-muted-foreground ml-2 text-sm">({t(tier.note, tierNoteFr[tier.note] ?? tier.note)})</span>
                       )}
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
                       {category.flavors.map((flavor) => {
                         const isSelected = selectedFlavours.includes(flavor.id);
                         const atCap = !isSelected && selectedFlavours.length >= pack.flavours;
@@ -393,7 +393,7 @@ const DotCakes = () => {
                             )}
                             onClick={() => !atCap && toggleFlavour(flavor.id)}
                           >
-                            <div className="aspect-square overflow-hidden bg-muted/30 p-4">
+                            <div className="aspect-square overflow-hidden bg-muted/30 p-2">
                               <img src={flavor.image} alt={flavor.name} className="w-full h-full object-contain" />
                             </div>
                             <div className="p-3 text-center">
