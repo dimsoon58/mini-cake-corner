@@ -239,6 +239,31 @@ const butterflyColors = [
   { id: "gold", name: "Gold", color: "#D4AF37" },
 ];
 
+const StyleImageCarousel = ({ image, secondImage, name }: { image: string; secondImage?: string; name: string }) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const images = secondImage ? [image, secondImage] : [image];
+  return (
+    <div className="aspect-square overflow-hidden relative">
+      <img
+        src={images[activeIndex]}
+        alt={name}
+        className="w-full h-full object-cover transition-opacity duration-300"
+      />
+      {secondImage && (
+        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+          {images.map((_, i) => (
+            <button
+              key={i}
+              onClick={(e) => { e.stopPropagation(); setActiveIndex(i); }}
+              className={`w-2 h-2 rounded-full transition-all ${i === activeIndex ? "bg-white scale-110" : "bg-white/50"}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Customize = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -761,20 +786,7 @@ const Customize = () => {
                       onClick={() => handleSelectStyle(style.id)}
                     >
                       {style.image && (
-                        <div className="aspect-square overflow-hidden relative group">
-                          <img
-                            src={style.image}
-                            alt={style.name}
-                            className={style.secondImage ? "w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-0" : "w-full h-full object-cover"}
-                          />
-                          {style.secondImage && (
-                            <img
-                              src={style.secondImage}
-                              alt={style.name}
-                              className="w-full h-full object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                            />
-                          )}
-                        </div>
+                        <StyleImageCarousel image={style.image} secondImage={style.secondImage} name={style.name} />
                       )}
                       <CardContent className={cn("p-4 text-center", !style.image && "py-8")}>
                         <h3 className="font-medium text-foreground">{style.name}</h3>
