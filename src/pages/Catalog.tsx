@@ -96,6 +96,7 @@ import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designButterflyGarden2 from "@/assets/design-butterfly-garden-2.jpg";
 import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
+import styleNormalWithBorder2 from "@/assets/design-normal-with-border-2.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
 import styleNormalWithoutBorder2 from "@/assets/style-normal-without-border-2.jpg";
 import extraSprinkles from "@/assets/extra-sprinkles-new2.jpg";
@@ -330,6 +331,7 @@ const catalog = [
     description: "Classic cake with elegant piped border",
     priceRange: "CHF 40 – 170",
     image: styleNormalWithBorder,
+    images: [styleNormalWithBorder, styleNormalWithBorder2],
     styleId: "normal-with-border",
     styleName: "Normal with border",
     stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
