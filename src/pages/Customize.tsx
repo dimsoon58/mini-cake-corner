@@ -761,12 +761,19 @@ const Customize = () => {
                       onClick={() => handleSelectStyle(style.id)}
                     >
                       {style.image && (
-                        <div className="aspect-square overflow-hidden">
+                        <div className="aspect-square overflow-hidden relative group">
                           <img
                             src={style.image}
                             alt={style.name}
-                            className="w-full h-full object-cover"
+                            className={`w-full h-full object-cover transition-opacity duration-300${style.secondImage ? " group-hover:opacity-0" : ""}`}
                           />
+                          {style.secondImage && (
+                            <img
+                              src={style.secondImage}
+                              alt={style.name}
+                              className="w-full h-full object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                            />
+                          )}
                         </div>
                       )}
                       <CardContent className={cn("p-4 text-center", !style.image && "py-8")}>
