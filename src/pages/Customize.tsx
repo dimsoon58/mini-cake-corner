@@ -242,6 +242,8 @@ const butterflyColors = [
 const StyleImageCarousel = ({ image, secondImage, name }: { image: string; secondImage?: string; name: string }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const images = secondImage ? [image, secondImage] : [image];
+  const prev = (e: React.MouseEvent) => { e.stopPropagation(); setActiveIndex(i => (i - 1 + images.length) % images.length); };
+  const next = (e: React.MouseEvent) => { e.stopPropagation(); setActiveIndex(i => (i + 1) % images.length); };
   return (
     <div className="aspect-square overflow-hidden relative">
       <img
@@ -250,26 +252,23 @@ const StyleImageCarousel = ({ image, secondImage, name }: { image: string; secon
         className="w-full h-full object-cover transition-opacity duration-300"
       />
       {secondImage && (
-        <div style={{ position: "absolute", bottom: "8px", left: 0, right: 0, display: "flex", justifyContent: "center", gap: "6px", zIndex: 10 }}>
-          {images.map((_, i) => (
-            <button
-              key={i}
-              onClick={(e) => { e.stopPropagation(); setActiveIndex(i); }}
-              style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                border: "none",
-                cursor: "pointer",
-                backgroundColor: i === activeIndex ? "#78020C" : "rgba(120,2,12,0.35)",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
-                padding: 0,
-                transform: i === activeIndex ? "scale(1.2)" : "scale(1)",
-                transition: "all 0.2s"
-              }}
-            />
-          ))}
-        </div>
+        <>
+          <button onClick={prev} style={{ position: "absolute", left: "8px", top: "50%", transform: "translateY(-50%)", zIndex: 10, background: "rgba(253,248,226,0.85)", border: "none", borderRadius: "50%", width: "28px", height: "28px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 2L4 6L8 10" stroke="#78020C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+          <button onClick={next} style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", zIndex: 10, background: "rgba(253,248,226,0.85)", border: "none", borderRadius: "50%", width: "28px", height: "28px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2L8 6L4 10" stroke="#78020C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+          <div style={{ position: "absolute", bottom: "8px", left: 0, right: 0, display: "flex", justifyContent: "center", gap: "6px", zIndex: 10 }}>
+            {images.map((_, i) => (
+              <button key={i} onClick={(e) => { e.stopPropagation(); setActiveIndex(i); }}
+                style={{ width: "8px", height: "8px", borderRadius: "50%", border: "none", cursor: "pointer",
+                  backgroundColor: i === activeIndex ? "#78020C" : "rgba(120,2,12,0.35)",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.4)", padding: 0,
+                  transform: i === activeIndex ? "scale(1.2)" : "scale(1)", transition: "all 0.2s" }} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
