@@ -765,7 +765,7 @@ const Customize = () => {
                           <img
                             src={style.image}
                             alt={style.name}
-                            className={`w-full h-full object-cover transition-opacity duration-300${style.secondImage ? " group-hover:opacity-0" : ""}`}
+                            className={style.secondImage ? "w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-0" : "w-full h-full object-cover"}
                           />
                           {style.secondImage && (
                             <img
