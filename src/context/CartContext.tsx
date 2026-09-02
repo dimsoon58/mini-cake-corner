@@ -54,6 +54,14 @@ export interface CartItem {
   comment: string;
   imageUrls: string[];
   imageFiles: File[];
+  /* Absolute URL of the exact catalogue design photo the customer clicked
+     on (multi-option designs on Catalog.tsx — the same selection that
+     produces the "[Preferred design: Option N]" comment). Complements
+     `style`/`design` (the design type id) and `imageUrls` /
+     order_items.reference_images (client uploads) — it never replaces
+     either. Left unset by every other add-to-cart surface and for
+     single-photo designs; persisted to order_items.design_image_url. */
+  designImageUrl?: string | null;
   total: number;
   /* Standalone candle product (added from the Candles page) */
   isCandleProduct?: boolean;

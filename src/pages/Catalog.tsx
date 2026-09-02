@@ -1452,6 +1452,16 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       comment: selectedCake.images && selectedCake.images.length > 1
         ? `[Preferred design: Option ${selections.shagDesignPreference + 1}]${selections.comment ? " " + selections.comment : ""}`
         : selections.comment,
+      // Same gate as the "[Preferred design: Option N]" comment above, so the
+      // two never disagree: when the design offers several photos, store the
+      // absolute URL of the exact one the customer picked. null otherwise
+      // (single-photo design, or a design with no photo array at all).
+      designImageUrl: selectedCake.images && selectedCake.images.length > 1
+        ? new URL(
+            selectedCake.images[selections.shagDesignPreference] ?? selectedCake.images[0],
+            window.location.origin,
+          ).href
+        : null,
       imageUrls: selectedCake.styleId === "inspiration" ? [selectedCake.image] : [],
       imageFiles: [...selections.commentImages],
       total: calculatePrice(),

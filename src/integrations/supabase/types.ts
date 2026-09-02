@@ -157,6 +157,7 @@ export type Database = {
           base_color: string | null
           butterfly_color: string | null
           cake_text: string | null
+          candle_colors: string[] | null
           candle_name: string | null
           candle_quantity: number | null
           candles: Json
@@ -164,6 +165,7 @@ export type Database = {
           created_at: string
           decoration_color: string | null
           design: string | null
+          design_image_url: string | null
           extra: string | null
           extra_color: string | null
           extra_type: string | null
@@ -190,6 +192,7 @@ export type Database = {
           base_color?: string | null
           butterfly_color?: string | null
           cake_text?: string | null
+          candle_colors?: string[] | null
           candle_name?: string | null
           candle_quantity?: number | null
           candles?: Json
@@ -197,6 +200,7 @@ export type Database = {
           created_at?: string
           decoration_color?: string | null
           design?: string | null
+          design_image_url?: string | null
           extra?: string | null
           extra_color?: string | null
           extra_type?: string | null
@@ -223,6 +227,7 @@ export type Database = {
           base_color?: string | null
           butterfly_color?: string | null
           cake_text?: string | null
+          candle_colors?: string[] | null
           candle_name?: string | null
           candle_quantity?: number | null
           candles?: Json
@@ -230,6 +235,7 @@ export type Database = {
           created_at?: string
           decoration_color?: string | null
           design?: string | null
+          design_image_url?: string | null
           extra?: string | null
           extra_color?: string | null
           extra_type?: string | null
