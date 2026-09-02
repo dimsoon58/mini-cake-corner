@@ -1052,24 +1052,9 @@ const BentoGallery = () => {
 
 const CakeCardImage = ({ images, name }: { images: string[]; name: string }) => {
   const [idx, setIdx] = useState(0);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const handleEnter = () => {
-    if (images.length <= 1) return;
-    let i = 0;
-    timer.current = setInterval(() => {
-      i = (i + 1) % images.length;
-      setIdx(i);
-    }, 900);
-  };
-  const handleLeave = () => {
-    if (timer.current) clearInterval(timer.current);
-    setIdx(0);
-  };
   return (
     <div
       className="aspect-square overflow-hidden bg-muted/30 relative cursor-pointer"
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
     >
       {images.map((src, i) => (
         <img
