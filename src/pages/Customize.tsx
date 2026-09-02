@@ -250,12 +250,23 @@ const StyleImageCarousel = ({ image, secondImage, name }: { image: string; secon
         className="w-full h-full object-cover transition-opacity duration-300"
       />
       {secondImage && (
-        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+        <div style={{ position: "absolute", bottom: "8px", left: 0, right: 0, display: "flex", justifyContent: "center", gap: "6px", zIndex: 10 }}>
           {images.map((_, i) => (
             <button
               key={i}
               onClick={(e) => { e.stopPropagation(); setActiveIndex(i); }}
-              className={`w-2 h-2 rounded-full transition-all ${i === activeIndex ? "bg-white scale-110" : "bg-white/50"}`}
+              style={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                border: "none",
+                cursor: "pointer",
+                backgroundColor: i === activeIndex ? "#78020C" : "rgba(120,2,12,0.35)",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                padding: 0,
+                transform: i === activeIndex ? "scale(1.2)" : "scale(1)",
+                transition: "all 0.2s"
+              }}
             />
           ))}
         </div>
