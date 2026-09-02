@@ -91,6 +91,7 @@ import rectangleSignature from "@/assets/rectangle-signature.jpg";
 import rectangleRaspberries from "@/assets/rectangle-raspberries.jpg";
 import rectangleFlowers from "@/assets/rectangle-flowers.jpg";
 import designRosesPlease2 from "@/assets/design-roses-please-2.jpg";
+import designRosesPlease3 from "@/assets/design-roses-please-3.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designButterflyGarden2 from "@/assets/design-butterfly-garden-2.jpg";
 import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
@@ -396,7 +397,7 @@ const catalog = [
     name: "Roses Please",
     description: "Elegant cake adorned with beautiful piped roses",
     image: designRosesPlease,
-    images: [designRosesPlease, designRosesPlease2],
+    images: [designRosesPlease, designRosesPlease2, designRosesPlease3],
     styleId: "roses-please",
     styleName: "Roses Please",
     priceRange: "CHF 46 – 190",
