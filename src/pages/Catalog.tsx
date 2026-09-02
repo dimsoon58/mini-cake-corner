@@ -1419,6 +1419,22 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       c.id === NUMBER_CANDLE_ID ? { ...c, digit: numberCandleDigit } : c
     );
 
+    // Absolute URL of the catalogue design photo the customer chose. When
+    // the design has several option photos, that's the exact one they
+    // clicked (selections.shagDesignPreference — the same index behind the
+    // "[Preferred design: Option N]" comment); otherwise it's the design's
+    // single photo. null only for an inspiration cake, whose photo is a
+    // client reference already carried in imageUrls, not a catalogue design.
+    const chosenDesignImage =
+      selectedCake.images && selectedCake.images.length > 1
+        ? selectedCake.images[selections.shagDesignPreference] ?? selectedCake.images[0]
+        : selectedCake.styleId === "inspiration"
+          ? null
+          : selectedCake.image || null;
+    const designImageUrl = chosenDesignImage
+      ? new URL(chosenDesignImage, window.location.origin).href
+      : null;
+
     const added = addItem({
       id: "",
       product: selections.size === "rectangle" ? "rectangle_cake" : "bento_cake",
@@ -1452,16 +1468,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       comment: selectedCake.images && selectedCake.images.length > 1
         ? `[Preferred design: Option ${selections.shagDesignPreference + 1}]${selections.comment ? " " + selections.comment : ""}`
         : selections.comment,
-      // Same gate as the "[Preferred design: Option N]" comment above, so the
-      // two never disagree: when the design offers several photos, store the
-      // absolute URL of the exact one the customer picked. null otherwise
-      // (single-photo design, or a design with no photo array at all).
-      designImageUrl: selectedCake.images && selectedCake.images.length > 1
-        ? new URL(
-            selectedCake.images[selections.shagDesignPreference] ?? selectedCake.images[0],
-            window.location.origin,
-          ).href
-        : null,
+      designImageUrl,
       imageUrls: selectedCake.styleId === "inspiration" ? [selectedCake.image] : [],
       imageFiles: [...selections.commentImages],
       total: calculatePrice(),
