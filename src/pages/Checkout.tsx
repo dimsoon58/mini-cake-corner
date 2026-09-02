@@ -9,6 +9,7 @@ import {
 } from "@/data/customization";
 import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, composeCandleName } from "@/lib/candleCartHelpers";
+import { FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import {
   COUNTRY_CODES,
   normalizeEmail,
@@ -258,6 +259,27 @@ const buildCandleFields = (
   const totalQuantity = active.reduce((sum, c) => sum + c.quantity, 0);
   return { candleName: names.join(", "), candleQuantity: totalQuantity };
 };
+
+// Builds order_items.candle_colors — the human-readable English names of the
+// colours the customer actually picked for "by the piece" colour-family
+// candles (Thick / Shiny Spiral, Pastel Spiral, Rainbow). Same idea as
+// buildCandleFields: one flat list across every candle line of the item,
+// duplicates kept on purpose so two loose pink candles read as
+// ["Pink", "Pink"]. Candles with no colour choice (packs, plain models,
+// the Number Candle) contribute nothing, so an item without any coloured
+// candle yields []. CandleSelection.colors holds colour ids ("dark-pink");
+// FAMILY_CANDLE_COLORS[candleId] resolves each to its English label, and an
+// unknown id falls back to the raw id rather than being dropped.
+const buildCandleColors = (
+  candleSelections: { id: string; colors?: string[] }[],
+): string[] =>
+  candleSelections.flatMap((c) => {
+    if (!c.colors || c.colors.length === 0) return [];
+    const family = FAMILY_CANDLE_COLORS[c.id];
+    return c.colors.map(
+      (colorId) => family?.find((x) => x.id === colorId)?.en ?? colorId,
+    );
+  });
 
 const uploadImageFilesToStorage = async (
   allFiles: File[],
@@ -735,6 +757,10 @@ const Checkout = () => {
           shape: item.shape || null,
           flavors: item.flavorName ? item.flavorName.split(",").map((f) => f.trim()).filter(Boolean) : [],
           design: item.style || null,
+          // Exact catalogue design photo the customer clicked (multi-option
+          // designs only) — complements `design`, never replaces it. null for
+          // every other case; old orders stay null and keep working.
+          design_image_url: item.designImageUrl || null,
           base_color: item.baseColor || null,
           decoration_color: item.decorationColor || null,
           cake_text: item.cakeText || null,
@@ -750,6 +776,10 @@ const Checkout = () => {
           candle_name: candleName,
           candle_quantity: candleQuantity,
           candles_price: candlesPrice,
+          // Human-readable colours actually chosen for the candles (both the
+          // standalone Candles.tsx purchase and candles added on top of a
+          // cake carry them in item.candles[].colors). [] when none apply.
+          candle_colors: buildCandleColors(item.candles || []),
           reference_images: item.imageUrls || [],
           item_comment: item.comment || null,
           total: item.total,

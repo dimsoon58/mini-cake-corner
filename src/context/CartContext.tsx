@@ -54,6 +54,14 @@ export interface CartItem {
   comment: string;
   imageUrls: string[];
   imageFiles: File[];
+  /* Absolute URL of the catalogue design photo the customer chose on
+     Catalog.tsx: the exact option they clicked for a multi-photo design,
+     otherwise the design's single photo. Complements `style`/`design` (the
+     design type id) and `imageUrls` / order_items.reference_images (client
+     uploads) — it never replaces either. null for an inspiration cake and
+     for every other add-to-cart surface; persisted to
+     order_items.design_image_url. */
+  designImageUrl?: string | null;
   total: number;
   /* Standalone candle product (added from the Candles page) */
   isCandleProduct?: boolean;
