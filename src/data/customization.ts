@@ -29,6 +29,7 @@ import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
 // Style images
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
+import styleNormalWithoutBorder2 from "@/assets/style-normal-without-border-2.jpg";
 import designSprinklesWithBorder from "@/assets/design-sprinkles-with-border.jpg";
 import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
 import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
@@ -184,7 +185,7 @@ export const flavorCategories = [
 export const allFlavors = flavorCategories.flatMap(c => c.flavors);
 
 export const styles = [
-  { id: "normal-without-border", name: "Normal without border", price: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 } as Record<string, number>, image: styleNormalWithoutBorder },
+  { id: "normal-without-border", name: "Normal without border", price: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 } as Record<string, number>, image: styleNormalWithoutBorder, secondImage: styleNormalWithoutBorder2 },
   { id: "normal-with-border", name: "Normal with border", price: { bento: 0, retro: 0, medium: 0, large: 0, rectangle: 0 } as Record<string, number>, image: styleNormalWithBorder },
   { id: "heart-bomb", name: "Heart Bomb", price: { bento: 3, retro: 5, medium: 10, large: 15, rectangle: 20 } as Record<string, number>, image: designHeartBomb },
   { id: "retro-vintage", name: "Retro / Vintage", price: { retro: 6, medium: 10, large: 15, rectangle: 30 } as Record<string, number>, image: designRetroCake },
