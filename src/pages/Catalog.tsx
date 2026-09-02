@@ -1079,6 +1079,17 @@ const CakeCardImage = ({ images, name }: { images: string[]; name: string }) => 
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${i === idx ? "opacity-100" : "opacity-0"}`}
         />
       ))}
+      {images.length > 1 && (
+        <div style={{ position: "absolute", bottom: "8px", left: 0, right: 0, display: "flex", justifyContent: "center", gap: "6px", zIndex: 10 }}>
+          {images.map((_, i) => (
+            <button key={i} onClick={(e) => { e.stopPropagation(); setIdx(i); }}
+              style={{ width: "8px", height: "8px", borderRadius: "50%", border: "none", cursor: "pointer",
+                backgroundColor: i === idx ? "#78020C" : "rgba(120,2,12,0.35)",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.4)", padding: 0,
+                transform: i === idx ? "scale(1.2)" : "scale(1)", transition: "all 0.2s" }} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
