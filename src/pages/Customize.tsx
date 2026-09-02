@@ -52,6 +52,7 @@ import candleHeart from "@/assets/candle-heart-new.png";
 // Style images
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
+import styleNormalWithoutBorder2 from "@/assets/style-normal-without-border-2.jpg";
 import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
 import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
 import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
@@ -151,7 +152,7 @@ const flavorCategories = [
 
 const styles = [
   { id: "normal-with-border", name: "Normal with border", price: { bento: 0, retro: 0, medium: 0, large: 0 }, image: styleNormalWithBorder },
-  { id: "normal-without-border", name: "Normal without border", price: { bento: 0, retro: 0, medium: 0, large: 0 }, image: styleNormalWithoutBorder },
+  { id: "normal-without-border", name: "Normal without border", price: { bento: 0, retro: 0, medium: 0, large: 0 }, image: styleNormalWithoutBorder, secondImage: styleNormalWithoutBorder2 },
   { id: "retro-vintage", name: "Retro / Vintage", price: { retro: 6, medium: 10, large: 15 }, image: designRetroCake },
   { id: "heart-bomb", name: "Heart Bomb", price: { bento: 3, retro: 5, medium: 10, large: 15 }, image: designHeartBomb },
   { id: "shag-cake", name: "Shag Cake", price: { retro: 12, medium: 20, large: 30 }, image: designShagCake, secondImage: designShagCake2 },
