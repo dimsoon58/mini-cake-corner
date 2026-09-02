@@ -96,6 +96,7 @@ import designButterflyGarden2 from "@/assets/design-butterfly-garden-2.jpg";
 import designPearlNumber from "@/assets/design-pearl-number-new.jpg";
 import styleNormalWithBorder from "@/assets/style-normal-with-border.jpg";
 import styleNormalWithoutBorder from "@/assets/style-normal-without-border.jpg";
+import styleNormalWithoutBorder2 from "@/assets/style-normal-without-border-2.jpg";
 import extraSprinkles from "@/assets/extra-sprinkles-new2.jpg";
 import extraCherries from "@/assets/extra-cherries-new.jpg";
 import extraGlitterCherries from "@/assets/extra-glitter-cherries-new.jpg";
@@ -316,6 +317,7 @@ const catalog = [
     description: "A smooth, clean and elegant finish",
     priceRange: "CHF 40 – 170",
     image: styleNormalWithoutBorder,
+    images: [styleNormalWithoutBorder, styleNormalWithoutBorder2],
     styleId: "normal-without-border",
     styleName: "Normal without border",
     stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
