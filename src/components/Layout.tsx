@@ -186,11 +186,20 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
           )}
 
           <div className="flex items-center justify-end gap-1.5 md:gap-4 justify-self-end">
-            <div className={cn("flex items-center gap-1 md:gap-1.5 text-xs font-medium tracking-[0.1em] uppercase", light ? "text-cream" : "text-foreground")}>
+            {/* Desktop: show both EN | FR */}
+            <div className={cn("hidden md:flex items-center gap-1.5 text-xs font-medium tracking-[0.1em] uppercase", light ? "text-cream" : "text-foreground")}>
               <button onClick={() => setLang("en")} className={lang === "en" ? "font-bold" : "opacity-50 hover:opacity-80 transition-opacity"} aria-label="English">EN</button>
               <span className="opacity-40">|</span>
               <button onClick={() => setLang("fr")} className={lang === "fr" ? "font-bold" : "opacity-50 hover:opacity-80 transition-opacity"} aria-label="Francais">FR</button>
             </div>
+            {/* Mobile: show only the inactive language as a toggle */}
+            <button
+              className={cn("md:hidden text-xs font-medium tracking-[0.1em] uppercase opacity-60 hover:opacity-100 transition-opacity", light ? "text-cream" : "text-foreground")}
+              onClick={() => setLang(lang === "en" ? "fr" : "en")}
+              aria-label={lang === "en" ? "Passer en français" : "Switch to English"}
+            >
+              {lang === "en" ? "FR" : "EN"}
+            </button>
             <div className="flex items-center">
               <AccountMenu light={light} />
             </div>
