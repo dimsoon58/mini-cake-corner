@@ -1785,7 +1785,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       <SelectTrigger>
                         <SelectValue placeholder={t("Select flavour", "Choisir un parfum")} />
                       </SelectTrigger>
-                      <SelectContent nativeScroll>
+                      <SelectContent nativeScroll className="w-[min(90vw,420px)]">
                         <SelectGroup>
                           <SelectLabel>{t("Standard", "Standard")}</SelectLabel>
                           {standardFlavors.map(renderFlavorOption)}
