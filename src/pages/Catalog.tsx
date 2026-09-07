@@ -2215,7 +2215,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                               <ExtraImageLightbox src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1">
-                                  <p className="text-xs font-medium text-foreground truncate">{extra.id === "pearl-border" && selectedCake?.styleId === "retro-ribbons-glitter" ? t("Full border of pearls", "Bordure complète de perles") : t(extra.name, extraNameFr[extra.id] ?? extra.name)}</p>
+                                  <p className="text-xs font-medium text-foreground whitespace-normal">{extra.id === "pearl-border" && selectedCake?.styleId === "retro-ribbons-glitter" ? t("Full border of pearls", "Bordure complète de perles") : t(extra.name, extraNameFr[extra.id] ?? extra.name)}</p>
                                   {extraDescriptions[extra.id] && (
                                     <Tooltip>
                                       <TooltipTrigger asChild>
