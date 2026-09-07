@@ -36,7 +36,7 @@ import { useFieldError } from "@/lib/formErrors";
 
 import cardCelebrations from "@/assets/corporate-event-5.png";
 import cardEvents from "@/assets/partner-gallery-11.jpg";
-import cardHospitality from "@/assets/corporate-event-11.png";
+import cardHospitality from "@/assets/corporate-hospitality.jpg";
 
 const phoneRegex = /^[+\d][\d\s().\-/]{6,}$/;
 
