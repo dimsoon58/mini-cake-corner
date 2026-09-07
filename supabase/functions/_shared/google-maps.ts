@@ -56,7 +56,9 @@ export async function placesAutocomplete(
       input,
       sessionToken,
       languageCode,
-      includedPrimaryTypes: ["street_address", "premise", "subpremise"],
+      // Keep predictions to real street addresses / buildings (not cities,
+      // regions or businesses).
+      includedPrimaryTypes: ["street_address", "premise"],
       includedRegionCodes: AUTOCOMPLETE_REGION_CODES,
       locationBias: {
         circle: {

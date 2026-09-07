@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { priceOrderItem, type PricingInput } from "../_shared/pricing.ts";
-import { resolveDeliveryFee } from "../_shared/delivery-pricing.ts";
+import { resolveDeliveryFeeByDistance } from "../_shared/delivery-pricing.ts";
+import { resolveDeliveryForPlaceId } from "../_shared/google-maps.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,6 +49,11 @@ interface OrderRow {
   delivery_address: string | null;
   delivery_zone: string | null;
   delivery_fee: number;
+  delivery_postal_code: string | null;
+  delivery_city: string | null;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
+  delivery_distance_km: number | null;
   total_amount: number;
   [key: string]: unknown;
 }
@@ -75,6 +81,11 @@ interface PaymentRequest {
   // aligned with orderItems. Never used directly as a charge — always
   // passed through priceOrderItem() first.
   pricingItems: PricingInput[];
+  // Google place id of the address the customer selected in the delivery
+  // autocomplete. The ONLY delivery input trusted here: address, coordinates
+  // and driving distance are all re-resolved server-side from it below —
+  // the client-sent fee / distance / coordinates are ignored for the charge.
+  deliveryPlaceId?: string | null;
 }
 
 function roundToCents(amount: number): number {
@@ -118,7 +129,7 @@ serve(async (req) => {
     const credentials = getPostFinanceCredentials();
 
     const body: PaymentRequest = await req.json();
-    const { orderId, order, orderItems, useWelcomeDiscount, pricingItems } = body;
+    const { orderId, order, orderItems, useWelcomeDiscount, pricingItems, deliveryPlaceId } = body;
 
     if (!orderId) throw new Error("orderId is required");
     if (!order) throw new Error("order is required");
@@ -142,13 +153,46 @@ serve(async (req) => {
       orderItems[i].total = result.total;
     }
 
-    // Delivery fee is never trusted from the client either — resolved
-    // independently from the address, same as product pricing above.
-    // An address whose postal code matches no known zone resolves to fee 0,
-    // matching existing client-side behaviour (not tightened here).
-    order.delivery_fee = order.delivery_method === "delivery"
-      ? resolveDeliveryFee(order.delivery_address ?? "").fee
-      : 0;
+    // Delivery fee is never trusted from the client — recomputed here from
+    // scratch, same principle as product pricing above. The customer's
+    // selected Google place id is re-resolved server-side to an address +
+    // coordinates + real driving distance, then the tariff grid in
+    // _shared/delivery-pricing.ts decides the fee. Any client-sent
+    // delivery_fee / delivery_distance_km / coordinates are overwritten.
+    if (order.delivery_method === "delivery") {
+      if (!deliveryPlaceId || typeof deliveryPlaceId !== "string") {
+        throw new Error("Please select your delivery address from the suggestions.");
+      }
+
+      let resolution;
+      try {
+        resolution = await resolveDeliveryForPlaceId(deliveryPlaceId);
+      } catch (geoError) {
+        console.error("Delivery distance resolution failed:", geoError);
+        throw new Error(
+          "We couldn't calculate the delivery distance right now. Please try again in a moment, or choose pick-up.",
+        );
+      }
+
+      const tier = resolveDeliveryFeeByDistance(resolution.distanceKm);
+      if (!tier.deliverable) {
+        throw new Error("Delivery is not available for this address.");
+      }
+
+      // Everything delivery-related on the order is stamped from the
+      // server-resolved values — not from the client payload.
+      order.delivery_address = resolution.formattedAddress || order.delivery_address;
+      order.delivery_postal_code = resolution.postalCode || null;
+      order.delivery_city = resolution.city || null;
+      order.delivery_latitude = resolution.lat;
+      order.delivery_longitude = resolution.lng;
+      order.delivery_distance_km = Math.round(resolution.distanceKm * 100) / 100;
+      order.delivery_fee = tier.fee;
+      order.delivery_zone = tier.label; // internal ops label, never shown to the customer
+    } else {
+      // Pick-up — unchanged behaviour: no distance lookup, no fee.
+      order.delivery_fee = 0;
+    }
 
     // Never trust customer_id from the client payload — always stamp it
     // server-side from the verified Auth session. The anon key is itself a
@@ -284,7 +328,8 @@ serve(async (req) => {
     // The frontend-sent total_amount is never trusted either — recomputed
     // here from the same real numbers PostFinance is actually charging.
     // orderItems[].total and order.delivery_fee are both server-computed
-    // above (priceOrderItem / resolveDeliveryFee), not client values.
+    // above (priceOrderItem / resolveDeliveryForPlaceId +
+    // resolveDeliveryFeeByDistance), not client values.
     const deliveryFee = order.delivery_method === "delivery" ? order.delivery_fee : 0;
     order.total_amount = roundToCents(productsSubtotal - discountAmount + deliveryFee);
 

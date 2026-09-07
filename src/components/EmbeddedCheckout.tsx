@@ -21,6 +21,9 @@ interface EmbeddedCheckoutProps {
     customerPhone: string;
     deliveryOption: string;
     deliveryAddress?: string;
+    // Google place id of the selected address — the only delivery value the
+    // backend trusts (it re-resolves address + driving distance + fee).
+    deliveryPlaceId?: string;
     deliveryFee: number;
     totalAmount: number;
     // Intent only — create-postfinance-payment independently verifies
@@ -45,7 +48,17 @@ export const PostFinanceCheckout = ({ payload }: EmbeddedCheckoutProps) => {
         });
 
         if (error) {
-          setError(error.message);
+          // supabase-js gives a generic message for a non-2xx function
+          // response; the readable reason (e.g. "Delivery is not available
+          // for this address.") is in the JSON body — surface that instead.
+          let message = error.message;
+          try {
+            const body = await (error as { context?: Response }).context?.json();
+            if (body?.error) message = body.error;
+          } catch {
+            /* keep the generic message */
+          }
+          setError(message);
           return;
         }
 

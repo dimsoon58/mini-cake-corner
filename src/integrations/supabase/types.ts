@@ -57,8 +57,13 @@ export type Database = {
           created_at: string
           customer_id: string | null
           delivery_address: string | null
+          delivery_city: string | null
+          delivery_distance_km: number | null
           delivery_fee: number
+          delivery_latitude: number | null
+          delivery_longitude: number | null
           delivery_method: string
+          delivery_postal_code: string | null
           delivery_zone: string | null
           email: string
           first_name: string
@@ -89,8 +94,13 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           delivery_address?: string | null
+          delivery_city?: string | null
+          delivery_distance_km?: number | null
           delivery_fee?: number
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
           delivery_method: string
+          delivery_postal_code?: string | null
           delivery_zone?: string | null
           email: string
           first_name: string
@@ -121,8 +131,13 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           delivery_address?: string | null
+          delivery_city?: string | null
+          delivery_distance_km?: number | null
           delivery_fee?: number
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
           delivery_method?: string
+          delivery_postal_code?: string | null
           delivery_zone?: string | null
           email?: string
           first_name?: string

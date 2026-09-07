@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
@@ -49,6 +49,7 @@ import {
 } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
+import DeliveryAddressAutocomplete, { type AddressSelection } from "@/components/DeliveryAddressAutocomplete";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -112,55 +113,30 @@ const DELIVERY_TIME_SLOTS = [
   "19:00 – 20:00",
 ];
 
-// Delivery zones configuration with postal codes for auto-detection
-const DELIVERY_ZONES = [
-  {
-    id: "zone1",
-    name: "Zone 1 – Eaux-Vives & alentours",
-    price: 15,
-    postalCodes: ["1207", "1206", "1208", "1225", "1224", "1223"],
-  },
-  {
-    id: "zone2",
-    name: "Zone 2 – Carouge, Thônex, Plainpalais",
-    price: 20,
-    postalCodes: ["1227", "1226", "1205", "1201", "1204"],
-  },
-  {
-    id: "zone3",
-    name: "Zone 3 – Pâquis, Servette, Nations",
-    price: 25,
-    postalCodes: ["1203", "1202", "1209"],
-  },
-  {
-    id: "zone4",
-    name: "Zone 4 – Meyrin, Vernier, Lancy",
-    price: 35,
-    postalCodes: ["1217", "1214", "1219", "1212", "1213", "1228"],
-  },
-  {
-    id: "zone5",
-    name: "Zone 5 – Bernex, Versoix, Bellevue…",
-    price: 40,
-    postalCodes: ["1233", "1234", "1232", "1290", "1292", "1293", "1294"],
-  },
-];
+// Delivery pricing is no longer derived from the postal code on this page.
+// The customer selects a real address (Google Places autocomplete); the
+// driving distance and fee are resolved server-side by the
+// resolve-delivery-quote edge function, and independently re-verified by
+// create-postfinance-payment before any charge. The tariff grid lives only
+// in supabase/functions/_shared/delivery-pricing.ts.
 
-// Function to detect zone from address using postal codes
-const detectZoneFromAddress = (address: string): typeof DELIVERY_ZONES[0] | null => {
-  const postalCodeMatches = address.match(/\b\d{4,5}\b/g);
-  
-  if (!postalCodeMatches) return null;
-  
-  for (const postalCode of postalCodeMatches) {
-    for (const zone of DELIVERY_ZONES) {
-      if (zone.postalCodes.includes(postalCode)) {
-        return zone;
-      }
-    }
-  }
-  return null;
+// Result of resolve-delivery-quote for the selected address.
+type DeliveryQuote = {
+  fee: number;
+  distanceKm: number;
+  postalCode: string;
+  city: string;
+  lat: number | null;
+  lng: number | null;
+  formattedAddress: string;
 };
+
+type DeliveryQuoteStatus =
+  | "idle" // no address selected yet
+  | "loading" // address selected, distance/fee being resolved
+  | "ok" // fee available
+  | "out_of_range" // address is beyond the delivery limit
+  | "error"; // Google unreachable / distance couldn't be computed
 
 const formatDisplayDate = (date: Date) => format(date, "dd.MM.yyyy");
 
@@ -362,6 +338,12 @@ const Checkout = () => {
   });
   const [deliveryOption, setDeliveryOption] = useState("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  // Set only when the customer picks a real Google suggestion. The place id
+  // is the single delivery value the backend trusts — it re-resolves the
+  // address, coordinates and driving distance from it before charging.
+  const [deliveryPlaceId, setDeliveryPlaceId] = useState<string | null>(null);
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
+  const [deliveryQuoteStatus, setDeliveryQuoteStatus] = useState<DeliveryQuoteStatus>("idle");
   const [deliveryComment, setDeliveryComment] = useState("");
   const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
@@ -435,12 +417,58 @@ const Checkout = () => {
 
   const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
 
-  const detectedZone = useMemo(() => {
-    if (deliveryOption !== "delivery" || !deliveryAddress.trim()) return null;
-    return detectZoneFromAddress(deliveryAddress);
-  }, [deliveryOption, deliveryAddress]);
+  // Clears any address/quote already entered — used when the customer edits
+  // the address, or switches back to pick-up. Never leaves a stale fee
+  // attached to a new address.
+  const resetDeliveryQuote = () => {
+    setDeliveryPlaceId(null);
+    setDeliveryQuote(null);
+    setDeliveryQuoteStatus("idle");
+    setDeliveryAddress("");
+  };
 
-  const deliveryPrice = detectedZone?.price || 0;
+  // Fired when the customer picks a real suggestion. Immediately drops the
+  // previous fee, then asks the backend for the driving distance + tariff.
+  const handleAddressSelect = async (selection: AddressSelection) => {
+    setDeliveryAddress(selection.label);
+    setDeliveryPlaceId(selection.placeId);
+    setDeliveryQuote(null);
+    setDeliveryQuoteStatus("loading");
+    try {
+      const { data, error } = await supabase.functions.invoke("resolve-delivery-quote", {
+        body: { placeId: selection.placeId, sessionToken: selection.sessionToken },
+      });
+      if (error || !data) {
+        setDeliveryQuoteStatus("error");
+        return;
+      }
+      if (!data.deliverable) {
+        setDeliveryQuoteStatus("out_of_range");
+        if (data.address?.formattedAddress) setDeliveryAddress(data.address.formattedAddress);
+        return;
+      }
+      setDeliveryQuote({
+        fee: data.fee,
+        distanceKm: data.distanceKm,
+        postalCode: data.address?.postalCode ?? "",
+        city: data.address?.city ?? "",
+        lat: data.address?.lat ?? null,
+        lng: data.address?.lng ?? null,
+        formattedAddress: data.address?.formattedAddress ?? selection.label,
+      });
+      if (data.address?.formattedAddress) setDeliveryAddress(data.address.formattedAddress);
+      setDeliveryQuoteStatus("ok");
+    } catch {
+      setDeliveryQuoteStatus("error");
+    }
+  };
+
+  const deliveryPrice =
+    deliveryOption === "delivery" && deliveryQuoteStatus === "ok" && deliveryQuote
+      ? deliveryQuote.fee
+      : 0;
+
+  const deliveryReady = deliveryOption !== "delivery" || deliveryQuoteStatus === "ok";
 
   // Server-verified at create-postfinance-payment time — this is only a
   // display estimate. A reservation already in flight
@@ -569,20 +597,46 @@ const Checkout = () => {
       return;
     }
 
-    if (deliveryOption === "delivery" && !deliveryAddress.trim()) {
+    if (deliveryOption === "delivery" && (!deliveryPlaceId || deliveryQuoteStatus === "idle")) {
       toast({
-        title: t("Please enter your delivery address", "Veuillez saisir votre adresse de livraison"),
+        title: t("Please select your delivery address", "Veuillez sélectionner votre adresse de livraison"),
+        description: t(
+          "Start typing and pick your address from the suggestions.",
+          "Commencez à saisir votre adresse et choisissez-la dans les suggestions.",
+        ),
         variant: "destructive",
       });
       return;
     }
 
-    if (deliveryOption === "delivery" && !detectedZone) {
+    if (deliveryOption === "delivery" && deliveryQuoteStatus === "loading") {
       toast({
-        title: t("Delivery zone not recognised", "Zone de livraison non reconnue"),
+        title: t("Calculating delivery fee…", "Calcul des frais de livraison…"),
+        description: t("Please wait a moment and try again.", "Merci de patienter un instant puis de réessayer."),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (deliveryOption === "delivery" && deliveryQuoteStatus === "out_of_range") {
+      toast({
+        title: t("Delivery is not available for this address.", "La livraison n'est pas disponible pour cette adresse."),
         description: t(
-          "Please make sure your address includes a recognised area name (e.g., Carouge, Champel, Meyrin...)",
-          "Merci de vérifier que votre adresse contient un nom de quartier reconnu (ex. Carouge, Champel, Meyrin...)"),
+          "You can still choose Pick-up at our store.",
+          "Vous pouvez toujours choisir le retrait à notre boutique.",
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (deliveryOption === "delivery" && (deliveryQuoteStatus !== "ok" || !deliveryQuote)) {
+      toast({
+        title: t("Delivery fee unavailable", "Frais de livraison indisponibles"),
+        description: t(
+          "We couldn't calculate the delivery fee. Please try again, or choose Pick-up.",
+          "Impossible de calculer les frais de livraison. Réessayez, ou choisissez le retrait.",
+        ),
         variant: "destructive",
       });
       return;
@@ -614,10 +668,7 @@ const Checkout = () => {
       trackEvent("add_shipping_info", {
         currency: "CHF",
         value: cartItemsValue(items),
-        shipping_tier:
-          deliveryOption === "delivery"
-            ? detectedZone?.name || "delivery"
-            : "pickup",
+        shipping_tier: deliveryOption === "delivery" ? "delivery" : "pickup",
         items: cartItemsToGA4Items(items),
       });
     }
@@ -712,9 +763,18 @@ const Checkout = () => {
         email: normalizeEmail(email),
         phone: fullPhoneNumber,
         delivery_method: deliveryOption,
-        delivery_address: deliveryOption === "delivery" ? deliveryAddress : null,
-        delivery_zone: deliveryOption === "delivery" ? (detectedZone?.name ?? null) : null,
+        // Delivery fields below are display/record values. create-postfinance-payment
+        // re-resolves address, coordinates, distance and fee from deliveryPlaceId
+        // (server-authoritative) and overwrites delivery_fee / delivery_zone /
+        // delivery_distance_km / coordinates before charging.
+        delivery_address: deliveryOption === "delivery" ? (deliveryQuote?.formattedAddress ?? deliveryAddress) : null,
+        delivery_zone: null,
         delivery_fee: deliveryOption === "delivery" ? deliveryPrice : 0,
+        delivery_postal_code: deliveryOption === "delivery" ? (deliveryQuote?.postalCode || null) : null,
+        delivery_city: deliveryOption === "delivery" ? (deliveryQuote?.city || null) : null,
+        delivery_latitude: deliveryOption === "delivery" ? (deliveryQuote?.lat ?? null) : null,
+        delivery_longitude: deliveryOption === "delivery" ? (deliveryQuote?.lng ?? null) : null,
+        delivery_distance_km: deliveryOption === "delivery" ? (deliveryQuote?.distanceKm ?? null) : null,
         pickup_delivery_date: formattedDate,
         pickup_delivery_slot: slot,
         // Temporary: kept filled until nothing still reads pickup_delivery_datetime.
@@ -907,6 +967,9 @@ const Checkout = () => {
         customerPhone: fullPhoneNumber,
         deliveryOption,
         deliveryAddress: deliveryOption === "delivery" ? deliveryAddress : undefined,
+        // The one delivery value the backend trusts: it re-resolves the
+        // address + driving distance + fee from this id.
+        deliveryPlaceId: deliveryOption === "delivery" ? deliveryPlaceId : undefined,
         deliveryFee: deliveryPrice,
         totalAmount: totalPrice,
         orderId,
@@ -1132,7 +1195,8 @@ const Checkout = () => {
                 onValueChange={(value) => {
                   setDeliveryOption(value);
                   if (value === "pickup") {
-                    setDeliveryAddress("");
+                    // Pick-up is unchanged — drop every delivery-only field.
+                    resetDeliveryQuote();
                     setDeliveryComment("");
                   }
                 }}
@@ -1183,28 +1247,51 @@ const Checkout = () => {
               <div className="space-y-4 p-4 bg-muted/30 border border-border">
                 <h3 className="font-medium text-foreground">{t("Delivery Details", "Détails de la livraison")}</h3>
                 
-                {/* Address Input */}
+                {/* Delivery address — Google Places autocomplete */}
                 <div className="space-y-2">
-                  <Label htmlFor="deliveryAddress">{t("Delivery Address", "Adresse de livraison")}</Label>
-                  <Input
+                  <Label htmlFor="deliveryAddress">{t("Delivery address", "Adresse de livraison")}</Label>
+                  <DeliveryAddressAutocomplete
                     id="deliveryAddress"
-                    value={deliveryAddress}
-                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                    placeholder={t("Enter your full address (e.g., Rue de Carouge 12, 1205 Genève)", "Saisissez votre adresse complète (ex. Rue de Carouge 12, 1205 Genève)")}
                     required={deliveryOption === "delivery"}
+                    languageCode={lang}
+                    placeholder={t("Start typing your address…", "Commencez à saisir votre adresse…")}
+                    onSelect={handleAddressSelect}
+                    onClear={resetDeliveryQuote}
                   />
-                  {deliveryAddress.trim() && (
-                    <div className="text-sm">
-                      {detectedZone ? (
-                        <p className="text-primary">
-                          ✓ {detectedZone.name} {t("detected - Delivery fee:", "détecté, frais de livraison :")} CHF {detectedZone.price}
-                        </p>
-                      ) : (
-                        <p className="text-destructive">
-                          {t("Zone not detected. Please include area name (e.g., Carouge, Champel, Meyrin...)", "Zone non détectée. Merci d'indiquer le nom du quartier (ex. Carouge, Champel, Meyrin...)")}
-                        </p>
+
+                  {deliveryQuoteStatus === "loading" && (
+                    <p className="text-sm text-muted-foreground">
+                      {t("Calculating delivery fee…", "Calcul des frais de livraison…")}
+                    </p>
+                  )}
+                  {deliveryQuoteStatus === "ok" && deliveryQuote && (
+                    <p className="text-sm text-primary">
+                      {t("Delivery", "Livraison")} — CHF {deliveryQuote.fee.toFixed(2)}
+                    </p>
+                  )}
+                  {deliveryQuoteStatus === "out_of_range" && (
+                    <p className="text-sm text-destructive">
+                      {t(
+                        "Delivery is not available for this address.",
+                        "La livraison n'est pas disponible pour cette adresse.",
                       )}
-                    </div>
+                    </p>
+                  )}
+                  {deliveryQuoteStatus === "error" && (
+                    <p className="text-sm text-destructive">
+                      {t(
+                        "We couldn't calculate the delivery fee. Please try again, or choose Pick-up.",
+                        "Impossible de calculer les frais de livraison. Réessayez, ou choisissez le retrait.",
+                      )}
+                    </p>
+                  )}
+                  {deliveryQuoteStatus === "idle" && (
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        "Select an address from the suggestions to see the delivery fee.",
+                        "Sélectionnez une adresse dans les suggestions pour voir les frais de livraison.",
+                      )}
+                    </p>
                   )}
                 </div>
 
@@ -1378,12 +1465,10 @@ const Checkout = () => {
                 </div>
               )}
 
-              {deliveryOption === "delivery" && deliveryPrice > 0 && (
+              {deliveryOption === "delivery" && deliveryQuoteStatus === "ok" && deliveryQuote && (
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-muted-foreground">
-                    {t("Delivery Fee", "Frais de livraison")} ({detectedZone?.name})
-                  </span>
-                  <span className="font-medium">CHF {deliveryPrice}</span>
+                  <span className="text-muted-foreground">{t("Delivery", "Livraison")}</span>
+                  <span className="font-medium">CHF {deliveryQuote.fee.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-lg font-semibold pt-2 border-t border-border">
@@ -1455,7 +1540,7 @@ const Checkout = () => {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={!acceptPrivacyPolicy || isSubmitting || items.length === 0 || showEmbeddedCheckout}
+              disabled={!acceptPrivacyPolicy || isSubmitting || items.length === 0 || showEmbeddedCheckout || !deliveryReady}
             >
               {items.length === 0
                 ? t("Empty cart", "Panier vide")
