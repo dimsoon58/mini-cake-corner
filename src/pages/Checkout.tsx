@@ -463,6 +463,21 @@ const Checkout = () => {
     }
   };
 
+  // The embedded PostFinance checkout is a one-shot snapshot: `checkoutPayload`
+  // is frozen when "Proceed to Payment" is pressed, and create-postfinance-payment
+  // has already staged a pending_payment / created a PostFinance transaction
+  // from it. If the customer then changes their delivery choice (pick-up ⇄
+  // delivery, a different address, a re-resolved quote), that snapshot — and
+  // the amount PostFinance will charge — no longer matches what the summary
+  // shows. Drop it so the customer has to press "Proceed to Payment" again
+  // and a fresh payload (current delivery_method / deliveryPlaceId /
+  // delivery_address / fee) is sent. A clean single-pass checkout never
+  // triggers this; Pick-up behaviour is unchanged.
+  useEffect(() => {
+    setShowEmbeddedCheckout(false);
+    setCheckoutPayload(null);
+  }, [deliveryOption, deliveryPlaceId, deliveryQuote]);
+
   const deliveryPrice =
     deliveryOption === "delivery" && deliveryQuoteStatus === "ok" && deliveryQuote
       ? deliveryQuote.fee
