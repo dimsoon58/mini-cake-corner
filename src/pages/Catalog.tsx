@@ -2646,11 +2646,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       key={cake.id}
                       className="relative rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
                     >
-                      {(cake as any).bestSeller && (
-                        <span className="absolute top-3 right-3 z-20 bg-primary text-cream text-[10px] font-semibold uppercase tracking-[0.14em] px-3 py-1.5 shadow-sm">
-                          {t("Best Seller", "Best-seller")}
-                        </span>
-                      )}
+
                       {cake.images && cake.images.length > 1 ? (
                         <CakeCardImage
                           images={cake.images}
