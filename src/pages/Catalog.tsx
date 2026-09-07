@@ -1894,7 +1894,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         )}
                         style={{ backgroundColor: color.color }}
                       />
-                      <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                      <span className="text-[10px] text-foreground text-center leading-tight break-words w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                     </button>
                   ))}
                 </div>
@@ -1959,7 +1959,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         )}
                         style={{ backgroundColor: color.color }}
                       />
-                      <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                      <span className="text-[10px] text-foreground text-center leading-tight break-words w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                     </button>
                     );
                   })}
@@ -2002,7 +2002,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         )}
                         style={{ backgroundColor: color.color }}
                       />
-                      <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                      <span className="text-[10px] text-foreground text-center leading-tight break-words w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                     </button>
                   ))}
                 </div>
@@ -2041,7 +2041,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                               )}
                               style={{ backgroundColor: color.color }}
                             />
-                            <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                            <span className="text-[10px] text-foreground text-center leading-tight break-words w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                           </button>
                         ))}
                       </div>
@@ -2165,7 +2165,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                             )}
                             style={{ backgroundColor: color.color }}
                           />
-                          <span className="text-[10px] text-foreground text-center leading-tight truncate w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                          <span className="text-[10px] text-foreground text-center leading-tight break-words w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                         </button>
                       ))}
                     </div>
