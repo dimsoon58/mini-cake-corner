@@ -267,7 +267,7 @@ const Workshop = () => {
             {t("WORKSHOP", "ATELIERS")}
           </h1>
           <p className="text-cream/95 text-sm md:text-base font-light max-w-2xl mb-10">
-            {t("Learn to decorate your own Bento Cake in a fun and creative experience. Whether you're joining one of our public workshops or booking a private event, we'll guide you every step of the way.", "Apprenez à décorer votre propre Bento Cake lors d'une expérience créative et conviviale. Que vous participiez à l'un de nos ateliers ou que vous organisiez un événement privé, nous vous accompagnons à chaque étape.")}
+            {t("Decorate your own Bento Cake at one of our creative workshops or during a private experience.", "Décorez votre propre Bento Cake lors de nos ateliers créatifs ou d'une expérience privée.")}
           </p>
           <Button
             onClick={() =>
