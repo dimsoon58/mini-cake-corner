@@ -221,20 +221,22 @@ const Index = () => {
         </div>
       </section>
 
+      <div className="flex flex-col">
+
       {/* Features Section */}
-      <section className="py-20 bg-background">
+      <section className="order-2 md:order-1 py-8 md:py-20 bg-background">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-[60px] md:gap-12">
             {features.map((feature) => (
               <div key={feature.title} className="text-center flex flex-col items-center">
-                <div className="h-[180px] md:h-[210px] flex items-end justify-center mb-6">
+                <div className="h-[90px] md:h-[210px] flex items-end justify-center mb-[20px] md:mb-6">
                   <img
                     src={feature.image}
                     alt={feature.title}
                     className="max-h-full w-auto object-contain"
                   />
                 </div>
-                <h3 className="font-script font-normal text-[32px] md:text-[40px] leading-normal text-foreground mb-3 whitespace-nowrap">
+                <h3 className="font-script font-normal text-[26px] md:text-[40px] leading-normal text-foreground mb-2 md:mb-3 whitespace-nowrap">
                   {lang === "fr" ? feature.titleFr : feature.title}
                 </h3>
                 <p className="text-sm text-foreground/80 leading-relaxed max-w-[230px]">
@@ -247,7 +249,7 @@ const Index = () => {
       </section>
 
       {/* Discover Section, category cards */}
-      <section className="py-20 bg-background">
+      <section className="order-1 md:order-2 py-20 bg-background">
         <div className="relative w-full px-4 sm:px-8">
           <button onClick={() => scrollDiscover("left")} aria-label="Scroll left" className="flex absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background p-2 shadow-md items-center justify-center">
             <ChevronLeft className="h-6 w-6 text-foreground" />
@@ -305,6 +307,8 @@ const Index = () => {
           </div>
         </Link>
       </section>
+
+      </div>{/* end flex-col reorder wrapper */}
 
       {/* Customers Section */}
       <section className="py-20 bg-cream">
