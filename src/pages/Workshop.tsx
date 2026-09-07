@@ -259,7 +259,7 @@ const Workshop = () => {
         <img
           src={workshopHero}
           alt={t("Cake decorating workshop at Bento Cake Studio", "Atelier de décoration de gâteaux au Bento Cake Studio")}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover object-right md:object-center"
         />
         <div className="absolute inset-0 bg-foreground/40" />
         <div className="relative min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
