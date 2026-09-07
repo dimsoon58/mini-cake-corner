@@ -208,7 +208,7 @@ const Index = () => {
           <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
             {t("LET THEM EAT CAKES", "LET THEM EAT CAKES")}
           </h1>
-          <p className="text-base md:text-lg max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
+          <p className="text-sm md:text-lg max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
             {t("Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.", "Des gâteaux signature à la crème fouettée, décorés avec finesse et incroyablement légers.")}
           </p>
           <Button

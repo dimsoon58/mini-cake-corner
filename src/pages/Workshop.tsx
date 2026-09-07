@@ -266,7 +266,7 @@ const Workshop = () => {
           <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-5xl text-cream leading-tight mb-6 max-w-4xl">
             {t("WORKSHOP", "ATELIERS")}
           </h1>
-          <p className="text-cream/95 text-base md:text-lg font-light max-w-2xl mb-10">
+          <p className="text-cream/95 text-sm md:text-lg font-light max-w-2xl mb-10">
             {t("Learn to decorate your own Bento Cake in a fun and creative experience. Whether you're joining one of our public workshops or booking a private event, we'll guide you every step of the way.", "Apprenez à décorer votre propre Bento Cake lors d'une expérience créative et conviviale. Que vous participiez à l'un de nos ateliers ou que vous organisiez un événement privé, nous vous accompagnons à chaque étape.")}
           </p>
           <Button
