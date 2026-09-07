@@ -2406,7 +2406,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   value={selections.comment}
                   onChange={(e) => setSelections({ ...selections, comment: e.target.value })}
                   placeholder={t("Any special requests or details about your cake...", "Toute demande particulière ou tout détail concernant votre gâteau...")}
-                  className="min-h-[80px]"
+                  className="min-h-[80px] text-sm"
                 />
                 {selectedCake?.styleId !== "printed-picture" && (
                 <div>
