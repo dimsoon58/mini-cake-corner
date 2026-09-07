@@ -32,11 +32,10 @@ import partnerGallery7 from "@/assets/partner-gallery-7.jpg";
 import partnerGallery8 from "@/assets/partner-gallery-8.jpg";
 import partnerGallery9 from "@/assets/partner-gallery-9.jpg";
 import partnerGallery10 from "@/assets/partner-gallery-10.jpg";
-import partnerGallery11 from "@/assets/partner-gallery-11.jpg";
 import { useFieldError } from "@/lib/formErrors";
 
 import cardCelebrations from "@/assets/corporate-event-5.png";
-import cardEvents from "@/assets/corporate-event-8.png";
+import cardEvents from "@/assets/partner-gallery-11.jpg";
 import cardHospitality from "@/assets/corporate-event-11.png";
 
 const phoneRegex = /^[+\d][\d\s().\-/]{6,}$/;
@@ -546,7 +545,6 @@ type View = "info" | "form" | "done";
 const partnerGallery = [
   partnerGallery1, partnerGallery2, partnerGallery3, partnerGallery4, partnerGallery5,
   partnerGallery6, partnerGallery7, partnerGallery8, partnerGallery9, partnerGallery10,
-  partnerGallery11,
 ];
 
 /* Bandeau de photos qui defilent, en bas de la page Partenariat */
