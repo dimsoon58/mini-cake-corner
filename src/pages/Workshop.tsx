@@ -255,14 +255,14 @@ const Workshop = () => {
   return (
     <Layout overlayHero>
       {/* Hero */}
-      <section className="relative min-h-[80vh] w-full overflow-hidden">
+      <section className="relative min-h-[55vh] md:min-h-[80vh] w-full overflow-hidden">
         <img
           src={workshopHero}
           alt={t("Cake decorating workshop at Bento Cake Studio", "Atelier de décoration de gâteaux au Bento Cake Studio")}
-          className="absolute inset-0 w-full h-full object-cover object-right md:object-center"
+          className="absolute inset-0 w-full h-full object-cover [object-position:65%_center] md:object-center"
         />
         <div className="absolute inset-0 bg-foreground/40" />
-        <div className="relative min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
+        <div className="relative min-h-[55vh] md:min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
           <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-5xl text-cream leading-tight mb-6 max-w-4xl">
             {t("WORKSHOP", "ATELIERS")}
           </h1>
