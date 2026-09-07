@@ -38,14 +38,11 @@ export const DELIVERY_DISTANCE_TIERS: { maxKm: number; fee: number }[] = [
 // Fixed departure point (our kitchen). Used as the Routes API origin and as
 // the centre of the address-autocomplete location bias.
 // Address: Rue Prévost-Martin 8, 1205 Genève, Suisse.
-// ⚠️ Coordinates below are approximate (Plainpalais). Verify once against
-//    Google Maps (right-click the exact building → the first line is
-//    "latitude, longitude") and correct if needed — a small offset only
-//    shifts the computed distance by a few dozen metres.
+// Coordinates below come from Google Maps for the exact building.
 export const DELIVERY_ORIGIN = {
   address: "Rue Prévost-Martin 8, 1205 Genève, Suisse",
-  lat: 46.19715,
-  lng: 6.14099,
+  lat: 46.195700,
+  lng: 6.145596,
 };
 
 export interface DistanceFeeResult {
