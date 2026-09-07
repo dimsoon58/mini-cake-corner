@@ -19,7 +19,7 @@ import { useFieldError } from "@/lib/formErrors";
 import workshopHero from "@/assets/home-cat-workshops.jpg";
 import imgSignature from "@/assets/home-cat-workshops.jpg";
 import imgPaint from "@/assets/workshop-paint.png";
-import imgPrivate from "@/assets/corporate-event-2.png";
+import imgPrivate from "@/assets/workshop-private.jpg";
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <h2 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-4xl text-center text-foreground mb-12">
