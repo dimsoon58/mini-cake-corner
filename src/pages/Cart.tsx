@@ -555,7 +555,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
 {/* date shown globally above the list */}
 
       {/* Price Breakdown */}
-      <div className="bg-muted/30 rounded-lg p-3 space-y-2 text-sm">
+      <div className="bg-muted/30 rounded-lg p-3 space-y-3 text-sm">
         <div className="flex justify-between">
           <span className="text-muted-foreground">{item.sizeName} ({item.shapeName})</span>
           <span className="text-foreground">CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
@@ -609,28 +609,28 @@ const CartItemSummary = ({ item }: { item: any }) => {
       </div>
 
       {(item.baseColorName || item.decorationColorName || item.cakeText || item.comment) && (
-        <div className="border-t border-border/30 mt-5 pt-5 space-y-2">
+        <div className="border-t border-border/30 mt-5 pt-5 space-y-3">
           {item.baseColorName && (
             <div className="flex gap-2 text-sm">
-              <span className="text-muted-foreground/70 shrink-0 w-24">{t("Base", "Base")}</span>
+              <span className="text-muted-foreground/70 shrink-0 w-28">{t("Base", "Base")}</span>
               <span className="text-foreground">{item.baseColorName}</span>
             </div>
           )}
           {item.decorationColorName && (
             <div className="flex gap-2 text-sm">
-              <span className="text-muted-foreground/70 shrink-0 w-24">{t("Decoration", "Décoration")}</span>
+              <span className="text-muted-foreground/70 shrink-0 w-28">{t("Decoration", "Décoration")}</span>
               <span className="text-foreground">{item.decorationColorName}</span>
             </div>
           )}
           {item.cakeText && (
             <div className="flex gap-2 text-sm">
-              <span className="text-muted-foreground/70 shrink-0 w-24">{t("Text", "Texte")}</span>
+              <span className="text-muted-foreground/70 shrink-0 w-28">{t("Text", "Texte")}</span>
               <span className="text-foreground">"{item.cakeText}"</span>
             </div>
           )}
           {item.comment && (
             <div className="flex gap-2 text-sm">
-              <span className="text-muted-foreground/70 shrink-0 w-24">{t("Comment", "Commentaire")}</span>
+              <span className="text-muted-foreground/70 shrink-0 w-28">{t("Comment", "Commentaire")}</span>
               <span className="text-foreground break-words">{item.comment}</span>
             </div>
           )}
