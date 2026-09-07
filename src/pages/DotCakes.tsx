@@ -338,11 +338,21 @@ const DotCakes = () => {
                   </button>
                 ))}
               </div>
-              <div className="text-xs text-muted-foreground space-y-0.5">
-                <p>{t("Premium flavour: +CHF 1.50 per Dot Cake", "Parfum Premium : +CHF 1.50 par Dot Cake")}</p>
-                <p>{t("Deluxe flavour: +CHF 2.50 per Dot Cake", "Parfum Deluxe : +CHF 2.50 par Dot Cake")}</p>
-                <p>{t("Gluten-Free Premium flavour: +CHF 3.50 per Dot Cake", "Parfum Sans Gluten Premium : +CHF 3.50 par Dot Cake")}</p>
-                <p>{t("Gluten-Free Deluxe flavour: +CHF 5.00 per Dot Cake", "Parfum Sans Gluten Deluxe : +CHF 5.00 par Dot Cake")}</p>
+              <div className="mt-3 mb-1">
+                <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.13em] text-foreground/50 mb-2">
+                  {t("Flavour supplements per Dot Cake", "Suppléments par Dot Cake")}
+                </p>
+                {[
+                  { label: t("Premium", "Premium"), price: "+CHF 1.50" },
+                  { label: t("Deluxe", "Deluxe"), price: "+CHF 2.50" },
+                  { label: t("Gluten-free · Premium", "Sans gluten · Premium"), price: "+CHF 3.50" },
+                  { label: t("Gluten-free · Deluxe", "Sans gluten · Deluxe"), price: "+CHF 5.00" },
+                ].map((row, i) => (
+                  <div key={i} className="flex justify-between items-baseline py-1.5 border-b border-border/30 last:border-0">
+                    <span className="text-xs text-foreground/70">{row.label}</span>
+                    <span className="text-xs font-medium text-foreground tabular-nums">{row.price}</span>
+                  </div>
+                ))}
               </div>
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={goBack}
