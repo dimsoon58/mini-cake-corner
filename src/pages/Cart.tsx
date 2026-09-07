@@ -328,15 +328,14 @@ const Cart = () => {
   return (
     <Layout>
       <main className="container mx-auto px-4 py-12">
-        <div className="flex items-center justify-between mb-8">
-          <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            {t("Continue Shopping", "Continuer vos achats")}
+        {/* Mobile-first header */}
+        <div className="mb-6">
+          <Link to="/" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-4">
+            <ArrowLeft className="h-3 w-3 mr-1" />
+            {t("Continue shopping", "Continuer mes achats")}
           </Link>
-          <div className="flex items-center gap-2">
-            <ShoppingBag className="h-6 w-6 text-primary" strokeWidth={1.25} />
-            <span className="uppercase tracking-[0.18em] text-sm font-medium text-foreground">{t("Your Cart", "Votre panier")} ({itemCount})</span>
-          </div>
+          <h1 className="font-sans uppercase tracking-[0.18em] text-2xl md:text-3xl text-foreground">{t("Your Cart", "Votre panier")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{itemCount} {itemCount === 1 ? t("item", "article") : t("items", "articles")}</p>
         </div>
 
         {items.length === 0 ? (
@@ -349,17 +348,16 @@ const Cart = () => {
         ) : (
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">{t("Your Items", "Vos articles")}</h2>
-                <Button variant="ghost" size="sm" onClick={handleClearAll} className="text-destructive hover:text-destructive">{t("Clear All", "Tout supprimer")}</Button>
+              <div className="flex justify-end mb-2">
+                <button onClick={handleClearAll} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">{t("Clear cart", "Vider le panier")}</button>
               </div>
 
               {cartOrderDate && (
-                <div className="mb-4 rounded-md bg-muted/30 p-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
-                  <span>📅 {t("This order will be prepared for", "Cette commande sera préparée pour le")} {formatDateFromIso(cartOrderDate)}</span>
-                  <Button variant="link" size="sm" onClick={handleClearAll} className="text-destructive h-auto p-0">
-                    {t("Order for a different date", "Commander pour une autre date")}
-                  </Button>
+                <div className="mb-4 bg-cream/60 border border-border/30 px-4 py-2.5 flex items-center justify-between gap-3">
+                  <span className="text-xs text-foreground/70">📅 {t("Pickup", "Retrait le")} {formatDateFromIso(cartOrderDate)}</span>
+                  <button onClick={handleClearAll} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0">
+                    {t("Change date", "Modifier la date")}
+                  </button>
                 </div>
               )}
 
@@ -369,49 +367,47 @@ const Cart = () => {
                   return (
                     <Card key={item.id} className="overflow-hidden rounded-none">
                       <CardContent className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground">{item.candleProductName}</h3>
-                          <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 mb-3">
                           {item.candleProductImage ? (
-                            <img src={item.candleProductImage} alt={item.candleProductName} className="h-20 w-20 object-contain flex-shrink-0" />
+                            <img src={item.candleProductImage} alt={item.candleProductName} className="h-16 w-16 object-contain flex-shrink-0" />
                           ) : (
-                            // Number Candle has no product photo — falls back to a plain
-                            // placeholder instead of a broken <img>.
-                            <div className="h-20 w-20 flex items-center justify-center flex-shrink-0 bg-secondary/20 text-3xl" aria-hidden="true">
+                            <div className="h-16 w-16 flex items-center justify-center flex-shrink-0 bg-secondary/20 text-2xl" aria-hidden="true">
                               🕯️
                             </div>
                           )}
-                          <div className="flex-1">
-                            <p className="text-sm text-muted-foreground mb-2">{t("Candle", "Bougie")}</p>
-                            {item.candleProductQtyLocked ? (
-                              <p className="text-sm font-medium text-foreground">
-                                {t("Quantity", "Quantité")}: {item.candleProductQty || 1}
-                              </p>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleCandleProductQty(item.id, -1)}
-                                  disabled={(item.candleProductQty || 1) <= 1}
-                                  className={cn(
-                                    "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
-                                    (item.candleProductQty || 1) <= 1
-                                      ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                      : "bg-primary text-primary-foreground hover:bg-primary/90"
-                                  )}
-                                >−</button>
-                                <span className="w-6 text-center font-medium text-foreground text-sm">{item.candleProductQty || 1}</span>
-                                <button
-                                  onClick={() => handleCandleProductQty(item.id, 1)}
-                                  className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
-                                >+</button>
-                              </div>
-                            )}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground">{item.candleProductName}</h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">{t("Candle", "Bougie")}</p>
                           </div>
-                          <span className="font-semibold text-primary whitespace-nowrap">CHF {item.total}</span>
+                          <span className="font-semibold text-primary whitespace-nowrap text-base">CHF {item.total}</span>
+                        </div>
+                        {!item.candleProductQtyLocked && (
+                          <div className="flex items-center gap-2 mb-3">
+                            <button
+                              onClick={() => handleCandleProductQty(item.id, -1)}
+                              disabled={(item.candleProductQty || 1) <= 1}
+                              className={cn(
+                                "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
+                                (item.candleProductQty || 1) <= 1
+                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+                              )}
+                            >−</button>
+                            <span className="w-6 text-center font-medium text-foreground text-sm">{item.candleProductQty || 1}</span>
+                            <button
+                              onClick={() => handleCandleProductQty(item.id, 1)}
+                              className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
+                            >+</button>
+                          </div>
+                        )}
+                        {item.candleProductQtyLocked && (
+                          <p className="text-sm font-medium text-foreground mb-3">{t("Quantity", "Quantité")}: {item.candleProductQty || 1}</p>
+                        )}
+                        <div className="border-t border-border/30 pt-3 flex justify-end">
+                          <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive h-auto p-0 text-xs">
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            {t("Remove", "Supprimer")}
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -420,18 +416,7 @@ const Cart = () => {
                 return (
                   <Card key={item.id} className="overflow-hidden rounded-none">
                     <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground">{item.sizeName} {item.shapeName} {t("Cake", "Gâteau")}</h3>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => setEditingItemId(isEditing ? null : item.id)} className="text-primary hover:text-primary">
-                            {isEditing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
-                            {isEditing ? t("Done", "Terminé") : t("Edit", "Modifier")}
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-4">{item.sizeName} {item.shapeName} {t("Cake", "Gâteau")}</h3>
 
                       {isEditing ? (
                         <CartItemEditor
@@ -460,6 +445,35 @@ const Cart = () => {
                         />
                       ) : (
                         <CartItemSummary item={item} />
+                      )}
+                      {!isEditing && (
+                        <div className="border-t border-border/30 px-6 py-3 flex items-center justify-between">
+                          <button
+                            onClick={() => setEditingItemId(item.id)}
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            <Pencil className="h-3 w-3" />
+                            {t("Edit", "Modifier")}
+                          </button>
+                          <button
+                            onClick={() => removeItem(item.id)}
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            {t("Remove", "Supprimer")}
+                          </button>
+                        </div>
+                      )}
+                      {isEditing && (
+                        <div className="border-t border-border/30 px-6 py-3 flex justify-end">
+                          <button
+                            onClick={() => setEditingItemId(null)}
+                            className="inline-flex items-center gap-1 text-xs text-primary font-medium"
+                          >
+                            <Check className="h-3 w-3" />
+                            {t("Done", "Terminé")}
+                          </button>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
@@ -538,7 +552,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
 
   return (
     <div className="space-y-2">
-      {item.orderDate && <p className="text-sm text-muted-foreground">📅 {formatDateFromIso(item.orderDate)}</p>}
+{/* date shown globally above the list */}
 
       {/* Price Breakdown */}
       <div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">
@@ -594,18 +608,38 @@ const CartItemSummary = ({ item }: { item: any }) => {
         )}
       </div>
 
-      {item.baseColorName && (
-        <p className="text-sm text-muted-foreground">
-          {t("Base:", "Base :")} {item.baseColorName}
-          {item.decorationColorName && ` · ${t("Deco:", "Déco :")} ${item.decorationColorName}`}
-        </p>
+      {(item.baseColorName || item.decorationColorName || item.cakeText || item.comment) && (
+        <div className="border-t border-border/30 mt-3 pt-3 space-y-1.5">
+          {item.baseColorName && (
+            <div className="flex gap-2 text-sm">
+              <span className="text-muted-foreground/70 shrink-0 w-24">{t("Base", "Base")}</span>
+              <span className="text-foreground">{item.baseColorName}</span>
+            </div>
+          )}
+          {item.decorationColorName && (
+            <div className="flex gap-2 text-sm">
+              <span className="text-muted-foreground/70 shrink-0 w-24">{t("Decoration", "Décoration")}</span>
+              <span className="text-foreground">{item.decorationColorName}</span>
+            </div>
+          )}
+          {item.cakeText && (
+            <div className="flex gap-2 text-sm">
+              <span className="text-muted-foreground/70 shrink-0 w-24">{t("Text", "Texte")}</span>
+              <span className="text-foreground">"{item.cakeText}"</span>
+            </div>
+          )}
+          {item.comment && (
+            <div className="flex gap-2 text-sm">
+              <span className="text-muted-foreground/70 shrink-0 w-24">{t("Comment", "Commentaire")}</span>
+              <span className="text-foreground break-words">{item.comment}</span>
+            </div>
+          )}
+        </div>
       )}
-      {item.cakeText && <p className="text-sm text-muted-foreground">{t("Text:", "Texte :")} "{item.cakeText}"</p>}
-      {item.comment && <p className="text-sm text-muted-foreground">{t("Comment:", "Commentaire :")} {item.comment}</p>}
 
-      <div className="flex justify-between items-center pt-2 border-t border-border">
-        <span className="text-sm font-medium text-foreground">{t("Total", "Total")}</span>
-        <span className="text-xl font-bold text-primary">CHF {item.total}</span>
+      <div className="flex justify-between items-center pt-3 mt-3 border-t border-border/30">
+        <span className="text-sm text-muted-foreground">{t("Total", "Total")}</span>
+        <span className="text-lg font-bold text-primary">CHF {item.total}</span>
       </div>
     </div>
   );
