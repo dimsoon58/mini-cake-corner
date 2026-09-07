@@ -54,6 +54,7 @@ const workshops = [
       { icon: Users, label: "8 people", labelFr: "8 personnes" },
       { icon: MapPin, label: "Geneva", labelFr: "Genève" },
     ],
+    price: "CHF 75.-",
     ctaLabel: "Book Now",
     ctaLabelFr: "Réserver",
     ctaTo: "/workshop-booking?type=signature",
@@ -82,6 +83,7 @@ const workshops = [
       { icon: Users, label: "10 people", labelFr: "10 personnes" },
       { icon: MapPin, label: "Geneva", labelFr: "Genève" },
     ],
+    price: "CHF 65.-",
     ctaLabel: "Book Now",
     ctaLabelFr: "Réserver",
     ctaTo: "/workshop-booking?type=paint",
@@ -311,6 +313,9 @@ const Workshop = () => {
                       </div>
                     ))}
                   </div>
+                  {w.price && (
+                    <p className="text-sm text-foreground/60 mb-4 text-right tracking-wide">{w.price} <span className="text-xs">{t("/ person", "/ personne")}</span></p>
+                  )}
                   <Button
                     asChild
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
