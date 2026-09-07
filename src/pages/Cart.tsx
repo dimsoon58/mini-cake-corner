@@ -555,7 +555,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
 {/* date shown globally above the list */}
 
       {/* Price Breakdown */}
-      <div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">
+      <div className="bg-muted/30 rounded-lg p-3 space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-muted-foreground">{item.sizeName} ({item.shapeName})</span>
           <span className="text-foreground">CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
@@ -609,7 +609,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
       </div>
 
       {(item.baseColorName || item.decorationColorName || item.cakeText || item.comment) && (
-        <div className="border-t border-border/30 mt-3 pt-3 space-y-1.5">
+        <div className="border-t border-border/30 mt-5 pt-5 space-y-2">
           {item.baseColorName && (
             <div className="flex gap-2 text-sm">
               <span className="text-muted-foreground/70 shrink-0 w-24">{t("Base", "Base")}</span>
