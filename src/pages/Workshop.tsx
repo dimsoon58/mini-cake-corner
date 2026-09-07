@@ -17,7 +17,7 @@ import { useFieldError } from "@/lib/formErrors";
 
 // Photos, remplace chaque import par une photo dédiée quand tu en as
 import workshopHero from "@/assets/home-cat-workshops.jpg";
-import imgSignature from "@/assets/home-cat-workshops.jpg";
+import imgSignature from "@/assets/workshop-signature.jpg";
 import imgPaint from "@/assets/workshop-paint.png";
 import imgPrivate from "@/assets/workshop-private.jpg";
 
