@@ -69,7 +69,7 @@ const DotGallery = () => {
   return (
     <section className="space-y-6">
       <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em] text-foreground">
-        {t("Dot Cakes in Real Life", "Les Dot Cakes en vrai")}
+        {t("Dot Cake Moments", "Dot Cake Moments")}
       </h2>
       <div className="relative">
         <button onClick={() => scroll("left")} aria-label={t("Previous", "Precedent")}
