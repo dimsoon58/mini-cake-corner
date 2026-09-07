@@ -229,7 +229,7 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-[30px] md:gap-12">
             {features.map((feature) => (
               <div key={feature.title} className="text-center flex flex-col items-center">
-                <div className="h-[90px] md:h-[210px] flex items-end justify-center mb-3 md:mb-6">
+                <div className="h-[130px] md:h-[210px] flex items-end justify-center mb-3 md:mb-6">
                   <img
                     src={feature.image}
                     alt={feature.title}
