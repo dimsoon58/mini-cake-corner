@@ -1873,7 +1873,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
                   <span>⚠️</span> {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
                 </p>
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                   {baseColors.map((color) => (
                     <button
                       key={color.id}
@@ -1894,7 +1894,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         )}
                         style={{ backgroundColor: color.color }}
                       />
-                      <span className="text-[10px] text-foreground text-center leading-tight break-words w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                      <span className="text-[10px] text-foreground text-center leading-tight w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                     </button>
                   ))}
                 </div>
@@ -1926,7 +1926,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
                   <span>⚠️</span> {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
                 </p>
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                   {baseColors.map((color) => {
                     const isSelected = selections.decorationColors.includes(color.id);
                     const isDisabled = !isSelected && selections.decorationColors.length >= maxColors;
@@ -1959,7 +1959,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         )}
                         style={{ backgroundColor: color.color }}
                       />
-                      <span className="text-[10px] text-foreground text-center leading-tight break-words w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                      <span className="text-[10px] text-foreground text-center leading-tight w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                     </button>
                     );
                   })}
@@ -1981,7 +1981,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose one colour for the piped roses.", "Choisissez une couleur pour les roses pochées.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                   {baseColors.map((color) => (
                     <button
                       key={color.id}
@@ -2002,7 +2002,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         )}
                         style={{ backgroundColor: color.color }}
                       />
-                      <span className="text-[10px] text-foreground text-center leading-tight break-words w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                      <span className="text-[10px] text-foreground text-center leading-tight w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                     </button>
                   ))}
                 </div>
@@ -2020,7 +2020,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       <label className="text-sm font-medium text-foreground flex items-center gap-1">
                         {label} <span className="text-destructive">*</span>
                       </label>
-                      <div className="grid grid-cols-6 gap-2">
+                      <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                         {baseColors.map((color) => (
                           <button
                             key={color.id}
@@ -2041,7 +2041,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                               )}
                               style={{ backgroundColor: color.color }}
                             />
-                            <span className="text-[10px] text-foreground text-center leading-tight break-words w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                            <span className="text-[10px] text-foreground text-center leading-tight w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                           </button>
                         ))}
                       </div>
@@ -2144,7 +2144,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {/* Text Colour Selection */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">{t("Text Colour", "Couleur du texte")}</label>
-                    <div className="grid grid-cols-6 gap-2">
+                    <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                       {baseColors.map((color) => (
                         <button
                           key={color.id}
@@ -2165,7 +2165,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                             )}
                             style={{ backgroundColor: color.color }}
                           />
-                          <span className="text-[10px] text-foreground text-center leading-tight break-words w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                          <span className="text-[10px] text-foreground text-center leading-tight w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
                         </button>
                       ))}
                     </div>
