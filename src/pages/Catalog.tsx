@@ -1053,10 +1053,14 @@ const BentoGallery = () => {
 };
 
 
-const CakeCardImage = ({ images, name }: { images: string[]; name: string }) => {
-  const [idx, setIdx] = useState(0);
-  const prev = (e: React.MouseEvent) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); };
-  const next = (e: React.MouseEvent) => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); };
+// Controlled: the active carousel index lives in the parent (keyed per
+// design) so it survives re-renders AND is the exact image handed to
+// handleSelectCake when the customer clicks "Choose this style".
+const CakeCardImage = ({ images, name, index, onIndexChange }: { images: string[]; name: string; index: number; onIndexChange: (i: number) => void }) => {
+  const idx = Math.min(Math.max(index, 0), images.length - 1);
+  const setIdx = (n: number) => onIndexChange(((n % images.length) + images.length) % images.length);
+  const prev = (e: React.MouseEvent) => { e.stopPropagation(); setIdx(idx - 1); };
+  const next = (e: React.MouseEvent) => { e.stopPropagation(); setIdx(idx + 1); };
   return (
     <div
       className="aspect-square overflow-hidden bg-muted/30 relative cursor-pointer"
@@ -1105,6 +1109,10 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
+  // Active carousel image per multi-photo design (keyed by cake id). Kept
+  // here so it persists across re-renders and is the image passed to
+  // handleSelectCake when the customer picks the design.
+  const [cardImageIndex, setCardImageIndex] = useState<Record<string, number>>({});
   const [selections, setSelections] = useState<CakeSelections>({
     orderDate: cartOrderDate ? new Date(cartOrderDate) : null,
     orderTime: "",
@@ -1142,11 +1150,16 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     fetchBookedDates();
   }, []);
 
-  const handleSelectCake = (cake: typeof catalog[0]) => {
+  const handleSelectCake = (cake: typeof catalog[0], imageIndex = 0) => {
     setSelectedCake(cake);
     // Pick the first available size for this design
     const availableSizeIds = Object.keys(cake.stylePrice);
     const defaultSize = availableSizeIds.includes("bento") ? "bento" : availableSizeIds[0] || "bento";
+    // The carousel image the customer was looking at when they chose this
+    // design becomes the selected variant (shagDesignPreference), which in
+    // turn drives the sheet preview, designImageUrl and design_image_url.
+    const imageCount = cake.images?.length ?? 1;
+    const startImageIndex = Math.min(Math.max(imageIndex, 0), Math.max(imageCount - 1, 0));
     setSelections({
       orderDate: cartOrderDate ? new Date(cartOrderDate) : null,
       orderTime: "",
@@ -1170,7 +1183,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       genderColor: "",
       glitterColor: cake.styleId === "retro-ribbons-glitter" ? "pink" : "",
       glitterCherriesColor: "",
-      shagDesignPreference: 0,
+      shagDesignPreference: startImageIndex,
     });
     setSheetOpen(true);
   };
@@ -1577,7 +1590,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
             <div className="mt-6 space-y-6">
               <div className="aspect-square w-full max-w-[300px] mx-auto rounded-none overflow-hidden bg-muted/30">
                 <img
-                  src={selectedCake.image}
+                  src={
+                    selectedCake.images && selectedCake.images.length > 1
+                      ? selectedCake.images[selections.shagDesignPreference] ?? selectedCake.image
+                      : selectedCake.image
+                  }
                   alt={selectedCake.name}
                   className="w-full h-full object-cover"
                 />
@@ -2635,7 +2652,12 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         </span>
                       )}
                       {cake.images && cake.images.length > 1 ? (
-                        <CakeCardImage images={cake.images} name={cake.name} />
+                        <CakeCardImage
+                          images={cake.images}
+                          name={cake.name}
+                          index={cardImageIndex[cake.id] ?? 0}
+                          onIndexChange={(i) => setCardImageIndex((prev) => ({ ...prev, [cake.id]: i }))}
+                        />
                       ) : (
                         <div className="aspect-square overflow-hidden bg-muted/30">
                           <img
@@ -2660,7 +2682,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         <div className="mt-auto">
                           <Button
                             className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8"
-                            onClick={() => handleSelectCake(cake)}
+                            onClick={() => handleSelectCake(cake, cardImageIndex[cake.id] ?? 0)}
                           >
                             {t("CHOOSE THIS STYLE", "CHOISIR CE MODÈLE")}
                           </Button>
