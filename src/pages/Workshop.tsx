@@ -55,6 +55,7 @@ const workshops = [
       { icon: MapPin, label: "Geneva", labelFr: "Genève" },
     ],
     price: "CHF 75.-",
+    objectPosition: "70% center",
     ctaLabel: "Book Now",
     ctaLabelFr: "Réserver",
     ctaTo: "/workshop-booking?type=signature",
@@ -290,7 +291,7 @@ const Workshop = () => {
             {workshops.map((w) => (
               <div key={w.title} className="border border-border/60 flex flex-col bg-card">
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img src={w.image} alt={t(w.title, w.titleFr)} className="w-full h-full object-cover" />
+                  <img src={w.image} alt={t(w.title, w.titleFr)} className="w-full h-full object-cover" style={w.objectPosition ? { objectPosition: w.objectPosition } : undefined} />
                 </div>
                 <div className="p-7 flex flex-col flex-1">
                   <h3 className="font-sans uppercase tracking-[0.105em] text-base font-semibold text-foreground mb-3">
