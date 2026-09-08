@@ -245,7 +245,7 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
 
     <div style="background:#FDF8E1;margin:0 20px;">
       <div style="padding:36px 40px 0;text-align:center;">
-        <img src="https://dimsoon58.github.io/mini-cake-corner/logo-red.png" alt="Bento Cake Studio" style="height:104px;width:auto;display:block;margin:0 auto 28px;" />
+        <img src="https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
       <div style="padding:0 40px 36px;">
