@@ -1506,14 +1506,14 @@ const Checkout = () => {
                 />
                 <Label htmlFor="privacyPolicy" className="text-sm cursor-pointer leading-relaxed">
                   {t("I have read and accept the", "J'ai lu et j'accepte la")}{" "}
-                  <a
-                    href="/privacy-policy"
+                  <Link
+                    to="/privacy-policy"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary underline hover:text-primary/80"
                   >
-                    {t("privacy policy", "politique de confidentialité")}
-                  </a>
+                    {t("Privacy Policy", "Politique de confidentialité")}
+                  </Link>
                   <span className="text-destructive ml-1">*</span>
                 </Label>
               </div>
