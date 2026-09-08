@@ -62,6 +62,16 @@ export interface CartItem {
      for every other add-to-cart surface; persisted to
      order_items.design_image_url. */
   designImageUrl?: string | null;
+  /* Workshop line (product === "workshop"). Set only by WorkshopBooking.tsx.
+     Every cake field above stays empty for a workshop. These persist to the
+     matching order_items.workshop_* columns. Customer contact details are
+     NOT duplicated here — they live on orders (collected at checkout). */
+  workshopType?: "signature" | "paint";
+  workshopSessionId?: string;
+  workshopDate?: string;   // "YYYY-MM-DD"
+  workshopTime?: string;   // "HH:MM"
+  workshopParticipants?: number;
+  workshopUnitPrice?: number;
   total: number;
   /* Standalone candle product (added from the Candles page) */
   isCandleProduct?: boolean;
@@ -104,6 +114,7 @@ export const VALID_PRODUCTS = new Set([
   "diy_kit",
   "candles",
   "edible_printing",
+  "workshop",
 ]);
 
 interface CartContextType {

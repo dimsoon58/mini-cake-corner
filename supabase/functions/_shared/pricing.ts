@@ -5,6 +5,8 @@
 // fallback anywhere in this file, by design: an unknown id must reject the
 // transaction, never silently charge nothing.
 
+import { WORKSHOP_PRICE, WORKSHOP_MAX_PARTICIPANTS, getWorkshopSession } from "./workshops.ts";
+
 export const NUMBER_CANDLE_ID = "number-candle";
 export const NUMBER_CANDLE_PRICE = 5;
 export const NUMBER_CANDLE_DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -28,6 +30,10 @@ export interface PricingInput {
   design: string | null; // = style id
   extras: string[];
   candles: CandleInput[];
+  // Workshop only — ignored for every other product.
+  workshopType?: string | null;
+  workshopSessionId?: string | null;
+  workshopParticipants?: number | null;
 }
 
 const fail = (reason: string): PricingResult => ({ ok: false, reason });
@@ -342,6 +348,26 @@ function priceStandaloneCandles(input: PricingInput): PricingResult {
   return priceCandle(input.candles[0]);
 }
 
+// ── Workshop ────────────────────────────────────────────────────────────
+// Only the session id / type / participant count are trusted from the
+// client; the price is looked up here from WORKSHOP_PRICE, the participant
+// count is bounded by WORKSHOP_MAX_PARTICIPANTS, and the session must be one
+// currently on offer.
+function priceWorkshop(input: PricingInput): PricingResult {
+  const session = getWorkshopSession(input.workshopSessionId);
+  if (!session) return fail(`unknown workshop session ${input.workshopSessionId}`);
+  if (input.workshopType !== session.type) {
+    return fail(`workshop type ${input.workshopType} does not match session ${session.id} (${session.type})`);
+  }
+  const participants = input.workshopParticipants;
+  if (typeof participants !== "number" || !Number.isInteger(participants) || participants < 1) {
+    return fail("invalid workshop participant count");
+  }
+  const max = WORKSHOP_MAX_PARTICIPANTS[session.type];
+  if (participants > max) return fail(`too many participants for ${session.type} (max ${max})`);
+  return { ok: true, total: WORKSHOP_PRICE[session.type] * participants };
+}
+
 export function priceOrderItem(input: PricingInput): PricingResult {
   switch (input.product) {
     case "bento_cake": return priceCakeFamily(input, "bento_cake");
@@ -350,6 +376,7 @@ export function priceOrderItem(input: PricingInput): PricingResult {
     case "dot_cakes": return priceDotCakes(input);
     case "edible_printing": return priceEdiblePrinting(input);
     case "candles": return priceStandaloneCandles(input);
+    case "workshop": return priceWorkshop(input);
     default: return fail(`unknown product ${input.product}`);
   }
 }

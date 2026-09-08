@@ -11,6 +11,21 @@ export interface WorkshopSession {
   currency: string;
 }
 
+// ── Pricing & booking limits ────────────────────────────────────────────────
+// SINGLE frontend source of truth. Must stay identical to the server-side
+// values in supabase/functions/_shared/workshops.ts (WORKSHOP_PRICE /
+// WORKSHOP_MAX_PARTICIPANTS) — the backend re-validates every price and
+// participant count; it never trusts the value sent by the browser.
+export const WORKSHOP_PRICE_PER_PERSON: Record<WorkshopType, number> = {
+  signature: 85,
+  paint: 65,
+};
+
+export const WORKSHOP_MAX_PARTICIPANTS: Record<WorkshopType, number> = {
+  signature: 8,
+  paint: 10,
+};
+
 export const workshopInfo: Record<
   WorkshopType,
   {
@@ -36,8 +51,8 @@ export const workshopInfo: Record<
     descriptionFr: "Découvrez les bases de la décoration du Bento Cake lors de cet atelier pratique de 2 heures.",
     duration: "2 hours",
     durationFr: "2 heures",
-    maxParticipants: 8,
-    pricePerPerson: 120,
+    maxParticipants: WORKSHOP_MAX_PARTICIPANTS.signature,
+    pricePerPerson: WORKSHOP_PRICE_PER_PERSON.signature,
     currency: "CHF",
     features: [
       "Frost your cake",
@@ -63,8 +78,8 @@ export const workshopInfo: Record<
     descriptionFr: "Transformez votre gâteau en œuvre d'art comestible lors de notre atelier de peinture.",
     duration: "2 hours",
     durationFr: "2 heures",
-    maxParticipants: 10,
-    pricePerPerson: 100,
+    maxParticipants: WORKSHOP_MAX_PARTICIPANTS.paint,
+    pricePerPerson: WORKSHOP_PRICE_PER_PERSON.paint,
     currency: "CHF",
     features: [
       "Ready-to-decorate cake",
@@ -83,25 +98,15 @@ export const workshopInfo: Record<
   },
 };
 
+// Current sessions on offer. `capacity` / `booked` are kept for the existing
+// date-picker UI only: there is NO server-side total-capacity enforcement
+// across separate customers (see notes at the end of the implementation).
+// The only hard limit is WORKSHOP_MAX_PARTICIPANTS per single booking.
 export const workshopSessions: WorkshopSession[] = [
-  // Signature Workshop sessions
-  { id: "sig-2026-09-13", workshopType: "signature", date: "2026-09-13", time: "10:00", capacity: 8, booked: 5, pricePerPerson: 120, currency: "CHF" },
-  { id: "sig-2026-09-20", workshopType: "signature", date: "2026-09-20", time: "14:00", capacity: 8, booked: 8, pricePerPerson: 120, currency: "CHF" },
-  { id: "sig-2026-10-04", workshopType: "signature", date: "2026-10-04", time: "10:00", capacity: 8, booked: 2, pricePerPerson: 120, currency: "CHF" },
-  { id: "sig-2026-10-18", workshopType: "signature", date: "2026-10-18", time: "14:00", capacity: 8, booked: 0, pricePerPerson: 120, currency: "CHF" },
-  { id: "sig-2026-11-08", workshopType: "signature", date: "2026-11-08", time: "10:00", capacity: 8, booked: 4, pricePerPerson: 120, currency: "CHF" },
-  { id: "sig-2026-11-22", workshopType: "signature", date: "2026-11-22", time: "14:00", capacity: 8, booked: 1, pricePerPerson: 120, currency: "CHF" },
-  { id: "sig-2026-12-06", workshopType: "signature", date: "2026-12-06", time: "10:00", capacity: 8, booked: 6, pricePerPerson: 120, currency: "CHF" },
-  { id: "sig-2026-12-13", workshopType: "signature", date: "2026-12-13", time: "14:00", capacity: 8, booked: 3, pricePerPerson: 120, currency: "CHF" },
-
-  // Paint Workshop sessions
-  { id: "paint-2026-09-19", workshopType: "paint", date: "2026-09-19", time: "14:00", capacity: 10, booked: 7, pricePerPerson: 100, currency: "CHF" },
-  { id: "paint-2026-10-03", workshopType: "paint", date: "2026-10-03", time: "10:00", capacity: 10, booked: 3, pricePerPerson: 100, currency: "CHF" },
-  { id: "paint-2026-10-17", workshopType: "paint", date: "2026-10-17", time: "14:00", capacity: 10, booked: 0, pricePerPerson: 100, currency: "CHF" },
-  { id: "paint-2026-11-07", workshopType: "paint", date: "2026-11-07", time: "10:00", capacity: 10, booked: 10, pricePerPerson: 100, currency: "CHF" },
-  { id: "paint-2026-11-21", workshopType: "paint", date: "2026-11-21", time: "14:00", capacity: 10, booked: 5, pricePerPerson: 100, currency: "CHF" },
-  { id: "paint-2026-12-05", workshopType: "paint", date: "2026-12-05", time: "10:00", capacity: 10, booked: 8, pricePerPerson: 100, currency: "CHF" },
-  { id: "paint-2026-12-12", workshopType: "paint", date: "2026-12-12", time: "14:00", capacity: 10, booked: 2, pricePerPerson: 100, currency: "CHF" },
+  { id: "sig-2026-10-03",   workshopType: "signature", date: "2026-10-03", time: "13:00", capacity: WORKSHOP_MAX_PARTICIPANTS.signature, booked: 0, pricePerPerson: WORKSHOP_PRICE_PER_PERSON.signature, currency: "CHF" },
+  { id: "paint-2026-10-07", workshopType: "paint",     date: "2026-10-07", time: "14:00", capacity: WORKSHOP_MAX_PARTICIPANTS.paint,     booked: 0, pricePerPerson: WORKSHOP_PRICE_PER_PERSON.paint,     currency: "CHF" },
+  { id: "paint-2026-10-10", workshopType: "paint",     date: "2026-10-10", time: "14:00", capacity: WORKSHOP_MAX_PARTICIPANTS.paint,     booked: 0, pricePerPerson: WORKSHOP_PRICE_PER_PERSON.paint,     currency: "CHF" },
+  { id: "paint-2026-10-14", workshopType: "paint",     date: "2026-10-14", time: "14:00", capacity: WORKSHOP_MAX_PARTICIPANTS.paint,     booked: 0, pricePerPerson: WORKSHOP_PRICE_PER_PERSON.paint,     currency: "CHF" },
 ];
 
 export function getSessionsForType(type: WorkshopType): WorkshopSession[] {
@@ -123,4 +128,3 @@ export function formatSessionDate(dateStr: string, lang: "en" | "fr"): string {
   }
   return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
-
