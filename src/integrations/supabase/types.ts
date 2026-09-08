@@ -62,7 +62,7 @@ export type Database = {
           delivery_fee: number
           delivery_latitude: number | null
           delivery_longitude: number | null
-          delivery_method: string
+          delivery_method: string | null
           delivery_postal_code: string | null
           delivery_zone: string | null
           email: string
@@ -82,7 +82,7 @@ export type Database = {
           payment_status: string
           phone: string
           pickup_delivery_date: string | null
-          pickup_delivery_datetime: string
+          pickup_delivery_datetime: string | null
           pickup_delivery_slot: string | null
           postfinance_transaction_id: string | null
           reward_amount_earned: number | null
@@ -99,7 +99,7 @@ export type Database = {
           delivery_fee?: number
           delivery_latitude?: number | null
           delivery_longitude?: number | null
-          delivery_method: string
+          delivery_method: string | null
           delivery_postal_code?: string | null
           delivery_zone?: string | null
           email: string
@@ -119,7 +119,7 @@ export type Database = {
           payment_status?: string
           phone: string
           pickup_delivery_date?: string | null
-          pickup_delivery_datetime: string
+          pickup_delivery_datetime: string | null
           pickup_delivery_slot?: string | null
           postfinance_transaction_id?: string | null
           reward_amount_earned?: number | null
@@ -136,7 +136,7 @@ export type Database = {
           delivery_fee?: number
           delivery_latitude?: number | null
           delivery_longitude?: number | null
-          delivery_method?: string
+          delivery_method?: string | null
           delivery_postal_code?: string | null
           delivery_zone?: string | null
           email?: string
@@ -156,7 +156,7 @@ export type Database = {
           payment_status?: string
           phone?: string
           pickup_delivery_date?: string | null
-          pickup_delivery_datetime?: string
+          pickup_delivery_datetime?: string | null
           pickup_delivery_slot?: string | null
           postfinance_transaction_id?: string | null
           reward_amount_earned?: number | null
@@ -201,6 +201,12 @@ export type Database = {
           text_color: string | null
           text_style: string | null
           total: number
+          workshop_date: string | null
+          workshop_participants: number | null
+          workshop_session_id: string | null
+          workshop_time: string | null
+          workshop_type: string | null
+          workshop_unit_price: number | null
         }
         Insert: {
           assigned_to?: string | null
@@ -236,6 +242,12 @@ export type Database = {
           text_color?: string | null
           text_style?: string | null
           total: number
+          workshop_date?: string | null
+          workshop_participants?: number | null
+          workshop_session_id?: string | null
+          workshop_time?: string | null
+          workshop_type?: string | null
+          workshop_unit_price?: number | null
         }
         Update: {
           assigned_to?: string | null
@@ -271,6 +283,12 @@ export type Database = {
           text_color?: string | null
           text_style?: string | null
           total?: number
+          workshop_date?: string | null
+          workshop_participants?: number | null
+          workshop_session_id?: string | null
+          workshop_time?: string | null
+          workshop_type?: string | null
+          workshop_unit_price?: number | null
         }
         Relationships: [
           {

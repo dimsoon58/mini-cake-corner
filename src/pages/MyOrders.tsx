@@ -22,6 +22,10 @@ type CustomerOrderItem = {
   candles_price: number;
   item_comment: string | null;
   total: number;
+  workshop_type: string | null;
+  workshop_date: string | null;
+  workshop_time: string | null;
+  workshop_participants: number | null;
 };
 
 type CustomerOrder = {
@@ -29,7 +33,7 @@ type CustomerOrder = {
   order_number: string | null;
   pickup_delivery_date: string | null;
   pickup_delivery_slot: string | null;
-  delivery_method: string;
+  delivery_method: string | null;
   delivery_address: string | null;
   delivery_zone: string | null;
   delivery_fee: number;
@@ -48,7 +52,10 @@ function formatDateCH(dateValue?: string | null): string {
 
 function itemsSummary(items: CustomerOrder["order_items"]): string {
   return items
-    .map((item) => item.size ? `${item.size}${item.flavors?.length ? ` — ${item.flavors.join(", ")}` : ""}` : (item.design || ""))
+    .map((item) =>
+      item.product === "workshop"
+        ? `${item.workshop_type === "paint" ? "Atelier Peinture" : "Atelier Signature"}${item.workshop_date ? ` (${formatDateCH(item.workshop_date)})` : ""}`
+        : item.size ? `${item.size}${item.flavors?.length ? ` — ${item.flavors.join(", ")}` : ""}` : (item.design || ""))
     .filter(Boolean)
     .join(", ");
 }
@@ -80,6 +87,7 @@ const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
   diy_kit: { en: "DIY Kit", fr: "Kit DIY" },
   candles: { en: "Candles", fr: "Bougies" },
   edible_printing: { en: "Edible Printing", fr: "Impression Comestible" },
+  workshop: { en: "Workshop", fr: "Atelier" },
 };
 
 const MyOrders = () => {
@@ -105,7 +113,7 @@ const MyOrders = () => {
       .from("orders")
       .select(
         "id, order_number, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone, delivery_fee, total_amount, order_validation, payment_status, invoice_path, " +
-        "order_items(id, product, size, shape, flavors, design, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total)"
+        "order_items(id, product, size, shape, flavors, design, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total, workshop_type, workshop_date, workshop_time, workshop_participants)"
       )
       .eq("customer_id", user.id)
       .order("pickup_delivery_date", { ascending: false })
@@ -125,8 +133,8 @@ const MyOrders = () => {
     rejected: t("Declined", "Refusée"),
   }[validation] ?? validation);
 
-  const deliveryMethodLabel = (method: string) =>
-    method === "delivery" ? t("Delivery", "Livraison") : t("Pickup", "Retrait");
+  const deliveryMethodLabel = (method: string | null) =>
+    !method ? "" : method === "delivery" ? t("Delivery", "Livraison") : t("Pickup", "Retrait");
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -196,11 +204,19 @@ const MyOrders = () => {
               {order.order_items.map((item) => (
                 <div key={item.id} className="text-sm space-y-1">
                   <p className="font-medium text-foreground">
-                    {t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product}
-                    {item.size && ` — ${sizeLabel(item.size)}`}
-                    {item.shape && item.shape !== "round" && ` (${shapeLabel(item.shape)})`}
+                    {item.product === "workshop"
+                      ? (item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature"))
+                      : (t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product)}
+                    {item.product !== "workshop" && item.size && ` — ${sizeLabel(item.size)}`}
+                    {item.product !== "workshop" && item.shape && item.shape !== "round" && ` (${shapeLabel(item.shape)})`}
                   </p>
                   <div className="text-muted-foreground space-y-0.5 pl-0.5">
+                    {item.product === "workshop" && (
+                      <>
+                        {item.workshop_date && <p>{t("Date:", "Date :")} {formatDateCH(item.workshop_date)}{item.workshop_time ? ` · ${item.workshop_time}` : ""}</p>}
+                        {item.workshop_participants != null && <p>{t("Participants:", "Participants :")} {item.workshop_participants}</p>}
+                      </>
+                    )}
                     {item.design && <p>{t("Design:", "Design :")} {designLabel(item.design)}</p>}
                     {item.flavors?.length ? <p>{t("Flavour:", "Parfum :")} {item.flavors.join(", ")}</p> : null}
                     {item.extra && <p>{t("Extras:", "Extras :")} {item.extra} (+CHF {item.extras_price})</p>}
@@ -218,6 +234,8 @@ const MyOrders = () => {
             </div>
 
             <div className="border-t border-border/60 pt-4 text-sm space-y-1">
+              {order.delivery_method && (
+                <>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("Pickup / Delivery date", "Date de retrait / livraison")}</span>
                 <span className="text-foreground">{formatDateCH(order.pickup_delivery_date)}{order.pickup_delivery_slot ? ` · ${order.pickup_delivery_slot}` : ""}</span>
@@ -229,6 +247,8 @@ const MyOrders = () => {
                   {order.delivery_method === "delivery" && order.delivery_zone ? ` — ${order.delivery_zone}` : ""}
                 </span>
               </div>
+                </>
+              )}
               {order.delivery_method === "delivery" && order.delivery_address && (
                 <div className="flex justify-between gap-4">
                   <span className="text-muted-foreground flex-shrink-0">{t("Address", "Adresse")}</span>

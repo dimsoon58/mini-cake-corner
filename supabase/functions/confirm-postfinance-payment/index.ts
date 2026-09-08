@@ -44,17 +44,26 @@ async function insertOrderItemsAndFinalize(
     .delete()
     .eq("order_id", orderRecord.id);
 
-  try {
-    await fetch(MAKE_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        order: orderRecord,
-        orderItems: insertedItems ?? [],
-      }),
-    });
-  } catch (webhookErr) {
-    console.error("Make webhook request failed:", webhookErr);
+  // Workshops are NOT part of the production Make / Notion flow: they are
+  // recorded in Supabase but excluded from the webhook payload, and a
+  // workshop-only order does not fire the webhook at all (it would create an
+  // empty / meaningless production row).
+  const physicalItems = (insertedItems ?? []).filter((it: any) => it.product !== "workshop");
+  if (physicalItems.length > 0) {
+    try {
+      await fetch(MAKE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order: orderRecord,
+          orderItems: physicalItems,
+        }),
+      });
+    } catch (webhookErr) {
+      console.error("Make webhook request failed:", webhookErr);
+    }
+  } else {
+    console.log("Workshop-only order — production Make webhook skipped:", orderRecord.id);
   }
 
   // Best-effort admin notification — order + order_items are already

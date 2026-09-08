@@ -24,6 +24,8 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
   const firstName = order.first_name || "";
 
+  // A workshop-only order has no pickup/delivery (delivery_method is null).
+  const hasPickupOrDelivery = !!order.delivery_method;
   const deliveryInfo = order.delivery_method === "delivery"
     ? tr("Delivery", "Livraison")
     : tr("Pickup at store", "Retrait sur place");
@@ -86,15 +88,15 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
             <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order number", "Numéro de commande")}</td>
             <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
           </tr>
-          <tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
+          ${hasPickupOrDelivery ? `<tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
             <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
             <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${formatDateCH(order.pickup_delivery_date)}</td>
-          </tr>
-          ${order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid #D4C89A;"><td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Time slot", "Créneau")}</td><td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${order.pickup_delivery_slot}</td></tr>` : ""}
-          <tr style="border-bottom:1px solid #D4C89A;">
+          </tr>` : ""}
+          ${hasPickupOrDelivery && order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid #D4C89A;"><td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Time slot", "Créneau")}</td><td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${order.pickup_delivery_slot}</td></tr>` : ""}
+          ${hasPickupOrDelivery ? `<tr style="border-bottom:1px solid #D4C89A;">
             <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Method", "Mode")}</td>
             <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${deliveryInfo}</td>
-          </tr>
+          </tr>` : ""}
           <tr style="background:#78020C;">
             <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total amount", "Montant total")}</td>
             <td style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>

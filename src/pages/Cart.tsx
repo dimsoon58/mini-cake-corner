@@ -15,6 +15,7 @@ import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, 
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
+import { formatSessionDate } from "@/data/workshopSessions";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,7 +67,7 @@ const formatDateFromIso = (dateValue: string) => {
 
 const Cart = () => {
   const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate } = useCart();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
@@ -363,6 +364,53 @@ const Cart = () => {
 
               {items.map((item) => {
                 const isEditing = editingItemId === item.id;
+                if (item.product === "workshop") {
+                  const workshopName = item.styleName
+                    || (item.workshopType === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature"));
+                  return (
+                    <Card key={item.id} className="overflow-hidden rounded-none">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div className="min-w-0">
+                            <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground">{workshopName}</h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">{t("Workshop", "Atelier")}</p>
+                          </div>
+                          <span className="font-semibold text-primary whitespace-nowrap text-base">CHF {item.total}</span>
+                        </div>
+                        <div className="text-sm text-foreground/80 space-y-1">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{t("Date", "Date")}</span>
+                            <span className="text-right">
+                              {item.workshopDate ? formatSessionDate(item.workshopDate, lang === "fr" ? "fr" : "en") : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{t("Time", "Horaire")}</span>
+                            <span className="text-right">{item.workshopTime || "—"}</span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{t("Participants", "Participants")}</span>
+                            <span className="text-right">
+                              {item.workshopParticipants} × CHF {item.workshopUnitPrice}
+                            </span>
+                          </div>
+                          {item.comment && (
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground shrink-0">{t("Notes", "Notes")}</span>
+                              <span className="text-right break-words">{item.comment}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="border-t border-border/30 pt-3 mt-3 flex justify-end">
+                          <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive h-auto p-0 text-xs">
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            {t("Remove", "Supprimer")}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
                 if (item.isCandleProduct) {
                   return (
                     <Card key={item.id} className="overflow-hidden rounded-none">
@@ -489,7 +537,13 @@ const Cart = () => {
                   <div className="space-y-2 border-b border-border pb-4">
                     {items.map((item) => (
                       <div key={item.id} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{item.isCandleProduct ? item.candleProductName : `${item.sizeName} ${item.shapeName} ${t("Cake", "Gâteau")}`}</span>
+                        <span className="text-muted-foreground">{
+                          item.product === "workshop"
+                            ? `${item.styleName || t("Workshop", "Atelier")}${item.workshopParticipants ? ` ×${item.workshopParticipants}` : ""}`
+                            : item.isCandleProduct
+                              ? item.candleProductName
+                              : `${item.sizeName} ${item.shapeName} ${t("Cake", "Gâteau")}`
+                        }</span>
                         <span className="text-foreground">CHF {item.total}</span>
                       </div>
                     ))}

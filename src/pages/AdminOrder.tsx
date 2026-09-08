@@ -147,7 +147,8 @@ const AdminOrder = () => {
             <DetailRow label={t("Phone", "Téléphone")} value={order.phone} />
           </div>
 
-          {/* Pickup / Delivery */}
+          {/* Pickup / Delivery — physical products only */}
+          {order.delivery_method && (
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
             <h3 className="font-medium text-foreground mb-2">{t("📦 Pickup / Delivery", "📦 Retrait / Livraison")}</h3>
             <DetailRow label={t("Date", "Date")} value={formatDateFromIso(order.pickup_delivery_date)} />
@@ -158,6 +159,7 @@ const AdminOrder = () => {
             )}
             <DetailRow label={t("Delivery Notes", "Notes de livraison")} value={order.order_comment} />
           </div>
+          )}
 
           {/* Cake Items */}
           {items.length > 0 && (
@@ -167,6 +169,24 @@ const AdminOrder = () => {
                 const candlesList = item.candle_name
                   ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
                   : "";
+
+                if (item.product === "workshop") {
+                  return (
+                    <div key={item.id || i} className="rounded-lg border border-border p-4 space-y-1">
+                      <div className="flex justify-between mb-2">
+                        <span className="font-medium text-sm">
+                          {item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature")}
+                        </span>
+                        <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                      </div>
+                      <DetailRow label={t("Date", "Date")} value={formatDateFromIso(item.workshop_date)} />
+                      <DetailRow label={t("Time", "Heure")} value={item.workshop_time} />
+                      <DetailRow label={t("Participants", "Participants")} value={item.workshop_participants != null ? String(item.workshop_participants) : null} />
+                      <DetailRow label={t("Unit price", "Prix unitaire")} value={item.workshop_unit_price != null ? `CHF ${item.workshop_unit_price}` : null} />
+                      <DetailRow label={t("Notes", "Notes")} value={item.item_comment} />
+                    </div>
+                  );
+                }
 
                 return (
                   <div key={item.id || i} className="rounded-lg border border-border p-4 space-y-1">

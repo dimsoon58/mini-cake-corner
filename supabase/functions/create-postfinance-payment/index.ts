@@ -4,6 +4,7 @@ import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { priceOrderItem, type PricingInput } from "../_shared/pricing.ts";
 import { resolveDeliveryFeeByDistance } from "../_shared/delivery-pricing.ts";
 import { resolveDeliveryForPlaceId } from "../_shared/google-maps.ts";
+import { workshopTitle, formatWorkshopDate, getWorkshopSession, type WorkshopType } from "../_shared/workshops.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,7 +46,7 @@ interface OrderRow {
   email: string;
   phone: string;
   lang: string;
-  delivery_method: string;
+  delivery_method: string | null;
   delivery_address: string | null;
   delivery_zone: string | null;
   delivery_fee: number;
@@ -54,6 +55,9 @@ interface OrderRow {
   delivery_latitude: number | null;
   delivery_longitude: number | null;
   delivery_distance_km: number | null;
+  pickup_delivery_date?: string | null;
+  pickup_delivery_slot?: string | null;
+  pickup_delivery_datetime?: string | null;
   total_amount: number;
   [key: string]: unknown;
 }
@@ -66,6 +70,13 @@ interface OrderItemRow {
   design: string | null;
   extras: string[];
   total: number;
+  // Workshop only (null for every other product).
+  workshop_type?: string | null;
+  workshop_session_id?: string | null;
+  workshop_date?: string | null;
+  workshop_time?: string | null;
+  workshop_participants?: number | null;
+  workshop_unit_price?: number | null;
   [key: string]: unknown;
 }
 
@@ -86,6 +97,11 @@ interface PaymentRequest {
   // and driving distance are all re-resolved server-side from it below —
   // the client-sent fee / distance / coordinates are ignored for the charge.
   deliveryPlaceId?: string | null;
+  // Intent only — the amount the customer asked to spend from their reward
+  // balance. Never trusted directly: it is capped by the reward-eligible
+  // (non-workshop) subtotal minus the welcome discount, then passed to
+  // reserve_reward() which returns the amount actually reserved.
+  rewardAmountToUse?: number;
 }
 
 function roundToCents(amount: number): number {
@@ -120,16 +136,55 @@ async function releaseWelcomeDiscountReservation(supabase: any, customerId: stri
   }
 }
 
+// Gives a reward reservation back to the customer's balance when the checkout
+// fails before the payment page is reached (or the allocation cannot land on
+// exactly 0). Deployed signature: release_reward_reservation(p_order_id uuid)
+// RETURNS numeric — it keys off the order alone, no customer id.
+async function releaseRewardReservation(supabase: any, orderId: string): Promise<void> {
+  const { error: releaseError } = await supabase.rpc("release_reward_reservation", {
+    p_order_id: orderId,
+  });
+  if (releaseError) {
+    console.error("Failed to release reward reservation:", releaseError);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Reservation-cleanup state, hoisted above the main try so the global
+  // catch can release anything reserved when an error is thrown AFTER a
+  // reservation succeeds but BEFORE the PostFinance payment page and the
+  // pending_payments row both exist (the inner catch only covers the
+  // PostFinance call itself). Each flag is set the moment its reservation
+  // succeeds and cleared the moment it is released, so no reservation is
+  // ever released twice.
+  let cleanupSupabase: any = null;
+  let cleanupOrderId: string | null = null;
+  let cleanupCustomerId: string | null = null;
+  let rewardReservationOutstanding = false;
+  let welcomeReservationOutstanding = false;
+
+  const releaseRewardIfOutstanding = async () => {
+    if (rewardReservationOutstanding && cleanupSupabase && cleanupOrderId) {
+      await releaseRewardReservation(cleanupSupabase, cleanupOrderId);
+      rewardReservationOutstanding = false;
+    }
+  };
+  const releaseWelcomeIfOutstanding = async () => {
+    if (welcomeReservationOutstanding && cleanupSupabase && cleanupCustomerId && cleanupOrderId) {
+      await releaseWelcomeDiscountReservation(cleanupSupabase, cleanupCustomerId, cleanupOrderId);
+      welcomeReservationOutstanding = false;
+    }
+  };
+
   try {
     const credentials = getPostFinanceCredentials();
 
     const body: PaymentRequest = await req.json();
-    const { orderId, order, orderItems, useWelcomeDiscount, pricingItems, deliveryPlaceId } = body;
+    const { orderId, order, orderItems, useWelcomeDiscount, pricingItems, deliveryPlaceId, rewardAmountToUse } = body;
 
     if (!orderId) throw new Error("orderId is required");
     if (!order) throw new Error("order is required");
@@ -146,11 +201,41 @@ serve(async (req) => {
     // trustworthy. Any single unresolved item aborts the whole order: no
     // PostFinance transaction is created, nothing is staged.
     for (let i = 0; i < orderItems.length; i++) {
+      // The pricing input and the row it prices MUST describe the same
+      // product, index for index — otherwise a client could price a cheap
+      // product and store an expensive one (or vice-versa).
+      if (!pricingItems[i] || pricingItems[i].product !== orderItems[i].product) {
+        throw new Error(
+          `Item ${i}: pricingItems.product (${pricingItems[i]?.product}) does not match orderItems.product (${orderItems[i].product})`,
+        );
+      }
+
       const result = priceOrderItem(pricingItems[i]);
       if (!result.ok) {
         throw new Error(`Pricing rejected for item ${i} (${pricingItems[i]?.product}): ${result.reason}`);
       }
       orderItems[i].total = result.total;
+
+      // Workshop: EVERY stored value is re-derived server-side. The client
+      // can only influence the session id, the type and the participant
+      // count — all of which priceOrderItem() has just validated. Date,
+      // time, type and unit price come from the trusted session list here.
+      if (orderItems[i].product === "workshop") {
+        const p = pricingItems[i];
+        const session = getWorkshopSession(p.workshopSessionId);
+        if (!session) {
+          throw new Error(`Item ${i}: workshop session ${p.workshopSessionId} not found`);
+        }
+        const participants = Number(p.workshopParticipants);
+        orderItems[i].workshop_type = session.type;
+        orderItems[i].workshop_session_id = session.id;
+        orderItems[i].workshop_date = session.date;
+        orderItems[i].workshop_time = session.time;
+        orderItems[i].workshop_participants = participants;
+        orderItems[i].workshop_unit_price = participants > 0
+          ? roundToCents(result.total / participants)
+          : result.total;
+      }
     }
 
     // Delivery fee is never trusted from the client — recomputed here from
@@ -159,7 +244,26 @@ serve(async (req) => {
     // coordinates + real driving distance, then the tariff grid in
     // _shared/delivery-pricing.ts decides the fee. Any client-sent
     // delivery_fee / delivery_distance_km / coordinates are overwritten.
-    if (order.delivery_method === "delivery") {
+    //
+    // A cart with no physical product (workshops only) can never have a
+    // delivery: force it off server-side regardless of what the client sent.
+    const hasPhysicalItem = orderItems.some((item) => item.product !== "workshop");
+    if (!hasPhysicalItem) {
+      order.delivery_method = null;
+      order.delivery_address = null;
+      order.delivery_zone = null;
+      order.delivery_postal_code = null;
+      order.delivery_city = null;
+      order.delivery_latitude = null;
+      order.delivery_longitude = null;
+      order.delivery_distance_km = null;
+      order.delivery_fee = 0;
+      order.pickup_delivery_date = null;
+      order.pickup_delivery_slot = null;
+      order.pickup_delivery_datetime = null;
+    }
+
+    if (hasPhysicalItem && order.delivery_method === "delivery") {
       if (!deliveryPlaceId || typeof deliveryPlaceId !== "string") {
         throw new Error("Please select your delivery address from the suggestions.");
       }
@@ -233,6 +337,10 @@ serve(async (req) => {
         console.error("claim_welcome_discount error (proceeding at full price):", claimError);
       } else if (claimed) {
         welcomeDiscountClaimed = true;
+        cleanupSupabase = supabase;
+        cleanupOrderId = orderId;
+        cleanupCustomerId = authenticatedUser.id;
+        welcomeReservationOutstanding = true;
       }
     }
 
@@ -253,6 +361,7 @@ serve(async (req) => {
     let discountedBase = 0;
     if (welcomeDiscountClaimed) {
       orderItems.forEach((item) => {
+        if (item.product === "workshop") return; // workshops never carry the welcome discount
         if (!isCandlesOnlyCart && item.product === "candles") return;
         // item.total is never used to determine or validate the base for a
         // non-candle item — the base comes only from the closed-set
@@ -285,35 +394,117 @@ serve(async (req) => {
         await releaseWelcomeDiscountReservation(supabase, authenticatedUser.id, orderId);
       }
       welcomeDiscountClaimed = false;
+      welcomeReservationOutstanding = false;
     }
 
     const discountAmount = discountedItem ? roundToCents(discountedBase * WELCOME_DISCOUNT_RATE) : 0;
     order.welcome_discount_amount = discountAmount;
 
-    const lineItems = orderItems.map((item, i) => {
-      const name = [item.size, item.shape].filter(Boolean).join(" ") || `Item ${i + 1}`;
-      const description = [
-        item.flavors?.length ? item.flavors.join(", ") : null,
-        item.design,
-        item.extras?.length ? `Extras: ${item.extras.join(", ")}` : null,
-      ].filter(Boolean).join(" • ");
+    // ── Reward balance spent on this order (reservation flow) ───────────
+    // Deployed signature:
+    //   reserve_reward(p_customer_id uuid, p_order_id uuid,
+    //                  p_requested_amount numeric, p_max_amount numeric)
+    //     RETURNS numeric  -- the amount ACTUALLY reserved
+    // reserve_reward() itself caps by requested amount, p_max_amount and the
+    // real available balance, so no manual profiles.reward_balance read is
+    // needed. finalize_reward_for_order() consumes that reservation on
+    // capture; release_reward_reservation(p_order_id) gives it back on any
+    // failure before the payment page.
+    //
+    // Workshops are excluded from the eligible base and never receive a
+    // reward deduction on their PostFinance line.
+    const requestedReward = Number(rewardAmountToUse ?? 0);
+    if (!Number.isFinite(requestedReward) || requestedReward < 0) {
+      throw new Error("Invalid rewardAmountToUse");
+    }
 
-      // No PostFinance/Wallee line item type for a discount is confirmed in
-      // official docs, so the discount is subtracted directly from the one
-      // discounted line's amount instead of adding an invented line type.
-      const amount = item === discountedItem
-        ? roundToCents(item.total - discountAmount)
-        : item.total;
+    const rewardEligibleSubtotal = orderItems
+      .filter((item) => item.product !== "workshop")
+      .reduce((sum, item) => sum + item.total, 0);
+    const maxReward = roundToCents(Math.max(0, rewardEligibleSubtotal - discountAmount));
+
+    let reservedReward = 0;
+    let rewardReserved = false;
+    if (authenticatedUser && requestedReward >= 1 && maxReward > 0) {
+      const { data, error: reserveError } = await supabase.rpc("reserve_reward", {
+        p_customer_id: authenticatedUser.id,
+        p_order_id: orderId,
+        p_requested_amount: roundToCents(requestedReward),
+        p_max_amount: maxReward,
+      });
+      // Keep the current behaviour: a failed reward reservation rejects the
+      // checkout — it is never silently downgraded to "proceed without reward".
+      if (reserveError) {
+        throw new Error(`Reward reservation failed: ${reserveError.message}`);
+      }
+      reservedReward = roundToCents(Number(data ?? 0));
+      rewardReserved = reservedReward > 0;
+      if (rewardReserved) {
+        cleanupSupabase = supabase;
+        cleanupOrderId = orderId;
+        rewardReservationOutstanding = true;
+      }
+    }
+    order.reward_amount_used = reservedReward;
+
+    const orderLang: "fr" | "en" = order.lang === "en" ? "en" : "fr";
+
+    const lineItems = orderItems.map((item, i) => {
+      const isWorkshop = item.product === "workshop";
+      const participants = Number(item.workshop_participants) || 0;
+      const name = isWorkshop
+        ? `${workshopTitle(item.workshop_type as WorkshopType, orderLang)} — ${formatWorkshopDate(item.workshop_date)} · ${item.workshop_time ?? ""}`.trim()
+        : ([item.size, item.shape].filter(Boolean).join(" ") || `Item ${i + 1}`);
+      const description = isWorkshop
+        ? `${participants} ${orderLang === "fr" ? "participant(s)" : "participant(s)"} × CHF ${item.workshop_unit_price}`
+        : [
+            item.flavors?.length ? item.flavors.join(", ") : null,
+            item.design,
+            item.extras?.length ? `Extras: ${item.extras.join(", ")}` : null,
+          ].filter(Boolean).join(" • ");
+
+      // Workshop line: quantity = participants, unit price = the
+      // server-derived per-person price (never quantity 1 with the total).
+      // Non-workshop line: quantity 1; the welcome discount is subtracted
+      // directly from the one discounted line (no invented discount line
+      // type — none is confirmed in PostFinance/Wallee docs).
+      const quantity = isWorkshop ? participants : 1;
+      const unitAmount = isWorkshop
+        ? Number(item.workshop_unit_price)
+        : (item === discountedItem ? roundToCents(item.total - discountAmount) : item.total);
 
       return {
         uniqueId: `item-${i}`,
         name,
-        quantity: 1,
-        amountIncludingTax: amount,
+        quantity,
+        amountIncludingTax: unitAmount,
         type: "PRODUCT",
         attributes: description ? { description: { label: "Details", value: description } } : undefined,
       };
     });
+
+    // Reward can only reduce NON-workshop lines. Allocate reservedReward
+    // across them in order; the running remainder must land exactly on 0 or
+    // the whole transaction is rejected (and the reservation released) —
+    // never let the PostFinance total and orders.total_amount diverge.
+    if (reservedReward > 0) {
+      let rewardRemaining = reservedReward;
+      for (let i = 0; i < lineItems.length && rewardRemaining > 0; i++) {
+        if (orderItems[i].product === "workshop") continue;
+        const line = lineItems[i];
+        const lineTotal = roundToCents(line.amountIncludingTax * line.quantity);
+        const deduct = roundToCents(Math.min(rewardRemaining, lineTotal));
+        line.amountIncludingTax = roundToCents(line.amountIncludingTax - deduct / line.quantity);
+        rewardRemaining = roundToCents(rewardRemaining - deduct);
+      }
+      if (roundToCents(rewardRemaining) !== 0) {
+        await releaseRewardIfOutstanding();
+        await releaseWelcomeIfOutstanding();
+        throw new Error(
+          `Reward allocation left ${rewardRemaining} unallocated — refusing to create a PostFinance transaction that would diverge from orders.total_amount.`,
+        );
+      }
+    }
 
     if (order.delivery_method === "delivery" && order.delivery_fee > 0) {
       lineItems.push({
@@ -331,7 +522,7 @@ serve(async (req) => {
     // above (priceOrderItem / resolveDeliveryForPlaceId +
     // resolveDeliveryFeeByDistance), not client values.
     const deliveryFee = order.delivery_method === "delivery" ? order.delivery_fee : 0;
-    order.total_amount = roundToCents(productsSubtotal - discountAmount + deliveryFee);
+    order.total_amount = roundToCents(productsSubtotal - discountAmount - reservedReward + deliveryFee);
 
     const transactionCreate = {
       currency: "CHF",
@@ -346,7 +537,7 @@ serve(async (req) => {
         order_id: orderId,
         customer_name: `${order.first_name} ${order.last_name}`,
         customer_phone: order.phone,
-        delivery_option: order.delivery_method,
+        delivery_option: order.delivery_method || "none",
         delivery_address: order.delivery_address || "",
       },
     };
@@ -386,16 +577,21 @@ serve(async (req) => {
     } catch (innerError) {
       // The customer never reached a usable payment page — this is a
       // backend failure, not an abandoned checkout, so release the
-      // reservation immediately instead of leaving it blocked for 30
-      // minutes. Guarded to this exact customer + orderId so a concurrent,
-      // unrelated reservation can never be released by mistake.
-      if (welcomeDiscountClaimed && authenticatedUser) {
-        await releaseWelcomeDiscountReservation(supabase, authenticatedUser.id, orderId);
-      }
+      // reservations immediately instead of leaving them blocked.
+      await releaseWelcomeIfOutstanding();
+      await releaseRewardIfOutstanding();
       throw innerError;
     }
   } catch (error) {
     console.error("Error creating PostFinance transaction:", error);
+
+    // Global safety net: any throw AFTER a reservation succeeded but BEFORE
+    // the payment page + pending_payments row both exist lands here (the
+    // inner catch only wraps the PostFinance call). Release whatever is
+    // still outstanding — both helpers no-op if their reservation was
+    // already given back above.
+    await releaseRewardIfOutstanding();
+    await releaseWelcomeIfOutstanding();
 
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : "Unknown error",

@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLang } from "@/context/LanguageContext";
 import { toast } from "sonner";
-import { submitToWeb3Forms } from "@/lib/web3forms";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useCart } from "@/context/CartContext";
+import { PrivateWorkshopDialog } from "@/components/PrivateWorkshopDialog";
 import {
   WorkshopType,
   WorkshopSession,
@@ -15,6 +17,7 @@ import {
   getSessionsForType,
   spotsLeft,
   formatSessionDate,
+  WORKSHOP_PRICE_PER_PERSON,
 } from "@/data/workshopSessions";
 
 // ── Stepper ──────────────────────────────────────────────────────────────────
@@ -61,6 +64,7 @@ const WorkshopBooking = () => {
   const { t, lang } = useLang();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { addItem } = useCart();
 
   const typeParam = searchParams.get("type") as WorkshopType | null;
   const workshopType: WorkshopType = typeParam === "paint" ? "paint" : "signature";
@@ -71,6 +75,9 @@ const WorkshopBooking = () => {
   const [selectedSession, setSelectedSession] = useState<WorkshopSession | null>(null);
   const [participants, setParticipants] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [minorConsent, setMinorConsent] = useState(false);
+  const [minorConsentError, setMinorConsentError] = useState(false);
+  const [quoteOpen, setQuoteOpen] = useState(false);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -145,8 +152,11 @@ const WorkshopBooking = () => {
   );
 
   // ── Step 1: participants ──────────────────────────────────────────────────
+  // Hard cap per booking: 8 (signature) / 10 (paint). Bigger groups go
+  // through the existing private-workshop quote request.
   const Step1 = () => {
-    const maxAllowed = selectedSession ? Math.min(spotsLeft(selectedSession), 6) : 6;
+    const maxAllowed = info.maxParticipants;
+    const atLimit = participants >= maxAllowed;
     return (
       <div>
         <h2 className="font-sans uppercase tracking-[0.105em] text-lg text-foreground mb-6">
@@ -162,14 +172,28 @@ const WorkshopBooking = () => {
           <span className="text-3xl font-light text-foreground w-8 text-center">{participants}</span>
           <button
             onClick={() => setParticipants(Math.min(maxAllowed, participants + 1))}
-            className="w-10 h-10 border border-border flex items-center justify-center text-foreground hover:border-primary transition-colors text-xl"
+            disabled={atLimit}
+            className="w-10 h-10 border border-border flex items-center justify-center text-foreground hover:border-primary transition-colors text-xl disabled:opacity-30 disabled:hover:border-border"
           >
             +
           </button>
         </div>
-        <p className="text-sm text-muted-foreground mb-8">
+        <p className="text-sm text-muted-foreground mb-3">
           {t(`Maximum ${maxAllowed} participants per booking.`, `Maximum ${maxAllowed} participants par réservation.`)}
         </p>
+        {atLimit && (
+          <p className="text-xs text-muted-foreground mb-8">
+            {t("For larger groups, please send us a quote request.", "Pour un groupe plus important, veuillez nous envoyer une demande de devis.")}{" "}
+            <button
+              type="button"
+              onClick={() => setQuoteOpen(true)}
+              className="underline underline-offset-2 text-foreground hover:text-primary"
+            >
+              {t("Request a quote", "Demander un devis")}
+            </button>
+          </p>
+        )}
+        {!atLimit && <div className="mb-8" />}
         <div className="border border-border p-4 bg-muted/30">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-muted-foreground">
@@ -239,36 +263,82 @@ const WorkshopBooking = () => {
           </Label>
           <Input id="bk-notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="rounded-none" />
         </div>
+
+        <div className="flex items-start gap-3 pt-2">
+          <Checkbox
+            id="bk-minor-consent"
+            checked={minorConsent}
+            onCheckedChange={(c) => { setMinorConsent(c === true); if (c === true) setMinorConsentError(false); }}
+            className="mt-0.5"
+          />
+          <Label htmlFor="bk-minor-consent" className="text-xs leading-relaxed cursor-pointer font-normal">
+            {t(
+              "I confirm that I am of legal age or, when booking for a minor, that I have the authorisation of their legal representative.",
+              "Je confirme être majeur ou, en cas de réservation pour un mineur, disposer de l'autorisation de son représentant légal.",
+            )}
+            <span className="text-destructive ml-1">*</span>
+          </Label>
+        </div>
+        {minorConsentError && (
+          <p className="text-xs text-destructive">
+            {t("Please confirm this to continue.", "Veuillez confirmer pour continuer.")}
+          </p>
+        )}
       </div>
     </div>
   );
 
   // ── Step 3: summary + confirm ─────────────────────────────────────────────
-  const handleSubmit = async () => {
+  // The workshop is now a real cart product paid through the normal
+  // checkout/PostFinance flow. Customer contact details (name/email/phone)
+  // are collected at checkout and stored on the order, not duplicated here;
+  // allergies + notes ride along on the order_item comment.
+  const handleAddToCart = () => {
     if (!selectedSession) return;
+    if (!validate()) { setStep(2); return; }
+    if (!minorConsent) { setMinorConsentError(true); setStep(2); return; }
+
+    const unitPrice = WORKSHOP_PRICE_PER_PERSON[workshopType];
+    const commentBits = [
+      form.allergies.trim() ? `${t("Allergies", "Allergies")}: ${form.allergies.trim()}` : "",
+      form.notes.trim() ? `${t("Notes", "Notes")}: ${form.notes.trim()}` : "",
+    ].filter(Boolean).join(" · ");
+
     setIsSubmitting(true);
-    try {
-      await submitToWeb3Forms(
-        {
-          "Workshop": t(info.title, info.titleFr),
-          "Date": `${formatSessionDate(selectedSession.date, lang === "fr" ? "fr" : "en")} at ${selectedSession.time}`,
-          "Participants": String(participants),
-          "Total": `${total} ${info.currency}`,
-          "First name": form.firstName,
-          "Last name": form.lastName,
-          "Email": form.email,
-          "Phone": form.phone,
-          "Allergies": form.allergies || "—",
-          "Notes": form.notes || "—",
-        },
-        { subject: `Workshop Booking – ${info.title} – ${form.firstName} ${form.lastName}` }
-      );
-      navigate(`/workshop-confirmation?type=${workshopType}&session=${selectedSession.id}&participants=${participants}&name=${encodeURIComponent(form.firstName)}&email=${encodeURIComponent(form.email)}`);
-    } catch {
-      toast.error(t("Something went wrong. Please try again or contact us on WhatsApp.", "Une erreur s'est produite. Veuillez réessayer ou nous contacter sur WhatsApp."));
-    } finally {
-      setIsSubmitting(false);
+    const added = addItem({
+      id: "",
+      product: "workshop",
+      orderDate: "",
+      orderTime: "",
+      size: "", sizeName: "",
+      shape: "", shapeName: "",
+      flavor: "", flavorName: "",
+      style: "workshop", styleName: t(info.title, info.titleFr),
+      baseColor: "", baseColorName: "",
+      decorationColor: "", decorationColorName: "",
+      cakeText: "", textColor: "", textColorName: "", textStyle: "normal",
+      extras: [], extrasNames: [],
+      ribbonColor: "", ribbonColorName: "",
+      butterflyColor: "", butterflyColorName: "",
+      candles: [],
+      comment: commentBits,
+      imageUrls: [],
+      imageFiles: [],
+      workshopType,
+      workshopSessionId: selectedSession.id,
+      workshopDate: selectedSession.date,
+      workshopTime: selectedSession.time,
+      workshopParticipants: participants,
+      workshopUnitPrice: unitPrice,
+      total: unitPrice * participants,
+    });
+    setIsSubmitting(false);
+    if (!added) {
+      toast.error(t("Could not add the workshop to your cart. Please try again.", "Impossible d'ajouter l'atelier au panier. Veuillez réessayer."));
+      return;
     }
+    toast.success(t("Workshop added to your cart.", "Atelier ajouté à votre panier."));
+    navigate("/cart");
   };
 
   const Step3 = () => (
@@ -302,19 +372,19 @@ const WorkshopBooking = () => {
 
         <div className="border border-primary/30 bg-primary/5 p-4 text-sm text-foreground/80 leading-relaxed">
           {t(
-            "By confirming, you agree to our cancellation policy. A payment link will be sent to your email address to complete your booking.",
-            "En confirmant, vous acceptez notre politique d'annulation. Un lien de paiement sera envoyé à votre adresse e-mail pour finaliser votre réservation."
+            "By adding this workshop to your cart, you agree to our cancellation policy. Payment is completed securely at checkout, together with the rest of your cart.",
+            "En ajoutant cet atelier au panier, vous acceptez notre politique d'annulation. Le paiement s'effectue de manière sécurisée au moment de la commande, avec le reste de votre panier."
           )}
         </div>
 
         <Button
-          onClick={handleSubmit}
+          onClick={handleAddToCart}
           disabled={isSubmitting}
           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
         >
           {isSubmitting
-            ? t("Sending…", "Envoi en cours…")
-            : t("Confirm booking", "Confirmer la réservation")}
+            ? t("Adding…", "Ajout en cours…")
+            : t("Add to cart", "Ajouter au panier")}
         </Button>
       </div>
     </div>
@@ -336,7 +406,10 @@ const WorkshopBooking = () => {
   };
 
   const advance = () => {
-    if (step === 2 && !validate()) return;
+    if (step === 2) {
+      if (!validate()) return;
+      if (!minorConsent) { setMinorConsentError(true); return; }
+    }
     setStep(s => s + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -408,11 +481,15 @@ const WorkshopBooking = () => {
               </h1>
               <Stepper current={step} />
 
+              {/* Steps are rendered as function calls (not <StepN />) so React
+                  keeps the same element tree between renders — rendering them
+                  as components recreated every render was remounting the
+                  inputs on each keystroke and stealing focus. */}
               <div className="min-h-[300px]">
-                {step === 0 && <Step0 />}
-                {step === 1 && <Step1 />}
-                {step === 2 && <Step2 />}
-                {step === 3 && <Step3 />}
+                {step === 0 && Step0()}
+                {step === 1 && Step1()}
+                {step === 2 && Step2()}
+                {step === 3 && Step3()}
               </div>
 
               {step < 3 && (
@@ -439,6 +516,8 @@ const WorkshopBooking = () => {
           </div>
         </div>
       </div>
+
+      <PrivateWorkshopDialog open={quoteOpen} onOpenChange={setQuoteOpen} />
     </Layout>
   );
 };

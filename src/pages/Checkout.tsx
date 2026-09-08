@@ -140,6 +140,12 @@ type DeliveryQuoteStatus =
 
 const formatDisplayDate = (date: Date) => format(date, "dd.MM.yyyy");
 
+// "YYYY-MM-DD" workshop session date → "DD.MM.YYYY" for the order summary.
+const formatWorkshopDateCheckout = (dateStr: string) => {
+  const [y, m, d] = dateStr.split("-");
+  return y && m && d ? `${d}.${m}.${y}` : dateStr;
+};
+
 // Temporary compatibility field: pickup_delivery_datetime is being phased
 // out in favour of pickup_delivery_date + pickup_delivery_slot (kept filled
 // until nothing on the site or in Make/Notion still reads it). Picks the
@@ -329,9 +335,19 @@ const Checkout = () => {
   const [countryCode, setCountryCode] = useState("+41");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+
+  // A workshop is a real cart product but has no pickup/delivery: its date is
+  // the session date, stored per order_item. Physical products keep the
+  // existing single pickup/delivery date + method. When the cart is 100%
+  // workshops there is no pickup/delivery step at all.
+  const physicalItems = items.filter((i) => i.product !== "workshop");
+  const workshopItems = items.filter((i) => i.product === "workshop");
+  const hasPhysical = physicalItems.length > 0;
+
   const [deliveryDate, setDeliveryDate] = useState<Date>(() => {
-    if (items.length > 0 && items[0].orderDate) {
-      const parsed = new Date(items[0].orderDate);
+    const firstPhysicalWithDate = items.find((i) => i.product !== "workshop" && i.orderDate);
+    if (firstPhysicalWithDate?.orderDate) {
+      const parsed = new Date(firstPhysicalWithDate.orderDate);
       return isNaN(parsed.getTime()) ? undefined as unknown as Date : parsed;
     }
     return undefined as unknown as Date;
@@ -416,6 +432,11 @@ const Checkout = () => {
   }, [items]);
 
   const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
+  // Reward balance & the welcome discount never apply to workshops — this is
+  // the base they are computed against (products only, delivery excluded).
+  const rewardEligibleItemsTotal = items
+    .filter((item) => item.product !== "workshop")
+    .reduce((sum, item) => sum + item.total, 0);
 
   // Clears any address/quote already entered — used when the customer edits
   // the address, or switches back to pick-up. Never leaves a stale fee
@@ -535,6 +556,7 @@ const Checkout = () => {
   let discountedItem: (typeof items)[number] | null = null;
   let discountedBase = 0;
   for (const item of (isCandlesOnlyCart ? items : nonCandleItems)) {
+    if (item.product === "workshop") continue; // workshops never carry the welcome discount
     const base = isCandlesOnlyCart ? item.total : getWelcomeVoucherBase(item);
     if (base === null) continue;
     if (discountedItem === null || base < discountedBase) {
@@ -557,14 +579,14 @@ const Checkout = () => {
   // Products only, after the welcome discount, delivery excluded — matches
   // the business rule; still just a display cap, never trusted as the real
   // ceiling.
-  const maxRewardUsable = Math.max(0, Math.round((itemsTotal - estimatedWelcomeDiscount) * 100) / 100);
+  const maxRewardUsable = Math.max(0, Math.round((rewardEligibleItemsTotal - estimatedWelcomeDiscount) * 100) / 100);
   // No amount choice — enabling the option always requests the maximum
   // usable amount (never more than what's left to pay on products).
   const estimatedRewardUsed = (useReward && rewardEligible)
     ? Math.round(Math.min(rewardBalance, maxRewardUsable) * 100) / 100
     : 0;
 
-  const totalPrice = itemsTotal - estimatedWelcomeDiscount - estimatedRewardUsed + (deliveryOption === "delivery" ? deliveryPrice : 0);
+  const totalPrice = itemsTotal - estimatedWelcomeDiscount - estimatedRewardUsed + (hasPhysical && deliveryOption === "delivery" ? deliveryPrice : 0);
 
   // Build phone number with country code
   const fullPhoneNumber = combinePhoneNumber(countryCode, phone);
@@ -590,7 +612,7 @@ const Checkout = () => {
       return;
     }
 
-    if (!deliveryDate) {
+    if (hasPhysical && !deliveryDate) {
       toast({
         title: t("Please select a delivery date", "Veuillez sélectionner une date"),
         variant: "destructive",
@@ -598,7 +620,9 @@ const Checkout = () => {
       return;
     }
 
-    const datedItems = items.filter((i) => i.orderDate);
+    // Only physical items carry a pickup/delivery date; workshops have their
+    // own session date per order_item and never enter this check.
+    const datedItems = physicalItems.filter((i) => i.orderDate);
     const mismatchedDates = datedItems.some((i) => i.orderDate !== datedItems[0]?.orderDate);
     if (mismatchedDates) {
       toast({
@@ -657,7 +681,7 @@ const Checkout = () => {
       return;
     }
 
-    if (deliveryOption === "pickup" && !pickupTime) {
+    if (hasPhysical && deliveryOption === "pickup" && !pickupTime) {
       toast({
         title: t("Pick-up Time required", "Heure de retrait requise"),
         description: t("Please select a pick-up time slot.", "Veuillez sélectionner un créneau de retrait."),
@@ -666,7 +690,7 @@ const Checkout = () => {
       return;
     }
 
-    if (deliveryOption === "delivery" && (!deliveryTime || !deliveryComment.trim())) {
+    if (hasPhysical && deliveryOption === "delivery" && (!deliveryTime || !deliveryComment.trim())) {
       toast({
         title: t("Delivery information required", "Informations de livraison requises"),
         description: t("Please select a delivery time slot and add a comment with the necessary delivery information.", "Veuillez sélectionner un créneau de livraison et ajouter un commentaire avec les informations nécessaires."),
@@ -692,20 +716,21 @@ const Checkout = () => {
     setIsSubmitting(true);
 
     try {
-      // Check if date is still available (max 5 orders)
-      const formattedDate = format(deliveryDate, "yyyy-MM-dd");
-      const { data: orderCount, error: orderCountError } = await supabase.rpc(
-        "get_order_count_for_date",
-        {
-          target_date: formattedDate,
-        },
-      );
+      // Physical products carry a pickup/delivery date; a workshop-only cart
+      // has none (each workshop's session date lives on its order_item).
+      const formattedDate = hasPhysical && deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : null;
+
+      // Check if the pickup/delivery date is still available (max 5 orders).
+      // Skipped entirely for a workshop-only cart.
+      const { data: orderCount, error: orderCountError } = formattedDate
+        ? await supabase.rpc("get_order_count_for_date", { target_date: formattedDate })
+        : { data: null, error: null };
 
       if (orderCountError) {
         console.error("Order count error:", orderCountError);
       }
 
-      if (orderCount && orderCount >= 5) {
+      if (formattedDate && orderCount && orderCount >= 5) {
         toast({
           title: t("Date fully booked", "Date complète"),
           description: t(
@@ -744,7 +769,7 @@ const Checkout = () => {
       }
 
       const orderId = crypto.randomUUID();
-      const slot = deliveryOption === "pickup" ? pickupTime : deliveryTime;
+      const slot = !hasPhysical ? null : (deliveryOption === "pickup" ? pickupTime : deliveryTime);
 
       // Collect all image files from cart items and upload to Supabase
       const allImageFiles = items.flatMap(item => item.imageFiles || []);
@@ -769,6 +794,10 @@ const Checkout = () => {
       // staged into pending_payments by create-postfinance-payment, and only
       // turned into real orders/order_items rows by confirm-postfinance-payment
       // once the customer returns and the transaction is confirmed.
+      // A workshop-only cart has no pickup/delivery: delivery_method and every
+      // pickup_delivery_* field are null (orders.delivery_method and
+      // orders.pickup_delivery_datetime are nullable — see migration).
+      const usesDelivery = hasPhysical && deliveryOption === "delivery";
       const orderData = {
         id: orderId,
         order_source: "website",
@@ -777,24 +806,27 @@ const Checkout = () => {
         last_name: normalizeName(lastName),
         email: normalizeEmail(email),
         phone: fullPhoneNumber,
-        delivery_method: deliveryOption,
+        delivery_method: hasPhysical ? deliveryOption : null,
         // Delivery fields below are display/record values. create-postfinance-payment
         // re-resolves address, coordinates, distance and fee from deliveryPlaceId
         // (server-authoritative) and overwrites delivery_fee / delivery_zone /
         // delivery_distance_km / coordinates before charging.
-        delivery_address: deliveryOption === "delivery" ? (deliveryQuote?.formattedAddress ?? deliveryAddress) : null,
+        delivery_address: usesDelivery ? (deliveryQuote?.formattedAddress ?? deliveryAddress) : null,
         delivery_zone: null,
-        delivery_fee: deliveryOption === "delivery" ? deliveryPrice : 0,
-        delivery_postal_code: deliveryOption === "delivery" ? (deliveryQuote?.postalCode || null) : null,
-        delivery_city: deliveryOption === "delivery" ? (deliveryQuote?.city || null) : null,
-        delivery_latitude: deliveryOption === "delivery" ? (deliveryQuote?.lat ?? null) : null,
-        delivery_longitude: deliveryOption === "delivery" ? (deliveryQuote?.lng ?? null) : null,
-        delivery_distance_km: deliveryOption === "delivery" ? (deliveryQuote?.distanceKm ?? null) : null,
+        delivery_fee: usesDelivery ? deliveryPrice : 0,
+        delivery_postal_code: usesDelivery ? (deliveryQuote?.postalCode || null) : null,
+        delivery_city: usesDelivery ? (deliveryQuote?.city || null) : null,
+        delivery_latitude: usesDelivery ? (deliveryQuote?.lat ?? null) : null,
+        delivery_longitude: usesDelivery ? (deliveryQuote?.lng ?? null) : null,
+        delivery_distance_km: usesDelivery ? (deliveryQuote?.distanceKm ?? null) : null,
         pickup_delivery_date: formattedDate,
         pickup_delivery_slot: slot,
-        // Temporary: kept filled until nothing still reads pickup_delivery_datetime.
-        pickup_delivery_datetime: buildPickupDeliveryDatetime(deliveryDate, slot),
-        order_comment: deliveryOption === "delivery" ? deliveryComment : null,
+        // Temporary compatibility field, now nullable — null for a
+        // workshop-only order.
+        pickup_delivery_datetime: hasPhysical && deliveryDate && slot
+          ? buildPickupDeliveryDatetime(deliveryDate, slot)
+          : null,
+        order_comment: usesDelivery ? deliveryComment : null,
         total_amount: totalPrice,
         newsletter_subscription: subscribeNewsletter,
       };
@@ -825,13 +857,22 @@ const Checkout = () => {
           );
         }
 
+        const isWorkshop = item.product === "workshop";
+
         return {
           order_id: orderId,
           product: item.product,
           size: item.size || null,
           shape: item.shape || null,
           flavors: item.flavorName ? item.flavorName.split(",").map((f) => f.trim()).filter(Boolean) : [],
-          design: item.style || null,
+          design: isWorkshop ? null : (item.style || null),
+          // Workshop-only columns (nullable, empty for every other product).
+          workshop_type: isWorkshop ? (item.workshopType ?? null) : null,
+          workshop_session_id: isWorkshop ? (item.workshopSessionId ?? null) : null,
+          workshop_date: isWorkshop ? (item.workshopDate ?? null) : null,
+          workshop_time: isWorkshop ? (item.workshopTime ?? null) : null,
+          workshop_participants: isWorkshop ? (item.workshopParticipants ?? null) : null,
+          workshop_unit_price: isWorkshop ? (item.workshopUnitPrice ?? null) : null,
           // Exact catalogue design photo the customer clicked (multi-option
           // designs only) — complements `design`, never replaces it. null for
           // every other case; old orders stay null and keep working.
@@ -960,14 +1001,19 @@ const Checkout = () => {
         // decides what gets charged.
         pricingItems: orderItemsWithImageUrls.map((item) => ({
           product: item.product,
-          size: item.size || null,
-          shape: item.shape || null,
-          flavors: item.isCandleProduct
+          size: item.product === "workshop" ? null : (item.size || null),
+          shape: item.product === "workshop" ? null : (item.shape || null),
+          flavors: (item.isCandleProduct || item.product === "workshop")
             ? []
             : item.flavor ? item.flavor.split(",").map((f) => f.trim()).filter(Boolean) : [],
-          design: item.style || null,
-          extras: item.isCandleProduct ? [] : (item.extras || []),
-          candles: item.candles || [],
+          design: item.product === "workshop" ? null : (item.style || null),
+          extras: (item.isCandleProduct || item.product === "workshop") ? [] : (item.extras || []),
+          candles: item.product === "workshop" ? [] : (item.candles || []),
+          // Workshop-only — validated server-side against the session list,
+          // the price table and the participant cap.
+          workshopType: item.product === "workshop" ? (item.workshopType ?? null) : null,
+          workshopSessionId: item.product === "workshop" ? (item.workshopSessionId ?? null) : null,
+          workshopParticipants: item.product === "workshop" ? (item.workshopParticipants ?? null) : null,
         })),
         items: items.map((item) => ({
           sizeName: item.sizeName,
@@ -1161,6 +1207,10 @@ const Checkout = () => {
               />
             </div>
 
+            {/* Pickup / delivery block — only for carts with a physical product.
+                A workshop-only cart has nothing to pick up or deliver. */}
+            {hasPhysical && (
+            <>
             {/* Pickup Date */}
             <div className="space-y-2">
               <Label>{t("Pick-up / Delivery Date", "Date de retrait / livraison")}</Label>
@@ -1344,6 +1394,8 @@ const Checkout = () => {
                 </div>
               </div>
             )}
+            </>
+            )}
 
             {/* Order Summary */}
             <div className="border-t border-border pt-6 mt-6">
@@ -1355,6 +1407,22 @@ const Checkout = () => {
               {items.length > 0 && (
                 <div className="mb-4 space-y-3">
                   {items.map((item) => {
+                    if (item.product === "workshop") {
+                      return (
+                        <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3">
+                          <div className="flex justify-between items-start gap-3">
+                            <span className="font-medium text-sm text-foreground">
+                              {item.styleName || t("Workshop", "Atelier")}
+                              {" — "}
+                              {item.workshopDate ? formatWorkshopDateCheckout(item.workshopDate) : ""}
+                              {item.workshopTime ? ` ${item.workshopTime}` : ""}
+                              {item.workshopParticipants ? ` (×${item.workshopParticipants})` : ""}
+                            </span>
+                            <span className="font-semibold text-sm text-primary whitespace-nowrap">CHF {item.total}</span>
+                          </div>
+                        </div>
+                      );
+                    }
                     if (item.isCandleProduct) {
                       return (
                         <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3">
@@ -1480,7 +1548,7 @@ const Checkout = () => {
                 </div>
               )}
 
-              {deliveryOption === "delivery" && deliveryQuoteStatus === "ok" && deliveryQuote && (
+              {hasPhysical && deliveryOption === "delivery" && deliveryQuoteStatus === "ok" && deliveryQuote && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">{t("Delivery", "Livraison")}</span>
                   <span className="font-medium">CHF {deliveryQuote.fee.toFixed(2)}</span>

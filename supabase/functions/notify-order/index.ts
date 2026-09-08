@@ -23,6 +23,21 @@ async function sendAdminEmail(resendApiKey: string, order: any, items: any[], si
   const reviewUrl = `${siteUrl}/admin/order/${order.id}?token=${token}`;
 
   const itemBlocks = items.map((item: any, i: number) => {
+    if (item.product === "workshop") {
+      const wsName = item.workshop_type === "paint" ? "Atelier Peinture" : "Atelier Signature";
+      return `
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
+        <h4 style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">Atelier ${i + 1} — CHF ${item.total}</h4>
+        <table style="width:100%;border-collapse:collapse;">
+          ${row("Atelier", wsName)}
+          ${row("Date", item.workshop_date)}
+          ${row("Horaire", item.workshop_time)}
+          ${row("Participants", item.workshop_participants != null ? String(item.workshop_participants) : null)}
+          ${row("Notes", item.item_comment?.trim() || null)}
+        </table>
+      </div>`;
+    }
+
     const candlesList = item.candle_name
       ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
       : "";
@@ -90,7 +105,8 @@ async function sendAdminEmail(resendApiKey: string, order: any, items: any[], si
           </table>
         </div>
 
-        <!-- Pickup / Delivery -->
+        <!-- Pickup / Delivery (physical products only) -->
+        ${order.delivery_method ? `
         <div style="background:#f0fff4;border-radius:12px;padding:20px;margin-bottom:20px;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📦 Retrait / Livraison</h3>
           <table style="border-collapse:collapse;width:100%;">
@@ -100,7 +116,7 @@ async function sendAdminEmail(resendApiKey: string, order: any, items: any[], si
             ${row("Adresse", order.delivery_method === "delivery" ? order.delivery_address : null)}
             ${row("Remarques", order.order_comment || null)}
           </table>
-        </div>
+        </div>` : ""}
 
         <!-- Order Items -->
         <h3 style="color:#333;font-size:15px;margin:0 0 4px;font-weight:600;">🍰 Articles commandés (${items.length})</h3>

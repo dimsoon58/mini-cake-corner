@@ -43,14 +43,32 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
 
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
 
-  const deliveryInfo = order.delivery_method === "delivery"
-    ? `${tr("Delivery to", "Livraison à")}: ${order.delivery_address || "—"}`
-    : tr("Pickup at store", "Retrait sur place");
+  const deliveryInfo = !order.delivery_method
+    ? ""
+    : order.delivery_method === "delivery"
+      ? `${tr("Delivery to", "Livraison à")}: ${order.delivery_address || "—"}`
+      : tr("Pickup at store", "Retrait sur place");
 
   const row = (label: string, value: string) =>
     `<tr><td style="padding:6px 8px;color:#888;font-size:14px;width:40%;">${label}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${value}</td></tr>`;
 
   const cakeDetailsRows = items.map((item: any, i: number) => {
+    if (item.product === "workshop") {
+      const wsName = item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature");
+      const wsRows = [
+        row(tr("Workshop", "Atelier"), wsName),
+        item.workshop_date ? row(tr("Date", "Date"), formatDateCH(item.workshop_date)) : "",
+        item.workshop_time ? row(tr("Time", "Horaire"), item.workshop_time) : "",
+        item.workshop_participants != null ? row(tr("Participants", "Participants"), String(item.workshop_participants)) : "",
+        item.item_comment?.trim() ? row(tr("Notes", "Notes"), item.item_comment.trim()) : "",
+      ].join("");
+      return `
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
+        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${tr("Workshop", "Atelier")} ${items.length > 1 ? (i + 1) : ""}</h3>
+        <table style="border-collapse:collapse;width:100%;">${wsRows}</table>
+      </div>`;
+    }
+
     const candleStr = item.candle_name
       ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
       : "";
@@ -92,13 +110,19 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
       </div>`
     : "";
 
-  const itemSummaryRows = items.map((item: any) => `
+  const itemSummaryRows = items.map((item: any) => {
+    const label = item.product === "workshop"
+      ? `${item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature")}`
+        + `${item.workshop_date ? " — " + formatDateCH(item.workshop_date) : ""}`
+        + `${item.workshop_time ? " " + item.workshop_time : ""}`
+        + `${item.workshop_participants ? ` (×${item.workshop_participants})` : ""}`
+      : `${item.size || ""} ${item.shape || ""} — ${(item.flavors || []).join(", ")}`;
+    return `
     <tr>
-      <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">
-        ${item.size || ""} ${item.shape || ""} — ${(item.flavors || []).join(", ")}
-      </td>
+      <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">${label}</td>
       <td style="padding:12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
-    </tr>`).join("");
+    </tr>`;
+  }).join("");
 
   const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
   const html = `
@@ -126,12 +150,12 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
         </p>
 
         <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
-          ${tr("Pickup details", "Détails du retrait")}
+          ${order.delivery_method ? tr("Pickup details", "Détails du retrait") : tr("Payment", "Paiement")}
         </p>
         <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;margin:0 0 24px;">
-          ${row(tr("Date", "Date"), formatDateCH(order.pickup_delivery_date))}
-          ${order.pickup_delivery_slot ? row(tr("Time", "Heure"), order.pickup_delivery_slot) : ""}
-          ${row(tr("Pickup option", "Mode de retrait"), deliveryInfo)}
+          ${order.delivery_method ? row(tr("Date", "Date"), formatDateCH(order.pickup_delivery_date)) : ""}
+          ${order.delivery_method && order.pickup_delivery_slot ? row(tr("Time", "Heure"), order.pickup_delivery_slot) : ""}
+          ${order.delivery_method ? row(tr("Pickup option", "Mode de retrait"), deliveryInfo) : ""}
           ${row(tr("Payment method", "Moyen de paiement"), paymentMethodLabel)}
         </table>
 
@@ -497,9 +521,14 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
   type InvoiceRow = { description: string; quantity: string; unitPrice: string; total: string; bold?: boolean };
 
   const itemRows: InvoiceRow[] = items.map((item: any) => {
-    const desc = item.size
-      ? `${item.size}${item.flavors?.length ? " — " + item.flavors.join(", ") : ""}`
-      : (item.design || tr("Custom cake", "Gâteau personnalisé"));
+    const desc = item.product === "workshop"
+      ? `${item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature")}`
+        + `${item.workshop_date ? " — " + formatInvoiceDate(item.workshop_date) : ""}`
+        + `${item.workshop_time ? " " + item.workshop_time : ""}`
+        + `${item.workshop_participants ? ` (${item.workshop_participants} ${tr("participants", "participants")})` : ""}`
+      : item.size
+        ? `${item.size}${item.flavors?.length ? " — " + item.flavors.join(", ") : ""}`
+        : (item.design || tr("Custom cake", "Gâteau personnalisé"));
     const total = item.total ?? 0;
     return {
       description: desc,
@@ -1009,6 +1038,13 @@ serve(async (req) => {
     // and a usable URL to the PDF when approval + invoice upload succeeded,
     // so the Make scenario can update the EXISTING Notion row (matched via
     // supabase_id) instead of creating a new one.
+    //
+    // Workshop-only orders were never sent to the production Make webhook by
+    // confirm-postfinance-payment (no Notion row exists), so there is nothing
+    // to update here either — skip the status webhook for them. Mixed orders
+    // (≥1 physical item) still notify normally.
+    const orderHasPhysicalItem = orderItems.some((it: any) => it.product !== "workshop");
+    if (orderHasPhysicalItem) {
     try {
       const webhookOrderId = order.order_number || order.id;
       const webhookPayload: Record<string, unknown> = action === "approve"
@@ -1024,6 +1060,9 @@ serve(async (req) => {
       console.log("Make.com status webhook sent:", webhookPayload);
     } catch (e) {
       console.error("Make.com status webhook error:", e);
+    }
+    } else {
+      console.log("Workshop-only order — Make.com status webhook skipped:", order.id);
     }
 
     return new Response(JSON.stringify({
