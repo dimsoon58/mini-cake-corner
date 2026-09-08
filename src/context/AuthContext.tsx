@@ -13,6 +13,7 @@ interface SignUpFields {
   birthDate: string;
   password: string;
   newsletterSubscription: boolean;
+  lang: "fr" | "en";
 }
 
 interface AuthContextType {
@@ -89,7 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const signUp = async ({ firstName, lastName, email, phone, birthDate, password, newsletterSubscription }: SignUpFields) => {
+  const signUp = async ({ firstName, lastName, email, phone, birthDate, password, newsletterSubscription, lang }: SignUpFields) => {
     // Keys here must match exactly what the existing handle_new_user()
     // Supabase trigger reads from auth.users.raw_user_meta_data — do not
     // rename these without checking the trigger definition first.
@@ -104,6 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           phone,
           birth_date: birthDate,
           newsletter_subscription: newsletterSubscription,
+          lang,
         },
       },
     });

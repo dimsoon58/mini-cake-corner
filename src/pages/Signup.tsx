@@ -32,7 +32,7 @@ function formatCountdown(totalSeconds: number): string {
 }
 
 const Signup = () => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { toast } = useToast();
   const navigate = useNavigate();
   const { signUp, user } = useAuth();
@@ -114,6 +114,7 @@ const Signup = () => {
       birthDate: format(birthDate, "yyyy-MM-dd"),
       password,
       newsletterSubscription,
+      lang,
     });
     setIsSubmitting(false);
 
