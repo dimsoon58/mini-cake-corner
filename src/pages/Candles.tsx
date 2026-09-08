@@ -269,7 +269,7 @@ const Candles = () => {
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
           {t("CANDLES", "BOUGIES")}
         </h1>
-        <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
+        <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto text-sm md:text-base">
           {t(
             "Add the perfect finishing touch to your cake with our selection of fun and colourful candles.",
             "Complétez votre création avec notre sélection de bougies originales et colorées."

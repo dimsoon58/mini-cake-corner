@@ -50,6 +50,10 @@ import candleBlueOmbre from "@/assets/candle-blue-ombre-new.png";
 import candlePinkOmbre from "@/assets/candle-pink-ombre-new.png";
 import candleSpiralPastel from "@/assets/candle-spiral-pastel-new.png";
 import candleShinySpiral from "@/assets/candle-shiny-spiral-new.png";
+import candlePinkGoldSpiral from "@/assets/candle-pink-gold-spiral.png";
+import candleSilverSpiral from "@/assets/candle-silver-spiral.png";
+import candleGoldSpiral from "@/assets/candle-gold-spiral.png";
+import candleChampagneSpiral from "@/assets/candle-champagne-spiral.png";
 import candleThickSpiral from "@/assets/candle-thick-spiral-new.png";
 import candleDaisy from "@/assets/candle-daisy.png";
 import candleRibbon from "@/assets/candle-ribbon.png";
@@ -177,10 +181,10 @@ export const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
   { id: "blue-ombre", name: "Blue Ombré", nameFr: "Ombré Bleu", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "thick-spiral", name: "Thick Spiral", nameFr: "Spirale Épaisse", image: candleThickSpiral, unitPrice: 2, hasPack: true, packPrice: 10, packSize: 6 },
-  { id: "pink-gold-spiral", name: "Pink Gold Spiral", nameFr: "Spirale Or Rose", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "silver-spiral", name: "Silver Spiral", nameFr: "Spirale Argent", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "gold-spiral", name: "Gold Spiral", nameFr: "Spirale Or", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "spiral-champagne", name: "Spiral Champagne", nameFr: "Spirale Champagne", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "pink-gold-spiral", name: "Pink Gold Spiral", nameFr: "Spirale Or Rose", image: candlePinkGoldSpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "silver-spiral", name: "Silver Spiral", nameFr: "Spirale Argent", image: candleSilverSpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "gold-spiral", name: "Gold Spiral", nameFr: "Spirale Or", image: candleGoldSpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "spiral-champagne", name: "Spiral Champagne", nameFr: "Spirale Champagne", image: candleChampagneSpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "shiny-spiral", name: "Shiny Spiral", nameFr: "Spirale Brillante", image: candleShinySpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "spiral-pastel", name: "Pastel Spiral", nameFr: "Spirale Pastel", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "rainbow", name: "Rainbow", nameFr: "Arc-en-ciel", image: candleRainbow, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
@@ -420,7 +424,7 @@ const KitBentoCake = () => {
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
           {t("DIY KIT", "DIY KIT")}
         </h1>
-        <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
+        <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto text-sm md:text-base">
           {t("A bento cake ready to decorate at home.", "Un bento cake prêt à décorer à la maison.")}
           <br />
           {t("Choose the flavour, shape and colours to create your own bento cake.", "Choisissez le parfum, la forme et les couleurs pour créer votre propre bento cake.")}
@@ -653,7 +657,7 @@ const KitBentoCake = () => {
                   const hasPackApplied = candle.packSize && qty >= candle.packSize;
                   return (
                     <div key={candle.id} className="w-40 sm:w-48 min-w-0">
-                      <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all border-0 shadow-none", qty > 0 && "ring-2 ring-primary")}>
+                      <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", qty > 0 && "ring-2 ring-primary")}>
                         <div className="flex items-center justify-center bg-secondary/20 p-2">
                           <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-56 w-56 object-contain" />
                         </div>

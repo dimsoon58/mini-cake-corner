@@ -1,4 +1,6 @@
 import { useRef } from "react";
+import imgFirstYears from "@/assets/story-first-years.jpeg";
+import img2021 from "@/assets/story-2021.jpg";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
@@ -205,7 +207,13 @@ const OurStory = () => {
                   </div>
                 </div>
                 <div className={cn("order-2", imageOnLeft ? "md:order-1" : "md:order-2")}>
-                  <PhotoSlot className="aspect-[4/3] max-w-[420px] mx-auto" label={chapter.id === "first-years" ? t("PHOTO", "PHOTO") : chapter.id} />
+                  {chapter.id === "first-years" ? (
+                    <img src={imgFirstYears} alt={t("The first years", "Les premières années")} className="aspect-[4/3] max-w-[420px] mx-auto w-full object-cover" />
+                  ) : chapter.id === "2021" ? (
+                    <img src={img2021} alt="2021" className="aspect-[4/3] max-w-[420px] mx-auto w-full object-cover" />
+                  ) : (
+                    <PhotoSlot className="aspect-[4/3] max-w-[420px] mx-auto" label={chapter.id} />
+                  )}
                 </div>
               </div>
             );

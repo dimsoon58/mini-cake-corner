@@ -17,9 +17,9 @@ import { useFieldError } from "@/lib/formErrors";
 
 // Photos, remplace chaque import par une photo dédiée quand tu en as
 import workshopHero from "@/assets/home-cat-workshops.jpg";
-import imgSignature from "@/assets/home-cat-workshops.jpg";
-import imgPaint from "@/assets/design-drawing-new.jpg";
-import imgPrivate from "@/assets/corporate-event-2.png";
+import imgSignature from "@/assets/workshop-signature.jpg";
+import imgPaint from "@/assets/workshop-paint.png";
+import imgPrivate from "@/assets/workshop-private.jpg";
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <h2 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-4xl text-center text-foreground mb-12">
@@ -54,6 +54,8 @@ const workshops = [
       { icon: Users, label: "8 people", labelFr: "8 personnes" },
       { icon: MapPin, label: "Geneva", labelFr: "Genève" },
     ],
+    price: "CHF 75.-",
+    objectPosition: "70% center",
     ctaLabel: "Book Now",
     ctaLabelFr: "Réserver",
     ctaTo: "/workshop-booking?type=signature",
@@ -82,6 +84,7 @@ const workshops = [
       { icon: Users, label: "10 people", labelFr: "10 personnes" },
       { icon: MapPin, label: "Geneva", labelFr: "Genève" },
     ],
+    price: "CHF 65.-",
     ctaLabel: "Book Now",
     ctaLabelFr: "Réserver",
     ctaTo: "/workshop-booking?type=paint",
@@ -255,19 +258,19 @@ const Workshop = () => {
   return (
     <Layout overlayHero>
       {/* Hero */}
-      <section className="relative min-h-[80vh] w-full overflow-hidden">
+      <section className="relative min-h-[55vh] md:min-h-[80vh] w-full overflow-hidden">
         <img
           src={workshopHero}
           alt={t("Cake decorating workshop at Bento Cake Studio", "Atelier de décoration de gâteaux au Bento Cake Studio")}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover [object-position:65%_center] md:object-center"
         />
         <div className="absolute inset-0 bg-foreground/40" />
-        <div className="relative min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
+        <div className="relative min-h-[55vh] md:min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
           <h1 className="font-sans uppercase tracking-[0.105em] text-3xl md:text-5xl text-cream leading-tight mb-6 max-w-4xl">
             {t("WORKSHOP", "ATELIERS")}
           </h1>
-          <p className="text-cream/95 text-base md:text-lg font-light max-w-2xl mb-10">
-            {t("Learn to decorate your own Bento Cake in a fun and creative experience. Whether you're joining one of our public workshops or booking a private event, we'll guide you every step of the way.", "Apprenez à décorer votre propre Bento Cake lors d'une expérience créative et conviviale. Que vous participiez à l'un de nos ateliers ou que vous organisiez un événement privé, nous vous accompagnons à chaque étape.")}
+          <p className="text-cream/95 text-sm md:text-base font-light max-w-2xl mb-10">
+            {t("Decorate your own Bento Cake at one of our creative workshops or during a private experience.", "Décorez votre propre Bento Cake lors de nos ateliers créatifs ou d'une expérience privée.")}
           </p>
           <Button
             onClick={() =>
@@ -288,7 +291,7 @@ const Workshop = () => {
             {workshops.map((w) => (
               <div key={w.title} className="border border-border/60 flex flex-col bg-card">
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img src={w.image} alt={t(w.title, w.titleFr)} className="w-full h-full object-cover" />
+                  <img src={w.image} alt={t(w.title, w.titleFr)} className="w-full h-full object-cover" style={w.objectPosition ? { objectPosition: w.objectPosition } : undefined} />
                 </div>
                 <div className="p-7 flex flex-col flex-1">
                   <h3 className="font-sans uppercase tracking-[0.105em] text-base font-semibold text-foreground mb-3">
@@ -311,6 +314,9 @@ const Workshop = () => {
                       </div>
                     ))}
                   </div>
+                  {w.price && (
+                    <p className="text-sm text-foreground/60 mb-4 text-right tracking-wide">{w.price} <span className="text-xs">{t("/ person", "/ personne")}</span></p>
+                  )}
                   <Button
                     asChild
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"

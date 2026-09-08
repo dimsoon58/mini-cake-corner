@@ -77,6 +77,10 @@ import candleBlueOmbre from "@/assets/candle-blue-ombre-new.png";
 import candleThickSpiral from "@/assets/candle-thick-spiral-new.png";
 import candleSpiralPastel from "@/assets/candle-spiral-pastel-new.png";
 import candleShinySpiral from "@/assets/candle-shiny-spiral-new.png";
+import candlePinkGoldSpiral from "@/assets/candle-pink-gold-spiral.png";
+import candleSilverSpiral from "@/assets/candle-silver-spiral.png";
+import candleGoldSpiral from "@/assets/candle-gold-spiral.png";
+import candleChampagneSpiral from "@/assets/candle-champagne-spiral.png";
 import candleRainbow from "@/assets/candle-rainbow.png";
 import candleRedCar from "@/assets/candle-red-car-new.png";
 import candleBlueCar from "@/assets/candle-blue-car-new.png";
@@ -269,10 +273,10 @@ export const candles = [
   { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
-  { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "silver-spiral", name: "Silver Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "gold-spiral", name: "Gold Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "spiral-champagne", name: "Spiral Champagne", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candlePinkGoldSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "silver-spiral", name: "Silver Spiral", image: candleSilverSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "gold-spiral", name: "Gold Spiral", image: candleGoldSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "spiral-champagne", name: "Spiral Champagne", image: candleChampagneSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
 ];
 
 export const extraGroups = [

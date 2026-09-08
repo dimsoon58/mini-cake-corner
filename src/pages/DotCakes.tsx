@@ -69,7 +69,7 @@ const DotGallery = () => {
   return (
     <section className="space-y-6">
       <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em] text-foreground">
-        {t("Dot Cakes in Real Life", "Les Dot Cakes en vrai")}
+        {t("Dot Cake Moments", "Dot Cake Moments")}
       </h2>
       <div className="relative">
         <button onClick={() => scroll("left")} aria-label={t("Previous", "Precedent")}
@@ -235,7 +235,7 @@ const DotCakes = () => {
           <h1 className="font-sans text-4xl md:text-5xl tracking-[0.105em] uppercase text-foreground mb-6 font-semibold text-center">
             {t("Dot Cakes", "Dot Cakes")}
           </h1>
-          <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto text-sm md:text-base">
             {t("Soft sponge, light whipped cream and colourful sprinkles, in small formats made for sharing.", "Une génoise moelleuse, une crème fouettée légère et des sprinkles colorés réunis dans de petits formats à partager.")}
           </p>
 
@@ -338,11 +338,21 @@ const DotCakes = () => {
                   </button>
                 ))}
               </div>
-              <div className="text-xs text-muted-foreground space-y-0.5">
-                <p>{t("Premium flavour: +CHF 1.50 per Dot Cake", "Parfum Premium : +CHF 1.50 par Dot Cake")}</p>
-                <p>{t("Deluxe flavour: +CHF 2.50 per Dot Cake", "Parfum Deluxe : +CHF 2.50 par Dot Cake")}</p>
-                <p>{t("Gluten-Free Premium flavour: +CHF 3.50 per Dot Cake", "Parfum Sans Gluten Premium : +CHF 3.50 par Dot Cake")}</p>
-                <p>{t("Gluten-Free Deluxe flavour: +CHF 5.00 per Dot Cake", "Parfum Sans Gluten Deluxe : +CHF 5.00 par Dot Cake")}</p>
+              <div className="mt-3 mb-1">
+                <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.13em] text-foreground/50 mb-2">
+                  {t("Flavour supplements per Dot Cake", "Suppléments par Dot Cake")}
+                </p>
+                {[
+                  { label: t("Premium", "Premium"), price: "+CHF 1.50" },
+                  { label: t("Deluxe", "Deluxe"), price: "+CHF 2.50" },
+                  { label: t("Gluten-free · Premium", "Sans gluten · Premium"), price: "+CHF 3.50" },
+                  { label: t("Gluten-free · Deluxe", "Sans gluten · Deluxe"), price: "+CHF 5.00" },
+                ].map((row, i) => (
+                  <div key={i} className="flex justify-between items-baseline py-1.5 border-b border-border/30 last:border-0">
+                    <span className="text-xs text-foreground/70">{row.label}</span>
+                    <span className="text-xs font-medium text-foreground tabular-nums">{row.price}</span>
+                  </div>
+                ))}
               </div>
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={goBack}
@@ -493,7 +503,7 @@ const DotCakes = () => {
                   const hasPackApplied = candle.packSize && qty >= candle.packSize;
                   return (
                     <div key={candle.id} className="w-40 sm:w-48 min-w-0">
-                      <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all border-0 shadow-none", qty > 0 && "ring-2 ring-primary")}>
+                      <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", qty > 0 && "ring-2 ring-primary")}>
                         <div className="flex items-center justify-center bg-secondary/20 p-2">
                           <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-56 w-56 object-contain" />
                         </div>
