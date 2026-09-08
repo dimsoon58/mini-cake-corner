@@ -405,13 +405,25 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
 
   startPage();
 
-  // ── Logotype (top-right) ────────────────────────────────────────
-  const logoText = "BENTO CAKE";
-  const logoW = fontBold.widthOfTextAtSize(logoText, 14);
-  page.drawText(logoText, { x: PAGE_W - margin - logoW, y, size: 14, font: fontBold, color: maroon });
-  const studioText = "studio";
-  const studioW = fontItalic.widthOfTextAtSize(studioText, 11);
-  page.drawText(studioText, { x: PAGE_W - margin - studioW, y: y - 16, size: 11, font: fontItalic, color: maroon });
+  // ── Logo (top-right) ────────────────────────────────────────────
+  // Real Bento Cake Studio wordmark, fetched and embedded. Failure here
+  // (network / decode) is non-fatal: the invoice is still generated, just
+  // without the logo.
+  try {
+    const logoRes = await fetch("https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png");
+    if (!logoRes.ok) throw new Error(`logo fetch failed: ${logoRes.status}`);
+    const logoImg = await pdfDoc.embedPng(new Uint8Array(await logoRes.arrayBuffer()));
+    const logoDrawW = 150;
+    const logoDrawH = (logoImg.height / logoImg.width) * logoDrawW;
+    page.drawImage(logoImg, {
+      x: PAGE_W - margin - logoDrawW,
+      y: PAGE_H - margin - logoDrawH,
+      width: logoDrawW,
+      height: logoDrawH,
+    });
+  } catch (logoErr) {
+    console.error("Invoice logo could not be embedded:", logoErr);
+  }
 
   // ── Title ────────────────────────────────────────────────────────
   page.drawText(tr("PAID INVOICE", "FACTURE AQUITÉE"), { x: margin, y, size: 15, font: fontBold, color: textDark });
@@ -423,11 +435,11 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
   y -= 18;
   drawLabelValue(tr("ADDRESS: ", "ADRESSE : "), tr("58 Chemin de la Gradelle, 1224 Geneva", "58 Chemin de la Gradelle, 1224 Genève"), margin, y);
   y -= 15;
-  drawLabelValue(tr("PHONE: ", "TÉLÉPHONE : "), "+41 78 927 59 97", margin, y);
+  drawLabelValue(tr("PHONE: ", "TÉLÉPHONE : "), "+41 78 337 95 00", margin, y);
   y -= 15;
   drawLabelValue(tr("EMAIL: ", "EMAIL : "), "Contact@bentocakestudio.ch", margin, y);
   y -= 15;
-  drawLabelValue(tr("BUSINESS ID: ", "IDE : "), "CHE-425.048.539", margin, y);
+  drawLabelValue(tr("IDE : ", "IDE : "), "CHE-425.048.539", margin, y);
   y -= 15;
   drawLabelValue(tr("VAT: ", "TVA : "), tr("Not subject to VAT", "Non assujetti TVA"), margin, y);
   const leftEndY = y;
