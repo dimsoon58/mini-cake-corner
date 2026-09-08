@@ -98,6 +98,16 @@ const Footer = () => {
             <Link to="/legal" className={linkClass}>
               {t("Terms and Conditions & Privacy Policy", "Conditions générales et confidentialité")}
             </Link>
+            <button
+              type="button"
+              onClick={() => {
+                const w = window as unknown as { Cookiebot?: { renew?: () => void } };
+                w.Cookiebot?.renew?.();
+              }}
+              className={`${linkClass} text-left`}
+            >
+              {t("Manage cookies", "Gérer les cookies")}
+            </button>
           </div>
 
           {/* Newsletter */}

@@ -329,41 +329,49 @@ All colors MUST be HSL.
 /* Mobile : carte réduite au minimum, en bas, pas de plein écran --------- */
 @media (max-width: 600px) {
   #CybotCookiebotDialog#CybotCookiebotDialog {
-    right: 12px !important;
-    bottom: 12px !important;
-    left: 12px !important;               /* ≈ calc(100% - 24px) de large */
+    right: 10px !important;
+    bottom: 10px !important;
+    left: 10px !important;               /* ≈ calc(100% - 20px) de large */
     width: auto !important;
     max-width: none !important;
-    max-height: 230px !important;
-    border-radius: 12px !important;
-    font-size: 11.5px !important;
+    max-height: 196px !important;
+    border-radius: 10px !important;
+    font-size: 11px !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogHeader {
-    padding: 2px 12px 0 !important;
+    padding: 2px 10px 0 !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBody {
-    padding: 6px 12px 2px !important;
+    padding: 4px 10px 2px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotScrollContainer {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentTitle {
-    font-size: 12px !important;
+    font-size: 11.5px !important;
     margin-bottom: 1px !important;
   }
-  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentText {
-    font-size: 11px !important;
-    line-height: 1.3 !important;
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentText,
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyContentText p {
+    font-size: 10.5px !important;
+    line-height: 1.25 !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogNav {
-    padding: 3px 12px 5px !important;
+    padding: 2px 10px 4px !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogNavDetails::after {
-    font-size: 10.5px !important;
+    font-size: 10px !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyButtons {
-    padding: 6px 12px 8px !important;
+    padding: 5px 10px 7px !important;
+  }
+  #CybotCookiebotDialog#CybotCookiebotDialog #CybotCookiebotDialogBodyButtonsWrapper {
+    gap: 6px !important;
   }
   #CybotCookiebotDialog#CybotCookiebotDialog .CybotCookiebotDialogBodyButton {
-    padding: 8px 10px !important;
-    font-size: 12.5px !important;
+    padding: 7px 9px !important;
+    font-size: 12px !important;
   }
 }
 
@@ -377,6 +385,17 @@ All colors MUST be HSL.
    simple !important suffit ici. Bleu Cookiebot #1032CF → #78020C.
    Palette : fond #FFF9DB · texte #351E13 · principale #78020C
    =========================================================================== */
+
+/* Widget flottant permanent (privacy trigger) entièrement masqué : après le
+   choix, plus aucun élément Cookiebot à l'écran. La modification du
+   consentement passe par le lien « Gérer les cookies » du footer, qui
+   appelle Cookiebot.renew() et ré-ouvre le bandeau #CybotCookiebotDialog.
+   Le reste des styles #CookiebotWidget ci-dessous est conservé tel quel
+   (inutilisé tant que le widget est caché). */
+#CookiebotWidget,
+#CookiebotWidget + #CookiebotWidgetUnderlay {
+  display: none !important;
+}
 
 /* ---- Le rond / privacy trigger ---- */
 #CookiebotWidget {
