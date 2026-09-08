@@ -1576,8 +1576,6 @@ const Checkout = () => {
                   {t("I have read and accept the", "J'ai lu et j'accepte les")}{" "}
                   <Link
                     to="/privacy-policy"
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="text-primary underline hover:text-primary/80"
                   >
                     {t("Terms & Conditions and Privacy Policy", "Conditions Générales de Vente et la Politique de confidentialité")}
