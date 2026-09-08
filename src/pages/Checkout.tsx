@@ -1505,15 +1505,16 @@ const Checkout = () => {
                   className="mt-0.5"
                 />
                 <Label htmlFor="privacyPolicy" className="text-sm cursor-pointer leading-relaxed">
-                  {t("I have read and accept the", "J'ai lu et j'accepte la")}{" "}
+                  {t("I have read and accept the", "J'ai lu et j'accepte les")}{" "}
                   <Link
                     to="/privacy-policy"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary underline hover:text-primary/80"
                   >
-                    {t("Privacy Policy", "Politique de confidentialité")}
+                    {t("Terms & Conditions and Privacy Policy", "Conditions Générales de Vente et la Politique de confidentialité")}
                   </Link>
+                  {"."}
                   <span className="text-destructive ml-1">*</span>
                 </Label>
               </div>
