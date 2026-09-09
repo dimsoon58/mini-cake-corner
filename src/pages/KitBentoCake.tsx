@@ -10,10 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { CalendarIcon, Check, ShoppingCart, ChevronDown, ChevronUp, ChevronLeft } from "lucide-react";
-import { isOrderDateDisabled } from "@/lib/orderDates";
-import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { useCart } from "@/context/CartContext";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
@@ -183,10 +181,10 @@ export const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
   { id: "blue-ombre", name: "Blue Ombré", nameFr: "Ombré Bleu", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "thick-spiral", name: "Thick Spiral", nameFr: "Spirale Épaisse", image: candleThickSpiral, unitPrice: 2, hasPack: true, packPrice: 10, packSize: 6 },
-  { id: "pink-gold-spiral", name: "Pink Gold Spiral", nameFr: "Spirale Or Rose", image: candlePinkGoldSpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "silver-spiral", name: "Silver Spiral", nameFr: "Spirale Argent", image: candleSilverSpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "gold-spiral", name: "Gold Spiral", nameFr: "Spirale Or", image: candleGoldSpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "spiral-champagne", name: "Spiral Champagne", nameFr: "Spirale Champagne", image: candleChampagneSpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "pink-gold-spiral", name: "Pink Gold Spiral", nameFr: "Spirale Or Rose", image: candlePinkGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "silver-spiral", name: "Silver Spiral", nameFr: "Spirale Argent", image: candleSilverSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "gold-spiral", name: "Gold Spiral", nameFr: "Spirale Or", image: candleGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "spiral-champagne", name: "Spiral Champagne", nameFr: "Spirale Champagne", image: candleChampagneSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "shiny-spiral", name: "Shiny Spiral", nameFr: "Spirale Brillante", image: candleShinySpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "spiral-pastel", name: "Pastel Spiral", nameFr: "Spirale Pastel", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "rainbow", name: "Rainbow", nameFr: "Arc-en-ciel", image: candleRainbow, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
@@ -205,7 +203,7 @@ export const candles = [
 ];
 
 const tooltipTexts: Record<string, string> = {
-  date: "Date required to schedule the preparation of your order (minimum 2 days in advance).",
+  date: "Date required to schedule the preparation of your order (minimum 4 days in advance).",
   shape: "Choose the shape of your cake.",
   flavor: "Please select the flavour of your cake.",
   baseColor: "The base colour is essential to personalise your cake.",
@@ -213,7 +211,7 @@ const tooltipTexts: Record<string, string> = {
 };
 
 const tooltipTextsFr: Record<string, string> = {
-  date: "Date requise pour planifier la préparation de votre commande (minimum 2 jours à l'avance).",
+  date: "Date requise pour planifier la préparation de votre commande (minimum 4 jours à l'avance).",
   shape: "Choisissez la forme de votre gâteau.",
   flavor: "Veuillez sélectionner le parfum de votre gâteau.",
   baseColor: "La couleur de base est essentielle pour personnaliser votre gâteau.",
@@ -236,6 +234,8 @@ const KitBentoCake = () => {
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
   const [step, setStep] = useState(1);
+
+  const minDate = addDays(new Date(), 4);
 
   useEffect(() => {
     const option = pipingBagOptions.find(p => p.id === selectedPipingOption);
@@ -467,7 +467,7 @@ const KitBentoCake = () => {
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Choose Your Pickup Date", "Choisir votre date de retrait")}<span className="text-destructive ml-1">*</span>
               </h2>
-              <p className="text-sm text-muted-foreground">{t("Minimum 2 days notice required.", "Un délai minimum de 2 jours est requis.")}</p>
+              <p className="text-sm text-muted-foreground">{t("Minimum 4 days notice required.", "Un délai minimum de 4 jours est requis.")}</p>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" disabled={!!cartOrderDate}
@@ -477,11 +477,9 @@ const KitBentoCake = () => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={orderDate} onSelect={setOrderDate} disabled={(date) => isOrderDateDisabled(date)} initialFocus {...expressCalendarProps} />
-                  <div className="px-3 pb-3"><ExpressLegend /></div>
+                  <Calendar mode="single" selected={orderDate} onSelect={setOrderDate} disabled={(date) => date < minDate} initialFocus />
                 </PopoverContent>
               </Popover>
-              <ExpressDateNotice date={orderDate} />
               {cartOrderDate && (
                 <p className="text-xs text-muted-foreground">
                   {t(`All items in this order will be prepared for ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. To order for another date, please place a separate order.`,
@@ -650,7 +648,7 @@ const KitBentoCake = () => {
                           existing={candleSelections.find((c) => c.id === candle.id)}
                           onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
                           onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
-                          imageClassName="h-56 w-56" compact />
+                          imageClassName={candle.imageClassName ?? "h-40 w-40"} compact />
                       </div>
                     );
                   }
@@ -661,7 +659,7 @@ const KitBentoCake = () => {
                     <div key={candle.id} className="w-40 sm:w-48 min-w-0">
                       <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", qty > 0 && "ring-2 ring-primary")}>
                         <div className="flex items-center justify-center bg-secondary/20 p-2">
-                          <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-56 w-56 object-contain" />
+                          <img src={candle.image} alt={t(candle.name, candle.nameFr)} className={cn(candle.imageClassName ?? "h-40 w-40", "object-contain")} />
                         </div>
                         <CardContent className="p-2 text-center">
                           <h3 className="font-medium text-foreground text-xs mb-0.5">{t(candle.name, candle.nameFr)}</h3>

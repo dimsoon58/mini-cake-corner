@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import { isOrderDateDisabled } from "@/lib/orderDates";
-import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
+import { format, addDays } from "date-fns";
 import { CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -166,7 +164,7 @@ const DotCakes = () => {
 
   const goNext = () => {
     if (step === 1 && !orderDate) {
-      toast.error(t("Please choose your pick-up date (minimum 2 days' notice).", "Veuillez choisir votre date de retrait (minimum 2 jours à l'avance)."));
+      toast.error(t("Please choose your pick-up date (minimum 4 days' notice).", "Veuillez choisir votre date de retrait (minimum 4 jours à l'avance)."));
       return;
     }
     if (step === 2 && !pack) {
@@ -281,7 +279,7 @@ const DotCakes = () => {
                 {t("Choose Your Date", "Choisissez votre date")}<span className="text-destructive ml-1">*</span>
               </h2>
               <p className="text-sm text-muted-foreground">
-                {t("Minimum 2 days' notice required.", "Minimum 2 jours à l'avance requis.")}
+                {t("Minimum 4 days' notice required.", "Minimum 4 jours à l'avance requis.")}
               </p>
               <Popover>
                 <PopoverTrigger asChild>
@@ -299,11 +297,9 @@ const DotCakes = () => {
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar mode="single" selected={orderDate} onSelect={setOrderDate}
-                    disabled={(date) => isOrderDateDisabled(date)} initialFocus {...expressCalendarProps} />
-                  <div className="px-3 pb-3"><ExpressLegend /></div>
+                    disabled={(date) => date < addDays(new Date(), 4)} initialFocus />
                 </PopoverContent>
               </Popover>
-              <ExpressDateNotice date={orderDate} />
               {cartOrderDate && (
                 <p className="text-xs text-muted-foreground">
                   {t(
@@ -498,7 +494,7 @@ const DotCakes = () => {
                           existing={candleSelections.find((c) => c.id === candle.id)}
                           onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
                           onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
-                          imageClassName="h-56 w-56" compact />
+                          imageClassName={candle.imageClassName ?? "h-40 w-40"} compact />
                       </div>
                     );
                   }
@@ -509,7 +505,7 @@ const DotCakes = () => {
                     <div key={candle.id} className="w-40 sm:w-48 min-w-0">
                       <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", qty > 0 && "ring-2 ring-primary")}>
                         <div className="flex items-center justify-center bg-secondary/20 p-2">
-                          <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-56 w-56 object-contain" />
+                          <img src={candle.image} alt={t(candle.name, candle.nameFr)} className={cn(candle.imageClassName ?? "h-40 w-40", "object-contain")} />
                         </div>
                         <CardContent className="p-2 text-center">
                           <h3 className="font-medium text-foreground text-xs mb-0.5">{t(candle.name, candle.nameFr)}</h3>

@@ -11,9 +11,7 @@ import { useCart } from "@/context/CartContext";
 
 import Layout from "@/components/Layout";
 import CakeVisualizer from "@/components/CakeVisualizer";
-import { format } from "date-fns";
-import { isOrderDateDisabled } from "@/lib/orderDates";
-import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
+import { format, addDays } from "date-fns";
 import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
 import flavorVanilla from "@/assets/flavor-vanilla.png";
 import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
@@ -45,6 +43,10 @@ import candleBlueOmbre from "@/assets/candle-blue-ombre-new.png";
 import candleThickSpiral from "@/assets/candle-thick-spiral-new.png";
 import candleSpiralPastel from "@/assets/candle-spiral-pastel-new.png";
 import candleShinySpiral from "@/assets/candle-shiny-spiral-new.png";
+import candlePinkGoldSpiral from "@/assets/candle-pink-gold-spiral.png";
+import candleSilverSpiral from "@/assets/candle-silver-spiral.png";
+import candleGoldSpiral from "@/assets/candle-gold-spiral.png";
+import candleChampagneSpiral from "@/assets/candle-champagne-spiral.png";
 import candleRainbow from "@/assets/candle-rainbow.png";
 import candleRedCar from "@/assets/candle-red-car-new.png";
 import candleBlueCar from "@/assets/candle-blue-car-new.png";
@@ -221,6 +223,10 @@ const candles = [
   { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
+  { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candlePinkGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "silver-spiral", name: "Silver Spiral", image: candleSilverSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "gold-spiral", name: "Gold Spiral", image: candleGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "spiral-champagne", name: "Spiral Champagne", image: candleChampagneSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
 ];
 
 const ribbonColors = [
@@ -636,15 +642,12 @@ const Customize = () => {
                     mode="single"
                     selected={selections.orderDate || undefined}
                     onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
-                    disabled={(date) => isOrderDateDisabled(date)}
+                    disabled={(date) => date < addDays(new Date(), 2)}
                     initialFocus
                     className="rounded-md"
-                    {...expressCalendarProps}
                   />
-                  <ExpressLegend />
                 </Card>
               </div>
-              <ExpressDateNotice date={selections.orderDate} />
               {selections.orderDate && (
                 <p className="text-center text-lg font-medium text-primary">
                   Selected: {format(selections.orderDate, "dd.MM.yyyy")}
@@ -1300,7 +1303,7 @@ const Customize = () => {
                         <img
                           src={candle.image}
                           alt={candle.name}
-                          className="h-56 w-56 object-contain mb-2"
+                          className={cn(candle.imageClassName ?? "h-40 w-40", "object-contain mb-2")}
                         />
                         <Card
                           className={cn(
@@ -1359,7 +1362,7 @@ const Customize = () => {
                         <img
                           src={candle.image}
                           alt={candle.name}
-                          className="h-56 w-56 object-contain mb-2"
+                          className={cn(candle.imageClassName ?? "h-40 w-40", "object-contain mb-2")}
                         />
                         <Card
                           className={cn(

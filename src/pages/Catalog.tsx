@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import CustomRequestForm from "@/components/CustomRequestForm";
 import { INSPIRATIONS as inspirationItems } from "@/data/inspirations";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,12 +28,11 @@ import { useCart } from "@/context/CartContext";
 import type { CandleSelection } from "@/context/CartContext";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
-import { isOrderDateDisabled } from "@/lib/orderDates";
-import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { flavorDescMap } from "@/data/flavorDesc";
+import { supabase } from "@/integrations/supabase/client";
 // @ts-ignore
 import "@fontsource/dancing-script";
 
@@ -50,6 +49,10 @@ import candleBlueOmbre from "@/assets/candle-blue-ombre-new.png";
 import candleThickSpiral from "@/assets/candle-thick-spiral-new.png";
 import candleSpiralPastel from "@/assets/candle-spiral-pastel-new.png";
 import candleShinySpiral from "@/assets/candle-shiny-spiral-new.png";
+import candlePinkGoldSpiral from "@/assets/candle-pink-gold-spiral.png";
+import candleSilverSpiral from "@/assets/candle-silver-spiral.png";
+import candleGoldSpiral from "@/assets/candle-gold-spiral.png";
+import candleChampagneSpiral from "@/assets/candle-champagne-spiral.png";
 import candleRainbow from "@/assets/candle-rainbow.png";
 import candleRedCar from "@/assets/candle-red-car-new.png";
 import candleBlueCar from "@/assets/candle-blue-car-new.png";
@@ -236,10 +239,10 @@ const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
   { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
-  { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "silver-spiral", name: "Silver Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "gold-spiral", name: "Gold Spiral", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "spiral-champagne", name: "Spiral Champagne", image: candleShinySpiral /* TODO: remplacer par une vraie photo produit */, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candlePinkGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "silver-spiral", name: "Silver Spiral", image: candleSilverSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "gold-spiral", name: "Gold Spiral", image: candleGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "spiral-champagne", name: "Spiral Champagne", image: candleChampagneSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "rainbow", name: "Rainbow", image: candleRainbow, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
@@ -1109,6 +1112,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
+  const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   // Active carousel image per multi-photo design (keyed by cake id). Kept
   // here so it persists across re-renders and is the image passed to
   // handleSelectCake when the customer picks the design.
@@ -1139,6 +1143,16 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     shagDesignPreference: 0,
   });
 
+  // Fetch fully booked dates
+  useEffect(() => {
+    const fetchBookedDates = async () => {
+      const { data, error } = await supabase.rpc('get_fully_booked_dates');
+      if (!error && data) {
+        setFullyBookedDates(data.map((d: { booked_date: string }) => new Date(d.booked_date)));
+      }
+    };
+    fetchBookedDates();
+  }, []);
 
   const handleSelectCake = (cake: typeof catalog[0], imageIndex = 0) => {
     setSelectedCake(cake);
@@ -1596,7 +1610,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Pickup Date", "Date de retrait")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 2 days in advance)", "Date de préparation de la commande (minimum 2 jours à l'avance)")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 4 days in advance)", "Date de préparation de la commande (minimum 4 jours à l'avance)")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Popover>
@@ -1623,17 +1637,19 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       mode="single"
                       selected={selections.orderDate || undefined}
                       onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
-                      disabled={(date) => isOrderDateDisabled(date)}
+                      disabled={(date) => {
+                        const minDate = addDays(new Date(), 4);
+                        minDate.setHours(0, 0, 0, 0);
+                        if (date < minDate) return true;
+                        return fullyBookedDates.some(
+                          (bookedDate) => bookedDate.toDateString() === date.toDateString()
+                        );
+                      }}
                       initialFocus
                       className={cn("p-3 pointer-events-auto")}
-                      {...expressCalendarProps}
                     />
-                    <div className="px-3 pb-3">
-                      <ExpressLegend />
-                    </div>
                   </PopoverContent>
                 </Popover>
-                <ExpressDateNotice date={selections.orderDate} />
                 {cartOrderDate && (
                   <p className="text-xs text-muted-foreground">
                     {t(
@@ -2471,7 +2487,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                               existing={selections.candles.find((c) => c.id === candle.id)}
                               onCommit={(entry) => setSelections((prev) => ({ ...prev, candles: upsertCandleSelection(prev.candles, entry) }))}
                               onRemove={() => setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, candle.id) }))}
-                              imageClassName="h-24 w-24"
+                              imageClassName={candle.imageClassName ?? "h-40 w-40"}
                               compact
                             />
                           </div>
@@ -2486,7 +2502,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         <div key={candle.id} className="w-[calc(50%-6px)] min-w-0">
                           <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all", unitQty > 0 && "ring-2 ring-primary")}>
                           <div className="flex items-center justify-center bg-secondary/20 p-2">
-                            <img src={candle.image} alt={candle.name} className="h-32 w-32 object-contain" />
+                            <img src={candle.image} alt={candle.name} className={cn(candle.imageClassName ?? "h-40 w-40", "object-contain")} />
                           </div>
                           <div className="p-2 text-center">
                             <p className="text-xs font-medium text-foreground">{t(candle.name, candleNameFr[candle.id] ?? candle.name)}</p>
