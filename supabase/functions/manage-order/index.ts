@@ -682,6 +682,11 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
     };
   });
 
+  // Count of real ordered products/workshops only — captured BEFORE the
+  // express surcharge / welcome discount / reward / delivery lines are pushed
+  // below, so the TOTAL row's QTY never counts those synthetic lines.
+  const productLineCount = itemRows.length;
+
   // The itemised detail must reconcile exactly with the TOTAL. Order of the
   // lines: products / workshops -> express surcharge -> welcome discount (-) ->
   // reward used (-) -> delivery -> TOTAL. Every amount below is read straight
@@ -738,7 +743,7 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
     ...billableRows,
     {
       description: tr("TOTAL", "TOTAL"),
-      quantity: String(billableRows.length),
+      quantity: String(productLineCount || 1),
       unitPrice: "",
       // Always the real order total, never a re-sum of the rows above, so
       // this can never drift from orders.total_amount.
