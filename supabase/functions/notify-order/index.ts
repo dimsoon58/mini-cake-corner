@@ -173,6 +173,10 @@ async function sendAdminEmail(resendApiKey: string, order: any, items: any[], si
     headers: {
       Authorization: `Bearer ${resendApiKey}`,
       "Content-Type": "application/json",
+      // Stable per order — confirm-postfinance-payment retries this invocation
+      // until orders.admin_notified_at is set, so a duplicate invoke must not
+      // send a second admin e-mail. Resend keeps the key ~24h.
+      "Idempotency-Key": `notify-order-${order.id}`,
     },
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",

@@ -19,18 +19,32 @@
 --                            the payment from starting or resuming (alerted).
 --   'completed'            — confirm-postfinance-payment finalised the order.
 
+-- webhook bookkeeping:
+--   last_webhook_seen_event_id      — written when an event is RECEIVED
+--   last_webhook_processed_event_id — written ONLY when the webhook returns 200
+--                                     (event fully handled). A 5xx never marks
+--                                     it, so a PostFinance retry of the same
+--                                     event really re-processes it. De-dup
+--                                     compares against *processed*, never seen.
 create table if not exists public.payment_attempts (
-  order_id                  uuid primary key,
-  postfinance_transaction_id text,
-  status                    text not null,
-  error_type                text,
-  amount                    numeric(10,2),
-  lang                      text,
-  webhook_seen_at           timestamptz,
-  last_webhook_event_id     text,
-  created_at                timestamptz not null default now(),
-  updated_at                timestamptz not null default now()
+  order_id                        uuid primary key,
+  postfinance_transaction_id      text,
+  status                          text not null,
+  error_type                      text,
+  amount                          numeric(10,2),
+  lang                            text,
+  webhook_seen_at                 timestamptz,
+  last_webhook_seen_event_id      text,
+  last_webhook_processed_event_id text,
+  created_at                      timestamptz not null default now(),
+  updated_at                      timestamptz not null default now()
 );
+
+-- If an earlier draft of this migration was already applied with the old
+-- single column, migrate it forward (safe no-ops otherwise).
+alter table public.payment_attempts
+  add column if not exists last_webhook_seen_event_id text,
+  add column if not exists last_webhook_processed_event_id text;
 
 comment on table public.payment_attempts is
   'Durable trace of every checkout payment attempt, including attempts that never became an order. No card/bank data. One row per frontend orderId.';

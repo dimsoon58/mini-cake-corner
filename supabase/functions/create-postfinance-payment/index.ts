@@ -27,6 +27,12 @@ const corsHeaders = {
 const SITE_BASE_URL = "https://dimsoon58.github.io/mini-cake-corner";
 const WELCOME_DISCOUNT_RATE = 0.10;
 
+// A "CREATING" pending_payments placeholder younger than this is treated as a
+// live lease: a concurrent retry for the same orderId returns in_progress and
+// never runs a merchantReference search / creates a transaction. Only once the
+// lease has expired do we assume the first request died.
+const CREATING_LEASE_MS = 90_000;
+
 // Fixed voucher base price per (product, size) pair — never a single size
 // alone, so an inconsistent combination like bento_cake + "rectangle" can
 // never resolve to a base (Catalog.tsx never actually produces that
@@ -317,7 +323,24 @@ async function handleRetry(
     return await resumeByTransaction(supabase, credentials, orderId, txId, row, en);
   }
 
-  // Placeholder still "CREATING" → the mandatory merchantReference search.
+  // ── Placeholder still "CREATING" ──────────────────────────────────────
+  // A CREATING placeholder younger than the lease means the first request may
+  // still be between the placeholder INSERT and POST /payment/transactions —
+  // a "0 results" merchantReference search here would prove NOTHING. Hold the
+  // same orderId, do not search, do not delete, do not create a transaction.
+  const creatingAgeMs = Date.now() - Date.parse(row.created_at);
+  if (!(creatingAgeMs >= CREATING_LEASE_MS)) {
+    // Transient — no payment_attempts write (the first request owns the row).
+    return jsonResponse({
+      status: "in_progress",
+      message: en
+        ? "Your payment is being initialised. Please wait a moment and try again."
+        : "Votre paiement est en cours d'initialisation. Merci de patienter un instant puis de réessayer.",
+    }, 200);
+  }
+
+  // Lease expired → the first request is assumed dead. Mandatory,
+  // exhaustive/conclusive merchantReference search before anything else.
   const found = await findTransactionByMerchantReference(credentials, orderId, {
     pendingCreatedAt: row.created_at,
   });
@@ -871,13 +894,70 @@ serve(async (req) => {
       productsSubtotal - discountAmount - reservedReward + expressSurcharge + deliveryFee,
     );
 
+    // The welcome discount + reward are both capped so this can never go
+    // negative; a negative total means a bug upstream — refuse rather than
+    // create a broken transaction.
+    if (order.total_amount < 0) {
+      throw new Error(
+        `Computed total is negative (CHF ${order.total_amount}) — refusing to create a payment.`,
+      );
+    }
+
+    // ─── Persist the FINAL authoritative payload BEFORE using the transaction
+    // confirm-postfinance-payment and the webhook read THIS payload to create
+    // the order, so it must already carry the final welcome discount, reward,
+    // express surcharge, delivery fee and total_amount. Done for BOTH the
+    // reward-only and the normal path.
+    const { error: payloadError } = await supabase
+      .from("pending_payments")
+      .update({ payload: { order, orderItems } })
+      .eq("order_id", orderId);
+    if (payloadError) {
+      throw new Error(`Failed to persist final payment payload: ${payloadError.message}`);
+    }
+
+    // ─── Reward-only checkout — total fully covered by the cagnotte ───────
+    // No real PostFinance transaction. Stage the sentinel id on
+    // pending_payments and hand the customer straight to /payment-success;
+    // confirm-postfinance-payment treats REWARD_ONLY as "authorised" (via the
+    // _shared/postfinance.ts shim) and finalises the order as usual. The
+    // welcome + reward reservations MUST survive — they are consumed at
+    // capture, exactly like a paid order.
+    if (order.total_amount === 0) {
+      const { error: rewardOnlyError } = await supabase
+        .from("pending_payments")
+        .update({ postfinance_transaction_id: REWARD_ONLY_TRANSACTION_ID })
+        .eq("order_id", orderId);
+      if (rewardOnlyError) {
+        throw new Error(`Failed to stage reward-only payment: ${rewardOnlyError.message}`);
+      }
+
+      // Nothing to POST — but flip postAttempted so the global catch never
+      // releases the reservations or deletes the (now REWARD_ONLY) placeholder.
+      postAttempted = true;
+
+      await recordPaymentAttempt(supabase, {
+        orderId, transactionId: REWARD_ONLY_TRANSACTION_ID, status: "payment_page_created",
+        amount: 0, lang: order.lang,
+      });
+
+      return jsonResponse({
+        transactionId: REWARD_ONLY_TRANSACTION_ID,
+        paymentPageUrl: `${SITE_BASE_URL}/payment-success?order_id=${orderId}`,
+        rewardAmountUsed: reservedReward,
+        rewardOnly: true,
+      }, 200);
+    }
+
     const transactionCreate = {
       currency: "CHF",
       language: order.lang === "en" ? "en-US" : "fr-CH",
       customerEmailAddress: order.email,
       merchantReference: orderId,
       successUrl: `${SITE_BASE_URL}/payment-success?order_id=${orderId}`,
-      failedUrl: `${SITE_BASE_URL}/checkout?payment=failed`,
+      // order_id lets Checkout reconcile a failed PostFinance attempt and
+      // release the reservations tied to it.
+      failedUrl: `${SITE_BASE_URL}/checkout?payment=failed&order_id=${encodeURIComponent(orderId)}`,
       completionBehavior: "COMPLETE_DEFERRED",
       lineItems,
       metaData: {
@@ -888,18 +968,6 @@ serve(async (req) => {
         delivery_address: order.delivery_address || "",
       },
     };
-
-    // ─── Persist the FINAL authoritative payload BEFORE using the transaction
-    // confirm-postfinance-payment and the webhook read THIS payload to create
-    // the order, so it must already carry the final welcome discount, reward,
-    // express surcharge, delivery fee and total_amount.
-    const { error: payloadError } = await supabase
-      .from("pending_payments")
-      .update({ payload: { order, orderItems } })
-      .eq("order_id", orderId);
-    if (payloadError) {
-      throw new Error(`Failed to persist final payment payload: ${payloadError.message}`);
-    }
 
     // ─── Create the PostFinance transaction ──────────────────────────────
     let transaction: { id: number };

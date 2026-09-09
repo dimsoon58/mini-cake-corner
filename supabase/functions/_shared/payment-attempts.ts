@@ -14,9 +14,10 @@ export interface RecordAttemptInput {
   errorType?: string | null;
   amount?: number | null;
   lang?: string | null;
-  webhookSeenAt?: string | null;
-  lastWebhookEventId?: string | null;
 }
+// Webhook bookkeeping (webhook_seen_at / last_webhook_seen_event_id /
+// last_webhook_processed_event_id) is written directly by postfinance-webhook,
+// not through this helper.
 
 // Best-effort: a failure to write the trace must never break the payment flow.
 export async function recordPaymentAttempt(
@@ -34,8 +35,6 @@ export async function recordPaymentAttempt(
   if (input.errorType !== undefined) row.error_type = input.errorType;
   if (input.amount !== undefined && input.amount !== null) row.amount = input.amount;
   if (input.lang !== undefined && input.lang !== null) row.lang = input.lang;
-  if (input.webhookSeenAt !== undefined) row.webhook_seen_at = input.webhookSeenAt;
-  if (input.lastWebhookEventId !== undefined) row.last_webhook_event_id = input.lastWebhookEventId;
 
   try {
     const { error } = await supabase

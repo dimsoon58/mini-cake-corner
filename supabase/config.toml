@@ -18,3 +18,9 @@ verify_jwt = false
 # optional ECDSA payload signature) inside the function, never a user JWT.
 [functions.postfinance-webhook]
 verify_jwt = false
+
+# Periodic side-effect recovery sweep — called by pg_cron / an external cron,
+# not a Supabase client. Authenticated by the ?s=<RETRY_SWEEP_SECRET> URL
+# secret inside the function, never a user JWT.
+[functions.retry-order-side-effects]
+verify_jwt = false

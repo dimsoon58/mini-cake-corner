@@ -79,6 +79,13 @@ export const PostFinanceCheckout = ({ payload, onRequestNewOrder }: EmbeddedChec
         return;
       }
 
+      // Reward-only checkout (total covered by the cagnotte) — no PostFinance
+      // page. Go straight to /payment-success, which polls confirm.
+      if (data?.rewardOnly === true) {
+        navigate(`/payment-success?order_id=${encodeURIComponent(payload.orderId)}`);
+        return;
+      }
+
       // Resolved an already-authorised / already-confirmed transaction.
       if (data?.status === "authorized" || data?.status === "already_confirmed") {
         navigate(`/payment-success?order_id=${encodeURIComponent(payload.orderId)}`);

@@ -223,6 +223,8 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
     headers: {
       Authorization: `Bearer ${resendApiKey}`,
       "Content-Type": "application/json",
+      // Stable per order — a side-effect retry never double-sends. ~24h TTL.
+      "Idempotency-Key": `workshop-email-${order.id}`,
     },
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",

@@ -421,15 +421,26 @@ const Checkout = () => {
 
 
   // PostFinance's failedUrl brings the customer straight back here with
-  // ?payment=failed — cart is left untouched (nothing here calls
-  // clearCart()) so they can retry immediately. Clears the in-flight lock so
-  // an immediate retry is never blocked.
+  // ?payment=failed&order_id=<orderId> — cart is left untouched (nothing here
+  // calls clearCart()) so they can retry immediately. Clears the in-flight
+  // lock so an immediate retry is never blocked, and asks the backend to
+  // reconcile the failed attempt (confirm-postfinance-payment sees the
+  // FAILED / DECLINE / VOIDED state and releases the welcome + reward
+  // reservations tied to that orderId).
   useEffect(() => {
     if (searchParams.get("payment") === "failed") {
       clearCheckoutInFlight();
       setShowPaymentFailed(true);
       setShowEmbeddedCheckout(false);
       setCheckoutPayload(null);
+
+      const failedOrderId = searchParams.get("order_id");
+      if (failedOrderId) {
+        supabase.functions
+          .invoke("confirm-postfinance-payment", { body: { orderId: failedOrderId } })
+          .catch((e) => console.error("failed-payment reconciliation error:", e));
+      }
+
       toast({
         title: t("Payment failed", "Échec du paiement"),
         description: t(

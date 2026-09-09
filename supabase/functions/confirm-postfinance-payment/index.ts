@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "../_shared/postfinance.ts";
 import { buildWorkshopMakePayload, sendWorkshopMakeWebhook } from "../_shared/workshop-make.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
+import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,9 +12,6 @@ const corsHeaders = {
 
 const SUCCESS_STATES = new Set(["AUTHORIZED", "COMPLETED", "FULFILL"]);
 const FAILURE_STATES = new Set(["FAILED", "DECLINE", "VOIDED"]);
-
-const MAKE_WEBHOOK_URL =
-  "https://hook.eu1.make.com/umndao56d5dii1f1f7r1sv17ffegwdek";
 
 // Thrown when a workshop line cannot be reserved (session full / closed) AFTER
 // the payment was already authorised (or captured). Carries whether the
@@ -163,47 +161,59 @@ async function notifyWorkshopMakePending(supabase: any, orderRecord: any): Promi
   }
 }
 
-// Inserts order_items for an orders row that already exists, secures every
-// workshop reservation of the order in ONE atomic all-or-nothing claim, then
-// fires the Make webhooks and the notify-order / customer-email background
-// tasks. Never inserts into public.orders.
-async function insertOrderItemsAndFinalize(
+// ── DB finalisation ──────────────────────────────────────────────────────
+// Inserts every order_items row, secures the workshop reservations in ONE
+// atomic all-or-nothing claim, drops pending_payments, then calls
+// mark_order_finalized() — which is the ONLY place orders.finalized_at is set,
+// and only once every order_items row exists. Never inserts into public.orders.
+// Side-effects (Make / e-mails) are NOT run here — see runSideEffects().
+async function finalizeOrderDb(
   supabase: any,
   orderRecord: any,
   orderItems: Record<string, unknown>[],
-) {
-  const orderItemsWithOrderNumber = orderItems.map((item) => ({
-    ...item,
-    order_number: orderRecord.order_number,
-  }));
+): Promise<void> {
+  // Tolerate a partial previous run (crashed after some/all items): only
+  // insert the rows that are missing. order_items has no natural key, so we
+  // key off "does this order already have any rows".
+  const { data: alreadyThere } = await supabase
+    .from("order_items").select("id").eq("order_id", orderRecord.id).limit(1);
 
-  const { data: insertedItems, error: itemsError } = await supabase
-    .from("order_items")
-    .insert(orderItemsWithOrderNumber)
-    .select();
-
-  if (itemsError) {
-    throw new Error(`Failed to save order items: ${itemsError.message}`);
+  if (!alreadyThere || alreadyThere.length === 0) {
+    const orderItemsWithOrderNumber = orderItems.map((item) => ({
+      ...item,
+      order_number: orderRecord.order_number,
+    }));
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .insert(orderItemsWithOrderNumber);
+    if (itemsError) {
+      throw new Error(`Failed to save order items: ${itemsError.message}`);
+    }
   }
 
+  const { data: insertedItems } = await supabase
+    .from("order_items").select("*").eq("order_id", orderRecord.id);
+
   // ── Workshop reservations — one atomic, DB-authoritative, all-or-nothing
-  // claim per order. Runs AFTER order + order_items exist and BEFORE any
-  // webhook / email. The RPC reads everything from the DB (session price,
-  // type, capacity, minor consent) and writes workshop_reference back onto
-  // the order_items in the same transaction.
+  // claim per order. Runs AFTER order + order_items exist. The RPC reads
+  // everything from the DB (session price, type, capacity, minor consent).
   const hasWorkshopRows = (insertedItems ?? []).some((it: any) => it.product === "workshop");
-  if (hasWorkshopRows) {
+  // Skip the batch claim if workshop_reservations already exist for this order
+  // — a previous run inserted the items and claimed the seats before crashing.
+  // Re-running the claim on a partial-recovery pass could otherwise double-book.
+  const { data: existingReservations } = hasWorkshopRows
+    ? await supabase.from("workshop_reservations").select("id").eq("order_id", orderRecord.id).limit(1)
+    : { data: null };
+  if (hasWorkshopRows && (!existingReservations || existingReservations.length === 0)) {
     const { error: claimError } = await supabase.rpc(
       "claim_workshop_reservations_batch", { p_order_id: orderRecord.id },
     );
-
     if (claimError) {
       // Capacity / closed / consent / inconsistency: unwind the whole order
       // (authorization included). A mixed order's cake part does not survive.
       const abort = await abortOrderAfterAuthorization(supabase, orderRecord, claimError.message || "claim failed");
       throw new WorkshopCapacityAbort(abort.financiallyResolved, abort.message);
     }
-
     // Create the "Réservations Workshops" rows straight away (status pending).
     EdgeRuntime.waitUntil(
       notifyWorkshopMakePending(supabase, orderRecord)
@@ -211,66 +221,20 @@ async function insertOrderItemsAndFinalize(
     );
   }
 
-  await supabase
-    .from("pending_payments")
-    .delete()
-    .eq("order_id", orderRecord.id);
-
-  // Physical items only -> production Make webhook. Workshop-only -> skipped.
-  const physicalItems = (insertedItems ?? []).filter((it: any) => it.product !== "workshop");
-  if (physicalItems.length > 0) {
-    try {
-      await fetch(MAKE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order: orderRecord, orderItems: physicalItems }),
-      });
-    } catch (webhookErr) {
-      console.error("Make webhook request failed:", webhookErr);
-    }
-  } else {
-    console.log("Workshop-only order — production Make webhook skipped:", orderRecord.id);
+  // The DB order is complete — and only now. pending_payments is dropped
+  // AFTER this, so if mark_order_finalized fails/crashes the payload stays
+  // available for a retry. A crash between here and the delete is harmless:
+  // any later call deletes pending_payments idempotently.
+  const { error: markError } = await supabase.rpc("mark_order_finalized", { p_order_id: orderRecord.id });
+  if (markError) {
+    throw new Error(`mark_order_finalized failed: ${markError.message}`);
   }
 
-  // Best-effort admin notification.
-  EdgeRuntime.waitUntil((async () => {
-    try {
-      const { error: notifyError } = await supabase.functions.invoke("notify-order", { body: { orderId: orderRecord.id } });
-      if (notifyError) console.error("notify-order returned an error (order still created):", notifyError);
-    } catch (notifyErr) {
-      console.error("notify-order invocation failed (order still created):", notifyErr);
-    }
-  })());
-
-  // Customer emails — physical -> send-order-received-email; workshop ->
-  // send-workshop-email; mixed -> both. Naturally idempotent (this point runs
-  // once per real order).
-  const finalizedItems = insertedItems ?? [];
-  const hasWorkshopItem = finalizedItems.some((it: any) => it.product === "workshop");
-  const hasPhysicalItem = finalizedItems.some((it: any) => it.product !== "workshop");
-
-  if (hasPhysicalItem) {
-    EdgeRuntime.waitUntil((async () => {
-      try {
-        const { error: e } = await supabase.functions.invoke("send-order-received-email", { body: { orderId: orderRecord.id } });
-        if (e) console.error("send-order-received-email returned an error (order still created):", e);
-      } catch (err) {
-        console.error("send-order-received-email invocation failed (order still created):", err);
-      }
-    })());
-  }
-
-  if (hasWorkshopItem) {
-    EdgeRuntime.waitUntil((async () => {
-      try {
-        const { error: e } = await supabase.functions.invoke("send-workshop-email", { body: { orderId: orderRecord.id } });
-        if (e) console.error("send-workshop-email returned an error (order still created):", e);
-      } catch (err) {
-        console.error("send-workshop-email invocation failed (order still created):", err);
-      }
-    })());
-  }
+  await supabase.from("pending_payments").delete().eq("order_id", orderRecord.id);
 }
+
+// runSideEffects / areSideEffectsComplete now live in
+// _shared/order-side-effects.ts (also used by retry-order-side-effects).
 
 // Terminal payment failure (FAILED / DECLINE / VOIDED). Release the
 // reservations this checkout held, drop the pending_payments row, record the
@@ -303,31 +267,32 @@ async function cleanupFailedPayment(
   });
 }
 
-// Atomic finalisation gate. claim_order_finalization() returns TRUE to exactly
-// ONE concurrent caller (the /payment-success poll vs the PostFinance
-// webhook); that caller runs insertOrderItemsAndFinalize() once. Every other
-// caller gets FALSE and just reports the order as already-confirmed.
-async function finalizeIfClaimed(
+// Try to take the finalisation lease and, if we get it, finish the DB order
+// (order_items + workshop claim + mark_order_finalized) then fire the missing
+// side-effects once. Returns:
+//   { outcome: "finalized", sideEffectsComplete }  — we finished the DB order
+//   { outcome: "not_claimed" }                     — another caller holds the
+//                                                     lease / is finalising
+async function finalizeClaimed(
   supabase: any,
   orderRecord: any,
   orderItems: Record<string, unknown>[],
-): Promise<boolean> {
+): Promise<{ outcome: "finalized" | "not_claimed"; sideEffectsComplete?: boolean }> {
   const { data: claimed, error: claimError } = await supabase.rpc(
     "claim_order_finalization", { p_order_id: orderRecord.id },
   );
   if (claimError) {
     throw new Error(`claim_order_finalization failed: ${claimError.message}`);
   }
-  if (claimed !== true) return false;
+  if (claimed !== true) return { outcome: "not_claimed" };
 
   try {
-    await insertOrderItemsAndFinalize(supabase, orderRecord, orderItems);
+    await finalizeOrderDb(supabase, orderRecord, orderItems);
     await recordPaymentAttempt(supabase, { orderId: orderRecord.id, status: "completed" });
-    return true;
   } catch (e) {
     if (e instanceof WorkshopCapacityAbort) throw e; // persists its own state
-    // Non-abort failure before finalisation completed — release the claim so
-    // a later poll / webhook can retry cleanly.
+    // Non-abort failure before finalisation completed — drop the lease so a
+    // later poll / webhook can retry cleanly (finalized_at is still NULL).
     try {
       await supabase.rpc("release_order_finalization", { p_order_id: orderRecord.id });
     } catch (relErr) {
@@ -335,6 +300,43 @@ async function finalizeIfClaimed(
     }
     throw e;
   }
+
+  // DB order is complete → fire side-effects, then report the REAL marker state.
+  return { outcome: "finalized", sideEffectsComplete: await retryMissingSideEffects(supabase, orderRecord.id) };
+}
+
+// Re-fire only the still-missing side-effects for an order that is already
+// DB-complete (finalized_at set), then report whether EVERY applicable
+// side-effect is really marked delivered. Guarded by the 45s lease so
+// concurrent poll + webhook callers don't stack — but NOT obtaining the lease
+// only means another worker is on it, NOT that Make/e-mail are done, so we
+// still read back the true marker state (areSideEffectsComplete). Any thrown
+// error → false (never claim completeness on a failed run).
+async function retryMissingSideEffects(supabase: any, orderId: string): Promise<boolean> {
+  try {
+    const { data: seClaimed } = await supabase.rpc("claim_side_effect_retry", { p_order_id: orderId });
+    if (seClaimed === true) {
+      return (await runSideEffects(supabase, orderId)).complete;
+    }
+    return await areSideEffectsComplete(supabase, orderId);
+  } catch (e) {
+    console.error(`retryMissingSideEffects failed for ${orderId}:`, e);
+    return false;
+  }
+}
+
+const FINALIZE_LEASE_MS = 3 * 60 * 1000;
+function finalizationLeaseActive(order: any): boolean {
+  if (!order?.finalization_claimed_at) return false;
+  const claimedAt = Date.parse(order.finalization_claimed_at);
+  return Number.isFinite(claimedAt) && (Date.now() - claimedAt) < FINALIZE_LEASE_MS;
+}
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status,
+  });
 }
 
 function capacityResponse(financiallyResolved: boolean, orderValidation: string | null, detail: string) {
@@ -386,29 +388,52 @@ serve(async (req) => {
         return capacityResponse(true, "rejected", "workshop capacity unavailable (resolved)");
       }
 
-      // Concurrent-safe finalisation. The claim RPC guarantees exactly one
-      // caller (poll vs webhook) ever runs insertOrderItemsAndFinalize; it
-      // also self-heals a claim that was set but never produced order_items
-      // (crashed finaliser) after 3 minutes.
+      // ── Already DB-complete → only retry the missing side-effects ──
+      if (existingOrder.finalized_at) {
+        // Idempotent cleanup of a pending_payments row left behind by a crash
+        // between mark_order_finalized and the delete inside finalizeOrderDb.
+        await supabase.from("pending_payments").delete().eq("order_id", orderId);
+        const sideEffectsComplete = await retryMissingSideEffects(supabase, orderId);
+        return json({
+          confirmed: true,
+          justCreated: false,
+          orderValidation: existingOrder.order_validation,
+          sideEffectsComplete,
+        });
+      }
+
+      // ── Order row exists but finalisation is not done ──
+      // Someone holds a live lease → they are finalising right now. Never
+      // report confirmed while finalized_at is NULL.
+      if (finalizationLeaseActive(existingOrder)) {
+        return json({ confirmed: false, finalizing: true });
+      }
+
+      // No lease / stale lease → try to take it and finish the DB order.
       const { data: pendingForRetry } = await supabase
         .from("pending_payments")
         .select("payload")
         .eq("order_id", orderId)
         .maybeSingle();
 
-      let justCreated = false;
       if (pendingForRetry?.payload?.orderItems) {
-        justCreated = await finalizeIfClaimed(supabase, existingOrder, pendingForRetry.payload.orderItems);
+        const result = await finalizeClaimed(supabase, existingOrder, pendingForRetry.payload.orderItems);
+        if (result.outcome === "finalized") {
+          return json({
+            confirmed: true,
+            justCreated: true,
+            orderValidation: existingOrder.order_validation,
+            sideEffectsComplete: result.sideEffectsComplete,
+          });
+        }
+        return json({ confirmed: false, finalizing: true });
       }
 
-      return new Response(JSON.stringify({
-        confirmed: true,
-        justCreated,
-        orderValidation: existingOrder.order_validation,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      // Order exists, not finalised, no lease, no payload to finalise from —
+      // a stale partial state. Keep the customer polling; the webhook (5xx →
+      // PostFinance retry) is the recovery channel.
+      console.error(`Order ${orderId} exists but is not finalised and has no pending_payments payload.`);
+      return json({ confirmed: false, finalizing: true });
     }
 
     const { data: pending, error: pendingError } = await supabase
@@ -501,16 +526,32 @@ serve(async (req) => {
       orderRecord = insertedOrder;
     }
 
-    const justCreated = await finalizeIfClaimed(supabase, orderRecord, orderItems);
+    // The 23505 re-select may already be fully finalised (webhook beat us).
+    if (orderRecord.finalized_at) {
+      const sideEffectsComplete = await retryMissingSideEffects(supabase, orderId);
+      return json({
+        confirmed: true,
+        justCreated: false,
+        orderValidation: orderRecord.order_validation ?? "pending",
+        sideEffectsComplete,
+      });
+    }
+    if (finalizationLeaseActive(orderRecord)) {
+      return json({ confirmed: false, finalizing: true });
+    }
 
-    return new Response(JSON.stringify({
-      confirmed: true,
-      justCreated,
-      orderValidation: orderRecord.order_validation ?? "pending",
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    const result = await finalizeClaimed(supabase, orderRecord, orderItems);
+    if (result.outcome === "finalized") {
+      return json({
+        confirmed: true,
+        justCreated: true,
+        orderValidation: orderRecord.order_validation ?? "pending",
+        sideEffectsComplete: result.sideEffectsComplete,
+      });
+    }
+    // Lost the lease race to a concurrent finaliser (webhook vs poll). The
+    // order exists; it is being finalised elsewhere. Keep polling.
+    return json({ confirmed: false, finalizing: true });
   } catch (error) {
     if (error instanceof WorkshopCapacityAbort) {
       return capacityResponse(

@@ -29,6 +29,13 @@ const PaymentSuccess = () => {
   const [capacity, setCapacity] = useState<{ financiallyResolved: boolean } | null>(null);
   const cartClearedRef = useRef(false);
   const pollsRef = useRef(0);
+  // After the order is confirmed we keep polling a few more times so that any
+  // side-effect (Make webhook / e-mails) that hasn't been delivered yet gets
+  // re-fired server-side — belt-and-suspenders alongside the PostFinance
+  // webhook's own retries.
+  const sideEffectsDoneRef = useRef(false);
+  const nudgeRef = useRef(0);
+  const MAX_NUDGES = 8;
 
   // The cart is cleared ONLY once the payment is really confirmed — never
   // merely because this page rendered (a failed / abandoned payment must keep
@@ -45,14 +52,22 @@ const PaymentSuccess = () => {
       setPhase("timeout");
       return;
     }
-    if (phase === "confirmed" || phase === "failed" || phase === "timeout") return;
+    if (phase === "failed" || phase === "timeout") return;
+    if (phase === "confirmed" && (sideEffectsDoneRef.current || nudgeRef.current >= MAX_NUDGES)) return;
     if (capacity?.financiallyResolved) return;
 
     const id = orderId;
     let mounted = true;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    const stop = () => { if (intervalId !== undefined) clearInterval(intervalId); };
 
     const confirm = async () => {
-      pollsRef.current += 1;
+      if (phase === "confirmed") {
+        nudgeRef.current += 1;
+        if (sideEffectsDoneRef.current || nudgeRef.current > MAX_NUDGES) { stop(); return; }
+      } else {
+        pollsRef.current += 1;
+      }
 
       const { data, error } = await supabase.functions.invoke("confirm-postfinance-payment", {
         body: { orderId: id },
@@ -62,37 +77,43 @@ const PaymentSuccess = () => {
 
       if (error) {
         console.error("Error confirming payment:", error);
-        if (pollsRef.current >= MAX_POLLS) setPhase("timeout");
+        if (phase !== "confirmed" && pollsRef.current >= MAX_POLLS) setPhase("timeout");
         return;
       }
 
       if (data?.reason === "workshop_capacity_unavailable") {
         setCapacity({ financiallyResolved: !!data.financiallyResolved });
+        stop();
         return;
       }
 
       if (data?.confirmed === true) {
         firePurchaseOnce(id);
         setOrderValidation(data.orderValidation ?? "pending");
+        if (data.sideEffectsComplete !== false) {
+          sideEffectsDoneRef.current = true;
+          stop();
+        }
         setPhase("confirmed");
         return;
       }
 
       if (data?.failed === true) {
         setPhase("failed");
+        stop();
         return;
       }
 
-      // Not confirmed, not failed — still processing. Keep polling until the
-      // cap, then hand off to the server-side webhook.
-      if (pollsRef.current >= MAX_POLLS) setPhase("timeout");
+      // Not confirmed (still finalising / non-terminal state), not failed —
+      // keep polling until the cap, then hand off to the server-side webhook.
+      if (pollsRef.current >= MAX_POLLS) { setPhase("timeout"); stop(); }
     };
 
     confirm();
-    const intervalId = setInterval(confirm, 4000);
+    intervalId = setInterval(confirm, 4000);
     return () => {
       mounted = false;
-      clearInterval(intervalId);
+      stop();
     };
   }, [orderId, phase, capacity]);
 

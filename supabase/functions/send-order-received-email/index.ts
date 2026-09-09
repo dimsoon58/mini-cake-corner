@@ -128,6 +128,10 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
     headers: {
       Authorization: `Bearer ${resendApiKey}`,
       "Content-Type": "application/json",
+      // Stable per order — a retry (payment webhook + poll both re-firing the
+      // side-effects) can never send this e-mail twice. Resend keeps the key
+      // ~24h.
+      "Idempotency-Key": `order-received-${order.id}`,
     },
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",

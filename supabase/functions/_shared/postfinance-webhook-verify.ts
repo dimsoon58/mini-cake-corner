@@ -3,8 +3,10 @@
 // TWO independent layers — the webhook function decides which to enforce:
 //
 //  1. Shared secret in the URL: the Webhook URL is registered in PostFinance
-//     as https://<project>.functions.supabase.co/postfinance-webhook?s=<secret>
-//     and POSTFINANCE_WEBHOOK_SECRET holds the same value. Constant-time
+//     as
+//       https://<PROJECT_ID>.supabase.co/functions/v1/postfinance-webhook?s=<secret>
+//     (this project: https://ekciarsrdyismyevgkqg.supabase.co/functions/v1/postfinance-webhook?s=<secret>)
+//     and POSTFINANCE_WEBHOOK_SECRET holds the same <secret>. Constant-time
 //     compared. This is the mandatory gate.
 //
 //  2. Payload signature (optional hardening, enable with
