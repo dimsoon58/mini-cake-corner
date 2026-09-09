@@ -43,6 +43,13 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
 
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
 
+  // Order shape — drives which wording / blocks appear. Never changes any
+  // payment, capture, void or order_validation logic.
+  const workshopItems = items.filter((it: any) => it.product === "workshop");
+  const physicalItems = items.filter((it: any) => it.product !== "workshop");
+  const workshopOnly = workshopItems.length > 0 && physicalItems.length === 0;
+  const mixed = workshopItems.length > 0 && physicalItems.length > 0;
+
   const deliveryInfo = !order.delivery_method
     ? ""
     : order.delivery_method === "delivery"
@@ -52,23 +59,8 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
   const row = (label: string, value: string) =>
     `<tr><td style="padding:6px 8px;color:#888;font-size:14px;width:40%;">${label}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${value}</td></tr>`;
 
-  const cakeDetailsRows = items.map((item: any, i: number) => {
-    if (item.product === "workshop") {
-      const wsName = item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature");
-      const wsRows = [
-        row(tr("Workshop", "Atelier"), wsName),
-        item.workshop_date ? row(tr("Date", "Date"), formatDateCH(item.workshop_date)) : "",
-        item.workshop_time ? row(tr("Time", "Horaire"), item.workshop_time) : "",
-        item.workshop_participants != null ? row(tr("Participants", "Participants"), String(item.workshop_participants)) : "",
-        item.item_comment?.trim() ? row(tr("Notes", "Notes"), item.item_comment.trim()) : "",
-      ].join("");
-      return `
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${tr("Workshop", "Atelier")} ${items.length > 1 ? (i + 1) : ""}</h3>
-        <table style="border-collapse:collapse;width:100%;">${wsRows}</table>
-      </div>`;
-    }
-
+  // Physical items only — workshops render in their own block below.
+  const cakeDetailsRows = physicalItems.map((item: any, i: number) => {
     const candleStr = item.candle_name
       ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
       : "";
@@ -89,12 +81,40 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
 
     return `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${tr("🎂 Cake", "🎂 Gâteau")} ${items.length > 1 ? (i + 1) : tr("details", "— détails")}</h3>
+        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${tr("🎂 Cake", "🎂 Gâteau")} ${physicalItems.length > 1 ? (i + 1) : tr("details", "— détails")}</h3>
         <table style="border-collapse:collapse;width:100%;">
           ${rows.join("")}
         </table>
       </div>`;
   }).join("");
+
+  // Workshop detail block — one card per workshop line, shown only when the
+  // order actually contains a workshop. Never presented as a cake.
+  const workshopDetailsRows = workshopItems.map((item: any, i: number) => {
+    const wsName = item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature");
+    const wsRows = [
+      row(tr("Workshop", "Atelier"), wsName),
+      item.workshop_date ? row(tr("Date", "Date"), formatDateCH(item.workshop_date)) : "",
+      item.workshop_time ? row(tr("Time", "Horaire"), item.workshop_time) : "",
+      item.workshop_participants != null ? row(tr("Participants", "Participants"), String(item.workshop_participants)) : "",
+      item.workshop_unit_price != null ? row(tr("Price per person", "Prix par personne"), `CHF ${Number(item.workshop_unit_price).toFixed(2)}`) : "",
+      item.total != null ? row(tr("Workshop total", "Total du workshop"), `CHF ${Number(item.total).toFixed(2)}`) : "",
+      item.item_comment?.trim() ? row(tr("Notes", "Notes"), item.item_comment.trim()) : "",
+    ].join("");
+    return `
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
+        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">${wsName}${workshopItems.length > 1 ? ` ${i + 1}` : ""}</h3>
+        <table style="border-collapse:collapse;width:100%;">${wsRows}</table>
+      </div>`;
+  }).join("");
+
+  const workshopDetailsBlock = workshopItems.length > 0
+    ? `
+        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
+          ${tr("Workshop details", "Détails du workshop")}
+        </p>
+        ${workshopDetailsRows}`
+    : "";
 
   // Reference images block, from order_items.reference_images
   const orderImageUrls = getOrderImageUrls(items);
@@ -114,8 +134,8 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
     const label = item.product === "workshop"
       ? `${item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature")}`
         + `${item.workshop_date ? " — " + formatDateCH(item.workshop_date) : ""}`
-        + `${item.workshop_time ? " " + item.workshop_time : ""}`
-        + `${item.workshop_participants ? ` (×${item.workshop_participants})` : ""}`
+        + `${item.workshop_time ? " · " + item.workshop_time : ""}`
+        + `${item.workshop_participants ? ` — ${item.workshop_participants} ${tr("participant(s)", "participant(s)")}` : ""}`
       : `${item.size || ""} ${item.shape || ""} — ${(item.flavors || []).join(", ")}`;
     return `
     <tr>
@@ -143,10 +163,15 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">
-          ${tr(
-            `Thank you for choosing Bento Cake Studio. Your order <strong>#${orderNumber}</strong> has been confirmed and will be prepared for you on the selected date.`,
-            `Merci d'avoir choisi Bento Cake Studio. Votre commande <strong>n° ${orderNumber}</strong> est confirmée et sera préparée pour la date choisie.`
-          )}
+          ${workshopOnly
+            ? tr(
+                "Thank you for choosing Bento Cake Studio. Your workshop booking is now confirmed.",
+                "Merci d'avoir choisi Bento Cake Studio. Votre réservation de workshop est maintenant confirmée."
+              )
+            : tr(
+                `Thank you for choosing Bento Cake Studio. Your order <strong>#${orderNumber}</strong> has been confirmed and will be prepared for you on the selected date.`,
+                `Merci d'avoir choisi Bento Cake Studio. Votre commande <strong>n° ${orderNumber}</strong> est confirmée et sera préparée pour la date choisie.`
+              )}
         </p>
 
         <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
@@ -160,6 +185,8 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
         </table>
 
         ${cakeDetailsRows}
+
+        ${workshopDetailsBlock}
 
         ${orderImagesBlock}
 
@@ -192,10 +219,20 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0;">
-          ${tr(
-            "Thank you again for your order. We look forward to preparing your cake.",
-            "Merci encore pour votre commande. Nous avons hâte de préparer votre gâteau."
-          )}<br><br>
+          ${workshopOnly
+            ? tr(
+                "Thank you again for your order. We look forward to welcoming you to the workshop!",
+                "Merci encore pour votre commande. Nous avons hâte de vous accueillir au workshop !"
+              )
+            : mixed
+              ? tr(
+                  "Thank you again for your order. We look forward to preparing your order and welcoming you to Bento Cake Studio.",
+                  "Merci encore pour votre commande. Nous avons hâte de préparer votre commande et de vous accueillir chez Bento Cake Studio."
+                )
+              : tr(
+                  "Thank you again for your order. We look forward to preparing your cake.",
+                  "Merci encore pour votre commande. Nous avons hâte de préparer votre gâteau."
+                )}<br><br>
           ${tr("Warm regards", "Bien chaleureusement")},<br>
           <strong>Bento Cake Studio</strong> 🤍
         </p>
@@ -243,12 +280,19 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
 
 // ── Decline customer email ──────────────────────────────────────────
 
-async function sendDeclineEmail(resendApiKey: string, order: any) {
+async function sendDeclineEmail(resendApiKey: string, order: any, items: any[]) {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
   const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
   const rewardOnly = order.postfinance_transaction_id === "REWARD_ONLY";
   const amountCHF = Number(order.total_amount ?? 0).toFixed(2);
+
+  // Order shape — only changes wording. Payment/void/refund logic upstream
+  // is untouched: refundText below still follows the real PostFinance state.
+  const declineWorkshopItems = (items || []).filter((it: any) => it.product === "workshop");
+  const declinePhysicalItems = (items || []).filter((it: any) => it.product !== "workshop");
+  const workshopOnly = declineWorkshopItems.length > 0 && declinePhysicalItems.length === 0;
+  const mixed = declineWorkshopItems.length > 0 && declinePhysicalItems.length > 0;
 
   const refundText = rewardOnly
     ? tr(
@@ -286,19 +330,29 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
 
         <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:0 0 20px;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
-            ${tr(
-              `We regret to inform you that your order <strong>${orderNumber}</strong>, scheduled for <strong>${formatDateCH(order.pickup_delivery_date)}</strong>, cannot be fulfilled.`,
-              `Nous sommes au regret de vous informer que votre commande <strong>n° ${orderNumber}</strong>, prévue le <strong>${formatDateCH(order.pickup_delivery_date)}</strong>, ne pourra pas être réalisée.`
-            )}
+            ${workshopOnly
+              ? tr(
+                  `We regret to inform you that your workshop booking cannot be confirmed.`,
+                  `Nous sommes au regret de vous informer que votre réservation de workshop ne peut pas être confirmée.`
+                )
+              : mixed
+                ? tr(
+                    `We regret to inform you that your order <strong>${orderNumber}</strong> cannot be confirmed.`,
+                    `Nous sommes au regret de vous informer que votre commande <strong>n° ${orderNumber}</strong> ne peut pas être confirmée.`
+                  )
+                : tr(
+                    `We regret to inform you that your order <strong>${orderNumber}</strong>, scheduled for <strong>${formatDateCH(order.pickup_delivery_date)}</strong>, cannot be fulfilled.`,
+                    `Nous sommes au regret de vous informer que votre commande <strong>n° ${orderNumber}</strong>, prévue le <strong>${formatDateCH(order.pickup_delivery_date)}</strong>, ne pourra pas être réalisée.`
+                  )}
           </p>
         </div>
 
-        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 16px;">
+        ${(!workshopOnly && !mixed) ? `<p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 16px;">
           ${tr(
             "To ensure the quality of each of our creations, we limit the number of orders we take each day, and we have reached our maximum capacity for this date.",
             "Afin de garantir la qualité de chacune de nos créations, nous limitons le nombre de commandes que nous réalisons chaque jour, et notre capacité maximale pour cette date a été atteinte."
           )}
-        </p>
+        </p>` : ""}
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
           ${refundText}
@@ -325,10 +379,15 @@ async function sendDeclineEmail(resendApiKey: string, order: any) {
         </table>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
-          ${tr(
-            "We are sorry for the inconvenience and thank you for your understanding. We would be happy to create your cake for another available date.",
-            "Nous sommes désolées pour ce contretemps et vous remercions pour votre compréhension. Nous serions ravies de réaliser votre gâteau pour une autre date disponible."
-          )}
+          ${(workshopOnly || mixed)
+            ? tr(
+                "We are sorry for the inconvenience and thank you for your understanding.",
+                "Nous sommes désolées pour ce contretemps et vous remercions pour votre compréhension."
+              )
+            : tr(
+                "We are sorry for the inconvenience and thank you for your understanding. We would be happy to create your cake for another available date.",
+                "Nous sommes désolées pour ce contretemps et vous remercions pour votre compréhension. Nous serions ravies de réaliser votre gâteau pour une autre date disponible."
+              )}
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0;border-top:1px solid #D4C89A;padding-top:20px;">
@@ -521,14 +580,26 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
   type InvoiceRow = { description: string; quantity: string; unitPrice: string; total: string; bold?: boolean };
 
   const itemRows: InvoiceRow[] = items.map((item: any) => {
-    const desc = item.product === "workshop"
-      ? `${item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature")}`
-        + `${item.workshop_date ? " — " + formatInvoiceDate(item.workshop_date) : ""}`
-        + `${item.workshop_time ? " " + item.workshop_time : ""}`
-        + `${item.workshop_participants ? ` (${item.workshop_participants} ${tr("participants", "participants")})` : ""}`
-      : item.size
-        ? `${item.size}${item.flavors?.length ? " — " + item.flavors.join(", ") : ""}`
-        : (item.design || tr("Custom cake", "Gâteau personnalisé"));
+    // Workshop line: description "Signature Workshop — 03.10.2026 · 13:00",
+    // QTY = participants, UNIT PRICE = workshop_unit_price, TOTAL = item.total.
+    // Never labelled as a cake. order.total_amount is not recomputed from here.
+    if (item.product === "workshop") {
+      const wsName = item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature");
+      const desc = `${wsName}`
+        + `${item.workshop_date ? " — " + formatDateCH(item.workshop_date) : ""}`
+        + `${item.workshop_time ? " · " + item.workshop_time : ""}`;
+      const participants = item.workshop_participants != null ? Number(item.workshop_participants) : 1;
+      return {
+        description: desc,
+        quantity: String(participants),
+        unitPrice: formatInvoicePrice(item.workshop_unit_price ?? 0),
+        total: formatInvoicePrice(item.total ?? 0),
+      };
+    }
+
+    const desc = item.size
+      ? `${item.size}${item.flavors?.length ? " — " + item.flavors.join(", ") : ""}`
+      : (item.design || tr("Custom cake", "Gâteau personnalisé"));
     const total = item.total ?? 0;
     return {
       description: desc,
@@ -603,7 +674,7 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
   // ── Footer: TOTAL PAYÉ + legal mention + thank-you ─────────────────
   // Kept immediately after the last table row — pushed to a fresh page
   // together (never split) if there isn't enough room left.
-  const FOOTER_RESERVED_HEIGHT = 90;
+  const FOOTER_RESERVED_HEIGHT = 120;
   if (y - FOOTER_RESERVED_HEIGHT < margin) {
     startPage();
   } else {
@@ -615,11 +686,46 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
     { x: margin, y, size: 12, font: fontBold, color: textDark },
   );
   y -= 20;
-  page.drawText(
-    tr("Order paid before production. Custom cakes cannot be returned or exchanged.", "Commande payée avant réalisation. Gâteau personnalisé non repris, non échangé."),
-    { x: margin, y, size: 9, font: fontItalic, color: gray },
-  );
-  y -= 24;
+  // Legal mention — conditional on what the order actually contains.
+  const invoiceWorkshopItems = items.filter((it: any) => it.product === "workshop");
+  const invoicePhysicalItems = items.filter((it: any) => it.product !== "workshop");
+  const legalMention = invoiceWorkshopItems.length > 0 && invoicePhysicalItems.length === 0
+    ? tr(
+        "Workshop booking paid and confirmed. Cancellation conditions apply in accordance with the Terms & Conditions.",
+        "Réservation de workshop payée et confirmée. Conditions d'annulation applicables conformément aux Conditions Générales de Vente.",
+      )
+    : invoiceWorkshopItems.length > 0 && invoicePhysicalItems.length > 0
+      ? tr(
+          "Order paid and confirmed. The applicable conditions for products and workshops are those set out in the Terms & Conditions.",
+          "Commande payée et confirmée. Les conditions applicables aux produits et workshops sont celles prévues dans les Conditions Générales de Vente.",
+        )
+      : tr(
+          "Order paid before production. Custom cakes cannot be returned or exchanged.",
+          "Commande payée avant réalisation. Gâteau personnalisé non repris, non échangé.",
+        );
+  // pdf-lib does not wrap — split the mention onto as many lines as the
+  // usable width needs (the workshop / mixed wordings are longer than the
+  // original cake-only one).
+  const mentionMaxW = PAGE_W - margin * 2;
+  const mentionWords = legalMention.split(" ");
+  const mentionLines: string[] = [];
+  let mentionLine = "";
+  for (const word of mentionWords) {
+    const candidate = mentionLine ? `${mentionLine} ${word}` : word;
+    if (fontItalic.widthOfTextAtSize(candidate, 9) > mentionMaxW && mentionLine) {
+      mentionLines.push(mentionLine);
+      mentionLine = word;
+    } else {
+      mentionLine = candidate;
+    }
+  }
+  if (mentionLine) mentionLines.push(mentionLine);
+
+  for (const line of mentionLines) {
+    page.drawText(line, { x: margin, y, size: 9, font: fontItalic, color: gray });
+    y -= 12;
+  }
+  y -= 12;
   page.drawText(tr("Thank you for your trust", "Merci pour votre confiance"), { x: margin, y, size: 11, font: fontRegular, color: textDark });
 
   // Save and convert to base64
@@ -1027,7 +1133,7 @@ serve(async (req) => {
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (resendKey) {
         try {
-          declineEmailResult = await sendDeclineEmail(resendKey, order);
+          declineEmailResult = await sendDeclineEmail(resendKey, order, orderItems);
         } catch (e) {
           console.error("Decline email error:", e);
         }
