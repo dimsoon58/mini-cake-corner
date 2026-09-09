@@ -72,6 +72,13 @@ export interface CartItem {
   workshopTime?: string;   // "HH:MM"
   workshopParticipants?: number;
   workshopUnitPrice?: number;
+  /* "Does the booking include one or more participants under 18?" and, when
+     yes, the mandatory legal-representative-authorisation confirmation. When
+     workshopHasMinor is false, workshopMinorConsentConfirmed is always false.
+     Persisted to order_items.workshop_has_minor /
+     order_items.workshop_minor_consent_confirmed. */
+  workshopHasMinor?: boolean;
+  workshopMinorConsentConfirmed?: boolean;
   total: number;
   /* Standalone candle product (added from the Candles page) */
   isCandleProduct?: boolean;

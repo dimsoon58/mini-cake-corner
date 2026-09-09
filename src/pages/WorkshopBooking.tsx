@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
-import { Clock, Users, MapPin, Check, ChevronLeft, ChevronRight, Calendar, User, CreditCard } from "lucide-react";
+import { Clock, Users, MapPin, Check, ChevronLeft, ChevronRight, Calendar, Info as InfoIcon, CreditCard } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useLang } from "@/context/LanguageContext";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCart } from "@/context/CartContext";
 import { PrivateWorkshopDialog } from "@/components/PrivateWorkshopDialog";
+import { useWorkshopAvailability } from "@/hooks/useWorkshopAvailability";
 import {
   WorkshopType,
   WorkshopSession,
@@ -23,8 +24,8 @@ import {
 // ── Stepper ──────────────────────────────────────────────────────────────────
 const STEPS = [
   { icon: Calendar, labelEn: "Date", labelFr: "Date" },
-  { icon: Users,    labelEn: "Participants", labelFr: "Participants" },
-  { icon: User,     labelEn: "Details", labelFr: "Coordonnées" },
+  { icon: Users, labelEn: "Participants", labelFr: "Participants" },
+  { icon: InfoIcon, labelEn: "Information", labelFr: "Informations" },
   { icon: CreditCard, labelEn: "Confirm", labelFr: "Confirmation" },
 ];
 
@@ -71,22 +72,21 @@ const WorkshopBooking = () => {
   const info = workshopInfo[workshopType];
   const sessions = getSessionsForType(workshopType);
 
+  // Server-authoritative availability. Re-read on mount and again right before
+  // Add to cart; the payment step revalidates server-side once more.
+  const { bySession, loading: availLoading, refresh: refreshAvailability } = useWorkshopAvailability();
+
   const [step, setStep] = useState(0);
   const [selectedSession, setSelectedSession] = useState<WorkshopSession | null>(null);
   const [participants, setParticipants] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [minorConsent, setMinorConsent] = useState(false);
-  const [minorConsentError, setMinorConsentError] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    allergies: "",
-    notes: "",
-  });
-  const [errors, setErrors] = useState<Partial<typeof form>>({});
+
+  // Booking-level info (not per participant).
+  const [comment, setComment] = useState("");
+  const [hasMinor, setHasMinor] = useState<boolean | null>(null);
+  const [minorConsent, setMinorConsent] = useState(false);
+  const [minorError, setMinorError] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = t(
@@ -95,7 +95,33 @@ const WorkshopBooking = () => {
     );
   }, [info, t]);
 
-  const total = selectedSession ? selectedSession.pricePerPerson * participants : info.pricePerPerson * participants;
+  // Seats left for a session: live count when we have it, else the static
+  // catalogue capacity as a safe fallback.
+  const remainingFor = (sessionId: string, fallback: number): number => {
+    const row = bySession[sessionId];
+    if (!row) return fallback;
+    if (!row.is_open) return 0;
+    return row.remaining_seats;
+  };
+  const sessionSelectable = (s: WorkshopSession): boolean =>
+    remainingFor(s.id, spotsLeft(s)) > 0;
+
+  const selectedRemaining = selectedSession
+    ? remainingFor(selectedSession.id, spotsLeft(selectedSession))
+    : 0;
+  const maxAllowed = Math.max(
+    1,
+    Math.min(info.maxParticipants, selectedSession ? selectedRemaining : info.maxParticipants),
+  );
+
+  // Keep participants inside the allowed range whenever it shrinks.
+  useEffect(() => {
+    setParticipants((p) => Math.min(Math.max(1, p), maxAllowed));
+  }, [maxAllowed]);
+
+  const total = selectedSession
+    ? selectedSession.pricePerPerson * participants
+    : info.pricePerPerson * participants;
 
   // ── Step 0: choose date ───────────────────────────────────────────────────
   const Step0 = () => (
@@ -110,8 +136,8 @@ const WorkshopBooking = () => {
       ) : (
         <div className="space-y-3">
           {sessions.map((s) => {
-            const left = spotsLeft(s);
-            const full = left === 0;
+            const left = remainingFor(s.id, spotsLeft(s));
+            const full = left <= 0;
             const selected = selectedSession?.id === s.id;
             return (
               <button
@@ -125,7 +151,7 @@ const WorkshopBooking = () => {
               >
                 <div>
                   <p className={`text-sm font-medium capitalize ${selected ? "text-primary" : "text-foreground"}`}>
-                    {lang === "fr" ? formatSessionDate(s.date, "fr") : formatSessionDate(s.date, "en")}
+                    {formatSessionDate(s.date, lang === "fr" ? "fr" : "en")}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {s.time} · {t(info.duration, info.durationFr)}
@@ -133,11 +159,15 @@ const WorkshopBooking = () => {
                 </div>
                 <div className="text-right shrink-0">
                   {full ? (
-                    <span className="text-xs uppercase tracking-wider text-muted-foreground">{t("Full", "Complet")}</span>
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {t("Sold out", "Complet")}
+                    </span>
                   ) : (
                     <>
                       <p className={`text-sm font-semibold ${left <= 2 ? "text-destructive" : "text-foreground"}`}>
-                        {left} {t("spot(s) left", "place(s) restante(s)")}
+                        {left === 1
+                          ? t("1 spot remaining", "1 place restante")
+                          : t(`${left} spots remaining`, `${left} places restantes`)}
                       </p>
                       {selected && <Check className="w-4 h-4 text-primary ml-auto mt-1" />}
                     </>
@@ -146,17 +176,18 @@ const WorkshopBooking = () => {
               </button>
             );
           })}
+          {availLoading && (
+            <p className="text-xs text-muted-foreground">{t("Checking availability…", "Vérification des disponibilités…")}</p>
+          )}
         </div>
       )}
     </div>
   );
 
   // ── Step 1: participants ──────────────────────────────────────────────────
-  // Hard cap per booking: 8 (signature) / 10 (paint). Bigger groups go
-  // through the existing private-workshop quote request.
   const Step1 = () => {
-    const maxAllowed = info.maxParticipants;
     const atLimit = participants >= maxAllowed;
+    const cappedBySeats = selectedSession && maxAllowed < info.maxParticipants;
     return (
       <div>
         <h2 className="font-sans uppercase tracking-[0.105em] text-lg text-foreground mb-6">
@@ -178,10 +209,12 @@ const WorkshopBooking = () => {
             +
           </button>
         </div>
-        <p className="text-sm text-muted-foreground mb-3">
-          {t(`Maximum ${maxAllowed} participants per booking.`, `Maximum ${maxAllowed} participants par réservation.`)}
+        <p className="text-sm text-muted-foreground mb-2">
+          {cappedBySeats
+            ? t(`${maxAllowed} seat(s) left for this session.`, `${maxAllowed} place(s) restante(s) pour cette session.`)
+            : t(`Maximum ${info.maxParticipants} participants per booking.`, `Maximum ${info.maxParticipants} participants par réservation.`)}
         </p>
-        {atLimit && (
+        {participants >= info.maxParticipants && (
           <p className="text-xs text-muted-foreground mb-8">
             {t("For larger groups, please send us a quote request.", "Pour un groupe plus important, veuillez nous envoyer une demande de devis.")}{" "}
             <button
@@ -193,7 +226,7 @@ const WorkshopBooking = () => {
             </button>
           </p>
         )}
-        {!atLimit && <div className="mb-8" />}
+        {participants < info.maxParticipants && <div className="mb-8" />}
         <div className="border border-border p-4 bg-muted/30">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-muted-foreground">
@@ -210,101 +243,113 @@ const WorkshopBooking = () => {
     );
   };
 
-  // ── Step 2: customer details ──────────────────────────────────────────────
-  const validate = () => {
-    const e: Partial<typeof form> = {};
-    if (!form.firstName.trim()) e.firstName = t("Required", "Requis");
-    if (!form.lastName.trim()) e.lastName = t("Required", "Requis");
-    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = t("Valid email required", "Email valide requis");
-    if (!form.phone.trim()) e.phone = t("Required", "Requis");
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
+  // ── Step 2: booking information ───────────────────────────────────────────
+  // Buyer contact details (name / email / phone) are NOT collected here — they
+  // belong to the checkout customer. Only booking-level info lives here.
   const Step2 = () => (
     <div>
       <h2 className="font-sans uppercase tracking-[0.105em] text-lg text-foreground mb-6">
-        {t("Your details", "Vos coordonnées")}
+        {t("Booking information", "Informations de réservation")}
       </h2>
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="bk-first">{t("First name", "Prénom")} <span className="text-destructive">*</span></Label>
-            <Input id="bk-first" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className="rounded-none" />
-            {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="bk-last">{t("Last name", "Nom")} <span className="text-destructive">*</span></Label>
-            <Input id="bk-last" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className="rounded-none" />
-            {errors.lastName && <p className="text-xs text-destructive">{errors.lastName}</p>}
-          </div>
-        </div>
+      <div className="space-y-6">
         <div className="space-y-1.5">
-          <Label htmlFor="bk-email">{t("Email address", "Adresse e-mail")} <span className="text-destructive">*</span></Label>
-          <Input id="bk-email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="rounded-none" />
-          {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="bk-phone">{t("Phone number", "Numéro de téléphone")} <span className="text-destructive">*</span></Label>
-          <Input id="bk-phone" type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="rounded-none" />
-          {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="bk-allergies">
-            {t("Allergies or dietary requirements", "Allergies ou restrictions alimentaires")}
+          <Label htmlFor="bk-comment">
+            {t(
+              "Allergies, intolerances or important information to let us know",
+              "Allergies, intolérances ou information importante à nous signaler",
+            )}
             <span className="text-muted-foreground ml-1 text-xs">{t("(optional)", "(optionnel)")}</span>
           </Label>
-          <Input id="bk-allergies" value={form.allergies} onChange={e => setForm(f => ({ ...f, allergies: e.target.value }))} className="rounded-none" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="bk-notes">
-            {t("Additional notes", "Notes supplémentaires")}
-            <span className="text-muted-foreground ml-1 text-xs">{t("(optional)", "(optionnel)")}</span>
-          </Label>
-          <Input id="bk-notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="rounded-none" />
+          <Textarea
+            id="bk-comment"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+            className="rounded-none"
+          />
         </div>
 
-        <div className="flex items-start gap-3 pt-2">
-          <Checkbox
-            id="bk-minor-consent"
-            checked={minorConsent}
-            onCheckedChange={(c) => { setMinorConsent(c === true); if (c === true) setMinorConsentError(false); }}
-            className="mt-0.5"
-          />
-          <Label htmlFor="bk-minor-consent" className="text-xs leading-relaxed cursor-pointer font-normal">
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-foreground">
             {t(
-              "I confirm that I am of legal age or, when booking for a minor, that I have the authorisation of their legal representative.",
-              "Je confirme être majeur ou, en cas de réservation pour un mineur, disposer de l'autorisation de son représentant légal.",
+              "Does the booking include one or more participants under 18?",
+              "La réservation comprend-elle un ou plusieurs participants mineurs ?",
             )}
             <span className="text-destructive ml-1">*</span>
-          </Label>
-        </div>
-        {minorConsentError && (
-          <p className="text-xs text-destructive">
-            {t("Please confirm this to continue.", "Veuillez confirmer pour continuer.")}
           </p>
+          <div className="flex gap-3">
+            {([["yes", true], ["no", false]] as [string, boolean][]).map(([key, val]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setHasMinor(val);
+                  setMinorError(null);
+                  if (!val) setMinorConsent(false);
+                }}
+                className={`px-5 py-2 border text-sm uppercase tracking-wider transition-colors
+                  ${hasMinor === val ? "border-primary bg-primary/5 text-primary" : "border-border text-foreground hover:border-primary/60"}`}
+              >
+                {val ? t("Yes", "Oui") : t("No", "Non")}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {hasMinor === true && (
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="bk-minor-consent"
+              checked={minorConsent}
+              onCheckedChange={(c) => { setMinorConsent(c === true); if (c === true) setMinorError(null); }}
+              className="mt-0.5"
+            />
+            <Label htmlFor="bk-minor-consent" className="text-xs leading-relaxed cursor-pointer font-normal">
+              {t(
+                "I confirm that I have the authorisation of the legal representative of the minor participant(s).",
+                "Je confirme disposer de l'autorisation du représentant légal du/des participant(s) mineur(s).",
+              )}
+              <span className="text-destructive ml-1">*</span>
+            </Label>
+          </div>
         )}
+
+        {minorError && <p className="text-xs text-destructive">{minorError}</p>}
       </div>
     </div>
   );
 
   // ── Step 3: summary + confirm ─────────────────────────────────────────────
-  // The workshop is now a real cart product paid through the normal
-  // checkout/PostFinance flow. Customer contact details (name/email/phone)
-  // are collected at checkout and stored on the order, not duplicated here;
-  // allergies + notes ride along on the order_item comment.
-  const handleAddToCart = () => {
-    if (!selectedSession) return;
-    if (!validate()) { setStep(2); return; }
-    if (!minorConsent) { setMinorConsentError(true); setStep(2); return; }
-
-    const unitPrice = WORKSHOP_PRICE_PER_PERSON[workshopType];
-    const commentBits = [
-      form.allergies.trim() ? `${t("Allergies", "Allergies")}: ${form.allergies.trim()}` : "",
-      form.notes.trim() ? `${t("Notes", "Notes")}: ${form.notes.trim()}` : "",
-    ].filter(Boolean).join(" · ");
+  const handleAddToCart = async () => {
+    if (!selectedSession) { setStep(0); return; }
+    if (hasMinor === null) { setMinorError(t("Please answer this question.", "Veuillez répondre à cette question.")); setStep(2); return; }
+    if (hasMinor === true && !minorConsent) {
+      setMinorError(t("Please confirm this to continue.", "Veuillez confirmer pour continuer."));
+      setStep(2);
+      return;
+    }
 
     setIsSubmitting(true);
+
+    // Fresh availability check right before adding — the payment step
+    // revalidates once more, server-side.
+    const fresh = await refreshAvailability();
+    const freshRow = fresh?.find((r) => r.id === selectedSession.id);
+    const freshRemaining = freshRow
+      ? (freshRow.is_open ? freshRow.remaining_seats : 0)
+      : spotsLeft(selectedSession);
+    if (participants > freshRemaining) {
+      setIsSubmitting(false);
+      toast.error(
+        freshRemaining <= 0
+          ? t("This session is now sold out.", "Cette session est désormais complète.")
+          : t(`Only ${freshRemaining} seat(s) left for this session.`, `Il ne reste que ${freshRemaining} place(s) pour cette session.`),
+      );
+      setStep(0);
+      return;
+    }
+
+    const unitPrice = WORKSHOP_PRICE_PER_PERSON[workshopType];
     const added = addItem({
       id: "",
       product: "workshop",
@@ -321,7 +366,7 @@ const WorkshopBooking = () => {
       ribbonColor: "", ribbonColorName: "",
       butterflyColor: "", butterflyColorName: "",
       candles: [],
-      comment: commentBits,
+      comment: comment.trim(),
       imageUrls: [],
       imageFiles: [],
       workshopType,
@@ -330,8 +375,11 @@ const WorkshopBooking = () => {
       workshopTime: selectedSession.time,
       workshopParticipants: participants,
       workshopUnitPrice: unitPrice,
+      workshopHasMinor: hasMinor === true,
+      workshopMinorConsentConfirmed: hasMinor === true ? minorConsent : false,
       total: unitPrice * participants,
     });
+
     setIsSubmitting(false);
     if (!added) {
       toast.error(t("Could not add the workshop to your cart. Please try again.", "Impossible d'ajouter l'atelier au panier. Veuillez réessayer."));
@@ -352,28 +400,25 @@ const WorkshopBooking = () => {
           <Row
             label={t("Date", "Date")}
             value={selectedSession
-              ? `${lang === "fr" ? formatSessionDate(selectedSession.date, "fr") : formatSessionDate(selectedSession.date, "en")} · ${selectedSession.time}`
+              ? `${formatSessionDate(selectedSession.date, lang === "fr" ? "fr" : "en")} · ${selectedSession.time}`
               : "—"}
           />
           <Row label={t("Duration", "Durée")} value={t(info.duration, info.durationFr)} />
           <Row label={t("Participants", "Participants")} value={String(participants)} />
+          <Row
+            label={t("Minor participant(s)", "Participant(s) mineur(s)")}
+            value={hasMinor ? t("Yes", "Oui") : t("No", "Non")}
+          />
+          {comment.trim() && <Row label={t("Information", "Informations")} value={comment.trim()} />}
           <div className="border-t border-border pt-3">
             <Row label={t("Total", "Total")} value={`${total} ${info.currency}`} bold />
           </div>
         </div>
 
-        <div className="border border-border p-5 space-y-3 bg-card">
-          <Row label={t("Name", "Nom")} value={`${form.firstName} ${form.lastName}`} />
-          <Row label={t("Email", "Email")} value={form.email} />
-          <Row label={t("Phone", "Téléphone")} value={form.phone} />
-          {form.allergies && <Row label={t("Allergies", "Allergies")} value={form.allergies} />}
-          {form.notes && <Row label={t("Notes", "Notes")} value={form.notes} />}
-        </div>
-
         <div className="border border-primary/30 bg-primary/5 p-4 text-sm text-foreground/80 leading-relaxed">
           {t(
-            "By adding this workshop to your cart, you agree to our cancellation policy. Payment is completed securely at checkout, together with the rest of your cart.",
-            "En ajoutant cet atelier au panier, vous acceptez notre politique d'annulation. Le paiement s'effectue de manière sécurisée au moment de la commande, avec le reste de votre panier."
+            "By adding this workshop to your cart, you agree to our cancellation policy. Your contact details and payment are completed securely at checkout, together with the rest of your cart.",
+            "En ajoutant cet atelier au panier, vous acceptez notre politique d'annulation. Vos coordonnées et le paiement s'effectuent de manière sécurisée au moment de la commande, avec le reste de votre panier.",
           )}
         </div>
 
@@ -399,23 +444,29 @@ const WorkshopBooking = () => {
 
   // ── Navigation logic ──────────────────────────────────────────────────────
   const canAdvance = () => {
-    if (step === 0) return selectedSession !== null;
-    if (step === 1) return participants >= 1;
-    if (step === 2) return true; // validate on attempt
+    if (step === 0) return selectedSession !== null && sessionSelectable(selectedSession);
+    if (step === 1) return participants >= 1 && participants <= maxAllowed;
+    if (step === 2) return true; // validated on attempt
     return false;
   };
 
   const advance = () => {
     if (step === 2) {
-      if (!validate()) return;
-      if (!minorConsent) { setMinorConsentError(true); return; }
+      if (hasMinor === null) {
+        setMinorError(t("Please answer this question.", "Veuillez répondre à cette question."));
+        return;
+      }
+      if (hasMinor === true && !minorConsent) {
+        setMinorError(t("Please confirm this to continue.", "Veuillez confirmer pour continuer."));
+        return;
+      }
     }
-    setStep(s => s + 1);
+    setStep((s) => s + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const back = () => {
-    setStep(s => Math.max(0, s - 1));
+    setStep((s) => Math.max(0, s - 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -424,7 +475,6 @@ const WorkshopBooking = () => {
     <Layout>
       <div className="min-h-screen bg-background pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-5xl">
-          {/* Back link */}
           <Link
             to="/workshop"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8 uppercase tracking-wider"

@@ -17,6 +17,9 @@ const PaymentSuccess = () => {
   const [cleared, setCleared] = useState(false);
   const [orderValidation, setOrderValidation] = useState<string | null>(null);
   const [paymentFailed, setPaymentFailed] = useState(false);
+  // A workshop seat sold out between checkout and payment confirmation: the
+  // authorization was voided, nothing was charged, no order stands.
+  const [capacityUnavailable, setCapacityUnavailable] = useState(false);
 
   useEffect(() => {
     if (!orderId || cleared) return;
@@ -25,7 +28,7 @@ const PaymentSuccess = () => {
   }, [orderId, cleared, clearCart]);
 
   useEffect(() => {
-    if (!orderId || orderValidation === "approved" || paymentFailed) return;
+    if (!orderId || orderValidation === "approved" || paymentFailed || capacityUnavailable) return;
     const id = orderId;
 
     let mounted = true;
@@ -45,6 +48,13 @@ const PaymentSuccess = () => {
         return;
       }
       if (!mounted) return;
+
+      if (data?.reason === "workshop_capacity_unavailable") {
+        // The workshop sold out during payment: authorization voided, no
+        // charge, no order. Stop polling and show the dedicated message.
+        setCapacityUnavailable(true);
+        return;
+      }
 
       if (data?.confirmed) {
         // Real, backend-confirmed payment (PostFinance transaction in a
@@ -75,7 +85,20 @@ const PaymentSuccess = () => {
     <Layout>
       <main className="container mx-auto px-4 py-16 max-w-2xl text-center">
         <div className="bg-card shadow-md p-8">
-          {paymentFailed ? (
+          {capacityUnavailable ? (
+            <>
+              <XCircle className="w-16 h-16 text-destructive mx-auto mb-6" />
+              <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
+                {t("Workshop No Longer Available", "Atelier plus disponible")}
+              </h1>
+              <p className="text-muted-foreground mb-8">
+                {t(
+                  "The remaining seats for this workshop were booked while your payment was being processed. Your card was not charged and no order was placed. Please choose another session.",
+                  "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement. Votre carte n'a pas été débitée et aucune commande n'a été enregistrée. Merci de choisir une autre session."
+                )}
+              </p>
+            </>
+          ) : paymentFailed ? (
             <>
               <XCircle className="w-16 h-16 text-destructive mx-auto mb-6" />
               <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">

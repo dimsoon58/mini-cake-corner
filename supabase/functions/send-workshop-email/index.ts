@@ -26,6 +26,7 @@ interface WorkshopItem {
   workshop_time: string | null;
   workshop_participants: number | null;
   workshop_unit_price: number | null;
+  workshop_reference: string | null;
   total: number | null;
 }
 
@@ -111,9 +112,11 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
     </tr>`;
 
   const blocks = workshopItems.map((it, i) => {
-    const heading = multiple
-      ? `${tr("Workshop", "Atelier")} ${i + 1}`
-      : tr("Your booking", "Votre réservation");
+    const heading = it.workshop_reference
+      ? `${tr("Booking", "Réservation")} ${it.workshop_reference}`
+      : multiple
+        ? `${tr("Workshop", "Atelier")} ${i + 1}`
+        : tr("Your booking", "Votre réservation");
     const title = workshopTitle((it.workshop_type as WorkshopType) ?? "signature", lang);
 
     return `
@@ -183,10 +186,16 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
         </table>
 
         <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:24px 0 0;">
-          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
+          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0 0 8px;">
             ${tr(
               "Your booking is pending validation by our team. You will receive a confirmation email as soon as it has been accepted.",
               "Votre réservation est en attente de validation par notre équipe. Vous recevrez un email de confirmation dès qu'elle aura été acceptée.",
+            )}
+          </p>
+          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
+            ${tr(
+              "Please present this email or your booking reference on the day of the workshop.",
+              "Présentez cet email ou votre référence de réservation le jour du workshop.",
             )}
           </p>
         </div>
@@ -259,7 +268,7 @@ serve(async (req) => {
     // body carries only orderId, never any workshop detail.
     const { data: items, error: itemsError } = await supabase
       .from("order_items")
-      .select("product, workshop_type, workshop_date, workshop_time, workshop_participants, workshop_unit_price, total")
+      .select("product, workshop_type, workshop_date, workshop_time, workshop_participants, workshop_unit_price, workshop_reference, total")
       .eq("order_id", orderId)
       .eq("product", "workshop");
 

@@ -2,6 +2,50 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
+import { buildWorkshopMakePayload, sendWorkshopMakeWebhook } from "../_shared/workshop-make.ts";
+
+// Moves every workshop reservation of an order to its post-decision status and
+// notifies the separate workshop Make webhook for each one that actually
+// changed. Idempotent: a retry finds nothing to move (RPC returns 0 rows) and
+// fires nothing. Never touches PostFinance, tokens, welcome discount, reward,
+// the production Make webhook, or the cake order status.
+//   approve -> pending reservations become confirmed (capacity already held)
+//   reject  -> pending/confirmed reservations become rejected (frees capacity)
+async function syncWorkshopReservationsAfterDecision(
+  supabase: any,
+  order: any,
+  action: "approve" | "reject",
+): Promise<void> {
+  const { data: changed, error } = await supabase.rpc("set_workshop_reservations_status", {
+    p_order_id: order.id,
+    p_action: action,
+  });
+  if (error) {
+    console.error(`set_workshop_reservations_status(${action}) failed for order ${order.id}:`, error);
+    return;
+  }
+  const reservations = Array.isArray(changed) ? changed : [];
+  if (reservations.length === 0) return;
+
+  const sessionIds = [...new Set(reservations.map((r: any) => r.workshop_session_id))];
+  const { data: sessions } = await supabase
+    .from("workshop_sessions").select("id, workshop_date, workshop_time").in("id", sessionIds);
+  const sessionById = new Map((sessions ?? []).map((s: any) => [s.id, s]));
+
+  const customerName = `${order.first_name || ""} ${order.last_name || ""}`.trim();
+  for (const reservation of reservations) {
+    const session = sessionById.get(reservation.workshop_session_id);
+    await sendWorkshopMakeWebhook(buildWorkshopMakePayload(reservation, {
+      order_number: order.order_number ?? null,
+      workshop_date: session ? String(session.workshop_date) : null,
+      workshop_time: session ? session.workshop_time : null,
+      customer_name: customerName,
+      customer_email: order.email,
+      customer_phone: order.phone || "",
+      refund_status: "non_required",
+    }));
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -93,6 +137,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
   const workshopDetailsRows = workshopItems.map((item: any, i: number) => {
     const wsName = item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature");
     const wsRows = [
+      item.workshop_reference ? row(tr("Booking reference", "Référence de réservation"), item.workshop_reference) : "",
       row(tr("Workshop", "Atelier"), wsName),
       item.workshop_date ? row(tr("Date", "Date"), formatDateCH(item.workshop_date)) : "",
       item.workshop_time ? row(tr("Time", "Horaire"), item.workshop_time) : "",
@@ -587,7 +632,8 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
       const wsName = item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature");
       const desc = `${wsName}`
         + `${item.workshop_date ? " — " + formatDateCH(item.workshop_date) : ""}`
-        + `${item.workshop_time ? " · " + item.workshop_time : ""}`;
+        + `${item.workshop_time ? " · " + item.workshop_time : ""}`
+        + `${item.workshop_reference ? " · " + item.workshop_reference : ""}`;
       const participants = item.workshop_participants != null ? Number(item.workshop_participants) : 1;
       return {
         description: desc,
@@ -1138,6 +1184,18 @@ serve(async (req) => {
           console.error("Decline email error:", e);
         }
       }
+    }
+
+    // ── Workshop reservations lifecycle ─────────────────────────────────
+    // Runs AFTER the order decision is durably committed and the token is
+    // consumed. Separate from the production webhook below: it drives the
+    // "Réservations Workshops" Notion base only, never the production Agenda.
+    try {
+      await syncWorkshopReservationsAfterDecision(
+        supabase, order, action === "approve" ? "approve" : "reject",
+      );
+    } catch (e) {
+      console.error("Workshop reservation lifecycle sync failed (order decision already committed):", e);
     }
 
     // Notify Make.com webhook of status change — carries the invoice number

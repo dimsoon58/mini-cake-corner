@@ -421,6 +421,20 @@ export type Database = {
         Args: { target_order_id: string }
         Returns: string
       }
+      get_workshop_availability: {
+        Args: never
+        Returns: {
+          id: string
+          workshop_type: string
+          workshop_date: string
+          workshop_time: string
+          unit_price: number
+          max_capacity: number
+          is_open: boolean
+          active_reserved_seats: number
+          remaining_seats: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

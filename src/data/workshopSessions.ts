@@ -98,10 +98,13 @@ export const workshopInfo: Record<
   },
 };
 
-// Current sessions on offer. `capacity` / `booked` are kept for the existing
-// date-picker UI only: there is NO server-side total-capacity enforcement
-// across separate customers (see notes at the end of the implementation).
-// The only hard limit is WORKSHOP_MAX_PARTICIPANTS per single booking.
+// Current sessions on offer — this list defines which sessions exist and their
+// date / time / price. LIVE availability (remaining seats, is_open) now comes
+// from the server: public.workshop_sessions + the get_workshop_availability()
+// RPC, read via useWorkshopAvailability(). `capacity` / `booked` below are a
+// static fallback only (capacity = the per-booking max, booked = 0) for when
+// that RPC has not resolved yet. Session ids MUST stay identical to
+// supabase/functions/_shared/workshops.ts and the workshop_sessions seed.
 export const workshopSessions: WorkshopSession[] = [
   { id: "sig-2026-10-03",   workshopType: "signature", date: "2026-10-03", time: "13:00", capacity: WORKSHOP_MAX_PARTICIPANTS.signature, booked: 0, pricePerPerson: WORKSHOP_PRICE_PER_PERSON.signature, currency: "CHF" },
   { id: "paint-2026-10-07", workshopType: "paint",     date: "2026-10-07", time: "14:00", capacity: WORKSHOP_MAX_PARTICIPANTS.paint,     booked: 0, pricePerPerson: WORKSHOP_PRICE_PER_PERSON.paint,     currency: "CHF" },

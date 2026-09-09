@@ -873,6 +873,8 @@ const Checkout = () => {
           workshop_time: isWorkshop ? (item.workshopTime ?? null) : null,
           workshop_participants: isWorkshop ? (item.workshopParticipants ?? null) : null,
           workshop_unit_price: isWorkshop ? (item.workshopUnitPrice ?? null) : null,
+          workshop_has_minor: isWorkshop ? !!item.workshopHasMinor : false,
+          workshop_minor_consent_confirmed: isWorkshop ? !!item.workshopMinorConsentConfirmed : false,
           // Exact catalogue design photo the customer clicked (multi-option
           // designs only) — complements `design`, never replaces it. null for
           // every other case; old orders stay null and keep working.
