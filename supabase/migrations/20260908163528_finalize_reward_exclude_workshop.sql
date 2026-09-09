@@ -1,9 +1,9 @@
--- Migration C — public.finalize_reward_for_order(p_order_id uuid):
--- exclude workshop lines from cashback generation.
+-- public.finalize_reward_for_order(p_order_id uuid): exclude workshop lines
+-- from cashback generation.
 --
--- NOT YET APPLIED — run manually on Supabase after review, AFTER
--- 20260908120000_workshop_product_enum.sql and
--- 20260908120100_workshop_order_items.sql.
+-- ALREADY APPLIED IN PRODUCTION (migration version 20260908163528). This file
+-- exists only for migration-history parity — do NOT re-run it (CREATE OR
+-- REPLACE is idempotent).
 --
 -- The function below is the CURRENT deployed definition, reproduced verbatim.
 -- The ONLY functional change is the single line

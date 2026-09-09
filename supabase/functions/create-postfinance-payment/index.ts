@@ -4,7 +4,7 @@ import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { priceOrderItem, type PricingInput } from "../_shared/pricing.ts";
 import { resolveDeliveryFeeByDistance } from "../_shared/delivery-pricing.ts";
 import { resolveDeliveryForPlaceId } from "../_shared/google-maps.ts";
-import { workshopTitle, formatWorkshopDate, getWorkshopSession, type WorkshopType } from "../_shared/workshops.ts";
+import { workshopTitle, formatWorkshopDate, type WorkshopType } from "../_shared/workshops.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -194,6 +194,14 @@ serve(async (req) => {
       throw new Error("pricingItems is required and must match orderItems 1:1");
     }
 
+    // Service-role client — used below for the workshop session catalogue and
+    // later for welcome-discount / reward reservations.
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
+
     // Recompute and LOCK every item's real price before anything else below
     // reads item.total — welcome-discount base selection, PostFinance line
     // items, and order.total_amount all consume orderItems[i].total, so
@@ -210,32 +218,70 @@ serve(async (req) => {
         );
       }
 
+      // ── Workshop: the DB (public.workshop_sessions) is the single source
+      // of truth for type / date / time / unit_price / capacity / is_open.
+      // Nothing about the price, date or type sent by the client is trusted;
+      // the server refills orderItems[i] from the session row. The final
+      // atomic capacity claim still happens in confirm-postfinance-payment.
+      if (orderItems[i].product === "workshop") {
+        const p: any = pricingItems[i] ?? {};
+        // Canonical field names are snake_case; camelCase is a transition
+        // fallback only.
+        const sessionId: string | null =
+          p.workshop_session_id ?? p.workshopSessionId ?? orderItems[i].workshop_session_id ?? null;
+        const participantsRaw =
+          p.workshop_participants ?? p.workshopParticipants ?? orderItems[i].workshop_participants ?? null;
+        const frontendType: string | null =
+          p.workshop_type ?? p.workshopType ?? null;
+
+        if (!sessionId) throw new Error(`Item ${i}: workshop_session_id is required`);
+        const participants = Number(participantsRaw);
+        if (!Number.isInteger(participants) || participants < 1) {
+          throw new Error(`Item ${i}: workshop participants must be an integer >= 1`);
+        }
+
+        const { data: sess, error: sessErr } = await supabase
+          .from("workshop_sessions")
+          .select("id, workshop_type, workshop_date, workshop_time, unit_price, max_capacity, is_open")
+          .eq("id", sessionId)
+          .maybeSingle();
+        if (sessErr) throw new Error(`Item ${i}: failed to load workshop session: ${sessErr.message}`);
+        if (!sess) throw new Error(`Item ${i}: unknown workshop session ${sessionId}`);
+        if (!sess.is_open) throw new Error(`Item ${i}: workshop session ${sessionId} is closed`);
+        if (participants > sess.max_capacity) {
+          throw new Error(`Item ${i}: ${participants} participants exceeds session capacity ${sess.max_capacity}`);
+        }
+        if (frontendType && frontendType !== sess.workshop_type) {
+          throw new Error(`Item ${i}: workshop_type ${frontendType} does not match session ${sessionId} (${sess.workshop_type})`);
+        }
+
+        const unitPrice = roundToCents(Number(sess.unit_price));
+        orderItems[i].workshop_type = sess.workshop_type;
+        orderItems[i].workshop_session_id = sess.id;
+        orderItems[i].workshop_date = sess.workshop_date;
+        orderItems[i].workshop_time = sess.workshop_time;
+        orderItems[i].workshop_participants = participants;
+        orderItems[i].workshop_unit_price = unitPrice;
+        orderItems[i].total = roundToCents(unitPrice * participants);
+
+        // Non-locking pre-check: if the session is already full, don't send
+        // the customer to PostFinance at all. NOT a substitute for the atomic
+        // claim in confirm-postfinance-payment.
+        const { data: avail } = await supabase.rpc("get_workshop_availability");
+        const row = (avail ?? []).find((a: any) => a.id === sess.id);
+        if (row && participants > row.remaining_seats) {
+          throw new Error(
+            `WORKSHOP_SESSION_FULL: ${sessionId} has ${row.remaining_seats} seat(s) left, ${participants} requested`,
+          );
+        }
+        continue;
+      }
+
       const result = priceOrderItem(pricingItems[i]);
       if (!result.ok) {
         throw new Error(`Pricing rejected for item ${i} (${pricingItems[i]?.product}): ${result.reason}`);
       }
       orderItems[i].total = result.total;
-
-      // Workshop: EVERY stored value is re-derived server-side. The client
-      // can only influence the session id, the type and the participant
-      // count — all of which priceOrderItem() has just validated. Date,
-      // time, type and unit price come from the trusted session list here.
-      if (orderItems[i].product === "workshop") {
-        const p = pricingItems[i];
-        const session = getWorkshopSession(p.workshopSessionId);
-        if (!session) {
-          throw new Error(`Item ${i}: workshop session ${p.workshopSessionId} not found`);
-        }
-        const participants = Number(p.workshopParticipants);
-        orderItems[i].workshop_type = session.type;
-        orderItems[i].workshop_session_id = session.id;
-        orderItems[i].workshop_date = session.date;
-        orderItems[i].workshop_time = session.time;
-        orderItems[i].workshop_participants = participants;
-        orderItems[i].workshop_unit_price = participants > 0
-          ? roundToCents(result.total / participants)
-          : result.total;
-      }
     }
 
     // Delivery fee is never trusted from the client — recomputed here from
@@ -309,12 +355,6 @@ serve(async (req) => {
     );
     const { data: { user: authenticatedUser } } = await authClient.auth.getUser();
     order.customer_id = authenticatedUser?.id ?? null;
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } },
-    );
 
     // Welcome voucher (-10% on products only, never on delivery). Reserved
     // atomically via claim_welcome_discount() so two simultaneous checkouts

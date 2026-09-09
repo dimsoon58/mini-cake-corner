@@ -49,10 +49,15 @@ async function sendCancellationEmail(
       `A refund of CHF ${chf(opts.refundAmount || opts.nominalRefund)} has been issued.`,
       `Un remboursement de CHF ${chf(opts.refundAmount || opts.nominalRefund)} a été effectué.`,
     );
-  } else if (opts.refundStatus === "pending" || opts.refundStatus === "failed") {
+  } else if (opts.refundStatus === "pending") {
     refundLine = tr(
-      `A refund of CHF ${chf(opts.nominalRefund)} will be issued to you.`,
-      `Un remboursement de CHF ${chf(opts.nominalRefund)} vous sera adressé.`,
+      `Your refund of CHF ${chf(opts.nominalRefund)} is being processed.`,
+      `Votre remboursement de CHF ${chf(opts.nominalRefund)} est en cours de traitement.`,
+    );
+  } else if (opts.refundStatus === "failed") {
+    refundLine = tr(
+      `A refund of CHF ${chf(opts.nominalRefund)} is due for this cancellation. Bento Cake Studio will follow up to make sure it reaches you.`,
+      `Un remboursement de CHF ${chf(opts.nominalRefund)} est dû pour cette annulation. Bento Cake Studio effectuera le suivi pour qu'il vous parvienne.`,
     );
   } else {
     // outside_window | non_required

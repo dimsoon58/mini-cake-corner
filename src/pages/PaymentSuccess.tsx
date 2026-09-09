@@ -17,9 +17,12 @@ const PaymentSuccess = () => {
   const [cleared, setCleared] = useState(false);
   const [orderValidation, setOrderValidation] = useState<string | null>(null);
   const [paymentFailed, setPaymentFailed] = useState(false);
-  // A workshop seat sold out between checkout and payment confirmation: the
-  // authorization was voided, nothing was charged, no order stands.
-  const [capacityUnavailable, setCapacityUnavailable] = useState(false);
+  // A workshop seat sold out between checkout and payment confirmation.
+  // financiallyResolved === true  -> authorization voided / never captured /
+  //   fully refunded: safe to say "no charge / we refunded you".
+  // financiallyResolved === false -> the void/refund could not be completed
+  //   yet: keep polling, and DO NOT claim the card was not charged.
+  const [capacity, setCapacity] = useState<{ financiallyResolved: boolean } | null>(null);
 
   useEffect(() => {
     if (!orderId || cleared) return;
@@ -28,7 +31,9 @@ const PaymentSuccess = () => {
   }, [orderId, cleared, clearCart]);
 
   useEffect(() => {
-    if (!orderId || orderValidation === "approved" || paymentFailed || capacityUnavailable) return;
+    if (!orderId || orderValidation === "approved" || paymentFailed) return;
+    // Keep polling while a capacity abort is not yet financially resolved.
+    if (capacity?.financiallyResolved) return;
     const id = orderId;
 
     let mounted = true;
@@ -50,18 +55,16 @@ const PaymentSuccess = () => {
       if (!mounted) return;
 
       if (data?.reason === "workshop_capacity_unavailable") {
-        // The workshop sold out during payment: authorization voided, no
-        // charge, no order. Stop polling and show the dedicated message.
-        setCapacityUnavailable(true);
+        // A workshop seat sold out during payment. Never a confirmed order,
+        // so GA4 purchase never fires. Keep polling until the backend
+        // confirms the void/refund is done.
+        setCapacity({ financiallyResolved: !!data.financiallyResolved });
         return;
       }
 
-      if (data?.confirmed) {
-        // Real, backend-confirmed payment (PostFinance transaction in a
-        // success state + order row created). GA4 purchase is sent from
-        // here — never merely because this page rendered — and firePurchaseOnce
-        // guarantees a single send per transaction across the 4s poll,
-        // refreshes and revisits.
+      if (data?.confirmed === true) {
+        // Real, backend-confirmed payment (order row created). GA4 purchase is
+        // sent from here only — never merely because this page rendered.
         firePurchaseOnce(id);
         setOrderValidation(data.orderValidation ?? "pending");
       } else if (data?.failed) {
@@ -77,7 +80,7 @@ const PaymentSuccess = () => {
       mounted = false;
       clearInterval(intervalId);
     };
-  }, [orderId, orderValidation, paymentFailed]);
+  }, [orderId, orderValidation, paymentFailed, capacity]);
 
   const isOrderConfirmed = orderValidation === "approved";
 
@@ -85,17 +88,22 @@ const PaymentSuccess = () => {
     <Layout>
       <main className="container mx-auto px-4 py-16 max-w-2xl text-center">
         <div className="bg-card shadow-md p-8">
-          {capacityUnavailable ? (
+          {capacity ? (
             <>
               <XCircle className="w-16 h-16 text-destructive mx-auto mb-6" />
               <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
                 {t("Workshop No Longer Available", "Atelier plus disponible")}
               </h1>
               <p className="text-muted-foreground mb-8">
-                {t(
-                  "The remaining seats for this workshop were booked while your payment was being processed. Your card was not charged and no order was placed. Please choose another session.",
-                  "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement. Votre carte n'a pas été débitée et aucune commande n'a été enregistrée. Merci de choisir une autre session."
-                )}
+                {capacity.financiallyResolved
+                  ? t(
+                      "The remaining seats for this workshop were booked while your payment was being processed. No order was placed and your payment has been cancelled or refunded. Please choose another session.",
+                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement. Aucune commande n'a été enregistrée et votre paiement a été annulé ou remboursé. Merci de choisir une autre session."
+                    )
+                  : t(
+                      "The remaining seats for this workshop were booked while your payment was being processed, so your booking could not be completed. We are finalising the cancellation of your payment now — please contact us if you see a charge.",
+                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement ; votre réservation n'a pas pu aboutir. Nous finalisons l'annulation de votre paiement — contactez-nous si un débit apparaît."
+                    )}
               </p>
             </>
           ) : paymentFailed ? (

@@ -4,37 +4,48 @@ import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { buildWorkshopMakePayload, sendWorkshopMakeWebhook } from "../_shared/workshop-make.ts";
 
-// Moves every workshop reservation of an order to its post-decision status and
-// notifies the separate workshop Make webhook for each one that actually
-// changed. Idempotent: a retry finds nothing to move (RPC returns 0 rows) and
-// fires nothing. Never touches PostFinance, tokens, welcome discount, reward,
+// Moves every workshop reservation of an order to its post-decision status
+// (approve -> confirmed, reject -> rejected), then notifies the separate
+// workshop Make webhook for each one that changed.
+//
+// The DB transition is retried a few times and, if it still fails, this THROWS
+// — it must never be swallowed as a normal success (an approved+captured order
+// whose reservation stays 'pending' forever is a real problem). The Make
+// webhook itself stays best-effort. Idempotent: a retry moves nothing and
+// returns 0 rows. Never touches PostFinance, tokens, welcome discount, reward,
 // the production Make webhook, or the cake order status.
-//   approve -> pending reservations become confirmed (capacity already held)
-//   reject  -> pending/confirmed reservations become rejected (frees capacity)
 async function syncWorkshopReservationsAfterDecision(
   supabase: any,
   order: any,
   action: "approve" | "reject",
 ): Promise<void> {
-  const { data: changed, error } = await supabase.rpc("set_workshop_reservations_status", {
-    p_order_id: order.id,
-    p_action: action,
-  });
-  if (error) {
-    console.error(`set_workshop_reservations_status(${action}) failed for order ${order.id}:`, error);
-    return;
+  let changed: any[] | null = null;
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const { data, error } = await supabase.rpc("set_workshop_reservations_status", {
+      p_order_id: order.id,
+      p_action: action,
+    });
+    if (!error) { changed = Array.isArray(data) ? data : []; break; }
+    lastError = error;
+    console.error(`set_workshop_reservations_status(${action}) attempt ${attempt} failed for order ${order.id}:`, error);
   }
-  const reservations = Array.isArray(changed) ? changed : [];
-  if (reservations.length === 0) return;
+  if (changed === null) {
+    throw new Error(
+      `Workshop reservation transition (${action}) failed for order ${order.id} after retries: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+    );
+  }
+  if (changed.length === 0) return;
 
-  const sessionIds = [...new Set(reservations.map((r: any) => r.workshop_session_id))];
+  const sessionIds = [...new Set(changed.map((r: any) => r.workshop_session_id))];
   const { data: sessions } = await supabase
     .from("workshop_sessions").select("id, workshop_date, workshop_time").in("id", sessionIds);
   const sessionById = new Map((sessions ?? []).map((s: any) => [s.id, s]));
 
   const customerName = `${order.first_name || ""} ${order.last_name || ""}`.trim();
-  for (const reservation of reservations) {
+  for (const reservation of changed) {
     const session = sessionById.get(reservation.workshop_session_id);
+    // Best-effort — a Make failure here must not fail the whole decision.
     await sendWorkshopMakeWebhook(buildWorkshopMakePayload(reservation, {
       order_number: order.order_number ?? null,
       workshop_date: session ? String(session.workshop_date) : null,
@@ -906,7 +917,10 @@ serve(async (req) => {
     ) as { state: string };
     const transactionState = transactionRead.state;
 
-    const paymentMethodLabel = order.payment_method || "PostFinance";
+    const isRewardOnly = order.postfinance_transaction_id === "REWARD_ONLY";
+    const paymentMethodLabel = isRewardOnly
+      ? "Reward balance"
+      : (order.payment_method || "PostFinance");
 
     let newValidation: string;
     let paymentAction: string;
@@ -945,6 +959,8 @@ serve(async (req) => {
         // No valid money action for this state — do not approve the order.
         throw new Error(`Cannot approve: PostFinance transaction is in unexpected state ${transactionState} (expected AUTHORIZED or COMPLETED)`);
       }
+
+      if (isRewardOnly) paymentAction = "Paid entirely with reward balance";
 
       newValidation = "approved";
       orderUpdate.order_validation = newValidation;
@@ -1114,6 +1130,8 @@ serve(async (req) => {
         throw new Error(`Cannot reject: PostFinance transaction is in unexpected state ${transactionState} (expected AUTHORIZED, VOIDED, or COMPLETED)`);
       }
 
+      if (isRewardOnly) paymentAction = "Reward balance released";
+
       newValidation = "rejected";
       orderUpdate.order_validation = newValidation;
       console.log(`Order ${orderId} rejected. ${paymentAction}`);
@@ -1190,12 +1208,17 @@ serve(async (req) => {
     // Runs AFTER the order decision is durably committed and the token is
     // consumed. Separate from the production webhook below: it drives the
     // "Réservations Workshops" Notion base only, never the production Agenda.
+    // The order decision + payment are already final; a failure here does NOT
+    // roll them back, but it is surfaced in the response (not swallowed as a
+    // plain success) so it can be retried — the transition is idempotent.
+    let workshopReservationSyncError: string | null = null;
     try {
       await syncWorkshopReservationsAfterDecision(
         supabase, order, action === "approve" ? "approve" : "reject",
       );
     } catch (e) {
-      console.error("Workshop reservation lifecycle sync failed (order decision already committed):", e);
+      workshopReservationSyncError = e instanceof Error ? e.message : String(e);
+      console.error("CRITICAL: workshop reservation lifecycle sync failed (order decision already committed, retry needed):", e);
     }
 
     // Notify Make.com webhook of status change — carries the invoice number
@@ -1235,6 +1258,9 @@ serve(async (req) => {
       paymentAction,
       approvalEmailSent: !!approvalEmailResult,
       declineEmailSent: !!declineEmailResult,
+      ...(workshopReservationSyncError
+        ? { workshopReservationSyncError, workshopReservationSyncRetryNeeded: true }
+        : {}),
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

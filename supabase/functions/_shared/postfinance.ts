@@ -93,12 +93,28 @@ export function getPostFinanceCredentials(): PostFinanceCredentials {
   return { spaceId, userId, authenticationKey };
 }
 
+// Sentinel transaction id for a checkout paid entirely from the reward
+// balance ("cagnotte"): there is NO real PostFinance transaction. Every
+// PostFinance call for it is short-circuited by the shim in pfFetch so the
+// normal confirm-postfinance-payment / manage-order flow runs unchanged:
+//   GET   .../transactions/REWARD_ONLY          -> { state: "AUTHORIZED" }
+//   POST  .../transactions/REWARD_ONLY/void-online -> { state: "VOIDED" }
+//   POST  .../transactions/REWARD_ONLY/<other>  -> { state: "COMPLETED" }
+export const REWARD_ONLY_TRANSACTION_ID = "REWARD_ONLY";
+
 export async function pfFetch(
   credentials: PostFinanceCredentials,
   path: string,
   method: "GET" | "POST",
   body?: unknown,
 ): Promise<unknown> {
+  // Reward-only shim — never touches the network.
+  if (path.includes(`/transactions/${REWARD_ONLY_TRANSACTION_ID}`)) {
+    if (method === "GET") return { state: "AUTHORIZED" };
+    if (path.endsWith("/void-online")) return { state: "VOIDED" };
+    return { state: "COMPLETED" };
+  }
+
   const authHeader = await buildAuthHeader(
     credentials.userId,
     credentials.authenticationKey,

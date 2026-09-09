@@ -18,7 +18,6 @@ import {
   getSessionsForType,
   spotsLeft,
   formatSessionDate,
-  WORKSHOP_PRICE_PER_PERSON,
 } from "@/data/workshopSessions";
 
 // ── Stepper ──────────────────────────────────────────────────────────────────
@@ -119,9 +118,15 @@ const WorkshopBooking = () => {
     setParticipants((p) => Math.min(Math.max(1, p), maxAllowed));
   }, [maxAllowed]);
 
-  const total = selectedSession
-    ? selectedSession.pricePerPerson * participants
-    : info.pricePerPerson * participants;
+  // Price per person: the server (get_workshop_availability / workshop_sessions)
+  // is authoritative. The static constant is only a fallback before the RPC
+  // resolves. WorkshopBooking never re-computes the charged amount — that is
+  // done server-side from workshop_sessions.
+  const unitPrice = (selectedSession && bySession[selectedSession.id]?.unit_price != null)
+    ? Number(bySession[selectedSession.id].unit_price)
+    : (selectedSession ? selectedSession.pricePerPerson : info.pricePerPerson);
+
+  const total = unitPrice * participants;
 
   // ── Step 0: choose date ───────────────────────────────────────────────────
   const Step0 = () => (
@@ -230,7 +235,7 @@ const WorkshopBooking = () => {
         <div className="border border-border p-4 bg-muted/30">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-muted-foreground">
-              {participants} × {selectedSession?.pricePerPerson ?? info.pricePerPerson} {info.currency}
+              {participants} × {unitPrice} {info.currency}
             </span>
             <span className="text-foreground font-medium">{total} {info.currency}</span>
           </div>
@@ -349,7 +354,8 @@ const WorkshopBooking = () => {
       return;
     }
 
-    const unitPrice = WORKSHOP_PRICE_PER_PERSON[workshopType];
+    // Display value only — create-postfinance-payment + claim RPC re-derive
+    // the charged unit price from public.workshop_sessions.
     const added = addItem({
       id: "",
       product: "workshop",

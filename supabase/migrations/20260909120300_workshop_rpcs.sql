@@ -1,54 +1,48 @@
--- Workshop architecture — Migration 4/4: transactional RPCs
+-- Workshop architecture — Migration 4/5: transactional RPCs
 --
 -- NOT YET APPLIED — run manually on Supabase after review, AFTER migrations
--- 1–3. Additive only. No existing function / trigger is modified. Nothing
--- outside the Workshop perimeter is touched (no PostFinance, welcome discount,
--- reward, finalize_reward_for_order, Make triggers).
+-- 20260909120000..20260909120200. Additive only. No existing function /
+-- trigger is modified. Nothing outside the Workshop perimeter is touched.
 --
 --   claim_workshop_reservations_batch()  ALL workshop items of one order, one
---                                        transaction, all-or-nothing, idempotent
+--                                        transaction, all-or-nothing, idempotent,
+--                                        DB-authoritative (nothing from client)
 --   get_workshop_availability()          public read of live remaining seats
 --   cancel_workshop_seats()              partial cancellation — seat math +
---                                        audit-log row (only for confirmed /
---                                        partially_cancelled reservations whose
---                                        order is already approved)
+--                                        audit-log row (confirmed / partially
+--                                        _cancelled reservations of an approved
+--                                        order only)
 --   finalize_workshop_refund()           record the PostFinance refund outcome
 --   set_workshop_reservations_status()   approve / reject lifecycle transition
 --
--- All mutating RPCs: SECURITY DEFINER, search_path pinned, NOT granted to
--- anon / authenticated (service_role only, which bypasses the grant check).
+-- All mutating RPCs: SECURITY DEFINER, search_path pinned, revoked from PUBLIC
+-- and granted to service_role only (the Edge Functions).
 
 -- ══════════════════════════════════════════════════════════════════════════
 -- 1. Batch claim — one order, all its workshop items, one transaction
 -- ══════════════════════════════════════════════════════════════════════════
--- p_items : jsonb array, one object per workshop order_item:
---   {
---     "order_item_id": "<uuid>",
---     "session_id": "sig-2026-10-03",
---     "seats": 2,
---     "unit_price": 85,
---     "workshop_type": "signature",
---     "item_comment": "…" | null,
---     "has_minor": true|false,
---     "minor_consent_confirmed": true|false
---   }
+-- Takes ONLY p_order_id. Everything else is read from the DB:
+--   * every public.order_items row of the order with product = 'workshop';
+--   * its workshop_session_id / workshop_participants /
+--     workshop_has_minor / workshop_minor_consent_confirmed;
+--   * the session's workshop_type / unit_price / max_capacity / is_open from
+--     public.workshop_sessions (the client price/type/date are NEVER trusted).
 --
--- Behaviour:
---   * locks every referenced workshop_sessions row FOR UPDATE, in ASCENDING
---     session-id order (deterministic → no deadlock between concurrent orders);
---   * an order with several items for the SAME session has their seats summed
---     for that session's capacity check;
---   * idempotent on order_item_id: items already reserved are returned as-is
---     and excluded from the capacity maths (their seats are already counted in
---     "occupied"), so a retry never double-counts;
---   * if ANY session lacks capacity → raises (SQLSTATE 'P0004') and creates
---     NOTHING (all-or-nothing);
---   * on success, inserts the missing reservations (status 'pending') and
---     returns one row per input item: (order_item_id, workshop_reference,
---     reservation_id, status).
+-- In one transaction:
+--   * locks every referenced workshop_sessions row FOR UPDATE, ascending id
+--     (deterministic → no deadlock between concurrent orders);
+--   * items for the SAME session have their seats summed for the capacity check;
+--   * idempotent on order_item_id — an already-reserved item is verified to
+--     belong to this order + session, then returned as-is and excluded from
+--     the capacity maths (its seats are already in "occupied");
+--   * if ANY session lacks capacity / is closed → raises and creates NOTHING;
+--   * has_minor = true requires minor_consent_confirmed = true;
+--   * on success: inserts the missing reservations (status 'pending'),
+--     generates the WS- reference AND writes it back onto public.order_items
+--     in the SAME transaction (so a reservation without a reference can never
+--     exist), returns one row per workshop item.
 create or replace function public.claim_workshop_reservations_batch(
-  p_order_id uuid,
-  p_items    jsonb
+  p_order_id uuid
 )
 returns table (
   order_item_id      uuid,
@@ -61,110 +55,144 @@ security definer
 set search_path to 'public'
 as $$
 declare
-  v_item        jsonb;
-  v_session_id  text;
-  v_sess        record;
-  v_existing    public.workshop_reservations%rowtype;
-  v_needed      integer;
-  v_occupied    integer;
-  v_new         public.workshop_reservations%rowtype;
+  v_sid      text;
+  v_row      record;
+  v_existing public.workshop_reservations%rowtype;
+  v_needed   integer;
+  v_occupied integer;
+  v_new      public.workshop_reservations%rowtype;
+  v_ref      text;
 begin
-  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
-    raise exception 'p_items must be a non-empty JSON array' using errcode = 'P0001';
+  if not exists (
+    select 1 from public.order_items oi
+    where oi.order_id = p_order_id and oi.product = 'workshop'
+  ) then
+    return; -- no workshop items — nothing to do
   end if;
 
-  -- ── Lock every distinct session, ascending id order (deadlock-safe) ──────
-  for v_session_id in
-    select distinct t.elem->>'session_id'
-    from jsonb_array_elements(p_items) as t(elem)
+  -- ── Lock every distinct session (ascending id), verify it exists ────────
+  for v_sid in
+    select distinct oi.workshop_session_id
+    from public.order_items oi
+    where oi.order_id = p_order_id and oi.product = 'workshop'
     order by 1
   loop
-    perform 1 from public.workshop_sessions where id = v_session_id for update;
+    perform 1 from public.workshop_sessions where id = v_sid for update;
     if not found then
-      raise exception 'Unknown workshop session %', v_session_id using errcode = 'P0002';
+      raise exception 'Unknown workshop session % for order %', v_sid, p_order_id using errcode = 'P0002';
     end if;
   end loop;
 
-  -- ── Per distinct session: capacity check over the NEW (not-yet-reserved) seats ──
-  for v_sess in
+  -- ── Per session: capacity check over the NOT-yet-reserved seats ─────────
+  for v_row in
     select
-      t.elem->>'session_id' as session_id,
-      sum((t.elem->>'seats')::int) filter (
+      oi.workshop_session_id as session_id,
+      sum(coalesce(oi.workshop_participants, 0)) filter (
         where not exists (
-          select 1 from public.workshop_reservations r
-          where r.order_item_id = (t.elem->>'order_item_id')::uuid
+          select 1 from public.workshop_reservations r where r.order_item_id = oi.id
         )
       ) as needed_seats
-    from jsonb_array_elements(p_items) as t(elem)
-    group by t.elem->>'session_id'
+    from public.order_items oi
+    where oi.order_id = p_order_id and oi.product = 'workshop'
+    group by oi.workshop_session_id
   loop
-    v_needed := coalesce(v_sess.needed_seats, 0);
-    if v_needed = 0 then
-      continue; -- every item for this session already reserved (retry)
+    v_needed := coalesce(v_row.needed_seats, 0);
+    if v_needed <= 0 then
+      continue;
+    end if;
+
+    if not (select s.is_open from public.workshop_sessions s where s.id = v_row.session_id) then
+      raise exception 'Workshop session % is closed', v_row.session_id using errcode = 'P0003';
     end if;
 
     select coalesce(sum(wr.purchased_seats - wr.cancelled_seats), 0)
       into v_occupied
     from public.workshop_reservations wr
-    where wr.workshop_session_id = v_sess.session_id
+    where wr.workshop_session_id = v_row.session_id
       and wr.status in ('pending', 'confirmed', 'partially_cancelled');
 
     if v_occupied + v_needed > (
-      select max_capacity from public.workshop_sessions where id = v_sess.session_id
+      select s.max_capacity from public.workshop_sessions s where s.id = v_row.session_id
     ) then
       raise exception 'Workshop session % is full (occupied %, requested %)',
-        v_sess.session_id, v_occupied, v_needed
+        v_row.session_id, v_occupied, v_needed
         using errcode = 'P0004';
-    end if;
-
-    if not (select is_open from public.workshop_sessions where id = v_sess.session_id) then
-      raise exception 'Workshop session % is closed', v_sess.session_id using errcode = 'P0003';
     end if;
   end loop;
 
-  -- ── All capacities OK → create the missing reservations, return all ─────
-  for v_item in select t.elem from jsonb_array_elements(p_items) as t(elem)
+  -- ── All capacities OK → create the missing reservations ────────────────
+  for v_row in
+    select
+      oi.id                                  as item_id,
+      oi.workshop_session_id                 as session_id,
+      coalesce(oi.workshop_participants, 0)  as seats,
+      coalesce(oi.workshop_has_minor, false) as has_minor,
+      coalesce(oi.workshop_minor_consent_confirmed, false) as consent,
+      nullif(trim(coalesce(oi.item_comment, '')), '')     as note,
+      s.workshop_type                        as db_type,
+      s.unit_price                           as db_unit_price
+    from public.order_items oi
+    join public.workshop_sessions s on s.id = oi.workshop_session_id
+    where oi.order_id = p_order_id and oi.product = 'workshop'
+    order by oi.id
   loop
-    select * into v_existing
-    from public.workshop_reservations
-    where workshop_reservations.order_item_id = (v_item->>'order_item_id')::uuid;
+    -- Idempotency: existing reservation must belong to this order + session.
+    select wr.* into v_existing
+    from public.workshop_reservations wr
+    where wr.order_item_id = v_row.item_id;
 
     if found then
-      order_item_id      := v_existing.order_item_id;
+      if v_existing.order_id <> p_order_id
+         or v_existing.workshop_session_id <> v_row.session_id then
+        raise exception 'Reservation for order_item % does not match order %/session %',
+          v_row.item_id, p_order_id, v_row.session_id using errcode = 'P0008';
+      end if;
+      -- keep order_items.workshop_reference in sync on retry
+      update public.order_items oi
+      set workshop_reference = v_existing.workshop_reference
+      where oi.id = v_row.item_id
+        and oi.workshop_reference is distinct from v_existing.workshop_reference;
+
+      order_item_id := v_existing.order_item_id;
       workshop_reference := v_existing.workshop_reference;
-      reservation_id     := v_existing.id;
-      status             := v_existing.status;
+      reservation_id := v_existing.id;
+      status := v_existing.status;
       return next;
       continue;
     end if;
 
-    if (v_item->>'seats')::int <= 0 then
-      raise exception 'seats must be a positive integer for order_item %', v_item->>'order_item_id'
-        using errcode = 'P0001';
+    if v_row.seats < 1 then
+      raise exception 'order_item % has no participants', v_row.item_id using errcode = 'P0001';
     end if;
+    if v_row.has_minor and not v_row.consent then
+      raise exception 'order_item %: minor participants declared without legal-representative consent',
+        v_row.item_id using errcode = 'P0007';
+    end if;
+
+    v_ref := public.generate_workshop_reference();
 
     insert into public.workshop_reservations (
       workshop_reference, order_id, order_item_id, workshop_session_id, workshop_type,
       purchased_seats, unit_price, item_comment, has_minor, minor_consent_confirmed, status
     ) values (
-      public.generate_workshop_reference(),
-      p_order_id,
-      (v_item->>'order_item_id')::uuid,
-      (v_item->>'session_id'),
-      (v_item->>'workshop_type'),
-      (v_item->>'seats')::int,
-      (v_item->>'unit_price')::numeric,
-      nullif(trim(coalesce(v_item->>'item_comment', '')), ''),
-      coalesce((v_item->>'has_minor')::boolean, false),
-      coalesce((v_item->>'minor_consent_confirmed')::boolean, false),
-      'pending'
+      v_ref, p_order_id, v_row.item_id, v_row.session_id, v_row.db_type,
+      v_row.seats, v_row.db_unit_price, v_row.note, v_row.has_minor, v_row.consent, 'pending'
     )
     returning * into v_new;
 
-    order_item_id      := v_new.order_item_id;
+    -- Same transaction: reference on the order_item, and re-align the stored
+    -- workshop unit price / type with the DB source of truth.
+    update public.order_items oi
+    set workshop_reference   = v_ref,
+        workshop_type        = v_row.db_type,
+        workshop_unit_price  = v_row.db_unit_price,
+        total                = round(v_row.db_unit_price * v_row.seats, 2)
+    where oi.id = v_row.item_id;
+
+    order_item_id := v_new.order_item_id;
     workshop_reference := v_new.workshop_reference;
-    reservation_id     := v_new.id;
-    status             := v_new.status;
+    reservation_id := v_new.id;
+    status := v_new.status;
     return next;
   end loop;
 
@@ -172,8 +200,8 @@ begin
 end;
 $$;
 
-revoke all on function public.claim_workshop_reservations_batch(uuid, jsonb) from public;
-grant execute on function public.claim_workshop_reservations_batch(uuid, jsonb) to service_role;
+revoke all on function public.claim_workshop_reservations_batch(uuid) from public;
+grant execute on function public.claim_workshop_reservations_batch(uuid) to service_role;
 
 -- ══════════════════════════════════════════════════════════════════════════
 -- 2. Public availability read
@@ -223,17 +251,11 @@ grant execute on function public.get_workshop_availability() to anon, authentica
 -- 3. Partial cancellation — seat math + audit-log row (NO PostFinance here)
 -- ══════════════════════════════════════════════════════════════════════════
 -- Allowed ONLY when the reservation is 'confirmed' or 'partially_cancelled'
--- AND its order is already approved (order_validation = 'approved'). A still
--- 'pending' reservation cannot be partially cancelled — the admin must reject
--- the whole order and the customer re-books.
+-- AND its order is already approved. A still 'pending' reservation cannot be
+-- partially cancelled — the admin must reject the whole order.
 --
--- p_refund_status is decided by the caller (the Edge Function) from the
--- 7-calendar-day Europe/Zurich rule: 'pending' (refund to attempt) or
--- 'outside_window' (no refund). The actual refund outcome is written later by
--- finalize_workshop_refund().
 -- Returns the workshop_cancellation_log row (new, or the existing one on an
--- idempotent replay). The caller re-reads workshop_reservations for the fresh
--- seat counts.
+-- idempotent replay).
 create or replace function public.cancel_workshop_seats(
   p_reference               text,
   p_reservation_id          uuid,
@@ -282,8 +304,6 @@ begin
     return v_log;
   end if;
 
-  -- Gate: only a confirmed / partially_cancelled reservation whose order is
-  -- approved can be partially cancelled.
   if v_res.status not in ('confirmed', 'partially_cancelled') then
     raise exception 'Reservation % is % — partial cancellation needs confirmed/partially_cancelled',
       v_res.workshop_reference, v_res.status using errcode = 'P0005';
@@ -329,15 +349,14 @@ grant execute on function public.cancel_workshop_seats(text, uuid, integer, text
 -- ══════════════════════════════════════════════════════════════════════════
 -- 4. Record the PostFinance refund outcome for a cancellation-log row
 -- ══════════════════════════════════════════════════════════════════════════
--- p_refund_status: 'refunded' | 'failed' | 'outside_window' | 'non_required'
+-- p_refund_status: 'refunded' | 'failed' | 'pending' | 'outside_window' | 'non_required'
 -- Only 'refunded' bumps workshop_reservations.refunded_amount, and only once
--- per log row (idempotent: a second call with the same terminal state is a
--- no-op).
+-- per log row.
 create or replace function public.finalize_workshop_refund(
-  p_log_id                uuid,
-  p_refund_status         text,
+  p_log_id                  uuid,
+  p_refund_status           text,
   p_refund_amount_completed numeric,
-  p_postfinance_refund_id text
+  p_postfinance_refund_id   text
 )
 returns public.workshop_cancellation_log
 language plpgsql
@@ -347,21 +366,21 @@ as $$
 declare
   v_log public.workshop_cancellation_log%rowtype;
 begin
-  select * into v_log from public.workshop_cancellation_log where id = p_log_id for update;
+  if p_refund_status not in ('refunded', 'failed', 'pending', 'outside_window', 'non_required') then
+    raise exception 'invalid p_refund_status %', p_refund_status using errcode = 'P0001';
+  end if;
+
+  select l.* into v_log from public.workshop_cancellation_log l where l.id = p_log_id for update;
   if not found then
     raise exception 'cancellation log % not found', p_log_id using errcode = 'P0002';
   end if;
 
-  -- Already finalised to the same terminal state → no-op.
-  if v_log.refund_status = p_refund_status and v_log.refund_status in ('refunded', 'outside_window', 'non_required') then
-    return v_log;
-  end if;
-
+  -- Bump refunded_amount once, only on the first transition into 'refunded'.
   if p_refund_status = 'refunded' and v_log.refund_status <> 'refunded' then
-    update public.workshop_reservations
-    set refunded_amount = refunded_amount + coalesce(p_refund_amount_completed, 0),
+    update public.workshop_reservations wr
+    set refunded_amount = wr.refunded_amount + coalesce(p_refund_amount_completed, 0),
         updated_at      = now()
-    where id = v_log.reservation_id;
+    where wr.id = v_log.reservation_id;
   end if;
 
   update public.workshop_cancellation_log
@@ -384,9 +403,8 @@ grant execute on function public.finalize_workshop_refund(uuid, text, numeric, t
 -- ══════════════════════════════════════════════════════════════════════════
 -- 5. Approve / reject lifecycle transition for all of an order's reservations
 -- ══════════════════════════════════════════════════════════════════════════
--- p_action: 'approve'  → pending → confirmed
---           'reject'   → pending|confirmed → rejected  (frees capacity)
--- Idempotent: re-running finds nothing to move and returns 0 rows changed.
+-- 'approve' → pending → confirmed ; 'reject' → pending|confirmed → rejected.
+-- Idempotent: re-running moves nothing and returns 0 rows.
 create or replace function public.set_workshop_reservations_status(
   p_order_id uuid,
   p_action   text

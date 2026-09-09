@@ -1,7 +1,8 @@
--- Migration B — workshop columns on order_items + relax two orders columns.
+-- workshop columns on order_items + relax two orders columns.
 --
--- NOT YET APPLIED — run manually on Supabase after review, AFTER
--- 20260908120000_workshop_product_enum.sql.
+-- ALREADY APPLIED IN PRODUCTION (migration version 20260908163514). This file
+-- exists only for migration-history parity — do NOT re-run it (all statements
+-- are IF NOT EXISTS / idempotent anyway).
 --
 -- No cake column is overloaded: a workshop row keeps size / shape / flavors /
 -- design / candles etc. NULL/empty and only fills the workshop_* columns.

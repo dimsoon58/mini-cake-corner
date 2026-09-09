@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
+import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "../_shared/postfinance.ts";
+import { buildWorkshopMakePayload, sendWorkshopMakeWebhook } from "../_shared/workshop-make.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,82 +15,157 @@ const MAKE_WEBHOOK_URL =
   "https://hook.eu1.make.com/umndao56d5dii1f1f7r1sv17ffegwdek";
 
 // Thrown when a workshop line cannot be reserved (session full / closed) AFTER
-// PostFinance already authorised the payment. The whole order is aborted:
-// authorization voided, order marked rejected/cancelled, welcome-discount and
-// reward reservations released, pending_payments removed, NO email / webhook.
-class WorkshopCapacityAbort extends Error {}
+// the payment was already authorised (or captured). Carries whether the
+// payment was financially unwound (voided / refunded) so the response can tell
+// the customer the truth.
+class WorkshopCapacityAbort extends Error {
+  financiallyResolved: boolean;
+  constructor(financiallyResolved: boolean, message: string) {
+    super(message);
+    this.financiallyResolved = financiallyResolved;
+  }
+}
 
-// Voids the PostFinance authorization (COMPLETE_DEFERRED — never captured in
-// this function) and unwinds everything reserved for this order, so no
-// authorization is ever left active without its workshop reservations and no
-// pending order is left orphaned. Auditable: the orders row stays, moved to
-// order_validation = 'rejected' / payment_status = 'cancelled'.
+// Re-entrant, idempotent unwind of an order whose workshop reservation(s)
+// could not be secured. Callable both at first failure and on a later poll
+// (existing-order path) to finish a void/refund that did not complete.
+//
+// Returns { financiallyResolved } — true only when the authorization is
+// verified VOIDED, was never captured, a full refund was created, or the
+// checkout was reward-only. When false, pending_payments and a 'pending'
+// order_validation are deliberately LEFT so a later attempt can finish it,
+// and the caller must not tell the customer "no charge was made".
 async function abortOrderAfterAuthorization(
   supabase: any,
   orderRecord: any,
   reason: string,
-): Promise<void> {
-  // 1. Void the authorization.
-  try {
-    const credentials = getPostFinanceCredentials();
-    await pfFetch(
-      credentials,
-      `/payment/transactions/${orderRecord.postfinance_transaction_id}/void-online`,
-      "POST",
-    );
-    console.log(`Voided PostFinance authorization for aborted order ${orderRecord.id}`);
-  } catch (voidErr) {
-    // Log only — the rest of the unwind must still run so nothing is left
-    // half-done. A stuck authorization is surfaced by the log for manual review.
-    console.error(`void-online failed during workshop-capacity abort of ${orderRecord.id}:`, voidErr);
+): Promise<{ financiallyResolved: boolean; message: string }> {
+  const txId: string = String(orderRecord.postfinance_transaction_id ?? "");
+  let financiallyResolved = false;
+  let note = "";
+
+  if (txId === REWARD_ONLY_TRANSACTION_ID) {
+    // Reward-only checkout: no live PostFinance transaction. The reward
+    // reservation is released below; nothing to void or refund.
+    financiallyResolved = true;
+    note = "reward-only checkout — reward reservation released";
+  } else if (!txId) {
+    financiallyResolved = false;
+    note = "no PostFinance transaction id on the order — manual verification required";
+  } else {
+    try {
+      const credentials = getPostFinanceCredentials();
+      const tx = await pfFetch(credentials, `/payment/transactions/${txId}`, "GET") as { state: string };
+
+      if (tx.state === "AUTHORIZED") {
+        await pfFetch(credentials, `/payment/transactions/${txId}/void-online`, "POST");
+        const after = await pfFetch(credentials, `/payment/transactions/${txId}`, "GET") as { state: string };
+        financiallyResolved = after.state === "VOIDED";
+        note = `void-online → ${after.state}`;
+      } else if (tx.state === "VOIDED") {
+        financiallyResolved = true;
+        note = "authorization already voided";
+      } else if (tx.state === "COMPLETED" || tx.state === "FULFILL") {
+        // The funds were captured — a void is no longer possible; refund the
+        // whole amount. externalId is stable so a retry never double-refunds.
+        await pfFetch(credentials, `/payment/refunds`, "POST", {
+          externalId: `${txId}-ws-capacity-abort`,
+          type: "MERCHANT_INITIATED_ONLINE",
+          transaction: Number(txId),
+        });
+        financiallyResolved = true;
+        note = `full refund created (transaction was ${tx.state})`;
+      } else {
+        financiallyResolved = false;
+        note = `unexpected PostFinance state ${tx.state} — manual verification required`;
+      }
+    } catch (pfErr) {
+      financiallyResolved = false;
+      note = `PostFinance void/refund failed: ${pfErr instanceof Error ? pfErr.message : String(pfErr)}`;
+      console.error(`abortOrderAfterAuthorization PostFinance error for ${orderRecord.id}:`, pfErr);
+    }
   }
 
-  // 2. Move the order to an auditable cancelled state (compatible enums).
-  const { error: orderUpdateErr } = await supabase
-    .from("orders")
-    .update({ order_validation: "rejected", payment_status: "cancelled" })
-    .eq("id", orderRecord.id);
-  if (orderUpdateErr) {
-    console.error(`Failed to mark aborted order ${orderRecord.id} as rejected/cancelled:`, orderUpdateErr);
-  }
-
-  // 3. Release the welcome-discount reservation, if any.
+  // Always safe / idempotent: release the reservations this order held.
   if (orderRecord.customer_id) {
     const { error: welcomeErr } = await supabase
       .from("profiles")
       .update({ welcome_discount_reserved_order_id: null, welcome_discount_reserved_at: null })
       .eq("id", orderRecord.customer_id)
       .eq("welcome_discount_reserved_order_id", orderRecord.id);
-    if (welcomeErr) {
-      console.error(`Failed to release welcome discount for aborted order ${orderRecord.id}:`, welcomeErr);
-    }
+    if (welcomeErr) console.error(`Welcome discount release failed for aborted ${orderRecord.id}:`, welcomeErr);
   }
-
-  // 4. Release the reward reservation, if any.
   try {
-    const { error: rewardErr } = await supabase.rpc("release_reward_reservation", {
-      p_order_id: orderRecord.id,
+    const { error: rewardErr } = await supabase.rpc("release_reward_reservation", { p_order_id: orderRecord.id });
+    if (rewardErr) console.error(`release_reward_reservation error for aborted ${orderRecord.id}:`, rewardErr);
+  } catch (e) {
+    console.error(`release_reward_reservation threw for aborted ${orderRecord.id}:`, e);
+  }
+  // Any workshop_reservations that DID land (e.g. RPC committed then the
+  // transport dropped) are moved to 'rejected' — idempotent, frees capacity.
+  try {
+    const { error: wsErr } = await supabase.rpc("set_workshop_reservations_status", {
+      p_order_id: orderRecord.id, p_action: "reject",
     });
-    if (rewardErr) {
-      console.error(`release_reward_reservation error during abort of ${orderRecord.id}:`, rewardErr);
-    }
-  } catch (rewardErr) {
-    console.error(`release_reward_reservation threw during abort of ${orderRecord.id}:`, rewardErr);
+    if (wsErr) console.error(`set_workshop_reservations_status(reject) error for aborted ${orderRecord.id}:`, wsErr);
+  } catch (e) {
+    console.error(`set_workshop_reservations_status threw for aborted ${orderRecord.id}:`, e);
   }
 
-  // 5. Drop the staged pending payment.
-  await supabase.from("pending_payments").delete().eq("order_id", orderRecord.id);
+  // Persist the reason so every later poll reports it (GA4 purchase never
+  // fires for this order). order_comment is never reused for this.
+  const { error: orderUpdateErr } = await supabase
+    .from("orders")
+    .update({
+      order_failure_reason: "workshop_capacity_unavailable",
+      order_validation: financiallyResolved ? "rejected" : "pending",
+      payment_status: financiallyResolved ? "cancelled" : "pending",
+    })
+    .eq("id", orderRecord.id);
+  if (orderUpdateErr) console.error(`Failed to persist abort state for ${orderRecord.id}:`, orderUpdateErr);
 
-  console.error(`Order ${orderRecord.id} aborted after PostFinance authorization — workshop capacity: ${reason}`);
+  if (financiallyResolved) {
+    await supabase.from("pending_payments").delete().eq("order_id", orderRecord.id);
+  }
+  // else: keep pending_payments so the void/refund can be retried later.
+
+  console.error(`Order ${orderRecord.id} aborted after authorization — ${reason} — ${note} — resolved=${financiallyResolved}`);
+  return { financiallyResolved, message: `${reason} — ${note}` };
 }
 
-// Inserts order_items for an orders row that already exists (and therefore
-// already has its order_number — the sequence trigger has already fired
-// exactly once for it), claims every workshop reservation for the order in ONE
-// transaction (all-or-nothing), then fires the Make webhook and the
-// notify-order / customer-email background tasks. Used both right after the
-// first orders insert, and to finish a previously interrupted order on a later
-// retry — in both cases public.orders itself is never inserted into again.
+// Fires the workshop Make webhook (separate "Réservations Workshops" base)
+// with status "pending" for every reservation of the order, right after the
+// batch claim succeeds. Best-effort. Workshop-only orders still never touch
+// the production Make webhook.
+async function notifyWorkshopMakePending(supabase: any, orderRecord: any): Promise<void> {
+  const { data: reservations } = await supabase
+    .from("workshop_reservations").select("*").eq("order_id", orderRecord.id);
+  if (!reservations || reservations.length === 0) return;
+
+  const sessionIds = [...new Set(reservations.map((r: any) => r.workshop_session_id))];
+  const { data: sessions } = await supabase
+    .from("workshop_sessions").select("id, workshop_date, workshop_time").in("id", sessionIds);
+  const sessionById = new Map((sessions ?? []).map((s: any) => [s.id, s]));
+  const customerName = `${orderRecord.first_name || ""} ${orderRecord.last_name || ""}`.trim();
+
+  for (const reservation of reservations) {
+    const session = sessionById.get(reservation.workshop_session_id);
+    await sendWorkshopMakeWebhook(buildWorkshopMakePayload(reservation, {
+      order_number: orderRecord.order_number ?? null,
+      workshop_date: session ? String(session.workshop_date) : null,
+      workshop_time: session ? session.workshop_time : null,
+      customer_name: customerName,
+      customer_email: orderRecord.email,
+      customer_phone: orderRecord.phone || "",
+      refund_status: "non_required",
+    }));
+  }
+}
+
+// Inserts order_items for an orders row that already exists, secures every
+// workshop reservation of the order in ONE atomic all-or-nothing claim, then
+// fires the Make webhooks and the notify-order / customer-email background
+// tasks. Never inserts into public.orders.
 async function insertOrderItemsAndFinalize(
   supabase: any,
   orderRecord: any,
@@ -109,47 +185,29 @@ async function insertOrderItemsAndFinalize(
     throw new Error(`Failed to save order items: ${itemsError.message}`);
   }
 
-  // ── Workshop reservations — one atomic, all-or-nothing claim per order ──
-  // Runs AFTER order + order_items exist and BEFORE any webhook / email.
-  // Several workshops in one order are claimed together: if the second lacks
-  // capacity, the first is never reserved either.
-  const workshopRows = (insertedItems ?? []).filter((it: any) => it.product === "workshop");
-  if (workshopRows.length > 0) {
-    const p_items = workshopRows.map((it: any) => ({
-      order_item_id: it.id,
-      session_id: it.workshop_session_id,
-      seats: it.workshop_participants,
-      unit_price: it.workshop_unit_price,
-      workshop_type: it.workshop_type,
-      item_comment: it.item_comment ?? null,
-      has_minor: !!it.workshop_has_minor,
-      minor_consent_confirmed: !!it.workshop_minor_consent_confirmed,
-    }));
-
-    const { data: claimed, error: claimError } = await supabase.rpc(
-      "claim_workshop_reservations_batch",
-      { p_order_id: orderRecord.id, p_items },
+  // ── Workshop reservations — one atomic, DB-authoritative, all-or-nothing
+  // claim per order. Runs AFTER order + order_items exist and BEFORE any
+  // webhook / email. The RPC reads everything from the DB (session price,
+  // type, capacity, minor consent) and writes workshop_reference back onto
+  // the order_items in the same transaction.
+  const hasWorkshopRows = (insertedItems ?? []).some((it: any) => it.product === "workshop");
+  if (hasWorkshopRows) {
+    const { error: claimError } = await supabase.rpc(
+      "claim_workshop_reservations_batch", { p_order_id: orderRecord.id },
     );
 
     if (claimError) {
-      // Session full / closed / unknown, or any claim failure: unwind the
-      // whole order (authorization included) and stop here. No cake part of a
-      // mixed order survives — the order is all-or-nothing.
-      await abortOrderAfterAuthorization(supabase, orderRecord, claimError.message || "claim failed");
-      throw new WorkshopCapacityAbort(claimError.message || "workshop capacity unavailable");
+      // Capacity / closed / consent / inconsistency: unwind the whole order
+      // (authorization included). A mixed order's cake part does not survive.
+      const abort = await abortOrderAfterAuthorization(supabase, orderRecord, claimError.message || "claim failed");
+      throw new WorkshopCapacityAbort(abort.financiallyResolved, abort.message);
     }
 
-    // Copy the booking reference back onto each workshop order_item so emails,
-    // the invoice and the admin view can read it straight off the order_item.
-    for (const row of (claimed ?? [])) {
-      const { error: refError } = await supabase
-        .from("order_items")
-        .update({ workshop_reference: row.workshop_reference })
-        .eq("id", row.order_item_id);
-      if (refError) {
-        console.error(`Failed to write workshop_reference for order_item ${row.order_item_id}:`, refError);
-      }
-    }
+    // Create the "Réservations Workshops" rows straight away (status pending).
+    EdgeRuntime.waitUntil(
+      notifyWorkshopMakePending(supabase, orderRecord)
+        .catch((e) => console.error("notifyWorkshopMakePending failed (order still created):", e)),
+    );
   }
 
   await supabase
@@ -157,20 +215,14 @@ async function insertOrderItemsAndFinalize(
     .delete()
     .eq("order_id", orderRecord.id);
 
-  // Workshops are NOT part of the production Make / Notion flow: they are
-  // recorded in Supabase but excluded from the webhook payload, and a
-  // workshop-only order does not fire the webhook at all (it would create an
-  // empty / meaningless production row).
+  // Physical items only -> production Make webhook. Workshop-only -> skipped.
   const physicalItems = (insertedItems ?? []).filter((it: any) => it.product !== "workshop");
   if (physicalItems.length > 0) {
     try {
       await fetch(MAKE_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order: orderRecord,
-          orderItems: physicalItems,
-        }),
+        body: JSON.stringify({ order: orderRecord, orderItems: physicalItems }),
       });
     } catch (webhookErr) {
       console.error("Make webhook request failed:", webhookErr);
@@ -179,36 +231,19 @@ async function insertOrderItemsAndFinalize(
     console.log("Workshop-only order — production Make webhook skipped:", orderRecord.id);
   }
 
-  // Best-effort admin notification — order + order_items are already
-  // safely saved above, so nothing here may affect that outcome. Run as a
-  // background task so this response never waits on it: any failure
-  // (thrown or returned via `error`) is only ever logged, and never
-  // affects the order, this response, or the Make webhook above.
+  // Best-effort admin notification.
   EdgeRuntime.waitUntil((async () => {
     try {
       const { error: notifyError } = await supabase.functions.invoke("notify-order", { body: { orderId: orderRecord.id } });
-      if (notifyError) {
-        console.error("notify-order returned an error (order still created):", notifyError);
-      }
+      if (notifyError) console.error("notify-order returned an error (order still created):", notifyError);
     } catch (notifyErr) {
       console.error("notify-order invocation failed (order still created):", notifyErr);
     }
   })());
 
-  // Customer emails — purely informational, never touch
-  // order_validation/payment_status, never capture/void/refund anything.
-  // This point in the function only ever runs once per real order: a later
-  // call for the same orderId hits the existingItems check above and never
-  // calls insertOrderItemsAndFinalize again once order_items exist, so these
-  // are naturally idempotent without needing a separate sent-flag — retries
-  // and polling can't trigger a second send. Each is a fully independent
-  // background task from notify-order above and from the other: a failure in
-  // one can never affect the others, the response, or the Make webhook.
-  //
-  // Which email goes out depends on what the order actually contains:
-  //   physical only  -> send-order-received-email
-  //   workshop only  -> send-workshop-email
-  //   mixed          -> both
+  // Customer emails — physical -> send-order-received-email; workshop ->
+  // send-workshop-email; mixed -> both. Naturally idempotent (this point runs
+  // once per real order).
   const finalizedItems = insertedItems ?? [];
   const hasWorkshopItem = finalizedItems.some((it: any) => it.product === "workshop");
   const hasPhysicalItem = finalizedItems.some((it: any) => it.product !== "workshop");
@@ -216,12 +251,10 @@ async function insertOrderItemsAndFinalize(
   if (hasPhysicalItem) {
     EdgeRuntime.waitUntil((async () => {
       try {
-        const { error: receivedEmailError } = await supabase.functions.invoke("send-order-received-email", { body: { orderId: orderRecord.id } });
-        if (receivedEmailError) {
-          console.error("send-order-received-email returned an error (order still created):", receivedEmailError);
-        }
-      } catch (receivedEmailErr) {
-        console.error("send-order-received-email invocation failed (order still created):", receivedEmailErr);
+        const { error: e } = await supabase.functions.invoke("send-order-received-email", { body: { orderId: orderRecord.id } });
+        if (e) console.error("send-order-received-email returned an error (order still created):", e);
+      } catch (err) {
+        console.error("send-order-received-email invocation failed (order still created):", err);
       }
     })());
   }
@@ -229,15 +262,27 @@ async function insertOrderItemsAndFinalize(
   if (hasWorkshopItem) {
     EdgeRuntime.waitUntil((async () => {
       try {
-        const { error: workshopEmailError } = await supabase.functions.invoke("send-workshop-email", { body: { orderId: orderRecord.id } });
-        if (workshopEmailError) {
-          console.error("send-workshop-email returned an error (order still created):", workshopEmailError);
-        }
-      } catch (workshopEmailErr) {
-        console.error("send-workshop-email invocation failed (order still created):", workshopEmailErr);
+        const { error: e } = await supabase.functions.invoke("send-workshop-email", { body: { orderId: orderRecord.id } });
+        if (e) console.error("send-workshop-email returned an error (order still created):", e);
+      } catch (err) {
+        console.error("send-workshop-email invocation failed (order still created):", err);
       }
     })());
   }
+}
+
+function capacityResponse(financiallyResolved: boolean, orderValidation: string | null, detail: string) {
+  return new Response(JSON.stringify({
+    confirmed: false,
+    failed: true,
+    reason: "workshop_capacity_unavailable",
+    financiallyResolved,
+    orderValidation,
+    detail,
+  }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status: 200,
+  });
 }
 
 serve(async (req) => {
@@ -262,11 +307,19 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingOrder) {
-      // The orders row already exists, so its order_number was already
-      // assigned by the trigger exactly once — public.orders must never be
-      // inserted into again for this orderId, no matter how many times this
-      // function is retried or polled (client polling every 4s, duplicate
-      // tabs, etc.).
+      // A capacity abort persisted its reason — never report this order as
+      // confirmed, and give a later attempt a chance to finish the void/refund.
+      if (existingOrder.order_failure_reason === "workshop_capacity_unavailable") {
+        let resolved = existingOrder.order_validation === "rejected"
+          && existingOrder.payment_status === "cancelled";
+        if (!resolved) {
+          const abort = await abortOrderAfterAuthorization(supabase, existingOrder, "retry");
+          resolved = abort.financiallyResolved;
+          return capacityResponse(resolved, resolved ? "rejected" : "pending", abort.message);
+        }
+        return capacityResponse(true, "rejected", "workshop capacity unavailable (resolved)");
+      }
+
       const { data: existingItems, error: existingItemsError } = await supabase
         .from("order_items")
         .select("id")
@@ -278,9 +331,6 @@ serve(async (req) => {
       }
 
       if (!existingItems || existingItems.length === 0) {
-        // A previous attempt created the orders row but failed before its
-        // order_items were saved. Finish it here using the order_number the
-        // row already has — never touch public.orders again.
         const { data: pendingForRetry } = await supabase
           .from("pending_payments")
           .select("payload")
@@ -320,41 +370,44 @@ serve(async (req) => {
       });
     }
 
-    const credentials = getPostFinanceCredentials();
+    // Reward-only checkout: no real PostFinance transaction — do NOT call
+    // PostFinance. Treat it as confirmed and let the normal flow run; the
+    // order keeps postfinance_transaction_id = "REWARD_ONLY",
+    // payment_status = "pending", order_validation = "pending" until an admin
+    // approves it (which then captures 0 via the shim).
+    const isRewardOnly = String(pending.postfinance_transaction_id) === REWARD_ONLY_TRANSACTION_ID;
 
-    const transaction = await pfFetch(
-      credentials,
-      `/payment/transactions/${pending.postfinance_transaction_id}`,
-      "GET",
-    ) as { state: string };
+    if (!isRewardOnly) {
+      const credentials = getPostFinanceCredentials();
+      const transaction = await pfFetch(
+        credentials,
+        `/payment/transactions/${pending.postfinance_transaction_id}`,
+        "GET",
+      ) as { state: string };
 
-    if (
-      FAILURE_STATES.has(transaction.state) ||
-      !SUCCESS_STATES.has(transaction.state)
-    ) {
-      return new Response(JSON.stringify({
-        confirmed: false,
-        failed: FAILURE_STATES.has(transaction.state),
-        state: transaction.state,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      if (
+        FAILURE_STATES.has(transaction.state) ||
+        !SUCCESS_STATES.has(transaction.state)
+      ) {
+        return new Response(JSON.stringify({
+          confirmed: false,
+          failed: FAILURE_STATES.has(transaction.state),
+          state: transaction.state,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
     }
 
     const order = pending.payload.order;
     const orderItems = pending.payload.orderItems;
 
-    // This is the ONLY insert into public.orders in this function — it runs
-    // once per real order, and its BEFORE INSERT trigger is what assigns
-    // order_number (incrementing order_number_counters exactly once here).
     const { data: insertedOrder, error: orderError } =
       await supabase.from("orders").insert({
         ...order,
         id: orderId,
-        postfinance_transaction_id: String(
-          pending.postfinance_transaction_id
-        ),
+        postfinance_transaction_id: String(pending.postfinance_transaction_id),
         payment_status: "pending",
       }).select().single();
 
@@ -362,12 +415,6 @@ serve(async (req) => {
       throw new Error("Failed to save order");
     }
 
-    // If this throws (order_items insert fails), the orders row is
-    // deliberately left in place rather than deleted: the next retry/poll
-    // will hit the existingOrder branch above and finish the job by
-    // inserting order_items only — it will NOT insert into public.orders
-    // again, so order_number_counters is never incremented a second time
-    // for this same real order.
     await insertOrderItemsAndFinalize(supabase, insertedOrder, orderItems);
 
     return new Response(JSON.stringify({
@@ -380,18 +427,11 @@ serve(async (req) => {
     });
   } catch (error) {
     if (error instanceof WorkshopCapacityAbort) {
-      // The authorization was voided and the order unwound inside
-      // abortOrderAfterAuthorization — tell the frontend the seats are gone.
-      console.error("Workshop capacity abort:", error.message);
-      return new Response(JSON.stringify({
-        confirmed: false,
-        failed: true,
-        reason: "workshop_capacity_unavailable",
-        detail: error.message,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      return capacityResponse(
+        error.financiallyResolved,
+        error.financiallyResolved ? "rejected" : "pending",
+        error.message,
+      );
     }
 
     console.error("Error confirming PostFinance payment:", error);

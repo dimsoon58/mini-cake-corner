@@ -1011,11 +1011,12 @@ const Checkout = () => {
           design: item.product === "workshop" ? null : (item.style || null),
           extras: (item.isCandleProduct || item.product === "workshop") ? [] : (item.extras || []),
           candles: item.product === "workshop" ? [] : (item.candles || []),
-          // Workshop-only — validated server-side against the session list,
-          // the price table and the participant cap.
-          workshopType: item.product === "workshop" ? (item.workshopType ?? null) : null,
-          workshopSessionId: item.product === "workshop" ? (item.workshopSessionId ?? null) : null,
-          workshopParticipants: item.product === "workshop" ? (item.workshopParticipants ?? null) : null,
+          // Workshop-only — canonical snake_case. The server loads the
+          // session from public.workshop_sessions and never trusts the
+          // price / date / type sent here.
+          workshop_type: item.product === "workshop" ? (item.workshopType ?? null) : null,
+          workshop_session_id: item.product === "workshop" ? (item.workshopSessionId ?? null) : null,
+          workshop_participants: item.product === "workshop" ? (item.workshopParticipants ?? null) : null,
         })),
         items: items.map((item) => ({
           sizeName: item.sizeName,
