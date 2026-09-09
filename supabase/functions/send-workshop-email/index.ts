@@ -53,7 +53,7 @@ const BEFORE_WORKSHOP = {
       },
       {
         h: "Photos et vidéos",
-        p: "Des photos ou vidéos peuvent être réalisées pendant l'atelier pour les réseaux sociaux de Bento Cake Studio. Si vous ne souhaitez pas apparaître sur ces contenus, merci de nous en informer avant le début du workshop.",
+        p: "Des photos ou vidéos peuvent être réalisées pendant l'atelier. Toute utilisation ou publication permettant de vous identifier, notamment sur les réseaux sociaux de Bento Cake Studio, sera soumise à votre accord préalable. Pour un participant mineur, l'autorisation de son représentant légal pourra être requise.",
       },
     ],
     allergiesTitle: "ALLERGIES",
@@ -80,7 +80,7 @@ const BEFORE_WORKSHOP = {
       },
       {
         h: "Photos and videos",
-        p: "Photos or videos may be taken during the workshop for Bento Cake Studio's social media. If you do not wish to appear in this content, please let us know before the workshop begins.",
+        p: "Photos or videos may be taken during the workshop. Any use or publication in which you can be identified, including on Bento Cake Studio's social media, will be subject to your prior consent. For a minor participant, authorisation from their legal representative may be required.",
       },
     ],
     allergiesTitle: "ALLERGIES",
@@ -100,8 +100,8 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
 
   const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
   const subject = tr(
-    "Your Workshop Confirmation – Bento Cake Studio",
-    "Confirmation de votre workshop – Bento Cake Studio",
+    "Your Workshop Booking – Bento Cake Studio",
+    "Réservation de votre workshop – Bento Cake Studio",
   );
 
   const rowCell = (label: string, value: string) =>
