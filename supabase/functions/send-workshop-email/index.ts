@@ -29,6 +29,65 @@ interface WorkshopItem {
   total: number | null;
 }
 
+// "Before your workshop" static content — identical wording for every
+// customer, only the language differs. No emoji, no icons.
+const BEFORE_WORKSHOP = {
+  fr: {
+    title: "AVANT VOTRE WORKSHOP",
+    sections: [
+      {
+        h: "Arrivée",
+        p: "Nous vous recommandons d'arriver 5 minutes avant le début. Une tolérance maximale de 15 minutes de retard est accordée. Au-delà, l'accès à l'atelier peut être refusé. Le workshop se terminera dans tous les cas à l'heure initialement prévue.",
+      },
+      {
+        h: "Participants mineurs",
+        p: "Les participants de moins de 14 ans doivent être accompagnés d'un adulte. À partir de 14 ans, les mineurs peuvent participer sans accompagnateur, avec l'accord de leur représentant légal.",
+      },
+      {
+        h: "Sécurité",
+        p: "Les consignes d'hygiène et de sécurité doivent être respectées. Toute personne se présentant sous l'influence de l'alcool, de drogues ou de toute autre substance pouvant compromettre le bon déroulement ou la sécurité de l'atelier pourra se voir refuser l'accès, sans remboursement.",
+      },
+      {
+        h: "Annulation",
+        p: "Un remboursement est possible en cas d'annulation au minimum 7 jours calendaires avant le workshop. Passé ce délai, la réservation n'est plus remboursable.",
+      },
+      {
+        h: "Photos et vidéos",
+        p: "Des photos ou vidéos peuvent être réalisées pendant l'atelier pour les réseaux sociaux de Bento Cake Studio. Si vous ne souhaitez pas apparaître sur ces contenus, merci de nous en informer avant le début du workshop.",
+      },
+    ],
+    allergiesTitle: "ALLERGIES",
+    allergiesP: "Si vous avez une allergie ou une intolérance alimentaire, merci de nous en informer avant votre venue.",
+  },
+  en: {
+    title: "BEFORE YOUR WORKSHOP",
+    sections: [
+      {
+        h: "Arrival",
+        p: "We recommend arriving 5 minutes before the workshop starts. A maximum delay of 15 minutes is accepted. After this time, entry may be refused. The workshop will end at the originally scheduled time regardless of arrival time.",
+      },
+      {
+        h: "Minor participants",
+        p: "Participants under the age of 14 must be accompanied by an adult. From the age of 14, minors may attend without an accompanying adult, subject to the consent of their legal representative.",
+      },
+      {
+        h: "Safety",
+        p: "Participants must follow the hygiene and safety instructions provided during the workshop. Anyone arriving under the influence of alcohol, drugs or any other substance that may compromise the safety or proper running of the workshop may be refused entry without a refund.",
+      },
+      {
+        h: "Cancellation",
+        p: "A refund is available if the booking is cancelled at least 7 calendar days before the workshop. After this deadline, the booking is non-refundable.",
+      },
+      {
+        h: "Photos and videos",
+        p: "Photos or videos may be taken during the workshop for Bento Cake Studio's social media. If you do not wish to appear in this content, please let us know before the workshop begins.",
+      },
+    ],
+    allergiesTitle: "ALLERGIES",
+    allergiesP: "If you have any food allergies or intolerances, please let us know before attending.",
+  },
+} as const;
+
 async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems: WorkshopItem[]) {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
@@ -41,8 +100,8 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
 
   const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
   const subject = tr(
-    `Your workshop booking · Order ${orderNumber} 🎨`,
-    `Votre réservation d'atelier · Commande ${orderNumber} 🎨`,
+    "Your Workshop Confirmation – Bento Cake Studio",
+    "Confirmation de votre workshop – Bento Cake Studio",
   );
 
   const rowCell = (label: string, value: string) =>
@@ -71,6 +130,21 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
       </table>`;
   }).join("");
 
+  // "Before your workshop" — visually distinct block: a beige slightly
+  // darker than the card, square corners, no border-radius, no emoji.
+  const bw = BEFORE_WORKSHOP[lang];
+  const beforeSections = bw.sections.map((s) => `
+        <p style="color:#351E13;font-size:14px;font-weight:700;margin:16px 0 4px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${s.h}</p>
+        <p style="color:#351E13;font-size:13px;line-height:1.7;margin:0;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${s.p}</p>`).join("");
+
+  const beforeWorkshopBlock = `
+      <div style="background:#F3E7C3;border:1px solid #D4C89A;padding:24px 24px;margin:24px 0 0;">
+        <p style="color:#78020C;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:0;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.title}</p>
+        ${beforeSections}
+        <p style="color:#78020C;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:24px 0 4px;padding-top:20px;border-top:1px solid #D4C89A;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.allergiesTitle}</p>
+        <p style="color:#351E13;font-size:13px;line-height:1.7;margin:0;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.allergiesP}</p>
+      </div>`;
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -89,7 +163,7 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
-          ${tr("Thank you for your booking at Bento Cake Studio 🤍", "Merci pour votre réservation chez Bento Cake Studio 🤍")}
+          ${tr("Thank you for booking with Bento Cake Studio.", "Merci pour votre réservation chez Bento Cake Studio.")}
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
@@ -108,7 +182,7 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
           </tr>
         </table>
 
-        <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:24px 0 20px;">
+        <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:24px 0 0;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
             ${tr(
               "Your booking is pending validation by our team. You will receive a confirmation email as soon as it has been accepted.",
@@ -117,13 +191,15 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
           </p>
         </div>
 
-        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
+        ${beforeWorkshopBlock}
+
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:28px 0 24px;">
           ${tr("We can't wait to welcome you to the workshop!", "Nous avons hâte de vous accueillir en atelier !")}
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0;">
           ${tr("Thank you for your trust,", "Merci pour votre confiance,")}<br>
-          <strong>Bento Cake Studio</strong> 🤍
+          <strong>Bento Cake Studio</strong>
         </p>
       </div>
     </div>
