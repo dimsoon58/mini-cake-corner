@@ -57,6 +57,33 @@ import { isOrderDateDisabled, expressSurcharge, EXPRESS_COPY } from "@/lib/order
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 
+// Anti double-payment guard. Set when the customer is handed to PostFinance,
+// short TTL so a stale value can never wedge the checkout. Cleared on
+// ?payment=failed, on unmount, and on an explicit "start over".
+const CHECKOUT_INFLIGHT_KEY = "bento_checkout_inflight";
+const CHECKOUT_INFLIGHT_TTL_MS = 60_000;
+
+function isCheckoutInFlight(): boolean {
+  try {
+    const raw = sessionStorage.getItem(CHECKOUT_INFLIGHT_KEY);
+    if (!raw) return false;
+    const ts = Number(raw);
+    if (!Number.isFinite(ts) || Date.now() - ts > CHECKOUT_INFLIGHT_TTL_MS) {
+      sessionStorage.removeItem(CHECKOUT_INFLIGHT_KEY);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+function markCheckoutInFlight() {
+  try { sessionStorage.setItem(CHECKOUT_INFLIGHT_KEY, String(Date.now())); } catch { /* ignore */ }
+}
+function clearCheckoutInFlight() {
+  try { sessionStorage.removeItem(CHECKOUT_INFLIGHT_KEY); } catch { /* ignore */ }
+}
+
 // Fixed voucher base price per (product, size) pair — must stay identical
 // to WELCOME_VOUCHER_BASE in create-postfinance-payment/index.ts (the
 // authoritative copy). Never a single size alone, so an inconsistent
@@ -370,6 +397,10 @@ const Checkout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
   const [checkoutPayload, setCheckoutPayload] = useState<any>(null);
+  // PostFinance's failedUrl (/checkout?payment=failed) brings the customer
+  // back here after a declined / failed payment. The cart is preserved (never
+  // cleared on this path) — this just shows a persistent, actionable banner.
+  const [showPaymentFailed, setShowPaymentFailed] = useState(false);
 
   // Prefill from the logged-in customer's profile — never overwrites what
   // they've already typed. Guest checkout (profile stays null) is untouched.
@@ -391,20 +422,28 @@ const Checkout = () => {
 
   // PostFinance's failedUrl brings the customer straight back here with
   // ?payment=failed — cart is left untouched (nothing here calls
-  // clearCart()) so they can retry immediately.
+  // clearCart()) so they can retry immediately. Clears the in-flight lock so
+  // an immediate retry is never blocked.
   useEffect(() => {
     if (searchParams.get("payment") === "failed") {
+      clearCheckoutInFlight();
+      setShowPaymentFailed(true);
+      setShowEmbeddedCheckout(false);
+      setCheckoutPayload(null);
       toast({
         title: t("Payment failed", "Échec du paiement"),
         description: t(
-          "Payment failed. Please try again or use another payment method.",
-          "Le paiement a échoué. Veuillez réessayer ou utiliser un autre moyen de paiement."
+          "Payment failed. Your cart has been saved — please try again or use another payment method.",
+          "Le paiement a échoué. Votre panier a été conservé — réessayez ou utilisez un autre moyen de paiement."
         ),
         variant: "destructive",
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The in-flight lock never outlives this page.
+  useEffect(() => () => clearCheckoutInFlight(), []);
 
   // GA4 funnel guards — each step at most once per Checkout mount.
   const beginCheckoutSentRef = useRef(false);
@@ -597,6 +636,20 @@ const Checkout = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Anti double-payment: a checkout was handed to PostFinance moments ago
+    // and hasn't resolved. Never create a second parallel attempt.
+    if (isCheckoutInFlight()) {
+      toast({
+        title: t("Payment already in progress", "Paiement déjà en cours"),
+        description: t(
+          "Please finish or close the payment you just started before trying again.",
+          "Merci de finaliser ou de fermer le paiement que vous venez de démarrer avant de réessayer."
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (items.length === 0) {
       toast({
@@ -1056,6 +1109,8 @@ const Checkout = () => {
         });
       }
 
+      setShowPaymentFailed(false);
+      markCheckoutInFlight();
       setCheckoutPayload(payload);
       setShowEmbeddedCheckout(true);
     } catch (err) {
@@ -1625,6 +1680,21 @@ const Checkout = () => {
             </Button>
           </form>
 
+          {/* Persistent banner after a failed / declined PostFinance payment */}
+          {showPaymentFailed && !showEmbeddedCheckout && (
+            <div className="mt-6 rounded-lg border border-destructive/40 bg-destructive/10 p-4">
+              <p className="text-sm font-medium text-destructive mb-1">
+                {t("Your payment could not be finalised.", "Votre paiement n'a pas pu être finalisé.")}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "Your cart has been saved. You can review your order and try again below.",
+                  "Votre panier a été conservé. Vous pouvez vérifier votre commande et réessayer ci-dessous."
+                )}
+              </p>
+            </div>
+          )}
+
           {/* PostFinance Checkout */}
           {showEmbeddedCheckout && checkoutPayload && (
             <div className="mt-8 pt-6 border-t border-border">
@@ -1634,7 +1704,22 @@ const Checkout = () => {
               <p className="text-sm text-muted-foreground mb-4">
                 {t("Please complete your payment below to confirm your order. All transactions are secured by PostFinance.", "Veuillez finaliser votre paiement ci-dessous pour confirmer votre commande. Toutes les transactions sont sécurisées par PostFinance.")}
               </p>
-              <PostFinanceCheckout payload={checkoutPayload} />
+              <PostFinanceCheckout
+                payload={checkoutPayload}
+                onRequestNewOrder={() => {
+                  clearCheckoutInFlight();
+                  setShowEmbeddedCheckout(false);
+                  setCheckoutPayload(null);
+                  setShowPaymentFailed(true);
+                  toast({
+                    title: t("Let's try again", "Réessayons"),
+                    description: t(
+                      "Please review your order and click “Proceed to Payment” again.",
+                      "Vérifiez votre commande puis cliquez à nouveau sur « Procéder au paiement »."
+                    ),
+                  });
+                }}
+              />
             </div>
           )}
         </div>

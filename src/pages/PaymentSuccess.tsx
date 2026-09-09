@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { CheckCircle, Clock, Sparkles, XCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { CheckCircle, Clock, Loader2, Sparkles, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { firePurchaseOnce } from "@/lib/analytics";
@@ -8,81 +8,95 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLang } from "@/context/LanguageContext";
 import Layout from "@/components/Layout";
 
+// Poll confirm-postfinance-payment until it reaches an authoritative outcome.
+// ~4s interval; after this many attempts (~2 min) we stop and show a neutral
+// "still verifying" screen — the webhook will finish the order server-side.
+const MAX_POLLS = 30;
+
+type Phase = "verifying" | "confirmed" | "failed" | "timeout";
+
 const PaymentSuccess = () => {
   const { t } = useLang();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { clearCart } = useCart();
   // create-postfinance-payment's successUrl is /payment-success?order_id=<orderId>.
   const orderId = searchParams.get("order_id");
-  const [cleared, setCleared] = useState(false);
+
+  const [phase, setPhase] = useState<Phase>("verifying");
   const [orderValidation, setOrderValidation] = useState<string | null>(null);
-  const [paymentFailed, setPaymentFailed] = useState(false);
   // A workshop seat sold out between checkout and payment confirmation.
-  // financiallyResolved === true  -> authorization voided / never captured /
-  //   fully refunded: safe to say "no charge / we refunded you".
-  // financiallyResolved === false -> the void/refund could not be completed
-  //   yet: keep polling, and DO NOT claim the card was not charged.
   const [capacity, setCapacity] = useState<{ financiallyResolved: boolean } | null>(null);
+  const cartClearedRef = useRef(false);
+  const pollsRef = useRef(0);
+
+  // The cart is cleared ONLY once the payment is really confirmed — never
+  // merely because this page rendered (a failed / abandoned payment must keep
+  // the cart so the customer can retry).
+  useEffect(() => {
+    if (phase === "confirmed" && !cartClearedRef.current) {
+      cartClearedRef.current = true;
+      clearCart();
+    }
+  }, [phase, clearCart]);
 
   useEffect(() => {
-    if (!orderId || cleared) return;
-    clearCart();
-    setCleared(true);
-  }, [orderId, cleared, clearCart]);
-
-  useEffect(() => {
-    if (!orderId || orderValidation === "approved" || paymentFailed) return;
-    // Keep polling while a capacity abort is not yet financially resolved.
+    if (!orderId) {
+      setPhase("timeout");
+      return;
+    }
+    if (phase === "confirmed" || phase === "failed" || phase === "timeout") return;
     if (capacity?.financiallyResolved) return;
-    const id = orderId;
 
+    const id = orderId;
     let mounted = true;
 
     const confirm = async () => {
-      // confirm-postfinance-payment is the source of truth: it re-reads the
-      // transaction state directly from PostFinance, creates orders +
-      // order_items on the first successful confirmation, and — for every
-      // call after that — just returns the order's current order_validation
-      // (so this same call also picks up a later staff approve/reject).
+      pollsRef.current += 1;
+
       const { data, error } = await supabase.functions.invoke("confirm-postfinance-payment", {
         body: { orderId: id },
       });
 
-      if (error) {
-        console.error("Error confirming payment:", error);
-        return;
-      }
       if (!mounted) return;
 
+      if (error) {
+        console.error("Error confirming payment:", error);
+        if (pollsRef.current >= MAX_POLLS) setPhase("timeout");
+        return;
+      }
+
       if (data?.reason === "workshop_capacity_unavailable") {
-        // A workshop seat sold out during payment. Never a confirmed order,
-        // so GA4 purchase never fires. Keep polling until the backend
-        // confirms the void/refund is done.
         setCapacity({ financiallyResolved: !!data.financiallyResolved });
         return;
       }
 
       if (data?.confirmed === true) {
-        // Real, backend-confirmed payment (order row created). GA4 purchase is
-        // sent from here only — never merely because this page rendered.
         firePurchaseOnce(id);
         setOrderValidation(data.orderValidation ?? "pending");
-      } else if (data?.failed) {
-        setPaymentFailed(true);
+        setPhase("confirmed");
+        return;
       }
-      // else: not confirmed yet, not failed — still processing, keep polling.
+
+      if (data?.failed === true) {
+        setPhase("failed");
+        return;
+      }
+
+      // Not confirmed, not failed — still processing. Keep polling until the
+      // cap, then hand off to the server-side webhook.
+      if (pollsRef.current >= MAX_POLLS) setPhase("timeout");
     };
 
     confirm();
     const intervalId = setInterval(confirm, 4000);
-
     return () => {
       mounted = false;
       clearInterval(intervalId);
     };
-  }, [orderId, orderValidation, paymentFailed, capacity]);
+  }, [orderId, phase, capacity]);
 
-  const isOrderConfirmed = orderValidation === "approved";
+  const isOrderApproved = orderValidation === "approved";
 
   return (
     <Layout>
@@ -106,7 +120,7 @@ const PaymentSuccess = () => {
                     )}
               </p>
             </>
-          ) : paymentFailed ? (
+          ) : phase === "failed" ? (
             <>
               <XCircle className="w-16 h-16 text-destructive mx-auto mb-6" />
               <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
@@ -114,82 +128,100 @@ const PaymentSuccess = () => {
               </h1>
               <p className="text-muted-foreground mb-8">
                 {t(
-                  "Your payment could not be completed. No charge was made. Please try again or contact us if the issue persists.",
-                  "Votre paiement n'a pas pu être finalisé. Aucun montant n'a été débité. Merci de réessayer ou de nous contacter si le problème persiste."
+                  "Your payment could not be finalised. Your cart has been saved. You can try again.",
+                  "Votre paiement n'a pas pu être finalisé. Votre panier a été conservé. Vous pouvez réessayer."
                 )}
               </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-2">
+                <Button onClick={() => navigate("/checkout")}>
+                  {t("Retry payment", "Réessayer le paiement")}
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/contact">{t("Contact us", "Nous contacter")}</Link>
+                </Button>
+              </div>
+            </>
+          ) : phase === "verifying" ? (
+            <>
+              <Loader2 className="w-16 h-16 text-primary mx-auto mb-6 animate-spin" />
+              <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
+                {t("Confirming your payment", "Confirmation de votre paiement")}
+              </h1>
+              <p className="text-muted-foreground mb-8">
+                {t(
+                  "Please wait a moment while we confirm your payment. Do not close this page.",
+                  "Merci de patienter un instant pendant que nous confirmons votre paiement. Ne fermez pas cette page."
+                )}
+              </p>
+            </>
+          ) : phase === "timeout" ? (
+            <>
+              <Clock className="w-16 h-16 text-primary mx-auto mb-6" />
+              <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
+                {t("Payment is being verified", "Paiement en cours de vérification")}
+              </h1>
+              <p className="text-muted-foreground mb-8">
+                {t(
+                  "Your payment is taking a little longer than usual to confirm. You do not need to pay again — we are finalising it and you will receive a confirmation e-mail shortly. Please contact us if you have any doubt.",
+                  "La confirmation de votre paiement prend un peu plus de temps que d'habitude. Vous n'avez pas besoin de payer à nouveau — nous le finalisons et vous recevrez un e-mail de confirmation sous peu. Contactez-nous en cas de doute."
+                )}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-2">
+                <Button variant="outline" asChild>
+                  <Link to="/contact">{t("Contact us", "Nous contacter")}</Link>
+                </Button>
+              </div>
             </>
           ) : (
             <>
               <CheckCircle className="w-16 h-16 text-primary mx-auto mb-6" />
+              <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
+                {isOrderApproved
+                  ? t("Order Confirmed", "Commande confirmée")
+                  : t("Payment received", "Paiement reçu")}
+              </h1>
 
-              {isOrderConfirmed ? (
-                <>
-                  <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
-                    {t("Order Confirmed", "Commande confirmée")}
-                  </h1>
-
-                  <p className="text-muted-foreground mb-8">
-                    {t(
-                      "Your order has been successfully placed and your payment has been processed.",
-                      "Votre commande a bien été enregistrée et votre paiement a été traité."
+              <p className="text-muted-foreground mb-6">
+                {isOrderApproved
+                  ? t(
+                      "Your order has been successfully placed and your payment has been processed. We are now preparing your order.",
+                      "Votre commande a bien été enregistrée et votre paiement a été traité. Nous préparons dès à présent votre commande."
+                    )
+                  : t(
+                      "Your payment has been received. Your order has been received and is now awaiting validation by Bento Cake Studio.",
+                      "Votre paiement a bien été pris en compte. Votre commande a été reçue et est maintenant en attente de validation par Bento Cake Studio."
                     )}
-                    <br /><br />
-                    {t("We are now preparing your order.", "Nous préparons dès à présent votre commande.")}
-                    <br /><br />
-                    {t("You may close this page.", "Vous pouvez fermer cette page.")}
-                  </p>
+              </p>
 
-                  <div className="bg-secondary border border-border p-4 mb-6">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <Sparkles className="w-5 h-5 text-primary" />
-                      <p className="font-medium text-foreground">{t("Preparing Your Order", "Préparation de votre commande")}</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {t(
+              <div className="bg-muted border border-border p-4 mb-6">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  {isOrderApproved ? (
+                    <Sparkles className="w-5 h-5 text-primary" />
+                  ) : (
+                    <Clock className="w-5 h-5 text-primary" />
+                  )}
+                  <p className="font-medium text-foreground">
+                    {isOrderApproved
+                      ? t("Preparing Your Order", "Préparation de votre commande")
+                      : t("Order Pending Approval", "Commande en attente de confirmation")}
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {isOrderApproved
+                    ? t(
                         "We're excited to create something special for you!",
                         "Nous avons hâte de créer quelque chose de spécial rien que pour vous !"
-                      )}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
-                    {t(
-                      "Thank you so much for ordering from Bento Cake Studio",
-                      "Un grand merci pour votre commande chez Bento Cake Studio"
-                    )}
-                  </h1>
-
-                  <p className="text-muted-foreground mb-6">
-                    {t(
-                      "We truly appreciate your support and are so excited to create something special just for you.",
-                      "Nous vous remercions sincèrement de votre confiance et sommes ravis de créer quelque chose de spécial rien que pour vous."
-                    )}
-                  </p>
-
-                  <div className="bg-muted border border-border p-4 mb-6">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <Clock className="w-5 h-5 text-primary" />
-                      <p className="font-medium text-foreground">{t("Order Pending Approval", "Commande en attente de confirmation")}</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {t(
+                      )
+                    : t(
                         "Your payment has been authorized but will only be charged once we confirm your order. You will receive a confirmation message within the next 24 hours with the details of your pickup or delivery date and time.",
                         "Votre paiement a été autorisé, mais ne sera débité qu'une fois votre commande confirmée. Vous recevrez un message de confirmation dans les 24 heures, précisant la date et l'heure de votre retrait ou de votre livraison."
                       )}
-                    </p>
-                  </div>
+                </p>
+              </div>
 
-                  <p className="text-muted-foreground mb-8">
-                    {t(
-                      "We can't wait for you to enjoy your cake!",
-                      "Nous avons hâte que vous savouriez votre gâteau !"
-                    )}
-                  </p>
-                </>
-              )}
+              <p className="text-muted-foreground mb-8">
+                {t("You may close this page.", "Vous pouvez fermer cette page.")}
+              </p>
             </>
           )}
 

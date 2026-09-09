@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "../_shared/postfinance.ts";
 import { buildWorkshopMakePayload, sendWorkshopMakeWebhook } from "../_shared/workshop-make.ts";
+import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -271,6 +272,71 @@ async function insertOrderItemsAndFinalize(
   }
 }
 
+// Terminal payment failure (FAILED / DECLINE / VOIDED). Release the
+// reservations this checkout held, drop the pending_payments row, record the
+// attempt. Reached by BOTH the /payment-success poll and the PostFinance
+// webhook — fully idempotent (guarded releases, idempotent delete).
+async function cleanupFailedPayment(
+  supabase: any,
+  orderId: string,
+  pending: any,
+  state: string,
+): Promise<void> {
+  const customerId = pending?.payload?.order?.customer_id ?? null;
+  if (customerId) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ welcome_discount_reserved_order_id: null, welcome_discount_reserved_at: null })
+      .eq("id", customerId)
+      .eq("welcome_discount_reserved_order_id", orderId);
+    if (error) console.error(`cleanupFailedPayment welcome release error for ${orderId}:`, error);
+  }
+  try {
+    const { error } = await supabase.rpc("release_reward_reservation", { p_order_id: orderId });
+    if (error) console.error(`cleanupFailedPayment reward release error for ${orderId}:`, error);
+  } catch (e) {
+    console.error(`cleanupFailedPayment reward release threw for ${orderId}:`, e);
+  }
+  await supabase.from("pending_payments").delete().eq("order_id", orderId);
+  await recordPaymentAttempt(supabase, {
+    orderId, status: "payment_failed", errorType: `tx_${String(state).toLowerCase()}`,
+  });
+}
+
+// Atomic finalisation gate. claim_order_finalization() returns TRUE to exactly
+// ONE concurrent caller (the /payment-success poll vs the PostFinance
+// webhook); that caller runs insertOrderItemsAndFinalize() once. Every other
+// caller gets FALSE and just reports the order as already-confirmed.
+async function finalizeIfClaimed(
+  supabase: any,
+  orderRecord: any,
+  orderItems: Record<string, unknown>[],
+): Promise<boolean> {
+  const { data: claimed, error: claimError } = await supabase.rpc(
+    "claim_order_finalization", { p_order_id: orderRecord.id },
+  );
+  if (claimError) {
+    throw new Error(`claim_order_finalization failed: ${claimError.message}`);
+  }
+  if (claimed !== true) return false;
+
+  try {
+    await insertOrderItemsAndFinalize(supabase, orderRecord, orderItems);
+    await recordPaymentAttempt(supabase, { orderId: orderRecord.id, status: "completed" });
+    return true;
+  } catch (e) {
+    if (e instanceof WorkshopCapacityAbort) throw e; // persists its own state
+    // Non-abort failure before finalisation completed — release the claim so
+    // a later poll / webhook can retry cleanly.
+    try {
+      await supabase.rpc("release_order_finalization", { p_order_id: orderRecord.id });
+    } catch (relErr) {
+      console.error(`release_order_finalization failed for ${orderRecord.id}:`, relErr);
+    }
+    throw e;
+  }
+}
+
 function capacityResponse(financiallyResolved: boolean, orderValidation: string | null, detail: string) {
   return new Response(JSON.stringify({
     confirmed: false,
@@ -320,31 +386,24 @@ serve(async (req) => {
         return capacityResponse(true, "rejected", "workshop capacity unavailable (resolved)");
       }
 
-      const { data: existingItems, error: existingItemsError } = await supabase
-        .from("order_items")
-        .select("id")
+      // Concurrent-safe finalisation. The claim RPC guarantees exactly one
+      // caller (poll vs webhook) ever runs insertOrderItemsAndFinalize; it
+      // also self-heals a claim that was set but never produced order_items
+      // (crashed finaliser) after 3 minutes.
+      const { data: pendingForRetry } = await supabase
+        .from("pending_payments")
+        .select("payload")
         .eq("order_id", orderId)
-        .limit(1);
+        .maybeSingle();
 
-      if (existingItemsError) {
-        throw new Error(`Failed to check order_items: ${existingItemsError.message}`);
-      }
-
-      if (!existingItems || existingItems.length === 0) {
-        const { data: pendingForRetry } = await supabase
-          .from("pending_payments")
-          .select("payload")
-          .eq("order_id", orderId)
-          .maybeSingle();
-
-        if (pendingForRetry) {
-          await insertOrderItemsAndFinalize(supabase, existingOrder, pendingForRetry.payload.orderItems);
-        }
+      let justCreated = false;
+      if (pendingForRetry?.payload?.orderItems) {
+        justCreated = await finalizeIfClaimed(supabase, existingOrder, pendingForRetry.payload.orderItems);
       }
 
       return new Response(JSON.stringify({
         confirmed: true,
-        justCreated: false,
+        justCreated,
         orderValidation: existingOrder.order_validation,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -385,13 +444,27 @@ serve(async (req) => {
         "GET",
       ) as { state: string };
 
-      if (
-        FAILURE_STATES.has(transaction.state) ||
-        !SUCCESS_STATES.has(transaction.state)
-      ) {
+      if (FAILURE_STATES.has(transaction.state)) {
+        // Terminal failure — release reservations + drop pending_payments so
+        // the customer isn't blocked and the voucher/reward become reusable.
+        await cleanupFailedPayment(supabase, orderId, pending, transaction.state);
         return new Response(JSON.stringify({
           confirmed: false,
-          failed: FAILURE_STATES.has(transaction.state),
+          failed: true,
+          state: transaction.state,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      if (!SUCCESS_STATES.has(transaction.state)) {
+        // Not terminal yet (CREATE / PENDING / CONFIRMED / PROCESSING /
+        // unknown). Keep everything — the poll keeps polling, the webhook
+        // will fire on the next state change.
+        return new Response(JSON.stringify({
+          confirmed: false,
+          failed: false,
           state: transaction.state,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -403,6 +476,7 @@ serve(async (req) => {
     const order = pending.payload.order;
     const orderItems = pending.payload.orderItems;
 
+    let orderRecord: any;
     const { data: insertedOrder, error: orderError } =
       await supabase.from("orders").insert({
         ...order,
@@ -411,16 +485,28 @@ serve(async (req) => {
         payment_status: "pending",
       }).select().single();
 
-    if (orderError || !insertedOrder) {
-      throw new Error("Failed to save order");
+    if (orderError) {
+      // 23505 = the PostFinance webhook and this poll raced on orders.id.
+      // Re-select and treat it exactly like the existing-order path. Any
+      // OTHER SQL error is a real failure and must NOT be masked.
+      if ((orderError as { code?: string }).code === "23505") {
+        const { data: raced } = await supabase
+          .from("orders").select("*").eq("id", orderId).maybeSingle();
+        if (!raced) throw new Error("Order insert conflict (23505) but no order row found");
+        orderRecord = raced;
+      } else {
+        throw new Error(`Failed to save order: ${orderError.message}`);
+      }
+    } else {
+      orderRecord = insertedOrder;
     }
 
-    await insertOrderItemsAndFinalize(supabase, insertedOrder, orderItems);
+    const justCreated = await finalizeIfClaimed(supabase, orderRecord, orderItems);
 
     return new Response(JSON.stringify({
       confirmed: true,
-      justCreated: true,
-      orderValidation: "pending",
+      justCreated,
+      orderValidation: orderRecord.order_validation ?? "pending",
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

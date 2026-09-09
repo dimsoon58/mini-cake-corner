@@ -12,3 +12,9 @@ verify_jwt = false
 # Test de connexion, a supprimer une fois l'integration validee.
 [functions.postfinance-selftest]
 verify_jwt = false
+
+# PostFinance Checkout webhook — called by PostFinance, not a Supabase client.
+# Authenticated by the ?s=<POSTFINANCE_WEBHOOK_SECRET> URL secret (and an
+# optional ECDSA payload signature) inside the function, never a user JWT.
+[functions.postfinance-webhook]
+verify_jwt = false

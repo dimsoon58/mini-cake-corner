@@ -1,6 +1,19 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
+import {
+  getPostFinanceCredentials,
+  pfFetch,
+  REWARD_ONLY_TRANSACTION_ID,
+  type PostFinanceCredentials,
+} from "../_shared/postfinance.ts";
+import {
+  classifyTxState,
+  findTransactionByMerchantReference,
+  getPaymentPageUrl,
+  getTransactionState,
+} from "../_shared/postfinance-transactions.ts";
+import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
+import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { priceOrderItem, type PricingInput } from "../_shared/pricing.ts";
 import { resolveDeliveryFeeByDistance } from "../_shared/delivery-pricing.ts";
 import { resolveDeliveryForPlaceId } from "../_shared/google-maps.ts";
@@ -187,6 +200,164 @@ async function releaseRewardReservation(supabase: any, orderId: string): Promise
   }
 }
 
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status,
+  });
+}
+
+// Release BOTH reservations tied to one orderId — used only when a checkout is
+// proven dead (transaction confirmed FAILED/DECLINE/VOIDED, or the mandatory
+// merchantReference search proved no transaction was ever created).
+async function releaseReservationsForOrder(
+  supabase: any,
+  orderId: string,
+  customerId: string | null,
+): Promise<void> {
+  if (customerId) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ welcome_discount_reserved_order_id: null, welcome_discount_reserved_at: null })
+      .eq("id", customerId)
+      .eq("welcome_discount_reserved_order_id", orderId);
+    if (error) console.error("releaseReservationsForOrder welcome release error:", error);
+  }
+  try {
+    const { error } = await supabase.rpc("release_reward_reservation", { p_order_id: orderId });
+    if (error) console.error("releaseReservationsForOrder reward release error:", error);
+  } catch (e) {
+    console.error("releaseReservationsForOrder reward release threw:", e);
+  }
+}
+
+// Resume (or terminate) a checkout that already has a real PostFinance
+// transaction id — called from handleRetry once the id is known (either it was
+// already on pending_payments, or the merchantReference search just found it).
+async function resumeByTransaction(
+  supabase: any,
+  credentials: PostFinanceCredentials,
+  orderId: string,
+  txId: string,
+  row: { payload: any },
+  en: boolean,
+  knownState?: string | null,
+): Promise<Response> {
+  const lang = row.payload?.order?.lang ?? (en ? "en" : "fr");
+  const customerId = row.payload?.order?.customer_id ?? null;
+  const state = knownState ?? await getTransactionState(credentials, txId);
+  const cls = classifyTxState(state);
+
+  if (cls === "success") {
+    // Authorised / captured — the order itself is created by
+    // confirm-postfinance-payment. Send the client to the polling screen.
+    return jsonResponse({ status: "authorized", transactionId: txId }, 200);
+  }
+
+  if (cls === "failure") {
+    await releaseReservationsForOrder(supabase, orderId, customerId);
+    await supabase.from("pending_payments").delete().eq("order_id", orderId);
+    await recordPaymentAttempt(supabase, {
+      orderId, transactionId: txId, status: "payment_failed",
+      errorType: `tx_${String(state).toLowerCase()}`, lang,
+    });
+    return jsonResponse({
+      status: "failed",
+      retryWithNewOrder: true,
+      message: en
+        ? "Your previous payment did not go through. Your cart has been saved — please try again."
+        : "Votre paiement précédent n'a pas abouti. Votre panier a été conservé, merci de réessayer.",
+    }, 200);
+  }
+
+  // in_progress / unrecognised state → hand back the SAME transaction's page.
+  try {
+    const url = await getPaymentPageUrl(credentials, txId);
+    await recordPaymentAttempt(supabase, {
+      orderId, transactionId: txId, status: "payment_page_created", lang,
+    });
+    return jsonResponse({ transactionId: Number(txId) || txId, paymentPageUrl: url, resumed: true }, 200);
+  } catch (e) {
+    console.error("resumeByTransaction: payment-page-url failed:", e);
+    return jsonResponse({
+      status: "in_progress",
+      message: en
+        ? "We're still preparing your payment page. Please wait a moment and try again."
+        : "Nous préparons encore votre page de paiement. Merci de patienter un instant puis de réessayer.",
+    }, 200);
+  }
+}
+
+// A second (or later) call for an orderId that already has a pending_payments
+// row. NEVER creates a new PostFinance transaction on the strength of "the
+// merchantReference wasn't found" — only a CONCLUSIVE search result unlocks a
+// restart; anything ambiguous returns in_progress on the SAME orderId.
+async function handleRetry(
+  supabase: any,
+  credentials: PostFinanceCredentials,
+  orderId: string,
+  row: { postfinance_transaction_id: string; payload: any; created_at: string },
+  lang: string,
+): Promise<Response> {
+  const en = lang === "en";
+  const txId = String(row.postfinance_transaction_id || "");
+
+  // Already finalised (the webhook or an earlier poll beat this retry).
+  const { data: ord } = await supabase
+    .from("orders").select("id, order_validation").eq("id", orderId).maybeSingle();
+  if (ord) {
+    return jsonResponse({ status: "already_confirmed", orderId, orderValidation: ord.order_validation }, 200);
+  }
+
+  if (txId === REWARD_ONLY_TRANSACTION_ID) {
+    return jsonResponse({ status: "authorized", transactionId: txId }, 200);
+  }
+
+  if (txId && txId !== "CREATING") {
+    return await resumeByTransaction(supabase, credentials, orderId, txId, row, en);
+  }
+
+  // Placeholder still "CREATING" → the mandatory merchantReference search.
+  const found = await findTransactionByMerchantReference(credentials, orderId, {
+    pendingCreatedAt: row.created_at,
+  });
+
+  if (!found.conclusive) {
+    await recordPaymentAttempt(supabase, {
+      orderId, status: "technical_error", errorType: "resume_inconclusive", lang,
+    });
+    return jsonResponse({
+      status: "in_progress",
+      message: en
+        ? "We're still checking your payment. Please wait a moment and try again."
+        : "Nous vérifions encore votre paiement. Merci de patienter un instant puis de réessayer.",
+    }, 200);
+  }
+
+  if (found.transaction) {
+    await supabase.from("pending_payments")
+      .update({ postfinance_transaction_id: String(found.transaction.id) })
+      .eq("order_id", orderId);
+    return await resumeByTransaction(
+      supabase, credentials, orderId, String(found.transaction.id),
+      row, en, found.transaction.state,
+    );
+  }
+
+  // CONCLUSIVE: no PostFinance transaction was ever created for this orderId.
+  await releaseReservationsForOrder(supabase, orderId, row.payload?.order?.customer_id ?? null);
+  await supabase.from("pending_payments").delete().eq("order_id", orderId);
+  await recordPaymentAttempt(supabase, {
+    orderId, status: "payment_failed", errorType: "no_transaction_created", lang,
+  });
+  return jsonResponse({
+    status: "restart_checkout",
+    message: en
+      ? "No payment was started. Your cart has been saved — please try again."
+      : "Aucun paiement n'a été démarré. Votre panier a été conservé, merci de réessayer.",
+  }, 200);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -204,6 +375,14 @@ serve(async (req) => {
   let cleanupCustomerId: string | null = null;
   let rewardReservationOutstanding = false;
   let welcomeReservationOutstanding = false;
+
+  // Set true the instant we attempt POST /payment/transactions. From that
+  // point on the outcome is AMBIGUOUS (the request may have reached
+  // PostFinance) — the global catch must NOT release reservations or delete
+  // the CREATING placeholder; a retry's mandatory merchantReference search is
+  // the only thing allowed to conclude "nothing was created".
+  let postAttempted = false;
+  let placeholderCreated = false;
 
   const releaseRewardIfOutstanding = async () => {
     if (rewardReservationOutstanding && cleanupSupabase && cleanupOrderId) {
@@ -239,6 +418,59 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } },
     );
+
+    const orderLang: "fr" | "en" = order.lang === "en" ? "en" : "fr";
+
+    // Never trust customer_id from the client payload — always stamp it
+    // server-side from the verified Auth session. The anon key is itself a
+    // valid JWT, so a guest checkout simply resolves to no user here (not an
+    // error). Done FIRST now (it used to run mid-flow) so the CREATING
+    // placeholder below already carries customer_id — a retry needs it to
+    // release the welcome-discount reservation.
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } },
+    );
+    const { data: { user: authenticatedUser } } = await authClient.auth.getUser();
+    order.customer_id = authenticatedUser?.id ?? null;
+
+    // ─── Idempotency: the "CREATING" pending_payments placeholder ───────────
+    // Written BEFORE any pricing so a second call for the same orderId (a
+    // browser timeout / retry) is detected here and routed through
+    // handleRetry() — which resolves the existing transaction (mandatory
+    // merchantReference search when the id isn't known yet) instead of ever
+    // creating a second PostFinance transaction. The placeholder's payload is
+    // replaced with the final authoritative one further down, right before the
+    // transaction is created.
+    const { data: existingPending } = await supabase
+      .from("pending_payments")
+      .select("postfinance_transaction_id, payload, created_at")
+      .eq("order_id", orderId)
+      .maybeSingle();
+    if (existingPending) {
+      return await handleRetry(supabase, credentials, orderId, existingPending, orderLang);
+    }
+
+    const { error: placeholderError } = await supabase.from("pending_payments").insert({
+      order_id: orderId,
+      postfinance_transaction_id: "CREATING",
+      payload: { order, orderItems },
+    });
+    if (placeholderError) {
+      if ((placeholderError as { code?: string }).code === "23505") {
+        const { data: raced } = await supabase
+          .from("pending_payments")
+          .select("postfinance_transaction_id, payload, created_at")
+          .eq("order_id", orderId)
+          .maybeSingle();
+        if (raced) return await handleRetry(supabase, credentials, orderId, raced, orderLang);
+      }
+      throw new Error(`Failed to stage pending payment: ${placeholderError.message}`);
+    }
+    placeholderCreated = true;
+    cleanupSupabase = supabase;
+    cleanupOrderId = orderId;
 
     // Recompute and LOCK every item's real price before anything else below
     // reads item.total — welcome-discount base selection, PostFinance line
@@ -407,18 +639,6 @@ serve(async (req) => {
       order.delivery_fee = 0;
     }
 
-    // Never trust customer_id from the client payload — always stamp it
-    // server-side from the verified Auth session. The anon key is itself a
-    // valid JWT, so a guest checkout simply resolves to no user here (not
-    // an error) — getUser() failing/returning null just means "guest".
-    const authClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } },
-    );
-    const { data: { user: authenticatedUser } } = await authClient.auth.getUser();
-    order.customer_id = authenticatedUser?.id ?? null;
-
     // Welcome voucher (-10% on products only, never on delivery). Reserved
     // atomically via claim_welcome_discount() so two simultaneous checkouts
     // for the same account can never both win it — see that function for
@@ -562,8 +782,6 @@ serve(async (req) => {
     const expressSurcharge = isExpress ? roundToCents(expressEligibleBase * EXPRESS_RATE) : 0;
     order.express_surcharge_amount = expressSurcharge;
 
-    const orderLang: "fr" | "en" = order.lang === "en" ? "en" : "fr";
-
     const lineItems = orderItems.map((item, i) => {
       const isWorkshop = item.product === "workshop";
       const participants = Number(item.workshop_participants) || 0;
@@ -671,62 +889,119 @@ serve(async (req) => {
       },
     };
 
-    try {
-      const transaction = await pfFetch(
-        credentials,
-        "/payment/transactions",
-        "POST",
-        transactionCreate
-      ) as { id: number };
-
-      const paymentPageUrl = await pfFetch(
-        credentials,
-        `/payment/transactions/${transaction.id}/payment-page-url`,
-        "GET",
-      ) as string;
-
-      const { error: stagingError } = await supabase.from("pending_payments").insert({
-        order_id: orderId,
-        postfinance_transaction_id: String(transaction.id),
-        payload: { order, orderItems },
-      });
-
-      if (stagingError) {
-        console.error("Failed to stage pending payment:", stagingError);
-        throw new Error("Failed to save pending payment");
-      }
-
-      return new Response(JSON.stringify({
-        transactionId: transaction.id,
-        paymentPageUrl,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    } catch (innerError) {
-      // The customer never reached a usable payment page — this is a
-      // backend failure, not an abandoned checkout, so release the
-      // reservations immediately instead of leaving them blocked.
-      await releaseWelcomeIfOutstanding();
-      await releaseRewardIfOutstanding();
-      throw innerError;
+    // ─── Persist the FINAL authoritative payload BEFORE using the transaction
+    // confirm-postfinance-payment and the webhook read THIS payload to create
+    // the order, so it must already carry the final welcome discount, reward,
+    // express surcharge, delivery fee and total_amount.
+    const { error: payloadError } = await supabase
+      .from("pending_payments")
+      .update({ payload: { order, orderItems } })
+      .eq("order_id", orderId);
+    if (payloadError) {
+      throw new Error(`Failed to persist final payment payload: ${payloadError.message}`);
     }
+
+    // ─── Create the PostFinance transaction ──────────────────────────────
+    let transaction: { id: number };
+    try {
+      postAttempted = true;
+      transaction = await pfFetch(
+        credentials, "/payment/transactions", "POST", transactionCreate,
+      ) as { id: number };
+    } catch (createErr) {
+      // AMBIGUOUS: the POST may still have reached PostFinance. Do NOT release
+      // the reservations and do NOT delete the CREATING placeholder — a retry
+      // on the same orderId runs the mandatory merchantReference search.
+      await recordPaymentAttempt(supabase, {
+        orderId, status: "technical_error", errorType: "transaction_create_failed",
+        amount: order.total_amount, lang: order.lang,
+      });
+      EdgeRuntime.waitUntil(sendTechnicalAlert({
+        subject: `Échec création transaction PostFinance — commande ${orderId}`,
+        lines: [
+          `Order ID : ${orderId}`,
+          `Email : ${order.email}`,
+          `Montant : CHF ${order.total_amount}`,
+          `Heure : ${new Date().toISOString()}`,
+          `Type : transaction_create_failed`,
+          `Erreur : ${createErr instanceof Error ? createErr.message : String(createErr)}`,
+        ],
+      }));
+      return jsonResponse({
+        error: orderLang === "en"
+          ? "We couldn't start the payment. Your cart has been saved — please try again."
+          : "Nous n'avons pas pu démarrer le paiement. Votre panier a été conservé, merci de réessayer.",
+        code: "PAYMENT_INIT_FAILED",
+        retryable: true,
+      }, 502);
+    }
+
+    // Persist the REAL transaction id immediately — BEFORE the payment-page
+    // URL step — so a retry can always resume this exact transaction.
+    await supabase.from("pending_payments")
+      .update({ postfinance_transaction_id: String(transaction.id) })
+      .eq("order_id", orderId);
+
+    // ─── Payment page URL ───────────────────────────────────────────────
+    let paymentPageUrl: string;
+    try {
+      paymentPageUrl = await getPaymentPageUrl(credentials, transaction.id);
+    } catch (urlErr) {
+      // The transaction EXISTS and its id is saved. Keep EVERYTHING (the
+      // reservations included) — a retry on the same orderId re-fetches the
+      // URL for this same transaction. Reservations are released only on a
+      // confirmed FAILED / DECLINE / VOIDED state.
+      await recordPaymentAttempt(supabase, {
+        orderId, transactionId: transaction.id, status: "technical_error",
+        errorType: "payment_page_url_unavailable", amount: order.total_amount, lang: order.lang,
+      });
+      EdgeRuntime.waitUntil(sendTechnicalAlert({
+        subject: `Page de paiement PostFinance indisponible — commande ${orderId}`,
+        lines: [
+          `Order ID : ${orderId}`,
+          `Transaction : ${transaction.id}`,
+          `Email : ${order.email}`,
+          `Montant : CHF ${order.total_amount}`,
+          `Heure : ${new Date().toISOString()}`,
+          `Type : payment_page_url_unavailable`,
+          `Erreur : ${urlErr instanceof Error ? urlErr.message : String(urlErr)}`,
+        ],
+      }));
+      return jsonResponse({
+        error: orderLang === "en"
+          ? "Your payment was started but the payment page could not open. Your cart has been saved — please try again."
+          : "Le paiement a été initié mais la page de paiement n'a pas pu s'ouvrir. Votre panier a été conservé, merci de réessayer.",
+        code: "PAYMENT_PAGE_UNAVAILABLE",
+        retryable: true,
+      }, 502);
+    }
+
+    await recordPaymentAttempt(supabase, {
+      orderId, transactionId: transaction.id, status: "payment_page_created",
+      amount: order.total_amount, lang: order.lang,
+    });
+
+    return jsonResponse({ transactionId: transaction.id, paymentPageUrl }, 200);
   } catch (error) {
     console.error("Error creating PostFinance transaction:", error);
 
-    // Global safety net: any throw AFTER a reservation succeeded but BEFORE
-    // the payment page + pending_payments row both exist lands here (the
-    // inner catch only wraps the PostFinance call). Release whatever is
-    // still outstanding — both helpers no-op if their reservation was
-    // already given back above.
-    await releaseRewardIfOutstanding();
-    await releaseWelcomeIfOutstanding();
+    // Reservations + the CREATING placeholder are only cleaned up for a
+    // failure STRICTLY BEFORE the transaction POST was attempted. Once
+    // postAttempted is true the outcome is ambiguous, and only a retry's
+    // merchantReference search (or a confirmed FAILED/DECLINE/VOIDED) may
+    // release anything.
+    if (!postAttempted) {
+      await releaseRewardIfOutstanding();
+      await releaseWelcomeIfOutstanding();
+      if (placeholderCreated && cleanupSupabase && cleanupOrderId) {
+        await cleanupSupabase.from("pending_payments").delete()
+          .eq("order_id", cleanupOrderId)
+          .eq("postfinance_transaction_id", "CREATING");
+      }
+    }
 
-    return new Response(JSON.stringify({
+    return jsonResponse({
       error: error instanceof Error ? error.message : "Unknown error",
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    }, 500);
   }
 });

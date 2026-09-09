@@ -219,18 +219,45 @@ serve(async (req) => {
 
     if (itemsError) throw new Error(`Failed to load order_items: ${itemsError.message}`);
 
-    // Generate a secure single-use token (no expiry enforced)
-    const token = crypto.randomUUID() + "-" + crypto.randomUUID();
-    const { error: tokenError } = await supabase
+    // Single-use accept/decline token. notify-order is normally invoked once
+    // per order, but the payment-resilience webhook means a retry is possible
+    // if a previous invocation created the token and then died before Resend
+    // actually accepted the email. Reuse an existing token in that case
+    // instead of failing (which would lose the admin email forever) or
+    // stacking a second token.
+    const { data: existingToken } = await supabase
       .from("order_action_tokens")
-      .insert({
-        order_id: orderId,
-        token,
-      });
+      .select("token")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-    if (tokenError) {
-      console.error("Token creation error:", tokenError);
-      throw new Error("Failed to create action token");
+    let token: string;
+    if (existingToken?.token) {
+      token = existingToken.token;
+    } else {
+      token = crypto.randomUUID() + "-" + crypto.randomUUID();
+      const { error: tokenError } = await supabase
+        .from("order_action_tokens")
+        .insert({ order_id: orderId, token });
+      if (tokenError) {
+        // A racing invocation may have inserted one between our SELECT and
+        // INSERT — fall back to reading it rather than failing.
+        const { data: raced } = await supabase
+          .from("order_action_tokens")
+          .select("token")
+          .eq("order_id", orderId)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (raced?.token) {
+          token = raced.token;
+        } else {
+          console.error("Token creation error:", tokenError);
+          throw new Error("Failed to create action token");
+        }
+      }
     }
 
     const siteUrl = "https://dimsoon58.github.io/mini-cake-corner";
