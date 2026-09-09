@@ -421,13 +421,6 @@ const WorkshopBooking = () => {
           </div>
         </div>
 
-        <div className="border border-primary/30 bg-primary/5 p-4 text-sm text-foreground/80 leading-relaxed">
-          {t(
-            "By adding this workshop to your cart, you agree to our cancellation policy. Your contact details and payment are completed securely at checkout, together with the rest of your cart.",
-            "En ajoutant cet atelier au panier, vous acceptez notre politique d'annulation. Vos coordonnées et le paiement s'effectuent de manière sécurisée au moment de la commande, avec le reste de votre panier.",
-          )}
-        </div>
-
         <Button
           onClick={handleAddToCart}
           disabled={isSubmitting}
