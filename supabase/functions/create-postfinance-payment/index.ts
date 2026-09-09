@@ -358,9 +358,15 @@ async function handleRetry(
   }
 
   if (found.transaction) {
-    await supabase.from("pending_payments")
+    // Only adopt onto a placeholder that is still CREATING / empty — never
+    // overwrite a real id that may already be there.
+    const { data: adopted, error: adoptErr } = await supabase.from("pending_payments")
       .update({ postfinance_transaction_id: String(found.transaction.id) })
-      .eq("order_id", orderId);
+      .eq("order_id", orderId)
+      .in("postfinance_transaction_id", ["CREATING", ""])
+      .select("order_id");
+    if (adoptErr) console.error(`handleRetry: adopt txid failed for ${orderId}:`, adoptErr);
+    void adopted;
     return await resumeByTransaction(
       supabase, credentials, orderId, String(found.transaction.id),
       row, en, found.transaction.state,
@@ -458,42 +464,21 @@ serve(async (req) => {
     const { data: { user: authenticatedUser } } = await authClient.auth.getUser();
     order.customer_id = authenticatedUser?.id ?? null;
 
-    // ─── Idempotency: the "CREATING" pending_payments placeholder ───────────
-    // Written BEFORE any pricing so a second call for the same orderId (a
-    // browser timeout / retry) is detected here and routed through
-    // handleRetry() — which resolves the existing transaction (mandatory
-    // merchantReference search when the id isn't known yet) instead of ever
-    // creating a second PostFinance transaction. The placeholder's payload is
-    // replaced with the final authoritative one further down, right before the
-    // transaction is created.
-    const { data: existingPending } = await supabase
-      .from("pending_payments")
-      .select("postfinance_transaction_id, payload, created_at")
-      .eq("order_id", orderId)
-      .maybeSingle();
-    if (existingPending) {
-      return await handleRetry(supabase, credentials, orderId, existingPending, orderLang);
-    }
-
-    const { error: placeholderError } = await supabase.from("pending_payments").insert({
-      order_id: orderId,
-      postfinance_transaction_id: "CREATING",
-      payload: { order, orderItems },
-    });
-    if (placeholderError) {
-      if ((placeholderError as { code?: string }).code === "23505") {
-        const { data: raced } = await supabase
-          .from("pending_payments")
-          .select("postfinance_transaction_id, payload, created_at")
-          .eq("order_id", orderId)
-          .maybeSingle();
-        if (raced) return await handleRetry(supabase, credentials, orderId, raced, orderLang);
+    // Fast path — read-only. If the placeholder for this orderId already
+    // exists (the first call got that far), route straight to handleRetry and
+    // skip re-running pricing + Google Maps. This is NOT the serialization
+    // point: that is still the UNIQUE pending_payments INSERT further down,
+    // which also catches two truly-parallel first calls.
+    {
+      const { data: earlyPending } = await supabase
+        .from("pending_payments")
+        .select("postfinance_transaction_id, payload, created_at")
+        .eq("order_id", orderId)
+        .maybeSingle();
+      if (earlyPending) {
+        return await handleRetry(supabase, credentials, orderId, earlyPending, orderLang);
       }
-      throw new Error(`Failed to stage pending payment: ${placeholderError.message}`);
     }
-    placeholderCreated = true;
-    cleanupSupabase = supabase;
-    cleanupOrderId = orderId;
 
     // Recompute and LOCK every item's real price before anything else below
     // reads item.total — welcome-discount base selection, PostFinance line
@@ -661,6 +646,48 @@ serve(async (req) => {
       // Pick-up — unchanged behaviour: no distance lookup, no fee.
       order.delivery_fee = 0;
     }
+
+    // ─── Idempotency: the "CREATING" pending_payments placeholder ───────────
+    // Placed AFTER every slow, side-effect-free step (item repricing, workshop
+    // session loads, Google Maps distance, the J+2 date guard) and JUST BEFORE
+    // the first stateful step (welcome claim). Two concurrent calls for the
+    // same orderId can therefore compute in parallel, but the UNIQUE
+    // pending_payments.order_id makes exactly ONE win this INSERT and reach any
+    // reservation or PostFinance transaction; the loser is routed through
+    // handleRetry(). The 90s CREATING lease is now only a safety net — the
+    // window between this INSERT and POST /payment/transactions is a few fast
+    // operations, never a slow Google Maps call.
+    const { data: existingPending } = await supabase
+      .from("pending_payments")
+      .select("postfinance_transaction_id, payload, created_at")
+      .eq("order_id", orderId)
+      .maybeSingle();
+    if (existingPending) {
+      return await handleRetry(supabase, credentials, orderId, existingPending, orderLang);
+    }
+
+    const { error: placeholderError } = await supabase.from("pending_payments").insert({
+      order_id: orderId,
+      postfinance_transaction_id: "CREATING",
+      // Priced items + resolved delivery. The FINAL payload (welcome / reward /
+      // express / total) overwrites this a few lines down, before the
+      // transaction is created or used.
+      payload: { order, orderItems },
+    });
+    if (placeholderError) {
+      if ((placeholderError as { code?: string }).code === "23505") {
+        const { data: raced } = await supabase
+          .from("pending_payments")
+          .select("postfinance_transaction_id, payload, created_at")
+          .eq("order_id", orderId)
+          .maybeSingle();
+        if (raced) return await handleRetry(supabase, credentials, orderId, raced, orderLang);
+      }
+      throw new Error(`Failed to stage pending payment: ${placeholderError.message}`);
+    }
+    placeholderCreated = true;
+    cleanupSupabase = supabase;
+    cleanupOrderId = orderId;
 
     // Welcome voucher (-10% on products only, never on delivery). Reserved
     // atomically via claim_welcome_discount() so two simultaneous checkouts
@@ -908,12 +935,19 @@ serve(async (req) => {
     // the order, so it must already carry the final welcome discount, reward,
     // express surcharge, delivery fee and total_amount. Done for BOTH the
     // reward-only and the normal path.
-    const { error: payloadError } = await supabase
+    const { data: payloadRows, error: payloadError } = await supabase
       .from("pending_payments")
       .update({ payload: { order, orderItems } })
-      .eq("order_id", orderId);
+      .eq("order_id", orderId)
+      .select("order_id");
     if (payloadError) {
       throw new Error(`Failed to persist final payment payload: ${payloadError.message}`);
+    }
+    if (!Array.isArray(payloadRows) || payloadRows.length !== 1) {
+      // The placeholder vanished (or was never inserted) — never proceed to a
+      // PostFinance transaction whose payload confirm-postfinance-payment
+      // cannot read.
+      throw new Error(`Final payload UPDATE touched ${payloadRows?.length ?? 0} pending_payments rows for ${orderId} — aborting.`);
     }
 
     // ─── Reward-only checkout — total fully covered by the cagnotte ───────
@@ -924,12 +958,16 @@ serve(async (req) => {
     // welcome + reward reservations MUST survive — they are consumed at
     // capture, exactly like a paid order.
     if (order.total_amount === 0) {
-      const { error: rewardOnlyError } = await supabase
+      const { data: roRows, error: rewardOnlyError } = await supabase
         .from("pending_payments")
         .update({ postfinance_transaction_id: REWARD_ONLY_TRANSACTION_ID })
-        .eq("order_id", orderId);
+        .eq("order_id", orderId)
+        .select("order_id");
       if (rewardOnlyError) {
         throw new Error(`Failed to stage reward-only payment: ${rewardOnlyError.message}`);
+      }
+      if (!Array.isArray(roRows) || roRows.length !== 1) {
+        throw new Error(`Reward-only UPDATE touched ${roRows?.length ?? 0} pending_payments rows for ${orderId} — aborting.`);
       }
 
       // Nothing to POST — but flip postAttempted so the global catch never
@@ -1005,10 +1043,30 @@ serve(async (req) => {
     }
 
     // Persist the REAL transaction id immediately — BEFORE the payment-page
-    // URL step — so a retry can always resume this exact transaction.
-    await supabase.from("pending_payments")
+    // URL step — so a retry can always resume this exact transaction. A
+    // transaction now exists at PostFinance; if we cannot record its id, alert
+    // (the retry path's merchantReference search / the webhook will still
+    // reconcile it, but a human should know).
+    const { data: txIdRows, error: txIdError } = await supabase.from("pending_payments")
       .update({ postfinance_transaction_id: String(transaction.id) })
-      .eq("order_id", orderId);
+      .eq("order_id", orderId)
+      .select("order_id");
+    if (txIdError || !Array.isArray(txIdRows) || txIdRows.length !== 1) {
+      console.error(
+        `create-postfinance-payment: failed to persist transaction id ${transaction.id} for ${orderId} ` +
+        `(err=${txIdError?.message ?? "none"}, rows=${txIdRows?.length ?? 0})`,
+      );
+      EdgeRuntime.waitUntil(sendTechnicalAlert({
+        subject: `Transaction PostFinance non enregistrée localement — commande ${orderId}`,
+        lines: [
+          `Order ID : ${orderId}`,
+          `Transaction : ${transaction.id}`,
+          `Heure : ${new Date().toISOString()}`,
+          `La transaction existe chez PostFinance mais son ID n'a pas pu être écrit dans pending_payments.`,
+          `Réconciliation : recherche merchantReference (retry) ou webhook.`,
+        ],
+      }));
+    }
 
     // ─── Payment page URL ───────────────────────────────────────────────
     let paymentPageUrl: string;

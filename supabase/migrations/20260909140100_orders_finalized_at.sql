@@ -29,14 +29,24 @@
 -- later confirm-postfinance-payment / webhook call for the finalised order.
 
 alter table public.orders
-  add column if not exists finalization_claimed_at timestamptz,
-  add column if not exists finalized_at            timestamptz,
-  add column if not exists side_effects_retry_at   timestamptz,
-  add column if not exists side_effects_done_at    timestamptz,
-  add column if not exists make_notified_at        timestamptz,
-  add column if not exists admin_notified_at       timestamptz,
-  add column if not exists customer_email_sent_at  timestamptz,
-  add column if not exists workshop_email_sent_at  timestamptz;
+  add column if not exists finalization_claimed_at   timestamptz,
+  add column if not exists finalized_at              timestamptz,
+  add column if not exists side_effects_retry_at     timestamptz,
+  add column if not exists side_effects_done_at      timestamptz,
+  add column if not exists make_notified_at          timestamptz,
+  add column if not exists make_webhook_dispatched_at timestamptz,
+  add column if not exists workshop_make_notified_at timestamptz,
+  add column if not exists admin_notified_at         timestamptz,
+  add column if not exists customer_email_sent_at    timestamptz,
+  add column if not exists workshop_email_sent_at    timestamptz;
+
+-- Written by the production Make scenario ("Commandes & Paiements" + Agenda)
+-- at the END of a successful Notion sync ('synced') or on failure ('error').
+-- This is the DURABLE acknowledgement runSideEffects() waits for before it
+-- sets make_notified_at — an HTTP 2xx from the webhook is NOT proof. Defensive
+-- ADD (the column already exists in production).
+alter table public.orders
+  add column if not exists notion_sync_status text;
 
 comment on column public.orders.finalization_claimed_at is
   'Finalisation lease — set by claim_order_finalization() before order_items exist. finalized_at (set only after ALL order_items are inserted) is the real "DB order complete" marker.';
@@ -47,7 +57,11 @@ comment on column public.orders.side_effects_retry_at is
 comment on column public.orders.side_effects_done_at is
   'Set once EVERY applicable side-effect (Make + e-mails) is delivered. NULL => the periodic sweep (retry-order-side-effects) keeps retrying.';
 comment on column public.orders.make_notified_at is
-  'Production Make webhook delivered (HTTP 2xx). Retried while NULL.';
+  'Production Make + Notion + Agenda really synced (orders.notion_sync_status = ''synced''). NOT set on a mere HTTP 2xx. Retried while NULL.';
+comment on column public.orders.make_webhook_dispatched_at is
+  'Last time Supabase POSTed a production Make webhook (main or repair) for this order. Used to decide when to switch to the idempotent repair scenario.';
+comment on column public.orders.workshop_make_notified_at is
+  '"Réservations Workshops -> Notion" webhook delivered (HTTP 2xx on every reservation; that scenario is Find -> Update/Create). Retried while NULL.';
 comment on column public.orders.admin_notified_at is
   'notify-order (admin accept/decline e-mail) delivered. Retried while NULL.';
 comment on column public.orders.customer_email_sent_at is

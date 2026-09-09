@@ -111,7 +111,8 @@ export function buildWorkshopMakePayload(
 }
 
 // Best-effort POST. Never throws — a Make failure must never affect the order,
-// the reservation, the PostFinance flow, or the production webhook.
+// the reservation, the PostFinance flow, or the production webhook. Used for
+// cancellation / lifecycle events (cancel-workshop-seats, manage-order).
 export async function sendWorkshopMakeWebhook(payload: WorkshopMakePayload): Promise<void> {
   const url = Deno.env.get("MAKE_WORKSHOP_WEBHOOK_URL");
   if (!url) {
@@ -127,5 +128,34 @@ export async function sendWorkshopMakeWebhook(payload: WorkshopMakePayload): Pro
     console.log("Workshop Make webhook sent:", payload.workshop_reference, payload.status, payload.refund_status);
   } catch (err) {
     console.error("Workshop Make webhook failed:", err);
+  }
+}
+
+// Same POST, but reports the outcome so the durable side-effect mechanism can
+// decide whether to stamp workshop_make_notified_at. The workshop Make
+// scenario is Find -> Update/Create, so a retry never double-creates.
+//   { ok: true }              -> HTTP 2xx, safe to mark delivered
+//   { ok: false, skipped }    -> MAKE_WORKSHOP_WEBHOOK_URL not configured
+//                                (feature off — treat as "nothing to deliver")
+//   { ok: false }             -> real failure, retry later
+export async function sendWorkshopMakeWebhookChecked(
+  payload: WorkshopMakePayload,
+): Promise<{ ok: boolean; skipped: boolean }> {
+  const url = Deno.env.get("MAKE_WORKSHOP_WEBHOOK_URL");
+  if (!url) return { ok: false, skipped: true };
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) {
+      console.error(`Workshop Make webhook returned ${resp.status} for ${payload.workshop_reference}`);
+      return { ok: false, skipped: false };
+    }
+    return { ok: true, skipped: false };
+  } catch (err) {
+    console.error("Workshop Make webhook threw:", err);
+    return { ok: false, skipped: false };
   }
 }

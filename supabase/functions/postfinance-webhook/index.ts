@@ -6,6 +6,7 @@ import {
   verifyWebhookSignature,
 } from "../_shared/postfinance-webhook-verify.ts";
 import { areSideEffectsComplete } from "../_shared/order-side-effects.ts";
+import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
 
 // PostFinance Checkout → Supabase webhook.
 //
@@ -151,12 +152,45 @@ serve(async (req) => {
         .eq("order_id", merchantRef)
         .maybeSingle();
       if (pendingByRef) {
-        if (String(pendingByRef.postfinance_transaction_id) !== entityId) {
+        const current = String(pendingByRef.postfinance_transaction_id ?? "");
+        if (current === "" || current === "CREATING") {
+          // Adopt the real id — this is the case this whole branch exists for.
           await supabase.from("pending_payments")
             .update({ postfinance_transaction_id: entityId })
             .eq("order_id", merchantRef);
+          orderId = pendingByRef.order_id;
+        } else if (current === entityId) {
+          orderId = pendingByRef.order_id;
+        } else {
+          // pending_payments already carries a DIFFERENT real PostFinance
+          // transaction id. NEVER overwrite it. Two live transactions for one
+          // orderId is a critical anomaly — read both, alert, keep everything,
+          // and 5xx so the event is retried (and a human can look).
+          let stateNew = "unknown", stateOld = "unknown";
+          try {
+            const t1 = await pfFetch(getPostFinanceCredentials(), `/payment/transactions/${entityId}`, "GET") as { state?: string };
+            stateNew = t1?.state ?? "unknown";
+          } catch { /* leave unknown */ }
+          try {
+            const t2 = await pfFetch(getPostFinanceCredentials(), `/payment/transactions/${current}`, "GET") as { state?: string };
+            stateOld = t2?.state ?? "unknown";
+          } catch { /* leave unknown */ }
+          console.error(
+            `postfinance-webhook: CRITICAL — orderId ${merchantRef} already has transaction ${current} ` +
+            `(state ${stateOld}) but webhook is for transaction ${entityId} (state ${stateNew}). Not overwriting.`,
+          );
+          EdgeRuntime.waitUntil(sendTechnicalAlert({
+            subject: `Deux transactions PostFinance pour une commande — ${merchantRef}`,
+            lines: [
+              `Order ID : ${merchantRef}`,
+              `Transaction enregistrée : ${current} — état ${stateOld}`,
+              `Transaction du webhook : ${entityId} — état ${stateNew}`,
+              `Heure : ${new Date().toISOString()}`,
+              `Action : AUCUN écrasement effectué. Vérification manuelle requise (double débit possible).`,
+            ],
+          }));
+          return txt("conflicting transaction id — manual review required", 500);
         }
-        orderId = pendingByRef.order_id;
       } else {
         const { data: ordByRef } = await supabase
           .from("orders").select("id").eq("id", merchantRef).maybeSingle();

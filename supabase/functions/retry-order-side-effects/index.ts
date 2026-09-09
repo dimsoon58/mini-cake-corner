@@ -24,7 +24,6 @@ const corsHeaders = {
 };
 
 const BATCH_LIMIT = 50;          // orders processed per invocation
-const MAX_AGE_DAYS = 14;         // don't scan ancient rows
 
 function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -49,17 +48,16 @@ serve(async (req) => {
     { auth: { persistSession: false } },
   );
 
-  const sinceISO = new Date(Date.now() - MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
-
-  // finalised, side-effects not all delivered, not a workshop-capacity abort,
-  // recent enough. (orders_side_effects_pending_idx backs this.)
+  // Finalised, side-effects not all delivered, not a workshop-capacity abort.
+  // No age cap: legacy orders have side_effects_done_at backfilled, so they
+  // are never scanned; a NEW order broken for 15+ days must still be repaired.
+  // (orders_side_effects_pending_idx backs this.)
   const { data: candidates, error } = await supabase
     .from("orders")
     .select("id")
     .not("finalized_at", "is", null)
     .is("side_effects_done_at", null)
     .is("order_failure_reason", null)
-    .gt("created_at", sinceISO)
     .order("finalized_at", { ascending: true })
     .limit(BATCH_LIMIT);
 

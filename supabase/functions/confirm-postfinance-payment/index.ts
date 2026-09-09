@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "../_shared/postfinance.ts";
-import { buildWorkshopMakePayload, sendWorkshopMakeWebhook } from "../_shared/workshop-make.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
 
@@ -132,34 +131,9 @@ async function abortOrderAfterAuthorization(
   return { financiallyResolved, message: `${reason} — ${note}` };
 }
 
-// Fires the workshop Make webhook (separate "Réservations Workshops" base)
-// with status "pending" for every reservation of the order, right after the
-// batch claim succeeds. Best-effort. Workshop-only orders still never touch
-// the production Make webhook.
-async function notifyWorkshopMakePending(supabase: any, orderRecord: any): Promise<void> {
-  const { data: reservations } = await supabase
-    .from("workshop_reservations").select("*").eq("order_id", orderRecord.id);
-  if (!reservations || reservations.length === 0) return;
-
-  const sessionIds = [...new Set(reservations.map((r: any) => r.workshop_session_id))];
-  const { data: sessions } = await supabase
-    .from("workshop_sessions").select("id, workshop_date, workshop_time").in("id", sessionIds);
-  const sessionById = new Map((sessions ?? []).map((s: any) => [s.id, s]));
-  const customerName = `${orderRecord.first_name || ""} ${orderRecord.last_name || ""}`.trim();
-
-  for (const reservation of reservations) {
-    const session = sessionById.get(reservation.workshop_session_id);
-    await sendWorkshopMakeWebhook(buildWorkshopMakePayload(reservation, {
-      order_number: orderRecord.order_number ?? null,
-      workshop_date: session ? String(session.workshop_date) : null,
-      workshop_time: session ? session.workshop_time : null,
-      customer_name: customerName,
-      customer_email: orderRecord.email,
-      customer_phone: orderRecord.phone || "",
-      refund_status: "non_required",
-    }));
-  }
-}
+// The workshop Make webhook ("Réservations Workshops → Notion") is now a
+// durable, retried side-effect — see runSideEffects() in
+// _shared/order-side-effects.ts (workshop_make_notified_at marker).
 
 // ── DB finalisation ──────────────────────────────────────────────────────
 // Inserts every order_items row, secures the workshop reservations in ONE
@@ -214,11 +188,8 @@ async function finalizeOrderDb(
       const abort = await abortOrderAfterAuthorization(supabase, orderRecord, claimError.message || "claim failed");
       throw new WorkshopCapacityAbort(abort.financiallyResolved, abort.message);
     }
-    // Create the "Réservations Workshops" rows straight away (status pending).
-    EdgeRuntime.waitUntil(
-      notifyWorkshopMakePending(supabase, orderRecord)
-        .catch((e) => console.error("notifyWorkshopMakePending failed (order still created):", e)),
-    );
+    // The "Réservations Workshops → Notion" webhook is fired (and retried
+    // durably) by runSideEffects → workshop_make_notified_at.
   }
 
   // The DB order is complete — and only now. pending_payments is dropped
