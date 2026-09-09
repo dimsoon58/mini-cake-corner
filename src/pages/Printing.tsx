@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
+import { isOrderDateDisabled } from "@/lib/orderDates";
+import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { CalendarIcon, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -23,7 +25,6 @@ const Printing = () => {
   const [comment, setComment] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const minDate = addDays(new Date(), 4);
 
   useEffect(() => {
     document.title = t("Printing – Bento Cake Studio", "Impression – Bento Cake Studio");
@@ -34,7 +35,7 @@ const Printing = () => {
 
   const handleAddToCart = () => {
     if (!orderDate) {
-      toast.error(t("Please choose your pick-up date (minimum 4 days' notice).", "Veuillez choisir votre date de retrait (minimum 4 jours à l'avance)."));
+      toast.error(t("Please choose your pick-up date (minimum 2 days' notice).", "Veuillez choisir votre date de retrait (minimum 2 jours à l'avance)."));
       return;
     }
     if (files.length === 0) {
@@ -128,13 +129,16 @@ const Printing = () => {
                   mode="single"
                   selected={orderDate}
                   onSelect={setOrderDate}
-                  disabled={(date) => date < minDate}
+                  disabled={(date) => isOrderDateDisabled(date)}
                   initialFocus
                   className="p-3 pointer-events-auto"
+                  {...expressCalendarProps}
                 />
+                <div className="px-3 pb-3"><ExpressLegend /></div>
               </PopoverContent>
             </Popover>
-            <p className="text-xs text-muted-foreground">{t("Minimum 4 days' notice.", "Minimum 4 jours à l'avance.")}</p>
+            <p className="text-xs text-muted-foreground">{t("Minimum 2 days' notice.", "Minimum 2 jours à l'avance.")}</p>
+            <ExpressDateNotice date={orderDate} />
           </div>
 
           {/* Upload */}

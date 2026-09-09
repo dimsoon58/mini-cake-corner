@@ -258,6 +258,22 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
           </thead>
           <tbody>
             ${itemSummaryRows}
+            ${(Number(order.express_surcharge_amount) || 0) > 0 ? `<tr>
+              <td style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">${tr("Express surcharge (10%)", "Supplément express (10 %)")}</td>
+              <td style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">CHF ${Number(order.express_surcharge_amount).toFixed(2)}</td>
+            </tr>` : ""}
+            ${(Number(order.welcome_discount_amount) || 0) > 0 ? `<tr>
+              <td style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">${tr("Welcome discount", "Réduction de bienvenue")}</td>
+              <td style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">- CHF ${Number(order.welcome_discount_amount).toFixed(2)}</td>
+            </tr>` : ""}
+            ${(Number(order.reward_amount_used) || 0) > 0 ? `<tr>
+              <td style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">${tr("Reward used", "Cagnotte utilisée")}</td>
+              <td style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">- CHF ${Number(order.reward_amount_used).toFixed(2)}</td>
+            </tr>` : ""}
+            ${(Number(order.delivery_fee) || 0) > 0 ? `<tr>
+              <td style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">${tr("Delivery", "Livraison")}</td>
+              <td style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;white-space:nowrap;">CHF ${Number(order.delivery_fee).toFixed(2)}</td>
+            </tr>` : ""}
           </tbody>
           <tfoot>
             <tr style="background:#78020C;">
@@ -665,6 +681,41 @@ async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
       total: formatInvoicePrice(total),
     };
   });
+
+  // The itemised detail must reconcile exactly with the TOTAL. Order of the
+  // lines: products / workshops -> express surcharge -> welcome discount (-) ->
+  // reward used (-) -> delivery -> TOTAL. Every amount below is read straight
+  // off the committed order (welcome_discount_amount / reward_amount_used /
+  // express_surcharge_amount / delivery_fee) — nothing is recomputed.
+  const expressSurchargeInvoice = Number(order.express_surcharge_amount) || 0;
+  if (expressSurchargeInvoice > 0) {
+    itemRows.push({
+      description: tr("Express surcharge (10%)", "Supplément express (10 %)"),
+      quantity: "1",
+      unitPrice: formatInvoicePrice(expressSurchargeInvoice),
+      total: formatInvoicePrice(expressSurchargeInvoice),
+    });
+  }
+
+  const welcomeDiscountInvoice = Number(order.welcome_discount_amount) || 0;
+  if (welcomeDiscountInvoice > 0) {
+    itemRows.push({
+      description: tr("Welcome discount", "Réduction de bienvenue"),
+      quantity: "",
+      unitPrice: "",
+      total: `- ${formatInvoicePrice(welcomeDiscountInvoice)}`,
+    });
+  }
+
+  const rewardUsedInvoice = Number(order.reward_amount_used) || 0;
+  if (rewardUsedInvoice > 0) {
+    itemRows.push({
+      description: tr("Reward used", "Cagnotte utilisée"),
+      quantity: "",
+      unitPrice: "",
+      total: `- ${formatInvoicePrice(rewardUsedInvoice)}`,
+    });
+  }
 
   const deliveryFee = Number(order.delivery_fee) || 0;
   if (deliveryFee > 0) {

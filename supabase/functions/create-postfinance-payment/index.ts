@@ -108,6 +108,44 @@ function roundToCents(amount: number): number {
   return Math.round(amount * 100) / 100;
 }
 
+const EXPRESS_RATE = 0.10;
+// First selectable pickup/delivery date = today + LEAD_DAYS calendar days.
+// J+0 / J+1 are refused; J+2 / J+3 carry the express surcharge; J+4+ are normal.
+const ORDER_LEAD_DAYS = 2;
+const EXPRESS_MAX_DAYS = 3;
+
+// Today's calendar date in Europe/Zurich as "YYYY-MM-DD" — avoids the UTC
+// off-by-one when deciding whether an order is "express" / too soon.
+function zurichTodayISO(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Zurich",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+// Calendar-day difference between two "YYYY-MM-DD" strings.
+function calendarDaysBetween(fromISO: string, toISO: string): number {
+  const a = Date.UTC(+fromISO.slice(0, 4), +fromISO.slice(5, 7) - 1, +fromISO.slice(8, 10));
+  const b = Date.UTC(+toISO.slice(0, 4), +toISO.slice(5, 7) - 1, +toISO.slice(8, 10));
+  return Math.round((b - a) / 86_400_000);
+}
+
+// Calendar days (Europe/Zurich) between "today" and a pickup/delivery date.
+// null when no date is given.
+function daysUntilPickup(pickupDeliveryDate: string | null | undefined): number | null {
+  if (!pickupDeliveryDate) return null;
+  return calendarDaysBetween(zurichTodayISO(), String(pickupDeliveryDate).slice(0, 10));
+}
+
+// Express = J+2 or J+3 (the only selectable dates that are also within
+// EXPRESS_MAX_DAYS). Never trusts any client flag or amount.
+function isExpressOrder(pickupDeliveryDate: string | null | undefined): boolean {
+  const d = daysUntilPickup(pickupDeliveryDate);
+  return d !== null && d >= ORDER_LEAD_DAYS && d <= EXPRESS_MAX_DAYS;
+}
+
 // Fixed voucher base price for a single order_item, resolved from the
 // (product, size) pair as a whole — never from item.size alone, and never
 // derived from any client-supplied number (item.total is never read here
@@ -309,6 +347,31 @@ serve(async (req) => {
       order.pickup_delivery_datetime = null;
     }
 
+    // ── Physical-order calendar rule — server-authoritative ──────────────
+    // Any order with at least one physical product needs a pickup/delivery
+    // date at least ORDER_LEAD_DAYS (=2) calendar days out (Europe/Zurich):
+    //   J+0 / J+1  -> refused (no PostFinance transaction is created)
+    //   J+2 / J+3  -> allowed, express surcharge applied below
+    //   J+4+       -> allowed, no surcharge
+    // Workshop-only orders are exempt (pickup_delivery_date is null for them).
+    // This runs BEFORE any welcome-discount / reward reservation, so there is
+    // nothing to release; the global catch's release helpers stay as a safety
+    // net regardless.
+    if (hasPhysicalItem) {
+      const daysOut = daysUntilPickup(order.pickup_delivery_date);
+      if (daysOut === null) {
+        throw new Error("A pickup or delivery date is required for this order.");
+      }
+      if (daysOut < ORDER_LEAD_DAYS) {
+        throw new Error(
+          `PICKUP_DATE_TOO_SOON: the earliest available pickup/delivery date is ${ORDER_LEAD_DAYS} calendar days from today (Europe/Zurich). ` +
+          (daysOut < 0
+            ? "The requested date is in the past."
+            : `The requested date is only ${daysOut} day(s) away.`),
+        );
+      }
+    }
+
     if (hasPhysicalItem && order.delivery_method === "delivery") {
       if (!deliveryPlaceId || typeof deliveryPlaceId !== "string") {
         throw new Error("Please select your delivery address from the suggestions.");
@@ -487,6 +550,18 @@ serve(async (req) => {
     }
     order.reward_amount_used = reservedReward;
 
+    // ── Express surcharge (+10%) ───────────────────────────────────────
+    // Server-authoritative: decided ONLY from the Europe/Zurich date vs
+    // order.pickup_delivery_date. Base = physical products only (workshops
+    // and the delivery fee are excluded). Never trusts a client isExpress
+    // flag / amount / total.
+    const expressEligibleBase = orderItems
+      .filter((item) => item.product !== "workshop")
+      .reduce((sum, item) => sum + item.total, 0);
+    const isExpress = isExpressOrder(order.pickup_delivery_date);
+    const expressSurcharge = isExpress ? roundToCents(expressEligibleBase * EXPRESS_RATE) : 0;
+    order.express_surcharge_amount = expressSurcharge;
+
     const orderLang: "fr" | "en" = order.lang === "en" ? "en" : "fr";
 
     const lineItems = orderItems.map((item, i) => {
@@ -546,6 +621,19 @@ serve(async (req) => {
       }
     }
 
+    // Express surcharge is its own readable line — reward is already
+    // allocated (loop above) and can never touch it, and it is added BEFORE
+    // the delivery line so the delivery fee never receives the +10%.
+    if (expressSurcharge > 0) {
+      lineItems.push({
+        uniqueId: "express-surcharge",
+        name: orderLang === "fr" ? "Supplément express (10 %)" : "Express surcharge (10%)",
+        quantity: 1,
+        amountIncludingTax: expressSurcharge,
+        type: "FEE",
+      });
+    }
+
     if (order.delivery_method === "delivery" && order.delivery_fee > 0) {
       lineItems.push({
         uniqueId: "delivery-fee",
@@ -558,11 +646,12 @@ serve(async (req) => {
 
     // The frontend-sent total_amount is never trusted either — recomputed
     // here from the same real numbers PostFinance is actually charging.
-    // orderItems[].total and order.delivery_fee are both server-computed
-    // above (priceOrderItem / resolveDeliveryForPlaceId +
-    // resolveDeliveryFeeByDistance), not client values.
+    // orderItems[].total, order.delivery_fee and expressSurcharge are all
+    // server-computed above, not client values.
     const deliveryFee = order.delivery_method === "delivery" ? order.delivery_fee : 0;
-    order.total_amount = roundToCents(productsSubtotal - discountAmount - reservedReward + deliveryFee);
+    order.total_amount = roundToCents(
+      productsSubtotal - discountAmount - reservedReward + expressSurcharge + deliveryFee,
+    );
 
     const transactionCreate = {
       currency: "CHF",

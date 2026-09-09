@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { formatSessionDate } from "@/data/workshopSessions";
+import { expressSurcharge, EXPRESS_COPY } from "@/lib/orderDates";
+import { ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
@@ -548,10 +550,30 @@ const Cart = () => {
                       </div>
                     ))}
                   </div>
+                  {(() => {
+                    const orderDateObj = cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null;
+                    const physicalTotal = items
+                      .filter((i) => i.product !== "workshop")
+                      .reduce((s, i) => s + i.total, 0);
+                    const surcharge = expressSurcharge(physicalTotal, orderDateObj);
+                    if (surcharge <= 0) return null;
+                    return (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{EXPRESS_COPY.summaryLabel[lang === "fr" ? "fr" : "en"]}</span>
+                        <span className="text-foreground">CHF {surcharge.toFixed(2)}</span>
+                      </div>
+                    );
+                  })()}
                   <div className="flex justify-between text-lg font-bold">
                     <span className="text-foreground">{t("Total", "Total")}</span>
-                    <span className="text-primary">CHF {totalPrice}</span>
+                    <span className="text-primary">CHF {(
+                      totalPrice + expressSurcharge(
+                        items.filter((i) => i.product !== "workshop").reduce((s, i) => s + i.total, 0),
+                        cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null,
+                      )
+                    ).toFixed(2)}</span>
                   </div>
+                  <ExpressDateNotice date={cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null} />
                   <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-base font-medium tracking-wide rounded-none" size="lg" asChild><Link to="/checkout">{t("Proceed to Checkout", "Passer la commande")}</Link></Button>
                   <Button variant="outline" className="w-full rounded-none" asChild><Link to="/catalog">{t("Add Another Cake", "Ajouter un autre gâteau")}</Link></Button>
                 </CardContent>

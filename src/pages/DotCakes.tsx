@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
+import { isOrderDateDisabled } from "@/lib/orderDates";
+import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -164,7 +166,7 @@ const DotCakes = () => {
 
   const goNext = () => {
     if (step === 1 && !orderDate) {
-      toast.error(t("Please choose your pick-up date (minimum 4 days' notice).", "Veuillez choisir votre date de retrait (minimum 4 jours à l'avance)."));
+      toast.error(t("Please choose your pick-up date (minimum 2 days' notice).", "Veuillez choisir votre date de retrait (minimum 2 jours à l'avance)."));
       return;
     }
     if (step === 2 && !pack) {
@@ -279,7 +281,7 @@ const DotCakes = () => {
                 {t("Choose Your Date", "Choisissez votre date")}<span className="text-destructive ml-1">*</span>
               </h2>
               <p className="text-sm text-muted-foreground">
-                {t("Minimum 4 days' notice required.", "Minimum 4 jours à l'avance requis.")}
+                {t("Minimum 2 days' notice required.", "Minimum 2 jours à l'avance requis.")}
               </p>
               <Popover>
                 <PopoverTrigger asChild>
@@ -297,9 +299,11 @@ const DotCakes = () => {
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar mode="single" selected={orderDate} onSelect={setOrderDate}
-                    disabled={(date) => date < addDays(new Date(), 4)} initialFocus />
+                    disabled={(date) => isOrderDateDisabled(date)} initialFocus {...expressCalendarProps} />
+                  <div className="px-3 pb-3"><ExpressLegend /></div>
                 </PopoverContent>
               </Popover>
+              <ExpressDateNotice date={orderDate} />
               {cartOrderDate && (
                 <p className="text-xs text-muted-foreground">
                   {t(

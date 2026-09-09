@@ -53,6 +53,8 @@ import DeliveryAddressAutocomplete, { type AddressSelection } from "@/components
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { isOrderDateDisabled, expressSurcharge, EXPRESS_COPY } from "@/lib/orderDates";
+import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 
 // Fixed voucher base price per (product, size) pair — must stay identical
@@ -363,7 +365,6 @@ const Checkout = () => {
   const [deliveryComment, setDeliveryComment] = useState("");
   const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
-  const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   const [pickupTime, setPickupTime] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -387,16 +388,6 @@ const Checkout = () => {
     }
   }, [profile, user]);
 
-  // Fetch fully booked dates on mount
-  useEffect(() => {
-    const fetchBookedDates = async () => {
-      const { data, error } = await supabase.rpc('get_fully_booked_dates');
-      if (!error && data) {
-        setFullyBookedDates(data.map((d: { booked_date: string }) => new Date(d.booked_date)));
-      }
-    };
-    fetchBookedDates();
-  }, []);
 
   // PostFinance's failedUrl brings the customer straight back here with
   // ?payment=failed — cart is left untouched (nothing here calls
@@ -586,7 +577,20 @@ const Checkout = () => {
     ? Math.round(Math.min(rewardBalance, maxRewardUsable) * 100) / 100
     : 0;
 
-  const totalPrice = itemsTotal - estimatedWelcomeDiscount - estimatedRewardUsed + (hasPhysical && deliveryOption === "delivery" ? deliveryPrice : 0);
+  // Express surcharge (+10%) — DISPLAY ONLY. The server
+  // (create-postfinance-payment) re-derives it from the Europe/Zurich date vs
+  // pickup_delivery_date and is the sole authority on the charged amount.
+  // Base = physical products only (workshops + delivery excluded).
+  const physicalProductsTotal = items
+    .filter((item) => item.product !== "workshop")
+    .reduce((sum, item) => sum + item.total, 0);
+  const expressSurchargeAmount = expressSurcharge(physicalProductsTotal, deliveryDate);
+
+  const totalPrice = itemsTotal
+    - estimatedWelcomeDiscount
+    - estimatedRewardUsed
+    + expressSurchargeAmount
+    + (hasPhysical && deliveryOption === "delivery" ? deliveryPrice : 0);
 
   // Build phone number with country code
   const fullPhoneNumber = combinePhoneNumber(countryCode, phone);
@@ -718,36 +722,11 @@ const Checkout = () => {
     try {
       // Physical products carry a pickup/delivery date; a workshop-only cart
       // has none (each workshop's session date lives on its order_item).
+      // There is no per-day order cap any more — every calendar day is
+      // available, the only rule is the J+2 lead time enforced by the
+      // calendar and re-checked server-side (create-postfinance-payment
+      // also derives the express surcharge from this same date).
       const formattedDate = hasPhysical && deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : null;
-
-      // Check if the pickup/delivery date is still available (max 5 orders).
-      // Skipped entirely for a workshop-only cart.
-      const { data: orderCount, error: orderCountError } = formattedDate
-        ? await supabase.rpc("get_order_count_for_date", { target_date: formattedDate })
-        : { data: null, error: null };
-
-      if (orderCountError) {
-        console.error("Order count error:", orderCountError);
-      }
-
-      if (formattedDate && orderCount && orderCount >= 5) {
-        toast({
-          title: t("Date fully booked", "Date complète"),
-          description: t(
-            "This date has reached the maximum number of orders. Please select another date.",
-            "Cette date a atteint le nombre maximum de commandes. Veuillez choisir une autre date."),
-          variant: "destructive",
-        });
-
-        // Refresh booked dates
-        const { data } = await supabase.rpc("get_fully_booked_dates");
-        if (data) {
-          setFullyBookedDates(
-            data.map((d: { booked_date: string }) => new Date(d.booked_date)),
-          );
-        }
-        return;
-      }
 
       // Last line of defense: an item without a currently-valid product
       // would make the whole order_items insert fail later (in
@@ -1239,20 +1218,17 @@ const Checkout = () => {
                     mode="single"
                     selected={deliveryDate}
                     onSelect={setDeliveryDate}
-                    disabled={(date) => {
-                      const minDate = new Date();
-                      minDate.setDate(minDate.getDate() + 4);
-                      minDate.setHours(0, 0, 0, 0);
-                      if (date < minDate) return true;
-                      return fullyBookedDates.some(
-                        (bookedDate) => bookedDate.toDateString() === date.toDateString()
-                      );
-                    }}
+                    disabled={(date) => isOrderDateDisabled(date)}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
+                    {...expressCalendarProps}
                   />
+                  <div className="px-3 pb-3">
+                    <ExpressLegend />
+                  </div>
                 </PopoverContent>
               </Popover>
+              <ExpressDateNotice date={deliveryDate} />
             </div>
 
             {/* Delivery Option */}
@@ -1508,6 +1484,18 @@ const Checkout = () => {
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
+                <span className="font-medium">CHF {itemsTotal.toFixed(2)}</span>
+              </div>
+
+              {expressSurchargeAmount > 0 && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">{EXPRESS_COPY.summaryLabel[lang === "fr" ? "fr" : "en"]}</span>
+                  <span className="font-medium">CHF {expressSurchargeAmount.toFixed(2)}</span>
                 </div>
               )}
 

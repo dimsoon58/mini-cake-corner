@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import CustomRequestForm from "@/components/CustomRequestForm";
 import { INSPIRATIONS as inspirationItems } from "@/data/inspirations";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,11 +28,12 @@ import { useCart } from "@/context/CartContext";
 import type { CandleSelection } from "@/context/CartContext";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
+import { isOrderDateDisabled } from "@/lib/orderDates";
+import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { flavorDescMap } from "@/data/flavorDesc";
-import { supabase } from "@/integrations/supabase/client";
 // @ts-ignore
 import "@fontsource/dancing-script";
 
@@ -1108,7 +1109,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
-  const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   // Active carousel image per multi-photo design (keyed by cake id). Kept
   // here so it persists across re-renders and is the image passed to
   // handleSelectCake when the customer picks the design.
@@ -1139,16 +1139,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     shagDesignPreference: 0,
   });
 
-  // Fetch fully booked dates
-  useEffect(() => {
-    const fetchBookedDates = async () => {
-      const { data, error } = await supabase.rpc('get_fully_booked_dates');
-      if (!error && data) {
-        setFullyBookedDates(data.map((d: { booked_date: string }) => new Date(d.booked_date)));
-      }
-    };
-    fetchBookedDates();
-  }, []);
 
   const handleSelectCake = (cake: typeof catalog[0], imageIndex = 0) => {
     setSelectedCake(cake);
@@ -1606,7 +1596,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Pickup Date", "Date de retrait")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 4 days in advance)", "Date de préparation de la commande (minimum 4 jours à l'avance)")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 2 days in advance)", "Date de préparation de la commande (minimum 2 jours à l'avance)")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Popover>
@@ -1633,19 +1623,17 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       mode="single"
                       selected={selections.orderDate || undefined}
                       onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
-                      disabled={(date) => {
-                        const minDate = addDays(new Date(), 4);
-                        minDate.setHours(0, 0, 0, 0);
-                        if (date < minDate) return true;
-                        return fullyBookedDates.some(
-                          (bookedDate) => bookedDate.toDateString() === date.toDateString()
-                        );
-                      }}
+                      disabled={(date) => isOrderDateDisabled(date)}
                       initialFocus
                       className={cn("p-3 pointer-events-auto")}
+                      {...expressCalendarProps}
                     />
+                    <div className="px-3 pb-3">
+                      <ExpressLegend />
+                    </div>
                   </PopoverContent>
                 </Popover>
+                <ExpressDateNotice date={selections.orderDate} />
                 {cartOrderDate && (
                   <p className="text-xs text-muted-foreground">
                     {t(
