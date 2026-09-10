@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import type { CandleSelection } from "@/context/CartContext";
@@ -401,37 +400,47 @@ const Candles = () => {
             );
           })}
 
-          <Card className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all">
-            <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
-              <img
-                src={NUMBER_CANDLE_IMAGES[numberCandleDigit]}
-                alt={numberCandleDigit}
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <CardContent className="p-4 text-center flex flex-col flex-1">
-              <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-1">
+        </div>
+
+        {/* Number Candles – full-width grid showing all digits 0–9 */}
+        <div className="max-w-6xl mx-auto mt-6">
+          <Card className="overflow-hidden bg-white/60 hover:bg-white/80 transition-all">
+            <CardContent className="p-6">
+              <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-1 text-center">
                 {t("Number Candle", "Bougie chiffre")}
               </h3>
-              <p className="text-[11px] text-muted-foreground mb-4">
+              <p className="text-[11px] text-muted-foreground mb-5 text-center">
                 CHF {NUMBER_CANDLE_PRICE} / pièce
               </p>
 
-              <div className="mt-auto space-y-3">
-                <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
-                  <SelectTrigger className="w-full" aria-label={t("Choose a digit", "Choisir un chiffre")}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {NUMBER_CANDLE_DIGITS.map((digit) => (
-                      <SelectItem key={digit} value={digit}>
-                        {digit}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Clickable grid of all 10 digits */}
+              <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 mb-6">
+                {NUMBER_CANDLE_DIGITS.map((digit) => (
+                  <button
+                    key={digit}
+                    type="button"
+                    onClick={() => setNumberCandleDigit(digit)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 p-2 border-2 transition-all",
+                      numberCandleDigit === digit
+                        ? "border-primary"
+                        : "border-transparent hover:border-primary/30"
+                    )}
+                    aria-label={digit}
+                  >
+                    <img
+                      src={NUMBER_CANDLE_IMAGES[digit]}
+                      alt={digit}
+                      className="w-full aspect-[2/3] object-contain"
+                    />
+                    <span className="text-xs font-medium text-foreground">{digit}</span>
+                  </button>
+                ))}
+              </div>
 
-                <div className="flex items-center justify-center gap-2">
+              {/* Quantity + Add to Cart */}
+              <div className="flex items-center justify-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => changeQty(NUMBER_CANDLE_ID, -1)}
@@ -460,9 +469,9 @@ const Candles = () => {
                 </div>
                 <Button
                   onClick={handleAddNumberCandleToCart}
-                  className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] tracking-[0.105em] uppercase"
+                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] tracking-[0.105em] uppercase px-8"
                 >
-                  {t("Add to Cart", "Ajouter au panier")}
+                  {t("Add to Cart", "Ajouter au panier")} – {t("Number", "Chiffre")} {numberCandleDigit}
                 </Button>
               </div>
             </CardContent>
