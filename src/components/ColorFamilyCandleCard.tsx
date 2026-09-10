@@ -156,7 +156,7 @@ export const ColorFamilyCandleCard = ({
         <h3 className={cn("font-sans tracking-[0.105em] font-semibold uppercase text-foreground", compact ? "text-[11px]" : "text-[13px]")}>
           {t(candle.name, candle.nameFr || candle.name)}
         </h3>
-        <p className={cn("text-muted-foreground", compact ? "text-[10px]" : "text-[11px]")}>
+        <p className={cn("text-muted-foreground", compact ? "text-[10px]" : "text-[9px]")}>
           CHF {candle.unitPrice}/pièce · Pack {packSize} = CHF {candle.packPrice}
         </p>
 
@@ -197,7 +197,7 @@ export const ColorFamilyCandleCard = ({
                   packCount <= (compact ? 0 : 1) ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                 )}
               >−</button>
-              <span className={cn("flex-1 min-w-0 text-center text-foreground", compact ? "text-[9px] font-normal text-muted-foreground" : "text-sm font-medium")}>
+              <span className={cn("flex-1 min-w-0 text-center text-foreground", compact ? "text-[9px] font-normal text-muted-foreground" : "text-[9px] font-normal text-muted-foreground")}>
                 {packCount} {t("pack(s)", "pack(s)")} ({packCount * packSize} {t("pcs", "pièces")})
               </span>
               <button
