@@ -68,11 +68,32 @@ const OrderAction = () => {
       }
 
       setStatus("success");
-      setMessage(
-        isDecline
-          ? t("Order declined. Payment has been refunded and the customer has been notified.", "Commande refusée. Le paiement a été remboursé et le client a été informé.")
-          : t("Order approved! Payment has been captured and a calendar event has been created.", "Commande approuvée ! Le paiement a été capturé et un événement a été ajouté au calendrier.")
-      );
+      if (!isDecline) {
+        setMessage(t("Order approved! Payment has been captured and a calendar event has been created.", "Commande approuvée ! Le paiement a été capturé et un événement a été ajouté au calendrier."));
+      } else {
+        // A refusal NEVER refunds automatically — the refund is done by hand by
+        // Bento Cake Studio in PostFinance Checkout. Show what actually has to
+        // be done, using the values manage-order returns.
+        const amount = Number(data?.refundDueAmount ?? 0).toFixed(2);
+        if (data?.refundStatus === "to_refund") {
+          setMessage(
+            data?.fulfillmentType === "mixed"
+              ? t(
+                  `Cake part declined. The workshop stays confirmed. The CHF ${amount} refund still has to be issued manually in PostFinance Checkout. The customer has been notified of the refusal.`,
+                  `Partie gâteau refusée. Le workshop reste confirmé. Le remboursement de CHF ${amount} reste à effectuer manuellement dans PostFinance Checkout. Le client a été informé du refus.`,
+                )
+              : t(
+                  `Order declined. The CHF ${amount} refund still has to be issued manually in PostFinance Checkout. The customer has been notified of the refusal.`,
+                  `Commande refusée. Le remboursement de CHF ${amount} reste à effectuer manuellement dans PostFinance Checkout. Le client a été informé du refus.`,
+                )
+          );
+        } else {
+          setMessage(t(
+            "Order declined. No manual refund is needed for this order. The customer has been notified of the refusal.",
+            "Commande refusée. Aucun remboursement manuel n'est nécessaire pour cette commande. Le client a été informé du refus.",
+          ));
+        }
+      }
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : t("Unknown error occurred.", "Une erreur inconnue est survenue."));
