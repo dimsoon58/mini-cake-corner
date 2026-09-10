@@ -13,6 +13,23 @@ import { candles } from "@/pages/KitBentoCake";
 import { getCandleTotalPrice } from "@/data/customization";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName } from "@/lib/candleCartHelpers";
 import { useLang } from "@/context/LanguageContext";
+import candleNumber0 from "@/assets/candle-number-0.png";
+import candleNumber1 from "@/assets/candle-number-1.png";
+import candleNumber2 from "@/assets/candle-number-2.png";
+import candleNumber3 from "@/assets/candle-number-3.png";
+import candleNumber4 from "@/assets/candle-number-4.png";
+import candleNumber5 from "@/assets/candle-number-5.png";
+import candleNumber6 from "@/assets/candle-number-6.png";
+import candleNumber7 from "@/assets/candle-number-7.png";
+import candleNumber8 from "@/assets/candle-number-8.png";
+import candleNumber9 from "@/assets/candle-number-9.png";
+
+const NUMBER_CANDLE_IMAGES: Record<string, string> = {
+  "0": candleNumber0, "1": candleNumber1, "2": candleNumber2,
+  "3": candleNumber3, "4": candleNumber4, "5": candleNumber5,
+  "6": candleNumber6, "7": candleNumber7, "8": candleNumber8,
+  "9": candleNumber9,
+};
 
 // A single "Number Candle" card with a 0–9 picker, kept entirely local to
 // this page — never 10 separate candle products. The chosen digit is
@@ -386,9 +403,11 @@ const Candles = () => {
 
           <Card className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all">
             <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
-              <span className="text-6xl font-bold text-primary" aria-hidden="true">
-                {numberCandleDigit}
-              </span>
+              <img
+                src={NUMBER_CANDLE_IMAGES[numberCandleDigit]}
+                alt={numberCandleDigit}
+                className="w-full h-full object-contain"
+              />
             </div>
             <CardContent className="p-4 text-center flex flex-col flex-1">
               <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-1">
