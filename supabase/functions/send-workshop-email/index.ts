@@ -57,7 +57,12 @@ const BEFORE_WORKSHOP = {
   },
 } as const;
 
-async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems: WorkshopItem[]) {
+async function sendWorkshopEmail(
+  resendApiKey: string,
+  order: any,
+  workshopItems: WorkshopItem[],
+  invoiceAttachment: { filename: string; content: string } | null,
+) {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
 
@@ -206,6 +211,14 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
 </body>
 </html>`;
 
+  const emailBody: Record<string, unknown> = {
+    from: "contact@bentocakestudio.ch",
+    to: [order.email],
+    subject,
+    html,
+  };
+  if (invoiceAttachment) emailBody.attachments = [invoiceAttachment];
+
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -214,12 +227,7 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
       // Stable per order — a side-effect retry never double-sends. ~24h TTL.
       "Idempotency-Key": `workshop-email-${order.id}`,
     },
-    body: JSON.stringify({
-      from: "contact@bentocakestudio.ch",
-      to: [order.email],
-      subject,
-      html,
-    }),
+    body: JSON.stringify(emailBody),
   });
 
   const data = await resp.json();
@@ -284,7 +292,30 @@ serve(async (req) => {
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) throw new Error("RESEND_API_KEY not configured");
 
-    const result = await sendWorkshopEmail(resendKey, order, workshopItems);
+    // Attach the invoice PDF for a confirmed public workshop (same document
+    // manage-order attaches on a manual "Accepter"). Best-effort: a missing /
+    // unreadable file never blocks the confirmation e-mail.
+    let invoiceAttachment: { filename: string; content: string } | null = null;
+    if (order.invoice_path) {
+      try {
+        const { data: blob, error: dlErr } = await supabase.storage.from("invoice").download(order.invoice_path);
+        if (!dlErr && blob) {
+          const buf = new Uint8Array(await blob.arrayBuffer());
+          let bin = "";
+          for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+          invoiceAttachment = {
+            filename: `${order.invoice_number || order.order_number || "facture"}.pdf`,
+            content: btoa(bin),
+          };
+        } else if (dlErr) {
+          console.error("send-workshop-email: invoice download failed:", dlErr);
+        }
+      } catch (e) {
+        console.error("send-workshop-email: invoice attach threw:", e);
+      }
+    }
+
+    const result = await sendWorkshopEmail(resendKey, order, workshopItems, invoiceAttachment);
 
     return new Response(JSON.stringify({ success: true, id: result.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

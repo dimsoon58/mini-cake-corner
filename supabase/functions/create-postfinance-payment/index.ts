@@ -540,6 +540,24 @@ serve(async (req) => {
 
     if (!order.email) throw new Error("Customer email is required");
 
+    // A public workshop is captured + auto-confirmed the instant the payment
+    // succeeds; a cake order is only authorised and then waits for a manual
+    // Accept/Refuse. The two finalisation paths are mutually exclusive, so a
+    // single checkout can never contain both — the frontend blocks the mix
+    // at add-to-cart time, this is the server-side backstop.
+    {
+      const anyWorkshop = orderItems.some((it) => it.product === "workshop");
+      const anyNonWorkshop = orderItems.some((it) => it.product !== "workshop");
+      if (anyWorkshop && anyNonWorkshop) {
+        console.error(`MIXED_CART_NOT_ALLOWED for order ${orderId}: workshop + non-workshop items in one checkout`);
+        throw new Error(
+          order.lang === "en"
+            ? "A workshop and a cake cannot be ordered together — a workshop is confirmed immediately after payment, whereas a cake order must first be reviewed. Please place two separate orders."
+            : "Un atelier et un gâteau ne peuvent pas être commandés ensemble — un atelier est confirmé immédiatement après paiement, alors qu'une commande de gâteau doit d'abord être validée. Merci de passer deux commandes séparées.",
+        );
+      }
+    }
+
     // Service-role client — used below for the workshop session catalogue and
     // later for welcome-discount / reward reservations.
     const supabase = createClient(

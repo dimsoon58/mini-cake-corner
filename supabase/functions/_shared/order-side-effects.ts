@@ -25,6 +25,7 @@
 import { buildWorkshopMakePayload, sendWorkshopMakeWebhookChecked } from "./workshop-make.ts";
 import { sendTechnicalAlert } from "./admin-alert.ts";
 import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "./postfinance.ts";
+import { generateInvoicePdf } from "./invoice-pdf.ts";
 
 // Main production Make webhook ("Commandes & Paiements" + Agenda). Make writes
 // orders.notion_sync_status = 'synced' | 'error'.
@@ -80,7 +81,7 @@ async function postMakeRepair(orderId: string): Promise<{ ok: boolean }> {
 }
 
 const MARKER_COLUMNS =
-  "side_effects_done_at, make_notified_at, workshop_make_notified_at, admin_notified_at, customer_email_sent_at, workshop_email_sent_at, workshop_confirmed_at";
+  "side_effects_done_at, make_notified_at, workshop_make_notified_at, admin_notified_at, customer_email_sent_at, workshop_email_sent_at, workshop_confirmed_at, invoice_path";
 
 class DbReadError extends Error {}
 
@@ -142,6 +143,24 @@ export async function autoConfirmPublicWorkshop(
   if (resRows.some((r: any) => r.status === "rejected")) {
     console.error(`autoConfirmPublicWorkshop: ${orderId} has a rejected reservation — not confirming`);
     return { done: true };
+  }
+
+  // ── Capture lease — one atomic guarded UPDATE (claim_workshop_capture).
+  //    Two concurrent auto-confirm passes can never both reach complete-online:
+  //    only one takes the lease, the other returns { done:false } and retries
+  //    (by which point either the order is confirmed, or — if the lease holder
+  //    crashed — the 2-minute stale window lets a retry re-read the real
+  //    PostFinance state and finish idempotently). runSideEffects' own
+  //    claim_side_effect_retry (45s) is the first line of defence; this covers
+  //    a PostFinance round-trip that runs longer than that 45s lease.
+  const { data: gotLease, error: leaseErr } = await supabase.rpc("claim_workshop_capture", { p_order_id: orderId });
+  if (leaseErr) {
+    console.error(`autoConfirmPublicWorkshop: claim_workshop_capture failed for ${orderId}:`, leaseErr);
+    return { done: false };
+  }
+  if (gotLease !== true) {
+    // Another pass holds the lease (or the order is already confirmed) — retry.
+    return { done: false };
   }
 
   // ── Capture the payment (idempotent) ──────────────────────────────────
@@ -219,6 +238,72 @@ export async function autoConfirmPublicWorkshop(
   return { done: true };
 }
 
+// ── Public workshop-only order: invoice PDF ────────────────────────────
+// Reproduces what manage-order does on a manual "Accepter": generate the same
+// invoice PDF, upload it to the `invoice` storage bucket, and record
+// orders.invoice_path. Fully idempotent — the storage path is deterministic
+// (`<invoice_number>.pdf`, upsert) and orders.invoice_number is unique, so a
+// retry or a double webhook can never create a second invoice; the
+// orders.invoice_path write is guarded. Cake orders are untouched (manage-order
+// keeps its own generateInvoicePdf).
+export async function ensureWorkshopInvoice(supabase: any, orderId: string): Promise<{ done: boolean }> {
+  const { data: o, error } = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
+  if (error) {
+    console.error(`ensureWorkshopInvoice: orders read failed for ${orderId}:`, error);
+    return { done: false };
+  }
+  if (!o) return { done: true };
+  if (o.invoice_path) return { done: true };          // already generated + stored
+  if (!o.workshop_confirmed_at) return { done: false }; // wait for the auto-confirmation
+
+  const { data: items, error: itemsErr } = await supabase
+    .from("order_items").select("*").eq("order_id", orderId);
+  if (itemsErr) {
+    console.error(`ensureWorkshopInvoice: order_items read failed for ${orderId}:`, itemsErr);
+    return { done: false };
+  }
+  const rows = items ?? [];
+  const isWorkshopOnly = rows.length > 0 && rows.every((it: any) => it.product === "workshop");
+  if (!isWorkshopOnly) return { done: true }; // cakes/mixed → manage-order owns the invoice
+
+  const invoiceNum = o.invoice_number || o.order_number || `invoice-${String(orderId).slice(0, 8)}`;
+  const storagePath = `${invoiceNum}.pdf`;
+
+  let pdfBase64: string;
+  try {
+    pdfBase64 = await generateInvoicePdf(o, rows);
+  } catch (e) {
+    console.error(`ensureWorkshopInvoice: PDF generation failed for ${orderId} — will retry:`, e);
+    return { done: false };
+  }
+
+  try {
+    const pdfBytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
+    const { error: upErr } = await supabase.storage
+      .from("invoice")
+      .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
+    if (upErr) {
+      console.error(`ensureWorkshopInvoice: storage upload failed for ${orderId} — will retry:`, upErr);
+      return { done: false };
+    }
+  } catch (e) {
+    console.error(`ensureWorkshopInvoice: storage upload threw for ${orderId} — will retry:`, e);
+    return { done: false };
+  }
+
+  const { error: pathErr } = await supabase
+    .from("orders")
+    .update({ invoice_path: storagePath })
+    .eq("id", orderId)
+    .is("invoice_path", null)
+    .select("id");
+  if (pathErr) {
+    console.error(`ensureWorkshopInvoice: invoice_path write failed for ${orderId} — will retry:`, pathErr);
+    return { done: false };
+  }
+  return { done: true };
+}
+
 // order_items — throws on a read error or (defensively) on an order with no
 // items, so it can never be mistaken for "no physical / no workshop".
 async function orderItemKinds(
@@ -249,7 +334,7 @@ export async function areSideEffectsComplete(supabase: any, orderId: string): Pr
     const isWorkshopOnly = hasWorkshop && !hasPhysical;
     return (!hasPhysical || !!o.make_notified_at)
       && (!hasWorkshop || !!o.workshop_make_notified_at)
-      && (!isWorkshopOnly || !!o.workshop_confirmed_at)
+      && (!isWorkshopOnly || (!!o.workshop_confirmed_at && !!o.invoice_path))
       && !!o.admin_notified_at
       && (!hasPhysical || !!o.customer_email_sent_at)
       && (!hasWorkshop || !!o.workshop_email_sent_at);
@@ -330,6 +415,17 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
     if (!done) return { complete: false }; // retry next pass
     const reread = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
     if (reread.data) o = reread.data;
+  }
+
+  // 0b. Public workshop-only order → generate + store the invoice PDF (same as
+  //     manage-order does on a manual "Accepter"). Best-effort; the sweep
+  //     retries until orders.invoice_path is set.
+  if (hasWorkshop && !hasPhysical && o.workshop_confirmed_at && !o.invoice_path) {
+    const { done } = await ensureWorkshopInvoice(supabase, orderId);
+    if (done) {
+      const reread = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
+      if (reread.data) o = reread.data;
+    }
   }
 
   // 1. Production Make ("Commandes & Paiements" + Agenda) — physical items.
@@ -437,10 +533,10 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
   }
 
   // 5. Workshop booking e-mail (workshop items). For a workshop-ONLY order the
-  //    e-mail says "réservation confirmée", so it must wait for the auto-
-  //    confirmation. A mixed order sends it as before (workshop_confirmed_at
-  //    stays NULL for mixed orders).
-  if (hasWorkshop && !o.workshop_email_sent_at && (hasPhysical || o.workshop_confirmed_at)) {
+  //    e-mail says "réservation confirmée" and attaches the invoice, so it must
+  //    wait for the auto-confirmation AND the invoice. A mixed order sends it
+  //    as before (workshop_confirmed_at stays NULL for mixed orders).
+  if (hasWorkshop && !o.workshop_email_sent_at && (hasPhysical || (o.workshop_confirmed_at && o.invoice_path))) {
     try {
       const { error } = await supabase.functions.invoke("send-workshop-email", { body: { orderId } });
       if (!error) await stampMarker(supabase, orderId, "workshop_email_sent_at");

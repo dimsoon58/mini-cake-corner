@@ -32,7 +32,22 @@ import { useLang } from "@/context/LanguageContext";
 const Candles = () => {
   const navigate = useNavigate();
   const { t } = useLang();
-  const { addItem } = useCart();
+  const { addItem, cartHasWorkshop } = useCart();
+
+  // A workshop auto-confirms on payment; a cake / candle order waits for a
+  // manual review — the two can't be checked out together. Every add-to-cart
+  // handler on this page calls this first so the customer gets a clear
+  // message instead of addItem() silently refusing the line.
+  const blockedByWorkshopInCart = () => {
+    if (!cartHasWorkshop) return false;
+    toast.error(
+      t(
+        "Your cart already contains a workshop. A workshop is confirmed immediately after payment, whereas a candle order must first be reviewed — please order it separately.",
+        "Votre panier contient déjà un atelier. Un atelier est confirmé immédiatement après paiement, alors qu'une commande de bougies doit d'abord être validée — merci de la commander séparément.",
+      ),
+    );
+    return true;
+  };
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
 
@@ -59,6 +74,7 @@ const Candles = () => {
   };
 
   const handleAddToCart = (candle: (typeof candles)[number]) => {
+    if (blockedByWorkshopInCart()) return;
     const qty = getQty(candle.id);
     const price = getCandleTotalPrice(candle.id, [
       { id: candle.id, quantity: qty, hasPack: false },
@@ -130,6 +146,7 @@ const Candles = () => {
   // aligned for pack mode); this only converts it into the standalone
   // CartItem fields and adds it.
   const handleFamilyCommit = (candle: (typeof candles)[number]) => (entry: CandleSelection) => {
+    if (blockedByWorkshopInCart()) return;
     const familyColors = FAMILY_CANDLE_COLORS[candle.id];
     const price = priceCandleSelection(entry, candle, false);
     // Standalone purchases persist candleProductName directly as
@@ -204,6 +221,7 @@ const Candles = () => {
   };
 
   const handleAddNumberCandleToCart = () => {
+    if (blockedByWorkshopInCart()) return;
     const qty = getQty(NUMBER_CANDLE_ID);
     const price = priceCandleSelection({ id: NUMBER_CANDLE_ID, quantity: qty, hasPack: false, digit: numberCandleDigit }, undefined, true);
     const label = composeCandleName({ digit: numberCandleDigit }, t("Number Candle", "Bougie chiffre"));
