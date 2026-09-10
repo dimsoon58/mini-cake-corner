@@ -14,6 +14,7 @@ import {
 } from "../_shared/postfinance-transactions.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
+import { ORDER_CLIENT_FIELDS, ORDER_ITEM_CLIENT_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
 import { priceOrderItem, type PricingInput } from "../_shared/pricing.ts";
 import { resolveDeliveryFeeByDistance } from "../_shared/delivery-pricing.ts";
 import { resolveDeliveryForPlaceId } from "../_shared/google-maps.ts";
@@ -59,44 +60,82 @@ const WELCOME_VOUCHER_BASE: Record<string, Record<string, number>> = {
   },
 };
 
+// Shape of the `order` object AFTER the strict client whitelist + the
+// server-authoritative fields this function adds. There is NO index signature:
+// any field the client sent beyond ORDER_CLIENT_FIELDS is dropped before this
+// object exists, and nothing else is ever written to public.orders.
 interface OrderRow {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  lang: string;
-  delivery_method: string | null;
-  delivery_address: string | null;
-  delivery_zone: string | null;
-  delivery_fee: number;
-  delivery_postal_code: string | null;
-  delivery_city: string | null;
-  delivery_latitude: number | null;
-  delivery_longitude: number | null;
-  delivery_distance_km: number | null;
+  // ── client (ORDER_CLIENT_FIELDS) ──
+  order_source?: string;
+  lang?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  delivery_method?: string | null;
   pickup_delivery_date?: string | null;
   pickup_delivery_slot?: string | null;
   pickup_delivery_datetime?: string | null;
-  total_amount: number;
-  [key: string]: unknown;
+  order_comment?: string | null;
+  newsletter_subscription?: boolean;
+  // ── server-authoritative (set explicitly by this function) ──
+  id?: string;
+  customer_id?: string | null;
+  delivery_address?: string | null;
+  delivery_zone?: string | null;
+  delivery_fee?: number;
+  delivery_postal_code?: string | null;
+  delivery_city?: string | null;
+  delivery_latitude?: number | null;
+  delivery_longitude?: number | null;
+  delivery_distance_km?: number | null;
+  welcome_discount_amount?: number;
+  reward_amount_used?: number;
+  express_surcharge_amount?: number;
+  total_amount?: number;
 }
 
+// Shape of an `orderItems[i]` AFTER the strict client whitelist + the
+// server-authoritative fields. No index signature.
 interface OrderItemRow {
-  product: string;
-  size: string | null;
-  shape: string | null;
-  flavors: string[];
-  design: string | null;
-  extras: string[];
-  total: number;
-  // Workshop only (null for every other product).
+  // ── client (ORDER_ITEM_CLIENT_FIELDS) ──
+  product?: string;
+  size?: string | null;
+  shape?: string | null;
+  flavors?: string[];
+  design?: string | null;
+  design_image_url?: string | null;
+  base_color?: string | null;
+  decoration_color?: string | null;
+  cake_text?: string | null;
+  text_color?: string | null;
+  text_style?: string | null;
+  extra?: unknown;
+  extra_type?: unknown;
+  extra_color?: unknown;
+  extras_price?: number;
+  candle_name?: string | null;
+  candle_quantity?: number;
+  candles_price?: number;
+  candle_colors?: unknown;
+  reference_images?: string[];
+  item_comment?: string | null;
+  ribbon_color?: string | null;
+  butterfly_color?: string | null;
+  extras?: string[];
+  candles?: unknown[];
+  workshop_has_minor?: boolean;
+  workshop_minor_consent_confirmed?: boolean;
+  // ── server-authoritative ──
+  order_id?: string;
+  order_number?: number | string | null;
+  total?: number;
   workshop_type?: string | null;
   workshop_session_id?: string | null;
   workshop_date?: string | null;
   workshop_time?: string | null;
   workshop_participants?: number | null;
   workshop_unit_price?: number | null;
-  [key: string]: unknown;
 }
 
 interface PaymentRequest {
@@ -430,15 +469,35 @@ serve(async (req) => {
     const credentials = getPostFinanceCredentials();
 
     const body: PaymentRequest = await req.json();
-    const { orderId, order, orderItems, useWelcomeDiscount, pricingItems, deliveryPlaceId, rewardAmountToUse } = body;
+    const {
+      orderId,
+      order: rawOrder,
+      orderItems: rawOrderItems,
+      useWelcomeDiscount,
+      pricingItems,
+      deliveryPlaceId,
+      rewardAmountToUse,
+    } = body;
 
     if (!orderId) throw new Error("orderId is required");
-    if (!order) throw new Error("order is required");
-    if (!orderItems || orderItems.length === 0) throw new Error("orderItems is required");
-    if (!order.email) throw new Error("Customer email is required");
-    if (!pricingItems || pricingItems.length !== orderItems.length) {
+    if (!rawOrder || typeof rawOrder !== "object") throw new Error("order is required");
+    if (!Array.isArray(rawOrderItems) || rawOrderItems.length === 0) throw new Error("orderItems is required");
+    if (!pricingItems || pricingItems.length !== rawOrderItems.length) {
       throw new Error("pricingItems is required and must match orderItems 1:1");
     }
+
+    // ─── Strict whitelist of client-supplied order / order_items ────────────
+    // NOTHING outside ORDER_CLIENT_FIELDS / ORDER_ITEM_CLIENT_FIELDS is ever
+    // written to the DB. Every server-authoritative field (customer_id,
+    // recomputed amounts, resolved delivery, workshop_* from workshop_sessions,
+    // payment / finalisation state) is added explicitly by the code below or
+    // by confirm-postfinance-payment. An HTTP client that adds order_validation
+    // / payment_status / finalized_at / make_* / invoice_* etc. is ignored.
+    const order = pickAllowed(rawOrder as Record<string, unknown>, ORDER_CLIENT_FIELDS) as OrderRow;
+    const orderItems = (rawOrderItems as Record<string, unknown>[])
+      .map((it) => pickAllowed(it, ORDER_ITEM_CLIENT_FIELDS) as OrderItemRow);
+
+    if (!order.email) throw new Error("Customer email is required");
 
     // Service-role client — used below for the workshop session catalogue and
     // later for welcome-discount / reward reservations.

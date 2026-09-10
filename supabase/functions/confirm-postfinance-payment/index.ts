@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "../_shared/postfinance.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
+import { ORDER_ITEM_PAYLOAD_FIELDS, ORDER_PAYLOAD_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -153,13 +154,18 @@ async function finalizeOrderDb(
     .from("order_items").select("id").eq("order_id", orderRecord.id).limit(1);
 
   if (!alreadyThere || alreadyThere.length === 0) {
-    const orderItemsWithOrderNumber = orderItems.map((item) => ({
-      ...item,
+    // Re-whitelist at the INSERT site (defence in depth): even a corrupted
+    // pending_payments row can never inject order_validation / production_status
+    // / a client id / assigned_to / internal_notes / any unknown column.
+    // order_id + order_number are always forced to the authoritative values.
+    const cleanItems = orderItems.map((item) => ({
+      ...pickAllowed(item as Record<string, unknown>, ORDER_ITEM_PAYLOAD_FIELDS),
+      order_id: orderRecord.id,
       order_number: orderRecord.order_number,
     }));
     const { error: itemsError } = await supabase
       .from("order_items")
-      .insert(orderItemsWithOrderNumber);
+      .insert(cleanItems);
     if (itemsError) {
       throw new Error(`Failed to save order items: ${itemsError.message}`);
     }
@@ -475,7 +481,9 @@ serve(async (req) => {
     let orderRecord: any;
     const { data: insertedOrder, error: orderError } =
       await supabase.from("orders").insert({
-        ...order,
+        // Re-whitelist the (already server-built) payload at the INSERT site.
+        // id / payment_status / postfinance_transaction_id are forced.
+        ...pickAllowed(order as Record<string, unknown>, ORDER_PAYLOAD_FIELDS),
         id: orderId,
         postfinance_transaction_id: String(pending.postfinance_transaction_id),
         payment_status: "pending",
