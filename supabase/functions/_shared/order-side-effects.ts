@@ -85,118 +85,73 @@ const MARKER_COLUMNS =
 
 class DbReadError extends Error {}
 
-// ── Public workshop-only order: auto-confirmation (no manual Accepter/Refuser)
+// ── Workshop auto-confirmation (no manual Accepter/Refuser for the workshop)
+//
+// NEW MODEL: the payment is ALREADY captured at checkout (COMPLETE_IMMEDIATELY).
+// There is nothing to capture here — this only verifies the money really
+// landed, flips the reservations to 'confirmed' and stamps
+// orders.workshop_confirmed_at.
+//
+//   workshop-only order  -> also flips order_validation to 'approved'.
+//   mixed order          -> ONLY the workshop part; order_validation stays
+//                           'pending' for the cake part, physical_validation is
+//                           set to 'pending'.
 //
 // The seats were already secured transactionally by
-// claim_workshop_reservations_batch() inside finalizeOrderDb (row-locked
-// workshop_sessions + capacity check). This captures the PostFinance payment
-// (COMPLETE_DEFERRED -> complete-online), flips the reservations to
-// 'confirmed' and the order to order_validation='approved'.
-//
-// Idempotent: complete-online against a COMPLETED transaction is a no-op;
-// set_workshop_reservations_status is idempotent; every orders UPDATE is
-// guarded. capture ONLY runs while the transaction is AUTHORIZED.
-// Returns { done:false } to be retried on the next side-effect pass.
-export async function autoConfirmPublicWorkshop(
+// claim_workshop_reservations_batch() inside finalizeOrderDb. Fully idempotent:
+// set_workshop_reservations_status is idempotent, every orders UPDATE is
+// guarded. Returns { done:false } to be retried on the next side-effect pass.
+async function confirmWorkshopPart(
   supabase: any,
   orderId: string,
+  mode: "workshop_only" | "mixed",
 ): Promise<{ done: boolean }> {
   const { data: o, error } = await supabase
     .from("orders")
-    .select("id, postfinance_transaction_id, order_validation, order_failure_reason, paid_at, workshop_confirmed_at")
+    .select("id, postfinance_transaction_id, order_validation, order_failure_reason, workshop_confirmed_at")
     .eq("id", orderId)
     .maybeSingle();
   if (error) {
-    console.error(`autoConfirmPublicWorkshop: orders read failed for ${orderId}:`, error);
+    console.error(`confirmWorkshopPart(${mode}): orders read failed for ${orderId}:`, error);
     return { done: false };
   }
   if (!o) return { done: true };
   if (o.workshop_confirmed_at) return { done: true };
   if (o.order_failure_reason) return { done: true };            // capacity abort — handled by the abort path
-  if (o.order_validation === "rejected") return { done: true }; // never auto-confirm a rejected order
-
-  // Must be a workshop-ONLY order — a mixed cake+workshop order keeps the
-  // manual Accepter / Refuser flow (the cake needs it).
-  const { data: items, error: itemsErr } = await supabase
-    .from("order_items").select("product").eq("order_id", orderId);
-  if (itemsErr) {
-    console.error(`autoConfirmPublicWorkshop: order_items read failed for ${orderId}:`, itemsErr);
-    return { done: false };
-  }
-  const rows = items ?? [];
-  const hasWorkshop = rows.some((it: any) => it.product === "workshop");
-  const hasPhysical = rows.some((it: any) => it.product !== "workshop");
-  if (!hasWorkshop || hasPhysical) return { done: true };
+  if (o.order_validation === "rejected" || o.order_validation === "cancelled") return { done: true };
 
   // The seats must actually be held: at least one reservation, none rejected.
   const { data: reservations, error: resErr } = await supabase
     .from("workshop_reservations").select("status").eq("order_id", orderId);
   if (resErr) {
-    console.error(`autoConfirmPublicWorkshop: workshop_reservations read failed for ${orderId}:`, resErr);
+    console.error(`confirmWorkshopPart(${mode}): workshop_reservations read failed for ${orderId}:`, resErr);
     return { done: false };
   }
   const resRows = reservations ?? [];
   if (resRows.length === 0) {
-    console.error(`autoConfirmPublicWorkshop: no workshop_reservations for ${orderId} yet — will retry`);
+    console.error(`confirmWorkshopPart(${mode}): no workshop_reservations for ${orderId} yet — will retry`);
     return { done: false };
   }
   if (resRows.some((r: any) => r.status === "rejected")) {
-    console.error(`autoConfirmPublicWorkshop: ${orderId} has a rejected reservation — not confirming`);
+    console.error(`confirmWorkshopPart(${mode}): ${orderId} has a rejected reservation — not confirming`);
     return { done: true };
   }
 
-  // ── Capture lease — one atomic guarded UPDATE (claim_workshop_capture).
-  //    Two concurrent auto-confirm passes can never both reach complete-online:
-  //    only one takes the lease, the other returns { done:false } and retries
-  //    (by which point either the order is confirmed, or — if the lease holder
-  //    crashed — the 2-minute stale window lets a retry re-read the real
-  //    PostFinance state and finish idempotently). runSideEffects' own
-  //    claim_side_effect_retry (45s) is the first line of defence; this covers
-  //    a PostFinance round-trip that runs longer than that 45s lease.
-  const { data: gotLease, error: leaseErr } = await supabase.rpc("claim_workshop_capture", { p_order_id: orderId });
-  if (leaseErr) {
-    console.error(`autoConfirmPublicWorkshop: claim_workshop_capture failed for ${orderId}:`, leaseErr);
-    return { done: false };
-  }
-  if (gotLease !== true) {
-    // Another pass holds the lease (or the order is already confirmed) — retry.
-    return { done: false };
-  }
-
-  // ── Capture the payment (idempotent) ──────────────────────────────────
+  // ── The money must really be captured (immediate capture at checkout). ──
   const txId = String(o.postfinance_transaction_id ?? "");
-  let paid = false;
   if (txId && txId !== REWARD_ONLY_TRANSACTION_ID) {
     const credentials = getPostFinanceCredentials();
     let state: string;
     try {
       state = (await pfFetch(credentials, `/payment/transactions/${txId}`, "GET") as { state: string }).state;
     } catch (e) {
-      console.error(`autoConfirmPublicWorkshop: GET transaction ${txId} failed for ${orderId}:`, e);
+      console.error(`confirmWorkshopPart(${mode}): GET transaction ${txId} failed for ${orderId}:`, e);
       return { done: false };
     }
-    if (state === "AUTHORIZED") {
-      try {
-        await pfFetch(credentials, `/payment/transactions/${txId}/complete-online`, "POST");
-      } catch (e) {
-        console.error(`autoConfirmPublicWorkshop: capture failed for ${orderId}:`, e);
-        return { done: false };
-      }
-      try {
-        const after = (await pfFetch(credentials, `/payment/transactions/${txId}`, "GET") as { state: string }).state;
-        if (after !== "COMPLETED" && after !== "FULFILL") {
-          console.error(`autoConfirmPublicWorkshop: capture of ${orderId} not COMPLETED (state ${after}) — will retry`);
-          return { done: false };
-        }
-      } catch (e) {
-        console.error(`autoConfirmPublicWorkshop: re-read after capture failed for ${orderId}:`, e);
-        return { done: false };
-      }
-      paid = true;
-    } else if (state === "COMPLETED" || state === "FULFILL") {
-      paid = true; // already captured
-    } else {
-      console.error(`autoConfirmPublicWorkshop: ${orderId} transaction in unexpected state ${state} — cannot confirm`);
+    if (state !== "COMPLETED" && state !== "FULFILL") {
+      // Not captured yet (AUTHORIZED / in progress) — never confirm the workshop
+      // before real payment confirmation. Retry on the next pass.
+      console.error(`confirmWorkshopPart(${mode}): ${orderId} transaction state ${state}, not captured yet — will retry`);
       return { done: false };
     }
   }
@@ -206,21 +161,26 @@ export async function autoConfirmPublicWorkshop(
     p_order_id: orderId, p_action: "approve",
   });
   if (apprErr) {
-    console.error(`autoConfirmPublicWorkshop: set_workshop_reservations_status(approve) failed for ${orderId}:`, apprErr);
+    console.error(`confirmWorkshopPart(${mode}): set_workshop_reservations_status(approve) failed for ${orderId}:`, apprErr);
     return { done: false };
   }
 
-  // ── Flip the order (only from 'pending') ─────────────────────────────
-  const upd: Record<string, unknown> = { order_validation: "approved" };
-  if (paid) {
-    upd.payment_status = "paid";
-    upd.paid_at = o.paid_at || new Date().toISOString();
-  }
-  const { error: flipErr } = await supabase
-    .from("orders").update(upd).eq("id", orderId).eq("order_validation", "pending");
-  if (flipErr) {
-    console.error(`autoConfirmPublicWorkshop: order flip failed for ${orderId}:`, flipErr);
-    return { done: false };
+  // ── Flip the order ──────────────────────────────────────────────────
+  //   workshop_only : order_validation 'pending' -> 'approved',
+  //                   physical_validation -> 'not_applicable'
+  //   mixed         : order_validation stays 'pending' (the cake part waits for
+  //                   the admin); physical_validation is already 'pending' from
+  //                   the INSERT — nothing to flip here.
+  if (mode === "workshop_only") {
+    const { error: flipErr } = await supabase
+      .from("orders")
+      .update({ order_validation: "approved", physical_validation: "not_applicable" })
+      .eq("id", orderId)
+      .eq("order_validation", "pending");
+    if (flipErr) {
+      console.error(`confirmWorkshopPart(${mode}): order flip failed for ${orderId}:`, flipErr);
+      return { done: false };
+    }
   }
 
   // ── Stamp the marker (confirmed write) ──────────────────────────────
@@ -229,13 +189,20 @@ export async function autoConfirmPublicWorkshop(
     .update({ workshop_confirmed_at: new Date().toISOString() })
     .eq("id", orderId)
     .is("workshop_confirmed_at", null)
-    .eq("order_validation", "approved")
     .select("id");
   if (stampErr) {
-    console.error(`autoConfirmPublicWorkshop: workshop_confirmed_at stamp failed for ${orderId}:`, stampErr);
+    console.error(`confirmWorkshopPart(${mode}): workshop_confirmed_at stamp failed for ${orderId}:`, stampErr);
     return { done: false };
   }
   return { done: true };
+}
+
+// Back-compat name used by retry-order-side-effects tests / callers.
+export async function autoConfirmPublicWorkshop(
+  supabase: any,
+  orderId: string,
+): Promise<{ done: boolean }> {
+  return confirmWorkshopPart(supabase, orderId, "workshop_only");
 }
 
 // ── Public workshop-only order: invoice PDF ────────────────────────────
@@ -334,7 +301,11 @@ export async function areSideEffectsComplete(supabase: any, orderId: string): Pr
     const isWorkshopOnly = hasWorkshop && !hasPhysical;
     return (!hasPhysical || !!o.make_notified_at)
       && (!hasWorkshop || !!o.workshop_make_notified_at)
+      // Workshop-only: the invoice is generated here (step 0b) so it is part of
+      // "side-effects done". Mixed: the workshop part must be confirmed, but the
+      // invoice is a later admin-decision artefact, NOT a side-effect.
       && (!isWorkshopOnly || (!!o.workshop_confirmed_at && !!o.invoice_path))
+      && (!(hasWorkshop && hasPhysical) || !!o.workshop_confirmed_at)
       && !!o.admin_notified_at
       && (!hasPhysical || !!o.customer_email_sent_at)
       && (!hasWorkshop || !!o.workshop_email_sent_at);
@@ -406,20 +377,27 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
   const hasPhysical = rows.some((it: any) => it.product !== "workshop");
   const hasWorkshop = rows.some((it: any) => it.product === "workshop");
 
-  // 0. Public workshop-only order → auto-confirm (capture + confirm reservations
-  //    + order_validation='approved'). MUST run before the admin notification
-  //    (so it shows "confirmed", no Accepter/Refuser) and the customer e-mail
-  //    (which says "réservation confirmée").
-  if (hasWorkshop && !hasPhysical && !o.workshop_confirmed_at) {
-    const { done } = await autoConfirmPublicWorkshop(supabase, orderId);
+  // 0. Workshop auto-confirmation — the payment is already captured at
+  //    checkout, so this only verifies it landed + confirms the seats.
+  //    workshop-only → also order_validation='approved'.
+  //    mixed         → only the workshop part; the cake part stays 'pending'
+  //                    (physical_validation='pending') for the admin.
+  //    MUST run before the admin notification and the customer e-mails.
+  if (hasWorkshop && !o.workshop_confirmed_at &&
+      (o.order_validation === "pending" || !o.order_validation)) {
+    const mode = hasPhysical ? "mixed" : "workshop_only";
+    const { done } = await confirmWorkshopPart(supabase, orderId, mode as any);
     if (!done) return { complete: false }; // retry next pass
     const reread = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
     if (reread.data) o = reread.data;
   }
 
-  // 0b. Public workshop-only order → generate + store the invoice PDF (same as
-  //     manage-order does on a manual "Accepter"). Best-effort; the sweep
-  //     retries until orders.invoice_path is set.
+  // 0b. Workshop-ONLY order → generate + store the invoice PDF now (same as
+  //     manage-order does on a manual "Accepter" for a cake order). Best-effort;
+  //     the sweep retries until orders.invoice_path is set.
+  //     A MIXED order's invoice is generated by manage-order at the admin
+  //     decision (full invoice on accept, workshop-only invoice on refuse) —
+  //     never here, so there is only ever one invoice per order.
   if (hasWorkshop && !hasPhysical && o.workshop_confirmed_at && !o.invoice_path) {
     const { done } = await ensureWorkshopInvoice(supabase, orderId);
     if (done) {
@@ -532,11 +510,16 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
     }
   }
 
-  // 5. Workshop booking e-mail (workshop items). For a workshop-ONLY order the
-  //    e-mail says "réservation confirmée" and attaches the invoice, so it must
-  //    wait for the auto-confirmation AND the invoice. A mixed order sends it
-  //    as before (workshop_confirmed_at stays NULL for mixed orders).
-  if (hasWorkshop && !o.workshop_email_sent_at && (hasPhysical || (o.workshop_confirmed_at && o.invoice_path))) {
+  // 5. Workshop booking e-mail (workshop items). It always says "réservation
+  //    confirmée" now (workshop_confirmed_at is set for both workshop-only and
+  //    mixed orders). For a workshop-ONLY order it also attaches the invoice, so
+  //    it waits for invoice_path. For a MIXED order there is no invoice yet
+  //    (that comes at the admin decision) — send as soon as the workshop part
+  //    is confirmed, mentioning that the cake part is still being reviewed.
+  const workshopEmailReady = hasPhysical
+    ? !!o.workshop_confirmed_at
+    : (!!o.workshop_confirmed_at && !!o.invoice_path);
+  if (hasWorkshop && !o.workshop_email_sent_at && workshopEmailReady) {
     try {
       const { error } = await supabase.functions.invoke("send-workshop-email", { body: { orderId } });
       if (!error) await stampMarker(supabase, orderId, "workshop_email_sent_at");

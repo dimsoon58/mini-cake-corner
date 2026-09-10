@@ -94,6 +94,7 @@ interface OrderRow {
   reward_amount_used?: number;
   express_surcharge_amount?: number;
   total_amount?: number;
+  fulfillment_type?: "cake_only" | "workshop_only" | "mixed";
 }
 
 // Shape of an `orderItems[i]` AFTER the strict client whitelist + the
@@ -540,23 +541,10 @@ serve(async (req) => {
 
     if (!order.email) throw new Error("Customer email is required");
 
-    // A public workshop is captured + auto-confirmed the instant the payment
-    // succeeds; a cake order is only authorised and then waits for a manual
-    // Accept/Refuse. The two finalisation paths are mutually exclusive, so a
-    // single checkout can never contain both — the frontend blocks the mix
-    // at add-to-cart time, this is the server-side backstop.
-    {
-      const anyWorkshop = orderItems.some((it) => it.product === "workshop");
-      const anyNonWorkshop = orderItems.some((it) => it.product !== "workshop");
-      if (anyWorkshop && anyNonWorkshop) {
-        console.error(`MIXED_CART_NOT_ALLOWED for order ${orderId}: workshop + non-workshop items in one checkout`);
-        throw new Error(
-          order.lang === "en"
-            ? "A workshop and a cake cannot be ordered together — a workshop is confirmed immediately after payment, whereas a cake order must first be reviewed. Please place two separate orders."
-            : "Un atelier et un gâteau ne peuvent pas être commandés ensemble — un atelier est confirmé immédiatement après paiement, alors qu'une commande de gâteau doit d'abord être validée. Merci de passer deux commandes séparées.",
-        );
-      }
-    }
+    // Mixed carts (workshop + physical products) ARE allowed — one checkout,
+    // one immediate capture. The workshop part auto-confirms after payment;
+    // the physical part waits for the admin. fulfillment_type is set below,
+    // once the items are priced.
 
     // Service-role client — used below for the workshop session catalogue and
     // later for welcome-discount / reward reservations.
@@ -1048,6 +1036,20 @@ serve(async (req) => {
       );
     }
 
+    // Fulfilment type — derived from the (already priced) items, carried on the
+    // payload so confirm-postfinance-payment / the webhook persist it verbatim.
+    //   cake_only     : no workshop line
+    //   workshop_only : only workshop lines  -> auto-confirmed, no admin step
+    //   mixed         : workshop + physical  -> workshop auto-confirms, physical
+    //                   part waits for the admin
+    {
+      const anyWorkshop = orderItems.some((it) => it.product === "workshop");
+      const anyPhysical = orderItems.some((it) => it.product !== "workshop");
+      order.fulfillment_type = anyWorkshop
+        ? (anyPhysical ? "mixed" : "workshop_only")
+        : "cake_only";
+    }
+
     // ─── Persist the FINAL authoritative payload BEFORE using the transaction
     // confirm-postfinance-payment and the webhook read THIS payload to create
     // the order, so it must already carry the final welcome discount, reward,
@@ -1114,7 +1116,11 @@ serve(async (req) => {
       // order_id lets Checkout reconcile a failed PostFinance attempt and
       // release the reservations tied to it.
       failedUrl: `${SITE_BASE_URL}/checkout?payment=failed&order_id=${encodeURIComponent(orderId)}`,
-      completionBehavior: "COMPLETE_DEFERRED",
+      // NEW MODEL: every payment is captured immediately at checkout. There is
+      // no admin "capture on Accept" any more — payment_status = 'paid' means
+      // the money was really taken. manage-order never moves money; a physical
+      // refusal is flagged refund_status = 'to_refund' and refunded by hand.
+      completionBehavior: "COMPLETE_IMMEDIATELY",
       lineItems,
       metaData: {
         order_id: orderId,

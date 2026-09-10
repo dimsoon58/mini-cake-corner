@@ -574,32 +574,16 @@ const Cart = () => {
                     ).toFixed(2)}</span>
                   </div>
                   <ExpressDateNotice date={cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null} />
-                  {(() => {
-                    // A workshop auto-confirms on payment; a cake order waits
-                    // for a manual review. They can't be checked out together.
-                    // New additions are blocked at add-to-cart time — this
-                    // only ever shows for a cart saved before that rule, and
-                    // never removes an item on its own.
-                    const mixed =
-                      items.some((i) => i.product === "workshop") &&
-                      items.some((i) => i.product !== "workshop");
-                    if (!mixed) {
-                      return (
-                        <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-base font-medium tracking-wide rounded-none" size="lg" asChild><Link to="/checkout">{t("Proceed to Checkout", "Passer la commande")}</Link></Button>
-                      );
-                    }
-                    return (
-                      <>
-                        <p className="text-sm text-destructive border border-destructive/40 bg-destructive/5 p-3 rounded-none">
-                          {t(
-                            "Your cart contains both a workshop and a cake. A workshop is confirmed immediately after payment, whereas a cake order must first be reviewed — please remove one kind and order it separately.",
-                            "Votre panier contient à la fois un atelier et un gâteau. Un atelier est confirmé immédiatement après paiement, alors qu'une commande de gâteau doit d'abord être validée — merci de retirer l'un des deux et de le commander séparément.",
-                          )}
-                        </p>
-                        <Button className="w-full py-2.5 text-base font-medium tracking-wide rounded-none" size="lg" disabled>{t("Proceed to Checkout", "Passer la commande")}</Button>
-                      </>
-                    );
-                  })()}
+                  {items.some((i) => i.product === "workshop") &&
+                   items.some((i) => i.product !== "workshop") && (
+                    <p className="text-xs text-muted-foreground border border-border bg-muted/40 p-3 rounded-none">
+                      {t(
+                        "Your cart has a workshop and cake/products. You pay once now: your workshop place is confirmed immediately, and the cake part is confirmed by our team afterwards.",
+                        "Votre panier contient un atelier et des gâteaux/produits. Vous payez une seule fois : votre place d'atelier est confirmée immédiatement, la partie gâteau est validée ensuite par notre équipe.",
+                      )}
+                    </p>
+                  )}
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-base font-medium tracking-wide rounded-none" size="lg" asChild><Link to="/checkout">{t("Proceed to Checkout", "Passer la commande")}</Link></Button>
                   <Button variant="outline" className="w-full rounded-none" asChild><Link to="/catalog">{t("Add Another Cake", "Ajouter un autre gâteau")}</Link></Button>
                 </CardContent>
               </Card>

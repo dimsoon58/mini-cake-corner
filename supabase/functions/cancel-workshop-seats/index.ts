@@ -132,9 +132,14 @@ serve(async (req) => {
         error: `Reservation ${reservationBefore.workshop_reference} is "${reservationBefore.status}". Partial cancellation needs a confirmed reservation. For a still-pending reservation, reject the whole order instead.`,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 });
     }
-    if (order.order_validation !== "approved") {
+    // A workshop reservation is cancellable once the workshop part is really
+    // confirmed & paid: for a cake+workshop (mixed) order that happens
+    // automatically at payment (workshop_confirmed_at), while order_validation
+    // stays 'pending' until the admin decides the cake part. So accept EITHER
+    // signal.
+    if (order.order_validation !== "approved" && !order.workshop_confirmed_at) {
       return new Response(JSON.stringify({
-        error: `Order ${order.order_number || order.id} is not approved yet — a workshop reservation can only be partially cancelled after admin approval / capture.`,
+        error: `Order ${order.order_number || order.id} — the workshop part is not confirmed yet; a reservation can only be cancelled once the workshop is confirmed and paid.`,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 });
     }
 
