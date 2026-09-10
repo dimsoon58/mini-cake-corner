@@ -1639,7 +1639,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       {selections.orderDate ? (
                         format(selections.orderDate, "dd.MM.yyyy")
                       ) : (
-                        <span>{t("Pick a date", "Choisir une date")}</span>
+                        <span>{t("Select a date", "Choisir une date")}</span>
                       )}
                     </Button>
                   </PopoverTrigger>

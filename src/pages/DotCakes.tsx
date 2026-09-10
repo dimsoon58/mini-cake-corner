@@ -295,7 +295,7 @@ const DotCakes = () => {
                     )}>
                     <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="truncate">
-                      {orderDate ? format(orderDate, "PPP") : t("Select your pick-up date", "Sélectionnez votre date de retrait")}
+                      {orderDate ? format(orderDate, "PPP") : t("Select a date", "Choisir une date")}
                     </span>
                   </Button>
                 </PopoverTrigger>

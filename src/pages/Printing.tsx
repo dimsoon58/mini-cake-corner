@@ -130,7 +130,7 @@ const Printing = () => {
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {orderDate ? format(orderDate, "dd.MM.yyyy") : t("Select a date", "Sélectionnez une date")}
+                  {orderDate ? format(orderDate, "dd.MM.yyyy") : t("Select a date", "Choisir une date")}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
