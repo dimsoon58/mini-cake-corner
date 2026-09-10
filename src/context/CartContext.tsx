@@ -131,9 +131,11 @@ export const VALID_PRODUCTS = new Set([
 //   - "mixed_cart":    a workshop and a cake can't share one checkout — a
 //                      workshop auto-confirms on payment, a cake order must
 //                      first be reviewed, so they must be ordered separately
-export type AddItemResult =
-  | { ok: true }
-  | { ok: false; reason: "date_mismatch" | "mixed_cart" };
+export interface AddItemResult {
+  ok: boolean;
+  /* Set whenever ok === false. Left undefined on success. */
+  reason?: "date_mismatch" | "mixed_cart";
+}
 
 interface CartContextType {
   items: CartItem[];
