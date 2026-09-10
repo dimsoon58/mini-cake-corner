@@ -23,19 +23,59 @@
 // return true after a failed DB read.
 
 import { buildWorkshopMakePayload, sendWorkshopMakeWebhookChecked } from "./workshop-make.ts";
+import { sendTechnicalAlert } from "./admin-alert.ts";
 
 // Main production Make webhook ("Commandes & Paiements" + Agenda). Make writes
 // orders.notion_sync_status = 'synced' | 'error'.
 export const MAKE_WEBHOOK_URL =
   "https://hook.eu1.make.com/umndao56d5dii1f1f7r1sv17ffegwdek";
 
-// "Bento — Réparer synchronisation commande" — Find -> repair only what's
-// missing. Falls back to the main URL (which must then itself be idempotent).
-function makeRepairUrl(): string {
-  return Deno.env.get("MAKE_REPAIR_WEBHOOK_URL") || MAKE_WEBHOOK_URL;
-}
-
 const MAKE_DISPATCH_GRACE_MS = 10 * 60 * 1000; // wait this long for 'synced'/'error' before hitting the repair path
+
+let missingRepairAlertSent = false; // once per function instance
+
+// "Bento — Réparer synchronisation commande" — the real scenario expects
+// { orderId, token } (it reloads the order from Supabase itself and checks the
+// token). It is NEVER sent { order, orderItems }, and there is NO fallback to
+// the main webhook (the main scenario is not guaranteed idempotent).
+//   { ok: true }         POST accepted (HTTP 2xx)
+//   { ok: false }        POST failed, OR the repair URL/token is not configured
+async function postMakeRepair(orderId: string): Promise<{ ok: boolean }> {
+  const url = Deno.env.get("MAKE_REPAIR_WEBHOOK_URL");
+  const token = Deno.env.get("MAKE_REPAIR_TOKEN");
+  if (!url || !token) {
+    console.error(
+      `Make repair not configured (MAKE_REPAIR_WEBHOOK_URL / MAKE_REPAIR_TOKEN) — order ${orderId} left for retry, no fallback to the main webhook.`,
+    );
+    if (!missingRepairAlertSent) {
+      missingRepairAlertSent = true;
+      await sendTechnicalAlert({
+        subject: "Configuration manquante — Make repair (synchronisation commande)",
+        lines: [
+          `MAKE_REPAIR_WEBHOOK_URL / MAKE_REPAIR_TOKEN non défini(s).`,
+          `Les commandes dont la synchro Notion est en erreur ou bloquée > 10 min ne peuvent pas être réparées.`,
+          `Première commande concernée : ${orderId}`,
+        ],
+      }).catch(() => {});
+    }
+    return { ok: false };
+  }
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, token }),
+    });
+    if (!resp.ok) {
+      console.error(`Make repair webhook returned ${resp.status} for ${orderId}`);
+      return { ok: false };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.error(`Make repair webhook threw for ${orderId}:`, e);
+    return { ok: false };
+  }
+}
 
 const MARKER_COLUMNS =
   "side_effects_done_at, make_notified_at, workshop_make_notified_at, admin_notified_at, customer_email_sent_at, workshop_email_sent_at";
