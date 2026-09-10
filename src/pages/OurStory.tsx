@@ -200,7 +200,7 @@ const OurStory = () => {
                   </h2>
                   <div className="space-y-4">
                     {chapter.paragraphs.map((paragraph, i) => (
-                      <p key={i} className="text-sm md:text-[15px] leading-relaxed text-foreground/85 text-justify">
+                      <p key={i} className="text-sm md:text-[15px] leading-relaxed text-foreground/85" style={{ textAlign: "justify" }}>
                         {paragraph}
                       </p>
                     ))}
@@ -234,7 +234,7 @@ const OurStory = () => {
               </h2>
               <div className="space-y-4">
                 {chapter2026.map((paragraph, i) => (
-                  <p key={i} className="text-sm md:text-[15px] leading-relaxed opacity-95 text-justify">
+                  <p key={i} className="text-sm md:text-[15px] leading-relaxed opacity-95" style={{ textAlign: "justify" }}>
                     {paragraph}
                   </p>
                 ))}
