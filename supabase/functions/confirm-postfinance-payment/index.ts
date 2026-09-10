@@ -4,88 +4,50 @@ import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
 import { ORDER_ITEM_PAYLOAD_FIELDS, ORDER_PAYLOAD_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
+import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SUCCESS_STATES = new Set(["AUTHORIZED", "COMPLETED", "FULFILL"]);
+// NEW MODEL — every transaction is created with completionBehavior
+// COMPLETE_IMMEDIATELY, so a successful payment goes straight to COMPLETED /
+// FULFILL. AUTHORIZED means the capture has not landed yet: treat it as
+// "still in progress", keep polling — never create a 'paid' order for it.
+const SUCCESS_STATES = new Set(["COMPLETED", "FULFILL"]);
 const FAILURE_STATES = new Set(["FAILED", "DECLINE", "VOIDED"]);
 
 // Thrown when a workshop line cannot be reserved (session full / closed) AFTER
-// the payment was already authorised (or captured). Carries whether the
-// payment was financially unwound (voided / refunded) so the response can tell
-// the customer the truth.
+// the payment was already CAPTURED (immediate capture). The money cannot be
+// voided — it is flagged for a manual PostFinance refund.
 class WorkshopCapacityAbort extends Error {
   financiallyResolved: boolean;
-  constructor(financiallyResolved: boolean, message: string) {
+  refundState: string;
+  constructor(financiallyResolved: boolean, refundState: string, message: string) {
     super(message);
     this.financiallyResolved = financiallyResolved;
+    this.refundState = refundState;
   }
 }
 
 // Re-entrant, idempotent unwind of an order whose workshop reservation(s)
-// could not be secured. Callable both at first failure and on a later poll
-// (existing-order path) to finish a void/refund that did not complete.
-//
-// Returns { financiallyResolved } — true only when the authorization is
-// verified VOIDED, was never captured, a full refund was created, or the
-// checkout was reward-only. When false, pending_payments and a 'pending'
-// order_validation are deliberately LEFT so a later attempt can finish it,
-// and the caller must not tell the customer "no charge was made".
-async function abortOrderAfterAuthorization(
+// could not be secured. In the NEW model the payment is ALREADY captured at
+// checkout — there is nothing to void and NO automatic refund. The order is
+// marked cancelled + refund_status = 'to_refund' for the full amount; an admin
+// refunds it by hand in PostFinance and marks it done.
+async function abortOrderAfterCapture(
   supabase: any,
   orderRecord: any,
   reason: string,
-): Promise<{ financiallyResolved: boolean; message: string }> {
+): Promise<{ financiallyResolved: boolean; refundState: string; message: string }> {
   const txId: string = String(orderRecord.postfinance_transaction_id ?? "");
-  let financiallyResolved = false;
-  let note = "";
+  const isRewardOnly = txId === REWARD_ONLY_TRANSACTION_ID;
+  const note = isRewardOnly
+    ? "reward-only checkout — reward reservation released, nothing to refund"
+    : "payment already captured — flagged for a MANUAL PostFinance refund (full amount)";
 
-  if (txId === REWARD_ONLY_TRANSACTION_ID) {
-    // Reward-only checkout: no live PostFinance transaction. The reward
-    // reservation is released below; nothing to void or refund.
-    financiallyResolved = true;
-    note = "reward-only checkout — reward reservation released";
-  } else if (!txId) {
-    financiallyResolved = false;
-    note = "no PostFinance transaction id on the order — manual verification required";
-  } else {
-    try {
-      const credentials = getPostFinanceCredentials();
-      const tx = await pfFetch(credentials, `/payment/transactions/${txId}`, "GET") as { state: string };
-
-      if (tx.state === "AUTHORIZED") {
-        await pfFetch(credentials, `/payment/transactions/${txId}/void-online`, "POST");
-        const after = await pfFetch(credentials, `/payment/transactions/${txId}`, "GET") as { state: string };
-        financiallyResolved = after.state === "VOIDED";
-        note = `void-online → ${after.state}`;
-      } else if (tx.state === "VOIDED") {
-        financiallyResolved = true;
-        note = "authorization already voided";
-      } else if (tx.state === "COMPLETED" || tx.state === "FULFILL") {
-        // The funds were captured — a void is no longer possible; refund the
-        // whole amount. externalId is stable so a retry never double-refunds.
-        await pfFetch(credentials, `/payment/refunds`, "POST", {
-          externalId: `${txId}-ws-capacity-abort`,
-          type: "MERCHANT_INITIATED_ONLINE",
-          transaction: Number(txId),
-        });
-        financiallyResolved = true;
-        note = `full refund created (transaction was ${tx.state})`;
-      } else {
-        financiallyResolved = false;
-        note = `unexpected PostFinance state ${tx.state} — manual verification required`;
-      }
-    } catch (pfErr) {
-      financiallyResolved = false;
-      note = `PostFinance void/refund failed: ${pfErr instanceof Error ? pfErr.message : String(pfErr)}`;
-      console.error(`abortOrderAfterAuthorization PostFinance error for ${orderRecord.id}:`, pfErr);
-    }
-  }
-
-  // Always safe / idempotent: release the reservations this order held.
+  // Release the reservations this checkout held (idempotent).
   if (orderRecord.customer_id) {
     const { error: welcomeErr } = await supabase
       .from("profiles")
@@ -100,8 +62,8 @@ async function abortOrderAfterAuthorization(
   } catch (e) {
     console.error(`release_reward_reservation threw for aborted ${orderRecord.id}:`, e);
   }
-  // Any workshop_reservations that DID land (e.g. RPC committed then the
-  // transport dropped) are moved to 'rejected' — idempotent, frees capacity.
+  // Any workshop_reservations that DID land are moved to 'rejected' — idempotent,
+  // frees capacity.
   try {
     const { error: wsErr } = await supabase.rpc("set_workshop_reservations_status", {
       p_order_id: orderRecord.id, p_action: "reject",
@@ -111,25 +73,46 @@ async function abortOrderAfterAuthorization(
     console.error(`set_workshop_reservations_status threw for aborted ${orderRecord.id}:`, e);
   }
 
-  // Persist the reason so every later poll reports it (GA4 purchase never
-  // fires for this order). order_comment is never reused for this.
+  // Persist the abort. payment_status STAYS 'paid' (the money is really there);
+  // the order is cancelled and flagged for a manual refund of the full amount.
+  // physical_validation: a workshop-only order has NO physical part, so it stays
+  // 'not_applicable'; any order with a physical part goes 'rejected'.
+  const isWorkshopOnly = orderRecord.fulfillment_type === "workshop_only";
+  const abortUpdate: Record<string, unknown> = {
+    order_failure_reason: "workshop_capacity_unavailable",
+    order_validation: "cancelled",
+    refund_status: isRewardOnly ? "none" : "to_refund",
+    refund_due_amount: isRewardOnly ? 0 : (Number(orderRecord.total_amount) || 0),
+  };
+  if (!isWorkshopOnly) abortUpdate.physical_validation = "rejected";
   const { error: orderUpdateErr } = await supabase
-    .from("orders")
-    .update({
-      order_failure_reason: "workshop_capacity_unavailable",
-      order_validation: financiallyResolved ? "rejected" : "pending",
-      payment_status: financiallyResolved ? "cancelled" : "pending",
-    })
-    .eq("id", orderRecord.id);
+    .from("orders").update(abortUpdate).eq("id", orderRecord.id);
   if (orderUpdateErr) console.error(`Failed to persist abort state for ${orderRecord.id}:`, orderUpdateErr);
 
-  if (financiallyResolved) {
-    await supabase.from("pending_payments").delete().eq("order_id", orderRecord.id);
-  }
-  // else: keep pending_payments so the void/refund can be retried later.
+  // pending_payments is dropped: the order row exists, the reason is persisted,
+  // the refund is a human task now — nothing left to retry here.
+  await supabase.from("pending_payments").delete().eq("order_id", orderRecord.id);
 
-  console.error(`Order ${orderRecord.id} aborted after authorization — ${reason} — ${note} — resolved=${financiallyResolved}`);
-  return { financiallyResolved, message: `${reason} — ${note}` };
+  if (!isRewardOnly) {
+    EdgeRuntime.waitUntil(sendTechnicalAlert({
+      subject: `Atelier complet APRÈS paiement — remboursement manuel requis — commande ${orderRecord.id}`,
+      lines: [
+        `Order ID : ${orderRecord.id}`,
+        `Transaction PostFinance : ${txId}`,
+        `Montant encaissé à rembourser À LA MAIN : CHF ${Number(orderRecord.total_amount) || 0}`,
+        `Raison : ${reason}`,
+        `Heure : ${new Date().toISOString()}`,
+        `Action : rembourser dans PostFinance puis marquer refund_status='refunded' sur la commande.`,
+      ],
+    }).catch(() => {}));
+  }
+
+  console.error(`Order ${orderRecord.id} aborted after capture — ${reason} — ${note}`);
+  return {
+    financiallyResolved: isRewardOnly,
+    refundState: isRewardOnly ? "none" : "to_refund",
+    message: `${reason} — ${note}`,
+  };
 }
 
 // The workshop Make webhook ("Réservations Workshops → Notion") is now a
@@ -189,10 +172,11 @@ async function finalizeOrderDb(
       "claim_workshop_reservations_batch", { p_order_id: orderRecord.id },
     );
     if (claimError) {
-      // Capacity / closed / consent / inconsistency: unwind the whole order
-      // (authorization included). A mixed order's cake part does not survive.
-      const abort = await abortOrderAfterAuthorization(supabase, orderRecord, claimError.message || "claim failed");
-      throw new WorkshopCapacityAbort(abort.financiallyResolved, abort.message);
+      // Capacity / closed / consent / inconsistency. The payment is already
+      // captured (immediate capture) — the whole order is cancelled and flagged
+      // for a manual refund. A mixed order's cake part does not survive either.
+      const abort = await abortOrderAfterCapture(supabase, orderRecord, claimError.message || "claim failed");
+      throw new WorkshopCapacityAbort(abort.financiallyResolved, abort.refundState, abort.message);
     }
     // The "Réservations Workshops → Notion" webhook is fired (and retried
     // durably) by runSideEffects → workshop_make_notified_at.
@@ -316,13 +300,51 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function capacityResponse(financiallyResolved: boolean, orderValidation: string | null, detail: string) {
+// Build the "confirmed" response from a FRESH re-read of orders — runSideEffects
+// may have flipped order_validation ('pending' -> 'approved' for a workshop-only
+// order) and set workshop_confirmed_at / physical_validation. Returning a
+// pre-side-effects snapshot would show a confirmed workshop as still "pending"
+// on the PaymentSuccess page.
+async function confirmedResponse(
+  supabase: any,
+  orderId: string,
+  justCreated: boolean,
+  sideEffectsComplete: boolean | undefined,
+): Promise<Response> {
+  const { data: o } = await supabase
+    .from("orders")
+    .select("order_validation, physical_validation, workshop_confirmed_at, fulfillment_type, order_failure_reason, refund_status")
+    .eq("id", orderId)
+    .maybeSingle();
+  return json({
+    confirmed: true,
+    justCreated,
+    orderValidation: o?.order_validation ?? "pending",
+    physicalValidation: o?.physical_validation ?? null,
+    workshopConfirmed: !!o?.workshop_confirmed_at,
+    fulfillmentType: o?.fulfillment_type ?? null,
+    orderFailureReason: o?.order_failure_reason ?? null,
+    refundStatus: o?.refund_status ?? "none",
+    sideEffectsComplete,
+  });
+}
+
+// The workshop sold out AFTER the payment was already captured. Three distinct
+// customer situations — PaymentSuccess must tell the truth in each:
+//   rewardOnly = true                  -> no money was ever taken
+//   refundState = 'to_refund'          -> money received, refund still to be done
+//   refundState = 'refunded'           -> money received, refund already done
+function capacityResponse(rewardOnly: boolean, refundState: string, detail: string) {
   return new Response(JSON.stringify({
     confirmed: false,
     failed: true,
     reason: "workshop_capacity_unavailable",
-    financiallyResolved,
-    orderValidation,
+    rewardOnly,
+    refundState,                                   // 'none' | 'to_refund' | 'refunded'
+    // legacy field for older PaymentSuccess builds: true only when nothing is owed
+    refundResolved: rewardOnly || refundState === "refunded",
+    financiallyResolved: rewardOnly || refundState === "refunded",
+    orderValidation: "cancelled",
     detail,
   }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -355,14 +377,20 @@ serve(async (req) => {
       // A capacity abort persisted its reason — never report this order as
       // confirmed, and give a later attempt a chance to finish the void/refund.
       if (existingOrder.order_failure_reason === "workshop_capacity_unavailable") {
-        let resolved = existingOrder.order_validation === "rejected"
-          && existingOrder.payment_status === "cancelled";
-        if (!resolved) {
-          const abort = await abortOrderAfterAuthorization(supabase, existingOrder, "retry");
-          resolved = abort.financiallyResolved;
-          return capacityResponse(resolved, resolved ? "rejected" : "pending", abort.message);
+        // Already persisted by abortOrderAfterCapture (order_validation
+        // 'cancelled'). Re-run it only if that persist did not land — it is
+        // idempotent (guarded releases, idempotent delete).
+        const persisted = existingOrder.order_validation === "cancelled";
+        if (!persisted) {
+          const abort = await abortOrderAfterCapture(supabase, existingOrder, "retry");
+          return capacityResponse(abort.financiallyResolved, abort.refundState, abort.message);
         }
-        return capacityResponse(true, "rejected", "workshop capacity unavailable (resolved)");
+        const wasRewardOnly = existingOrder.postfinance_transaction_id === REWARD_ONLY_TRANSACTION_ID;
+        return capacityResponse(
+          wasRewardOnly,
+          wasRewardOnly ? "none" : (existingOrder.refund_status ?? "to_refund"),
+          "workshop capacity unavailable — refund state tracked on the order",
+        );
       }
 
       // ── Already DB-complete → only retry the missing side-effects ──
@@ -371,12 +399,7 @@ serve(async (req) => {
         // between mark_order_finalized and the delete inside finalizeOrderDb.
         await supabase.from("pending_payments").delete().eq("order_id", orderId);
         const sideEffectsComplete = await retryMissingSideEffects(supabase, orderId);
-        return json({
-          confirmed: true,
-          justCreated: false,
-          orderValidation: existingOrder.order_validation,
-          sideEffectsComplete,
-        });
+        return await confirmedResponse(supabase, orderId, false, sideEffectsComplete);
       }
 
       // ── Order row exists but finalisation is not done ──
@@ -396,12 +419,7 @@ serve(async (req) => {
       if (pendingForRetry?.payload?.orderItems) {
         const result = await finalizeClaimed(supabase, existingOrder, pendingForRetry.payload.orderItems);
         if (result.outcome === "finalized") {
-          return json({
-            confirmed: true,
-            justCreated: true,
-            orderValidation: existingOrder.order_validation,
-            sideEffectsComplete: result.sideEffectsComplete,
-          });
+          return await confirmedResponse(supabase, orderId, true, result.sideEffectsComplete);
         }
         return json({ confirmed: false, finalizing: true });
       }
@@ -486,7 +504,19 @@ serve(async (req) => {
         ...pickAllowed(order as Record<string, unknown>, ORDER_PAYLOAD_FIELDS),
         id: orderId,
         postfinance_transaction_id: String(pending.postfinance_transaction_id),
-        payment_status: "pending",
+        // NEW MODEL: we only reach here after the transaction is verified
+        // COMPLETED / FULFILL (or it is reward-only) — the money is really
+        // taken, so the order is 'paid' from the start. order_validation stays
+        // 'pending' (cake / mixed) until the admin decides the physical part;
+        // a workshop-only order is flipped to 'approved' by runSideEffects.
+        payment_status: "paid",
+        paid_at: new Date().toISOString(),
+        // Any order with a physical part awaits the admin ('pending'); a
+        // workshop-only order has no physical part to decide.
+        physical_validation:
+          (order as { fulfillment_type?: string }).fulfillment_type === "workshop_only"
+            ? "not_applicable"
+            : "pending",
       }).select().single();
 
     if (orderError) {
@@ -508,12 +538,7 @@ serve(async (req) => {
     // The 23505 re-select may already be fully finalised (webhook beat us).
     if (orderRecord.finalized_at) {
       const sideEffectsComplete = await retryMissingSideEffects(supabase, orderId);
-      return json({
-        confirmed: true,
-        justCreated: false,
-        orderValidation: orderRecord.order_validation ?? "pending",
-        sideEffectsComplete,
-      });
+      return await confirmedResponse(supabase, orderId, false, sideEffectsComplete);
     }
     if (finalizationLeaseActive(orderRecord)) {
       return json({ confirmed: false, finalizing: true });
@@ -521,23 +546,14 @@ serve(async (req) => {
 
     const result = await finalizeClaimed(supabase, orderRecord, orderItems);
     if (result.outcome === "finalized") {
-      return json({
-        confirmed: true,
-        justCreated: true,
-        orderValidation: orderRecord.order_validation ?? "pending",
-        sideEffectsComplete: result.sideEffectsComplete,
-      });
+      return await confirmedResponse(supabase, orderId, true, result.sideEffectsComplete);
     }
     // Lost the lease race to a concurrent finaliser (webhook vs poll). The
     // order exists; it is being finalised elsewhere. Keep polling.
     return json({ confirmed: false, finalizing: true });
   } catch (error) {
     if (error instanceof WorkshopCapacityAbort) {
-      return capacityResponse(
-        error.financiallyResolved,
-        error.financiallyResolved ? "rejected" : "pending",
-        error.message,
-      );
+      return capacityResponse(error.financiallyResolved, error.refundState, error.message);
     }
 
     console.error("Error confirming PostFinance payment:", error);

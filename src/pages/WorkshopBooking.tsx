@@ -64,7 +64,7 @@ const WorkshopBooking = () => {
   const { t, lang } = useLang();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { addItem, cartHasCake } = useCart();
+  const { addItem } = useCart();
 
   const typeParam = searchParams.get("type") as WorkshopType | null;
   const workshopType: WorkshopType = typeParam === "paint" ? "paint" : "signature";
@@ -327,18 +327,6 @@ const WorkshopBooking = () => {
   // ── Step 3: summary + confirm ─────────────────────────────────────────────
   const handleAddToCart = async () => {
     if (!selectedSession) { setStep(0); return; }
-    // A workshop auto-confirms on payment; a cake order waits for a manual
-    // review. They can't be checked out together — stop here with a clear
-    // message rather than letting addItem() silently refuse the line.
-    if (cartHasCake) {
-      toast.error(
-        t(
-          "Your cart already contains a cake. A workshop is confirmed immediately after payment, whereas a cake order must first be reviewed — please order the workshop separately.",
-          "Votre panier contient déjà un gâteau. Un atelier est confirmé immédiatement après paiement, alors qu'une commande de gâteau doit d'abord être validée — merci de commander l'atelier séparément.",
-        ),
-      );
-      return;
-    }
     if (hasMinor === null) { setMinorError(t("Please answer this question.", "Veuillez répondre à cette question.")); setStep(2); return; }
     if (hasMinor === true && !minorConsent) {
       setMinorError(t("Please confirm this to continue.", "Veuillez confirmer pour continuer."));
@@ -400,11 +388,7 @@ const WorkshopBooking = () => {
 
     setIsSubmitting(false);
     if (!added.ok) {
-      toast.error(
-        added.reason === "mixed_cart"
-          ? t("Your cart already contains a cake. A workshop is confirmed immediately after payment, whereas a cake order must first be reviewed — please order the workshop separately.", "Votre panier contient déjà un gâteau. Un atelier est confirmé immédiatement après paiement, alors qu'une commande de gâteau doit d'abord être validée — merci de commander l'atelier séparément.")
-          : t("Could not add the workshop to your cart. Please try again.", "Impossible d'ajouter l'atelier au panier. Veuillez réessayer."),
-      );
+      toast.error(t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."));
       return;
     }
     toast.success(t("Workshop added to your cart.", "Atelier ajouté à votre panier."));

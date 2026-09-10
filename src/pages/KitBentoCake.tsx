@@ -381,7 +381,7 @@ const KitBentoCake = () => {
     };
 
     const added = addItem(cartItem);
-    if (!added) {
+    if (!added.ok) {
       toast.error(t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."));
       return;
     }

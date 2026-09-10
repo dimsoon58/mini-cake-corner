@@ -26,6 +26,10 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
 
   // A workshop-only order has no pickup/delivery (delivery_method is null).
   const hasPickupOrDelivery = !!order.delivery_method;
+  // Mixed order: the workshop part is already confirmed + paid; only the cake
+  // part is pending. send-order-received-email is only invoked for orders with
+  // a physical part, so this is 'mixed' vs 'cake_only'.
+  const isMixed = order.fulfillment_type === "mixed";
   const deliveryInfo = order.delivery_method === "delivery"
     ? tr("Delivery", "Livraison")
     : tr("Pickup at store", "Retrait sur place");
@@ -59,17 +63,22 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">
           ${tr(
-            `We have successfully received your order <strong>#${orderNumber}</strong> along with your payment request.`,
-            `Nous avons bien reçu votre commande <strong>n° ${orderNumber}</strong> ainsi que votre demande de paiement.`
+            `We have successfully received your order <strong>#${orderNumber}</strong> and your payment.`,
+            `Nous avons bien reçu votre commande <strong>n° ${orderNumber}</strong> et votre paiement.`
           )}
         </p>
 
         <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:0 0 20px;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
-            ${tr(
-              "Your order is currently pending validation by our team. We will review the details of your order and confirm as soon as possible whether we can fulfil it.",
-              "Votre commande est actuellement en attente de validation par notre équipe. Nous allons vérifier les détails de votre commande et vous confirmer dans les plus brefs délais si nous pouvons la réaliser."
-            )}
+            ${isMixed
+              ? tr(
+                  "Your workshop booking is confirmed (you will receive a separate email for it). The cake / products part of this order is currently pending validation by our team — we will confirm as soon as possible whether we can fulfil it.",
+                  "Votre réservation d'atelier est confirmée (vous recevez un email séparé à ce sujet). La partie gâteau / produits de cette commande est actuellement en attente de validation par notre équipe — nous vous confirmerons dans les plus brefs délais si nous pouvons la réaliser.",
+                )
+              : tr(
+                  "Your order is currently pending validation by our team. We will review the details of your order and confirm as soon as possible whether we can fulfil it.",
+                  "Votre commande est actuellement en attente de validation par notre équipe. Nous allons vérifier les détails de votre commande et vous confirmer dans les plus brefs délais si nous pouvons la réaliser."
+                )}
           </p>
         </div>
 

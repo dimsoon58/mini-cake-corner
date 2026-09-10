@@ -71,15 +71,19 @@ async function sendWorkshopEmail(
 
   const multiple = workshopItems.length > 1;
   const workshopSubtotal = workshopItems.reduce((sum, it) => sum + (Number(it.total) || 0), 0);
-  // Amount really captured for this order. For a public workshop-only order
-  // it equals the workshop subtotal; keep order.total_amount as the single
-  // source of truth for "montant payé".
-  const paidAmount = Number(order.total_amount);
-  const amountPaid = Number.isFinite(paidAmount) ? paidAmount.toFixed(2) : chf(workshopSubtotal);
 
-  // Set by autoConfirmPublicWorkshop() once a public workshop-only order is
-  // captured + its reservations confirmed. NULL for a mixed cake+workshop
-  // order, which still goes through the manual Accepter/Refuser flow.
+  // MIXED order (workshop + physical): the workshop part is confirmed + paid,
+  // but the cake part is still awaiting the admin. "Montant payé" here is the
+  // WORKSHOP subtotal only (order.total_amount also covers the pending cake).
+  const isMixed = order.fulfillment_type === "mixed";
+  const paidTotal = Number(order.total_amount);
+  const amountPaid = isMixed
+    ? chf(workshopSubtotal)
+    : (Number.isFinite(paidTotal) ? paidTotal.toFixed(2) : chf(workshopSubtotal));
+
+  // Set by confirmWorkshopPart() once the workshop part is confirmed (payment
+  // really captured + reservations confirmed) — for BOTH workshop-only and
+  // mixed orders.
   const confirmed = !!order.workshop_confirmed_at;
 
   const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
@@ -153,9 +157,15 @@ async function sendWorkshopEmail(
         </p>
 
         ${confirmed ? `
-        <p style="color:#351E13;font-size:18px;line-height:1.6;font-weight:700;margin:0 0 20px;">
-          ${tr("Your booking is confirmed!", "Votre réservation est confirmée !")}
-        </p>` : `
+        <p style="color:#351E13;font-size:18px;line-height:1.6;font-weight:700;margin:0 0 ${isMixed ? "12" : "20"}px;">
+          ${tr("Your workshop booking is confirmed!", "Votre réservation d'atelier est confirmée !")}
+        </p>${isMixed ? `
+        <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0 0 20px;">
+          ${tr(
+            "Your payment has been received and your place is reserved. The cake part of your order is still being reviewed by our team — you will receive your invoice once the cake part has been processed.",
+            "Votre paiement a bien été reçu et votre place est réservée. La partie gâteau de votre commande est encore en cours de validation par notre équipe — vous recevrez votre facture après le traitement de la partie gâteau.",
+          )}
+        </p>` : ""}` : `
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Thank you for booking with Bento Cake Studio.", "Merci pour votre réservation chez Bento Cake Studio.")}
         </p>
@@ -170,7 +180,11 @@ async function sendWorkshopEmail(
 
         <table style="border-collapse:collapse;width:100%;margin:16px 0 0;">
           <tr style="background:#78020C;">
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${confirmed ? tr("Amount paid", "Montant payé") : tr("Workshops total", "Total ateliers")}</td>
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${
+              !confirmed ? tr("Workshops total", "Total ateliers")
+                : isMixed ? tr("Workshop amount", "Montant atelier")
+                : tr("Amount paid", "Montant payé")
+            }</td>
             <td style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${confirmed ? amountPaid : chf(workshopSubtotal)}</td>
           </tr>
         </table>

@@ -15,6 +15,14 @@ const MAX_POLLS = 30;
 
 type Phase = "verifying" | "confirmed" | "failed" | "timeout";
 
+type OrderInfo = {
+  fulfillmentType: string | null;
+  workshopConfirmed: boolean;
+  physicalValidation: string | null;
+  orderValidation: string | null;
+  orderFailureReason: string | null;
+};
+
 const PaymentSuccess = () => {
   const { t } = useLang();
   const navigate = useNavigate();
@@ -24,9 +32,13 @@ const PaymentSuccess = () => {
   const orderId = searchParams.get("order_id");
 
   const [phase, setPhase] = useState<Phase>("verifying");
-  const [orderValidation, setOrderValidation] = useState<string | null>(null);
-  // A workshop seat sold out between checkout and payment confirmation.
-  const [capacity, setCapacity] = useState<{ financiallyResolved: boolean } | null>(null);
+  const [info, setInfo] = useState<OrderInfo | null>(null);
+  // A workshop seat sold out between checkout and payment confirmation. Three
+  // truthful situations:
+  //   rewardOnly                    -> no money was ever taken
+  //   refundState === 'to_refund'   -> money received, refund still to process
+  //   refundState === 'refunded'    -> money received, refund already done
+  const [capacity, setCapacity] = useState<{ rewardOnly: boolean; refundState: string } | null>(null);
   const cartClearedRef = useRef(false);
   const pollsRef = useRef(0);
   // After the order is confirmed we keep polling a few more times so that any
@@ -54,7 +66,7 @@ const PaymentSuccess = () => {
     }
     if (phase === "failed" || phase === "timeout") return;
     if (phase === "confirmed" && (sideEffectsDoneRef.current || nudgeRef.current >= MAX_NUDGES)) return;
-    if (capacity?.financiallyResolved) return;
+    if (capacity) return;
 
     const id = orderId;
     let mounted = true;
@@ -82,14 +94,23 @@ const PaymentSuccess = () => {
       }
 
       if (data?.reason === "workshop_capacity_unavailable") {
-        setCapacity({ financiallyResolved: !!data.financiallyResolved });
+        const rewardOnly = !!data.rewardOnly;
+        const refundState: string = data.refundState
+          ?? (data.refundResolved || data.financiallyResolved ? "refunded" : "to_refund");
+        setCapacity({ rewardOnly, refundState });
         stop();
         return;
       }
 
       if (data?.confirmed === true) {
         firePurchaseOnce(id);
-        setOrderValidation(data.orderValidation ?? "pending");
+        setInfo({
+          fulfillmentType: data.fulfillmentType ?? null,
+          workshopConfirmed: !!data.workshopConfirmed,
+          physicalValidation: data.physicalValidation ?? null,
+          orderValidation: data.orderValidation ?? "pending",
+          orderFailureReason: data.orderFailureReason ?? null,
+        });
         if (data.sideEffectsComplete !== false) {
           sideEffectsDoneRef.current = true;
           stop();
@@ -117,7 +138,75 @@ const PaymentSuccess = () => {
     };
   }, [orderId, phase, capacity]);
 
-  const isOrderApproved = orderValidation === "approved";
+  // ── Confirmed-screen wording, by order shape ──────────────────────────
+  // cake_only     : payment taken, order awaiting validation.
+  // workshop_only : payment taken, workshop auto-confirmed.
+  // mixed         : payment taken, workshop confirmed, physical part awaiting
+  //                 validation.
+  // A capacity abort persisted order_validation='cancelled' — treated in its
+  // own branch below, never here.
+  const ft = info?.fulfillmentType;
+  const workshopConfirmed = !!info?.workshopConfirmed;
+  const isWorkshopOnly = ft === "workshop_only";
+  const isMixed = ft === "mixed";
+  // "fully done, nothing pending" = workshop-only (auto-confirmed) OR a cake/
+  // mixed order the admin already approved.
+  const nothingPending = isWorkshopOnly
+    ? workshopConfirmed
+    : info?.physicalValidation === "approved";
+
+  const headline = nothingPending
+    ? t("Order Confirmed", "Commande confirmée")
+    : t("Payment received", "Paiement reçu");
+
+  let bodyText: string;
+  let panelTitle: string;
+  let panelText: string;
+  if (isWorkshopOnly) {
+    bodyText = t(
+      "Your payment has been received and your workshop booking is confirmed automatically.",
+      "Votre paiement a bien été reçu et votre réservation d'atelier est confirmée automatiquement.",
+    );
+    panelTitle = t("Workshop confirmed", "Atelier confirmé");
+    panelText = t(
+      "You will receive a confirmation e-mail with the date, time and practical details of your workshop.",
+      "Vous recevrez un e-mail de confirmation avec la date, l'heure et les informations pratiques de votre atelier.",
+    );
+  } else if (isMixed) {
+    bodyText = t(
+      "Your payment has been received. Your workshop place is confirmed. The cake / products part of your order is now awaiting validation by Bento Cake Studio.",
+      "Votre paiement a bien été reçu. Votre place d'atelier est confirmée. La partie gâteau / produits de votre commande est maintenant en attente de validation par Bento Cake Studio.",
+    );
+    panelTitle = info?.physicalValidation === "approved"
+      ? t("Order confirmed", "Commande confirmée")
+      : t("Cake part pending approval", "Partie gâteau en attente de validation");
+    panelText = info?.physicalValidation === "approved"
+      ? t("We're excited to create something special for you!", "Nous avons hâte de créer quelque chose de spécial rien que pour vous !")
+      : t(
+          "Your workshop is confirmed and paid. We will review the cake / products part and send you a confirmation within the next 24 hours.",
+          "Votre atelier est confirmé et payé. Nous examinons la partie gâteau / produits et vous enverrons une confirmation dans les 24 heures.",
+        );
+  } else {
+    // cake_only
+    bodyText = nothingPending
+      ? t(
+          "Your order has been placed and your payment has been received. We are now preparing your order.",
+          "Votre commande a bien été enregistrée et votre paiement a bien été reçu. Nous préparons dès à présent votre commande.",
+        )
+      : t(
+          "Your payment has been received. Your order is now awaiting validation by Bento Cake Studio.",
+          "Votre paiement a bien été reçu. Votre commande est maintenant en attente de validation par Bento Cake Studio.",
+        );
+    panelTitle = nothingPending
+      ? t("Preparing Your Order", "Préparation de votre commande")
+      : t("Order Pending Approval", "Commande en attente de validation");
+    panelText = nothingPending
+      ? t("We're excited to create something special for you!", "Nous avons hâte de créer quelque chose de spécial rien que pour vous !")
+      : t(
+          "Your payment has been received. We will confirm your order within the next 24 hours with the details of your pickup or delivery date and time. If we cannot fulfil it, you will be refunded.",
+          "Votre paiement a bien été reçu. Nous vous confirmerons votre commande dans les 24 heures, en précisant la date et l'heure de votre retrait ou de votre livraison. Si nous ne pouvons pas la réaliser, vous serez remboursé.",
+        );
+  }
 
   return (
     <Layout>
@@ -130,16 +219,26 @@ const PaymentSuccess = () => {
                 {t("Workshop No Longer Available", "Atelier plus disponible")}
               </h1>
               <p className="text-muted-foreground mb-8">
-                {capacity.financiallyResolved
+                {capacity.rewardOnly
                   ? t(
-                      "The remaining seats for this workshop were booked while your payment was being processed. No order was placed and your payment has been cancelled or refunded. Please choose another session.",
-                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement. Aucune commande n'a été enregistrée et votre paiement a été annulé ou remboursé. Merci de choisir une autre session."
+                      "The remaining seats for this workshop were booked while your payment was being processed. No order was placed and nothing was charged (your reward balance has been released). Please choose another session.",
+                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement. Aucune commande n'a été enregistrée et aucun montant n'a été prélevé (votre cagnotte a été libérée). Merci de choisir une autre session."
+                    )
+                  : capacity.refundState === "refunded"
+                  ? t(
+                      "The remaining seats for this workshop were booked while your payment was being processed, so your order could not be fulfilled. Your payment was received and has already been refunded. Please contact us if you have any question.",
+                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Votre paiement a bien été reçu et a déjà été remboursé. Contactez-nous pour toute question."
                     )
                   : t(
-                      "The remaining seats for this workshop were booked while your payment was being processed, so your booking could not be completed. We are finalising the cancellation of your payment now — please contact us if you see a charge.",
-                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement ; votre réservation n'a pas pu aboutir. Nous finalisons l'annulation de votre paiement — contactez-nous si un débit apparaît."
+                      "The remaining seats for this workshop were booked while your payment was being processed, so your order could not be fulfilled. Your payment has been received and a refund is being processed by our team — you do not need to do anything. Please contact us if you have any question.",
+                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Votre paiement a bien été reçu et un remboursement est en cours de traitement par notre équipe — vous n'avez rien à faire. Contactez-nous pour toute question."
                     )}
               </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-2">
+                <Button variant="outline" asChild>
+                  <Link to="/contact">{t("Contact us", "Nous contacter")}</Link>
+                </Button>
+              </div>
             </>
           ) : phase === "failed" ? (
             <>
@@ -149,8 +248,8 @@ const PaymentSuccess = () => {
               </h1>
               <p className="text-muted-foreground mb-8">
                 {t(
-                  "Your payment could not be finalised. Your cart has been saved. You can try again.",
-                  "Votre paiement n'a pas pu être finalisé. Votre panier a été conservé. Vous pouvez réessayer."
+                  "Your payment could not be finalised and nothing was charged. Your cart has been saved. You can try again.",
+                  "Votre paiement n'a pas pu être finalisé et aucun montant n'a été prélevé. Votre panier a été conservé. Vous pouvez réessayer."
                 )}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-2">
@@ -197,47 +296,21 @@ const PaymentSuccess = () => {
             <>
               <CheckCircle className="w-16 h-16 text-primary mx-auto mb-6" />
               <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
-                {isOrderApproved
-                  ? t("Order Confirmed", "Commande confirmée")
-                  : t("Payment received", "Paiement reçu")}
+                {headline}
               </h1>
 
-              <p className="text-muted-foreground mb-6">
-                {isOrderApproved
-                  ? t(
-                      "Your order has been successfully placed and your payment has been processed. We are now preparing your order.",
-                      "Votre commande a bien été enregistrée et votre paiement a été traité. Nous préparons dès à présent votre commande."
-                    )
-                  : t(
-                      "Your payment has been received. Your order has been received and is now awaiting validation by Bento Cake Studio.",
-                      "Votre paiement a bien été pris en compte. Votre commande a été reçue et est maintenant en attente de validation par Bento Cake Studio."
-                    )}
-              </p>
+              <p className="text-muted-foreground mb-6">{bodyText}</p>
 
               <div className="bg-muted border border-border p-4 mb-6">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  {isOrderApproved ? (
+                  {nothingPending ? (
                     <Sparkles className="w-5 h-5 text-primary" />
                   ) : (
                     <Clock className="w-5 h-5 text-primary" />
                   )}
-                  <p className="font-medium text-foreground">
-                    {isOrderApproved
-                      ? t("Preparing Your Order", "Préparation de votre commande")
-                      : t("Order Pending Approval", "Commande en attente de confirmation")}
-                  </p>
+                  <p className="font-medium text-foreground">{panelTitle}</p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {isOrderApproved
-                    ? t(
-                        "We're excited to create something special for you!",
-                        "Nous avons hâte de créer quelque chose de spécial rien que pour vous !"
-                      )
-                    : t(
-                        "Your payment has been authorized but will only be charged once we confirm your order. You will receive a confirmation message within the next 24 hours with the details of your pickup or delivery date and time.",
-                        "Votre paiement a été autorisé, mais ne sera débité qu'une fois votre commande confirmée. Vous recevrez un message de confirmation dans les 24 heures, précisant la date et l'heure de votre retrait ou de votre livraison."
-                      )}
-                </p>
+                <p className="text-sm text-muted-foreground">{panelText}</p>
               </div>
 
               <p className="text-muted-foreground mb-8">
