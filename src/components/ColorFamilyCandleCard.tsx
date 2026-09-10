@@ -197,7 +197,7 @@ export const ColorFamilyCandleCard = ({
                   packCount <= (compact ? 0 : 1) ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90"
                 )}
               >−</button>
-              <span className={cn("flex-1 min-w-0 text-center font-medium text-foreground", compact ? "text-xs" : "text-sm")}>
+              <span className={cn("flex-1 min-w-0 text-center text-foreground", compact ? "text-[9px] font-normal text-muted-foreground" : "text-sm font-medium"}>
                 {packCount} {t("pack(s)", "pack(s)")} ({packCount * packSize} {t("pcs", "pièces")})
               </span>
               <button
