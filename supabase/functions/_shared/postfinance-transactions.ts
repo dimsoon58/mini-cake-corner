@@ -4,6 +4,47 @@
 // REWARD_ONLY shim) — see _shared/postfinance.ts.
 
 import { type PostFinanceCredentials, pfFetch } from "./postfinance.ts";
+import { sendTechnicalAlert } from "./admin-alert.ts";
+
+// One orderId ended up pointing at TWO different real PostFinance transactions.
+// Read both real states, log + alert an operator, and NEVER overwrite. The
+// caller must respond conservatively (5xx / in_progress) and create no new
+// payment. Used identically by postfinance-webhook and by
+// create-postfinance-payment's handleRetry.
+export async function reportConflictingTransactions(
+  credentials: PostFinanceCredentials,
+  orderId: string,
+  recordedTxId: string,
+  incomingTxId: string,
+): Promise<{ recordedState: string; incomingState: string }> {
+  let recordedState = "unknown";
+  let incomingState = "unknown";
+  try {
+    const t = await pfFetch(credentials, `/payment/transactions/${recordedTxId}`, "GET") as { state?: string };
+    recordedState = t?.state ?? "unknown";
+  } catch { /* leave unknown */ }
+  try {
+    const t = await pfFetch(credentials, `/payment/transactions/${incomingTxId}`, "GET") as { state?: string };
+    incomingState = t?.state ?? "unknown";
+  } catch { /* leave unknown */ }
+
+  console.error(
+    `CRITICAL: order ${orderId} already has transaction ${recordedTxId} (state ${recordedState}) ` +
+    `but transaction ${incomingTxId} (state ${incomingState}) surfaced. NOT overwriting.`,
+  );
+  await sendTechnicalAlert({
+    subject: `Deux transactions PostFinance pour une commande — ${orderId}`,
+    lines: [
+      `Order ID : ${orderId}`,
+      `Transaction enregistrée : ${recordedTxId} — état ${recordedState}`,
+      `Transaction entrante : ${incomingTxId} — état ${incomingState}`,
+      `Heure : ${new Date().toISOString()}`,
+      `Action : AUCUN écrasement. Vérification manuelle requise (double débit possible).`,
+    ],
+  }).catch(() => {});
+
+  return { recordedState, incomingState };
+}
 
 // PostFinance Checkout / Wallee transaction states.
 //   success  : the payment is (at least) authorised — an order may be created.
@@ -187,12 +228,19 @@ export async function findTransactionByMerchantReference(
   opts: { pendingCreatedAt?: string | null } = {},
 ): Promise<{ conclusive: boolean; transaction: FoundTx | null }> {
   // 1. Preferred: the dedicated search endpoint.
+  //    A POSITIVE match is always usable. An EMPTY result only PROVES absence
+  //    once the query syntax has been verified against our own PostFinance
+  //    space — set POSTFINANCE_SEARCH_QUERY_VERIFIED=true after that test.
+  //    Until then an empty array is NOT proof: fall through to the exhaustive
+  //    walk, and if that is also inconclusive, return conclusive:false
+  //    (caller keeps the same orderId / in_progress — never a new transaction).
+  const searchVerified = Deno.env.get("POSTFINANCE_SEARCH_QUERY_VERIFIED") === "true";
   const search = await trySearchEndpoint(credentials, orderId);
-  if (search.ok) {
-    if (search.matches.length > 0) {
-      return { conclusive: true, transaction: newest(search.matches) };
-    }
-    // The endpoint answered with a proper (empty) result set → trust it.
+  if (search.ok && search.matches.length > 0) {
+    return { conclusive: true, transaction: newest(search.matches) };
+  }
+  if (search.ok && searchVerified) {
+    // Verified endpoint answered with a proper empty result set → trust it.
     return { conclusive: true, transaction: null };
   }
 

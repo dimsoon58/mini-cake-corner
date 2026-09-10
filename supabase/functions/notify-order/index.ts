@@ -19,8 +19,15 @@ function row(label: string, value: string | undefined | null): string {
   return `<tr><td style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
 }
 
-async function sendAdminEmail(resendApiKey: string, order: any, items: any[], siteUrl: string, token: string) {
-  const reviewUrl = `${siteUrl}/admin/order/${order.id}?token=${token}`;
+async function sendAdminEmail(
+  resendApiKey: string,
+  order: any,
+  items: any[],
+  siteUrl: string,
+  token: string | null,
+  autoConfirmed: boolean,
+) {
+  const reviewUrl = `${siteUrl}/admin/order/${order.id}${token ? `?token=${token}` : ""}`;
 
   const itemBlocks = items.map((item: any, i: number) => {
     if (item.product === "workshop") {
@@ -89,8 +96,10 @@ async function sendAdminEmail(resendApiKey: string, order: any, items: any[], si
       
       <!-- Header -->
       <div style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
-        <h1 style="color:#fff;font-size:26px;margin:0 0 8px;font-weight:700;">🎂 Nouvelle commande Bento Cake</h1>
-        <p style="color:#ccc;margin:0;font-size:14px;">La commande <strong style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> attend votre validation</p>
+        <h1 style="color:#fff;font-size:26px;margin:0 0 8px;font-weight:700;">${autoConfirmed ? "🎨 Réservation workshop" : "🎂 Nouvelle commande Bento Cake"}</h1>
+        <p style="color:#ccc;margin:0;font-size:14px;">${autoConfirmed
+          ? `La réservation <strong style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> est confirmée automatiquement`
+          : `La commande <strong style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> attend votre validation`}</p>
       </div>
 
       <div style="padding:28px;">
@@ -133,18 +142,31 @@ async function sendAdminEmail(resendApiKey: string, order: any, items: any[], si
              ${row("Facture №", order.invoice_number || "—")}
             ${(Number(order.express_surcharge_amount) || 0) > 0 ? row("Supplément express (10 %)", `CHF ${Number(order.express_surcharge_amount).toFixed(2)}`) : ""}
             ${row("Total", `CHF ${order.total_amount}`)}
-            ${row("Statut", "⏳ Fonds autorisés — en attente de votre validation")}
+            ${row("Statut", autoConfirmed
+              ? "✅ Réservation workshop confirmée automatiquement — paiement capturé"
+              : "⏳ Fonds autorisés — en attente de votre validation")}
           </table>
         </div>
 
+        ${autoConfirmed ? `
+        <!-- Public workshop: auto-confirmed, no manual action -->
+        <div style="text-align:center;margin:28px 0 8px;">
+          <p style="color:#16a34a;font-size:15px;font-weight:600;margin:0 0 6px;">Réservation confirmée automatiquement</p>
+          <p style="color:#666;font-size:13px;margin:0;">Aucune action requise. Le client a reçu son email de confirmation. Les places ont été décomptées.</p>
+        </div>
+
+        <p style="color:#999;font-size:12px;text-align:center;margin-top:12px;">
+          <a href="${reviewUrl}" style="color:#666;">Voir le détail complet de la réservation →</a>
+        </p>
+        ` : `
         <!-- Action Buttons -->
         <div style="text-align:center;margin:32px 0 16px;">
           <p style="color:#666;font-size:13px;margin-bottom:20px;">Cliquez sur un bouton pour traiter immédiatement cette commande. Aucune connexion requise.</p>
-          
+
           <a href="${siteUrl}/order-action?orderId=${order.id}&action=approve&token=${token}" style="display:inline-block;background:#16a34a;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
             ✅ Accepter la commande
           </a>
-          
+
           <a href="${siteUrl}/order-action?orderId=${order.id}&action=decline&token=${token}" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
             ❌ Refuser la commande
           </a>
@@ -153,10 +175,11 @@ async function sendAdminEmail(resendApiKey: string, order: any, items: any[], si
         <p style="color:#999;font-size:12px;text-align:center;margin-top:8px;">
           Chaque bouton ne peut être utilisé qu’une seule fois.
         </p>
-        
+
         <p style="color:#999;font-size:12px;text-align:center;margin-top:4px;">
           <a href="${reviewUrl}" style="color:#666;">Voir le détail complet de la commande →</a>
         </p>
+        `}
       </div>
 
       <!-- Footer -->
@@ -181,7 +204,9 @@ async function sendAdminEmail(resendApiKey: string, order: any, items: any[], si
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: ADMIN_EMAILS,
-      subject: `🎂 Nouvelle commande Bento Cake ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.first_name || ""} ${order.last_name || ""} (CHF ${order.total_amount})`,
+      subject: autoConfirmed
+        ? `🎨 Réservation workshop confirmée ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.first_name || ""} ${order.last_name || ""} (CHF ${order.total_amount})`
+        : `🎂 Nouvelle commande Bento Cake ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.first_name || ""} ${order.last_name || ""} (CHF ${order.total_amount})`,
       html,
     }),
   });
@@ -223,43 +248,47 @@ serve(async (req) => {
 
     if (itemsError) throw new Error(`Failed to load order_items: ${itemsError.message}`);
 
-    // Single-use accept/decline token. notify-order is normally invoked once
-    // per order, but the payment-resilience webhook means a retry is possible
-    // if a previous invocation created the token and then died before Resend
-    // actually accepted the email. Reuse an existing token in that case
-    // instead of failing (which would lose the admin email forever) or
-    // stacking a second token.
-    const { data: existingToken } = await supabase
-      .from("order_action_tokens")
-      .select("token")
-      .eq("order_id", orderId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    // A public workshop-only order is auto-confirmed (autoConfirmPublicWorkshop):
+    // no Accepter / Refuser step, so no single-use token is created and the
+    // admin e-mail is an info notification only.
+    const autoConfirmed = !!order.workshop_confirmed_at;
 
-    let token: string;
-    if (existingToken?.token) {
-      token = existingToken.token;
-    } else {
-      token = crypto.randomUUID() + "-" + crypto.randomUUID();
-      const { error: tokenError } = await supabase
+    // Single-use accept/decline token (skipped for auto-confirmed workshops).
+    // notify-order is normally invoked once per order, but the payment-
+    // resilience webhook means a retry is possible if a previous invocation
+    // created the token and then died before Resend accepted the email. Reuse
+    // an existing token in that case instead of failing or stacking one.
+    let token: string | null = null;
+    if (!autoConfirmed) {
+      const { data: existingToken } = await supabase
         .from("order_action_tokens")
-        .insert({ order_id: orderId, token });
-      if (tokenError) {
-        // A racing invocation may have inserted one between our SELECT and
-        // INSERT — fall back to reading it rather than failing.
-        const { data: raced } = await supabase
+        .select("token")
+        .eq("order_id", orderId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingToken?.token) {
+        token = existingToken.token;
+      } else {
+        token = crypto.randomUUID() + "-" + crypto.randomUUID();
+        const { error: tokenError } = await supabase
           .from("order_action_tokens")
-          .select("token")
-          .eq("order_id", orderId)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        if (raced?.token) {
-          token = raced.token;
-        } else {
-          console.error("Token creation error:", tokenError);
-          throw new Error("Failed to create action token");
+          .insert({ order_id: orderId, token });
+        if (tokenError) {
+          const { data: raced } = await supabase
+            .from("order_action_tokens")
+            .select("token")
+            .eq("order_id", orderId)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          if (raced?.token) {
+            token = raced.token;
+          } else {
+            console.error("Token creation error:", tokenError);
+            throw new Error("Failed to create action token");
+          }
         }
       }
     }
@@ -269,7 +298,7 @@ serve(async (req) => {
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (resendKey) {
-      try { results.email = await sendAdminEmail(resendKey, order, items || [], siteUrl, token); }
+      try { results.email = await sendAdminEmail(resendKey, order, items || [], siteUrl, token, autoConfirmed); }
       catch (e) { console.error("Email error:", e); results.errors.push(`Email: ${e instanceof Error ? e.message : String(e)}`); }
     } else { results.errors.push("RESEND_API_KEY not configured"); }
 

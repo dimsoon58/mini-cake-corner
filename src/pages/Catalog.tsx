@@ -1501,15 +1501,26 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       imageFiles: [...selections.commentImages],
       total: calculatePrice(),
     });
-    if (!added) {
-      toast({
-        title: t("Date mismatch", "Date incompatible"),
-        description: t(
-          "This item's date doesn't match the rest of your cart. Please place a separate order.",
-          "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."
-        ),
-        variant: "destructive",
-      });
+    if (!added.ok) {
+      toast(
+        added.reason === "mixed_cart"
+          ? {
+              title: t("Order separately", "Commande séparée"),
+              description: t(
+                "Your cart already contains a workshop. A workshop is confirmed immediately after payment, whereas a cake order must first be reviewed — please order the cake separately.",
+                "Votre panier contient déjà un atelier. Un atelier est confirmé immédiatement après paiement, alors qu'une commande de gâteau doit d'abord être validée — merci de commander le gâteau séparément."
+              ),
+              variant: "destructive",
+            }
+          : {
+              title: t("Date mismatch", "Date incompatible"),
+              description: t(
+                "This item's date doesn't match the rest of your cart. Please place a separate order.",
+                "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."
+              ),
+              variant: "destructive",
+            }
+      );
       return;
     }
     setSheetOpen(false);

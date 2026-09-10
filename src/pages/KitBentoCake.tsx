@@ -381,8 +381,12 @@ const KitBentoCake = () => {
     };
 
     const added = addItem(cartItem);
-    if (!added) {
-      toast.error(t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."));
+    if (!added.ok) {
+      toast.error(
+        added.reason === "mixed_cart"
+          ? t("Your cart already contains a workshop. A workshop is confirmed immediately after payment, whereas a cake order must first be reviewed — please order the cake separately.", "Votre panier contient déjà un atelier. Un atelier est confirmé immédiatement après paiement, alors qu'une commande de gâteau doit d'abord être validée — merci de commander le gâteau séparément.")
+          : t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée.")
+      );
       return;
     }
     setShowCartSheet(true);

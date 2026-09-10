@@ -124,14 +124,32 @@ export const VALID_PRODUCTS = new Set([
   "workshop",
 ]);
 
+// Result of an addItem() attempt. `ok: false` means the item was NOT added
+// (never silently dropped, never partially added) and carries the reason so
+// each "Add to cart" surface can show the customer a precise message:
+//   - "date_mismatch": a dated item whose date differs from the cart's date
+//   - "mixed_cart":    a workshop and a cake can't share one checkout — a
+//                      workshop auto-confirms on payment, a cake order must
+//                      first be reviewed, so they must be ordered separately
+export interface AddItemResult {
+  ok: boolean;
+  /* Set whenever ok === false. Left undefined on success. */
+  reason?: "date_mismatch" | "mixed_cart";
+}
+
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: CartItem) => boolean;
+  addItem: (item: CartItem) => AddItemResult;
   updateItem: (id: string, updates: Partial<CartItem>) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   itemCount: number;
   cartOrderDate: string | null;
+  /* True when the cart already holds at least one workshop line / at least
+     one non-workshop (cake / kit / candle / printing) line. Exposed so a
+     surface can pre-check and guide the customer before they even click. */
+  cartHasWorkshop: boolean;
+  cartHasCake: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -158,11 +176,27 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(serializable));
   }, [items]);
 
-  const addItem = (item: CartItem): boolean => {
+  const addItem = (item: CartItem): AddItemResult => {
+    // A workshop and a cake can never share one checkout: a public workshop
+    // is captured and auto-confirmed the moment the payment succeeds, while
+    // a cake order is only authorised and waits for a manual Accept/Refuse.
+    // Mixing them would force one of the two behaviours onto the other, so
+    // the second kind is refused here (the existing item is left untouched —
+    // nothing is ever silently removed from the cart).
+    const itemIsWorkshop = item.product === "workshop";
+    const cartHasWorkshop = items.some((i) => i.product === "workshop");
+    const cartHasCake = items.some((i) => i.product !== "workshop");
+    if (
+      (itemIsWorkshop && cartHasCake) ||
+      (!itemIsWorkshop && cartHasWorkshop)
+    ) {
+      return { ok: false, reason: "mixed_cart" };
+    }
+
     if (item.orderDate) {
       const existingDate = items.find((i) => i.orderDate)?.orderDate;
       if (existingDate && existingDate !== item.orderDate) {
-        return false;
+        return { ok: false, reason: "date_mismatch" };
       }
     }
     const newItem = { ...item, id: Date.now().toString() };
@@ -171,7 +205,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     // Dot Cakes, Candles, DIY Kit, Printing, …) is covered once, and only
     // when the item is genuinely accepted into the cart.
     trackAddToCart(newItem);
-    return true;
+    return { ok: true };
   };
 
   const updateItem = (id: string, updates: Partial<CartItem>) => {
@@ -195,6 +229,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const cartOrderDate = items.find((i) => i.orderDate)?.orderDate || null;
+  const cartHasWorkshop = items.some((i) => i.product === "workshop");
+  const cartHasCake = items.some((i) => i.product !== "workshop");
 
   return (
     <CartContext.Provider
@@ -206,6 +242,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         clearCart,
         itemCount: items.length,
         cartOrderDate,
+        cartHasWorkshop,
+        cartHasCake,
       }}
     >
       {children}

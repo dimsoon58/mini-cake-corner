@@ -1,7 +1,12 @@
--- Payment resilience — Migration 2/3: finalisation lease + side-effect markers
+-- Payment resilience — Migration 2/6: finalisation lease + side-effect markers
 --
--- NOT YET APPLIED — run manually on Supabase after review. Additive only:
--- nullable columns, fast metadata-only ADD COLUMN.
+-- PARTIALLY APPLIED IN PRODUCTION. Observed: finalization_claimed_at /
+-- finalized_at / make_notified_at / admin_notified_at / customer_email_sent_at
+-- / notion_sync_status already exist and are set on the 77 historical orders.
+-- MISSING: side_effects_done_at, make_webhook_dispatched_at,
+-- workshop_make_notified_at (and side_effects_retry_at may be missing too).
+-- Every statement is ADD COLUMN IF NOT EXISTS / CREATE INDEX IF NOT EXISTS →
+-- fully re-runnable, adds only what is missing.
 --
 -- confirm-postfinance-payment can be entered by TWO strictly-concurrent
 -- callers — the customer's /payment-success poll and the PostFinance webhook —
