@@ -2640,7 +2640,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
           BENTO CAKES
         </h1>
-        <p className="text-center text-muted-foreground mb-8 md:mb-16 max-w-2xl mx-auto">
+        <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto text-sm md:text-base">
           {t("Choose a signature design and personalise the size, flavour, colours and message.", "Découvrez nos créations signature, choisissez votre design préféré et personnalisez chaque détail pour créer un gâteau à votre image.")}
         </p>
 

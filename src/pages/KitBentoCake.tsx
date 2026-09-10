@@ -424,7 +424,7 @@ const KitBentoCake = () => {
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
           {t("DIY KIT", "DIY KIT")}
         </h1>
-        <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto text-sm md:text-base">
+        <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto text-sm md:text-base">
           {t("A bento cake ready to decorate at home.", "Un bento cake prêt à décorer à la maison.")}
           <br />
           {t("Choose the flavour, shape and colours to create your own bento cake.", "Choisissez le parfum, la forme et les couleurs pour créer votre propre bento cake.")}

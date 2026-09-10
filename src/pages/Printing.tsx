@@ -106,7 +106,7 @@ const Printing = () => {
             "Transformez votre photo, logo ou dessin préféré en une image comestible, imprimée à l'encre alimentaire sur une fine feuille de sucre."
           )}
         </p>
-        <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto text-sm">
+        <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto text-sm md:text-base">
           {t(
             "Perfect for birthdays, brand events and celebrations. Upload your image, choose your date, and we take care of the rest.",
             "Idéale pour les anniversaires, les événements de marque et les célébrations. Importez votre image, choisissez votre date, et nous nous occupons du reste."
