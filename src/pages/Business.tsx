@@ -626,7 +626,7 @@ const Business = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 md:py-16">
+      <div className="container mx-auto px-4 py-12">
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
           {t("Partnership", "Partenariat")}
         </h1>
