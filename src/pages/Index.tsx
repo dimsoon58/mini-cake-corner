@@ -271,10 +271,14 @@ const Index = () => {
                   alt={category.label}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
-                <div className="absolute inset-x-0 bottom-0 p-8">
-                  <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_0px_16px_rgba(0,0,0,0.25)]">
-                    {lang === "fr" ? category.labelFr : category.label}
-                  </p>
+                {/* Subtle warm gradient — left edge only, almost invisible */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[rgba(12,6,2,0.22)] via-[rgba(12,6,2,0.07)] to-transparent pointer-events-none" />
+                {/* Title — upper left */}
+                <p className="absolute top-5 left-5 md:top-6 md:left-6 text-white uppercase tracking-[0.18em] text-[0.75rem] md:text-[0.85rem] font-medium leading-snug">
+                  {lang === "fr" ? category.labelFr : category.label}
+                </p>
+                {/* Discover button — bottom left */}
+                <div className="absolute bottom-5 left-5 md:bottom-7 md:left-7">
                   <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-8 py-2.5 transition-colors">
                     {t("DISCOVER", "DÉCOUVRIR")}
                   </span>
@@ -297,10 +301,14 @@ const Index = () => {
             alt="Workshops"
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          <div className="absolute inset-0 flex flex-col items-center justify-end text-center px-4 pb-8 md:pb-10">
-            <p className="text-cream uppercase tracking-[0.105em] text-lg md:text-xl font-medium mb-4 drop-shadow-[0_0px_16px_rgba(0,0,0,0.25)]">
-              {t("WORKSHOPS", "ATELIERS")}
-            </p>
+          {/* Subtle warm gradient — left edge only */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[rgba(12,6,2,0.22)] via-[rgba(12,6,2,0.07)] to-transparent pointer-events-none" />
+          {/* Title — upper left */}
+          <p className="absolute top-5 left-5 md:top-7 md:left-8 text-white uppercase tracking-[0.18em] text-[0.75rem] md:text-[0.85rem] font-medium">
+            {t("WORKSHOPS", "ATELIERS")}
+          </p>
+          {/* Button — bottom center */}
+          <div className="absolute inset-x-0 bottom-6 md:bottom-10 flex justify-center">
             <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-12 py-2.5 transition-colors">
               {t("DISCOVER", "DÉCOUVRIR")}
             </span>
