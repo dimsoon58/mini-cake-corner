@@ -77,7 +77,7 @@ const Inspiration = () => {
 
   return (
     <Layout>
-      <main className="container mx-auto px-4 py-16">
+      <main className="container mx-auto px-4 py-8 md:py-16">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="font-sans text-4xl md:text-5xl text-center uppercase tracking-[0.105em] text-foreground mb-6 font-semibold">

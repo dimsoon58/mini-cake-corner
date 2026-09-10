@@ -652,7 +652,7 @@ const DotCakes = () => {
       </div>
 
       {/* Gallery */}
-      <div className="container mx-auto px-6 py-16">
+      <div className="container mx-auto px-6 py-8 md:py-16">
         <DotGallery />
       </div>
     </Layout>

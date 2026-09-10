@@ -626,11 +626,11 @@ const Business = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 py-8 md:py-16">
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-4 font-semibold">
           {t("Partnership", "Partenariat")}
         </h1>
-        <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
+        <p className="text-center text-muted-foreground mb-8 md:mb-16 max-w-2xl mx-auto">
           {t("Bespoke cakes for corporate celebrations, events and hospitality partners.", "Des créations sur mesure pour vos équipes, vos événements et votre établissement.")}
         </p>
 
