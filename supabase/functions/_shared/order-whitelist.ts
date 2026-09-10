@@ -84,6 +84,9 @@ export const ORDER_SERVER_FIELDS = [
   "reward_amount_used",
   "express_surcharge_amount",
   "total_amount",
+  // 'cake_only' | 'workshop_only' | 'mixed' — computed by create-postfinance-
+  // payment from the (already priced) order_items, carried on the payload.
+  "fulfillment_type",
 ] as const;
 
 export const ORDER_ITEM_SERVER_FIELDS = [

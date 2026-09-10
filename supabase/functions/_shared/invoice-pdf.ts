@@ -35,9 +35,20 @@ function formatInvoiceDate(dateInput: string): string {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
-export async function generateInvoicePdf(order: any, items: any[]): Promise<string> {
+export async function generateInvoicePdf(
+  order: any,
+  items: any[],
+  opts?: { mode?: "full" | "workshop_only_kept"; refundedAmount?: number },
+): Promise<string> {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
+
+  // "workshop_only_kept": mixed order whose cake part was refused. `items` is
+  // the workshop lines only, invoice total is their sum (NOT order.total_amount).
+  const keptMode = opts?.mode === "workshop_only_kept";
+  const invoiceTotalNum = keptMode
+    ? items.reduce((s: number, it: any) => s + (Number(it.total) || 0), 0)
+    : Number(order.total_amount ?? 0);
 
   const PAGE_W = 595.28;
   const PAGE_H = 841.89; // A4
@@ -186,51 +197,56 @@ export async function generateInvoicePdf(order: any, items: any[]): Promise<stri
 
   const productLineCount = itemRows.length;
 
-  const expressSurchargeInvoice = Number(order.express_surcharge_amount) || 0;
-  if (expressSurchargeInvoice > 0) {
-    itemRows.push({
-      description: tr("Express surcharge (10%)", "Supplément express (10 %)"),
-      quantity: "1",
-      unitPrice: formatInvoicePrice(expressSurchargeInvoice),
-      total: formatInvoicePrice(expressSurchargeInvoice),
-    });
-  }
+  // "workshop_only_kept" (mixed order, cake part refused): ONLY the workshop
+  // lines. Express surcharge, delivery, welcome discount and reward belong to
+  // the physical part (included in the amount being refunded) — not shown here.
+  if (!keptMode) {
+    const expressSurchargeInvoice = Number(order.express_surcharge_amount) || 0;
+    if (expressSurchargeInvoice > 0) {
+      itemRows.push({
+        description: tr("Express surcharge (10%)", "Supplément express (10 %)"),
+        quantity: "1",
+        unitPrice: formatInvoicePrice(expressSurchargeInvoice),
+        total: formatInvoicePrice(expressSurchargeInvoice),
+      });
+    }
 
-  const welcomeDiscountInvoice = Number(order.welcome_discount_amount) || 0;
-  if (welcomeDiscountInvoice > 0) {
-    itemRows.push({
-      description: tr("Welcome discount", "Réduction de bienvenue"),
-      quantity: "",
-      unitPrice: "",
-      total: `- ${formatInvoicePrice(welcomeDiscountInvoice)}`,
-    });
-  }
+    const welcomeDiscountInvoice = Number(order.welcome_discount_amount) || 0;
+    if (welcomeDiscountInvoice > 0) {
+      itemRows.push({
+        description: tr("Welcome discount", "Réduction de bienvenue"),
+        quantity: "",
+        unitPrice: "",
+        total: `- ${formatInvoicePrice(welcomeDiscountInvoice)}`,
+      });
+    }
 
-  const rewardUsedInvoice = Number(order.reward_amount_used) || 0;
-  if (rewardUsedInvoice > 0) {
-    itemRows.push({
-      description: tr("Reward used", "Cagnotte utilisée"),
-      quantity: "",
-      unitPrice: "",
-      total: `- ${formatInvoicePrice(rewardUsedInvoice)}`,
-    });
-  }
+    const rewardUsedInvoice = Number(order.reward_amount_used) || 0;
+    if (rewardUsedInvoice > 0) {
+      itemRows.push({
+        description: tr("Reward used", "Cagnotte utilisée"),
+        quantity: "",
+        unitPrice: "",
+        total: `- ${formatInvoicePrice(rewardUsedInvoice)}`,
+      });
+    }
 
-  const deliveryFee = Number(order.delivery_fee) || 0;
-  if (deliveryFee > 0) {
-    itemRows.push({
-      description: tr("Delivery", "Livraison"),
-      quantity: "1",
-      unitPrice: formatInvoicePrice(deliveryFee),
-      total: formatInvoicePrice(deliveryFee),
-    });
+    const deliveryFee = Number(order.delivery_fee) || 0;
+    if (deliveryFee > 0) {
+      itemRows.push({
+        description: tr("Delivery", "Livraison"),
+        quantity: "1",
+        unitPrice: formatInvoicePrice(deliveryFee),
+        total: formatInvoicePrice(deliveryFee),
+      });
+    }
   }
 
   const billableRows = itemRows.length > 0 ? itemRows : [{
     description: tr("Custom cake", "Gâteau personnalisé"),
     quantity: "1",
-    unitPrice: formatInvoicePrice(order.total_amount),
-    total: formatInvoicePrice(order.total_amount),
+    unitPrice: formatInvoicePrice(invoiceTotalNum),
+    total: formatInvoicePrice(invoiceTotalNum),
   }];
 
   const rows: InvoiceRow[] = [
@@ -239,7 +255,7 @@ export async function generateInvoicePdf(order: any, items: any[]): Promise<stri
       description: tr("TOTAL", "TOTAL"),
       quantity: String(productLineCount || 1),
       unitPrice: "",
-      total: formatInvoicePrice(order.total_amount),
+      total: formatInvoicePrice(invoiceTotalNum),
       bold: true,
     },
   ];
@@ -282,14 +298,22 @@ export async function generateInvoicePdf(order: any, items: any[]): Promise<stri
   }
 
   page.drawText(
-    tr(`TOTAL PAID: CHF ${formatInvoicePrice(order.total_amount)}`, `TOTAL PAYÉ : CHF ${formatInvoicePrice(order.total_amount)}`),
+    keptMode
+      ? tr(`WORKSHOP TOTAL: CHF ${formatInvoicePrice(invoiceTotalNum)}`, `TOTAL ATELIER : CHF ${formatInvoicePrice(invoiceTotalNum)}`)
+      : tr(`TOTAL PAID: CHF ${formatInvoicePrice(invoiceTotalNum)}`, `TOTAL PAYÉ : CHF ${formatInvoicePrice(invoiceTotalNum)}`),
     { x: margin, y, size: 12, font: fontBold, color: textDark },
   );
   y -= 20;
 
   const invoiceWorkshopItems = items.filter((it: any) => it.product === "workshop");
   const invoicePhysicalItems = items.filter((it: any) => it.product !== "workshop");
-  const legalMention = invoiceWorkshopItems.length > 0 && invoicePhysicalItems.length === 0
+  const refundNote = keptMode && opts?.refundedAmount
+    ? tr(
+        ` The cake part of this order was cancelled; a refund of CHF ${Number(opts.refundedAmount).toFixed(2)} is being processed.`,
+        ` La partie gâteau de cette commande a été annulée ; un remboursement de CHF ${Number(opts.refundedAmount).toFixed(2)} est en cours.`,
+      )
+    : "";
+  const legalMention = (invoiceWorkshopItems.length > 0 && invoicePhysicalItems.length === 0
     ? tr(
         "Workshop booking paid and confirmed. Cancellation conditions apply in accordance with the Terms & Conditions.",
         "Réservation de workshop payée et confirmée. Conditions d'annulation applicables conformément aux Conditions Générales de Vente.",
@@ -302,7 +326,7 @@ export async function generateInvoicePdf(order: any, items: any[]): Promise<stri
       : tr(
           "Order paid before production. Custom cakes cannot be returned or exchanged.",
           "Commande payée avant réalisation. Gâteau personnalisé non repris, non échangé.",
-        );
+        )) + refundNote;
 
   const mentionMaxW = PAGE_W - margin * 2;
   const mentionWords = legalMention.split(" ");

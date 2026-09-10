@@ -41,6 +41,11 @@ type CustomerOrder = {
   order_validation: string;
   payment_status: string;
   invoice_path: string | null;
+  fulfillment_type: string | null;
+  physical_validation: string | null;
+  refund_status: string | null;
+  workshop_confirmed_at: string | null;
+  order_failure_reason: string | null;
   order_items: CustomerOrderItem[];
 };
 
@@ -112,7 +117,7 @@ const MyOrders = () => {
     supabase
       .from("orders")
       .select(
-        "id, order_number, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone, delivery_fee, total_amount, order_validation, payment_status, invoice_path, " +
+        "id, order_number, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone, delivery_fee, total_amount, order_validation, payment_status, invoice_path, fulfillment_type, physical_validation, refund_status, workshop_confirmed_at, order_failure_reason, " +
         "order_items(id, product, size, shape, flavors, design, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total, workshop_type, workshop_date, workshop_time, workshop_participants)"
       )
       .eq("customer_id", user.id)
@@ -127,11 +132,45 @@ const MyOrders = () => {
       });
   }, [user]);
 
-  const statusLabel = (validation: string) => ({
-    pending: t("Pending confirmation", "En attente de confirmation"),
-    approved: t("Confirmed", "Confirmée"),
-    rejected: t("Declined", "Refusée"),
-  }[validation] ?? validation);
+  const statusLabel = (order: CustomerOrder) => {
+    const ft = order.fulfillment_type
+      || (order.order_items?.some((i) => i.product === "workshop")
+            ? (order.order_items?.some((i) => i.product !== "workshop") ? "mixed" : "workshop_only")
+            : "cake_only");
+    const workshopConfirmed = !!order.workshop_confirmed_at;
+
+    // Terminal / abnormal states first — never fall through to a normal label.
+    if (order.order_validation === "cancelled" || order.order_failure_reason) {
+      return t("Cancelled — refund being processed", "Annulée — remboursement en cours");
+    }
+    if (order.order_validation === "rejected") {
+      return t("Declined", "Refusée");
+    }
+
+    if (ft === "workshop_only") {
+      return workshopConfirmed
+        ? t("Workshop confirmed", "Atelier confirmé")
+        : t("Confirming your workshop…", "Confirmation de votre atelier…");
+    }
+
+    if (ft === "mixed") {
+      if (!workshopConfirmed) return t("Confirming your workshop…", "Confirmation de votre atelier…");
+      const phys = order.physical_validation ?? "pending";
+      if (phys === "approved") return t("Confirmed", "Confirmée");
+      if (phys === "rejected") {
+        return order.refund_status === "refunded"
+          ? t("Workshop confirmed · cake refunded", "Atelier confirmé · gâteau remboursé")
+          : t("Workshop confirmed · cake refund being processed", "Atelier confirmé · remboursement gâteau en cours");
+      }
+      return t("Workshop confirmed · cake pending", "Atelier confirmé · gâteau en attente");
+    }
+
+    // cake_only
+    return ({
+      pending: t("Pending confirmation", "En attente de confirmation"),
+      approved: t("Confirmed", "Confirmée"),
+    }[order.physical_validation ?? order.order_validation] ?? t("Pending confirmation", "En attente de confirmation"));
+  };
 
   const deliveryMethodLabel = (method: string | null) =>
     !method ? "" : method === "delivery" ? t("Delivery", "Livraison") : t("Pickup", "Retrait");
@@ -175,7 +214,7 @@ const MyOrders = () => {
                 {order.order_number || order.id.slice(0, 8).toUpperCase()}
               </span>
               <span className="text-[11px] uppercase tracking-[0.105em] bg-secondary text-foreground/80 px-2.5 py-1">
-                {statusLabel(order.order_validation)}
+                {statusLabel(order)}
               </span>
             </div>
             <p className="text-sm text-foreground/75">{itemsSummary(order.order_items) || "—"}</p>
@@ -257,7 +296,7 @@ const MyOrders = () => {
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("Status", "Statut")}</span>
-                <span className="text-foreground">{statusLabel(order.order_validation)}</span>
+                <span className="text-foreground">{statusLabel(order)}</span>
               </div>
               <div className="flex justify-between font-semibold pt-1">
                 <span className="text-foreground">{t("Total", "Total")}</span>

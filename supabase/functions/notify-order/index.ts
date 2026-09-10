@@ -26,8 +26,14 @@ async function sendAdminEmail(
   siteUrl: string,
   token: string | null,
   autoConfirmed: boolean,
+  mixed: boolean,
 ) {
   const reviewUrl = `${siteUrl}/admin/order/${order.id}${token ? `?token=${token}` : ""}`;
+  const refundDue = mixed
+    ? Math.round(((Number(order.total_amount) || 0) -
+        items.filter((it: any) => it.product === "workshop")
+             .reduce((s: number, it: any) => s + (Number(it.total) || 0), 0)) * 100) / 100
+    : 0;
 
   const itemBlocks = items.map((item: any, i: number) => {
     if (item.product === "workshop") {
@@ -143,8 +149,11 @@ async function sendAdminEmail(
             ${(Number(order.express_surcharge_amount) || 0) > 0 ? row("Supplément express (10 %)", `CHF ${Number(order.express_surcharge_amount).toFixed(2)}`) : ""}
             ${row("Total", `CHF ${order.total_amount}`)}
             ${row("Statut", autoConfirmed
-              ? "✅ Réservation workshop confirmée automatiquement — paiement capturé"
-              : "⏳ Fonds autorisés — en attente de votre validation")}
+              ? "✅ Réservation workshop confirmée automatiquement — paiement encaissé"
+              : mixed
+                ? `✅ Paiement encaissé · Atelier confirmé automatiquement · ⏳ Partie gâteau en attente de votre validation`
+                : "✅ Paiement encaissé — en attente de votre validation")}
+            ${mixed ? row("Si vous refusez le gâteau", `Rembourser CHF ${refundDue.toFixed(2)} À LA MAIN dans PostFinance (l'atelier reste confirmé, ne PAS annuler les places)`) : ""}
           </table>
         </div>
 
@@ -161,14 +170,16 @@ async function sendAdminEmail(
         ` : `
         <!-- Action Buttons -->
         <div style="text-align:center;margin:32px 0 16px;">
-          <p style="color:#666;font-size:13px;margin-bottom:20px;">Cliquez sur un bouton pour traiter immédiatement cette commande. Aucune connexion requise.</p>
+          <p style="color:#666;font-size:13px;margin-bottom:20px;">${mixed
+            ? `Le paiement est déjà encaissé et l'atelier confirmé. Votre décision ne concerne QUE la partie gâteau. Refuser = rembourser CHF ${refundDue.toFixed(2)} à la main dans PostFinance.`
+            : "Cliquez sur un bouton pour traiter immédiatement cette commande. Aucune connexion requise."}</p>
 
           <a href="${siteUrl}/order-action?orderId=${order.id}&action=approve&token=${token}" style="display:inline-block;background:#16a34a;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
-            ✅ Accepter la commande
+            ${mixed ? "✅ Accepter le gâteau" : "✅ Accepter la commande"}
           </a>
 
           <a href="${siteUrl}/order-action?orderId=${order.id}&action=decline&token=${token}" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
-            ❌ Refuser la commande
+            ${mixed ? "❌ Refuser le gâteau" : "❌ Refuser la commande"}
           </a>
         </div>
 
@@ -248,10 +259,16 @@ serve(async (req) => {
 
     if (itemsError) throw new Error(`Failed to load order_items: ${itemsError.message}`);
 
-    // A public workshop-only order is auto-confirmed (autoConfirmPublicWorkshop):
-    // no Accepter / Refuser step, so no single-use token is created and the
-    // admin e-mail is an info notification only.
-    const autoConfirmed = !!order.workshop_confirmed_at;
+    // A workshop-ONLY order is auto-confirmed: no Accepter / Refuser step, no
+    // token, the admin e-mail is an info notification only.
+    // A MIXED order (workshop + physical) still needs the admin to decide the
+    // physical part — token + buttons — even though the workshop is confirmed.
+    const wsItems = (items ?? []).filter((it: any) => it.product === "workshop");
+    const physItems = (items ?? []).filter((it: any) => it.product !== "workshop");
+    const fulfillmentType: string = order.fulfillment_type ||
+      (wsItems.length > 0 ? (physItems.length > 0 ? "mixed" : "workshop_only") : "cake_only");
+    const autoConfirmed = fulfillmentType === "workshop_only";
+    const mixed = fulfillmentType === "mixed";
 
     // Single-use accept/decline token (skipped for auto-confirmed workshops).
     // notify-order is normally invoked once per order, but the payment-
@@ -298,7 +315,7 @@ serve(async (req) => {
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (resendKey) {
-      try { results.email = await sendAdminEmail(resendKey, order, items || [], siteUrl, token, autoConfirmed); }
+      try { results.email = await sendAdminEmail(resendKey, order, items || [], siteUrl, token, autoConfirmed, mixed); }
       catch (e) { console.error("Email error:", e); results.errors.push(`Email: ${e instanceof Error ? e.message : String(e)}`); }
     } else { results.errors.push("RESEND_API_KEY not configured"); }
 
