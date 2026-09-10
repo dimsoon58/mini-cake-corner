@@ -271,8 +271,7 @@ const Index = () => {
                   alt={category.label}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
-                {/* Subtle warm gradient — left edge only, almost invisible */}
-                <div className="absolute inset-0 bg-gradient-to-r from-[rgba(12,6,2,0.22)] via-[rgba(12,6,2,0.07)] to-transparent pointer-events-none" />
+
                 {/* Title — upper left */}
                 <p className="absolute top-5 left-5 md:top-6 md:left-6 text-white uppercase tracking-[0.18em] text-[0.75rem] md:text-[0.85rem] font-medium leading-snug">
                   {lang === "fr" ? category.labelFr : category.label}
@@ -301,8 +300,7 @@ const Index = () => {
             alt="Workshops"
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          {/* Subtle warm gradient — left edge only */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[rgba(12,6,2,0.22)] via-[rgba(12,6,2,0.07)] to-transparent pointer-events-none" />
+
           {/* Title — upper left */}
           <p className="absolute top-5 left-5 md:top-7 md:left-8 text-white uppercase tracking-[0.18em] text-[0.75rem] md:text-[0.85rem] font-medium">
             {t("WORKSHOPS", "ATELIERS")}
