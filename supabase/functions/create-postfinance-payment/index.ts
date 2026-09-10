@@ -11,6 +11,7 @@ import {
   findTransactionByMerchantReference,
   getPaymentPageUrl,
   getTransactionState,
+  reportConflictingTransactions,
 } from "../_shared/postfinance-transactions.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
@@ -397,19 +398,59 @@ async function handleRetry(
   }
 
   if (found.transaction) {
-    // Only adopt onto a placeholder that is still CREATING / empty — never
-    // overwrite a real id that may already be there.
+    const foundId = String(found.transaction.id);
+
+    // Adopt the found id ONTO a still-CREATING/empty placeholder only.
     const { data: adopted, error: adoptErr } = await supabase.from("pending_payments")
-      .update({ postfinance_transaction_id: String(found.transaction.id) })
+      .update({ postfinance_transaction_id: foundId })
       .eq("order_id", orderId)
       .in("postfinance_transaction_id", ["CREATING", ""])
       .select("order_id");
-    if (adoptErr) console.error(`handleRetry: adopt txid failed for ${orderId}:`, adoptErr);
-    void adopted;
-    return await resumeByTransaction(
-      supabase, credentials, orderId, String(found.transaction.id),
-      row, en, found.transaction.state,
-    );
+    if (adoptErr) throw new Error(`handleRetry: adopt txid failed for ${orderId}: ${adoptErr.message}`);
+
+    if (Array.isArray(adopted) && adopted.length === 1) {
+      // We adopted it — resume with this transaction.
+      return await resumeByTransaction(
+        supabase, credentials, orderId, foundId, row, en, found.transaction.state,
+      );
+    }
+
+    // 0 rows updated — re-read to see what actually happened.
+    const { data: reread } = await supabase
+      .from("pending_payments").select("postfinance_transaction_id").eq("order_id", orderId).maybeSingle();
+
+    if (!reread) {
+      // Row vanished — the order may have been finalised. Check orders.
+      const { data: ord2 } = await supabase
+        .from("orders").select("id, order_validation").eq("id", orderId).maybeSingle();
+      if (ord2) {
+        return jsonResponse({ status: "already_confirmed", orderId, orderValidation: ord2.order_validation }, 200);
+      }
+      return jsonResponse({
+        status: "in_progress",
+        message: en
+          ? "We're still checking your payment. Please wait a moment and try again."
+          : "Nous vérifions encore votre paiement. Merci de patienter un instant puis de réessayer.",
+      }, 200);
+    }
+
+    const currentId = String(reread.postfinance_transaction_id || "");
+    if (currentId === foundId || currentId === "" || currentId === "CREATING") {
+      // Same id, or still adoptable — resume with the transaction we found.
+      return await resumeByTransaction(
+        supabase, credentials, orderId, foundId, row, en, found.transaction.state,
+      );
+    }
+
+    // currentId is a DIFFERENT real transaction id. Same protection as the
+    // webhook: read both states, alert, NEVER overwrite, NEVER a new payment.
+    await reportConflictingTransactions(credentials, orderId, currentId, foundId);
+    return jsonResponse({
+      status: "in_progress",
+      message: en
+        ? "We're verifying your payment. Please contact us if you don't hear back shortly."
+        : "Nous vérifions votre paiement. Contactez-nous si vous n'avez pas de nouvelle rapidement.",
+    }, 200);
   }
 
   // CONCLUSIVE: no PostFinance transaction was ever created for this orderId.

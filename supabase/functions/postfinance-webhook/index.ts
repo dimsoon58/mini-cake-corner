@@ -6,7 +6,7 @@ import {
   verifyWebhookSignature,
 } from "../_shared/postfinance-webhook-verify.ts";
 import { areSideEffectsComplete } from "../_shared/order-side-effects.ts";
-import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
+import { reportConflictingTransactions } from "../_shared/postfinance-transactions.ts";
 
 // PostFinance Checkout → Supabase webhook.
 //
@@ -154,41 +154,32 @@ serve(async (req) => {
       if (pendingByRef) {
         const current = String(pendingByRef.postfinance_transaction_id ?? "");
         if (current === "" || current === "CREATING") {
-          // Adopt the real id — this is the case this whole branch exists for.
-          await supabase.from("pending_payments")
+          // Adopt the real id ONLY onto a still-CREATING/empty placeholder.
+          const { data: adopted } = await supabase.from("pending_payments")
             .update({ postfinance_transaction_id: entityId })
-            .eq("order_id", merchantRef);
-          orderId = pendingByRef.order_id;
+            .eq("order_id", merchantRef)
+            .in("postfinance_transaction_id", ["CREATING", ""])
+            .select("order_id");
+          if (Array.isArray(adopted) && adopted.length === 1) {
+            orderId = pendingByRef.order_id;
+          } else {
+            // Someone wrote a real id between our read and update — re-read.
+            const { data: rr } = await supabase.from("pending_payments")
+              .select("postfinance_transaction_id").eq("order_id", merchantRef).maybeSingle();
+            const now = String(rr?.postfinance_transaction_id ?? "");
+            if (now === entityId || now === "" || now === "CREATING") {
+              orderId = merchantRef;
+            } else {
+              await reportConflictingTransactions(getPostFinanceCredentials(), merchantRef, now, entityId);
+              return txt("conflicting transaction id — manual review required", 500);
+            }
+          }
         } else if (current === entityId) {
           orderId = pendingByRef.order_id;
         } else {
-          // pending_payments already carries a DIFFERENT real PostFinance
-          // transaction id. NEVER overwrite it. Two live transactions for one
-          // orderId is a critical anomaly — read both, alert, keep everything,
-          // and 5xx so the event is retried (and a human can look).
-          let stateNew = "unknown", stateOld = "unknown";
-          try {
-            const t1 = await pfFetch(getPostFinanceCredentials(), `/payment/transactions/${entityId}`, "GET") as { state?: string };
-            stateNew = t1?.state ?? "unknown";
-          } catch { /* leave unknown */ }
-          try {
-            const t2 = await pfFetch(getPostFinanceCredentials(), `/payment/transactions/${current}`, "GET") as { state?: string };
-            stateOld = t2?.state ?? "unknown";
-          } catch { /* leave unknown */ }
-          console.error(
-            `postfinance-webhook: CRITICAL — orderId ${merchantRef} already has transaction ${current} ` +
-            `(state ${stateOld}) but webhook is for transaction ${entityId} (state ${stateNew}). Not overwriting.`,
-          );
-          EdgeRuntime.waitUntil(sendTechnicalAlert({
-            subject: `Deux transactions PostFinance pour une commande — ${merchantRef}`,
-            lines: [
-              `Order ID : ${merchantRef}`,
-              `Transaction enregistrée : ${current} — état ${stateOld}`,
-              `Transaction du webhook : ${entityId} — état ${stateNew}`,
-              `Heure : ${new Date().toISOString()}`,
-              `Action : AUCUN écrasement effectué. Vérification manuelle requise (double débit possible).`,
-            ],
-          }));
+          // A DIFFERENT real transaction id is already recorded. NEVER
+          // overwrite. Read both real states, alert, keep everything, 5xx.
+          await reportConflictingTransactions(getPostFinanceCredentials(), merchantRef, current, entityId);
           return txt("conflicting transaction id — manual review required", 500);
         }
       } else {

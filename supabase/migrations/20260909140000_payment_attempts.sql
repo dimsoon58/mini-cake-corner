@@ -1,7 +1,8 @@
--- Payment resilience — Migration 1/3: public.payment_attempts
+-- Payment resilience — Migration 1/6: public.payment_attempts
 --
--- NOT YET APPLIED — run manually on Supabase after review. Additive only:
--- one brand-new table, no change to any existing table, function or policy.
+-- PARTIALLY APPLIED IN PRODUCTION — the table already exists (with the old
+-- single `last_webhook_event_id` column). This migration is fully re-runnable:
+-- it only ADDs the two new event columns and DROPs the dead old one.
 --
 -- Purpose: keep a durable trace of every checkout payment attempt, EVEN when
 -- no real order is ever created (declined card, abandoned page, technical
@@ -40,11 +41,15 @@ create table if not exists public.payment_attempts (
   updated_at                      timestamptz not null default now()
 );
 
--- If an earlier draft of this migration was already applied with the old
--- single column, migrate it forward (safe no-ops otherwise).
+-- Production has the table with the old single `last_webhook_event_id`.
+-- Migrate it forward: add the two new columns, drop the dead one (nothing
+-- reads it any more — de-dup now compares last_webhook_processed_event_id).
 alter table public.payment_attempts
   add column if not exists last_webhook_seen_event_id text,
   add column if not exists last_webhook_processed_event_id text;
+
+alter table public.payment_attempts
+  drop column if exists last_webhook_event_id;
 
 comment on table public.payment_attempts is
   'Durable trace of every checkout payment attempt, including attempts that never became an order. No card/bank data. One row per frontend orderId.';

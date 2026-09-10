@@ -1,7 +1,10 @@
--- Payment resilience — Migration 3/3: finalisation lease + side-effect RPCs
+-- Payment resilience — Migration 3/6: finalisation lease + side-effect RPCs
 --
--- NOT YET APPLIED — run manually on Supabase after review, AFTER migration
--- 20260909140100 (needs the new orders columns). CREATE OR REPLACE only.
+-- PARTIALLY APPLIED — the finalisation RPCs already exist in production with
+-- an OLDER definition. This file is CREATE OR REPLACE for all four; it MUST be
+-- re-run to pick up the current logic (finalization_claimed_at as the lease,
+-- side_effects_done_at guard on claim_side_effect_retry, etc.). Run AFTER
+-- 20260909140100 (needs the new orders columns). Fully re-runnable.
 --
 -- claim_order_finalization(p_order_id) — atomic LEASE. Returns TRUE to exactly
 --   one caller, which then inserts order_items and calls mark_order_finalized().

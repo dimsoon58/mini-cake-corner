@@ -30,62 +30,30 @@ interface WorkshopItem {
   total: number | null;
 }
 
-// "Before your workshop" static content — identical wording for every
-// customer, only the language differs. No emoji, no icons.
+// "Before your workshop" — short, practical reminders only. The full legal
+// conditions (alcohol/drugs, photos/videos, legal-representative consent, …)
+// live in the workshop T&Cs accepted at checkout and are deliberately NOT
+// repeated here.
 const BEFORE_WORKSHOP = {
   fr: {
     title: "AVANT VOTRE WORKSHOP",
-    sections: [
-      {
-        h: "Arrivée",
-        p: "Nous vous recommandons d'arriver 5 minutes avant le début. Une tolérance maximale de 15 minutes de retard est accordée. Au-delà, l'accès à l'atelier peut être refusé. Le workshop se terminera dans tous les cas à l'heure initialement prévue.",
-      },
-      {
-        h: "Participants mineurs",
-        p: "Les participants de moins de 14 ans doivent être accompagnés d'un adulte. À partir de 14 ans, les mineurs peuvent participer sans accompagnateur, avec l'accord de leur représentant légal.",
-      },
-      {
-        h: "Sécurité",
-        p: "Les consignes d'hygiène et de sécurité doivent être respectées. Toute personne se présentant sous l'influence de l'alcool, de drogues ou de toute autre substance pouvant compromettre le bon déroulement ou la sécurité de l'atelier pourra se voir refuser l'accès, sans remboursement.",
-      },
-      {
-        h: "Annulation",
-        p: "Un remboursement est possible en cas d'annulation au minimum 7 jours calendaires avant le workshop. Passé ce délai, la réservation n'est plus remboursable.",
-      },
-      {
-        h: "Photos et vidéos",
-        p: "Des photos ou vidéos peuvent être réalisées pendant l'atelier. Toute utilisation ou publication permettant de vous identifier, notamment sur les réseaux sociaux de Bento Cake Studio, sera soumise à votre accord préalable. Pour un participant mineur, l'autorisation de son représentant légal pourra être requise.",
-      },
+    paragraphs: [
+      "Merci d'arriver environ 5 minutes avant le début de l'atelier. En cas de retard supérieur à 15 minutes, l'accès au workshop ne peut pas être garanti et l'atelier se terminera à l'heure prévue.",
+      "Les participants de moins de 14 ans doivent être accompagnés d'un adulte.",
+      "Annulation : votre réservation est remboursable jusqu'à 7 jours calendaires avant le workshop. Passé ce délai, elle n'est plus remboursable.",
+      "Allergies : si vous avez une allergie ou une intolérance alimentaire, merci de nous en informer avant votre venue.",
     ],
-    allergiesTitle: "ALLERGIES",
-    allergiesP: "Si vous avez une allergie ou une intolérance alimentaire, merci de nous en informer avant votre venue.",
+    closing: "Nous nous réjouissons de vous accueillir chez Bento Cake Studio 🤍",
   },
   en: {
     title: "BEFORE YOUR WORKSHOP",
-    sections: [
-      {
-        h: "Arrival",
-        p: "We recommend arriving 5 minutes before the workshop starts. A maximum delay of 15 minutes is accepted. After this time, entry may be refused. The workshop will end at the originally scheduled time regardless of arrival time.",
-      },
-      {
-        h: "Minor participants",
-        p: "Participants under the age of 14 must be accompanied by an adult. From the age of 14, minors may attend without an accompanying adult, subject to the consent of their legal representative.",
-      },
-      {
-        h: "Safety",
-        p: "Participants must follow the hygiene and safety instructions provided during the workshop. Anyone arriving under the influence of alcohol, drugs or any other substance that may compromise the safety or proper running of the workshop may be refused entry without a refund.",
-      },
-      {
-        h: "Cancellation",
-        p: "A refund is available if the booking is cancelled at least 7 calendar days before the workshop. After this deadline, the booking is non-refundable.",
-      },
-      {
-        h: "Photos and videos",
-        p: "Photos or videos may be taken during the workshop. Any use or publication in which you can be identified, including on Bento Cake Studio's social media, will be subject to your prior consent. For a minor participant, authorisation from their legal representative may be required.",
-      },
+    paragraphs: [
+      "Please arrive about 5 minutes before the workshop starts. If you are more than 15 minutes late, access to the workshop cannot be guaranteed and the workshop will still end at the scheduled time.",
+      "Participants under 14 must be accompanied by an adult.",
+      "Cancellation: your booking is refundable up to 7 calendar days before the workshop. After that, it is no longer refundable.",
+      "Allergies: if you have a food allergy or intolerance, please let us know before you come.",
     ],
-    allergiesTitle: "ALLERGIES",
-    allergiesP: "If you have any food allergies or intolerances, please let us know before attending.",
+    closing: "We look forward to welcoming you to Bento Cake Studio 🤍",
   },
 } as const;
 
@@ -98,12 +66,27 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
 
   const multiple = workshopItems.length > 1;
   const workshopSubtotal = workshopItems.reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+  // Amount really captured for this order. For a public workshop-only order
+  // it equals the workshop subtotal; keep order.total_amount as the single
+  // source of truth for "montant payé".
+  const paidAmount = Number(order.total_amount);
+  const amountPaid = Number.isFinite(paidAmount) ? paidAmount.toFixed(2) : chf(workshopSubtotal);
+
+  // Set by autoConfirmPublicWorkshop() once a public workshop-only order is
+  // captured + its reservations confirmed. NULL for a mixed cake+workshop
+  // order, which still goes through the manual Accepter/Refuser flow.
+  const confirmed = !!order.workshop_confirmed_at;
 
   const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
-  const subject = tr(
-    "Your Workshop Booking – Bento Cake Studio",
-    "Réservation de votre workshop – Bento Cake Studio",
-  );
+  const subject = confirmed
+    ? tr(
+        "Your workshop booking is confirmed – Bento Cake Studio",
+        "Votre réservation de workshop est confirmée – Bento Cake Studio",
+      )
+    : tr(
+        "Your Workshop Booking – Bento Cake Studio",
+        "Réservation de votre workshop – Bento Cake Studio",
+      );
 
   const rowCell = (label: string, value: string) =>
     `<tr style="border-bottom:1px solid #D4C89A;">
@@ -133,19 +116,18 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
       </table>`;
   }).join("");
 
-  // "Before your workshop" — visually distinct block: a beige slightly
-  // darker than the card, square corners, no border-radius, no emoji.
+  // "Before your workshop" — the shared Bento "info callout" style
+  // (left border + #F5EDCC), same as send-order-received-email.
   const bw = BEFORE_WORKSHOP[lang];
-  const beforeSections = bw.sections.map((s) => `
-        <p style="color:#351E13;font-size:14px;font-weight:700;margin:16px 0 4px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${s.h}</p>
-        <p style="color:#351E13;font-size:13px;line-height:1.7;margin:0;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${s.p}</p>`).join("");
+  const beforeParagraphs = bw.paragraphs.map((p) =>
+    `<p style="color:#351E13;font-size:13px;line-height:1.7;margin:0 0 12px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${p}</p>`,
+  ).join("");
 
   const beforeWorkshopBlock = `
-      <div style="background:#F3E7C3;border:1px solid #D4C89A;padding:24px 24px;margin:24px 0 0;">
-        <p style="color:#78020C;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:0;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.title}</p>
-        ${beforeSections}
-        <p style="color:#78020C;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:24px 0 4px;padding-top:20px;border-top:1px solid #D4C89A;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.allergiesTitle}</p>
-        <p style="color:#351E13;font-size:13px;line-height:1.7;margin:0;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.allergiesP}</p>
+      <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:18px 20px;margin:24px 0 0;">
+        <p style="color:#78020C;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 12px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.title}</p>
+        ${beforeParagraphs}
+        <p style="color:#351E13;font-size:14px;line-height:1.7;margin:6px 0 0;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.closing}</p>
       </div>`;
 
   const html = `
@@ -165,26 +147,36 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
           ${tr("Hello", "Bonjour")} ${firstName},
         </p>
 
+        ${confirmed ? `
+        <p style="color:#351E13;font-size:18px;line-height:1.6;font-weight:700;margin:0 0 20px;">
+          ${tr("Your booking is confirmed!", "Votre réservation est confirmée !")}
+        </p>` : `
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Thank you for booking with Bento Cake Studio.", "Merci pour votre réservation chez Bento Cake Studio.")}
         </p>
-
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
           ${tr(
             `We have received your workshop booking for order <strong>#${orderNumber}</strong>.`,
             `Nous avons bien reçu votre réservation d'atelier pour la commande <strong>n° ${orderNumber}</strong>.`,
           )}
-        </p>
+        </p>`}
 
         ${blocks}
 
         <table style="border-collapse:collapse;width:100%;margin:16px 0 0;">
           <tr style="background:#78020C;">
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Workshops total", "Total ateliers")}</td>
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${chf(workshopSubtotal)}</td>
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${confirmed ? tr("Amount paid", "Montant payé") : tr("Workshops total", "Total ateliers")}</td>
+            <td style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${confirmed ? amountPaid : chf(workshopSubtotal)}</td>
           </tr>
         </table>
 
+        ${confirmed ? `
+        <p style="color:#351E13;font-size:14px;line-height:1.7;margin:20px 0 0;">
+          ${tr(
+            "Please present this email or your booking reference on the day of the workshop.",
+            "Présentez cet email ou votre référence de réservation le jour du workshop.",
+          )}
+        </p>` : `
         <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:24px 0 0;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0 0 8px;">
             ${tr(
@@ -198,18 +190,14 @@ async function sendWorkshopEmail(resendApiKey: string, order: any, workshopItems
               "Présentez cet email ou votre référence de réservation le jour du workshop.",
             )}
           </p>
-        </div>
+        </div>`}
 
         ${beforeWorkshopBlock}
-
-        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:28px 0 24px;">
-          ${tr("We can't wait to welcome you to the workshop!", "Nous avons hâte de vous accueillir en atelier !")}
-        </p>
-
-        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0;">
+        ${confirmed ? "" : `
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:28px 0 0;">
           ${tr("Thank you for your trust,", "Merci pour votre confiance,")}<br>
           <strong>Bento Cake Studio</strong>
-        </p>
+        </p>`}
       </div>
     </div>
 

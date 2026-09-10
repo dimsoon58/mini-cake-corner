@@ -1,12 +1,24 @@
--- Payment resilience — Migration 4/5: LEGACY backfill
+-- Payment resilience — Migration 4/6: LEGACY backfill
 --
 -- NOT YET APPLIED — run manually on Supabase, AFTER 20260909140100 +
 -- 20260909140200 and BEFORE deploying the new Edge Functions.
 --
--- Every order from the OLD flow has all the new columns NULL. Without this
--- backfill a re-opened old /payment-success would try to re-finalise and the
--- new "retry the missing side-effects" logic would re-send Make / the admin
--- e-mail / the customer e-mail for orders that already got them months ago.
+-- PRODUCTION IS PARTIALLY MIGRATED. Observed state (77 orders):
+--   * 77 orders, all with order_items
+--   * 77 already finalized_at set, make_notified_at / admin_notified_at /
+--     customer_email_sent_at set, notion_sync_status = 'synced'
+--   * side_effects_done_at / make_webhook_dispatched_at /
+--     workshop_make_notified_at are the NEW columns → NULL everywhere
+--
+-- So this migration needs TWO passes:
+--   PASS A  orders still finalized_at IS NULL  → full backfill (true legacy)
+--   PASS B  orders finalized_at IS NOT NULL but side_effects_done_at IS NULL
+--           → these were finalised by an earlier partial migration; just fill
+--             the NEW markers so the periodic sweep never picks them up and a
+--             re-opened /payment-success never re-sends Make / e-mails.
+--
+-- Both passes are safe to re-run: every assignment is COALESCE(col, …), so an
+-- already-set value is never changed.
 --
 -- WHY NO TIME CUTOFF:
 -- this migration runs BEFORE the new code is deployed, so EVERY order that
@@ -30,14 +42,20 @@
 ------------------------------------------------------------------------------
 do $$
 declare
-  v_to_backfill int;
-  v_stay_null   int;
+  v_pass_a    int;
+  v_pass_b    int;
+  v_stay_null int;
 begin
-  select count(*) into v_to_backfill
+  select count(*) into v_pass_a
   from public.orders o
   where o.finalized_at is null
     and o.order_failure_reason is null
     and exists (select 1 from public.order_items oi where oi.order_id = o.id);
+
+  select count(*) into v_pass_b
+  from public.orders o
+  where o.finalized_at is not null
+    and o.side_effects_done_at is null;
 
   select count(*) into v_stay_null
   from public.orders o
@@ -45,7 +63,7 @@ begin
     and o.order_failure_reason is null
     and not exists (select 1 from public.order_items oi where oi.order_id = o.id);
 
-  raise notice 'LEGACY backfill — BEFORE: % order(s) will be backfilled; % order(s) will stay finalized_at NULL (no order_items).', v_to_backfill, v_stay_null;
+  raise notice 'LEGACY backfill — BEFORE: PASS A % (finalized_at NULL, full backfill); PASS B % (finalized_at set, new markers only); % will stay finalized_at NULL (no order_items).', v_pass_a, v_pass_b, v_stay_null;
 end $$;
 
 -- Detailed list of the orders that will NOT be backfilled (inspect these).
@@ -57,7 +75,7 @@ where o.finalized_at is null
 order by o.created_at desc;
 
 ------------------------------------------------------------------------------
--- BACKFILL
+-- PASS A — true legacy: never finalised. Full backfill.
 ------------------------------------------------------------------------------
 update public.orders o
 set
@@ -78,17 +96,45 @@ where o.finalized_at is null
 ;
 
 ------------------------------------------------------------------------------
+-- PASS B — already finalised (by an earlier partial migration), but the NEW
+-- marker columns are NULL. The new confirm-postfinance-payment is NOT yet
+-- deployed, so every finalized_at-set order right now was handled by the old
+-- synchronous flow → mark its side-effects done. Only touches the new columns.
+------------------------------------------------------------------------------
+update public.orders o
+set
+  side_effects_done_at       = coalesce(o.side_effects_done_at,       o.finalized_at, o.created_at),
+  side_effects_retry_at      = coalesce(o.side_effects_retry_at,      o.finalized_at, o.created_at),
+  make_webhook_dispatched_at = coalesce(o.make_webhook_dispatched_at, o.finalized_at, o.created_at),
+  workshop_make_notified_at  = coalesce(o.workshop_make_notified_at,  o.finalized_at, o.created_at),
+  make_notified_at           = coalesce(o.make_notified_at,           o.finalized_at, o.created_at),
+  admin_notified_at          = coalesce(o.admin_notified_at,          o.finalized_at, o.created_at),
+  customer_email_sent_at     = coalesce(o.customer_email_sent_at,     o.finalized_at, o.created_at),
+  workshop_email_sent_at     = coalesce(o.workshop_email_sent_at,     o.finalized_at, o.created_at)
+where o.finalized_at is not null
+  and o.side_effects_done_at is null;
+
+------------------------------------------------------------------------------
 -- CONTROL — AFTER
 ------------------------------------------------------------------------------
 do $$
 declare
-  v_still_null int;
+  v_still_null    int;
+  v_sweep_pending int;
 begin
   select count(*) into v_still_null
   from public.orders o
   where o.finalized_at is null
     and o.order_failure_reason is null;
-  raise notice 'LEGACY backfill — AFTER: % order(s) still finalized_at NULL (all should be capacity-aborts or item-less shells).', v_still_null;
+
+  -- Orders the periodic sweep would still pick up after the backfill.
+  select count(*) into v_sweep_pending
+  from public.orders o
+  where o.finalized_at is not null
+    and o.side_effects_done_at is null
+    and o.order_failure_reason is null;
+
+  raise notice 'LEGACY backfill — AFTER: % order(s) still finalized_at NULL (capacity-aborts / item-less shells); % finalised order(s) still without side_effects_done_at (should be 0).', v_still_null, v_sweep_pending;
 end $$;
 
 -- Detailed list of every order still finalized_at NULL after the backfill.
