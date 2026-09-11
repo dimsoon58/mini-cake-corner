@@ -157,15 +157,15 @@ async function sendWorkshopEmail(
         </p>
 
         ${confirmed ? `
-        <p style="color:#351E13;font-size:18px;line-height:1.6;font-weight:700;margin:0 0 ${isMixed ? "12" : "20"}px;">
+        <p style="color:#351E13;font-size:18px;line-height:1.6;font-weight:700;margin:0 0 12px;">
           ${tr("Your workshop booking is confirmed!", "Votre réservation d'atelier est confirmée !")}
-        </p>${isMixed ? `
+        </p>
         <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0 0 20px;">
           ${tr(
-            "Your payment has been received and your place is reserved. The cake part of your order is still being reviewed by our team — you will receive your invoice once the cake part has been processed.",
-            "Votre paiement a bien été reçu et votre place est réservée. La partie gâteau de votre commande est encore en cours de validation par notre équipe — vous recevrez votre facture après le traitement de la partie gâteau.",
+            "Your payment has been received and your place is reserved.",
+            "Votre paiement a bien été reçu et votre place est réservée.",
           )}
-        </p>` : ""}` : `
+        </p>` : `
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Thank you for booking with Bento Cake Studio.", "Merci pour votre réservation chez Bento Cake Studio.")}
         </p>
