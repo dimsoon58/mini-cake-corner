@@ -9,9 +9,18 @@
 //
 //   make_notified_at         orders.notion_sync_status = 'synced'  (Make wrote
 //                            it at the END of a successful Notion + Agenda sync)
-//   workshop_make_notified_at every "Réservations Workshops" webhook returned
-//                            2xx (that scenario is Find -> Update/Create, so a
-//                            retry never double-creates)
+//   workshop_make_notified_at ORDER-LEVEL aggregate: every one of this order's
+//                            workshop_reservations rows is individually synced
+//                            (its own make_synced_updated_at — set ONLY by
+//                            Make's own ACK callback after its Notion modules
+//                            succeed, NEVER by an HTTP 2xx alone: the "Bento —
+//                            Réservations Workshops → Notion" scenario has no
+//                            Webhook Response module, so its 2xx just means
+//                            "accepted", not "synced" — re-checked with a
+//                            fresh DB read, never assumed). Delivery to Make
+//                            is at-least-once, paired with the idempotent
+//                            Find -> Update/Create Make scenario, so a retry
+//                            never double-creates.
 //   admin_notified_at        notify-order succeeded with no partial errors
 //   customer_email_sent_at   send-order-received-email invoked without error
 //   workshop_email_sent_at   send-workshop-email invoked without error
@@ -22,7 +31,7 @@
 // the marker is considered set. areSideEffectsComplete() can therefore never
 // return true after a failed DB read.
 
-import { buildWorkshopMakePayload, sendWorkshopMakeWebhookChecked } from "./workshop-make.ts";
+import { claimAndDispatchWorkshopReservationSync, allWorkshopReservationsSynced } from "./workshop-make.ts";
 import {
   claimAndSendTechnicalAlert,
   ALERT_COOLDOWN_SECONDS,
@@ -432,54 +441,46 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
   }
 
   // 2. Workshop Make ("Réservations Workshops → Notion") — workshop items.
-  //    Find -> Update/Create scenario, so a retry never double-creates; HTTP
-  //    2xx on EVERY reservation is required. For Bento this integration IS
-  //    active — a missing MAKE_WORKSHOP_WEBHOOK_URL is a configuration error,
-  //    NOT a valid "skipped = done".
+  //    Delivery itself now goes through the SAME homogeneous, claim-based
+  //    mechanism used for cancellation and capacity-abort rejection
+  //    (claimAndDispatchWorkshopReservationSync / _shared/workshop-make.ts —
+  //    see its header for the full design and the at-least-once + idempotent-
+  //    consumer delivery semantics). orders.workshop_make_notified_at stays
+  //    as the ORDER-LEVEL summary flag areSideEffectsComplete() already
+  //    depends on — it is stamped only after a fresh, durable re-read
+  //    confirms every reservation of this order is individually in sync
+  //    (allWorkshopReservationsSynced), never from a locally-tracked boolean.
+  //    A missing MAKE_WORKSHOP_WEBHOOK_URL is a configuration error, NOT a
+  //    valid "skipped = done".
   if (hasWorkshop && !o.workshop_make_notified_at) {
     const { data: reservations, error: resErr } = await supabase
-      .from("workshop_reservations").select("*").eq("order_id", orderId);
+      .from("workshop_reservations").select("id").eq("order_id", orderId);
     if (resErr) {
       console.error(`runSideEffects: workshop_reservations read failed for ${orderId} — will retry:`, resErr);
     } else if ((reservations ?? []).length === 0) {
       console.error(`runSideEffects: workshop order ${orderId} has no workshop_reservations yet — will retry`);
     } else {
-      const sessionIds = [...new Set(reservations.map((r: any) => r.workshop_session_id))];
-      const { data: sessions, error: sessErr } = await supabase
-        .from("workshop_sessions").select("id, workshop_date, workshop_time").in("id", sessionIds);
-      if (sessErr) {
-        console.error(`runSideEffects: workshop_sessions read failed for ${orderId} — will retry:`, sessErr);
-      } else {
-        const sessionById = new Map((sessions ?? []).map((s: any) => [s.id, s]));
-        const customerName = `${o.first_name || ""} ${o.last_name || ""}`.trim();
-        let allOk = true;
-        let anySkipped = false;
-        for (const reservation of reservations) {
-          const session = sessionById.get(reservation.workshop_session_id);
-          const { ok, skipped } = await sendWorkshopMakeWebhookChecked(buildWorkshopMakePayload(reservation, {
-            order_number: o.order_number ?? null,
-            workshop_date: session ? String(session.workshop_date) : null,
-            workshop_time: session ? session.workshop_time : null,
-            customer_name: customerName,
-            customer_email: o.email,
-            customer_phone: o.phone || "",
-            refund_status: "non_required",
-          }));
-          if (skipped) anySkipped = true;
-          if (!ok) allOk = false;
-        }
-        if (anySkipped) {
-          await claimAndSendTechnicalAlert(supabase, WORKSHOP_MAKE_URL_ALERT_KEY, ALERT_COOLDOWN_SECONDS, {
-            subject: "Configuration manquante — MAKE_WORKSHOP_WEBHOOK_URL",
-            lines: [
-              `MAKE_WORKSHOP_WEBHOOK_URL non défini — la synchro "Réservations Workshops -> Notion" ne peut pas être livrée.`,
-              `Commande workshop concernée : ${orderId}`,
-              `(Cette alerte est partagée avec la synchro des annulations de workshop — même clé de cooldown — et ne sera pas renvoyée avant ${ALERT_COOLDOWN_SECONDS / 3600}h.)`,
-            ],
-          });
-        }
-        // Stamp ONLY when every reservation was really delivered (2xx).
-        if (allOk && !anySkipped) await stampMarker(supabase, orderId, "workshop_make_notified_at");
+      let anySkipped = false;
+      for (const reservation of reservations) {
+        const { skipped } = await claimAndDispatchWorkshopReservationSync(supabase, reservation.id);
+        if (skipped) anySkipped = true;
+      }
+      if (anySkipped) {
+        await claimAndSendTechnicalAlert(supabase, WORKSHOP_MAKE_URL_ALERT_KEY, ALERT_COOLDOWN_SECONDS, {
+          subject: "Configuration manquante — MAKE_WORKSHOP_WEBHOOK_URL",
+          lines: [
+            `MAKE_WORKSHOP_WEBHOOK_URL non défini — la synchro "Réservations Workshops -> Notion" ne peut pas être livrée.`,
+            `Commande workshop concernée : ${orderId}`,
+            `(Cette alerte est partagée avec toute la synchro workshop — création, annulation, rejet capacité — même clé de cooldown, ne sera pas renvoyée avant ${ALERT_COOLDOWN_SECONDS / 3600}h.)`,
+          ],
+        });
+      }
+      // Durable re-read — never trust the loop's local outcome alone. A
+      // reservation claimed by a CONCURRENT sweep in the same instant (and
+      // therefore skipped above with claimed:false) may already be in sync
+      // by the time this check runs; this re-read catches that correctly.
+      if (await allWorkshopReservationsSynced(supabase, orderId)) {
+        await stampMarker(supabase, orderId, "workshop_make_notified_at");
       }
     }
   }

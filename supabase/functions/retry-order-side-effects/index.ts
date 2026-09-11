@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
-import { retryPendingWorkshopCancellationSync } from "../_shared/workshop-make.ts";
+import { retryPendingWorkshopReservationSync } from "../_shared/workshop-make.ts";
 
 // Independent, periodic recovery sweep for the side-effects (Make webhook +
 // e-mails) of a paid + DB-finalised order.
@@ -19,9 +19,12 @@ import { retryPendingWorkshopCancellationSync } from "../_shared/workshop-make.t
 //   POST https://<PROJECT_ID>.supabase.co/functions/v1/retry-order-side-effects?s=<RETRY_SWEEP_SECRET>
 // works too. Deploy with verify_jwt = false (see supabase/config.toml).
 //
-// Also the ONE retry mechanism for the workshop CANCELLATION -> Make sync
-// (workshop_cancellation_log.make_notified_at, see _shared/workshop-make.ts /
-// retryPendingWorkshopCancellationSync) — deliberately not a second cron.
+// Also the ONE retry mechanism for EVERY workshop_reservations -> Make sync
+// event — creation, confirmation, cancellation, AND capacity-abort rejection
+// alike (workshop_reservations.make_synced_updated_at, a VERSIONED marker set
+// only by Make's own ACK callback — see _shared/workshop-make.ts /
+// retryPendingWorkshopReservationSync) — deliberately one shared, homogeneous
+// mechanism, not a separate cron or a separate marker per event type.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -92,22 +95,23 @@ serve(async (req) => {
     }
   }
 
-  // Independent, unrelated sweep: durable retry of workshop CANCELLATION
-  // syncs to Make (workshop_cancellation_log.make_notified_at). Same 15-min
+  // Independent, unrelated sweep: durable retry of EVERY still-pending
+  // workshop_reservations -> Make sync, across every lifecycle event type at
+  // once (creation, cancellation, capacity-abort rejection). Same 15-min
   // cadence, same function, one source of truth for every Workshop -> Make
   // delivery — no second cron. A failure here never affects the order sweep
   // above (separate try/catch, separate error path).
-  let cancellationSync = { scanned: 0, sent: 0 };
+  let workshopSync = { scanned: 0, sent: 0 };
   try {
-    cancellationSync = await retryPendingWorkshopCancellationSync(supabase);
+    workshopSync = await retryPendingWorkshopReservationSync(supabase);
   } catch (e) {
-    console.error("retry-order-side-effects: workshop cancellation sync sweep failed:", e);
+    console.error("retry-order-side-effects: workshop reservation sync sweep failed:", e);
   }
 
   return new Response(
     JSON.stringify({
       scanned: ids.length, attempted, completed,
-      workshopCancellationSync: cancellationSync,
+      workshopReservationSync: workshopSync,
     }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );

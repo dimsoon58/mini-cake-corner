@@ -23,6 +23,7 @@ export type WorkshopRefundStatus =
   | "failed";        // >= 7 days out but the PostFinance refund call failed
 
 export interface WorkshopReservationLike {
+  id: string;               // needed for the ACK payload (reservation_id)
   workshop_reference: string;
   order_id: string;
   order_item_id: string;
@@ -36,6 +37,7 @@ export interface WorkshopReservationLike {
   minor_consent_confirmed: boolean;
   status: "pending" | "confirmed" | "partially_cancelled" | "cancelled" | "rejected" | string;
   refunded_amount: number | string;
+  updated_at: string;       // the VERSION Make must echo back verbatim on ACK
 }
 
 export interface WorkshopMakeContext {
@@ -47,10 +49,25 @@ export interface WorkshopMakeContext {
   customer_phone: string;
   // Refund state of the LATEST cancellation on this reservation (if any).
   refund_status?: WorkshopRefundStatus;
+  // Fencing token minted by claim_workshop_reservation_make_sync for THIS
+  // dispatch attempt — not a property of the reservation row itself, so it
+  // comes through context, not WorkshopReservationLike. Make MUST echo it
+  // back verbatim as sync_claim_token in its ACK call.
+  sync_claim_token: string;
 }
 
 // Exact payload shape for the "Réservations Workshops" base.
 export interface WorkshopMakePayload {
+  // ACK identity + version + fencing — Make MUST echo ALL FIVE back verbatim
+  // in its call to ack_workshop_reservation_make_sync, AFTER its Notion
+  // modules succeed, for ANY status/mutation (no status filter — see
+  // 20260912090700). source_updated_at is what makes the ACK versioned;
+  // sync_claim_token is what fences it — an ACK whose token no longer
+  // matches the reservation's current claim is a safe no-op, never able to
+  // clear a newer worker's in-flight claim.
+  reservation_id: string;
+  source_updated_at: string;
+  sync_claim_token: string;
   workshop_reference: string;
   order_id: string;
   order_item_id: string;
@@ -96,6 +113,9 @@ export function buildWorkshopMakePayload(
   const round2 = (n: number) => Math.round(n * 100) / 100;
 
   return {
+    reservation_id: reservation.id,
+    source_updated_at: reservation.updated_at,
+    sync_claim_token: ctx.sync_claim_token,
     workshop_reference: reservation.workshop_reference,
     order_id: reservation.order_id,
     order_item_id: reservation.order_item_id,
@@ -142,10 +162,15 @@ export async function sendWorkshopMakeWebhook(payload: WorkshopMakePayload): Pro
   }
 }
 
-// Same POST, but reports the outcome so the durable side-effect mechanism can
-// decide whether to stamp workshop_make_notified_at. The workshop Make
-// scenario is Find -> Update/Create, so a retry never double-creates.
-//   { ok: true }              -> HTTP 2xx, safe to mark delivered
+// Same POST, but reports the outcome. ⚠️ { ok: true } means Make's Custom
+// Webhook ACCEPTED the request (HTTP 2xx) — it is NOT proof of a Notion
+// sync. The "Bento — Réservations Workshops → Notion" scenario has no
+// Webhook Response module, so this 2xx fires before any Notion module even
+// runs. Callers must NEVER mark a reservation as synced from this result
+// alone — only ack_workshop_reservation_make_sync (called BY Make after its
+// Notion modules succeed) does that. See dispatchClaimedReservationToMake,
+// below, for the caller that actually owns this distinction.
+//   { ok: true }              -> HTTP 2xx — Make accepted/queued the request
 //   { ok: false, skipped }    -> MAKE_WORKSHOP_WEBHOOK_URL not configured
 //                                (feature off — treat as "nothing to deliver")
 //   { ok: false }             -> real failure, retry later
@@ -171,51 +196,111 @@ export async function sendWorkshopMakeWebhookChecked(
   }
 }
 
-// ── Durable, RACE-FREE retry for the CANCELLATION lifecycle event ─────────
+// ── ONE homogeneous, durable, RACE-FREE DISPATCH mechanism for EVERY
+// workshop_reservations lifecycle event — Make itself is the final ACK ────
 //
-// Creation/confirmation already has a durable, retried delivery to Make
-// (orders.workshop_make_notified_at, driven by runSideEffects in
-// order-side-effects.ts) — and that path is already race-free because it
-// runs inside claim_side_effect_retry's ORDER-LEVEL lease, which serialises
-// every side effect for a given order (the Make sync included). Until this
-// change, a PARTIAL CANCELLATION's Make webhook (fired inline by
-// cancel-workshop-seats) was fire-and-forget: no durable marker, no retry,
-// AND — in the first version of this fix — even a "check marker, then send,
-// then stamp" pattern was NOT enough: two concurrent readers can both see
-// make_notified_at IS NULL and both send before either stamps.
+// Covers, identically, with no per-event-type special-casing:
+//   * creation / confirmation           (runSideEffects, order-side-effects.ts)
+//   * partial or total cancellation     (cancel-workshop-seats)
+//   * capacity-abort rejection          (confirm-postfinance-payment,
+//                                         abortOrderAfterCapture)
+//   * the periodic retry sweep          (retry-order-side-effects)
 //
-// This is fixed with a real CLAIM phase, atomic in Postgres
-// (claim_workshop_cancellation_make_sync, `FOR UPDATE SKIP LOCKED` — see
-// migration 20260912090100_workshop_cancellation_make_marker.sql, NOT YET
-// APPLIED): a row can only ever be claimed by ONE caller at a time, with a
-// lease that expires if that caller crashes before finishing. Nothing calls
-// Make until it holds the claim for that exact row.
+// BLOCKER FIX (2026-09-12): the "Bento — Réservations Workshops → Notion"
+// Make scenario has NO Webhook Response module, so its Custom Webhook
+// trigger returns HTTP 200 the instant it ACCEPTS the request — BEFORE any
+// Notion module has run, let alone succeeded. An HTTP 2xx from Make is
+// therefore proof of nothing beyond "Make received this". The functions
+// below DISPATCH to Make and then do nothing further; only
+// ack_workshop_reservation_make_sync — called BY Make, after its Notion
+// modules succeed — marks a reservation as actually synced. See migration
+// 20260912090100_workshop_reservation_make_sync.sql (NOT YET APPLIED) for
+// the full flow and the T1/T2 versioning guarantee.
 //
-// A missing MAKE_WORKSHOP_WEBHOOK_URL is reported through the exact same
-// durable, cooldown-protected alert as the creation path (imported at the top
-// of this file) — never a fresh in-memory flag, and never a second,
-// independently-cooling-down alert for what is the same underlying problem.
+// Marker pair: workshop_reservations.make_synced_updated_at (a VERSION, set
+// only by the ACK) / make_sync_claimed_at (an in-flight lease). ONE claim
+// RPC, claim_workshop_reservation_make_sync (`FOR UPDATE SKIP LOCKED`): a
+// row can only ever be claimed by ONE caller at a time, with a lease that
+// expires if the dispatching worker crashes OR if Make accepts but never
+// calls its ACK back. Nothing calls Make until it holds the claim for that
+// exact row, and — critically — the claim is NOT released on a successful
+// dispatch: it stays held while Make works, so no concurrent/next sweep
+// re-sends the same event while it is still in flight. "Needs sync" =
+// make_synced_updated_at IS NULL OR make_synced_updated_at < updated_at.
+//
+// DELIVERY SEMANTICS: the claim guarantees no two workers dispatch the SAME
+// reservation to Make CONCURRENTLY, and that an abandoned claim (crashed
+// Edge Function, or a Make run that never called its ACK back) is eventually
+// retried. It does NOT and cannot guarantee "Make receives the HTTP POST at
+// most once" — a retry after an expired/abandoned claim resends. The actual
+// guarantee is AT-LEAST-ONCE delivery, paired with an IDEMPOTENT Make
+// consumer (Find by workshop_reference, then Update if found / Create
+// otherwise — confirmed directly with the Make scenario) and a versioned,
+// Make-issued ACK as the only proof of a completed Notion sync. Exactly-once
+// HTTP delivery is not achievable over an unreliable network without a
+// two-phase commit with Make itself, and is not required here.
+//
+// A missing MAKE_WORKSHOP_WEBHOOK_URL is reported through the durable,
+// cooldown-protected alert (claimAndSendTechnicalAlert, imported at the top
+// of this file) — never a fresh in-memory flag.
 
-const MAKE_SYNC_LEASE_SECONDS = 300; // 5 min: comfortably above one HTTP POST + function run; short enough to self-heal a crash quickly
+// 10 min: comfortably above one HTTP POST + a full Make scenario run
+// (Notion writes, possibly several modules) + its ACK callback — this is no
+// longer just "one fast HTTP call", so the lease is longer than a typical
+// job-queue claim. Still short enough that a genuinely stuck event (Make
+// accepted but its scenario failed, or never calls the ACK back) is retried
+// within roughly one retry-order-side-effects sweep cycle (15 min).
+const MAKE_SYNC_LEASE_SECONDS = 600;
 
-// Send ONE already-claimed cancellation-log row. Caller MUST hold the claim
-// (make_sync_claimed_at just set by claim_workshop_cancellation_make_sync)
-// before calling this — it never claims anything itself.
-async function deliverClaimedCancellation(
-  supabase: any,
-  logId: string,
-): Promise<{ ok: boolean; skipped: boolean }> {
-  const { data: log, error: logErr } = await supabase
-    .from("workshop_cancellation_log").select("reservation_id, refund_status").eq("id", logId).maybeSingle();
-  if (logErr || !log) {
-    console.error(`deliverClaimedCancellation: log read failed for ${logId}:`, logErr);
-    return { ok: false, skipped: false };
+// Fenced release: only clears the claim if claimToken still matches what is
+// on file — the exact same principle as ack_workshop_reservation_make_sync's
+// own fenced release, applied here for the "we already KNOW this attempt
+// failed" path (config missing, real HTTP failure, or a read error before
+// even dispatching). Without this, a slow failure path could theoretically
+// clear a claim a NEWER worker already took over (e.g. if this worker's own
+// lease had already expired by the time it got around to releasing).
+async function releaseWorkshopReservationClaim(supabase: any, reservationId: string, claimToken: string): Promise<void> {
+  const { error } = await supabase
+    .from("workshop_reservations")
+    .update({ make_sync_claimed_at: null, make_sync_claim_token: null })
+    .eq("id", reservationId)
+    .eq("make_sync_claim_token", claimToken);
+  if (error) {
+    console.error(`releaseWorkshopReservationClaim: failed to release claim for ${reservationId} — will self-heal after the lease expires:`, error);
   }
+}
+
+// Dispatch ONE already-claimed workshop_reservations row's CURRENT state to
+// Make. Caller MUST hold the claim (make_sync_claimed_at / make_sync_claim_
+// token just set by claim_workshop_reservation_make_sync) before calling
+// this — it never claims anything itself, and it never marks the row as
+// synced: only ack_workshop_reservation_make_sync (called BY Make) does
+// that.
+//   { dispatched: true }                   Make accepted the POST (2xx). The
+//                                           claim is LEFT IN PLACE — Make is
+//                                           now responsible for calling the
+//                                           fenced ACK back; if it never
+//                                           does, the lease expiry self-heals
+//                                           it.
+//   { dispatched: false, skipped: true }   MAKE_WORKSHOP_WEBHOOK_URL not
+//                                           configured. Claim released now.
+//   { dispatched: false, skipped: false }  the POST itself failed (network,
+//                                           non-2xx). Claim released now.
+// refund_status is derived, not stored on the reservation: the most recent
+// workshop_cancellation_log row for it if one exists, otherwise 'pending'
+// for a capacity-abort rejection (money was captured, this booking never
+// happened) or 'non_required' otherwise.
+async function dispatchClaimedReservationToMake(
+  supabase: any,
+  reservationId: string,
+  claimToken: string,
+): Promise<{ dispatched: boolean; skipped: boolean }> {
   const { data: reservation, error: resErr } = await supabase
-    .from("workshop_reservations").select("*").eq("id", log.reservation_id).maybeSingle();
+    .from("workshop_reservations").select("*").eq("id", reservationId).maybeSingle();
   if (resErr || !reservation) {
-    console.error(`deliverClaimedCancellation: reservation read failed for log ${logId}:`, resErr);
-    return { ok: false, skipped: false };
+    console.error(`dispatchClaimedReservationToMake: reservation read failed for ${reservationId}:`, resErr);
+    await releaseWorkshopReservationClaim(supabase, reservationId, claimToken);
+    return { dispatched: false, skipped: false };
   }
   const { data: session } = await supabase
     .from("workshop_sessions").select("workshop_date, workshop_time")
@@ -224,9 +309,15 @@ async function deliverClaimedCancellation(
     .from("orders").select("order_number, first_name, last_name, email, phone")
     .eq("id", reservation.order_id).maybeSingle();
   if (!order) {
-    console.error(`deliverClaimedCancellation: order not found for reservation ${reservation.id} (log ${logId})`);
-    return { ok: false, skipped: false };
+    console.error(`dispatchClaimedReservationToMake: order not found for reservation ${reservationId}`);
+    await releaseWorkshopReservationClaim(supabase, reservationId, claimToken);
+    return { dispatched: false, skipped: false };
   }
+  const { data: latestLog } = await supabase
+    .from("workshop_cancellation_log").select("refund_status")
+    .eq("reservation_id", reservationId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const refundStatus: WorkshopRefundStatus = latestLog?.refund_status
+    ?? (reservation.status === "rejected" ? "pending" : "non_required");
 
   const result = await sendWorkshopMakeWebhookChecked(buildWorkshopMakePayload(reservation, {
     order_number: order.order_number ?? null,
@@ -235,96 +326,116 @@ async function deliverClaimedCancellation(
     customer_name: `${order.first_name || ""} ${order.last_name || ""}`.trim(),
     customer_email: order.email,
     customer_phone: order.phone || "",
-    refund_status: (log.refund_status ?? "non_required") as WorkshopRefundStatus,
+    refund_status: refundStatus,
+    sync_claim_token: claimToken,
   }));
 
-  if (result.ok) {
-    const { error: stampErr } = await supabase
-      .from("workshop_cancellation_log")
-      .update({ make_notified_at: new Date().toISOString() })
-      .eq("id", logId)
-      .is("make_notified_at", null); // defensive; the claim already made this exclusive
-    if (stampErr) {
-      console.error(`deliverClaimedCancellation: stamp failed for log ${logId} — next sweep will retry once the lease expires:`, stampErr);
-    }
-  } else {
-    // Release the claim immediately (do not make the retry sweep WAIT for the
-    // full lease) — a real failure or a missing config should be retryable at
-    // the caller's next natural attempt, not stuck for MAKE_SYNC_LEASE_SECONDS.
-    const { error: relErr } = await supabase
-      .from("workshop_cancellation_log")
-      .update({ make_sync_claimed_at: null })
-      .eq("id", logId)
-      .is("make_notified_at", null);
-    if (relErr) {
-      console.error(`deliverClaimedCancellation: failed to release claim for log ${logId} — will self-heal after the lease expires:`, relErr);
-    }
+  if (result.skipped || !result.ok) {
+    // Release immediately — do not make the retry sweep WAIT for the full
+    // lease when we already KNOW this attempt failed (config missing, or a
+    // real HTTP failure). A crash-based abandonment (below) is the only case
+    // that relies on the lease timing out.
+    await releaseWorkshopReservationClaim(supabase, reservationId, claimToken);
+    return { dispatched: false, skipped: result.skipped };
   }
 
-  return result;
+  // Accepted by Make (2xx) — NOT proof of a Notion sync. Deliberately leave
+  // the claim in place: ack_workshop_reservation_make_sync (called BY Make,
+  // with this exact claimToken as sync_claim_token, after its Notion modules
+  // succeed) will mark the synced version and fenced-clear the claim. If
+  // Make's scenario fails downstream, or the ACK call never arrives, the
+  // lease simply expires and the periodic sweep retries.
+  return { dispatched: true, skipped: false };
 }
 
-// cancel-workshop-seats' own inline fast-path attempt for the row it JUST
-// created. Claims ONLY that exact log id — if a concurrent sweep already
-// claimed it in the same instant, this simply does nothing (no double-send).
-export async function claimAndDeliverWorkshopCancellation(
+// Inline fast-path attempt for ONE reservation a caller just changed (fresh
+// creation, a cancellation, or a capacity-abort rejection). Claims ONLY that
+// exact reservation id — if a concurrent sweep already claimed it in the
+// same instant, this simply does nothing (no double-dispatch; that other
+// holder is responsible for it).
+export async function claimAndDispatchWorkshopReservationSync(
   supabase: any,
-  logId: string,
-): Promise<{ ok: boolean; skipped: boolean; claimed: boolean }> {
-  const { data: claimedIds, error } = await supabase.rpc("claim_workshop_cancellation_make_sync", {
-    p_log_ids: [logId],
+  reservationId: string,
+): Promise<{ dispatched: boolean; skipped: boolean; claimed: boolean }> {
+  const { data: claims, error } = await supabase.rpc("claim_workshop_reservation_make_sync", {
+    p_reservation_ids: [reservationId],
     p_lease_seconds: MAKE_SYNC_LEASE_SECONDS,
   });
   if (error) {
-    console.error(`claimAndDeliverWorkshopCancellation: claim failed for log ${logId}:`, error);
-    return { ok: false, skipped: false, claimed: false };
+    console.error(`claimAndDispatchWorkshopReservationSync: claim failed for ${reservationId}:`, error);
+    return { dispatched: false, skipped: false, claimed: false };
   }
-  if (!Array.isArray(claimedIds) || !claimedIds.includes(logId)) {
-    // Not claimable right now — either already delivered, or a concurrent
-    // sweep holds it. Leave it entirely alone; that other holder is
-    // responsible for it.
-    return { ok: false, skipped: false, claimed: false };
+  const rows: Array<{ reservation_id: string; claim_token: string }> = Array.isArray(claims) ? claims : [];
+  const claim = rows.find((r) => r.reservation_id === reservationId);
+  if (!claim) {
+    return { dispatched: false, skipped: false, claimed: false };
   }
-  const result = await deliverClaimedCancellation(supabase, logId);
+  const result = await dispatchClaimedReservationToMake(supabase, reservationId, claim.claim_token);
   return { ...result, claimed: true };
 }
 
+// Re-reads whether EVERY workshop_reservations row of an order has been
+// CONFIRMED synced by Make's own ACK — make_synced_updated_at set AND not
+// older than the row's own CURRENT updated_at — a durable, re-read-based
+// check, never trusted from a dispatch attempt's local outcome (dispatched
+// only means "Make accepted the POST", not "Notion is up to date"). Used by
+// runSideEffects to decide whether orders.workshop_make_notified_at (the
+// order-level "workshop side effects done" summary flag) can be stamped.
+export async function allWorkshopReservationsSynced(supabase: any, orderId: string): Promise<boolean> {
+  const { data: reservations, error } = await supabase
+    .from("workshop_reservations").select("make_synced_updated_at, updated_at").eq("order_id", orderId);
+  if (error) {
+    console.error(`allWorkshopReservationsSynced: read failed for order ${orderId}:`, error);
+    return false;
+  }
+  const rows = reservations ?? [];
+  if (rows.length === 0) return false; // caller only calls this when hasWorkshop is true
+  return rows.every((r: any) => {
+    if (!r.make_synced_updated_at) return false;
+    const synced = Date.parse(r.make_synced_updated_at);
+    const updated = Date.parse(r.updated_at);
+    return Number.isFinite(synced) && Number.isFinite(updated) && synced >= updated;
+  });
+}
+
 // Periodic sweep (retry-order-side-effects): claims up to `limit` eligible
-// rows atomically, delivers each, alerts once (durably) if the configuration
-// itself is the problem.
-export async function retryPendingWorkshopCancellationSync(
+// reservations atomically — across EVERY lifecycle event type at once —
+// dispatches each to Make, alerts once (durably) if the configuration itself
+// is the problem. "dispatched" here means "Make accepted the POST", NOT
+// "Notion is confirmed synced" — actual completion is only ever known via
+// allWorkshopReservationsSynced's fresh re-read.
+export async function retryPendingWorkshopReservationSync(
   supabase: any,
   limit = 25,
-): Promise<{ scanned: number; sent: number }> {
-  const { data: claimedIds, error } = await supabase.rpc("claim_workshop_cancellation_make_sync", {
-    p_log_ids: null,
+): Promise<{ scanned: number; dispatched: number }> {
+  const { data: claims, error } = await supabase.rpc("claim_workshop_reservation_make_sync", {
+    p_reservation_ids: null,
     p_limit: limit,
     p_lease_seconds: MAKE_SYNC_LEASE_SECONDS,
   });
   if (error) {
-    console.error("retryPendingWorkshopCancellationSync: claim failed:", error);
-    return { scanned: 0, sent: 0 };
+    console.error("retryPendingWorkshopReservationSync: claim failed:", error);
+    return { scanned: 0, dispatched: 0 };
   }
-  const ids: string[] = Array.isArray(claimedIds) ? claimedIds : [];
-  let sent = 0;
+  const rows: Array<{ reservation_id: string; claim_token: string }> = Array.isArray(claims) ? claims : [];
+  let dispatched = 0;
   let anySkipped = false;
 
-  for (const logId of ids) {
-    const { ok, skipped } = await deliverClaimedCancellation(supabase, logId);
-    if (skipped) anySkipped = true;
-    if (ok) sent += 1;
+  for (const row of rows) {
+    const result = await dispatchClaimedReservationToMake(supabase, row.reservation_id, row.claim_token);
+    if (result.skipped) anySkipped = true;
+    if (result.dispatched) dispatched += 1;
   }
 
   if (anySkipped) {
     await claimAndSendTechnicalAlert(supabase, WORKSHOP_MAKE_URL_ALERT_KEY, ALERT_COOLDOWN_SECONDS, {
       subject: "Configuration manquante — MAKE_WORKSHOP_WEBHOOK_URL",
       lines: [
-        `MAKE_WORKSHOP_WEBHOOK_URL non défini — des annulations de workshop ne peuvent pas être synchronisées vers Notion.`,
-        `${ids.length} annulation(s) réclamée(s) dans ce passage, en attente de configuration.`,
-        `(Cette alerte est partagée avec la synchro de création — même clé de cooldown.)`,
+        `MAKE_WORKSHOP_WEBHOOK_URL non défini — des réservations workshop ne peuvent pas être synchronisées vers Notion.`,
+        `${rows.length} réservation(s) réclamée(s) dans ce passage, en attente de configuration.`,
       ],
     });
   }
 
-  return { scanned: ids.length, sent };
+  return { scanned: rows.length, dispatched };
 }
