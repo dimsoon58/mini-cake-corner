@@ -273,11 +273,11 @@ const Index = () => {
                 />
 
                 {/* Two buttons — bottom left, stacked */}
-                <div className="absolute bottom-5 left-5 md:bottom-7 md:left-7 flex flex-col items-start gap-2">
-                  <span className="inline-block bg-primary text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-8 py-2.5">
+                <div className="absolute bottom-5 left-5 md:bottom-7 md:left-7 flex flex-col gap-2 w-48 md:w-56">
+                  <span className="block w-full bg-primary text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-4 py-2.5">
                     {lang === "fr" ? category.labelFr : category.label}
                   </span>
-                  <span className="inline-block border-2 border-primary text-primary bg-transparent group-hover:bg-primary/10 text-center uppercase tracking-[0.105em] text-sm font-medium px-8 py-2.5 transition-colors">
+                  <span className="block w-full border-2 border-primary text-primary bg-transparent group-hover:bg-primary/10 text-center uppercase tracking-[0.105em] text-sm font-medium px-4 py-2.5 transition-colors">
                     {t("DISCOVER", "DÉCOUVRIR")}
                   </span>
                 </div>
