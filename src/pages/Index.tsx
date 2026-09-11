@@ -272,13 +272,10 @@ const Index = () => {
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
 
-                {/* Two buttons — bottom left, stacked */}
-                <div className="absolute bottom-5 left-5 md:bottom-7 md:left-7 flex flex-col gap-2 w-48 md:w-56">
-                  <span className="block w-full bg-primary text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-4 py-2.5">
+                {/* Title button — bottom left */}
+                <div className="absolute bottom-5 left-5 md:bottom-7 md:left-7">
+                  <span className="block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-8 py-2.5 transition-colors">
                     {lang === "fr" ? category.labelFr : category.label}
-                  </span>
-                  <span className="block w-full border-2 border-primary text-primary bg-transparent group-hover:bg-primary/10 text-center uppercase tracking-[0.105em] text-sm font-medium px-4 py-2.5 transition-colors">
-                    {t("DISCOVER", "DÉCOUVRIR")}
                   </span>
                 </div>
               </Link>
