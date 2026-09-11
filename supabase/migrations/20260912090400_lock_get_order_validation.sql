@@ -1,0 +1,33 @@
+-- Lock down public.get_order_validation(uuid) — unused, possibly public RPC
+--
+-- NOT YET APPLIED.
+--
+-- Found during the 2026-09-11 consolidation audit: get_order_validation
+-- exists in production (confirmed via the generated
+-- src/integrations/supabase/types.ts, which reflects the real deployed
+-- schema — `Args: { target_order_id: string }`, `Returns: string`) but:
+--   * has NO migration anywhere in this repository;
+--   * has NO caller anywhere in the current frontend or Edge Function code
+--     (searched exhaustively — the only match is the generated types file
+--     itself).
+--
+-- CONFIRMED against production directly on 2026-09-12 (not inferred):
+--   * public.get_order_validation(target_order_id uuid) — signature is
+--     really `uuid`, as this migration assumed;
+--   * it is CURRENTLY executable by anon, authenticated AND service_role —
+--     i.e. the risk described below is real, not hypothetical, and this
+--     lock-down is necessary, not precautionary.
+--
+-- Any client holding an orderId — visible in plain text in the
+-- OrderAction.tsx e-mail links (?orderId=...&action=...&token=...) — can
+-- currently call get_order_validation directly and read the validation
+-- status of ANY order by guessing/enumerating ids, without the action token
+-- that normally gates access. Nothing in the current codebase depends on it
+-- being callable from the client (confirmed: zero callers anywhere in this
+-- repo), so the correct fix is to lock it to service_role only.
+--
+-- This migration intentionally does NOT redefine the function body (it is
+-- not visible from this repository) — it only tightens its grants.
+
+revoke all on function public.get_order_validation(uuid) from public, anon, authenticated;
+grant execute on function public.get_order_validation(uuid) to service_role;

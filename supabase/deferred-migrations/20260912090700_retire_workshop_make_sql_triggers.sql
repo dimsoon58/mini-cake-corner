@@ -1,0 +1,153 @@
+-- Retire the SQL-side Workshop -> Make transport (single source of truth)
+--
+-- NOT YET APPLIED. THIS IS THE LAST STEP OF THE ROLLOUT — apply it only
+-- after ALL of the following, IN ORDER (the Edge code calls RPCs that must
+-- already exist; deploying it before its own migrations would make it fail
+-- on every call — see the correction-round report, "ordre final de
+-- déploiement", for the complete, authoritative sequence):
+--   1. ⚠️ MANDATORY PRE-CHECK — confirm directly in the Supabase Dashboard
+--      (Edge Functions → Secrets) that MAKE_WORKSHOP_WEBHOOK_URL is actually
+--      SET and points at the CURRENT "Bento — Réservations Workshops →
+--      Notion" Make webhook, on the SAME project these Edge Functions
+--      deploy to. If it is missing, empty, or stale, STOP — do not proceed
+--      to step 2. (The secret's actual value is never written into this
+--      migration, this file, or any report — confirm it out-of-band, in the
+--      Dashboard, each time.)
+--   2. apply 20260912090000_technical_alert_cooldown.sql, then
+--      20260912090100_workshop_reservation_make_sync.sql, then
+--      20260912090150_finalize_workshop_refund_bump_reservation.sql — in
+--      that order — plus the independent 090400 / 090500 if retained. These
+--      create the RPCs (claim_technical_alert, claim_workshop_reservation_
+--      make_sync, ack_workshop_reservation_make_sync) and the updated_at
+--      behaviour the Edge code below depends on; deploying that code before
+--      these migrations exist means every call to those RPCs fails (fails
+--      closed — logged, no crash, no data loss — but no Workshop -> Make
+--      sync happens either).
+--   3. ONLY THEN deploy the dependent Edge Functions (cancel-workshop-seats,
+--      confirm-postfinance-payment, create-postfinance-payment, health-
+--      check-pending-payments, postfinance-webhook, retry-order-side-
+--      effects — see the report for why each one is on this list).
+--   4. ⚠️ RECONFIGURE MAKE MODULES 22/23 — TWO changes, both required:
+--
+--      a) REMOVE the `status = confirmed` filter currently on both modules.
+--         It is INCOMPATIBLE with this architecture: an ACK is due after
+--         EVERY successful Notion write, for EVERY reservation status/
+--         mutation (confirmed, partially_cancelled, cancelled, rejected, a
+--         refund-status change, …) — not only "confirmed". Leaving the
+--         filter in place means a cancellation reaches Notion successfully
+--         but is NEVER acked: its claim lease expires, the periodic sweep
+--         re-dispatches the SAME already-applied Notion write forever — an
+--         infinite retry loop that never resolves, for every non-"confirmed"
+--         mutation.
+--         (The separate ACCOUNTING modules 10/11 are NOT touched by this —
+--         they keep their own `confirmed + workshop_only` filter unchanged;
+--         removing the ACK filter on 22/23 does not start accounting for
+--         other statuses. These are two independent filters on two
+--         independent module pairs.)
+--
+--      b) Point 22/23 at ack_workshop_reservation_make_sync instead of
+--         mark_workshop_make_notified(order_id), via
+--           POST {SUPABASE_URL}/rest/v1/rpc/ack_workshop_reservation_make_sync
+--         (service_role key — same credential Make already uses for the
+--         current call), with body:
+--           { "p_reservation_id":    <reservation_id from the incoming webhook>,
+--             "p_workshop_reference": <workshop_reference from the webhook>,
+--             "p_order_id":          <order_id from the webhook>,
+--             "p_source_updated_at": <source_updated_at from the webhook>,
+--             "p_sync_claim_token":  <sync_claim_token from the webhook> }
+--         all FIVE fields simply echoed back from what Supabase originally
+--         sent in the webhook payload (see _shared/workshop-make.ts,
+--         WorkshopMakePayload) — the fencing token (sync_claim_token) is as
+--         mandatory as the other four; omitting it makes the RPC call fail
+--         (all five parameters are required, see 20260912090100).
+--
+--      Without step (b), Make will keep accepting webhooks but NEVER ACK
+--      them — every reservation stays claimed until its lease expires, then
+--      gets re-dispatched forever, without ever actually completing.
+--      Without step (a), every non-"confirmed" mutation has the exact same
+--      failure mode. Neither is optional or deferrable once 090700 is
+--      applied.
+--   5. verify the Edge Workshop -> Make path actually works end-to-end,
+--      INCLUDING the new ACK (create a real or test reservation, confirm it
+--      reaches Notion AND that workshop_reservations.make_synced_updated_at
+--      gets set; the manual verification pass in the correction-round report
+--      covers create, multi-workshop, pending->confirmed, partial/total
+--      cancellation, refund-status change, retry, mixed, no Notion
+--      duplicate).
+--   6. ONLY THEN apply this migration (090700).
+--
+-- CONFIRMED DIRECTLY WITH MAKE (2026-09-12, no longer a caveat): the
+-- "Bento — Réservations Workshops → Notion" scenario does NOT depend on
+-- ever receiving a `status = 'pending'` webhook event — it can receive
+-- `confirmed` (or any status) directly: Find by workshop_reference, Update
+-- if it exists, Create otherwise. The branches specific to `confirmed` are
+-- the Supabase ACK and the workshop-only accounting, neither of which
+-- requires having seen an earlier `pending` event first. Step 2 above (the
+-- runtime secret check) remains the only mandatory pre-check.
+--
+-- PRODUCTION INVENTORY (confirmed directly against the live database on
+-- 2026-09-12 — not guessed):
+--
+--   1. trg_workshop_reservation_make_sync
+--      table: workshop_reservations, AFTER INSERT OR UPDATE OF status
+--      -> trg_workshop_reservation_make_sync() -> enqueue_workshop_make_sync(new.id)
+--   2. trg_workshop_cancellation_make_sync
+--      table: workshop_cancellation_log,
+--      AFTER INSERT OR UPDATE OF refund_status, refund_amount_completed, postfinance_refund_id
+--      -> trg_workshop_cancellation_make_sync() -> enqueue_workshop_make_sync(new.reservation_id)
+--   3. trg_sync_workshop_reservations_from_order
+--      table: orders, AFTER UPDATE OF order_validation
+--      -> synchronises workshop_reservations' business status
+--         (pending -> confirmed/rejected/cancelled). NOT a Make transport —
+--         MUST BE KEPT. This migration does not touch it or its function.
+--
+-- enqueue_workshop_make_sync(uuid) performs a net.http_post directly to the
+-- Make webhook from inside Postgres. This migration removes triggers 1 and 2
+-- (the actual transport), then — ONLY IF nothing else still depends on them —
+-- their trigger functions and enqueue_workshop_make_sync itself. It does NOT
+-- use CASCADE: if some other, still-unknown object depends on any of these,
+-- the plain DROP below fails loudly instead of silently taking something
+-- else out. A failure here means STOP and re-investigate before proceeding —
+-- never re-run with CASCADE to "make the error go away".
+--
+-- AFTER this migration: the Supabase Edge Function path
+-- (_shared/workshop-make.ts, MAKE_WORKSHOP_WEBHOOK_URL) is the ONLY
+-- transport for every workshop Notion sync — creation, confirmation, partial
+-- cancellation, total cancellation, refund-status changes, capacity-abort
+-- rejection, and retries — ONE homogeneous, durable, claim-based, VERSIONED-
+-- ACK mechanism (claim_workshop_reservation_make_sync +
+-- ack_workshop_reservation_make_sync, workshop_reservations.
+-- make_synced_updated_at / make_sync_claimed_at) for all of them, not one
+-- mechanism per event type. See the correction-round report for the
+-- scenario-by-scenario coverage proof.
+--
+-- Delivery semantics: AT-LEAST-ONCE dispatch to Make, paired with the
+-- idempotent Find -> Update/Create Make scenario confirmed above AND a
+-- versioned ACK issued by Make itself as the only proof of a completed
+-- Notion sync — never an HTTP 2xx alone (that scenario has no Webhook
+-- Response module). Not exactly-once HTTP delivery, which this system does
+-- not attempt (see _shared/workshop-make.ts header for the full reasoning).
+
+-- ── 1. Drop the two TRANSPORT triggers (never trg_sync_workshop_reservations_
+-- from_order) ────────────────────────────────────────────────────────────
+drop trigger if exists trg_workshop_reservation_make_sync on public.workshop_reservations;
+drop trigger if exists trg_workshop_cancellation_make_sync on public.workshop_cancellation_log;
+
+-- ── 2. Drop their trigger functions. Plain DROP (no CASCADE, no IF EXISTS
+-- swallowing a real dependency error) — if either function still has a
+-- dependent this repository does not know about, this statement fails and
+-- the migration stops here; investigate before re-attempting. ────────────
+drop function public.trg_workshop_reservation_make_sync();
+drop function public.trg_workshop_cancellation_make_sync();
+
+-- ── 3. Drop the transport function itself, same guarantee: fails loudly if
+-- anything else still calls it. ────────────────────────────────────────────
+drop function public.enqueue_workshop_make_sync(uuid);
+
+-- ── Explicitly NOT touched by this migration (kept on purpose) ───────────
+-- trg_sync_workshop_reservations_from_order on public.orders
+-- trg_sync_workshop_reservations_from_order() (its function)
+-- mark_workshop_make_notified(uuid) — already locked to service_role in
+--   production; kept as-is. Becomes fully unused once Make modules 22/23 are
+--   reconfigured (step 4 above) to call ack_workshop_reservation_make_sync
+--   instead — a separate, later cleanup, not part of this migration.

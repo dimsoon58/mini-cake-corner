@@ -5,6 +5,7 @@ import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
 import { ORDER_ITEM_PAYLOAD_FIELDS, ORDER_PAYLOAD_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
 import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
+import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,6 +72,42 @@ async function abortOrderAfterCapture(
     if (wsErr) console.error(`set_workshop_reservations_status(reject) error for aborted ${orderRecord.id}:`, wsErr);
   } catch (e) {
     console.error(`set_workshop_reservations_status threw for aborted ${orderRecord.id}:`, e);
+  }
+
+  // COVERAGE GAP CLOSED, DURABLY (corrected 2026-09-12 — no longer best-
+  // effort): a capacity-abort rejection is a genuinely rare event (a
+  // workshop sold out in the tiny window between checkout and capacity
+  // claim, AFTER the money was already captured) that the ordinary side-
+  // effects sweep never reaches on its own — this whole abort path runs
+  // INSIDE finalizeOrderDb, before runSideEffects (and therefore its
+  // workshop Make sync) ever starts for this order. The now-active SQL
+  // trigger path (trg_workshop_reservation_make_sync) DOES cover it today —
+  // this closes that coverage gap for when that trigger is retired (see
+  // migration 20260912090700_retire_workshop_make_sql_triggers.sql), using
+  // the SAME homogeneous, durable, claim-based mechanism as every other
+  // workshop lifecycle event (claimAndDispatchWorkshopReservationSync,
+  // _shared/workshop-make.ts) — not a fourth bespoke mechanism, and not
+  // best-effort: set_workshop_reservations_status(reject) just above already
+  // bumped workshop_reservations.updated_at, which is exactly what makes
+  // these rows eligible for claim. If the inline attempt below fails (Make
+  // down, network, missing config), the row stays claimable and the
+  // periodic retry-order-side-effects sweep picks it up later — same
+  // guarantee as creation and cancellation, no special case.
+  if (!isRewardOnly) {
+    try {
+      const { data: rejected } = await supabase
+        .from("workshop_reservations").select("id")
+        .eq("order_id", orderRecord.id).eq("status", "rejected");
+      for (const reservation of rejected ?? []) {
+        try {
+          await claimAndDispatchWorkshopReservationSync(supabase, reservation.id);
+        } catch (e) {
+          console.error(`capacity-abort Make sync failed for reservation ${reservation.id} (order ${orderRecord.id}) — retry sweep will pick it up:`, e);
+        }
+      }
+    } catch (e) {
+      console.error(`capacity-abort: could not read rejected reservations for ${orderRecord.id}:`, e);
+    }
   }
 
   // Persist the abort. payment_status STAYS 'paid' (the money is really there);
