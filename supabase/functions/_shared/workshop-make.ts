@@ -38,6 +38,11 @@ export interface WorkshopReservationLike {
   status: "pending" | "confirmed" | "partially_cancelled" | "cancelled" | "rejected" | string;
   refunded_amount: number | string;
   updated_at: string;       // the VERSION Make must echo back verbatim on ACK
+  // Legacy field the Make scenario still reads directly — carried through
+  // unchanged from the old enqueue_workshop_make_sync payload shape (see
+  // buildWorkshopMakePayload's notion_* fields for the same compatibility
+  // requirement).
+  admin_cancel_token: string | null;
 }
 
 export interface WorkshopMakeContext {
@@ -100,6 +105,43 @@ export interface WorkshopMakePayload {
   //   outside_window -> "Hors délai"
   //   failed         -> "À rembourser" (a human must act)
   refund_status: WorkshopRefundStatus;
+  // ── Legacy fields — RESTORED (2026-09-12, runtime-test compatibility fix).
+  // The Make scenario still reads these four directly; removing them when
+  // the payload was rebuilt around the ACK/claim fields silently broke it.
+  // Exact same mapping as the old enqueue_workshop_make_sync payload.
+  admin_cancel_token: string | null;
+  notion_workshop: "Paint" | "Signature";
+  notion_status: string;
+  notion_refund_status: string;
+}
+
+// ── Legacy Notion-label mappings — exact same mapping as the old
+// enqueue_workshop_make_sync payload the Make scenario was originally built
+// against. Kept as small, named helpers rather than inlined so the mapping
+// stays a single, obvious place to check/update.
+function notionWorkshopLabel(workshopType: string): "Paint" | "Signature" {
+  return workshopType === "paint" ? "Paint" : "Signature";
+}
+
+function notionStatusLabel(status: string): string {
+  switch (status) {
+    case "pending": return "En attente";
+    case "confirmed": return "Confirmée";
+    case "partially_cancelled": return "Partiellement annulée";
+    case "cancelled": return "Annulée";
+    case "rejected": return "Refusée";
+    default: return status; // raw value, same fallback as the legacy mapping
+  }
+}
+
+function notionRefundStatusLabel(refundStatus: WorkshopRefundStatus): string {
+  switch (refundStatus) {
+    case "refunded": return "Remboursé";
+    case "outside_window": return "Hors délai";
+    case "pending": return "À rembourser";
+    case "failed": return "À rembourser";
+    default: return "Non requis"; // non_required, or anything unrecognised
+  }
 }
 
 export function buildWorkshopMakePayload(
@@ -111,6 +153,7 @@ export function buildWorkshopMakePayload(
   const unitPrice = Number(reservation.unit_price) || 0;
   const active = purchased - cancelled;
   const round2 = (n: number) => Math.round(n * 100) / 100;
+  const refundStatus: WorkshopRefundStatus = ctx.refund_status ?? "non_required";
 
   return {
     reservation_id: reservation.id,
@@ -137,7 +180,11 @@ export function buildWorkshopMakePayload(
     minor_consent_confirmed: !!reservation.minor_consent_confirmed,
     status: reservation.status,
     refunded_amount: Number(reservation.refunded_amount) || 0,
-    refund_status: ctx.refund_status ?? "non_required",
+    refund_status: refundStatus,
+    admin_cancel_token: reservation.admin_cancel_token ?? null,
+    notion_workshop: notionWorkshopLabel(reservation.workshop_type),
+    notion_status: notionStatusLabel(reservation.status),
+    notion_refund_status: notionRefundStatusLabel(refundStatus),
   };
 }
 
