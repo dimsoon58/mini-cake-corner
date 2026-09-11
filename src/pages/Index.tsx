@@ -224,12 +224,12 @@ const Index = () => {
       <div className="flex flex-col">
 
       {/* Features Section */}
-      <section className="order-2 pt-2 pb-4 md:py-12 bg-background">
+      <section className="order-2 pt-0 pb-3 md:py-8 bg-background">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-[30px] md:gap-12">
             {features.map((feature) => (
               <div key={feature.title} className="text-center flex flex-col items-center">
-                <div className="h-[130px] md:h-[210px] flex items-end justify-center mb-3 md:mb-6">
+                <div className="h-[100px] md:h-[180px] flex items-end justify-center mb-2 md:mb-5">
                   <img
                     src={feature.image}
                     alt={feature.title}
@@ -309,7 +309,7 @@ const Index = () => {
       </div>{/* end flex-col reorder wrapper */}
 
       {/* Customers Section */}
-      <section className="py-20 bg-cream">
+      <section className="pt-12 pb-8 bg-cream">
         <div className="container mx-auto px-4">
           <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-16">
             {t("OUR CUSTOMERS", "NOS CLIENTS")}
@@ -319,7 +319,7 @@ const Index = () => {
       </section>
 
       {/* Customer Comments Section */}
-      <section className="py-16 bg-background">
+      <section className="pt-8 pb-10 bg-background">
         <div className="container mx-auto px-4">
           <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-6">
             {t("CUSTOMER COMMENTS", "AVIS CLIENTS")}
