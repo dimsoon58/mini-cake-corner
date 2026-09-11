@@ -224,7 +224,7 @@ const Index = () => {
       <div className="flex flex-col">
 
       {/* Features Section */}
-      <section className="order-2 pt-2 pb-6 md:py-20 bg-background">
+      <section className="order-2 pt-2 pb-4 md:py-12 bg-background">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-[30px] md:gap-12">
             {features.map((feature) => (
