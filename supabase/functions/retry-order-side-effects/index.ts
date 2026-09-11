@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
+import { retryPendingWorkshopCancellationSync } from "../_shared/workshop-make.ts";
 
 // Independent, periodic recovery sweep for the side-effects (Make webhook +
 // e-mails) of a paid + DB-finalised order.
@@ -17,6 +18,10 @@ import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-ef
 // external cron (GitHub Actions, cron-job.org, …) hitting
 //   POST https://<PROJECT_ID>.supabase.co/functions/v1/retry-order-side-effects?s=<RETRY_SWEEP_SECRET>
 // works too. Deploy with verify_jwt = false (see supabase/config.toml).
+//
+// Also the ONE retry mechanism for the workshop CANCELLATION -> Make sync
+// (workshop_cancellation_log.make_notified_at, see _shared/workshop-make.ts /
+// retryPendingWorkshopCancellationSync) — deliberately not a second cron.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,8 +92,23 @@ serve(async (req) => {
     }
   }
 
+  // Independent, unrelated sweep: durable retry of workshop CANCELLATION
+  // syncs to Make (workshop_cancellation_log.make_notified_at). Same 15-min
+  // cadence, same function, one source of truth for every Workshop -> Make
+  // delivery — no second cron. A failure here never affects the order sweep
+  // above (separate try/catch, separate error path).
+  let cancellationSync = { scanned: 0, sent: 0 };
+  try {
+    cancellationSync = await retryPendingWorkshopCancellationSync(supabase);
+  } catch (e) {
+    console.error("retry-order-side-effects: workshop cancellation sync sweep failed:", e);
+  }
+
   return new Response(
-    JSON.stringify({ scanned: ids.length, attempted, completed }),
+    JSON.stringify({
+      scanned: ids.length, attempted, completed,
+      workshopCancellationSync: cancellationSync,
+    }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });

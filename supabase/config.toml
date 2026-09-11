@@ -24,3 +24,9 @@ verify_jwt = false
 # secret inside the function, never a user JWT.
 [functions.retry-order-side-effects]
 verify_jwt = false
+
+# READ-ONLY pending_payments health check — same pattern as retry-order-side-
+# effects. Authenticated by the ?s=<HEALTH_CHECK_SECRET> URL secret inside the
+# function, never a user JWT. Added by the 2026-09-11/12 consolidation audit.
+[functions.health-check-pending-payments]
+verify_jwt = false

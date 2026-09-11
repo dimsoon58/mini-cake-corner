@@ -2,8 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "../_shared/postfinance.ts";
 import {
-  buildWorkshopMakePayload,
-  sendWorkshopMakeWebhook,
+  claimAndDeliverWorkshopCancellation,
   type WorkshopRefundStatus,
 } from "../_shared/workshop-make.ts";
 
@@ -27,7 +26,12 @@ import {
 //      cancellation-log UUID. The refund STATE is read back — only
 //      SUCCESSFUL bumps refunded_amount; CREATE/SCHEDULED/PENDING/MANUAL_CHECK
 //      stay 'pending'; FAILED stays 'failed'.
-//   4. workshop Make webhook (separate base) with refund_status.
+//   4. workshop Make webhook (separate base) with refund_status. An inline
+//      attempt is made now (fast path); on failure or missing configuration,
+//      workshop_cancellation_log.make_notified_at is left NULL and the durable
+//      retry-order-side-effects sweep (retryPendingWorkshopCancellationSync,
+//      _shared/workshop-make.ts) picks it up later — same pattern as the
+//      creation-path sync, no separate/fire-and-forget delivery any more.
 //   5. cancellation email.
 
 const corsHeaders = {
@@ -226,16 +230,18 @@ serve(async (req) => {
       .from("workshop_reservations").select("*").eq("id", reservationBefore.id).single();
     if (rereadErr || !reservation) throw new Error("Failed to re-read reservation after cancellation");
 
-    // ── 3. Workshop Make webhook (separate base) ─────────────────────────
-    await sendWorkshopMakeWebhook(buildWorkshopMakePayload(reservation, {
-      order_number: order.order_number ?? null,
-      workshop_date: String(session.workshop_date),
-      workshop_time: session.workshop_time,
-      customer_name: `${order.first_name || ""} ${order.last_name || ""}`.trim(),
-      customer_email: order.email,
-      customer_phone: order.phone || "",
-      refund_status: logRefundStatus,
-    }));
+    // ── 3. Workshop Make webhook (separate base) — inline fast-path attempt,
+    //    but ONLY after atomically claiming this exact log row
+    //    (claimAndDeliverWorkshopCancellation -> claim_workshop_cancellation_
+    //    make_sync, FOR UPDATE SKIP LOCKED). If a concurrent retry sweep
+    //    happens to claim it in the same instant, this call simply does
+    //    nothing here — the sweep owns it and will deliver + stamp it. Never
+    //    blocks or fails the admin-facing response; on a real failure or a
+    //    missing MAKE_WORKSHOP_WEBHOOK_URL, the claim is released internally
+    //    so the next sweep (every 15 min) retries — no dead end, no double
+    //    send, and the durable cooldown-protected alert fires on a missing
+    //    config (never a fresh in-memory flag).
+    await claimAndDeliverWorkshopCancellation(supabase, logId);
 
     // ── 4. Cancellation email (best-effort) ─────────────────────────────
     EdgeRuntime.waitUntil((async () => {

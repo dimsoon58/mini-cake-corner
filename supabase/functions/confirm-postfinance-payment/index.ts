@@ -5,6 +5,7 @@ import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
 import { ORDER_ITEM_PAYLOAD_FIELDS, ORDER_PAYLOAD_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
 import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
+import { buildWorkshopMakePayload, sendWorkshopMakeWebhookChecked } from "../_shared/workshop-make.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,6 +72,51 @@ async function abortOrderAfterCapture(
     if (wsErr) console.error(`set_workshop_reservations_status(reject) error for aborted ${orderRecord.id}:`, wsErr);
   } catch (e) {
     console.error(`set_workshop_reservations_status threw for aborted ${orderRecord.id}:`, e);
+  }
+
+  // COVERAGE GAP CLOSED (2026-09-12 correction round): a capacity-abort
+  // rejection is a genuinely rare event (a workshop sold out in the tiny
+  // window between checkout and capacity claim, AFTER the money was already
+  // captured) that the ordinary side-effects sweep never reaches — this
+  // whole abort path runs INSIDE finalizeOrderDb, before runSideEffects (and
+  // therefore its step-2 workshop Make sync) ever starts for this order. The
+  // now-active SQL trigger path (trg_workshop_reservation_make_sync, AFTER
+  // UPDATE OF status on workshop_reservations) DOES cover it today — so this
+  // best-effort notification exists specifically so that coverage is not
+  // lost once that SQL trigger is retired (see migration
+  // 20260912090700_retire_workshop_make_sql_triggers.sql). Deliberately
+  // best-effort, NOT durable/retried like the create or cancel paths: this
+  // event is rare enough, and every occurrence ALREADY triggers a durable,
+  // cooldown-protected technical alert to admins a few lines below
+  // (sendTechnicalAlert) — a human is guaranteed to be notified out-of-band
+  // even if this Make sync silently fails, so a missing Notion update here is
+  // never the only signal.
+  if (!isRewardOnly) {
+    try {
+      const { data: rejected } = await supabase
+        .from("workshop_reservations").select("*")
+        .eq("order_id", orderRecord.id).eq("status", "rejected");
+      for (const reservation of rejected ?? []) {
+        try {
+          const { data: session } = await supabase
+            .from("workshop_sessions").select("workshop_date, workshop_time")
+            .eq("id", reservation.workshop_session_id).maybeSingle();
+          await sendWorkshopMakeWebhookChecked(buildWorkshopMakePayload(reservation, {
+            order_number: orderRecord.order_number ?? null,
+            workshop_date: session ? String(session.workshop_date) : null,
+            workshop_time: session ? session.workshop_time : null,
+            customer_name: `${orderRecord.first_name || ""} ${orderRecord.last_name || ""}`.trim(),
+            customer_email: orderRecord.email,
+            customer_phone: orderRecord.phone || "",
+            refund_status: "pending",
+          }));
+        } catch (e) {
+          console.error(`capacity-abort Make notification failed for reservation ${reservation.id} (order ${orderRecord.id}):`, e);
+        }
+      }
+    } catch (e) {
+      console.error(`capacity-abort: could not read rejected reservations for ${orderRecord.id}:`, e);
+    }
   }
 
   // Persist the abort. payment_status STAYS 'paid' (the money is really there);

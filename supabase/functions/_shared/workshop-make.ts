@@ -4,6 +4,17 @@
 // MAKE_WEBHOOK_URL flow. It is a no-op until MAKE_WORKSHOP_WEBHOOK_URL is set
 // (no URL is hardcoded), so wiring the calls in now is safe.
 
+// Imported from admin-alert.ts (not order-side-effects.ts) deliberately:
+// order-side-effects.ts already imports FROM this file (buildWorkshopMakePayload
+// / sendWorkshopMakeWebhookChecked), so importing back from it here would
+// create a circular module dependency. admin-alert.ts has no dependency on
+// either file, so this keeps the graph one-directional.
+import {
+  claimAndSendTechnicalAlert,
+  ALERT_COOLDOWN_SECONDS,
+  WORKSHOP_MAKE_URL_ALERT_KEY,
+} from "./admin-alert.ts";
+
 export type WorkshopRefundStatus =
   | "non_required"   // no cancellation, or cancellation with nothing to refund
   | "pending"        // >= 7 days out, refund still to be completed
@@ -158,4 +169,162 @@ export async function sendWorkshopMakeWebhookChecked(
     console.error("Workshop Make webhook threw:", err);
     return { ok: false, skipped: false };
   }
+}
+
+// ── Durable, RACE-FREE retry for the CANCELLATION lifecycle event ─────────
+//
+// Creation/confirmation already has a durable, retried delivery to Make
+// (orders.workshop_make_notified_at, driven by runSideEffects in
+// order-side-effects.ts) — and that path is already race-free because it
+// runs inside claim_side_effect_retry's ORDER-LEVEL lease, which serialises
+// every side effect for a given order (the Make sync included). Until this
+// change, a PARTIAL CANCELLATION's Make webhook (fired inline by
+// cancel-workshop-seats) was fire-and-forget: no durable marker, no retry,
+// AND — in the first version of this fix — even a "check marker, then send,
+// then stamp" pattern was NOT enough: two concurrent readers can both see
+// make_notified_at IS NULL and both send before either stamps.
+//
+// This is fixed with a real CLAIM phase, atomic in Postgres
+// (claim_workshop_cancellation_make_sync, `FOR UPDATE SKIP LOCKED` — see
+// migration 20260912090100_workshop_cancellation_make_marker.sql, NOT YET
+// APPLIED): a row can only ever be claimed by ONE caller at a time, with a
+// lease that expires if that caller crashes before finishing. Nothing calls
+// Make until it holds the claim for that exact row.
+//
+// A missing MAKE_WORKSHOP_WEBHOOK_URL is reported through the exact same
+// durable, cooldown-protected alert as the creation path (imported at the top
+// of this file) — never a fresh in-memory flag, and never a second,
+// independently-cooling-down alert for what is the same underlying problem.
+
+const MAKE_SYNC_LEASE_SECONDS = 300; // 5 min: comfortably above one HTTP POST + function run; short enough to self-heal a crash quickly
+
+// Send ONE already-claimed cancellation-log row. Caller MUST hold the claim
+// (make_sync_claimed_at just set by claim_workshop_cancellation_make_sync)
+// before calling this — it never claims anything itself.
+async function deliverClaimedCancellation(
+  supabase: any,
+  logId: string,
+): Promise<{ ok: boolean; skipped: boolean }> {
+  const { data: log, error: logErr } = await supabase
+    .from("workshop_cancellation_log").select("reservation_id, refund_status").eq("id", logId).maybeSingle();
+  if (logErr || !log) {
+    console.error(`deliverClaimedCancellation: log read failed for ${logId}:`, logErr);
+    return { ok: false, skipped: false };
+  }
+  const { data: reservation, error: resErr } = await supabase
+    .from("workshop_reservations").select("*").eq("id", log.reservation_id).maybeSingle();
+  if (resErr || !reservation) {
+    console.error(`deliverClaimedCancellation: reservation read failed for log ${logId}:`, resErr);
+    return { ok: false, skipped: false };
+  }
+  const { data: session } = await supabase
+    .from("workshop_sessions").select("workshop_date, workshop_time")
+    .eq("id", reservation.workshop_session_id).maybeSingle();
+  const { data: order } = await supabase
+    .from("orders").select("order_number, first_name, last_name, email, phone")
+    .eq("id", reservation.order_id).maybeSingle();
+  if (!order) {
+    console.error(`deliverClaimedCancellation: order not found for reservation ${reservation.id} (log ${logId})`);
+    return { ok: false, skipped: false };
+  }
+
+  const result = await sendWorkshopMakeWebhookChecked(buildWorkshopMakePayload(reservation, {
+    order_number: order.order_number ?? null,
+    workshop_date: session ? String(session.workshop_date) : null,
+    workshop_time: session ? session.workshop_time : null,
+    customer_name: `${order.first_name || ""} ${order.last_name || ""}`.trim(),
+    customer_email: order.email,
+    customer_phone: order.phone || "",
+    refund_status: (log.refund_status ?? "non_required") as WorkshopRefundStatus,
+  }));
+
+  if (result.ok) {
+    const { error: stampErr } = await supabase
+      .from("workshop_cancellation_log")
+      .update({ make_notified_at: new Date().toISOString() })
+      .eq("id", logId)
+      .is("make_notified_at", null); // defensive; the claim already made this exclusive
+    if (stampErr) {
+      console.error(`deliverClaimedCancellation: stamp failed for log ${logId} — next sweep will retry once the lease expires:`, stampErr);
+    }
+  } else {
+    // Release the claim immediately (do not make the retry sweep WAIT for the
+    // full lease) — a real failure or a missing config should be retryable at
+    // the caller's next natural attempt, not stuck for MAKE_SYNC_LEASE_SECONDS.
+    const { error: relErr } = await supabase
+      .from("workshop_cancellation_log")
+      .update({ make_sync_claimed_at: null })
+      .eq("id", logId)
+      .is("make_notified_at", null);
+    if (relErr) {
+      console.error(`deliverClaimedCancellation: failed to release claim for log ${logId} — will self-heal after the lease expires:`, relErr);
+    }
+  }
+
+  return result;
+}
+
+// cancel-workshop-seats' own inline fast-path attempt for the row it JUST
+// created. Claims ONLY that exact log id — if a concurrent sweep already
+// claimed it in the same instant, this simply does nothing (no double-send).
+export async function claimAndDeliverWorkshopCancellation(
+  supabase: any,
+  logId: string,
+): Promise<{ ok: boolean; skipped: boolean; claimed: boolean }> {
+  const { data: claimedIds, error } = await supabase.rpc("claim_workshop_cancellation_make_sync", {
+    p_log_ids: [logId],
+    p_lease_seconds: MAKE_SYNC_LEASE_SECONDS,
+  });
+  if (error) {
+    console.error(`claimAndDeliverWorkshopCancellation: claim failed for log ${logId}:`, error);
+    return { ok: false, skipped: false, claimed: false };
+  }
+  if (!Array.isArray(claimedIds) || !claimedIds.includes(logId)) {
+    // Not claimable right now — either already delivered, or a concurrent
+    // sweep holds it. Leave it entirely alone; that other holder is
+    // responsible for it.
+    return { ok: false, skipped: false, claimed: false };
+  }
+  const result = await deliverClaimedCancellation(supabase, logId);
+  return { ...result, claimed: true };
+}
+
+// Periodic sweep (retry-order-side-effects): claims up to `limit` eligible
+// rows atomically, delivers each, alerts once (durably) if the configuration
+// itself is the problem.
+export async function retryPendingWorkshopCancellationSync(
+  supabase: any,
+  limit = 25,
+): Promise<{ scanned: number; sent: number }> {
+  const { data: claimedIds, error } = await supabase.rpc("claim_workshop_cancellation_make_sync", {
+    p_log_ids: null,
+    p_limit: limit,
+    p_lease_seconds: MAKE_SYNC_LEASE_SECONDS,
+  });
+  if (error) {
+    console.error("retryPendingWorkshopCancellationSync: claim failed:", error);
+    return { scanned: 0, sent: 0 };
+  }
+  const ids: string[] = Array.isArray(claimedIds) ? claimedIds : [];
+  let sent = 0;
+  let anySkipped = false;
+
+  for (const logId of ids) {
+    const { ok, skipped } = await deliverClaimedCancellation(supabase, logId);
+    if (skipped) anySkipped = true;
+    if (ok) sent += 1;
+  }
+
+  if (anySkipped) {
+    await claimAndSendTechnicalAlert(supabase, WORKSHOP_MAKE_URL_ALERT_KEY, ALERT_COOLDOWN_SECONDS, {
+      subject: "Configuration manquante — MAKE_WORKSHOP_WEBHOOK_URL",
+      lines: [
+        `MAKE_WORKSHOP_WEBHOOK_URL non défini — des annulations de workshop ne peuvent pas être synchronisées vers Notion.`,
+        `${ids.length} annulation(s) réclamée(s) dans ce passage, en attente de configuration.`,
+        `(Cette alerte est partagée avec la synchro de création — même clé de cooldown.)`,
+      ],
+    });
+  }
+
+  return { scanned: ids.length, sent };
 }
