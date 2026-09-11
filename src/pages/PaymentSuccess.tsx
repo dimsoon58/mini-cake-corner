@@ -292,6 +292,45 @@ const PaymentSuccess = () => {
                 </Button>
               </div>
             </>
+          ) : isMixed ? (
+            // Dedicated mixed-cart (workshop + cake/products) confirmation
+            // screen — two separate status blocks so the customer sees at a
+            // glance that the workshop is settled and only the physical part
+            // is still being reviewed. Same t() / useLang() system as the
+            // rest of the site; no new i18n mechanism.
+            <>
+              <CheckCircle className="w-16 h-16 text-primary mx-auto mb-6" />
+              <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-2">
+                {t("THANK YOU FOR YOUR ORDER", "MERCI POUR VOTRE COMMANDE")}
+              </h1>
+              <p className="text-muted-foreground mb-6">{t("Payment received", "Paiement reçu")}</p>
+
+              <div className="bg-muted border border-border p-4 mb-4 text-left">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-5 h-5 text-primary shrink-0" />
+                  <p className="font-medium text-foreground">{t("Workshop confirmed", "Atelier confirmé")}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {t("Your workshop booking is confirmed.", "Votre réservation à l'atelier est confirmée.")}
+                </p>
+              </div>
+
+              <div className="bg-muted border border-border p-4 mb-6 text-left">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-5 h-5 text-primary shrink-0" />
+                  <p className="font-medium text-foreground">
+                    {t("Cake and other products pending approval", "Gâteau et autres produits en cours de validation")}
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {t("We are currently reviewing this part of your order.", "Nous vérifions actuellement cette partie de votre commande.")}
+                </p>
+              </div>
+
+              <p className="text-muted-foreground mb-8">
+                {t("You will receive a confirmation email within 24 hours.", "Vous recevrez un email de confirmation dans les 24 heures.")}
+              </p>
+            </>
           ) : (
             <>
               <CheckCircle className="w-16 h-16 text-primary mx-auto mb-6" />
@@ -321,10 +360,18 @@ const PaymentSuccess = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild>
-              <Link to="/">{t("Back to Home", "Retour à l'accueil")}</Link>
+              <Link to="/">
+                {phase === "confirmed" && !capacity && isMixed
+                  ? t("BACK TO HOME", "RETOUR À L'ACCUEIL")
+                  : t("Back to Home", "Retour à l'accueil")}
+              </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/catalog">{t("New Order", "Nouvelle commande")}</Link>
+              <Link to="/catalog">
+                {phase === "confirmed" && !capacity && isMixed
+                  ? t("CONTINUE SHOPPING", "CONTINUER MES ACHATS")
+                  : t("New Order", "Nouvelle commande")}
+              </Link>
             </Button>
           </div>
         </div>

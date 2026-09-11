@@ -169,14 +169,13 @@ export async function generateInvoicePdf(
 
   const itemRows: InvoiceRow[] = items.map((item: any) => {
     if (item.product === "workshop") {
+      // Description is the WORKSHOP NAME ONLY — date / time / booking reference
+      // are left off (too long, broke the invoice layout). They still live on
+      // the reservation / in the database and in the confirmation e-mail.
       const wsName = item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature");
-      const desc = `${wsName}`
-        + `${item.workshop_date ? " — " + formatDateCH(item.workshop_date) : ""}`
-        + `${item.workshop_time ? " · " + item.workshop_time : ""}`
-        + `${item.workshop_reference ? " · " + item.workshop_reference : ""}`;
       const participants = item.workshop_participants != null ? Number(item.workshop_participants) : 1;
       return {
-        description: desc,
+        description: wsName,
         quantity: String(participants),
         unitPrice: formatInvoicePrice(item.workshop_unit_price ?? 0),
         total: formatInvoicePrice(item.total ?? 0),

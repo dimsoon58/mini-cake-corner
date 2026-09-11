@@ -632,18 +632,17 @@ async function generateInvoicePdf(
   type InvoiceRow = { description: string; quantity: string; unitPrice: string; total: string; bold?: boolean };
 
   const itemRows: InvoiceRow[] = items.map((item: any) => {
-    // Workshop line: description "Signature Workshop — 03.10.2026 · 13:00",
+    // Workshop line: description is the WORKSHOP NAME ONLY (date / time /
+    // booking reference are deliberately left off — they made the line too
+    // long and broke the invoice layout; they still live on the reservation /
+    // in the database and in the confirmation e-mail, untouched).
     // QTY = participants, UNIT PRICE = workshop_unit_price, TOTAL = item.total.
     // Never labelled as a cake. order.total_amount is not recomputed from here.
     if (item.product === "workshop") {
       const wsName = item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature");
-      const desc = `${wsName}`
-        + `${item.workshop_date ? " — " + formatDateCH(item.workshop_date) : ""}`
-        + `${item.workshop_time ? " · " + item.workshop_time : ""}`
-        + `${item.workshop_reference ? " · " + item.workshop_reference : ""}`;
       const participants = item.workshop_participants != null ? Number(item.workshop_participants) : 1;
       return {
-        description: desc,
+        description: wsName,
         quantity: String(participants),
         unitPrice: formatInvoicePrice(item.workshop_unit_price ?? 0),
         total: formatInvoicePrice(item.total ?? 0),
