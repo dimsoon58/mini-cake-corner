@@ -151,6 +151,7 @@ import bentoGallery13 from "@/assets/bento-gallery-13.jpg";
 import bentoGallery14 from "@/assets/bento-gallery-14.jpg";
 import bentoGallery15 from "@/assets/bento-gallery-15.jpg";
 import bentoGallery16 from "@/assets/bento-gallery-16.jpg";
+import bentoGallery17 from "@/assets/bento-gallery-17.jpg";
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -1003,7 +1004,7 @@ interface CatalogProps {
 const bentoGallery = [
   bentoGallery1, bentoGallery2, bentoGallery3, bentoGallery4, bentoGallery5, bentoGallery6,
   bentoGallery7, bentoGallery8, bentoGallery9, bentoGallery10, bentoGallery11, bentoGallery12,
-  bentoGallery13, bentoGallery14, bentoGallery15, bentoGallery16,
+  bentoGallery13, bentoGallery14, bentoGallery15, bentoGallery16, bentoGallery17,
 ];
 
 /* Bandeau de photos qui defilent, en bas de la page Bento Cakes */
