@@ -179,16 +179,16 @@ const pipingBagOptions = [
 
 export const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
-  { id: "blue-ombre", name: "Blue Ombré", nameFr: "Ombré Bleu", image: candleBlueOmbre, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "thick-spiral", name: "Thick Spiral", nameFr: "Spirale Épaisse", image: candleThickSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 2, hasPack: true, packPrice: 10, packSize: 6 },
+  { id: "blue-ombre", name: "Blue Ombré", nameFr: "Ombré Bleu", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "thick-spiral", name: "Thick Spiral", nameFr: "Spirale Épaisse", image: candleThickSpiral, unitPrice: 2, hasPack: true, packPrice: 10, packSize: 6 },
   { id: "pink-gold-spiral", name: "Pink Gold Spiral", nameFr: "Spirale Or Rose", image: candlePinkGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "silver-spiral", name: "Silver Spiral", nameFr: "Spirale Argent", image: candleSilverSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "gold-spiral", name: "Gold Spiral", nameFr: "Spirale Or", image: candleGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "spiral-champagne", name: "Spiral Champagne", nameFr: "Spirale Champagne", image: candleChampagneSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "shiny-spiral", name: "Shiny Spiral", nameFr: "Spirale Brillante", image: candleShinySpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "spiral-pastel", name: "Pastel Spiral", nameFr: "Spirale Pastel", image: candleSpiralPastel, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "shiny-spiral", name: "Shiny Spiral", nameFr: "Spirale Brillante", image: candleShinySpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "spiral-pastel", name: "Pastel Spiral", nameFr: "Spirale Pastel", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "rainbow", name: "Rainbow", nameFr: "Arc-en-ciel", image: candleRainbow, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "pink-ombre", name: "Pink Ombré", nameFr: "Ombré Rose", image: candlePinkOmbre, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "pink-ombre", name: "Pink Ombré", nameFr: "Ombré Rose", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "daisy", name: "Daisy", nameFr: "Marguerite", image: candleDaisy, unitPrice: 2, hasPack: false },
   { id: "heart", name: "Red Heart", nameFr: "Cœur Rouge", image: candleHeart, unitPrice: 2, hasPack: false },
   { id: "puppy", name: "Puppy", nameFr: "Chiot", image: candlePuppy, unitPrice: 2, hasPack: false },
