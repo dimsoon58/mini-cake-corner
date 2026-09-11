@@ -297,9 +297,9 @@ const Index = () => {
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
 
-          {/* Title button — bottom left */}
-          <div className="absolute bottom-5 left-5 md:bottom-7 md:left-7">
-            <span className="block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-8 py-2.5 transition-colors">
+          {/* Title button — bottom center */}
+          <div className="absolute inset-x-0 bottom-6 md:bottom-10 flex justify-center">
+            <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-12 py-2.5 transition-colors">
               {t("WORKSHOPS", "ATELIERS")}
             </span>
           </div>
