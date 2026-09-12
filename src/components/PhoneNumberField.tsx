@@ -43,8 +43,14 @@ export const PhoneNumberField = ({
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
       <div className="flex gap-2">
+        {/* Narrower than the SelectTrigger default (110px -> 96px) with the
+            padding/gap tightened to match, so the flag + dial code + chevron
+            stay fully legible (checked against "+351", the longest code in
+            COUNTRY_CODES) while handing the reclaimed width to the number
+            input below, which is the field the customer actually types a
+            long value into. */}
         <Select value={countryCode} onValueChange={onCountryCodeChange}>
-          <SelectTrigger className="w-[110px] shrink-0 rounded-none">
+          <SelectTrigger className="w-[96px] shrink-0 gap-1 px-2 rounded-none">
             <span className="flex items-center gap-1 text-sm leading-none">
               {COUNTRY_CODES.find((c) => c.code === countryCode)?.flag} {countryCode}
             </span>
@@ -61,7 +67,7 @@ export const PhoneNumberField = ({
           id={id}
           type="tel"
           inputMode="numeric"
-          className="rounded-none"
+          className="flex-1 min-w-0 rounded-none"
           value={localPhone}
           onChange={(e) => onLocalPhoneChange(sanitizePhoneLocalInput(e.target.value, countryCode))}
           placeholder={placeholder}
