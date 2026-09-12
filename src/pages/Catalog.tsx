@@ -180,6 +180,13 @@ const baseColors = [
   { id: "black", name: "Black", color: "#000000" },
 ];
 
+// Colour IDs considered "dark" — triggers the lip-stain contextual notice
+const DARK_COLOR_IDS = new Set([
+  "dark-pink", "dark-red", "burgundy", "forest-green",
+  "midnight-blue", "plum", "dark-brown", "black",
+  "wine-red",
+]);
+
 const sizes = [
   { id: "bento", name: "Bento Box", price: 40, image: boxBento },
   { id: "retro", name: "Retro Box", price: 45, image: boxRetro },
@@ -1860,9 +1867,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 {colorCfg.baseNote && (
                   <p className="text-xs text-muted-foreground italic">{colorCfg.baseNote}</p>
                 )}
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
-                  <span>⚠️</span> {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
-                </p>
+<div
+                  className={cn(
+                    "overflow-hidden transition-all duration-300 ease-in-out",
+                    DARK_COLOR_IDS.has(selections.baseColor)
+                      ? "max-h-20 opacity-100 mt-1"
+                      : "max-h-0 opacity-0 pointer-events-none"
+                  )}
+                >
+                  <p className="flex items-start gap-1.5 text-[12px] leading-relaxed text-primary/80">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0 mt-[1px]" aria-hidden="true">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clipRule="evenodd" />
+                    </svg>
+                    {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
+                  </p>
+                </div>
                 <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                   {baseColors.map((color) => (
                     <button
@@ -1913,9 +1932,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t(`You can choose up to ${maxColors} colours. You can also explain how you would like them to be arranged in the comment section.`, `Vous pouvez choisir jusqu'à ${maxColors} couleurs. Vous pouvez aussi préciser dans la zone de commentaire comment vous souhaitez qu'elles soient disposées.`)}
                 </p>
                 )}
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
-                  <span>⚠️</span> {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
-                </p>
+<div
+                  className={cn(
+                    "overflow-hidden transition-all duration-300 ease-in-out",
+                    selections.decorationColors.some(c => DARK_COLOR_IDS.has(c))
+                      ? "max-h-20 opacity-100 mt-1"
+                      : "max-h-0 opacity-0 pointer-events-none"
+                  )}
+                >
+                  <p className="flex items-start gap-1.5 text-[12px] leading-relaxed text-primary/80">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0 mt-[1px]" aria-hidden="true">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clipRule="evenodd" />
+                    </svg>
+                    {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
+                  </p>
+                </div>
                 <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                   {baseColors.map((color) => {
                     const isSelected = selections.decorationColors.includes(color.id);
