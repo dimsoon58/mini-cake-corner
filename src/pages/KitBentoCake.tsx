@@ -466,31 +466,31 @@ const KitBentoCake = () => {
           aria-hidden={!configuratorVisible}
         >
           {/* Stepper */}
-          <div className="overflow-x-auto mb-10"><div className="flex items-start min-w-max mx-auto">
+          <div className="flex items-start mb-10">
             {stepLabels.map((label, i) => {
               const num = i + 1;
               const isActive = step === num;
               const isDone = step > num;
               return (
-                <div key={label} className="flex-none w-16 flex flex-col items-center relative">
+                <div key={label} className="flex-1 flex flex-col items-center relative">
                   {i < stepLabels.length - 1 && (
-                    <div className={cn("absolute top-[18px] left-1/2 w-full h-px transition-colors", isDone ? "bg-primary" : "bg-border")} />
+                    <div className={cn("absolute top-[14px] left-1/2 w-full h-px transition-colors", isDone ? "bg-primary" : "bg-border")} />
                   )}
                   <div className={cn(
-                    "w-9 h-9 flex items-center justify-center border transition-all relative z-10 text-sm font-semibold",
+                    "w-7 h-7 flex items-center justify-center border transition-all relative z-10 text-xs font-semibold",
                     isActive && "bg-primary border-primary text-primary-foreground",
                     isDone && "bg-primary border-primary text-primary-foreground",
                     !isActive && !isDone && "bg-background border-border text-muted-foreground"
                   )}>
                     {isDone ? "✓" : num}
                   </div>
-                  <span className={cn("text-[9px] font-semibold uppercase tracking-[0.12em] mt-1.5 text-center", (isActive || isDone) ? "text-primary" : "text-muted-foreground")}>
+                  <span className={cn("text-[8px] font-semibold uppercase tracking-[0.06em] mt-1 text-center", (isActive || isDone) ? "text-primary" : "text-muted-foreground")}>
                     {label}
                   </span>
                 </div>
               );
             })}
-          </div></div>
+          </div>
 
           {/* STEP 1: DATE */}
           {step === 1 && (

@@ -279,21 +279,21 @@ const DotCakes = () => {
           >
 
           {/* Stepper */}
-          <div className="overflow-x-auto mb-10"><div className="flex items-start min-w-max mx-auto">
+          <div className="flex items-start mb-10">
             {STEPS.map((s, i) => {
               const num = i + 1;
               const isActive = step === num;
               const isDone = step > num;
               return (
-                <div key={s.key} className="flex-none w-16 flex flex-col items-center relative">
+                <div key={s.key} className="flex-1 flex flex-col items-center relative">
                   {i < STEPS.length - 1 && (
                     <div className={cn(
-                      "absolute top-[18px] left-1/2 w-full h-px transition-colors",
+                      "absolute top-[14px] left-1/2 w-full h-px transition-colors",
                       isDone ? "bg-primary" : "bg-border"
                     )} />
                   )}
                   <div className={cn(
-                    "w-9 h-9 flex items-center justify-center border transition-all relative z-10 text-sm font-semibold",
+                    "w-7 h-7 flex items-center justify-center border transition-all relative z-10 text-xs font-semibold",
                     isActive && "bg-primary border-primary text-primary-foreground",
                     isDone && "bg-primary border-primary text-primary-foreground",
                     !isActive && !isDone && "bg-background border-border text-muted-foreground"
@@ -301,7 +301,7 @@ const DotCakes = () => {
                     {isDone ? "✓" : num}
                   </div>
                   <span className={cn(
-                    "text-[9px] font-semibold uppercase tracking-[0.12em] mt-1.5 text-center",
+                    "text-[8px] font-semibold uppercase tracking-[0.06em] mt-1 text-center",
                     (isActive || isDone) ? "text-primary" : "text-muted-foreground"
                   )}>
                     {stepLabels[i]}
@@ -309,7 +309,7 @@ const DotCakes = () => {
                 </div>
               );
             })}
-          </div></div>
+          </div>
 
           {/* STEP 1: DATE */}
           {step === 1 && (
