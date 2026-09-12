@@ -120,6 +120,8 @@ const DotCakes = () => {
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [showGlutenFree, setShowGlutenFree] = useState(false);
+  const [configuratorVisible, setConfiguratorVisible] = useState(false);
+  const configuratorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.title = t("Dot Cakes – Bento Cake Studio", "Dot Cakes – Bento Cake Studio");
@@ -186,7 +188,9 @@ const DotCakes = () => {
   };
 
   const goBack = () => { setStep((s) => Math.max(s - 1, 1)); };
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }); }, [step]);
+  useEffect(() => {
+    if (configuratorVisible) window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [step, configuratorVisible]);
 
   const handleOrder = () => {
     if (!orderDate || !pack || selectedFlavours.length === 0) return;
@@ -242,6 +246,37 @@ const DotCakes = () => {
           <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto text-sm md:text-base">
             {t("Soft sponge, light whipped cream and colourful sprinkles, in small formats made for sharing.", "Une génoise moelleuse, une crème fouettée légère et des sprinkles colorés réunis dans de petits formats à partager.")}
           </p>
+
+          {/* Starting price */}
+          <p className="text-center text-muted-foreground mb-10 max-w-2xl mx-auto text-sm">
+            {t("Starting from", "À partir de")} <span className="font-semibold text-foreground">CHF {packs[0].price}</span>
+          </p>
+
+          {/* CTA — visible only before configurator opens */}
+          {!configuratorVisible && (
+            <div className="flex flex-col items-center gap-8 mb-12">
+              <button
+                onClick={() => {
+                  setConfiguratorVisible(true);
+                  setTimeout(() => {
+                    configuratorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 50);
+                }}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-semibold uppercase tracking-[0.18em] rounded-none px-10 py-3.5 transition-colors"
+              >
+                {t("Build your box →", "Composez votre box →")}
+              </button>
+              {/* Dot Gallery image – shown on landing screen */}
+              <DotGallery />
+            </div>
+          )}
+
+          {/* Configurator — hidden until CTA clicked */}
+          <div
+            ref={configuratorRef}
+            className={configuratorVisible ? "transition-all duration-500 ease-out opacity-100 translate-y-0" : "pointer-events-none select-none opacity-0 translate-y-4 h-0 overflow-hidden"}
+            aria-hidden={!configuratorVisible}
+          >
 
           {/* Stepper */}
           <div className="flex items-start mb-10">
@@ -668,13 +703,14 @@ const DotCakes = () => {
               </div>
             </div>
           )}
+          </div> {/* end configurator */}
         </main>
       </div>
       </div>
 
-      {/* Gallery */}
+      {/* Gallery — always shown outside the configurator wrapper */}
       <div className="container mx-auto px-6 py-8 md:py-16">
-        <DotGallery />
+        {configuratorVisible && <DotGallery />}
       </div>
     </Layout>
   );
