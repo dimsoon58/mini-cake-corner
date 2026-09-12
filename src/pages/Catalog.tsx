@@ -180,6 +180,13 @@ const baseColors = [
   { id: "black", name: "Black", color: "#000000" },
 ];
 
+// Colour IDs considered "dark" — triggers the lip-stain contextual notice
+const DARK_COLOR_IDS = new Set([
+  "dark-pink", "dark-red", "burgundy", "forest-green",
+  "midnight-blue", "plum", "dark-brown", "black",
+  "wine-red",
+]);
+
 const sizes = [
   { id: "bento", name: "Bento Box", price: 40, image: boxBento },
   { id: "retro", name: "Retro Box", price: 45, image: boxRetro },
@@ -717,15 +724,7 @@ const CatalogCarousel = ({ images, name, imagePositions }: { images: string[]; n
       >
         <ChevronRight className="w-4 h-4" />
       </button>
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-        {images.map((_, i) => (
-          <button
-            key={i}
-            onClick={(e) => { e.stopPropagation(); emblaApi?.scrollTo(i); }}
-            className={cn("w-2 h-2 rounded-full transition-colors", i === selectedIndex ? "bg-foreground" : "bg-foreground/40")}
-          />
-        ))}
-      </div>
+
     </div>
   );
 };
@@ -1087,15 +1086,7 @@ const CakeCardImage = ({ images, name, index, onIndexChange }: { images: string[
           <button onClick={next} style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", zIndex: 10, background: "rgba(253,248,226,0.85)", border: "none", borderRadius: "50%", width: "28px", height: "28px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2L8 6L4 10" stroke="#78020C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
-          <div style={{ position: "absolute", bottom: "8px", left: 0, right: 0, display: "flex", justifyContent: "center", gap: "6px", zIndex: 10 }}>
-            {images.map((_, i) => (
-              <button key={i} onClick={(e) => { e.stopPropagation(); setIdx(i); }}
-                style={{ width: "8px", height: "8px", borderRadius: "50%", border: "none", cursor: "pointer",
-                  backgroundColor: i === idx ? "#78020C" : "rgba(120,2,12,0.35)",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.4)", padding: 0,
-                  transform: i === idx ? "scale(1.2)" : "scale(1)", transition: "all 0.2s" }} />
-            ))}
-          </div>
+
         </>
       )}
     </div>
@@ -1113,6 +1104,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
+  const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   // Active carousel image per multi-photo design (keyed by cake id). Kept
@@ -1593,8 +1585,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
           </SheetHeader>
           
           {selectedCake && (
-            <div className="mt-6 space-y-6">
-              <div className="aspect-square w-full max-w-[300px] mx-auto rounded-none overflow-hidden bg-muted/30">
+            <div className="mt-1 space-y-3">
+              <div className="aspect-square w-full max-w-[280px] mx-auto rounded-none overflow-hidden bg-muted/30">
                 <img
                   src={
                     selectedCake.images && selectedCake.images.length > 1
@@ -1804,22 +1796,36 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           <SelectLabel>{t("Deluxe", "Deluxe")}</SelectLabel>
                           {deluxeFlavors.map(renderFlavorOption)}
                         </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>{t("Gluten-Free — Standard", "Sans Gluten — Standard")}</SelectLabel>
-                          {glutenFreeStandardFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>{t("Gluten-Free — Premium", "Sans Gluten — Premium")}</SelectLabel>
-                          {glutenFreePremiumFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>{t("Gluten-Free — Deluxe", "Sans Gluten — Deluxe")}</SelectLabel>
-                          {glutenFreeDeluxeFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
+                        {showGlutenFreeFlavors && (
+                          <>
+                            <SelectGroup>
+                              <SelectLabel>{t("Gluten-Free — Standard", "Sans Gluten — Standard")}</SelectLabel>
+                              {glutenFreeStandardFlavors.map(renderFlavorOption)}
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel>{t("Gluten-Free — Premium", "Sans Gluten — Premium")}</SelectLabel>
+                              {glutenFreePremiumFlavors.map(renderFlavorOption)}
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel>{t("Gluten-Free — Deluxe", "Sans Gluten — Deluxe")}</SelectLabel>
+                              {glutenFreeDeluxeFlavors.map(renderFlavorOption)}
+                            </SelectGroup>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                   );
                 })()}
+                <button
+                  type="button"
+                  onClick={() => setShowGlutenFreeFlavors(v => !v)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1 hover:underline"
+                >
+                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showGlutenFreeFlavors && "rotate-180")} />
+                  {showGlutenFreeFlavors
+                    ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
+                    : t("See gluten-free flavours", "Voir les parfums sans gluten")}
+                </button>
                 <AllergenNotice className="pt-1" />
               </div>
 
@@ -1876,9 +1882,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 {colorCfg.baseNote && (
                   <p className="text-xs text-muted-foreground italic">{colorCfg.baseNote}</p>
                 )}
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
-                  <span>⚠️</span> {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
-                </p>
+<div
+                  className={cn(
+                    "overflow-hidden transition-all duration-300 ease-in-out",
+                    DARK_COLOR_IDS.has(selections.baseColor)
+                      ? "max-h-20 opacity-100 mt-1"
+                      : "max-h-0 opacity-0 pointer-events-none"
+                  )}
+                >
+                  <p className="flex items-start gap-1.5 text-[12px] leading-relaxed text-primary/80">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0 mt-[1px]" aria-hidden="true">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clipRule="evenodd" />
+                    </svg>
+                    {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
+                  </p>
+                </div>
                 <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                   {baseColors.map((color) => (
                     <button
@@ -1929,9 +1947,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t(`You can choose up to ${maxColors} colours. You can also explain how you would like them to be arranged in the comment section.`, `Vous pouvez choisir jusqu'à ${maxColors} couleurs. Vous pouvez aussi préciser dans la zone de commentaire comment vous souhaitez qu'elles soient disposées.`)}
                 </p>
                 )}
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
-                  <span>⚠️</span> {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
-                </p>
+<div
+                  className={cn(
+                    "overflow-hidden transition-all duration-300 ease-in-out",
+                    selections.decorationColors.some(c => DARK_COLOR_IDS.has(c))
+                      ? "max-h-20 opacity-100 mt-1"
+                      : "max-h-0 opacity-0 pointer-events-none"
+                  )}
+                >
+                  <p className="flex items-start gap-1.5 text-[12px] leading-relaxed text-primary/80">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0 mt-[1px]" aria-hidden="true">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clipRule="evenodd" />
+                    </svg>
+                    {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
+                  </p>
+                </div>
                 <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                   {baseColors.map((color) => {
                     const isSelected = selections.decorationColors.includes(color.id);
@@ -2669,7 +2699,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           />
                         </div>
                       )}
-                      <div className="p-6 text-center flex flex-col flex-1">
+                      <div className="px-6 pt-3 pb-6 text-center flex flex-col flex-1">
                         <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
                           {t(cake.name, cakeNameFr[cake.id] ?? cake.name)}
                         </h3>
@@ -2704,13 +2734,13 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
             </div>
             <div className="text-center max-w-2xl mx-auto py-6">
               <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
-                {t("Can't find what you're looking for?", "Vous ne trouvez pas ce que vous cherchez ?")}
+                {t("CAN'T FIND WHAT YOU'RE LOOKING FOR?", "VOUS NE TROUVEZ PAS CE QUE VOUS CHERCHEZ ?")}
               </h3>
               <p className="text-muted-foreground text-sm mb-10">
-                {t("Every cake in our collections can be personalised, but if you're dreaming of something completely different, we'd love to create a fully bespoke design just for you. Tell us about your idea, your colours and your occasion, and we'll bring it to life.", "Tous nos gâteaux sont personnalisables. Si vous avez une idée particulière, nous serons ravies de créer un gâteau entièrement sur mesure pour vous.")}
+                {t("Have something special in mind? Tell us your idea and we'll bring it to life.", "Vous avez une idée particulière en tête ? Partagez-la avec nous et nous lui donnerons vie.")}
               </p>
               <p className="text-muted-foreground text-sm italic mb-10">
-                {t("Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.", "À noter : Nous répondons à votre demande sous 48 heures. Pour une meilleure disponibilité, nous vous recommandons de nous contacter au moins une semaine à l'avance.")}
+                {t("Please allow up to 48h for a reply. We recommend ordering at least one week in advance.", "Nous vous répondons sous 48h. Nous vous recommandons de faire votre demande au moins une semaine à l'avance.")}
               </p>
               {!showRequestForm ? (
                 <Button

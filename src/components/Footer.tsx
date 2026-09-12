@@ -69,7 +69,7 @@ const Footer = () => {
   return (
     <footer className="bg-primary text-primary-foreground pt-14 pb-10">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 lg:gap-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12">
           {/* Contact */}
           <div>
             <p className={headingClass}>{t("CONTACT US", "NOUS CONTACTER")}</p>
@@ -81,6 +81,19 @@ const Footer = () => {
               <br />
               1205 Genève
             </p>
+          </div>
+
+          {/* Instagram */}
+          <div>
+            <p className={headingClass}>INSTAGRAM</p>
+            <a
+              href="https://www.instagram.com/bentocakestudio"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm opacity-90 hover:opacity-100 transition-opacity mb-3"
+            >
+              @bentocakestudio
+            </a>
           </div>
 
           {/* Liens */}

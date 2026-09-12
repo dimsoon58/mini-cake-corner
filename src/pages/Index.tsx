@@ -249,7 +249,7 @@ const Index = () => {
       </section>
 
       {/* Discover Section, category cards */}
-      <section className="order-1 py-20 bg-background">
+      <section className="order-1 pt-20 pb-10 bg-background">
         <div className="relative w-full px-4 sm:px-8">
           <button onClick={() => scrollDiscover("left")} aria-label="Scroll left" className="flex absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background p-2 shadow-md items-center justify-center">
             <ChevronLeft className="h-6 w-6 text-foreground" />
@@ -309,7 +309,7 @@ const Index = () => {
       </div>{/* end flex-col reorder wrapper */}
 
       {/* Customers Section */}
-      <section className="pt-12 pb-8 bg-cream">
+      <section className="pt-12 pb-6 bg-cream">
         <div className="container mx-auto px-4">
           <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-10">
             {t("OUR CUSTOMERS", "NOS CLIENTS")}
@@ -319,9 +319,9 @@ const Index = () => {
       </section>
 
       {/* Customer Comments Section */}
-      <section className="pt-8 pb-10 bg-background">
+      <section className="pt-4 pb-3 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-6">
+          <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-4">
             {t("CUSTOMER COMMENTS", "AVIS CLIENTS")}
           </h2>
           <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" contain />
