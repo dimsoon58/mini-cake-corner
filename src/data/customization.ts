@@ -256,6 +256,7 @@ export const extras = [
 ];
 
 export const candles = [
+  { id: "silver-spiral", name: "Silver Spiral", image: candleSilverSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "puppy", name: "Puppy", image: candlePuppy, unitPrice: 2, hasPack: false },
   { id: "teddy-bear", name: "Teddy Bear", image: candleTeddyBear, unitPrice: 2, hasPack: false },
   { id: "cherry", name: "Cherry", image: candleCherry, unitPrice: 2, hasPack: false },
@@ -274,7 +275,6 @@ export const candles = [
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
   { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candlePinkGoldSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "silver-spiral", name: "Silver Spiral", image: candleSilverSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "gold-spiral", name: "Gold Spiral", image: candleGoldSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "spiral-champagne", name: "Spiral Champagne", image: candleChampagneSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
 ];
