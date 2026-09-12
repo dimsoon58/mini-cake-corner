@@ -1885,31 +1885,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     {t("Please note: darker colours may leave temporary colour on the lips.", "À noter : les couleurs foncées peuvent temporairement laisser des traces sur les lèvres.")}
                   </p>
                 </div>
-                <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
-                  {baseColors.map((color) => (
-                    <button
-                      key={color.id}
-                      onClick={() => setSelections({ ...selections, baseColor: color.id })}
-                      className={cn(
-                        "flex flex-col items-center gap-1 p-1 rounded-lg border transition-all",
-                        selections.baseColor === color.id
-                          ? "ring-2 ring-primary border-primary"
-                          : "border-border hover:border-primary/50"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-6 h-6 rounded-full border",
-                          color.id === "white" || color.id === "cream"
-                            ? "border-muted-foreground/30"
-                            : "border-transparent"
-                        )}
-                        style={{ backgroundColor: color.color }}
-                      />
-                      <span className="text-[10px] text-foreground text-center leading-tight w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
-                    </button>
-                  ))}
-                </div>
+                <Select value={selections.baseColor} onValueChange={(v) => setSelections({ ...selections, baseColor: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("Select a colour", "Choisir une couleur")} />
+                  </SelectTrigger>
+                  <SelectContent className="w-[min(90vw,280px)]">
+                    {baseColors.map(color => (
+                      <SelectItem key={color.id} value={color.id} itemText={t(color.name, colourFr[color.name] ?? color.name)}>
+                        <span className="flex items-center gap-2.5">
+                          <span className="w-4 h-4 rounded-full flex-shrink-0 border" style={{ backgroundColor: color.color, borderColor: (color.id === "white" || color.id === "cream") ? "#bbb" : "transparent" }} />
+                          <span>{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               )}
 
@@ -1950,43 +1940,37 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     {t("Please note: darker colours may leave temporary colour on the lips.", "À noter : les couleurs foncées peuvent temporairement laisser des traces sur les lèvres.")}
                   </p>
                 </div>
-                <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
-                  {baseColors.map((color) => {
-                    const isSelected = selections.decorationColors.includes(color.id);
-                    const isDisabled = !isSelected && selections.decorationColors.length >= maxColors;
-                    return (
-                    <button
-                      key={color.id}
-                      onClick={() => {
-                        if (isSelected) {
-                          setSelections({ ...selections, decorationColors: selections.decorationColors.filter(c => c !== color.id) });
-                        } else if (!isDisabled) {
-                          setSelections({ ...selections, decorationColors: [...selections.decorationColors, color.id] });
-                        }
+                <div className="space-y-2">
+                  {Array.from({ length: maxColors }, (_, i) => (
+                    <Select
+                      key={i}
+                      value={selections.decorationColors[i] ?? ""}
+                      onValueChange={(v) => {
+                        const slots = Array.from({ length: maxColors }, (_, j) => selections.decorationColors[j] ?? "");
+                        slots[i] = v;
+                        setSelections({ ...selections, decorationColors: slots.filter(s => s !== "") });
                       }}
-                      disabled={isDisabled}
-                      className={cn(
-                        "flex flex-col items-center gap-1 p-1 rounded-lg border transition-all",
-                        isSelected
-                          ? "ring-2 ring-primary border-primary"
-                          : isDisabled
-                            ? "border-border opacity-40 cursor-not-allowed"
-                            : "border-border hover:border-primary/50"
-                      )}
                     >
-                      <div
-                        className={cn(
-                          "w-6 h-6 rounded-full border",
-                          color.id === "white" || color.id === "cream"
-                            ? "border-muted-foreground/30"
-                            : "border-transparent"
+                      <SelectTrigger>
+                        <SelectValue placeholder={maxColors > 1 ? (i === 0 ? t("Colour 1 *", "Couleur 1 *") : t(`Colour ${i + 1} (optional)`, `Couleur ${i + 1} (optionnel)`)) : t("Select a colour", "Choisir une couleur")} />
+                      </SelectTrigger>
+                      <SelectContent className="w-[min(90vw,280px)]">
+                        {i > 0 && (
+                          <SelectItem value="" itemText="—">
+                            <span className="text-muted-foreground italic">{t("— None —", "— Aucune —")}</span>
+                          </SelectItem>
                         )}
-                        style={{ backgroundColor: color.color }}
-                      />
-                      <span className="text-[10px] text-foreground text-center leading-tight w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
-                    </button>
-                    );
-                  })}
+                        {baseColors.map(color => (
+                          <SelectItem key={color.id} value={color.id} itemText={t(color.name, colourFr[color.name] ?? color.name)}>
+                            <span className="flex items-center gap-2.5">
+                              <span className="w-4 h-4 rounded-full flex-shrink-0 border" style={{ backgroundColor: color.color, borderColor: (color.id === "white" || color.id === "cream") ? "#bbb" : "transparent" }} />
+                              <span>{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ))}
                 </div>
                 {selections.decorationColors.length > 0 && (
                   <p className="text-xs text-primary font-medium">{selections.decorationColors.length}/{maxColors} {t("colours selected", "couleurs sélectionnées")}</p>
@@ -2005,31 +1989,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose one colour for the piped roses.", "Choisissez une couleur pour les roses pochées.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
-                <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
-                  {baseColors.map((color) => (
-                    <button
-                      key={color.id}
-                      onClick={() => setSelections({ ...selections, roseColor: color.id })}
-                      className={cn(
-                        "flex flex-col items-center gap-1 p-1 rounded-lg border transition-all",
-                        selections.roseColor === color.id
-                          ? "ring-2 ring-primary border-primary"
-                          : "border-border hover:border-primary/50"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-6 h-6 rounded-full border",
-                          color.id === "white" || color.id === "cream"
-                            ? "border-muted-foreground/30"
-                            : "border-transparent"
-                        )}
-                        style={{ backgroundColor: color.color }}
-                      />
-                      <span className="text-[10px] text-foreground text-center leading-tight w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
-                    </button>
-                  ))}
-                </div>
+                <Select value={selections.roseColor ?? ""} onValueChange={(v) => setSelections({ ...selections, roseColor: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("Select a colour", "Choisir une couleur")} />
+                  </SelectTrigger>
+                  <SelectContent className="w-[min(90vw,280px)]">
+                    {baseColors.map(color => (
+                      <SelectItem key={color.id} value={color.id} itemText={t(color.name, colourFr[color.name] ?? color.name)}>
+                        <span className="flex items-center gap-2.5">
+                          <span className="w-4 h-4 rounded-full flex-shrink-0 border" style={{ backgroundColor: color.color, borderColor: (color.id === "white" || color.id === "cream") ? "#bbb" : "transparent" }} />
+                          <span>{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               )}
 
@@ -2044,31 +2018,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       <label className="text-sm font-medium text-foreground flex items-center gap-1">
                         {label} <span className="text-destructive">*</span>
                       </label>
-                      <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
-                        {baseColors.map((color) => (
-                          <button
-                            key={color.id}
-                            onClick={() => setSelections({ ...selections, [key]: color.id })}
-                            className={cn(
-                              "flex flex-col items-center gap-1 p-1 rounded-lg border transition-all",
-                              selections[key] === color.id
-                                ? "ring-2 ring-primary border-primary"
-                                : "border-border hover:border-primary/50"
-                            )}
-                          >
-                            <div
-                              className={cn(
-                                "w-6 h-6 rounded-full border",
-                                color.id === "white" || color.id === "cream"
-                                  ? "border-muted-foreground/30"
-                                  : "border-transparent"
-                              )}
-                              style={{ backgroundColor: color.color }}
-                            />
-                            <span className="text-[10px] text-foreground text-center leading-tight w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
-                          </button>
-                        ))}
-                      </div>
+                      <Select value={selections[key] ?? ""} onValueChange={(v) => setSelections({ ...selections, [key]: v })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("Select a colour", "Choisir une couleur")} />
+                        </SelectTrigger>
+                        <SelectContent className="w-[min(90vw,280px)]">
+                          {baseColors.map(color => (
+                            <SelectItem key={color.id} value={color.id} itemText={t(color.name, colourFr[color.name] ?? color.name)}>
+                              <span className="flex items-center gap-2.5">
+                                <span className="w-4 h-4 rounded-full flex-shrink-0 border" style={{ backgroundColor: color.color, borderColor: (color.id === "white" || color.id === "cream") ? "#bbb" : "transparent" }} />
+                                <span>{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   ))}
                 </div>
@@ -2168,31 +2132,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {/* Text Colour Selection */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">{t("Text Colour", "Couleur du texte")}</label>
-                    <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
-                      {baseColors.map((color) => (
-                        <button
-                          key={color.id}
-                          onClick={() => setSelections({ ...selections, textColor: color.id })}
-                          className={cn(
-                            "flex flex-col items-center gap-1 p-1 rounded-lg border transition-all",
-                            selections.textColor === color.id
-                              ? "ring-2 ring-primary border-primary"
-                              : "border-border hover:border-primary/50"
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              "w-6 h-6 rounded-full border",
-                              color.id === "white" || color.id === "cream"
-                                ? "border-muted-foreground/30"
-                                : "border-transparent"
-                            )}
-                            style={{ backgroundColor: color.color }}
-                          />
-                          <span className="text-[10px] text-foreground text-center leading-tight w-full">{t(color.name, colourFr[color.name] ?? color.name)}</span>
-                        </button>
-                      ))}
-                    </div>
+                    <Select value={selections.textColor ?? ""} onValueChange={(v) => setSelections({ ...selections, textColor: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("Select a colour", "Choisir une couleur")} />
+                      </SelectTrigger>
+                      <SelectContent className="w-[min(90vw,280px)]">
+                        {baseColors.map(color => (
+                          <SelectItem key={color.id} value={color.id} itemText={t(color.name, colourFr[color.name] ?? color.name)}>
+                            <span className="flex items-center gap-2.5">
+                              <span className="w-4 h-4 rounded-full flex-shrink-0 border" style={{ backgroundColor: color.color, borderColor: (color.id === "white" || color.id === "cream") ? "#bbb" : "transparent" }} />
+                              <span>{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </>
                )}
