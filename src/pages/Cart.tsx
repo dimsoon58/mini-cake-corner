@@ -562,8 +562,11 @@ const Cart = () => {
                   </div>
                   {(() => {
                     const orderDateObj = cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null;
+                    // Candles are a decorative add-on, not a food product —
+                    // excluded from the surcharge base the same way
+                    // workshops are (server mirrors this exactly).
                     const physicalTotal = items
-                      .filter((i) => i.product !== "workshop")
+                      .filter((i) => i.product !== "workshop" && i.product !== "candles")
                       .reduce((s, i) => s + i.total, 0);
                     const surcharge = expressSurcharge(physicalTotal, orderDateObj);
                     if (surcharge <= 0) return null;
@@ -578,7 +581,7 @@ const Cart = () => {
                     <span className="text-foreground">{t("Total", "Total")}</span>
                     <span className="text-primary">CHF {(
                       totalPrice + expressSurcharge(
-                        items.filter((i) => i.product !== "workshop").reduce((s, i) => s + i.total, 0),
+                        items.filter((i) => i.product !== "workshop" && i.product !== "candles").reduce((s, i) => s + i.total, 0),
                         cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null,
                       )
                     ).toFixed(2)}</span>

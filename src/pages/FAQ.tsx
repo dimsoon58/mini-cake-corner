@@ -96,8 +96,8 @@ const FAQ = () => {
         {
           question: "How many days in advance should I order?",
           questionFr: "Combien de jours à l'avance faut-il commander ?",
-          answer: "The earliest available date is 2 days after your order (same-day and next-day are not possible). Orders for 2 or 3 days ahead are express orders with a 10% surcharge on the products (delivery excluded); from 4 days ahead, standard pricing applies. For weekends and holidays we still recommend ordering a few days in advance.",
-          answerFr: "La première date disponible est 2 jours après votre commande (le jour même et le lendemain ne sont pas possibles). Les commandes pour dans 2 ou 3 jours sont des commandes express avec un supplément de 10 % sur les produits (hors livraison) ; à partir de 4 jours, le tarif est normal. Pour les week-ends et les périodes de fêtes, nous vous recommandons tout de même de commander quelques jours à l'avance."
+          answer: "The earliest available date is 2 days after your order (same-day and next-day are not possible). Orders for 2 or 3 days ahead carry a 20% surcharge on the products (delivery excluded); for 4 or 5 days ahead, the surcharge is 15%; from 6 days ahead, standard pricing applies. For weekends and holidays we still recommend ordering a few days in advance.",
+          answerFr: "La première date disponible est 2 jours après votre commande (le jour même et le lendemain ne sont pas possibles). Les commandes pour dans 2 ou 3 jours ont un supplément de 20 % sur les produits (hors livraison) ; pour 4 ou 5 jours, le supplément est de 15 % ; à partir de 6 jours, le tarif est normal. Pour les week-ends et les périodes de fêtes, nous vous recommandons tout de même de commander quelques jours à l'avance."
         },
         {
           question: "Can I cancel or modify my order?",

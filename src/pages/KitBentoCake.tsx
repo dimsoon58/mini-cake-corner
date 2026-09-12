@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { CalendarIcon, Check, ShoppingCart, ChevronDown, ChevronUp, ChevronLeft } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
@@ -21,6 +21,7 @@ import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { toast } from "sonner";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
+import { isOrderDateDisabled } from "@/lib/orderDates";
 
 // Flavor images
 import flavorVanilla from "@/assets/flavor-vanilla.png";
@@ -238,8 +239,6 @@ const KitBentoCake = () => {
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
   const [step, setStep] = useState(1);
-
-  const minDate = addDays(new Date(), 4);
 
   useEffect(() => {
     const option = pipingBagOptions.find(p => p.id === selectedPipingOption);
@@ -481,7 +480,12 @@ const KitBentoCake = () => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={orderDate} onSelect={setOrderDate} disabled={(date) => date < minDate} initialFocus />
+                  {/* Food-order lead time: J0/J+1 blocked, J+2+ selectable
+                      (was wrongly hardcoded to J+4 here — see
+                      src/lib/orderDates.ts, the single shared source of
+                      truth for this rule, which also carries the J+2/J+3
+                      and J+4/J+5 near-date-surcharge tiers). */}
+                  <Calendar mode="single" selected={orderDate} onSelect={setOrderDate} disabled={(date) => isOrderDateDisabled(date)} initialFocus />
                 </PopoverContent>
               </Popover>
               {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (

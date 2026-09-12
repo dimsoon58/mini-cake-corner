@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import CustomRequestForm from "@/components/CustomRequestForm";
 import { INSPIRATIONS as inspirationItems } from "@/data/inspirations";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorF
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
+import { isOrderDateDisabled } from "@/lib/orderDates";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { flavorDescMap } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
@@ -1639,9 +1640,12 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       selected={selections.orderDate || undefined}
                       onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
                       disabled={(date) => {
-                        const minDate = addDays(new Date(), 4);
-                        minDate.setHours(0, 0, 0, 0);
-                        if (date < minDate) return true;
+                        // Food-order lead time: J0/J+1 blocked, J+2+
+                        // selectable (was wrongly hardcoded to J+4 here,
+                        // which made the J+2/J+3 near-date-surcharge tier
+                        // unreachable from this page — see src/lib/orderDates.ts,
+                        // the single shared source of truth for this rule).
+                        if (isOrderDateDisabled(date)) return true;
                         return fullyBookedDates.some(
                           (bookedDate) => bookedDate.toDateString() === date.toDateString()
                         );

@@ -220,11 +220,20 @@ function roundToCents(amount: number): number {
   return Math.round(amount * 100) / 100;
 }
 
-const EXPRESS_RATE = 0.10;
-// First selectable pickup/delivery date = today + LEAD_DAYS calendar days.
-// J+0 / J+1 are refused; J+2 / J+3 carry the express surcharge; J+4+ are normal.
+// First selectable pickup/delivery date = today + ORDER_LEAD_DAYS calendar
+// days. J+0 / J+1 are refused. Tiered near-date surcharge on food orders
+// (NOT the private-workshop-quote lead time, which is a separate, longer,
+// flat rule with no surcharge — see WORKSHOP_MIN_LEAD_DAYS in
+// PrivateWorkshopDialog.tsx; the two must never be mixed):
+//   J+2 / J+3 -> TIER1_RATE (20%)
+//   J+4 / J+5 -> TIER2_RATE (15%)
+//   J+6+      -> no surcharge
+// Replaces the old flat EXPRESS_RATE (10%).
 const ORDER_LEAD_DAYS = 2;
-const EXPRESS_MAX_DAYS = 3;
+const TIER1_MAX_DAYS = 3;   // J+2 / J+3
+const TIER1_RATE = 0.20;
+const TIER2_MAX_DAYS = 5;   // J+4 / J+5
+const TIER2_RATE = 0.15;
 
 // Today's calendar date in Europe/Zurich as "YYYY-MM-DD" — avoids the UTC
 // off-by-one when deciding whether an order is "express" / too soon.
@@ -251,11 +260,18 @@ function daysUntilPickup(pickupDeliveryDate: string | null | undefined): number 
   return calendarDaysBetween(zurichTodayISO(), String(pickupDeliveryDate).slice(0, 10));
 }
 
-// Express = J+2 or J+3 (the only selectable dates that are also within
-// EXPRESS_MAX_DAYS). Never trusts any client flag or amount.
-function isExpressOrder(pickupDeliveryDate: string | null | undefined): boolean {
+// The near-date surcharge RATE for a pickup/delivery date — 0.20 (J+2/J+3),
+// 0.15 (J+4/J+5), or 0 (J+6+, a too-soon/invalid date, or none given).
+// Server-authoritative: never trusts any client flag/rate/amount. The
+// ORDER_LEAD_DAYS floor itself is still enforced separately wherever a date
+// is first accepted (resolveOneFulfillment / the legacy single-date check
+// below) — this only picks the rate once a date is already known valid.
+function expressSurchargeRate(pickupDeliveryDate: string | null | undefined): number {
   const d = daysUntilPickup(pickupDeliveryDate);
-  return d !== null && d >= ORDER_LEAD_DAYS && d <= EXPRESS_MAX_DAYS;
+  if (d === null || d < ORDER_LEAD_DAYS) return 0;
+  if (d <= TIER1_MAX_DAYS) return TIER1_RATE;
+  if (d <= TIER2_MAX_DAYS) return TIER2_RATE;
+  return 0;
 }
 
 // ── Multi-date fulfillment — resolve ONE fulfillment entry ────────────────
@@ -303,7 +319,7 @@ async function resolveOneFulfillment(
     deliveryDistanceKm: null,
     deliveryZone: null,
     deliveryFee: 0,
-    expressSurcharge: isExpressOrder(date) ? roundToCents(expressEligibleTotal * EXPRESS_RATE) : 0,
+    expressSurcharge: roundToCents(expressEligibleTotal * expressSurchargeRate(date)),
     itemIndexes: input.itemIndexes,
   };
 
@@ -901,8 +917,16 @@ serve(async (req) => {
       // for a real delivery) — one shared function, whatever the origin. ──
       resolvedFulfillments = [];
       for (const f of fulfillmentInputs) {
-        const groupTotal = f.itemIndexes.reduce((sum, idx) => sum + (orderItems[idx].total ?? 0), 0);
-        resolvedFulfillments.push(await resolveOneFulfillment(f, groupTotal));
+        // Surcharge base for THIS date only — candles are a decorative
+        // add-on, not a food product subject to the near-date surcharge
+        // (they're excluded here the same way workshops are excluded
+        // globally), even though they're still correctly claimed by this
+        // fulfillment for delivery/pickup purposes.
+        const groupExpressEligibleTotal = f.itemIndexes.reduce(
+          (sum, idx) => (orderItems[idx].product === "candles" ? sum : sum + (orderItems[idx].total ?? 0)),
+          0,
+        );
+        resolvedFulfillments.push(await resolveOneFulfillment(f, groupExpressEligibleTotal));
       }
 
       // ── Legacy single-column compatibility (never remove an old column) ─
@@ -1144,25 +1168,26 @@ serve(async (req) => {
     }
     order.reward_amount_used = reservedReward;
 
-    // ── Express surcharge (+10%) ───────────────────────────────────────
+    // ── Near-date surcharge (tiered: +20% J+2/J+3, +15% J+4/J+5) ─────────
     // Server-authoritative: decided ONLY from the Europe/Zurich date vs the
-    // relevant pickup/delivery date(s). Base = physical products only
-    // (workshops and delivery fees are excluded). Never trusts a client
-    // isExpress flag / amount / total.
+    // relevant pickup/delivery date(s). Base = physical FOOD products only
+    // (workshops, candles and delivery fees are all excluded — candles are
+    // a decorative add-on, not a food product, even though they're still a
+    // physical item that needs a fulfillment). Never trusts a client
+    // rate / amount / total.
     //
     // Multi-fulfillment: each date is evaluated against its OWN items' total
-    // (already computed per-fulfillment in resolveOneFulfillment above) —
-    // express-ness genuinely differs per date (a J+2 date and a J+9 date in
-    // the same order must not share one flag), so the surcharge is the SUM
-    // of each fulfillment's own express amount, never derived from a single
-    // order-level date.
+    // AND its own rate (already computed per-fulfillment in
+    // resolveOneFulfillment above) — a J+2 date and a J+9 date in the same
+    // order must never share one rate, so the surcharge is the SUM of each
+    // fulfillment's own amount, never derived from a single order-level date.
     const expressSurcharge = resolvedFulfillments
       ? roundToCents(resolvedFulfillments.reduce((sum, f) => sum + f.expressSurcharge, 0))
       : (() => {
           const expressEligibleBase = orderItems
-            .filter((item) => item.product !== "workshop")
+            .filter((item) => item.product !== "workshop" && item.product !== "candles")
             .reduce((sum, item) => sum + item.total, 0);
-          return isExpressOrder(order.pickup_delivery_date) ? roundToCents(expressEligibleBase * EXPRESS_RATE) : 0;
+          return roundToCents(expressEligibleBase * expressSurchargeRate(order.pickup_delivery_date));
         })();
     order.express_surcharge_amount = expressSurcharge;
 
@@ -1233,13 +1258,16 @@ serve(async (req) => {
       }
     }
 
-    // Express surcharge is its own readable line — reward is already
+    // Near-date surcharge is its own readable line — reward is already
     // allocated (loop above) and can never touch it, and it is added BEFORE
-    // the delivery line so the delivery fee never receives the +10%.
+    // the delivery line so the delivery fee never receives it. No percentage
+    // in the label: a multi-date order can legitimately blend the 20% and
+    // 15% tiers into one aggregate amount, so stating a single rate here
+    // would be wrong for that case (the exact CHF amount is always shown).
     if (expressSurcharge > 0) {
       lineItems.push({
         uniqueId: "express-surcharge",
-        name: orderLang === "fr" ? "Supplément express (10 %)" : "Express surcharge (10%)",
+        name: orderLang === "fr" ? "Supplément date rapprochée" : "Near-date surcharge",
         quantity: 1,
         amountIncludingTax: expressSurcharge,
         type: "FEE",

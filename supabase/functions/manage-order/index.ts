@@ -234,7 +234,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
           <tbody>
             ${itemSummaryRows}
             ${(Number(order.express_surcharge_amount) || 0) > 0 ? `<tr>
-              <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${tr("Express surcharge (10%)", "Supplément express (10 %)")}</td>
+              <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${tr("Near-date surcharge", "Supplément date rapprochée")}</td>
               <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${Number(order.express_surcharge_amount).toFixed(2)}</td>
             </tr>` : ""}
             ${(Number(order.welcome_discount_amount) || 0) > 0 ? `<tr>
@@ -764,7 +764,7 @@ async function generateInvoicePdf(
     const expressSurchargeInvoice = Number(order.express_surcharge_amount) || 0;
     if (expressSurchargeInvoice > 0) {
       itemRows.push({
-        description: tr("Express surcharge (10%)", "Supplément express (10 %)"),
+        description: tr("Near-date surcharge", "Supplément date rapprochée"),
         quantity: "1",
         unitPrice: formatInvoicePrice(expressSurchargeInvoice),
         total: formatInvoicePrice(expressSurchargeInvoice),

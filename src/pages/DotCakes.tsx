@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
+import { isOrderDateDisabled } from "@/lib/orderDates";
 import { flavorCategories, glutenFreeFlavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
@@ -302,8 +303,12 @@ const DotCakes = () => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
+                  {/* Food-order lead time: J0/J+1 blocked, J+2+ selectable
+                      (was wrongly hardcoded to J+4 here — see
+                      src/lib/orderDates.ts, the single shared source of
+                      truth for this rule). */}
                   <Calendar mode="single" selected={orderDate} onSelect={setOrderDate}
-                    disabled={(date) => date < addDays(new Date(), 4)} initialFocus />
+                    disabled={(date) => isOrderDateDisabled(date)} initialFocus />
                 </PopoverContent>
               </Popover>
               {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (

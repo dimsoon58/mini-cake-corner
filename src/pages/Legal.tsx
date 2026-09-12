@@ -186,8 +186,8 @@ const articles: Article[] = [
         pFr: "Les frais de livraison, le cas échéant, sont précisés lors de la validation de la commande. Les prix appliqués sont ceux en vigueur au moment de la commande et ne peuvent être modifiés ultérieurement.",
       },
       {
-        p: "Orders accepted 3 calendar days or less before the scheduled pick-up or delivery date, whether placed directly through the website or manually processed by Bento Cake Studio SNC, are subject to an express surcharge of 10% of the total order amount and cannot be cancelled once confirmed.",
-        pFr: "Les commandes acceptées 3 jours calendaires ou moins avant la date prévue de retrait ou de livraison, qu'elles soient passées directement sur le site ou prises manuellement par Bento Cake Studio SNC, font l'objet d'un supplément express de 10 % du montant total de la commande et sont non annulables une fois confirmées.",
+        p: "Orders accepted 2 or 3 calendar days before the scheduled pick-up or delivery date, whether placed directly through the website or manually processed by Bento Cake Studio SNC, are subject to a surcharge of 20% of the products amount (excluding delivery fees) and cannot be cancelled once confirmed. Orders accepted 4 or 5 calendar days before that date are subject to a surcharge of 15% of the products amount (excluding delivery fees) under the same conditions.",
+        pFr: "Les commandes acceptées 2 ou 3 jours calendaires avant la date prévue de retrait ou de livraison, qu'elles soient passées directement sur le site ou prises manuellement par Bento Cake Studio SNC, font l'objet d'un supplément de 20 % du montant des produits (hors frais de livraison) et sont non annulables une fois confirmées. Les commandes acceptées 4 ou 5 jours calendaires avant cette date font l'objet d'un supplément de 15 % du montant des produits (hors frais de livraison), dans les mêmes conditions.",
       },
       {
         p: "This surcharge is communicated to the Customer before the order is validated and paid.",

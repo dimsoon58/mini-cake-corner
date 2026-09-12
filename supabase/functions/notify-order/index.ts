@@ -146,7 +146,7 @@ async function sendAdminEmail(
           <table style="border-collapse:collapse;width:100%;">
              ${row("Commande №", order.order_number || order.id.slice(0, 8).toUpperCase())}
              ${row("Facture №", order.invoice_number || "—")}
-            ${(Number(order.express_surcharge_amount) || 0) > 0 ? row("Supplément express (10 %)", `CHF ${Number(order.express_surcharge_amount).toFixed(2)}`) : ""}
+            ${(Number(order.express_surcharge_amount) || 0) > 0 ? row("Supplément date rapprochée", `CHF ${Number(order.express_surcharge_amount).toFixed(2)}`) : ""}
             ${row("Total", `CHF ${order.total_amount}`)}
             ${row("Statut", autoConfirmed
               ? "✅ Réservation workshop confirmée automatiquement — paiement encaissé"

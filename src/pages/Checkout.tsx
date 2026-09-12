@@ -346,7 +346,7 @@ const uploadImageFilesToStorage = async (
 };
 
 const Checkout = () => {
-  const { items, clearCart } = useCart();
+  const { items, clearCart, updateItem } = useCart();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [firstName, setFirstName] = useState("");
@@ -393,6 +393,21 @@ const Checkout = () => {
   }, [physicalItems]);
 
   const isMultiDateActive = MULTI_DATE_FULFILLMENT_ENABLED && physicalDateGroups.length > 1;
+
+  // Some physical items (candles bought standalone from Candles.tsx) never
+  // get their own calendar — they're meant to ride along with whichever
+  // cake date they belong to (see CandlesProductPage / candleCartHelpers).
+  // With a single physical date this is automatic: the legacy single-
+  // fulfillment path applies that one date to every physical item
+  // regardless of its own orderDate (see create-postfinance-payment — the
+  // strict per-item fulfillment coverage check only runs once fulfillments[]
+  // is actually sent, i.e. only when isMultiDateActive). Once the cart
+  // genuinely spans 2+ dates, each such item MUST be explicitly assigned to
+  // one of them — guessing would silently misattribute it (and its price)
+  // to the wrong fulfillment. Never populated/read while !isMultiDateActive.
+  const unassignedDatelessItems = isMultiDateActive
+    ? physicalItems.filter((i) => !i.orderDate)
+    : [];
 
   // One delivery decision per date group, keyed by ISO date. Only read/
   // written when isMultiDateActive — the single-date state below (deliveryOption,
@@ -472,8 +487,11 @@ const Checkout = () => {
     return sum + (d.deliveryOption === "delivery" && d.deliveryQuoteStatus === "ok" && d.deliveryQuote ? d.deliveryQuote.fee : 0);
   }, 0);
   const multiDateExpressSurchargeTotal = physicalDateGroups.reduce((sum, g) => {
-    const groupTotal = g.items.reduce((s, i) => s + i.total, 0);
-    return sum + expressSurcharge(groupTotal, new Date(g.date + "T00:00:00"));
+    // Candles are a decorative add-on, not a food product — excluded from
+    // the surcharge base the same way workshops are (server mirrors this
+    // exactly in create-postfinance-payment).
+    const groupExpressEligibleTotal = g.items.reduce((s, i) => (i.product === "candles" ? s : s + i.total), 0);
+    return sum + expressSurcharge(groupExpressEligibleTotal, new Date(g.date + "T00:00:00"));
   }, 0);
 
   const [deliveryDate, setDeliveryDate] = useState<Date>(() => {
@@ -662,7 +680,7 @@ const Checkout = () => {
       : 0);
 
   const deliveryReady = isMultiDateActive
-    ? physicalDateGroups.every((g) => {
+    ? unassignedDatelessItems.length === 0 && physicalDateGroups.every((g) => {
         const d = getFulfillmentDraft(g.date);
         return d.deliveryOption !== "delivery" || d.deliveryQuoteStatus === "ok";
       })
@@ -748,15 +766,16 @@ const Checkout = () => {
     ? Math.round(Math.min(rewardBalance, maxRewardUsable) * 100) / 100
     : 0;
 
-  // Express surcharge (+10%) — DISPLAY ONLY. The server
+  // Near-date surcharge (tiered: +20% J+2/J+3, +15% J+4/J+5) — DISPLAY ONLY. The server
   // (create-postfinance-payment) re-derives it from the Europe/Zurich date vs
   // pickup_delivery_date and is the sole authority on the charged amount.
-  // Base = physical products only (workshops + delivery excluded).
+  // Base = physical FOOD products only (workshops, candles and delivery
+  // excluded — candles are a decorative add-on, not a food product).
   // Multi-date active: each date is evaluated against its OWN items'
   // subtotal (multiDateExpressSurchargeTotal, computed above) — a J+2 date
   // and a J+9 date in the same order must not share one flag.
   const physicalProductsTotal = items
-    .filter((item) => item.product !== "workshop")
+    .filter((item) => item.product !== "workshop" && item.product !== "candles")
     .reduce((sum, item) => sum + item.total, 0);
   const expressSurchargeAmount = isMultiDateActive
     ? multiDateExpressSurchargeTotal
@@ -905,6 +924,24 @@ const Checkout = () => {
         return;
       }
     } else {
+      // Every physical item without its own date (candles bought standalone
+      // — see unassignedDatelessItems above) must be explicitly assigned to
+      // one of the cart's dates before submitting. Never guessed: the server
+      // requires every physical item to be claimed by exactly one
+      // fulfillment, and silently picking one here could bill/prepare a
+      // candle for the wrong date.
+      if (unassignedDatelessItems.length > 0) {
+        toast({
+          title: t("Please assign a date to every candle", "Merci d'attribuer une date à chaque bougie"),
+          description: t(
+            "Your cart has products on different dates — pick which date each candle belongs to.",
+            "Votre panier contient des produits à des dates différentes — indiquez à quelle date chaque bougie est destinée.",
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
+
       // ── Multi-date validation — same rules as above, evaluated once per
       // date group instead of once for the whole order. Stops at the FIRST
       // incomplete date group (never partially submits).
@@ -1651,6 +1688,42 @@ const Checkout = () => {
                 the flag is off. */}
             {hasPhysical && isMultiDateActive && (
               <div className="space-y-6">
+                {/* Candles (or any other physical item without its own
+                    calendar) must be explicitly attached to one of this
+                    cart's dates once there's more than one — never guessed.
+                    Disappears from this list the moment each one is
+                    assigned (physicalDateGroups/unassignedDatelessItems
+                    both recompute from `items`, so picking a date here
+                    immediately moves that item into the matching card
+                    below). */}
+                {unassignedDatelessItems.length > 0 && (
+                  <div className="border border-destructive/50 bg-destructive/5 p-4 space-y-3">
+                    <p className="text-sm font-medium text-foreground">
+                      {t("Which date are these for?", "Pour quelle date sont ces articles ?")}
+                    </p>
+                    {unassignedDatelessItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between gap-3 flex-wrap">
+                        <span className="text-sm text-foreground">{item.sizeName || item.candleProductName || t("Item", "Article")}</span>
+                        <Select
+                          value=""
+                          onValueChange={(date) => updateItem(item.id, { orderDate: date })}
+                        >
+                          <SelectTrigger className="w-auto min-w-[180px] rounded-none">
+                            <SelectValue placeholder={t("Select a date", "Choisir une date")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {physicalDateGroups.map((g) => (
+                              <SelectItem key={g.date} value={g.date}>
+                                {formatDisplayDate(new Date(g.date + "T00:00:00"))}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {physicalDateGroups.map((group) => {
                   const draft = getFulfillmentDraft(group.date);
                   const groupDate = new Date(group.date + "T00:00:00");
