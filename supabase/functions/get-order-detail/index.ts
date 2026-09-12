@@ -25,6 +25,18 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 // itself, exactly like manage-order's own tolerant re-check), so this
 // function deliberately does NOT check `used` — only that a row with this
 // exact (order_id, token) pair exists.
+//
+// 2026-09-12: `used` is intentionally ignored (above), but `expires_at` IS
+// enforced — order_action_tokens already carries it (NOT NULL, defaults to
+// now() + 24h at creation: 20260306130750_1eab2afa-....sql), it's just never
+// checked anywhere in the codebase today (manage-order's own token lookup
+// only reads `used`). Left unchecked here too, a token from a months-old
+// e-mail would let anyone holding that link keep reading this customer's
+// name/e-mail/phone/address indefinitely. Enforcing the EXISTING 24h expiry
+// — not a new/different one — here only, so a stale link eventually stops
+// returning data while a fresh one still works for the customary window.
+// This does NOT touch Accept/Refuse (manage-order, OrderAction.tsx) at all —
+// their own single-use behaviour via `used` is completely unchanged.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,17 +60,23 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    // Token gate — same table/columns manage-order itself checks, `used`
-    // deliberately ignored (see header comment).
+    // Token gate — same table manage-order itself checks. `used` deliberately
+    // ignored (see header comment); `expires_at` IS enforced.
     const { data: tokenRow, error: tokenErr } = await supabase
       .from("order_action_tokens")
-      .select("order_id")
+      .select("order_id, expires_at")
       .eq("order_id", orderId)
       .eq("token", token)
       .maybeSingle();
     if (tokenErr) throw new Error(`Token lookup failed: ${tokenErr.message}`);
     if (!tokenRow) {
       return new Response(JSON.stringify({ error: "Invalid or unknown action token" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
+    if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) {
+      return new Response(JSON.stringify({ error: "This link has expired" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
       });

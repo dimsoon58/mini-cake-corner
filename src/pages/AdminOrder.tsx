@@ -71,9 +71,11 @@ const AdminOrder = () => {
       } else if (data?.error) {
         console.error("get-order-detail error:", data.error);
         setLoadError(
-          data.error === "Invalid or unknown action token"
-            ? t("This link is not valid for this order.", "Ce lien n'est pas valide pour cette commande.")
-            : t("Order not found.", "Commande introuvable.")
+          data.error === "This link has expired"
+            ? t("This link has expired. Please ask for the order to be looked up directly.", "Ce lien a expiré. Merci de demander à consulter la commande directement.")
+            : data.error === "Invalid or unknown action token"
+              ? t("This link is not valid for this order.", "Ce lien n'est pas valide pour cette commande.")
+              : t("Order not found.", "Commande introuvable.")
         );
       } else {
         setOrder(data.order);
