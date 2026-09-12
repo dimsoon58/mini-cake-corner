@@ -186,7 +186,7 @@ export const candles = [
   { id: "spiral-champagne", name: "Spiral Champagne", nameFr: "Spirale Champagne", image: candleChampagneSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "shiny-spiral", name: "Shiny Spiral", nameFr: "Spirale Brillante", image: candleShinySpiral, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "spiral-pastel", name: "Pastel Spiral", nameFr: "Spirale Pastel", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
-  { id: "rainbow", name: "Rainbow", nameFr: "Arc-en-ciel", image: candleRainbow, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
+  { id: "rainbow", name: "Rainbow", nameFr: "Arc-en-ciel", image: candleRainbow, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "pink-ombre", name: "Pink Ombré", nameFr: "Ombré Rose", image: candlePinkOmbre, unitPrice: 1, hasPack: true, packPrice: 5, packSize: 6 },
   { id: "daisy", name: "Daisy", nameFr: "Marguerite", image: candleDaisy, unitPrice: 2, hasPack: false },
   { id: "heart", name: "Red Heart", nameFr: "Cœur Rouge", image: candleHeart, unitPrice: 2, hasPack: false },
@@ -417,7 +417,7 @@ const KitBentoCake = () => {
     setStep((s) => Math.min(s + 1, 6));
   };
   const goBack = () => { setStep((s) => Math.max(s - 1, 1)); };
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [step]);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }); }, [step]);
 
   const stepLabels = [t("Date","Date"), t("Shape","Forme"), t("Flavour","Parfum"), t("Piping","Poches"), t("Candles","Bougies"), t("Confirm","Confirmer")];
 

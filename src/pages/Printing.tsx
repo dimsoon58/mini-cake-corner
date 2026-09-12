@@ -96,16 +96,10 @@ const Printing = () => {
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
           {t("Printing", "Impression")}
         </h1>
-        <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
+        <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
           {t(
-            "Turn your favourite photo, logo or drawing into an edible image, printed with food-safe ink on a fine sugar sheet, ready to top your cake.",
-            "Transformez votre photo, logo ou dessin préféré en une image comestible, imprimée à l'encre alimentaire sur une fine feuille de sucre."
-          )}
-        </p>
-        <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto text-sm md:text-base">
-          {t(
-            "Perfect for birthdays, brand events and celebrations. Upload your image, choose your date, and we take care of the rest.",
-            "Idéale pour les anniversaires, les événements de marque et les célébrations. Importez votre image, choisissez votre date, et nous nous occupons du reste."
+            "Turn your favourite photo, logo or drawing into an edible print, ready to top your cake. Simply upload your image and choose your date.",
+            "Transformez votre photo, logo ou dessin préféré en une impression comestible, prête à décorer votre gâteau. Il vous suffit de télécharger votre image et de choisir votre date."
           )}
         </p>
 

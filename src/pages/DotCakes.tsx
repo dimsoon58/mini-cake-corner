@@ -183,13 +183,10 @@ const DotCakes = () => {
       return;
     }
     setStep((s) => Math.min(s + 1, 5));
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const goBack = () => {
-    setStep((s) => Math.max(s - 1, 1));
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const goBack = () => { setStep((s) => Math.max(s - 1, 1)); };
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }); }, [step]);
 
   const handleOrder = () => {
     if (!orderDate || !pack || selectedFlavours.length === 0) return;

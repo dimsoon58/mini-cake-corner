@@ -312,7 +312,7 @@ const Candles = () => {
             return (
               <Card
                 key={candle.id}
-                className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all"
+                className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20"
               >
                 <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
                   <img
