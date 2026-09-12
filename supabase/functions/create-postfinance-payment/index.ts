@@ -138,6 +138,11 @@ interface OrderItemRow {
   workshop_time?: string | null;
   workshop_participants?: number | null;
   workshop_unit_price?: number | null;
+  // Reward/workshop bugfix (Sept 2026): set below, in the reward-allocation
+  // loop, alongside (never instead of) the PostFinance line-item discount —
+  // `total` above is NEVER touched by this. 0 for every line the loop
+  // doesn't reduce.
+  reward_amount_used?: number;
 }
 
 interface PaymentRequest {
@@ -159,9 +164,56 @@ interface PaymentRequest {
   deliveryPlaceId?: string | null;
   // Intent only — the amount the customer asked to spend from their reward
   // balance. Never trusted directly: it is capped by the reward-eligible
-  // (non-workshop) subtotal minus the welcome discount, then passed to
+  // subtotal (non-workshop items, UNLESS the order is workshop-only — see
+  // hasPhysicalItem below) minus the welcome discount, then passed to
   // reserve_reward() which returns the amount actually reserved.
   rewardAmountToUse?: number;
+  // ── Multi-date fulfillment (Sept 2026), OPTIONAL and additive ─────────
+  // When present and non-empty, this is the AUTHORITATIVE source of every
+  // pickup/delivery decision for physical items — the legacy top-level
+  // order.pickup_delivery_date / order.delivery_method / deliveryPlaceId are
+  // ignored for computation in that case (they may still arrive, e.g. a
+  // stale client, but are not read). When absent/empty (every request today,
+  // while MULTI_DATE_FULFILLMENT_ENABLED is false on the frontend), behaviour
+  // is 100% unchanged from before this field existed — the single top-level
+  // deliveryPlaceId / order.pickup_delivery_date / order.delivery_method path
+  // below still runs exactly as it always has.
+  fulfillments?: FulfillmentInput[];
+}
+
+// One physical pickup/delivery date within an order. itemIndexes are
+// positions into orderItems/pricingItems (0-based) — every physical item
+// must be covered by EXACTLY one fulfillment, no workshop item may ever be
+// referenced here (workshops keep their own session date, untouched by any
+// of this).
+interface FulfillmentInput {
+  date: string; // "YYYY-MM-DD"
+  deliveryMethod: "pickup" | "delivery";
+  deliveryPlaceId?: string | null;
+  slot?: string | null;
+  itemIndexes: number[];
+}
+
+// Server-resolved fulfillment, persisted into pending_payments.payload for
+// confirm-postfinance-payment to turn into an order_fulfillments row. Every
+// field here is server-authoritative — resolved exactly like the legacy
+// single-date path below (same lead-time rule, same Google Maps distance /
+// tariff resolution), just once per date instead of once per order.
+interface ResolvedFulfillment {
+  date: string;
+  deliveryMethod: "pickup" | "delivery";
+  slot: string | null;
+  deliveryAddress: string | null;
+  deliveryPlaceId: string | null;
+  deliveryPostalCode: string | null;
+  deliveryCity: string | null;
+  deliveryLatitude: number | null;
+  deliveryLongitude: number | null;
+  deliveryDistanceKm: number | null;
+  deliveryZone: string | null;
+  deliveryFee: number;
+  expressSurcharge: number;
+  itemIndexes: number[];
 }
 
 function roundToCents(amount: number): number {
@@ -204,6 +256,86 @@ function daysUntilPickup(pickupDeliveryDate: string | null | undefined): number 
 function isExpressOrder(pickupDeliveryDate: string | null | undefined): boolean {
   const d = daysUntilPickup(pickupDeliveryDate);
   return d !== null && d >= ORDER_LEAD_DAYS && d <= EXPRESS_MAX_DAYS;
+}
+
+// ── Multi-date fulfillment — resolve ONE fulfillment entry ────────────────
+// Exactly the same rules as the legacy single-date path below (lead time,
+// Google Maps distance + tariff for a real delivery), just parameterised so
+// it can run once per distinct pickup/delivery date instead of once per
+// order. Throws on any violation — same defensive posture as everywhere
+// else in this function; one bad fulfillment aborts the whole order (never
+// silently drops or downgrades one date while charging for the others).
+async function resolveOneFulfillment(
+  input: FulfillmentInput,
+  expressEligibleTotal: number,
+): Promise<ResolvedFulfillment> {
+  const date = String(input.date ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error(`Fulfillment date "${input.date}" is not a valid YYYY-MM-DD date.`);
+  }
+  if (input.deliveryMethod !== "pickup" && input.deliveryMethod !== "delivery") {
+    throw new Error(`Fulfillment for ${date}: deliveryMethod must be "pickup" or "delivery".`);
+  }
+  if (!Array.isArray(input.itemIndexes) || input.itemIndexes.length === 0) {
+    throw new Error(`Fulfillment for ${date} has no items.`);
+  }
+
+  const daysOut = daysUntilPickup(date);
+  if (daysOut === null || daysOut < ORDER_LEAD_DAYS) {
+    throw new Error(
+      `PICKUP_DATE_TOO_SOON: fulfillment ${date} — the earliest available pickup/delivery date is ` +
+      `${ORDER_LEAD_DAYS} calendar days from today (Europe/Zurich). ` +
+      (daysOut === null ? "No valid date given." :
+        daysOut < 0 ? "The requested date is in the past." : `The requested date is only ${daysOut} day(s) away.`),
+    );
+  }
+
+  const resolved: ResolvedFulfillment = {
+    date,
+    deliveryMethod: input.deliveryMethod,
+    slot: input.slot ?? null,
+    deliveryAddress: null,
+    deliveryPlaceId: null,
+    deliveryPostalCode: null,
+    deliveryCity: null,
+    deliveryLatitude: null,
+    deliveryLongitude: null,
+    deliveryDistanceKm: null,
+    deliveryZone: null,
+    deliveryFee: 0,
+    expressSurcharge: isExpressOrder(date) ? roundToCents(expressEligibleTotal * EXPRESS_RATE) : 0,
+    itemIndexes: input.itemIndexes,
+  };
+
+  if (input.deliveryMethod === "delivery") {
+    if (!input.deliveryPlaceId || typeof input.deliveryPlaceId !== "string") {
+      throw new Error(`Fulfillment for ${date}: please select a delivery address from the suggestions.`);
+    }
+    let resolution;
+    try {
+      resolution = await resolveDeliveryForPlaceId(input.deliveryPlaceId);
+    } catch (geoError) {
+      console.error(`Delivery distance resolution failed for fulfillment ${date}:`, geoError);
+      throw new Error(
+        `We couldn't calculate the delivery distance for ${date} right now. Please try again in a moment, or choose pick-up for that date.`,
+      );
+    }
+    const tier = resolveDeliveryFeeByDistance(resolution.distanceKm);
+    if (!tier.deliverable) {
+      throw new Error(`Delivery is not available for the address given for ${date}.`);
+    }
+    resolved.deliveryAddress = resolution.formattedAddress || null;
+    resolved.deliveryPlaceId = input.deliveryPlaceId;
+    resolved.deliveryPostalCode = resolution.postalCode || null;
+    resolved.deliveryCity = resolution.city || null;
+    resolved.deliveryLatitude = resolution.lat;
+    resolved.deliveryLongitude = resolution.lng;
+    resolved.deliveryDistanceKm = Math.round(resolution.distanceKm * 100) / 100;
+    resolved.deliveryFee = tier.fee;
+    resolved.deliveryZone = tier.label;
+  }
+
+  return resolved;
 }
 
 // Fixed voucher base price for a single order_item, resolved from the
@@ -519,6 +651,7 @@ serve(async (req) => {
       pricingItems,
       deliveryPlaceId,
       rewardAmountToUse,
+      fulfillments: rawFulfillments,
     } = body;
 
     if (!orderId) throw new Error("orderId is required");
@@ -693,64 +826,139 @@ serve(async (req) => {
       order.pickup_delivery_datetime = null;
     }
 
-    // ── Physical-order calendar rule — server-authoritative ──────────────
-    // Any order with at least one physical product needs a pickup/delivery
-    // date at least ORDER_LEAD_DAYS (=2) calendar days out (Europe/Zurich):
-    //   J+0 / J+1  -> refused (no PostFinance transaction is created)
-    //   J+2 / J+3  -> allowed, express surcharge applied below
-    //   J+4+       -> allowed, no surcharge
-    // Workshop-only orders are exempt (pickup_delivery_date is null for them).
-    // This runs BEFORE any welcome-discount / reward reservation, so there is
-    // nothing to release; the global catch's release helpers stay as a safety
-    // net regardless.
+    // ── Fulfillment resolution — UNIFIED (correction round 2, Sept 2026) ───
+    // BLOCKER fix: order_fulfillments must exist for EVERY physical order,
+    // not only when the client sends a multi-date payload. The feature flag
+    // (MULTI_DATE_FULFILLMENT_ENABLED, frontend-only) controls whether a
+    // customer may pick MORE THAN ONE date — it must never control whether
+    // the backend uses the new structure at all. So: whatever shape the
+    // client sent, it is first normalised into ONE canonical list,
+    // `fulfillmentInputs`, and everything downstream (coverage validation,
+    // per-date resolution, legacy-column compatibility, order_fulfillments
+    // creation in confirm-postfinance-payment) runs identically regardless
+    // of where those entries came from. No second, parallel code path.
+    //
+    //   * client sent `fulfillments[]` (multi-date UI, flag on)
+    //       -> used as-is.
+    //   * client sent the legacy single-date fields (every order today)
+    //       -> synthesised into ONE fulfillment entry covering every
+    //          physical item, built from order.pickup_delivery_date /
+    //          order.delivery_method / order.pickup_delivery_slot /
+    //          deliveryPlaceId — i.e. exactly the inputs the old single-date
+    //          code used to resolve directly. Same validation, same Google
+    //          Maps resolution, same result.
+    //   * workshop-only order (!hasPhysicalItem)
+    //       -> stays empty; no order_fulfillments row is ever created for a
+    //          workshop, and none of the fields above are read.
+    let fulfillmentInputs: FulfillmentInput[] = [];
     if (hasPhysicalItem) {
-      const daysOut = daysUntilPickup(order.pickup_delivery_date);
-      if (daysOut === null) {
-        throw new Error("A pickup or delivery date is required for this order.");
-      }
-      if (daysOut < ORDER_LEAD_DAYS) {
-        throw new Error(
-          `PICKUP_DATE_TOO_SOON: the earliest available pickup/delivery date is ${ORDER_LEAD_DAYS} calendar days from today (Europe/Zurich). ` +
-          (daysOut < 0
-            ? "The requested date is in the past."
-            : `The requested date is only ${daysOut} day(s) away.`),
-        );
+      if (Array.isArray(rawFulfillments) && rawFulfillments.length > 0) {
+        fulfillmentInputs = rawFulfillments;
+      } else {
+        const allPhysicalIndexes = orderItems
+          .map((it, i) => (it.product !== "workshop" ? i : -1))
+          .filter((i) => i >= 0);
+        fulfillmentInputs = [{
+          date: String(order.pickup_delivery_date ?? ""),
+          deliveryMethod: order.delivery_method === "delivery" ? "delivery" : "pickup",
+          deliveryPlaceId: deliveryPlaceId ?? null,
+          slot: order.pickup_delivery_slot ?? null,
+          itemIndexes: allPhysicalIndexes,
+        }];
       }
     }
 
-    if (hasPhysicalItem && order.delivery_method === "delivery") {
-      if (!deliveryPlaceId || typeof deliveryPlaceId !== "string") {
-        throw new Error("Please select your delivery address from the suggestions.");
+    let resolvedFulfillments: ResolvedFulfillment[] | null = null;
+    if (fulfillmentInputs.length > 0) {
+      // ── Coverage validation: every physical item claimed by EXACTLY one
+      // fulfillment; no workshop item ever referenced. A violation aborts
+      // the whole order — never silently drops or double-charges an item.
+      // For the synthesised single-entry case this trivially holds (it
+      // covers exactly the full physical set) — kept as a real check anyway,
+      // not special-cased away, so both origins are verified the same way.
+      const physicalIndexes = new Set(
+        orderItems.map((it, i) => (it.product !== "workshop" ? i : -1)).filter((i) => i >= 0),
+      );
+      const covered = new Set<number>();
+      for (const f of fulfillmentInputs) {
+        for (const idx of (Array.isArray(f.itemIndexes) ? f.itemIndexes : [])) {
+          if (!physicalIndexes.has(idx)) {
+            throw new Error(`Fulfillment for ${f.date} references item index ${idx}, which is not a physical item.`);
+          }
+          if (covered.has(idx)) {
+            throw new Error(`Item index ${idx} is claimed by more than one fulfillment.`);
+          }
+          covered.add(idx);
+        }
       }
-
-      let resolution;
-      try {
-        resolution = await resolveDeliveryForPlaceId(deliveryPlaceId);
-      } catch (geoError) {
-        console.error("Delivery distance resolution failed:", geoError);
+      if (covered.size !== physicalIndexes.size) {
         throw new Error(
-          "We couldn't calculate the delivery distance right now. Please try again in a moment, or choose pick-up.",
+          `${physicalIndexes.size - covered.size} physical item(s) are not covered by any fulfillment.`,
         );
       }
 
-      const tier = resolveDeliveryFeeByDistance(resolution.distanceKm);
-      if (!tier.deliverable) {
-        throw new Error("Delivery is not available for this address.");
+      // ── Resolve each date (lead-time rule + Google Maps distance/tariff
+      // for a real delivery) — one shared function, whatever the origin. ──
+      resolvedFulfillments = [];
+      for (const f of fulfillmentInputs) {
+        const groupTotal = f.itemIndexes.reduce((sum, idx) => sum + (orderItems[idx].total ?? 0), 0);
+        resolvedFulfillments.push(await resolveOneFulfillment(f, groupTotal));
       }
 
-      // Everything delivery-related on the order is stamped from the
-      // server-resolved values — not from the client payload.
-      order.delivery_address = resolution.formattedAddress || order.delivery_address;
-      order.delivery_postal_code = resolution.postalCode || null;
-      order.delivery_city = resolution.city || null;
-      order.delivery_latitude = resolution.lat;
-      order.delivery_longitude = resolution.lng;
-      order.delivery_distance_km = Math.round(resolution.distanceKm * 100) / 100;
-      order.delivery_fee = tier.fee;
-      order.delivery_zone = tier.label; // internal ops label, never shown to the customer
-    } else {
-      // Pick-up — unchanged behaviour: no distance lookup, no fee.
-      order.delivery_fee = 0;
+      // ── Legacy single-column compatibility (never remove an old column) ─
+      if (resolvedFulfillments.length === 1) {
+        // Exactly one physical date — always true today (single-date UI) —
+        // fill the legacy singular columns exactly as the pre-fulfillment
+        // code did, so every downstream reader (emails, invoice, Make)
+        // keeps working completely unchanged. pickup_delivery_datetime is
+        // left as whatever the client sent (display-only compat field,
+        // never recomputed server-side, exactly as before).
+        const only = resolvedFulfillments[0];
+        order.pickup_delivery_date = only.date;
+        order.pickup_delivery_slot = only.slot;
+        order.delivery_method = only.deliveryMethod;
+        order.delivery_address = only.deliveryAddress;
+        order.delivery_postal_code = only.deliveryPostalCode;
+        order.delivery_city = only.deliveryCity;
+        order.delivery_latitude = only.deliveryLatitude;
+        order.delivery_longitude = only.deliveryLongitude;
+        order.delivery_distance_km = only.deliveryDistanceKm;
+        order.delivery_zone = only.deliveryZone;
+        order.delivery_fee = only.deliveryFee;
+      } else {
+        // 2+ distinct dates (only reachable once the frontend flag is on
+        // AND the client actually sends fulfillments[]) → the legacy
+        // single-value columns become genuinely ambiguous. Per explicit
+        // instruction: NULL them out rather than pick one arbitrarily —
+        // order_fulfillments becomes the reliable source. delivery_fee is
+        // the one exception: it stays a single meaningful number, the SUM
+        // of every fulfillment's fee.
+        order.pickup_delivery_date = null;
+        order.pickup_delivery_slot = null;
+        order.pickup_delivery_datetime = null;
+        order.delivery_method = null;
+        order.delivery_address = null;
+        order.delivery_postal_code = null;
+        order.delivery_city = null;
+        order.delivery_latitude = null;
+        order.delivery_longitude = null;
+        order.delivery_distance_km = null;
+        order.delivery_zone = null;
+        order.delivery_fee = roundToCents(resolvedFulfillments.reduce((s, f) => s + f.deliveryFee, 0));
+      }
+
+      // Tag each covered order_item with which resolved fulfillment it
+      // belongs to. `_fulfillmentIndex` is NOT in ORDER_ITEM_PAYLOAD_FIELDS —
+      // it can never reach the order_items table; it only routes items to
+      // the right order_fulfillments row inside confirm-postfinance-payment,
+      // then is discarded. A workshop item is never tagged (it was never in
+      // physicalIndexes / any fulfillment's itemIndexes), so its
+      // fulfillment_id always resolves to null downstream.
+      resolvedFulfillments.forEach((f, fIdx) => {
+        f.itemIndexes.forEach((itemIdx) => {
+          (orderItems[itemIdx] as Record<string, unknown>)._fulfillmentIndex = fIdx;
+        });
+      });
     }
 
     // ─── Idempotency: the "CREATING" pending_payments placeholder ───────────
@@ -777,8 +985,11 @@ serve(async (req) => {
       postfinance_transaction_id: "CREATING",
       // Priced items + resolved delivery. The FINAL payload (welcome / reward /
       // express / total) overwrites this a few lines down, before the
-      // transaction is created or used.
-      payload: { order, orderItems },
+      // transaction is created or used. `fulfillments` is undefined on the
+      // legacy single-date path (100% of orders today) — confirm-postfinance-
+      // payment treats an absent/empty array as "create nothing extra",
+      // exactly like before this field existed.
+      payload: { order, orderItems, fulfillments: resolvedFulfillments ?? undefined },
     });
     if (placeholderError) {
       if ((placeholderError as { code?: string }).code === "23505") {
@@ -890,16 +1101,23 @@ serve(async (req) => {
     // capture; release_reward_reservation(p_order_id) gives it back on any
     // failure before the payment page.
     //
-    // Workshops are excluded from the eligible base and never receive a
-    // reward deduction on their PostFinance line.
+    // Workshops are excluded from the eligible base ONLY when there is a
+    // physical item to protect (cake-only / mixed) — reward must never touch
+    // a workshop line there, so order_items.total for that workshop line
+    // stays the exact, untouched amount mixed-cart refund isolation depends
+    // on (see [[pricing-composition]]). A workshop-ONLY order has no
+    // physical portion to protect, so the cagnotte rule the customer sees
+    // everywhere else (spend it against whatever you're buying) applies to
+    // it too — this is the fix for the "cagnotte does nothing on a
+    // workshop-only order" bug. Mixed carts are 100% unchanged.
     const requestedReward = Number(rewardAmountToUse ?? 0);
     if (!Number.isFinite(requestedReward) || requestedReward < 0) {
       throw new Error("Invalid rewardAmountToUse");
     }
 
-    const rewardEligibleSubtotal = orderItems
-      .filter((item) => item.product !== "workshop")
-      .reduce((sum, item) => sum + item.total, 0);
+    const rewardEligibleSubtotal = hasPhysicalItem
+      ? orderItems.filter((item) => item.product !== "workshop").reduce((sum, item) => sum + item.total, 0)
+      : orderItems.reduce((sum, item) => sum + item.total, 0);
     const maxReward = roundToCents(Math.max(0, rewardEligibleSubtotal - discountAmount));
 
     let reservedReward = 0;
@@ -927,15 +1145,25 @@ serve(async (req) => {
     order.reward_amount_used = reservedReward;
 
     // ── Express surcharge (+10%) ───────────────────────────────────────
-    // Server-authoritative: decided ONLY from the Europe/Zurich date vs
-    // order.pickup_delivery_date. Base = physical products only (workshops
-    // and the delivery fee are excluded). Never trusts a client isExpress
-    // flag / amount / total.
-    const expressEligibleBase = orderItems
-      .filter((item) => item.product !== "workshop")
-      .reduce((sum, item) => sum + item.total, 0);
-    const isExpress = isExpressOrder(order.pickup_delivery_date);
-    const expressSurcharge = isExpress ? roundToCents(expressEligibleBase * EXPRESS_RATE) : 0;
+    // Server-authoritative: decided ONLY from the Europe/Zurich date vs the
+    // relevant pickup/delivery date(s). Base = physical products only
+    // (workshops and delivery fees are excluded). Never trusts a client
+    // isExpress flag / amount / total.
+    //
+    // Multi-fulfillment: each date is evaluated against its OWN items' total
+    // (already computed per-fulfillment in resolveOneFulfillment above) —
+    // express-ness genuinely differs per date (a J+2 date and a J+9 date in
+    // the same order must not share one flag), so the surcharge is the SUM
+    // of each fulfillment's own express amount, never derived from a single
+    // order-level date.
+    const expressSurcharge = resolvedFulfillments
+      ? roundToCents(resolvedFulfillments.reduce((sum, f) => sum + f.expressSurcharge, 0))
+      : (() => {
+          const expressEligibleBase = orderItems
+            .filter((item) => item.product !== "workshop")
+            .reduce((sum, item) => sum + item.total, 0);
+          return isExpressOrder(order.pickup_delivery_date) ? roundToCents(expressEligibleBase * EXPRESS_RATE) : 0;
+        })();
     order.express_surcharge_amount = expressSurcharge;
 
     const lineItems = orderItems.map((item, i) => {
@@ -972,18 +1200,28 @@ serve(async (req) => {
       };
     });
 
-    // Reward can only reduce NON-workshop lines. Allocate reservedReward
-    // across them in order; the running remainder must land exactly on 0 or
-    // the whole transaction is rejected (and the reservation released) —
-    // never let the PostFinance total and orders.total_amount diverge.
+    // Reward can only reduce a workshop line when there is NO physical item
+    // in the order (workshop-only) — a mixed order keeps the exact previous
+    // rule (workshop lines always skipped) so order_items.total for its
+    // workshop line(s) is never touched, preserving refund isolation.
+    // Allocate reservedReward across the eligible lines in order; the
+    // running remainder must land exactly on 0 or the whole transaction is
+    // rejected (and the reservation released) — never let the PostFinance
+    // total and orders.total_amount diverge. order_items.total itself is
+    // NEVER modified here (unchanged from before) — only the ephemeral
+    // PostFinance line (`line.amountIncludingTax`) and the new, purely
+    // informational orderItems[i].reward_amount_used (persisted later for
+    // workshop-cancellation refund math, read by claim_workshop_
+    // reservations_batch — see the companion migrations).
     if (reservedReward > 0) {
       let rewardRemaining = reservedReward;
       for (let i = 0; i < lineItems.length && rewardRemaining > 0; i++) {
-        if (orderItems[i].product === "workshop") continue;
+        if (hasPhysicalItem && orderItems[i].product === "workshop") continue;
         const line = lineItems[i];
         const lineTotal = roundToCents(line.amountIncludingTax * line.quantity);
         const deduct = roundToCents(Math.min(rewardRemaining, lineTotal));
         line.amountIncludingTax = roundToCents(line.amountIncludingTax - deduct / line.quantity);
+        orderItems[i].reward_amount_used = deduct;
         rewardRemaining = roundToCents(rewardRemaining - deduct);
       }
       if (roundToCents(rewardRemaining) !== 0) {
@@ -1008,23 +1246,35 @@ serve(async (req) => {
       });
     }
 
-    if (order.delivery_method === "delivery" && order.delivery_fee > 0) {
+    // The single authoritative "how much delivery to charge" number.
+    // Deliberately NOT re-derived from order.delivery_method /
+    // order.delivery_fee here: for a 2+-fulfillment order those legacy
+    // columns are NULLed above (ambiguous — see the compatibility block),
+    // which would otherwise make this condition always false and silently
+    // drop the delivery charge entirely. resolvedFulfillments (server-
+    // computed, never the legacy columns) stays authoritative regardless of
+    // how many fulfillments there are or whether the legacy columns were
+    // collapsed/NULLed.
+    const deliveryFeeTotal = resolvedFulfillments
+      ? roundToCents(resolvedFulfillments.reduce((sum, f) => sum + f.deliveryFee, 0))
+      : (order.delivery_method === "delivery" ? (order.delivery_fee ?? 0) : 0);
+
+    if (deliveryFeeTotal > 0) {
       lineItems.push({
         uniqueId: "delivery-fee",
         name: "Delivery Fee",
         quantity: 1,
-        amountIncludingTax: order.delivery_fee,
+        amountIncludingTax: deliveryFeeTotal,
         type: "SHIPPING",
       });
     }
 
     // The frontend-sent total_amount is never trusted either — recomputed
     // here from the same real numbers PostFinance is actually charging.
-    // orderItems[].total, order.delivery_fee and expressSurcharge are all
+    // orderItems[].total, deliveryFeeTotal and expressSurcharge are all
     // server-computed above, not client values.
-    const deliveryFee = order.delivery_method === "delivery" ? order.delivery_fee : 0;
     order.total_amount = roundToCents(
-      productsSubtotal - discountAmount - reservedReward + expressSurcharge + deliveryFee,
+      productsSubtotal - discountAmount - reservedReward + expressSurcharge + deliveryFeeTotal,
     );
 
     // The welcome discount + reward are both capped so this can never go
@@ -1057,7 +1307,7 @@ serve(async (req) => {
     // reward-only and the normal path.
     const { data: payloadRows, error: payloadError } = await supabase
       .from("pending_payments")
-      .update({ payload: { order, orderItems } })
+      .update({ payload: { order, orderItems, fulfillments: resolvedFulfillments ?? undefined } })
       .eq("order_id", orderId)
       .select("order_id");
     if (payloadError) {

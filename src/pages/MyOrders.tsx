@@ -5,8 +5,9 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { sizes, shapes, styles } from "@/data/customization";
+import { PRODUCT_LABELS, formatDateCH, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
 
 type CustomerOrderItem = {
   id: string;
@@ -49,12 +50,6 @@ type CustomerOrder = {
   order_items: CustomerOrderItem[];
 };
 
-function formatDateCH(dateValue?: string | null): string {
-  if (!dateValue) return "—";
-  const [year, month, day] = dateValue.split("-");
-  return year && month && day ? `${day}.${month}.${year}` : dateValue;
-}
-
 function itemsSummary(items: CustomerOrder["order_items"]): string {
   return items
     .map((item) =>
@@ -65,39 +60,10 @@ function itemsSummary(items: CustomerOrder["order_items"]): string {
     .join(", ");
 }
 
-// Raw ids are decoded against the same catalogue used at checkout wherever
-// possible (sizes/shapes/styles) — falls back to a light "prettify" of the
-// raw id for product lines that don't live in that catalogue (DIY Kit, Dot
-// Cakes packs, Edible Printing), rather than building a second lookup table.
-function prettifyId(id: string): string {
-  return id.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function sizeLabel(sizeId: string): string {
-  return sizes.find((s) => s.id === sizeId)?.name || prettifyId(sizeId);
-}
-
-function shapeLabel(shapeId: string): string {
-  return shapes.find((s) => s.id === shapeId)?.name || prettifyId(shapeId);
-}
-
-function designLabel(designId: string): string {
-  return styles.find((s) => s.id === designId)?.name || prettifyId(designId);
-}
-
-const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
-  bento_cake: { en: "Cake", fr: "Gâteau" },
-  rectangle_cake: { en: "Rectangle Cake", fr: "Gâteau Rectangle" },
-  dot_cakes: { en: "Dot Cakes", fr: "Dot Cakes" },
-  diy_kit: { en: "DIY Kit", fr: "Kit DIY" },
-  candles: { en: "Candles", fr: "Bougies" },
-  edible_printing: { en: "Edible Printing", fr: "Impression Comestible" },
-  workshop: { en: "Workshop", fr: "Atelier" },
-};
-
 const MyOrders = () => {
   const { t } = useLang();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<CustomerOrder[] | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -184,15 +150,49 @@ const MyOrders = () => {
   const handleViewInvoice = async (order: CustomerOrder) => {
     if (!order.invoice_path) return;
     setInvoiceLoadingId(order.id);
+    // Open a blank tab SYNCHRONOUSLY, still inside the click handler, before
+    // any await — some browsers (Safari in particular) stop treating a
+    // window.open() call as user-initiated once it happens after an awaited
+    // network call, and silently block it with no visible error. Opening
+    // the tab now and redirecting it once the signed URL resolves keeps
+    // this a genuine, unblocked user gesture end to end.
+    const invoiceTab = window.open("", "_blank", "noopener,noreferrer");
     try {
       const { data, error } = await supabase.storage
         .from("invoice")
         .createSignedUrl(order.invoice_path, 60 * 5);
       if (error || !data?.signedUrl) {
         console.error("Failed to get invoice URL:", error);
+        invoiceTab?.close();
+        toast({
+          title: t("Could not open the invoice", "Impossible d'ouvrir la facture"),
+          description: t(
+            "Please try again in a moment, or contact us if this keeps happening.",
+            "Merci de réessayer dans un instant, ou de nous contacter si le problème persiste."
+          ),
+          variant: "destructive",
+        });
         return;
       }
-      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      if (invoiceTab) {
+        invoiceTab.location.href = data.signedUrl;
+      } else {
+        // The pre-opened tab itself got blocked (very strict blocker) —
+        // fall back to a direct open now; this one at least carries a real
+        // URL, which some blockers still allow through.
+        window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch (err) {
+      console.error("Invoice fetch threw:", err);
+      invoiceTab?.close();
+      toast({
+        title: t("Could not open the invoice", "Impossible d'ouvrir la facture"),
+        description: t(
+          "Please try again in a moment, or contact us if this keeps happening.",
+          "Merci de réessayer dans un instant, ou de nous contacter si le problème persiste."
+        ),
+        variant: "destructive",
+      });
     } finally {
       setInvoiceLoadingId(null);
     }
@@ -240,36 +240,50 @@ const MyOrders = () => {
         {isExpanded && (
           <div className="border-t border-border/60 p-5 space-y-5 bg-secondary/10">
             <div className="space-y-4">
-              {order.order_items.map((item) => (
-                <div key={item.id} className="text-sm space-y-1">
-                  <p className="font-medium text-foreground">
-                    {item.product === "workshop"
-                      ? (item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature"))
-                      : (t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product)}
-                    {item.product !== "workshop" && item.size && ` — ${sizeLabel(item.size)}`}
-                    {item.product !== "workshop" && item.shape && item.shape !== "round" && ` (${shapeLabel(item.shape)})`}
-                  </p>
-                  <div className="text-muted-foreground space-y-0.5 pl-0.5">
-                    {item.product === "workshop" && (
-                      <>
-                        {item.workshop_date && <p>{t("Date:", "Date :")} {formatDateCH(item.workshop_date)}{item.workshop_time ? ` · ${item.workshop_time}` : ""}</p>}
-                        {item.workshop_participants != null && <p>{t("Participants:", "Participants :")} {item.workshop_participants}</p>}
-                      </>
-                    )}
-                    {item.design && <p>{t("Design:", "Design :")} {designLabel(item.design)}</p>}
-                    {item.flavors?.length ? <p>{t("Flavour:", "Parfum :")} {item.flavors.join(", ")}</p> : null}
-                    {item.extra && <p>{t("Extras:", "Extras :")} {item.extra} (+CHF {item.extras_price})</p>}
-                    {item.candle_name && (
-                      <p>
-                        🕯️ {item.candle_name}
-                        {item.candle_quantity ? ` ×${item.candle_quantity}` : ""} (+CHF {item.candles_price})
+              {order.order_items.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">
+                  {t("Item details aren't available for this order.", "Le détail des articles n'est pas disponible pour cette commande.")}
+                </p>
+              ) : (
+                order.order_items.map((item) => {
+                  const { designPhoto, comment } = splitComment(item.item_comment);
+                  return (
+                    <div key={item.id} className="text-sm space-y-1">
+                      <p className="font-medium text-foreground">
+                        {item.product === "workshop"
+                          ? (item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature"))
+                          : (t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product)}
+                        {item.product !== "workshop" && item.size && ` — ${sizeLabel(item.size)}`}
+                        {item.product !== "workshop" && item.shape && item.shape !== "round" && ` (${shapeLabel(item.shape)})`}
                       </p>
-                    )}
-                    {item.item_comment && <p>{t("Comment:", "Commentaire :")} {item.item_comment}</p>}
-                  </div>
-                  <p className="text-foreground font-medium">CHF {item.total}</p>
-                </div>
-              ))}
+                      <div className="text-muted-foreground space-y-0.5 pl-0.5">
+                        {item.product === "workshop" && (
+                          <>
+                            {item.workshop_date && <p>{t("Date:", "Date :")} {formatDateCH(item.workshop_date)}{item.workshop_time ? ` · ${item.workshop_time}` : ""}</p>}
+                            {item.workshop_participants != null && <p>{t("Participants:", "Participants :")} {item.workshop_participants}</p>}
+                          </>
+                        )}
+                        {item.design && (
+                          <p>
+                            {t("Design:", "Design :")} {designLabel(item.design)}
+                            {designPhoto ? ` — ${t("Photo", "Photo")} ${designPhoto}` : ""}
+                          </p>
+                        )}
+                        {item.flavors?.length ? <p>{t("Flavour:", "Parfum :")} {item.flavors.join(", ")}</p> : null}
+                        {item.extra && <p>{t("Extras:", "Extras :")} {item.extra} (+CHF {item.extras_price})</p>}
+                        {item.candle_name && (
+                          <p>
+                            🕯️ {item.candle_name}
+                            {item.candle_quantity ? ` ×${item.candle_quantity}` : ""} (+CHF {item.candles_price})
+                          </p>
+                        )}
+                        {comment && <p>{t("Comment:", "Commentaire :")} {comment}</p>}
+                      </div>
+                      <p className="text-foreground font-medium">CHF {item.total}</p>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             <div className="border-t border-border/60 pt-4 text-sm space-y-1">

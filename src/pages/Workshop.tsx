@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { submitToWeb3Forms } from "@/lib/web3forms";
 import { useLang } from "@/context/LanguageContext";
 import { useFieldError } from "@/lib/formErrors";
 import { PrivateWorkshopDialog } from "@/components/PrivateWorkshopDialog";

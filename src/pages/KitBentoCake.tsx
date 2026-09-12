@@ -21,6 +21,7 @@ import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
 import { FlavorDesc } from "@/data/flavorDesc";
 import { toast } from "sonner";
 import { useLang } from "@/context/LanguageContext";
+import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 
 // Flavor images
 import flavorVanilla from "@/assets/flavor-vanilla.png";
@@ -470,8 +471,8 @@ const KitBentoCake = () => {
               <p className="text-sm text-muted-foreground">{t("Minimum 4 days notice required.", "Un délai minimum de 4 jours est requis.")}</p>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" disabled={!!cartOrderDate}
-                    className={cn("w-full max-w-xs justify-start text-left font-normal rounded-none px-3 text-sm", !orderDate && "text-muted-foreground", cartOrderDate && "opacity-60 cursor-not-allowed")}>
+                  <Button variant="outline" disabled={!MULTI_DATE_FULFILLMENT_ENABLED && !!cartOrderDate}
+                    className={cn("w-full max-w-xs justify-start text-left font-normal rounded-none px-3 text-sm", !orderDate && "text-muted-foreground", !MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && "opacity-60 cursor-not-allowed")}>
                     <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="truncate">{orderDate ? format(orderDate, "PPP") : t("Select a date", "Choisir une date")}</span>
                   </Button>
@@ -480,7 +481,7 @@ const KitBentoCake = () => {
                   <Calendar mode="single" selected={orderDate} onSelect={setOrderDate} disabled={(date) => date < minDate} initialFocus />
                 </PopoverContent>
               </Popover>
-              {cartOrderDate && (
+              {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (
                 <p className="text-xs text-muted-foreground">
                   {t(`All items in this order will be prepared for ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. To order for another date, please place a separate order.`,
                     `Tous les articles de cette commande seront préparés pour le ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. Pour commander pour une autre date, veuillez passer une commande séparée.`)}

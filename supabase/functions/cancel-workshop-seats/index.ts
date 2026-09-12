@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "../_shared/postfinance.ts";
 import {
   claimAndDispatchWorkshopReservationSync,
   type WorkshopRefundStatus,
@@ -12,20 +11,61 @@ import {
 // ADMIN_ORDER_PIN match in the body. verify_jwt stays at its default (true).
 //
 // Never touches: cake orders, order_validation, the production Make webhook,
-// welcome discount, reward, tokens, complete-online, void-online, the FULL
-// refund flow in manage-order, or REWARD_ONLY handling.
+// welcome discount, tokens, complete-online, void-online, the FULL refund
+// flow in manage-order, cashback (workshops never earn reward — untouched by
+// this file, still enforced solely by finalize_reward_for_order's own
+// product <> 'workshop' filter).
+//
+// *** NO AUTOMATIC POSTFINANCE REFUND *** (policy, 2026-09-12): Bento Cake
+// Studio refunds PostFinance transactions BY HAND. This function NEVER calls
+// PostFinance's /payment/refunds endpoint and never marks a cancellation
+// 'refunded'. It only computes and records how much cash is DUE
+// (refund_amount_requested, status 'pending' == "à rembourser") — no
+// interface, email or Notion sync may ever say "refunded" until a human has
+// actually done the PostFinance refund and confirmed it through the separate
+// confirm-workshop-refund function (new — see that file), which calls the
+// existing finalize_workshop_refund() RPC. That RPC is untouched and was
+// never rewritten — it simply now has a real, controlled caller instead of
+// being invoked automatically from here.
+//
+// *** THIS FILE IS NOT THE SOURCE OF TRUTH FOR THE FINANCIAL CALCULATION ***
+// (concurrency correction, 2026-09-12): the cash-due and reward-due amounts
+// for a cancellation are computed ATOMICALLY by cancel_workshop_seats_atomic()
+// itself, under the reservation's row lock, in the SAME transaction as the
+// seat-count bump (see 20260912100300_cancel_workshop_seats_atomic.sql —
+// a NEW, distinctly-named RPC, deployed backward-compatibly alongside the
+// old cancel_workshop_seats rather than replacing it in place).
+// This function only orchestrates: it passes in whether the cancellation is
+// within the free-cancellation window (a pure date fact, not part of the
+// race) and reads back the RPC's authoritative refund_amount_requested /
+// reward_amount_due for reporting and to decide whether to call
+// restore_workshop_reward(). It never itself sums prior cancellation-log
+// rows or computes a cumulative target — doing that here, before the row
+// lock, is exactly the bug that was fixed: two concurrent cancellations of
+// the same reservation with different idempotency keys could both read the
+// same stale "seats cancelled so far" and compute the same amount.
+//
+// Reward/workshop bugfix (Sept 2026): a workshop-only order CAN now carry a
+// reward-balance deduction (create-postfinance-payment) — a cake-only or
+// mixed reservation still always has reward_amount_used = 0 (unchanged
+// rule), so reward_amount_due is simply always 0 there — behaviour for
+// those is 100% unchanged.
 //
 // Flow:
-//   1. gate — reservation confirmed / partially_cancelled AND order approved.
-//   2. cancel_workshop_seats() — atomic seat math + audit-log row. The
-//      idempotency_key is MANDATORY: a retry with the same key is a strict
-//      no-op (no extra seat cancelled, same log row).
-//   3. refund (only >= 7 calendar days before the workshop, Europe/Zurich):
-//      POST /payment/refunds with amount = the HISTORICAL reservation
-//      unit_price * seats, and a stable externalId derived from the
-//      cancellation-log UUID. The refund STATE is read back — only
-//      SUCCESSFUL bumps refunded_amount; CREATE/SCHEDULED/PENDING/MANUAL_CHECK
-//      stay 'pending'; FAILED stays 'failed'.
+//   1. gate — reservation confirmed / partially_cancelled AND order approved
+//      (pre-check here for a fast, friendly 404/409; cancel_workshop_seats_
+//      atomic() re-checks the same invariants itself, under lock, as the
+//      real authority — state could theoretically change between this read
+//      and the locked call).
+//   2. cancel_workshop_seats_atomic() — ONE atomic call: locks the reservation,
+//      checks idempotency, computes the cumulative cash/reward targets and
+//      this call's delta, bumps cancelled_seats, inserts the
+//      workshop_cancellation_log row with the exact amounts already set.
+//      The idempotency_key is MANDATORY: a retry with the same key is a
+//      strict no-op, returning the ORIGINAL row untouched.
+//   3. reward restoration (only if the log row says something is due and it
+//      hasn't been restored yet) via restore_workshop_reward() — idempotent
+//      on its own (workshop_cancellation_log.reward_amount_restored).
 //   4. workshop Make webhook (separate base) with refund_status. An inline
 //      attempt is made now (fast path, claim-protected); on failure or
 //      missing configuration, the claim is released and the durable
@@ -55,19 +95,6 @@ function daysBetween(fromISO: string, toISO: string): number {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
-
-// PostFinance RefundState -> our refund_status.
-function mapRefundState(state: string | undefined): WorkshopRefundStatus {
-  switch (state) {
-    case "SUCCESSFUL": return "refunded";
-    case "FAILED": return "failed";
-    case "CREATE":
-    case "SCHEDULED":
-    case "PENDING":
-    case "MANUAL_CHECK": return "pending";
-    default: return "pending";
-  }
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -114,7 +141,9 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    // ── Load reservation (pre-change) + session + order ───────────────────
+    // ── Load reservation (pre-change) + session + order — fast, friendly
+    // 404/409s only; cancel_workshop_seats_atomic() re-checks the same
+    // invariants itself, under lock, as the real authority.
     let resQuery = supabase.from("workshop_reservations").select("*");
     resQuery = reservation_id
       ? resQuery.eq("id", reservation_id)
@@ -148,85 +177,64 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 });
     }
 
-    // ── Refund window + amount (HISTORICAL price paid, not current) ───────
+    // The ONLY non-DB-state input to the financial calculation: a pure date
+    // fact (today, Europe/Zurich, vs the fixed workshop date), safe to
+    // compute here since it never depends on concurrent state.
     const daysUntil = daysBetween(zurichToday(), String(session.workshop_date));
     const withinFreeWindow = daysUntil >= REFUND_CUTOFF_DAYS;
-    const nominalRefund = round2(Number(reservationBefore.unit_price) * seats);
-    const txId: string = String(order.postfinance_transaction_id ?? "");
-    const isRewardOnly = txId === REWARD_ONLY_TRANSACTION_ID;
-    const txNum = Number(txId);
-    const canRefundTx = Number.isFinite(txNum) && txNum > 0; // false for REWARD_ONLY / empty
 
-    let plannedRefundStatus: "pending" | "outside_window" | "non_required";
-    if (!withinFreeWindow) plannedRefundStatus = "outside_window";
-    else if (nominalRefund > 0 && (canRefundTx || isRewardOnly)) plannedRefundStatus = "pending";
-    else plannedRefundStatus = "non_required";
-
-    // ── 1. Seat math + audit-log row (atomic + strictly idempotent) ──────
-    const { data: cancelLog, error: rpcErr } = await supabase.rpc("cancel_workshop_seats", {
+    // ── 1. ONE atomic call — lock, idempotency, cumulative cash/reward
+    //    calculation, seat bump, log insert. See the migration's own header
+    //    comment for the concurrency guarantee this provides.
+    //    cancel_workshop_seats_atomic — a NEW, distinctly-named function
+    //    (20260912100300_cancel_workshop_seats_atomic.sql), deliberately NOT
+    //    a replacement of the old cancel_workshop_seats: this Edge Function
+    //    and that migration must be deployed together, and this rename is
+    //    what makes a backward-compatible rollout possible (the OLD
+    //    Edge Function, if still live, keeps calling the OLD RPC name,
+    //    untouched, until this new version replaces it).
+    const { data: cancelLog, error: rpcErr } = await supabase.rpc("cancel_workshop_seats_atomic", {
       p_reference: workshop_reference,
       p_reservation_id: reservation_id,
       p_seats_to_cancel: seats,
       p_idempotency_key: idemKey,
-      p_refund_amount_requested: withinFreeWindow ? nominalRefund : 0,
-      p_refund_status: plannedRefundStatus,
+      p_within_free_window: withinFreeWindow,
     });
-    if (rpcErr) throw new Error(`cancel_workshop_seats failed: ${rpcErr.message}`);
-    if (!cancelLog) throw new Error("cancel_workshop_seats returned no row");
+    if (rpcErr) throw new Error(`cancel_workshop_seats_atomic failed: ${rpcErr.message}`);
+    if (!cancelLog) throw new Error("cancel_workshop_seats_atomic returned no row");
 
     const logId: string = cancelLog.id;
-    const externalId = `ws-refund-${logId}`; // stable, not derived from mutable state
-    let logRefundStatus: WorkshopRefundStatus = cancelLog.refund_status;
-    let refundApplied = Number(cancelLog.refund_amount_completed) || 0;
-    let postfinanceRefundId: string | null = cancelLog.postfinance_refund_id ?? null;
+    const cashRefundDue = round2(Number(cancelLog.refund_amount_requested) || 0);
+    const logRefundStatus: WorkshopRefundStatus = cancelLog.refund_status;
+    const refundApplied = round2(Number(cancelLog.refund_amount_completed) || 0);
+    const postfinanceRefundId: string | null = cancelLog.postfinance_refund_id ?? null;
+    const rewardDue = round2(Number(cancelLog.reward_amount_due) || 0);
+    let rewardRestored = round2(Number(cancelLog.reward_amount_restored) || 0);
 
-    // ── 2. Refund — attempt / reconcile, never re-cancel seats ───────────
-    if (withinFreeWindow && nominalRefund > 0 && (logRefundStatus === "pending" || logRefundStatus === "failed")) {
-      if (isRewardOnly) {
-        // Reward-only booking: no PostFinance money to refund; the reward
-        // itself is out of scope here (workshops never earn/spend reward).
-        logRefundStatus = "non_required";
-        await supabase.rpc("finalize_workshop_refund", {
-          p_log_id: logId, p_refund_status: "non_required",
-          p_refund_amount_completed: 0, p_postfinance_refund_id: null,
-        });
+    // ── 2. Reward restoration — a purely internal ledger credit, no
+    //    external API call, so it happens right away (unlike the cash side,
+    //    which always waits for a human). Idempotent on its own
+    //    (workshop_cancellation_log.reward_amount_restored) — safe to call
+    //    again on a retry, it no-ops once already applied.
+    if (rewardDue > 0 && rewardRestored === 0) {
+      const { data: restored, error: restoreErr } = await supabase.rpc("restore_workshop_reward", {
+        p_log_id: logId,
+        p_customer_id: order.customer_id,
+        p_order_id: order.id,
+        p_amount: rewardDue,
+      });
+      if (restoreErr) {
+        // Never fails the whole cancellation over this — the seats are
+        // already cancelled and the cash side is already recorded as due.
+        // Surfaced loudly so it gets noticed and fixed; a retry (same
+        // idempotency_key) will attempt the restoration again.
+        console.error("restore_workshop_reward failed:", restoreErr);
       } else {
-        try {
-          const credentials = getPostFinanceCredentials();
-          // externalId is stable (derived from the cancellation-log UUID), so
-          // a retry with the same idempotency_key re-POSTs the SAME externalId
-          // and PostFinance returns the ORIGINAL refund (with its current
-          // state) instead of creating a second one. Never re-cancels seats.
-          const refund = await pfFetch(credentials, "/payment/refunds", "POST", {
-            externalId,
-            type: "MERCHANT_INITIATED_ONLINE",
-            transaction: txNum,
-            amount: nominalRefund,
-          }) as { id?: number | string; state?: string };
-
-          postfinanceRefundId = refund?.id != null ? String(refund.id) : postfinanceRefundId;
-          logRefundStatus = mapRefundState(refund?.state);
-          refundApplied = logRefundStatus === "refunded" ? nominalRefund : 0;
-
-          await supabase.rpc("finalize_workshop_refund", {
-            p_log_id: logId,
-            p_refund_status: logRefundStatus,
-            p_refund_amount_completed: refundApplied,
-            p_postfinance_refund_id: postfinanceRefundId,
-          });
-        } catch (refundErr) {
-          console.error("Workshop partial refund call failed:", refundErr);
-          logRefundStatus = "failed";
-          refundApplied = 0;
-          await supabase.rpc("finalize_workshop_refund", {
-            p_log_id: logId, p_refund_status: "failed",
-            p_refund_amount_completed: 0, p_postfinance_refund_id: postfinanceRefundId,
-          });
-        }
+        rewardRestored = round2(Number(restored ?? 0));
       }
     }
 
-    // ── Re-read reservation for fresh seat counts + persisted refunded_amount
+    // ── Re-read reservation for fresh seat counts ─────────────────────────
     const { data: reservation, error: rereadErr } = await supabase
       .from("workshop_reservations").select("*").eq("id", reservationBefore.id).single();
     if (rereadErr || !reservation) throw new Error("Failed to re-read reservation after cancellation");
@@ -244,8 +252,8 @@ serve(async (req) => {
     //    dead end, no double send, and the durable cooldown-protected alert
     //    fires on a missing config (never a fresh in-memory flag). The
     //    cancellation itself already bumped workshop_reservations.updated_at
-    //    (cancel_workshop_seats RPC), which is what makes this reservation
-    //    eligible for claim in the first place.
+    //    (cancel_workshop_seats_atomic RPC), which is what makes this
+    //    reservation eligible for claim in the first place.
     await claimAndDispatchWorkshopReservationSync(supabase, reservation.id);
 
     // ── 4. Cancellation email (best-effort) ─────────────────────────────
@@ -255,9 +263,14 @@ serve(async (req) => {
           body: {
             reservation_id: reservation.id,
             seats_cancelled: seats,
+            // Nothing has actually been refunded automatically — refund_amount
+            // stays whatever finalize_workshop_refund last recorded (0 until a
+            // human does the PostFinance refund and confirm-workshop-refund
+            // records it). nominal_refund is the CASH DUE (never "refunded").
             refund_amount: refundApplied,
-            nominal_refund: nominalRefund,
+            nominal_refund: cashRefundDue,
             refund_status: logRefundStatus,
+            reward_restored: rewardRestored,
           },
         });
       } catch (e) {
@@ -272,10 +285,16 @@ serve(async (req) => {
       purchased_seats: reservation.purchased_seats,
       cancelled_seats: reservation.cancelled_seats,
       active_seats: reservation.purchased_seats - reservation.cancelled_seats,
+      // refund_status is 'pending' ("à rembourser", cash refund due but NOT
+      // YET performed), 'outside_window', or 'non_required' — NEVER
+      // 'refunded' from this endpoint; only confirm-workshop-refund (after
+      // the manual PostFinance refund) can set that.
       refund_status: logRefundStatus,
-      nominal_refund: nominalRefund,
+      cash_refund_due: cashRefundDue,
       refund_applied: refundApplied,
       postfinance_refund_id: postfinanceRefundId,
+      reward_restored: rewardRestored,
+      cancellation_log_id: logId,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

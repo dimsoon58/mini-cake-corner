@@ -20,7 +20,10 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { submitToWeb3Forms } from "@/lib/web3forms";
+import { submitContactRequest } from "@/lib/contactRequest";
+import { combinePhoneNumber } from "@/lib/identity";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
+import { HoneypotField } from "@/components/HoneypotField";
 import { useLang } from "@/context/LanguageContext";
 import partnerGallery1 from "@/assets/partner-gallery-1.jpg";
 import partnerGallery2 from "@/assets/partner-gallery-2.jpg";
@@ -38,7 +41,10 @@ import cardCelebrations from "@/assets/corporate-event-5.png";
 import cardEvents from "@/assets/partner-gallery-11.jpg";
 import cardHospitality from "@/assets/corporate-hospitality.jpg";
 
-const phoneRegex = /^[+\d][\d\s().\-/]{6,}$/;
+// Same light rule everywhere phone is now split into country code + local
+// part: an "incomplete" number is caught here rather than by a rigid regex
+// that would need to know every country's real format.
+const MIN_LOCAL_PHONE_DIGITS = 4;
 
 /* ─────────────────────────  Shared UI bits  ───────────────────────── */
 
@@ -76,7 +82,6 @@ const InfoList = ({ items }: { items: string[] }) => (
 const celebrationsSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
   lastName: z.string().trim().min(1, "Last name is required").max(100),
-  phone: z.string().trim().regex(phoneRegex, "Please enter a valid phone number"),
   email: z.string().trim().email("Please enter a valid email address").max(255),
   companyName: z.string().trim().min(1, "Company name is required").max(200),
   numberOfEmployees: z.string().trim().min(1, "Number of employees is required").max(50),
@@ -87,6 +92,10 @@ type CelebrationsData = z.infer<typeof celebrationsSchema>;
 const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const { t } = useLang();
   const fe = useFieldError();
+  const [countryCode, setCountryCode] = useState("+41");
+  const [localPhone, setLocalPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
   const {
     register,
     handleSubmit,
@@ -94,18 +103,25 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   } = useForm<CelebrationsData>({ resolver: zodResolver(celebrationsSchema) });
 
   const onSubmit = async (data: CelebrationsData) => {
+    if (localPhone.trim().length < MIN_LOCAL_PHONE_DIGITS) {
+      setPhoneError(t("Please enter a valid phone number", "Veuillez entrer un numéro de téléphone valide"));
+      return;
+    }
+    setPhoneError(null);
     try {
-      await submitToWeb3Forms(
+      await submitContactRequest(
+        "corporate_celebrations",
         {
-          "First name": data.firstName,
-          "Last name": data.lastName,
-          "Phone number": data.phone,
-          "Email address": data.email,
-          "Company name": data.companyName,
-          "Number of employees": data.numberOfEmployees,
-          "Looking for": data.lookingFor,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: combinePhoneNumber(countryCode, localPhone),
+          email: data.email,
+          companyName: data.companyName,
+          numberOfEmployees: data.numberOfEmployees,
+          lookingFor: data.lookingFor,
         },
-        { subject: "Corporate Celebrations enquiry, Bento Cake Studio" }
+        data.email,
+        { honeypot },
       );
       onSuccess();
     } catch (err) {
@@ -115,6 +131,7 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2 text-left">
+      <HoneypotField value={honeypot} onChange={setHoneypot} />
       <p className="text-sm text-muted-foreground leading-relaxed">
         {t("Interested in working with us or want to learn more? Fill out the form below and we'll get back to you with more information.", "Envie de travailler avec nous ou d'en savoir plus ? Remplissez le formulaire ci-dessous et nous reviendrons vers vous avec plus d'informations.")}
       </p>
@@ -131,11 +148,15 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="cc-phone">{t("Phone number", "Numéro de téléphone")} <RequiredMark /></Label>
-          <Input id="cc-phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
-        </div>
+        <PhoneNumberField
+          id="cc-phone"
+          label={t("Phone number", "Numéro de téléphone")}
+          countryCode={countryCode}
+          onCountryCodeChange={setCountryCode}
+          localPhone={localPhone}
+          onLocalPhoneChange={setLocalPhone}
+          error={phoneError ?? undefined}
+        />
         <div className="space-y-1.5">
           <Label htmlFor="cc-email">{t("Email address", "Adresse e-mail")} <RequiredMark /></Label>
           <Input id="cc-email" type="email" {...register("email")} />
@@ -178,7 +199,6 @@ const eventsSchema = z.object({
   fullName: z.string().trim().min(1, "Name is required").max(150),
   companyAgency: z.string().trim().max(200).optional(),
   email: z.string().trim().email("Please enter a valid email address").max(255),
-  phone: z.string().trim().regex(phoneRegex, "Please enter a valid phone number"),
   eventDate: z.date({ required_error: "Please select a date" }),
   estimatedGuests: z.string().trim().min(1, "Estimated number of guests is required").max(50),
   projectDescription: z.string().trim().min(1, "Please tell us about your project").max(3000),
@@ -190,6 +210,10 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const fe = useFieldError();
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [countryCode, setCountryCode] = useState("+41");
+  const [localPhone, setLocalPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
   const {
     register,
     handleSubmit,
@@ -201,18 +225,25 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const eventDate = watch("eventDate");
 
   const onSubmit = async (data: EventsData) => {
+    if (localPhone.trim().length < MIN_LOCAL_PHONE_DIGITS) {
+      setPhoneError(t("Please enter a valid phone number", "Veuillez entrer un numéro de téléphone valide"));
+      return;
+    }
+    setPhoneError(null);
     try {
-      await submitToWeb3Forms(
+      await submitContactRequest(
+        "corporate_events",
         {
-          "First and last name": data.fullName,
-          "Company / Agency": data.companyAgency || "(not provided)",
-          "Email address": data.email,
-          "Phone number": data.phone,
-          "Event date": format(data.eventDate, "dd.MM.yyyy"),
-          "Estimated number of guests": data.estimatedGuests,
-          "Project description": data.projectDescription,
+          fullName: data.fullName,
+          companyAgency: data.companyAgency || "(not provided)",
+          email: data.email,
+          phone: combinePhoneNumber(countryCode, localPhone),
+          eventDate: format(data.eventDate, "dd.MM.yyyy"),
+          estimatedGuests: data.estimatedGuests,
+          projectDescription: data.projectDescription,
         },
-        { subject: "Event Quote Request, Bento Cake Studio", files }
+        data.email,
+        { files, honeypot },
       );
       onSuccess();
     } catch (err) {
@@ -222,6 +253,7 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2 text-left">
+      <HoneypotField value={honeypot} onChange={setHoneypot} />
       <div className="space-y-1.5">
         <Label htmlFor="ev-name">{t("First and last name", "Prénom et nom")} <RequiredMark /></Label>
         <Input id="ev-name" {...register("fullName")} />
@@ -237,11 +269,15 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
           <Input id="ev-email" type="email" {...register("email")} />
           {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="ev-phone">{t("Phone number", "Numéro de téléphone")} <RequiredMark /></Label>
-          <Input id="ev-phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
-        </div>
+        <PhoneNumberField
+          id="ev-phone"
+          label={t("Phone number", "Numéro de téléphone")}
+          countryCode={countryCode}
+          onCountryCodeChange={setCountryCode}
+          localPhone={localPhone}
+          onLocalPhoneChange={setLocalPhone}
+          error={phoneError ?? undefined}
+        />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
@@ -367,7 +403,6 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
 const hospitalitySchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
   lastName: z.string().trim().min(1, "Last name is required").max(100),
-  phone: z.string().trim().regex(phoneRegex, "Please enter a valid phone number"),
   email: z.string().trim().email("Please enter a valid email address").max(255),
   establishmentName: z.string().trim().min(1, "Establishment name is required").max(200),
   lookingFor: z.string().trim().min(1, "This field is required").max(2000),
@@ -377,6 +412,10 @@ type HospitalityData = z.infer<typeof hospitalitySchema>;
 const HospitalityForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const { t } = useLang();
   const fe = useFieldError();
+  const [countryCode, setCountryCode] = useState("+41");
+  const [localPhone, setLocalPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
   const {
     register,
     handleSubmit,
@@ -384,17 +423,24 @@ const HospitalityForm = ({ onSuccess }: { onSuccess: () => void }) => {
   } = useForm<HospitalityData>({ resolver: zodResolver(hospitalitySchema) });
 
   const onSubmit = async (data: HospitalityData) => {
+    if (localPhone.trim().length < MIN_LOCAL_PHONE_DIGITS) {
+      setPhoneError(t("Please enter a valid phone number", "Veuillez entrer un numéro de téléphone valide"));
+      return;
+    }
+    setPhoneError(null);
     try {
-      await submitToWeb3Forms(
+      await submitContactRequest(
+        "hospitality_partners",
         {
-          "First name": data.firstName,
-          "Last name": data.lastName,
-          "Phone number": data.phone,
-          "Email address": data.email,
-          "Establishment name": data.establishmentName,
-          "Looking for": data.lookingFor,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: combinePhoneNumber(countryCode, localPhone),
+          email: data.email,
+          establishmentName: data.establishmentName,
+          lookingFor: data.lookingFor,
         },
-        { subject: "Hospitality Partners enquiry, Bento Cake Studio" }
+        data.email,
+        { honeypot },
       );
       onSuccess();
     } catch (err) {
@@ -404,6 +450,7 @@ const HospitalityForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2 text-left">
+      <HoneypotField value={honeypot} onChange={setHoneypot} />
       <p className="text-sm text-muted-foreground leading-relaxed">
         {t("Interested in offering Bento Cake Studio cakes to your clients? Tell us more about your establishment and what you are looking for. We will get back to you with our partner offer and pricing.", "Vous souhaitez proposer les gâteaux Bento Cake Studio à vos clients ? Parlez-nous de votre établissement et de ce que vous recherchez. Nous reviendrons vers vous avec notre offre partenaire et nos tarifs.")}
       </p>
@@ -420,11 +467,15 @@ const HospitalityForm = ({ onSuccess }: { onSuccess: () => void }) => {
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="hp-phone">{t("Phone number", "Numéro de téléphone")} <RequiredMark /></Label>
-          <Input id="hp-phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
-        </div>
+        <PhoneNumberField
+          id="hp-phone"
+          label={t("Phone number", "Numéro de téléphone")}
+          countryCode={countryCode}
+          onCountryCodeChange={setCountryCode}
+          localPhone={localPhone}
+          onLocalPhoneChange={setLocalPhone}
+          error={phoneError ?? undefined}
+        />
         <div className="space-y-1.5">
           <Label htmlFor="hp-email">{t("Email address", "Adresse e-mail")} <RequiredMark /></Label>
           <Input id="hp-email" type="email" {...register("email")} />

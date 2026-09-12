@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
@@ -11,13 +11,12 @@ import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, composeCandleName } from "@/lib/candleCartHelpers";
 import { FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import {
-  COUNTRY_CODES,
   normalizeEmail,
   normalizeName,
-  sanitizePhoneLocalInput,
   combinePhoneNumber,
   splitPhoneNumber,
 } from "@/lib/identity";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { useCart, VALID_PRODUCTS } from "@/context/CartContext";
+import { useCart, VALID_PRODUCTS, type CartItem } from "@/context/CartContext";
 import {
   trackEvent,
   trackEventWhenReady,
@@ -56,6 +55,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isOrderDateDisabled, expressSurcharge, EXPRESS_COPY } from "@/lib/orderDates";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
+import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 
 // Anti double-payment guard. Set when the customer is handed to PostFinance,
 // short TTL so a stale value can never wedge the checkout. Cleared on
@@ -373,6 +373,109 @@ const Checkout = () => {
   const workshopItems = items.filter((i) => i.product === "workshop");
   const hasPhysical = physicalItems.length > 0;
 
+  // ── Multi-date fulfillment (Sept 2026) — grouping only, no UI/behaviour
+  // change while MULTI_DATE_FULFILLMENT_ENABLED is false. Physical items
+  // sharing the exact same orderDate become ONE fulfillment (one pickup/
+  // delivery decision); each distinct date becomes its own. While the flag
+  // is off, CartContext already refuses a second date at add-to-cart time,
+  // so this can only ever resolve to 0 or 1 group in production today —
+  // isMultiDateActive below is therefore always false until the flag flips.
+  const physicalDateGroups = useMemo(() => {
+    const byDate = new Map<string, CartItem[]>();
+    for (const item of physicalItems) {
+      if (!item.orderDate) continue;
+      const list = byDate.get(item.orderDate);
+      if (list) list.push(item); else byDate.set(item.orderDate, [item]);
+    }
+    return Array.from(byDate.entries())
+      .map(([date, dateItems]) => ({ date, items: dateItems }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [physicalItems]);
+
+  const isMultiDateActive = MULTI_DATE_FULFILLMENT_ENABLED && physicalDateGroups.length > 1;
+
+  // One delivery decision per date group, keyed by ISO date. Only read/
+  // written when isMultiDateActive — the single-date state below (deliveryOption,
+  // deliveryAddress, …) stays the sole source of truth otherwise, completely
+  // untouched by any of this.
+  interface FulfillmentDraft {
+    deliveryOption: "pickup" | "delivery";
+    deliveryAddress: string;
+    deliveryPlaceId: string | null;
+    deliveryQuote: DeliveryQuote | null;
+    deliveryQuoteStatus: DeliveryQuoteStatus;
+    pickupTime: string;
+    deliveryTime: string;
+  }
+  const EMPTY_FULFILLMENT_DRAFT: FulfillmentDraft = {
+    deliveryOption: "pickup",
+    deliveryAddress: "",
+    deliveryPlaceId: null,
+    deliveryQuote: null,
+    deliveryQuoteStatus: "idle",
+    pickupTime: "",
+    deliveryTime: "",
+  };
+  const [fulfillmentDrafts, setFulfillmentDrafts] = useState<Record<string, FulfillmentDraft>>({});
+  const getFulfillmentDraft = (date: string): FulfillmentDraft =>
+    fulfillmentDrafts[date] ?? EMPTY_FULFILLMENT_DRAFT;
+  const patchFulfillmentDraft = (date: string, patch: Partial<FulfillmentDraft>) => {
+    setFulfillmentDrafts((prev) => ({
+      ...prev,
+      [date]: { ...(prev[date] ?? EMPTY_FULFILLMENT_DRAFT), ...patch },
+    }));
+  };
+  const handleAddressSelectForDate = async (date: string, selection: AddressSelection) => {
+    patchFulfillmentDraft(date, {
+      deliveryAddress: selection.label,
+      deliveryPlaceId: selection.placeId,
+      deliveryQuote: null,
+      deliveryQuoteStatus: "loading",
+    });
+    try {
+      const { data, error } = await supabase.functions.invoke("resolve-delivery-quote", {
+        body: { placeId: selection.placeId, sessionToken: selection.sessionToken },
+      });
+      if (error || !data) {
+        patchFulfillmentDraft(date, { deliveryQuoteStatus: "error" });
+        return;
+      }
+      if (!data.deliverable) {
+        patchFulfillmentDraft(date, {
+          deliveryQuoteStatus: "out_of_range",
+          deliveryAddress: data.address?.formattedAddress || selection.label,
+        });
+        return;
+      }
+      patchFulfillmentDraft(date, {
+        deliveryQuote: {
+          fee: data.fee,
+          distanceKm: data.distanceKm,
+          postalCode: data.address?.postalCode ?? "",
+          city: data.address?.city ?? "",
+          lat: data.address?.lat ?? null,
+          lng: data.address?.lng ?? null,
+          formattedAddress: data.address?.formattedAddress ?? selection.label,
+        },
+        deliveryAddress: data.address?.formattedAddress || selection.label,
+        deliveryQuoteStatus: "ok",
+      });
+    } catch {
+      patchFulfillmentDraft(date, { deliveryQuoteStatus: "error" });
+    }
+  };
+
+  // Sums used by both the price summary and the final total — 0 whenever
+  // isMultiDateActive is false (the reduce runs over an empty array).
+  const multiDateDeliveryFeeTotal = physicalDateGroups.reduce((sum, g) => {
+    const d = getFulfillmentDraft(g.date);
+    return sum + (d.deliveryOption === "delivery" && d.deliveryQuoteStatus === "ok" && d.deliveryQuote ? d.deliveryQuote.fee : 0);
+  }, 0);
+  const multiDateExpressSurchargeTotal = physicalDateGroups.reduce((sum, g) => {
+    const groupTotal = g.items.reduce((s, i) => s + i.total, 0);
+    return sum + expressSurcharge(groupTotal, new Date(g.date + "T00:00:00"));
+  }, 0);
+
   const [deliveryDate, setDeliveryDate] = useState<Date>(() => {
     const firstPhysicalWithDate = items.find((i) => i.product !== "workshop" && i.orderDate);
     if (firstPhysicalWithDate?.orderDate) {
@@ -473,11 +576,20 @@ const Checkout = () => {
   }, [items]);
 
   const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
-  // Reward balance & the welcome discount never apply to workshops — this is
-  // the base they are computed against (products only, delivery excluded).
-  const rewardEligibleItemsTotal = items
-    .filter((item) => item.product !== "workshop")
-    .reduce((sum, item) => sum + item.total, 0);
+  // Reward-eligible base, mirroring create-postfinance-payment's own
+  // hasPhysicalItem rule exactly: workshops are excluded ONLY when there is
+  // a physical item to protect (cake-only / mixed — reward must never touch
+  // a workshop line there, so its order_items.total stays the untouched
+  // amount mixed-cart refund isolation depends on). A workshop-ONLY cart has
+  // no physical portion to protect, so the cagnotte is eligible against the
+  // full cart — this was the "cagnotte does nothing on a workshop-only
+  // order" bug; cake-only and mixed are unchanged.
+  // The welcome discount is a SEPARATE rule (discountedItem/discountedBase
+  // below) and is not affected by this — workshops never carry it, in every
+  // cart shape, unchanged.
+  const rewardEligibleItemsTotal = !hasPhysical
+    ? itemsTotal
+    : items.filter((item) => item.product !== "workshop").reduce((sum, item) => sum + item.total, 0);
 
   // Clears any address/quote already entered — used when the customer edits
   // the address, or switches back to pick-up. Never leaves a stale fee
@@ -540,12 +652,21 @@ const Checkout = () => {
     setCheckoutPayload(null);
   }, [deliveryOption, deliveryPlaceId, deliveryQuote]);
 
-  const deliveryPrice =
-    deliveryOption === "delivery" && deliveryQuoteStatus === "ok" && deliveryQuote
+  // Multi-date active: the single deliveryOption/deliveryQuote state is not
+  // used at all — multiDateDeliveryFeeTotal (summed across every date's own
+  // draft, computed above) is the real figure.
+  const deliveryPrice = isMultiDateActive
+    ? multiDateDeliveryFeeTotal
+    : (deliveryOption === "delivery" && deliveryQuoteStatus === "ok" && deliveryQuote
       ? deliveryQuote.fee
-      : 0;
+      : 0);
 
-  const deliveryReady = deliveryOption !== "delivery" || deliveryQuoteStatus === "ok";
+  const deliveryReady = isMultiDateActive
+    ? physicalDateGroups.every((g) => {
+        const d = getFulfillmentDraft(g.date);
+        return d.deliveryOption !== "delivery" || d.deliveryQuoteStatus === "ok";
+      })
+    : (deliveryOption !== "delivery" || deliveryQuoteStatus === "ok");
 
   // Server-verified at create-postfinance-payment time — this is only a
   // display estimate. A reservation already in flight
@@ -631,16 +752,27 @@ const Checkout = () => {
   // (create-postfinance-payment) re-derives it from the Europe/Zurich date vs
   // pickup_delivery_date and is the sole authority on the charged amount.
   // Base = physical products only (workshops + delivery excluded).
+  // Multi-date active: each date is evaluated against its OWN items'
+  // subtotal (multiDateExpressSurchargeTotal, computed above) — a J+2 date
+  // and a J+9 date in the same order must not share one flag.
   const physicalProductsTotal = items
     .filter((item) => item.product !== "workshop")
     .reduce((sum, item) => sum + item.total, 0);
-  const expressSurchargeAmount = expressSurcharge(physicalProductsTotal, deliveryDate);
+  const expressSurchargeAmount = isMultiDateActive
+    ? multiDateExpressSurchargeTotal
+    : expressSurcharge(physicalProductsTotal, deliveryDate);
 
+  // deliveryPrice already resolves to 0 when there's nothing to charge, in
+  // BOTH modes (single: gated by deliveryOption === "delivery" internally;
+  // multi-date: multiDateDeliveryFeeTotal is 0 when every date is pickup) —
+  // no need to re-gate on the single deliveryOption state here, which would
+  // be WRONG for the multi-date case (that state isn't even used then, so
+  // checking it here would silently drop a real multi-date delivery total).
   const totalPrice = itemsTotal
     - estimatedWelcomeDiscount
     - estimatedRewardUsed
     + expressSurchargeAmount
-    + (hasPhysical && deliveryOption === "delivery" ? deliveryPrice : 0);
+    + (hasPhysical ? deliveryPrice : 0);
 
   // Build phone number with country code
   const fullPhoneNumber = combinePhoneNumber(countryCode, phone);
@@ -680,91 +812,149 @@ const Checkout = () => {
       return;
     }
 
-    if (hasPhysical && !deliveryDate) {
-      toast({
-        title: t("Please select a delivery date", "Veuillez sélectionner une date"),
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!isMultiDateActive) {
+      // ── Single-date validation — UNCHANGED from before multi-date existed ──
+      if (hasPhysical && !deliveryDate) {
+        toast({
+          title: t("Please select a delivery date", "Veuillez sélectionner une date"),
+          variant: "destructive",
+        });
+        return;
+      }
 
-    // Only physical items carry a pickup/delivery date; workshops have their
-    // own session date per order_item and never enter this check.
-    const datedItems = physicalItems.filter((i) => i.orderDate);
-    const mismatchedDates = datedItems.some((i) => i.orderDate !== datedItems[0]?.orderDate);
-    if (mismatchedDates) {
-      toast({
-        title: t("Order dates do not match", "Les dates de commande ne correspondent pas"),
-        description: t(
-          "Please make sure every item in your cart has the same pickup date, or place separate orders.",
-          "Merci de vérifier que tous les articles de votre panier ont la même date de retrait, ou de passer des commandes séparées."
-        ),
-        variant: "destructive",
-      });
-      return;
-    }
+      // Only physical items carry a pickup/delivery date; workshops have
+      // their own session date per order_item and never enter this check.
+      // While isMultiDateActive is false (always true in production today),
+      // this can only ever find 0 or 1 distinct dates — CartContext already
+      // refuses a second one at add-to-cart time — so this toast is web-only
+      // reachable if that guard is ever bypassed (e.g. two browser tabs).
+      const datedItems = physicalItems.filter((i) => i.orderDate);
+      const mismatchedDates = datedItems.some((i) => i.orderDate !== datedItems[0]?.orderDate);
+      if (mismatchedDates) {
+        toast({
+          title: t("Order dates do not match", "Les dates de commande ne correspondent pas"),
+          description: t(
+            "Please make sure every item in your cart has the same pickup date, or place separate orders.",
+            "Merci de vérifier que tous les articles de votre panier ont la même date de retrait, ou de passer des commandes séparées."
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (deliveryOption === "delivery" && (!deliveryPlaceId || deliveryQuoteStatus === "idle")) {
-      toast({
-        title: t("Please select your delivery address", "Veuillez sélectionner votre adresse de livraison"),
-        description: t(
-          "Start typing and pick your address from the suggestions.",
-          "Commencez à saisir votre adresse et choisissez-la dans les suggestions.",
-        ),
-        variant: "destructive",
-      });
-      return;
-    }
+      if (deliveryOption === "delivery" && (!deliveryPlaceId || deliveryQuoteStatus === "idle")) {
+        toast({
+          title: t("Please select your delivery address", "Veuillez sélectionner votre adresse de livraison"),
+          description: t(
+            "Start typing and pick your address from the suggestions.",
+            "Commencez à saisir votre adresse et choisissez-la dans les suggestions.",
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (deliveryOption === "delivery" && deliveryQuoteStatus === "loading") {
-      toast({
-        title: t("Calculating delivery fee…", "Calcul des frais de livraison…"),
-        description: t("Please wait a moment and try again.", "Merci de patienter un instant puis de réessayer."),
-        variant: "destructive",
-      });
-      return;
-    }
+      if (deliveryOption === "delivery" && deliveryQuoteStatus === "loading") {
+        toast({
+          title: t("Calculating delivery fee…", "Calcul des frais de livraison…"),
+          description: t("Please wait a moment and try again.", "Merci de patienter un instant puis de réessayer."),
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (deliveryOption === "delivery" && deliveryQuoteStatus === "out_of_range") {
-      toast({
-        title: t("Delivery is not available for this address.", "La livraison n'est pas disponible pour cette adresse."),
-        description: t(
-          "You can still choose Pick-up at our store.",
-          "Vous pouvez toujours choisir le retrait à notre boutique.",
-        ),
-        variant: "destructive",
-      });
-      return;
-    }
+      if (deliveryOption === "delivery" && deliveryQuoteStatus === "out_of_range") {
+        toast({
+          title: t("Delivery is not available for this address.", "La livraison n'est pas disponible pour cette adresse."),
+          description: t(
+            "You can still choose Pick-up at our store.",
+            "Vous pouvez toujours choisir le retrait à notre boutique.",
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (deliveryOption === "delivery" && (deliveryQuoteStatus !== "ok" || !deliveryQuote)) {
-      toast({
-        title: t("Delivery fee unavailable", "Frais de livraison indisponibles"),
-        description: t(
-          "We couldn't calculate the delivery fee. Please try again, or choose Pick-up.",
-          "Impossible de calculer les frais de livraison. Réessayez, ou choisissez le retrait.",
-        ),
-        variant: "destructive",
-      });
-      return;
-    }
+      if (deliveryOption === "delivery" && (deliveryQuoteStatus !== "ok" || !deliveryQuote)) {
+        toast({
+          title: t("Delivery fee unavailable", "Frais de livraison indisponibles"),
+          description: t(
+            "We couldn't calculate the delivery fee. Please try again, or choose Pick-up.",
+            "Impossible de calculer les frais de livraison. Réessayez, ou choisissez le retrait.",
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (hasPhysical && deliveryOption === "pickup" && !pickupTime) {
-      toast({
-        title: t("Pick-up Time required", "Heure de retrait requise"),
-        description: t("Please select a pick-up time slot.", "Veuillez sélectionner un créneau de retrait."),
-        variant: "destructive",
-      });
-      return;
-    }
+      if (hasPhysical && deliveryOption === "pickup" && !pickupTime) {
+        toast({
+          title: t("Pick-up Time required", "Heure de retrait requise"),
+          description: t("Please select a pick-up time slot.", "Veuillez sélectionner un créneau de retrait."),
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (hasPhysical && deliveryOption === "delivery" && (!deliveryTime || !deliveryComment.trim())) {
-      toast({
-        title: t("Delivery information required", "Informations de livraison requises"),
-        description: t("Please select a delivery time slot and add a comment with the necessary delivery information.", "Veuillez sélectionner un créneau de livraison et ajouter un commentaire avec les informations nécessaires."),
-        variant: "destructive",
-      });
-      return;
+      if (hasPhysical && deliveryOption === "delivery" && (!deliveryTime || !deliveryComment.trim())) {
+        toast({
+          title: t("Delivery information required", "Informations de livraison requises"),
+          description: t("Please select a delivery time slot and add a comment with the necessary delivery information.", "Veuillez sélectionner un créneau de livraison et ajouter un commentaire avec les informations nécessaires."),
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      // ── Multi-date validation — same rules as above, evaluated once per
+      // date group instead of once for the whole order. Stops at the FIRST
+      // incomplete date group (never partially submits).
+      for (const group of physicalDateGroups) {
+        const d = getFulfillmentDraft(group.date);
+        const dateLabel = formatDisplayDate(new Date(group.date + "T00:00:00"));
+
+        if (d.deliveryOption === "delivery" && (!d.deliveryPlaceId || d.deliveryQuoteStatus === "idle")) {
+          toast({
+            title: t(`Please select a delivery address for ${dateLabel}`, `Veuillez sélectionner une adresse de livraison pour le ${dateLabel}`),
+            variant: "destructive",
+          });
+          return;
+        }
+        if (d.deliveryOption === "delivery" && d.deliveryQuoteStatus === "loading") {
+          toast({
+            title: t("Calculating delivery fee…", "Calcul des frais de livraison…"),
+            variant: "destructive",
+          });
+          return;
+        }
+        if (d.deliveryOption === "delivery" && d.deliveryQuoteStatus === "out_of_range") {
+          toast({
+            title: t(`Delivery is not available for ${dateLabel}'s address.`, `La livraison n'est pas disponible pour l'adresse du ${dateLabel}.`),
+            variant: "destructive",
+          });
+          return;
+        }
+        if (d.deliveryOption === "delivery" && (d.deliveryQuoteStatus !== "ok" || !d.deliveryQuote)) {
+          toast({
+            title: t(`Delivery fee unavailable for ${dateLabel}`, `Frais de livraison indisponibles pour le ${dateLabel}`),
+            variant: "destructive",
+          });
+          return;
+        }
+        if (d.deliveryOption === "pickup" && !d.pickupTime) {
+          toast({
+            title: t(`Pick-up time required for ${dateLabel}`, `Heure de retrait requise pour le ${dateLabel}`),
+            variant: "destructive",
+          });
+          return;
+        }
+        if (d.deliveryOption === "delivery" && !d.deliveryTime) {
+          toast({
+            title: t(`Delivery time slot required for ${dateLabel}`, `Créneau de livraison requis pour le ${dateLabel}`),
+            variant: "destructive",
+          });
+          return;
+        }
+      }
     }
 
     // GA4 add_shipping_info — pickup vs delivery (and zone) is now fully
@@ -813,6 +1003,28 @@ const Checkout = () => {
 
       const orderId = crypto.randomUUID();
       const slot = !hasPhysical ? null : (deliveryOption === "pickup" ? pickupTime : deliveryTime);
+
+      // Multi-date fulfillment payload — undefined on every order today
+      // (isMultiDateActive is only ever true once MULTI_DATE_FULFILLMENT_
+      // ENABLED flips AND the cart genuinely spans 2+ dates). itemIndexes are
+      // positions into `items` — the SAME order orderItemsWithImageUrls /
+      // orderItemsRows / pricingItems are built from just below, so the
+      // indices line up exactly for create-postfinance-payment to read.
+      const fulfillmentsPayload = isMultiDateActive
+        ? physicalDateGroups.map((group) => {
+            const d = getFulfillmentDraft(group.date);
+            const itemIndexes = items
+              .map((it, idx) => (it.product !== "workshop" && it.orderDate === group.date ? idx : -1))
+              .filter((idx) => idx >= 0);
+            return {
+              date: group.date,
+              deliveryMethod: d.deliveryOption,
+              deliveryPlaceId: d.deliveryOption === "delivery" ? d.deliveryPlaceId : undefined,
+              slot: d.deliveryOption === "pickup" ? d.pickupTime : d.deliveryTime,
+              itemIndexes,
+            };
+          })
+        : undefined;
 
       // Collect all image files from cart items and upload to Supabase
       const allImageFiles = items.flatMap(item => item.imageFiles || []);
@@ -1090,6 +1302,11 @@ const Checkout = () => {
         // etc.) not yet implemented — safe to send regardless, current
         // create-postfinance-payment simply ignores unknown fields.
         rewardAmountToUse: estimatedRewardUsed,
+        // Multi-date fulfillment — undefined on every order today (see its
+        // computation above). When present, create-postfinance-payment
+        // treats it as authoritative and ignores deliveryOption/
+        // deliveryAddress/deliveryPlaceId/deliveryFee above entirely.
+        fulfillments: fulfillmentsPayload,
       };
 
       console.log("Setting up embedded checkout with:", {
@@ -1206,36 +1423,16 @@ const Checkout = () => {
               </div>
             </div>
 
-            {/* Phone */}
-            <div className="space-y-2">
-              <Label htmlFor="phone">
-                {t("Phone Number", "Numéro de téléphone")} <span className="text-destructive">*</span>
-              </Label>
-              <div className="flex gap-2">
-                <Select value={countryCode} onValueChange={setCountryCode}>
-                  <SelectTrigger className="w-[110px] shrink-0 rounded-none">
-                    <span className="flex items-center gap-1 text-sm leading-none">{COUNTRY_CODES.find(c => c.code === countryCode)?.flag} {countryCode}</span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COUNTRY_CODES.map((cc) => (
-                      <SelectItem key={cc.code} value={cc.code}>
-                        {cc.flag} {cc.code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  id="phone"
-                  type="tel"
-                  inputMode="numeric"
-                  className="rounded-none"
-                  value={phone}
-                  onChange={(e) => setPhone(sanitizePhoneLocalInput(e.target.value, countryCode))}
-                  placeholder="79 123 45 67"
-                  required
-                />
-              </div>
-            </div>
+            {/* Phone — shared component, same markup/behaviour as before this
+                extraction (src/components/PhoneNumberField.tsx). */}
+            <PhoneNumberField
+              id="phone"
+              label={t("Phone Number", "Numéro de téléphone")}
+              countryCode={countryCode}
+              onCountryCodeChange={setCountryCode}
+              localPhone={phone}
+              onLocalPhoneChange={setPhone}
+            />
 
             {/* Email */}
             <div className="space-y-2">
@@ -1256,8 +1453,13 @@ const Checkout = () => {
             </div>
 
             {/* Pickup / delivery block — only for carts with a physical product.
-                A workshop-only cart has nothing to pick up or deliver. */}
-            {hasPhysical && (
+                A workshop-only cart has nothing to pick up or deliver.
+                Single-date block below is UNCHANGED — it only renders when
+                isMultiDateActive is false, which is always true in production
+                today (MULTI_DATE_FULFILLMENT_ENABLED off). See the multi-date
+                block right after for the 2+-date UI, active only once that
+                flag flips and the cart genuinely spans several dates. */}
+            {hasPhysical && !isMultiDateActive && (
             <>
             {/* Pickup Date */}
             <div className="space-y-2">
@@ -1442,6 +1644,134 @@ const Checkout = () => {
             </>
             )}
 
+            {/* Multi-date fulfillment block — one card per distinct physical
+                pickup/delivery date, each with its own pickup/delivery choice.
+                Only rendered when MULTI_DATE_FULFILLMENT_ENABLED is on AND the
+                cart genuinely spans 2+ dates — unreachable in production while
+                the flag is off. */}
+            {hasPhysical && isMultiDateActive && (
+              <div className="space-y-6">
+                {physicalDateGroups.map((group) => {
+                  const draft = getFulfillmentDraft(group.date);
+                  const groupDate = new Date(group.date + "T00:00:00");
+                  const groupLabel = formatDisplayDate(groupDate);
+                  const groupTotal = group.items.reduce((s, i) => s + i.total, 0);
+                  return (
+                    <div key={group.date} className="border border-border p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-sans uppercase tracking-wide text-sm font-semibold text-foreground">
+                          {groupLabel}
+                        </h3>
+                        <span className="text-xs text-muted-foreground">
+                          {t(`${group.items.length} item(s) — CHF ${groupTotal.toFixed(2)}`, `${group.items.length} article(s) — CHF ${groupTotal.toFixed(2)}`)}
+                        </span>
+                      </div>
+                      <ExpressDateNotice date={groupDate} />
+
+                      {/* Delivery Option for this date */}
+                      <div className="space-y-3">
+                        <Label>{t("Delivery Option", "Mode de réception")}</Label>
+                        <RadioGroup
+                          value={draft.deliveryOption}
+                          onValueChange={(value) => {
+                            patchFulfillmentDraft(group.date, {
+                              deliveryOption: value as "pickup" | "delivery",
+                              ...(value === "pickup"
+                                ? { deliveryAddress: "", deliveryPlaceId: null, deliveryQuote: null, deliveryQuoteStatus: "idle" as DeliveryQuoteStatus }
+                                : {}),
+                            });
+                          }}
+                          className="flex flex-col space-y-2"
+                        >
+                          <div className="flex items-center space-x-3 p-3 border border-border hover:bg-muted/50 cursor-pointer">
+                            <RadioGroupItem value="pickup" id={`pickup-${group.date}`} />
+                            <Label htmlFor={`pickup-${group.date}`} className="cursor-pointer flex-1">
+                              <span className="font-medium">{t("Pick-up", "Retrait")}</span>
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-3 p-3 border border-border hover:bg-muted/50 cursor-pointer">
+                            <RadioGroupItem value="delivery" id={`delivery-${group.date}`} />
+                            <Label htmlFor={`delivery-${group.date}`} className="cursor-pointer flex-1">
+                              <span className="font-medium">{t("Delivery", "Livraison")}</span>
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+
+                      {draft.deliveryOption === "pickup" && (
+                        <div className="space-y-2">
+                          <Label>{t("Pick-up Time", "Heure de retrait")} <span className="text-destructive">*</span></Label>
+                          <Select
+                            value={draft.pickupTime}
+                            onValueChange={(v) => patchFulfillmentDraft(group.date, { pickupTime: v })}
+                          >
+                            <SelectTrigger className="w-full rounded-none">
+                              <SelectValue placeholder={t("Select a pickup time", "Choisir une heure de retrait")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PICKUP_TIME_SLOTS.map((slot) => (
+                                <SelectItem key={slot} value={slot}>{slot}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      {draft.deliveryOption === "delivery" && (
+                        <div className="space-y-4 p-4 bg-muted/30 border border-border">
+                          <div className="space-y-2">
+                            <Label htmlFor={`deliveryAddress-${group.date}`}>{t("Delivery address", "Adresse de livraison")}</Label>
+                            <DeliveryAddressAutocomplete
+                              id={`deliveryAddress-${group.date}`}
+                              required
+                              languageCode={lang}
+                              placeholder={t("Start typing your address…", "Commencez à saisir votre adresse…")}
+                              onSelect={(selection) => handleAddressSelectForDate(group.date, selection)}
+                              onClear={() => patchFulfillmentDraft(group.date, { deliveryAddress: "", deliveryPlaceId: null, deliveryQuote: null, deliveryQuoteStatus: "idle" })}
+                            />
+                            {draft.deliveryQuoteStatus === "loading" && (
+                              <p className="text-sm text-muted-foreground">{t("Calculating delivery fee…", "Calcul des frais de livraison…")}</p>
+                            )}
+                            {draft.deliveryQuoteStatus === "ok" && draft.deliveryQuote && (
+                              <p className="text-sm text-primary">{t("Delivery", "Livraison")} — CHF {draft.deliveryQuote.fee.toFixed(2)}</p>
+                            )}
+                            {draft.deliveryQuoteStatus === "out_of_range" && (
+                              <p className="text-sm text-destructive">{t("Delivery is not available for this address.", "La livraison n'est pas disponible pour cette adresse.")}</p>
+                            )}
+                            {draft.deliveryQuoteStatus === "error" && (
+                              <p className="text-sm text-destructive">{t("We couldn't calculate the delivery fee. Please try again, or choose Pick-up.", "Impossible de calculer les frais de livraison. Réessayez, ou choisissez le retrait.")}</p>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t("Delivery Time Slot", "Créneau de livraison")} <span className="text-destructive">*</span></Label>
+                            <Select
+                              value={draft.deliveryTime}
+                              onValueChange={(v) => patchFulfillmentDraft(group.date, { deliveryTime: v })}
+                            >
+                              <SelectTrigger className="w-full rounded-none">
+                                <SelectValue placeholder={t("Select a delivery time slot", "Choisir un créneau de livraison")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {DELIVERY_TIME_SLOTS.map((slot) => (
+                                  <SelectItem key={slot} value={slot}>{slot}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {/* NOTE (rollout report): there is deliberately no per-date
+                              delivery-comment field here yet — order_fulfillments has
+                              no comment column in the schema this was built against,
+                              and orders.order_comment is a single, order-level value.
+                              Flagged as an open question in the rollout report rather
+                              than silently reusing one field for every address. */}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Order Summary */}
             <div className="border-t border-border pt-6 mt-6">
               <div className="flex justify-between items-center mb-2">
@@ -1605,10 +1935,17 @@ const Checkout = () => {
                 </div>
               )}
 
-              {hasPhysical && deliveryOption === "delivery" && deliveryQuoteStatus === "ok" && deliveryQuote && (
+              {hasPhysical && !isMultiDateActive && deliveryOption === "delivery" && deliveryQuoteStatus === "ok" && deliveryQuote && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">{t("Delivery", "Livraison")}</span>
                   <span className="font-medium">CHF {deliveryQuote.fee.toFixed(2)}</span>
+                </div>
+              )}
+
+              {hasPhysical && isMultiDateActive && multiDateDeliveryFeeTotal > 0 && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">{t("Delivery (all dates)", "Livraison (toutes dates)")}</span>
+                  <span className="font-medium">CHF {multiDateDeliveryFeeTotal.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-lg font-semibold pt-2 border-t border-border">

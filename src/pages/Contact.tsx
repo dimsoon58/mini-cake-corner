@@ -11,16 +11,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
+import { HoneypotField } from "@/components/HoneypotField";
+import { submitContactRequest } from "@/lib/contactRequest";
+import { combinePhoneNumber } from "@/lib/identity";
 
 const contactSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
   lastName: z.string().trim().min(1, "Last name is required").max(100),
   email: z.string().trim().email("Invalid email address").max(255),
-  phone: z.string().trim().min(1, "Phone number is required").max(30),
   message: z.string().trim().min(1, "Message is required").max(2000),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
+
+// Same light rule everywhere phone is now split into country code + local
+// part: an "incomplete" number is caught here rather than by a rigid regex
+// that would need to know every country's real format.
+const MIN_LOCAL_PHONE_DIGITS = 4;
 
 const Contact = () => {
   const [submitted, setSubmitted] = useState(false);
@@ -28,26 +36,52 @@ const Contact = () => {
   const fe = useFieldError();
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [countryCode, setCountryCode] = useState("+41");
+  const [localPhone, setLocalPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
   });
 
-  const onSubmit = (_data: ContactFormData) => {
-    setSubmitted(true);
-    toast.success(t("Your message has been sent. We'll get back to you soon!", "Votre message a bien été envoyé. Nous vous répondrons très vite !"));
+  const onSubmit = async (data: ContactFormData) => {
+    if (localPhone.trim().length < MIN_LOCAL_PHONE_DIGITS) {
+      setPhoneError(t("Please enter a valid phone number", "Veuillez entrer un numéro de téléphone valide"));
+      return;
+    }
+    setPhoneError(null);
+    try {
+      await submitContactRequest(
+        "contact",
+        {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: combinePhoneNumber(countryCode, localPhone),
+          message: data.message,
+        },
+        data.email,
+        { files: file ? [file] : [], honeypot },
+      );
+      setSubmitted(true);
+    } catch (err) {
+      // Deliberately not touched on error: no reset() here, so the customer
+      // never has to retype what they already entered.
+      toast.error(err instanceof Error ? err.message : t("Something went wrong. Please try again.", "Une erreur s'est produite. Veuillez réessayer."));
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
-      if (selected.size > 10 * 1024 * 1024) {
-        toast.error(t("File size must be under 10 MB.", "Le fichier doit faire moins de 10 Mo."));
+      if (selected.size > 8 * 1024 * 1024) {
+        toast.error(t("File size must be under 8 MB.", "Le fichier doit faire moins de 8 Mo."));
         return;
       }
       setFile(selected);
@@ -57,6 +91,9 @@ const Contact = () => {
   const handleReset = () => {
     setSubmitted(false);
     setFile(null);
+    setCountryCode("+41");
+    setLocalPhone("");
+    setPhoneError(null);
     reset();
   };
 
@@ -140,6 +177,7 @@ const Contact = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                <HoneypotField value={honeypot} onChange={setHoneypot} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="firstName">
@@ -171,15 +209,15 @@ const Contact = () => {
                       <p className="text-sm text-destructive">{fe(errors.email.message)}</p>
                     )}
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="phone">
-                      {t("Phone Number", "Numéro de téléphone")} <span className="text-destructive">*</span>
-                    </Label>
-                    <Input id="phone" type="tel" {...register("phone")} />
-                    {errors.phone && (
-                      <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>
-                    )}
-                  </div>
+                  <PhoneNumberField
+                    id="phone"
+                    label={t("Phone Number", "Numéro de téléphone")}
+                    countryCode={countryCode}
+                    onCountryCodeChange={setCountryCode}
+                    localPhone={localPhone}
+                    onLocalPhoneChange={setLocalPhone}
+                    error={phoneError ?? undefined}
+                  />
                 </div>
 
                 <div className="space-y-1.5">
@@ -234,8 +272,8 @@ const Contact = () => {
                   )}
                 </div>
 
-                <Button type="submit" className="w-full rounded-none" size="lg">
-                  {t("Send Message", "Envoyer le message")}
+                <Button type="submit" disabled={isSubmitting} className="w-full rounded-none" size="lg">
+                  {isSubmitting ? t("Sending…", "Envoi…") : t("Send Message", "Envoyer le message")}
                 </Button>
               </form>
             )}

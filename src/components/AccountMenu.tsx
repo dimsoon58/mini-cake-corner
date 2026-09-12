@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { User, X, Package, Gift, MapPin, UserCircle, Mail, LogOut } from "lucide-react";
+import { User, X, Package, Gift, UserCircle, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/context/LanguageContext";
@@ -27,12 +27,13 @@ const AccountMenu = ({ light = false }: { light?: boolean }) => {
     navigate("/");
   };
 
+  // "Saved Addresses" and "Newsletter Preferences" were removed — both
+  // pointed at /account, the exact same page as "Account Details" below,
+  // making them redundant duplicates of what's already there.
   const menuItems = [
     { icon: Package, label: t("My Orders", "Mes commandes"), to: "/account/orders" },
     { icon: Gift, label: t("Loyalty Rewards", "Programme de fidélité"), to: "/account/rewards" },
-    { icon: MapPin, label: t("Saved Addresses", "Adresses enregistrées"), to: "/account" },
     { icon: UserCircle, label: t("Account Details", "Détails du compte"), to: "/account" },
-    { icon: Mail, label: t("Newsletter Preferences", "Préférences newsletter"), to: "/account" },
   ];
 
   return (

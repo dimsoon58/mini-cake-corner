@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
+import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { flavorCategories, glutenFreeFlavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
@@ -283,11 +284,11 @@ const DotCakes = () => {
               </p>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" disabled={!!cartOrderDate}
+                  <Button variant="outline" disabled={!MULTI_DATE_FULFILLMENT_ENABLED && !!cartOrderDate}
                     className={cn(
                       "w-full max-w-xs justify-start text-left font-normal rounded-none px-3 text-sm",
                       !orderDate && "text-muted-foreground",
-                      cartOrderDate && "opacity-60 cursor-not-allowed"
+                      !MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && "opacity-60 cursor-not-allowed"
                     )}>
                     <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="truncate">
@@ -300,7 +301,7 @@ const DotCakes = () => {
                     disabled={(date) => date < addDays(new Date(), 4)} initialFocus />
                 </PopoverContent>
               </Popover>
-              {cartOrderDate && (
+              {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (
                 <p className="text-xs text-muted-foreground">
                   {t(
                     `All items in this order will be prepared for ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. To order for another date, please place a separate order.`,
