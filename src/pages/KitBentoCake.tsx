@@ -746,7 +746,7 @@ const KitBentoCake = () => {
                         existing={candleSelections.find((c) => c.id === candle.id)}
                         onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
                         onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
-                        imageClassName={candle.imageClassName ?? "h-24 w-24"} compact />
+                        imageClassName="h-20 w-20" compact />
                     );
                   }
                   const qty = getSimpleCandleQty(candleSelections, candle.id);
@@ -755,7 +755,7 @@ const KitBentoCake = () => {
                   return (
                     <Card key={candle.id} className={cn("flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20 rounded-none", qty > 0 && "ring-2 ring-primary")}>
                       <div className="flex items-center justify-center bg-secondary/20 p-2 h-28">
-                        <img src={candle.image} alt={t(candle.name, candle.nameFr)} className={cn(candle.imageClassName ?? "h-24 w-24", "object-contain")} />
+                        <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-20 w-20 object-contain" />
                       </div>
                       <CardContent className="p-2 text-center space-y-1.5">
                         <h3 className="font-sans tracking-[0.105em] font-semibold uppercase text-foreground text-[11px]">{t(candle.name, candle.nameFr)}</h3>

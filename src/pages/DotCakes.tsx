@@ -589,7 +589,7 @@ const DotCakes = () => {
                           existing={candleSelections.find((c) => c.id === candle.id)}
                           onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
                           onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
-                          imageClassName={candle.imageClassName ?? "h-40 w-40"} compact />
+                          imageClassName="h-20 w-20" compact />
                       </div>
                     );
                   }
@@ -599,8 +599,8 @@ const DotCakes = () => {
                   return (
                     <div key={candle.id} className="w-40 sm:w-48 min-w-0">
                       <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", qty > 0 && "ring-2 ring-primary")}>
-                        <div className="flex items-center justify-center bg-secondary/20 p-2">
-                          <img src={candle.image} alt={t(candle.name, candle.nameFr)} className={cn(candle.imageClassName ?? "h-40 w-40", "object-contain")} />
+                        <div className="h-28 flex items-center justify-center bg-secondary/20 p-2">
+                          <img src={candle.image} alt={t(candle.name, candle.nameFr)} className="h-20 w-20 object-contain" />
                         </div>
                         <CardContent className="p-2 text-center">
                           <h3 className="font-medium text-foreground text-xs mb-0.5">{t(candle.name, candle.nameFr)}</h3>
