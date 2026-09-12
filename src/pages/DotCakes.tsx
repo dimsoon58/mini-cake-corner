@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
@@ -17,8 +17,7 @@ import { flavorCategories, glutenFreeFlavorCategories, candles as kitCandles } f
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
-import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
-import { FlavorDesc } from "@/data/flavorDesc";
+import { allergenMap, AllergenNotice } from "@/data/allergens";
 import dotGallery1 from "@/assets/dot-gallery-1.jpg";
 import dotGallery2 from "@/assets/dot-gallery-2.jpg";
 import dotGallery3 from "@/assets/dot-gallery-3.jpg";
@@ -370,101 +369,118 @@ const DotCakes = () => {
 
           {/* STEP 3: FLAVOURS */}
           {step === 3 && pack && (
-            <div className="space-y-6 max-w-2xl mx-auto">
-              <div className="flex items-center justify-between">
-                <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
-                  {t("Choose up to " + pack.flavours + " Flavours", "Choisissez jusqu'à " + pack.flavours + " parfums")}<span className="text-destructive ml-1">*</span>
-                </h2>
-                <span className="text-sm text-muted-foreground">{selectedFlavours.length}/{pack.flavours} {t("selected", "sélectionnés")}</span>
-              </div>
-
-              {/* Standard flavours */}
-              {flavorCategories.map((category) => {
-                const tier = tierByCategory[category.name];
+            <div className="space-y-5 max-w-2xl mx-auto">
+              <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
+                {t("Choose up to " + pack.flavours + " Flavours", "Choisissez jusqu'à " + pack.flavours + " parfums")}<span className="text-destructive ml-1">*</span>
+              </h2>
+              {(() => {
+                const allFlavourOptions = [...flavorCategories, ...(showGlutenFree ? glutenFreeFlavorCategories : [])];
+                const renderFlavorOption = (flavor: { id: string; name: string; nameFr?: string; description?: string; descriptionFr?: string; image: string }, surcharge: number) => {
+                  const info = allergenMap[flavor.id];
+                  const label = `${t(flavor.name, (flavor as { nameFr?: string }).nameFr ?? flavor.name)}${surcharge > 0 ? ` (+CHF ${surcharge.toFixed(2)}/cake)` : ""}`;
+                  return (
+                    <SelectItem key={flavor.id} value={flavor.id} itemText={label}>
+                      <div className="flex items-start gap-2">
+                        <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span>{t(flavor.name, (flavor as { nameFr?: string }).nameFr ?? flavor.name)}{surcharge > 0 ? ` (+CHF ${surcharge.toFixed(2)}/cake)` : ""}</span>
+                          {(flavor.description || flavor.descriptionFr) && (
+                            <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
+                              {t(flavor.description ?? "", flavor.descriptionFr ?? "")}
+                            </div>
+                          )}
+                          {info && (
+                            <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                              {info.warn && <span aria-hidden="true">⚠️ </span>}
+                              <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  );
+                };
                 return (
-                  <div key={category.name} className="space-y-3">
-                    <h3 className="text-sm font-semibold text-foreground">
-                      {t(tier?.label ?? category.name, "Parfums " + (tier?.label ?? category.name).replace(" Flavours", ""))}
-                      {tier && tier.surcharge > 0 && (
-                        <span className="text-muted-foreground ml-2 font-normal">({t(tier.note, tierNoteFr[tier.note] ?? tier.note)})</span>
-                      )}
-                    </h3>
-                    <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-                      {category.flavors.map((flavor) => {
-                        const isSelected = selectedFlavours.includes(flavor.id);
-                        const atCap = !isSelected && selectedFlavours.length >= pack.flavours;
-                        return (
-                          <div key={flavor.id}
-                            className={cn(
-                              "bg-card rounded-none overflow-hidden shadow-sm transition-shadow cursor-pointer",
-                              isSelected && "ring-2 ring-primary",
-                              atCap ? "opacity-40 cursor-not-allowed" : "hover:shadow-lg"
-                            )}
-                            onClick={() => !atCap && toggleFlavour(flavor.id)}>
-                            <div className="aspect-square overflow-hidden bg-muted/30 p-2">
-                              <img src={flavor.image} alt={flavor.name} className="w-full h-full object-contain" />
+                  <div className="space-y-3">
+                    {Array.from({ length: pack.flavours }, (_, i) => {
+                      const currentVal = selectedFlavours[i] ?? "";
+                      const info = currentVal ? allergenMap[currentVal] : null;
+                      return (
+                        <div key={i} className="space-y-1.5">
+                          <label className="text-xs font-semibold uppercase tracking-[0.10em] text-foreground/70">
+                            {t(`Flavour ${i + 1}`, `Parfum ${i + 1}`)}
+                            {i === 0 && <span className="text-destructive ml-1">*</span>}
+                          </label>
+                          <Select
+                            value={currentVal || (i === 0 ? "" : "__none__")}
+                            onValueChange={(v) => {
+                              const slots = Array.from({ length: pack.flavours }, (_, j) => selectedFlavours[j] ?? "");
+                              slots[i] = v === "__none__" ? "" : v;
+                              setSelectedFlavours(slots.filter(s => s !== "" && s !== "__none__"));
+                            }}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={i === 0 ? t("Select a flavour", "Choisir un parfum") : t("Optional — add a flavour", "Optionnel — ajouter un parfum")} />
+                            </SelectTrigger>
+                            <SelectContent nativeScroll className="w-[min(90vw,420px)]">
+                              {i > 0 && (
+                                <SelectItem value="__none__" itemText="—">
+                                  <span className="text-muted-foreground italic">{t("— None —", "— Aucun —")}</span>
+                                </SelectItem>
+                              )}
+                              {flavorCategories.map((cat) => {
+                                const tier = tierByCategory[cat.name];
+                                return (
+                                  <SelectGroup key={cat.name}>
+                                    <SelectLabel>
+                                      {t(tier?.label ?? cat.name, cat.nameFr)}
+                                      {tier?.surcharge > 0 ? ` (${t(tier.note, tierNoteFr[tier.note] ?? tier.note)})` : ""}
+                                    </SelectLabel>
+                                    {cat.flavors.map((fl) => renderFlavorOption(fl, tier?.surcharge ?? 0))}
+                                  </SelectGroup>
+                                );
+                              })}
+                              <div className="px-2 py-1">
+                                <button
+                                  type="button"
+                                  onPointerDown={e => e.preventDefault()}
+                                  onClick={() => setShowGlutenFree(v => !v)}
+                                  className="flex w-full items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1.5 px-1 hover:underline rounded"
+                                >
+                                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform flex-shrink-0", showGlutenFree && "rotate-180")} />
+                                  {showGlutenFree
+                                    ? t("Hide gluten-free", "Masquer sans gluten")
+                                    : t("See gluten-free flavours", "Voir les parfums sans gluten")}
+                                </button>
+                              </div>
+                              {showGlutenFree && glutenFreeFlavorCategories.map((cat) => {
+                                const tier = tierByCategory[cat.name];
+                                return (
+                                  <SelectGroup key={cat.name}>
+                                    <SelectLabel>
+                                      {t(cat.name, cat.nameFr)}
+                                      {tier?.surcharge > 0 ? ` (${t(tier.note, tierNoteFr[tier.note] ?? tier.note)})` : ""}
+                                    </SelectLabel>
+                                    {cat.flavors.map((fl) => renderFlavorOption(fl, tier?.surcharge ?? 0))}
+                                  </SelectGroup>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          {info && (
+                            <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 border border-border/40">
+                              {info.warn && <span aria-hidden="true">⚠️ </span>}
+                              <span className="font-medium">{t("Contains:", "Contient :")}</span>{" "}
+                              {t(info.en, info.fr)}
                             </div>
-                            <div className="p-3 text-center">
-                              <p className="font-sans font-medium text-sm tracking-[0.105em]">{flavor.name}</p>
-                              <FlavorDesc flavorId={flavor.id} />
-                              <AllergenDisplay flavorId={flavor.id} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
-              })}
-
-              {/* Gluten-free toggle */}
-              <button onClick={() => setShowGlutenFree(!showGlutenFree)}
-                className="flex items-center gap-2 text-sm font-semibold text-primary uppercase tracking-[0.08em] py-2 hover:underline">
-                <ChevronDown className={cn("w-4 h-4 transition-transform", showGlutenFree && "rotate-180")} />
-                {showGlutenFree ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten") : t("See all gluten-free flavours", "Voir les parfums sans gluten")}
-              </button>
-
-              {/* Gluten-free flavours */}
-              {showGlutenFree && glutenFreeFlavorCategories.map((category) => {
-                const tier = tierByCategory[category.name];
-                return (
-                  <div key={category.name} className="space-y-3">
-                    <h3 className="text-sm font-semibold text-foreground">
-                      {t(tier?.label ?? category.name, "Parfums " + (tier?.label ?? category.name).replace(" Flavours", ""))}
-                      {tier && tier.surcharge > 0 && (
-                        <span className="text-muted-foreground ml-2 font-normal">({t(tier.note, tierNoteFr[tier.note] ?? tier.note)})</span>
-                      )}
-                    </h3>
-                    <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-                      {category.flavors.map((flavor) => {
-                        const isSelected = selectedFlavours.includes(flavor.id);
-                        const atCap = !isSelected && selectedFlavours.length >= pack.flavours;
-                        return (
-                          <div key={flavor.id}
-                            className={cn(
-                              "bg-card rounded-none overflow-hidden shadow-sm transition-shadow cursor-pointer",
-                              isSelected && "ring-2 ring-primary",
-                              atCap ? "opacity-40 cursor-not-allowed" : "hover:shadow-lg"
-                            )}
-                            onClick={() => !atCap && toggleFlavour(flavor.id)}>
-                            <div className="aspect-square overflow-hidden bg-muted/30 p-2">
-                              <img src={flavor.image} alt={flavor.name} className="w-full h-full object-contain" />
-                            </div>
-                            <div className="p-3 text-center">
-                              <p className="font-sans font-medium text-sm tracking-[0.105em]">{flavor.name}</p>
-                              <FlavorDesc flavorId={flavor.id} />
-                              <AllergenDisplay flavorId={flavor.id} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-
-              <AllergenNotice className="pt-2" />
-
+              })()}
+              <AllergenNotice className="pt-1" />
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={goBack}
                   className="rounded-none border-border text-[11px] font-semibold uppercase tracking-[0.12em] px-6 py-2.5">

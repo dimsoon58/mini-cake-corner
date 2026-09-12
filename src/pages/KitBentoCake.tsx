@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -17,8 +17,7 @@ import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandl
 import type { CandleSelection } from "@/context/CartContext";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { useNavigate } from "react-router-dom";
-import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
-import { FlavorDesc } from "@/data/flavorDesc";
+import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { toast } from "sonner";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
@@ -518,63 +517,88 @@ const KitBentoCake = () => {
 
           {/* STEP 3: FLAVOUR */}
           {step === 3 && (
-            <div className="space-y-6 max-w-2xl mx-auto">
+            <div className="space-y-4 max-w-2xl mx-auto">
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Choose Flavour", "Choisir le parfum")}<span className="text-destructive ml-1">*</span>
               </h2>
-              {flavorCategories.map((category) => (
-                <div key={category.name} className="space-y-3">
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {t(category.name.replace("Flavors","Flavours"), category.nameFr)}
-                    {category.extraPrice > 0 && <span className="text-muted-foreground ml-2 font-normal">(+CHF {category.extraPrice})</span>}
-                  </h3>
-                  <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-                    {category.flavors.map((flavor) => (
-                      <div key={flavor.id}
-                        className={cn("bg-card rounded-none overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer", selectedFlavor === flavor.id && "ring-2 ring-primary")}
-                        onClick={() => setSelectedFlavor(flavor.id)}>
-                        <div className="aspect-square overflow-hidden bg-muted/30 p-2">
-                          <img src={flavor.image} alt={t(flavor.name, flavor.nameFr)} className="w-full h-full object-contain" />
-                        </div>
-                        <div className="p-3 text-center">
-                          <p className="font-sans font-medium text-sm tracking-[0.105em]">{t(flavor.name, flavor.nameFr)}</p>
-                          <FlavorDesc flavorId={flavor.id} />
-                          <AllergenDisplay flavorId={flavor.id} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              <button type="button" onClick={() => setShowGlutenFreeFlavors(v => !v)}
-                className="flex items-center gap-2 text-sm font-semibold text-primary uppercase tracking-[0.08em] py-2 hover:underline">
-                <ChevronDown className={cn("w-4 h-4 transition-transform", showGlutenFreeFlavors && "rotate-180")} />
-                {showGlutenFreeFlavors ? t("Hide gluten-free flavours","Masquer les parfums sans gluten") : t("See all gluten-free flavours","Voir les parfums sans gluten")}
-              </button>
-              {showGlutenFreeFlavors && glutenFreeFlavorCategories.map((category) => (
-                <div key={category.name} className="space-y-3">
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {t(category.name.replace("Flavors","Flavours"), category.nameFr)}
-                    {category.extraPrice > 0 && <span className="text-muted-foreground ml-2 font-normal">(+CHF {category.extraPrice})</span>}
-                  </h3>
-                  <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-                    {category.flavors.map((flavor) => (
-                      <div key={flavor.id}
-                        className={cn("bg-card rounded-none overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer", selectedFlavor === flavor.id && "ring-2 ring-primary")}
-                        onClick={() => setSelectedFlavor(flavor.id)}>
-                        <div className="aspect-square overflow-hidden bg-muted/30 p-2">
-                          <img src={flavor.image} alt={t(flavor.name, flavor.nameFr)} className="w-full h-full object-contain" />
-                        </div>
-                        <div className="p-3 text-center">
-                          <p className="font-sans font-medium text-sm tracking-[0.105em]">{t(flavor.name, flavor.nameFr)}</p>
-                          <AllergenDisplay flavorId={flavor.id} />
+              {(() => {
+                const renderFlavorOption = (flavor: { id: string; name: string; nameFr: string; description?: string; descriptionFr?: string; image: string }, extraPrice: number) => {
+                  const info = allergenMap[flavor.id];
+                  return (
+                    <SelectItem
+                      key={flavor.id}
+                      value={flavor.id}
+                      itemText={`${t(flavor.name, flavor.nameFr)}${extraPrice > 0 ? ` (+CHF ${extraPrice})` : ""}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span>{t(flavor.name, flavor.nameFr)}{extraPrice > 0 ? ` (+CHF ${extraPrice})` : ""}</span>
+                          {(flavor.description || flavor.descriptionFr) && (
+                            <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
+                              {t(flavor.description ?? "", flavor.descriptionFr ?? "")}
+                            </div>
+                          )}
+                          {info && (
+                            <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                              {info.warn && <span aria-hidden="true">⚠️ </span>}
+                              <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </SelectItem>
+                  );
+                };
+                return (
+                  <Select value={selectedFlavor} onValueChange={setSelectedFlavor}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t("Select a flavour", "Choisir un parfum")} />
+                    </SelectTrigger>
+                    <SelectContent nativeScroll className="w-[min(90vw,420px)]">
+                      {flavorCategories.map((cat) => (
+                        <SelectGroup key={cat.name}>
+                          <SelectLabel>
+                            {t(cat.name.replace("Flavors", "Flavours"), cat.nameFr)}
+                            {cat.extraPrice > 0 ? ` (+CHF ${cat.extraPrice})` : ""}
+                          </SelectLabel>
+                          {cat.flavors.map((fl) => renderFlavorOption(fl, cat.extraPrice))}
+                        </SelectGroup>
+                      ))}
+                      <div className="px-2 py-1">
+                        <button
+                          type="button"
+                          onPointerDown={e => e.preventDefault()}
+                          onClick={() => setShowGlutenFreeFlavors(v => !v)}
+                          className="flex w-full items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1.5 px-1 hover:underline rounded"
+                        >
+                          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform flex-shrink-0", showGlutenFreeFlavors && "rotate-180")} />
+                          {showGlutenFreeFlavors
+                            ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
+                            : t("See gluten-free flavours", "Voir les parfums sans gluten")}
+                        </button>
+                      </div>
+                      {showGlutenFreeFlavors && glutenFreeFlavorCategories.map((cat) => (
+                        <SelectGroup key={cat.name}>
+                          <SelectLabel>
+                            {t(cat.nameFr, cat.nameFr)}
+                            {cat.extraPrice > 0 ? ` (+CHF ${cat.extraPrice})` : ""}
+                          </SelectLabel>
+                          {cat.flavors.map((fl) => renderFlavorOption(fl, cat.extraPrice))}
+                        </SelectGroup>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
+              {selectedFlavor && allergenMap[selectedFlavor] && (
+                <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 border border-border/40">
+                  {allergenMap[selectedFlavor].warn && <span aria-hidden="true">⚠️ </span>}
+                  <span className="font-medium">{t("Contains:", "Contient :")}</span>{" "}
+                  {t(allergenMap[selectedFlavor].en, allergenMap[selectedFlavor].fr)}
                 </div>
-              ))}
-              <AllergenNotice className="pt-2" />
+              )}
+              <AllergenNotice className="pt-1" />
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={goBack} className="rounded-none border-border text-[11px] font-semibold uppercase tracking-[0.12em] px-6 py-2.5">← {t("Back","Retour")}</Button>
                 <Button onClick={goNext} className="bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-semibold uppercase tracking-[0.12em] rounded-none px-8 py-2.5">{t("Next","Suivant")} →</Button>
