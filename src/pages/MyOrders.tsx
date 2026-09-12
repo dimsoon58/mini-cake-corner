@@ -29,6 +29,15 @@ type CustomerOrderItem = {
   workshop_participants: number | null;
 };
 
+type CustomerOrderFulfillment = {
+  id: string;
+  pickup_delivery_date: string | null;
+  pickup_delivery_slot: string | null;
+  delivery_method: string | null;
+  delivery_address: string | null;
+  delivery_zone: string | null;
+};
+
 type CustomerOrder = {
   id: string;
   order_number: string | null;
@@ -48,7 +57,38 @@ type CustomerOrder = {
   workshop_confirmed_at: string | null;
   order_failure_reason: string | null;
   order_items: CustomerOrderItem[];
+  order_fulfillments: CustomerOrderFulfillment[];
 };
+
+// Multi-date fulfillment: every physical order has AT LEAST one
+// order_fulfillments row (create-postfinance-payment normalises even the
+// legacy single-date path into one), so this is the one place that decides
+// whether an order genuinely spans 2+ dates or not — everything else
+// (classification, display) branches off THIS, never off order_fulfillments
+// .length directly, so an older order created before this feature existed
+// (0 fulfillment rows) still falls back correctly to the single legacy
+// orders.pickup_delivery_date column.
+function fulfillmentDates(order: CustomerOrder): string[] {
+  if (order.order_fulfillments?.length) {
+    return order.order_fulfillments.map((f) => f.pickup_delivery_date).filter((d): d is string => !!d);
+  }
+  return order.pickup_delivery_date ? [order.pickup_delivery_date] : [];
+}
+function isMultiDateOrder(order: CustomerOrder): boolean {
+  return (order.order_fulfillments?.length ?? 0) > 1;
+}
+
+// Collapsed-card summary date: identical to today's rendering for the
+// ≤1-fulfillment case (just the one date). For a genuine multi-date order,
+// shows the earliest date plus a count of the others so the card stays
+// scannable without pre-expanding it.
+function summaryDateLabel(order: CustomerOrder, t: (en: string, fr: string) => string): string {
+  if (!isMultiDateOrder(order)) return formatDateCH(order.pickup_delivery_date);
+  const dates = [...fulfillmentDates(order)].sort();
+  if (!dates.length) return formatDateCH(order.pickup_delivery_date);
+  const rest = dates.length - 1;
+  return `${formatDateCH(dates[0])} (+${rest} ${t(rest > 1 ? "other dates" : "other date", rest > 1 ? "autres dates" : "autre date")})`;
+}
 
 function itemsSummary(items: CustomerOrder["order_items"]): string {
   return items
@@ -84,7 +124,8 @@ const MyOrders = () => {
       .from("orders")
       .select(
         "id, order_number, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone, delivery_fee, total_amount, order_validation, payment_status, invoice_path, fulfillment_type, physical_validation, refund_status, workshop_confirmed_at, order_failure_reason, " +
-        "order_items(id, product, size, shape, flavors, design, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total, workshop_type, workshop_date, workshop_time, workshop_participants)"
+        "order_items(id, product, size, shape, flavors, design, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total, workshop_type, workshop_date, workshop_time, workshop_participants), " +
+        "order_fulfillments(id, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone)"
       )
       .eq("customer_id", user.id)
       .order("pickup_delivery_date", { ascending: false })
@@ -144,8 +185,18 @@ const MyOrders = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const upcomingOrders = (orders ?? []).filter((o) => !o.pickup_delivery_date || new Date(o.pickup_delivery_date) >= today);
-  const pastOrders = (orders ?? []).filter((o) => o.pickup_delivery_date && new Date(o.pickup_delivery_date) < today);
+  // Multi-date aware: an order is "upcoming" as long as at least one of its
+  // fulfillment dates hasn't passed yet; it only moves to "past" once every
+  // date has passed. An order with no resolvable date at all (shouldn't
+  // happen once order_fulfillments is populated, but kept as a safety net)
+  // stays "upcoming" — same behaviour as before this change.
+  const isUpcoming = (o: CustomerOrder) => {
+    const dates = fulfillmentDates(o);
+    if (!dates.length) return true;
+    return dates.some((d) => new Date(d) >= today);
+  };
+  const upcomingOrders = (orders ?? []).filter(isUpcoming);
+  const pastOrders = (orders ?? []).filter((o) => !isUpcoming(o));
 
   const handleViewInvoice = async (order: CustomerOrder) => {
     if (!order.invoice_path) return;
@@ -219,7 +270,7 @@ const MyOrders = () => {
             </div>
             <p className="text-sm text-foreground/75">{itemsSummary(order.order_items) || "—"}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {t("Date", "Date")}: {formatDateCH(order.pickup_delivery_date)} · CHF {order.total_amount}
+              {t("Date", "Date")}: {summaryDateLabel(order, t)} · CHF {order.total_amount}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">

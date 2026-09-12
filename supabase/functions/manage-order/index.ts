@@ -492,7 +492,7 @@ function formatInvoiceDate(dateInput: string): string {
 async function generateInvoicePdf(
   order: any,
   items: any[],
-  opts?: { mode?: "full" | "workshop_only_kept"; refundedAmount?: number },
+  opts?: { mode?: "full" | "workshop_only_kept"; refundedAmount?: number; fulfillments?: any[] },
 ): Promise<string> {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
@@ -504,6 +504,29 @@ async function generateInvoicePdf(
   const invoiceTotalNum = keptMode
     ? items.reduce((s: number, it: any) => s + (Number(it.total) || 0), 0)
     : Number(order.total_amount ?? 0);
+
+  // Multi-date fulfillment (Sept 2026): while MULTI_DATE_FULFILLMENT_ENABLED
+  // is false on the frontend, every physical order has exactly ONE
+  // order_fulfillments row, so this never changes today's invoice at all —
+  // grouping only activates once a real order genuinely spans 2+ distinct
+  // physical pickup/delivery dates. One order is still exactly one
+  // transaction and one invoice either way; this only adds a date/mode
+  // section header above each group's lines. Kept in sync with the
+  // identical copy in _shared/invoice-pdf.ts — update BOTH.
+  const fulfillments: any[] = opts?.fulfillments ?? [];
+  const fulfillmentById = new Map<string, any>(fulfillments.map((f: any) => [f.id, f]));
+  const physicalFulfillmentIds = new Set(
+    items
+      .filter((it: any) => it.product !== "workshop" && it.fulfillment_id)
+      .map((it: any) => it.fulfillment_id),
+  );
+  const groupByFulfillment = physicalFulfillmentIds.size > 1;
+  const fulfillmentSectionLabel = (f: any): string => {
+    const method = f.delivery_method === "delivery" ? tr("Delivery", "Livraison") : tr("Pickup", "Retrait");
+    const parts = [formatDateCH(f.pickup_delivery_date), method];
+    if (f.pickup_delivery_slot) parts.push(f.pickup_delivery_slot);
+    return parts.join(" — ");
+  };
 
   const PAGE_W = 595.28;
   const PAGE_H = 841.89; // A4
@@ -629,15 +652,15 @@ async function generateInvoicePdf(
 
   drawTableHeader();
 
-  type InvoiceRow = { description: string; quantity: string; unitPrice: string; total: string; bold?: boolean };
+  type InvoiceRow = { description: string; quantity: string; unitPrice: string; total: string; bold?: boolean; section?: boolean };
 
-  const itemRows: InvoiceRow[] = items.map((item: any) => {
-    // Workshop line: description is the WORKSHOP NAME ONLY (date / time /
-    // booking reference are deliberately left off — they made the line too
-    // long and broke the invoice layout; they still live on the reservation /
-    // in the database and in the confirmation e-mail, untouched).
-    // QTY = participants, UNIT PRICE = workshop_unit_price, TOTAL = item.total.
-    // Never labelled as a cake. order.total_amount is not recomputed from here.
+  // Workshop line: description is the WORKSHOP NAME ONLY (date / time /
+  // booking reference are deliberately left off — they made the line too
+  // long and broke the invoice layout; they still live on the reservation /
+  // in the database and in the confirmation e-mail, untouched).
+  // QTY = participants, UNIT PRICE = workshop_unit_price, TOTAL = item.total.
+  // Never labelled as a cake. order.total_amount is not recomputed from here.
+  const rowForItem = (item: any): InvoiceRow => {
     if (item.product === "workshop") {
       const wsName = item.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature");
       const participants = item.workshop_participants != null ? Number(item.workshop_participants) : 1;
@@ -659,12 +682,50 @@ async function generateInvoicePdf(
       unitPrice: formatInvoicePrice(total),
       total: formatInvoicePrice(total),
     };
-  });
+  };
 
-  // Count of real ordered products/workshops only — captured BEFORE the
-  // express surcharge / welcome discount / reward / delivery lines are pushed
-  // below, so the TOTAL row's QTY never counts those synthetic lines.
-  const productLineCount = itemRows.length;
+  // Count of real ordered products/workshops only — computed from `items`
+  // directly, never from itemRows.length below, since grouping inserts extra
+  // section-header rows that must never be counted as billable lines in the
+  // TOTAL row's QTY.
+  const productLineCount = items.length;
+
+  let itemRows: InvoiceRow[];
+  if (groupByFulfillment) {
+    // Workshop lines first, exactly as before (never grouped by date — they
+    // keep their own session date shown separately, not on the invoice).
+    const workshopRows = items.filter((it: any) => it.product === "workshop").map(rowForItem);
+    const sortedFulfillmentIds = Array.from(physicalFulfillmentIds).sort((a, b) => {
+      const da = fulfillmentById.get(a)?.pickup_delivery_date ?? "";
+      const db = fulfillmentById.get(b)?.pickup_delivery_date ?? "";
+      return String(da).localeCompare(String(db));
+    });
+    const groupedRows: InvoiceRow[] = [];
+    for (const fid of sortedFulfillmentIds) {
+      const f = fulfillmentById.get(fid);
+      groupedRows.push({
+        description: f ? fulfillmentSectionLabel(f) : tr("Pickup / delivery", "Retrait / livraison"),
+        quantity: "", unitPrice: "", total: "", section: true,
+      });
+      groupedRows.push(
+        ...items
+          .filter((it: any) => it.product !== "workshop" && it.fulfillment_id === fid)
+          .map(rowForItem),
+      );
+    }
+    // Defensive only: a physical item with no fulfillment_id at all (should
+    // never happen once every physical order goes through fulfillment
+    // creation) — never silently dropped, just appended ungrouped.
+    const ungroupedRows = items
+      .filter((it: any) => it.product !== "workshop" && !it.fulfillment_id)
+      .map(rowForItem);
+    itemRows = [...workshopRows, ...groupedRows, ...ungroupedRows];
+  } else {
+    // Exactly today's behaviour — one order always has one fulfillment while
+    // MULTI_DATE_FULFILLMENT_ENABLED is false, so this is the only branch
+    // that ever runs in production right now. Zero visual change.
+    itemRows = items.map(rowForItem);
+  }
 
   // The itemised detail must reconcile exactly with the TOTAL. Order of the
   // lines: products / workshops -> express surcharge -> welcome discount (-) ->
@@ -735,8 +796,10 @@ async function generateInvoicePdf(
     },
   ];
 
+  const sectionRowH = 24;
   for (const invoiceRow of rows) {
-    if (y - dataRowH < margin) {
+    const rowH = invoiceRow.section ? sectionRowH : dataRowH;
+    if (y - rowH < margin) {
       // Row doesn't fit — start a new page and repeat the table header, so
       // a table row is never split across two pages.
       startPage();
@@ -744,12 +807,27 @@ async function generateInvoicePdf(
     }
 
     const rowTop = y;
-    const rowBot = y - dataRowH;
-    const textY = rowBot + dataRowH / 2 - 4;
+    const rowBot = y - rowH;
+    const textY = rowBot + rowH / 2 - 4;
     const font = invoiceRow.bold ? fontBold : fontRegular;
 
+    if (invoiceRow.section) {
+      // Full-width date/mode header ("07.10.2026 — Retrait") above the group
+      // of physical items for that fulfillment — no columns, no price, just
+      // the label. Only ever drawn when items genuinely span 2+ distinct
+      // pickup/delivery dates (see groupByFulfillment above); a normal
+      // single-date order never reaches this branch.
+      page.drawRectangle({
+        x: tableLeft, y: rowBot, width: tableWidth, height: rowH,
+        color: totalRowFill, borderColor, borderWidth: 0.75,
+      });
+      page.drawText(invoiceRow.description, { x: col1 + 8, y: textY, size: 9, font: fontBold, color: textDark });
+      y = rowBot;
+      continue;
+    }
+
     page.drawRectangle({
-      x: tableLeft, y: rowBot, width: tableWidth, height: dataRowH,
+      x: tableLeft, y: rowBot, width: tableWidth, height: rowH,
       color: invoiceRow.bold ? totalRowFill : cream,
       borderColor, borderWidth: 0.75,
     });
@@ -976,6 +1054,20 @@ serve(async (req) => {
     if (itemsFetchError) throw new Error(`Failed to load order_items: ${itemsFetchError.message}`);
     const orderItems = items || [];
 
+    // Multi-date fulfillment (Sept 2026): needed only so the invoice PDF can
+    // group physical items by pickup/delivery date when an order genuinely
+    // spans more than one (generateInvoicePdf itself no-ops this into
+    // today's exact single-block layout whenever there's only one — see that
+    // function). Cheap, tiny row count; always fetched rather than gated on
+    // fulfillment_type, so a future mixed/cake_only multi-date order never
+    // has to remember to opt in.
+    const { data: orderFulfillmentsData, error: fulfillmentsFetchError } = await supabase
+      .from("order_fulfillments").select("*").eq("order_id", orderId);
+    if (fulfillmentsFetchError) {
+      console.error(`Failed to load order_fulfillments for ${orderId} (non-fatal, invoice falls back to ungrouped):`, fulfillmentsFetchError);
+    }
+    const orderFulfillments = orderFulfillmentsData || [];
+
     // ── Fulfilment shape ────────────────────────────────────────────────
     // NEW MODEL: the payment is ALREADY captured at checkout. manage-order
     // NEVER moves money — no capture, no void, no automatic refund. It only
@@ -1097,7 +1189,7 @@ serve(async (req) => {
     if (effectiveAction === "approve") {
       // ONE invoice: the full order (workshop + cake for a mixed order).
       let invoicePdfBase64: string | null = null;
-      try { invoicePdfBase64 = await generateInvoicePdf(order, orderItems); }
+      try { invoicePdfBase64 = await generateInvoicePdf(order, orderItems, { fulfillments: orderFulfillments }); }
       catch (e) { console.error("Invoice PDF generation error:", e); }
 
       const resendKeyApprove = Deno.env.get("RESEND_API_KEY");
