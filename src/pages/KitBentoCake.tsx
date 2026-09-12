@@ -569,7 +569,7 @@ const KitBentoCake = () => {
                       itemText={`${t(flavor.name, flavor.nameFr)}${extraPrice > 0 ? ` (+CHF ${extraPrice})` : ""}`}
                     >
                       <div className="flex items-start gap-2">
-                        <img src={flavor.image} alt={flavor.name} className="w-14 h-14 object-contain flex-shrink-0" />
+                        <img src={flavor.image} alt={flavor.name} className="w-20 h-20 object-contain flex-shrink-0" />
                         <div>
                           <span>{t(flavor.name, flavor.nameFr)}{extraPrice > 0 ? ` (+CHF ${extraPrice})` : ""}</span>
                           {(flavor.description || flavor.descriptionFr) && (

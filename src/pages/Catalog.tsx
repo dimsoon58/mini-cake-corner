@@ -1723,7 +1723,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         itemText={`${t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF ${size.price}`}
                       >
                         <div className="flex items-start gap-2 py-0.5 w-full">
-                          <img src={size.image} alt={size.name} className="w-14 h-14 object-contain flex-shrink-0" />
+                          <img src={size.image} alt={size.name} className="w-20 h-20 object-contain flex-shrink-0" />
                           <div className="min-w-0 flex-1">
                             <span className="block">{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
                             {sizeInfo[size.id] && (
@@ -1793,7 +1793,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         itemText={`${t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)}${extra > 0 ? ` (+CHF ${extra})` : ""}`}
                       >
                         <div className="flex items-start gap-2">
-                          <img src={flavor.image} alt={flavor.name} className="w-14 h-14 object-contain flex-shrink-0" />
+                          <img src={flavor.image} alt={flavor.name} className="w-20 h-20 object-contain flex-shrink-0" />
                           <div>
                           <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
                           {flavorDescMap[flavor.id] && (
