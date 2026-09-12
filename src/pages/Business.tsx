@@ -76,7 +76,6 @@ const InfoList = ({ items }: { items: string[] }) => (
 const celebrationsSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
   lastName: z.string().trim().min(1, "Last name is required").max(100),
-  phone: z.string().trim().regex(phoneRegex, "Please enter a valid phone number"),
   email: z.string().trim().email("Please enter a valid email address").max(255),
   companyName: z.string().trim().min(1, "Company name is required").max(200),
   numberOfEmployees: z.string().trim().min(1, "Number of employees is required").max(50),
@@ -87,6 +86,10 @@ type CelebrationsData = z.infer<typeof celebrationsSchema>;
 const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const { t } = useLang();
   const fe = useFieldError();
+  const [countryCode, setCountryCode] = useState("+41");
+  const [localPhone, setLocalPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
   const {
     register,
     handleSubmit,
@@ -94,18 +97,25 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   } = useForm<CelebrationsData>({ resolver: zodResolver(celebrationsSchema) });
 
   const onSubmit = async (data: CelebrationsData) => {
+    if (localPhone.trim().length < MIN_LOCAL_PHONE_DIGITS) {
+      setPhoneError(t("Please enter a valid phone number", "Veuillez entrer un numéro de téléphone valide"));
+      return;
+    }
+    setPhoneError(null);
     try {
-      await submitToWeb3Forms(
+      await submitContactRequest(
+        "corporate_celebrations",
         {
-          "First name": data.firstName,
-          "Last name": data.lastName,
-          "Phone number": data.phone,
-          "Email address": data.email,
-          "Company name": data.companyName,
-          "Number of employees": data.numberOfEmployees,
-          "Looking for": data.lookingFor,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: combinePhoneNumber(countryCode, localPhone),
+          email: data.email,
+          companyName: data.companyName,
+          numberOfEmployees: data.numberOfEmployees,
+          lookingFor: data.lookingFor,
         },
-        { subject: "Corporate Celebrations enquiry, Bento Cake Studio" }
+        data.email,
+        { honeypot },
       );
       onSuccess();
     } catch (err) {
@@ -115,6 +125,7 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2 text-left">
+      <HoneypotField value={honeypot} onChange={setHoneypot} />
       <p className="text-sm text-muted-foreground leading-relaxed">
         {t("Interested in working with us or want to learn more? Fill out the form below and we'll get back to you with more information.", "Envie de travailler avec nous ou d'en savoir plus ? Remplissez le formulaire ci-dessous et nous reviendrons vers vous avec plus d'informations.")}
       </p>
@@ -131,11 +142,15 @@ const CelebrationsForm = ({ onSuccess }: { onSuccess: () => void }) => {
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="cc-phone">{t("Phone number", "Numéro de téléphone")} <RequiredMark /></Label>
-          <Input id="cc-phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
-        </div>
+        <PhoneNumberField
+          id="cc-phone"
+          label={t("Phone number", "Numéro de téléphone")}
+          countryCode={countryCode}
+          onCountryCodeChange={setCountryCode}
+          localPhone={localPhone}
+          onLocalPhoneChange={setLocalPhone}
+          error={phoneError ?? undefined}
+        />
         <div className="space-y-1.5">
           <Label htmlFor="cc-email">{t("Email address", "Adresse e-mail")} <RequiredMark /></Label>
           <Input id="cc-email" type="email" {...register("email")} />
