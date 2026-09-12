@@ -224,12 +224,12 @@ const Index = () => {
       <div className="flex flex-col">
 
       {/* Features Section */}
-      <section className="order-2 pt-2 pb-6 md:py-20 bg-background">
+      <section className="order-2 pt-0 pb-3 md:py-8 bg-background">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-[30px] md:gap-12">
             {features.map((feature) => (
               <div key={feature.title} className="text-center flex flex-col items-center">
-                <div className="h-[130px] md:h-[210px] flex items-end justify-center mb-3 md:mb-6">
+                <div className="h-[100px] md:h-[180px] flex items-end justify-center mb-2 md:mb-5">
                   <img
                     src={feature.image}
                     alt={feature.title}
@@ -297,14 +297,10 @@ const Index = () => {
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
 
-          {/* Title — upper left */}
-          <p className="absolute top-5 left-5 md:top-7 md:left-8 text-white uppercase tracking-[0.18em] text-[0.75rem] md:text-[0.85rem] font-medium">
-            {t("WORKSHOPS", "ATELIERS")}
-          </p>
-          {/* Button — bottom center */}
+          {/* Title button — bottom center */}
           <div className="absolute inset-x-0 bottom-6 md:bottom-10 flex justify-center">
-            <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-medium px-12 py-2.5 transition-colors">
-              {t("DISCOVER", "DÉCOUVRIR")}
+            <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-12 py-2.5 transition-colors">
+              {t("WORKSHOPS", "ATELIERS")}
             </span>
           </div>
         </Link>
@@ -313,9 +309,9 @@ const Index = () => {
       </div>{/* end flex-col reorder wrapper */}
 
       {/* Customers Section */}
-      <section className="py-20 bg-cream">
+      <section className="pt-12 pb-8 bg-cream">
         <div className="container mx-auto px-4">
-          <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-16">
+          <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-10">
             {t("OUR CUSTOMERS", "NOS CLIENTS")}
           </h2>
           <PhotoCarousel photos={customerPhotos} altPrefix="Happy customer" />
@@ -323,9 +319,9 @@ const Index = () => {
       </section>
 
       {/* Customer Comments Section */}
-      <section className="py-16 bg-background">
+      <section className="pt-8 pb-10 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] text-foreground mb-6">
+          <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-6">
             {t("CUSTOMER COMMENTS", "AVIS CLIENTS")}
           </h2>
           <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" contain />
