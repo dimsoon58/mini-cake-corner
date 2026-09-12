@@ -102,9 +102,21 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
     const cakeComment = realComment(item.item_comment);
     if (cakeComment) rows.push(row(tr("Additional note", "Remarque complémentaire"), cakeComment));
 
+    // The exact design photo the customer picked on the site — never
+    // reconstructed from item.design (the slug/text), only order_items.
+    // design_image_url (already an absolute URL, set by Catalog.tsx at
+    // checkout). Shown only when present; kept entirely separate from
+    // reference_images (the client's own uploaded photos), which stay in
+    // orderImagesBlock below, unchanged. Same approach as the equivalent
+    // fix in notify-order/index.ts.
+    const designImageBlock = item.design_image_url
+      ? `<img src="${item.design_image_url}" alt="${tr("Chosen design", "Design choisi")}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #78020C;display:block;margin:0 0 12px;" />`
+      : "";
+
     return `
       <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
         <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${tr("Cake", "Gâteau")}${physicalItems.length > 1 ? ` ${i + 1}` : ""}</h3>
+        ${designImageBlock}
         <table style="border-collapse:collapse;width:100%;">
           ${rows.join("")}
         </table>
