@@ -120,23 +120,42 @@ const MyOrders = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("orders")
-      .select(
-        "id, order_number, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone, delivery_fee, total_amount, order_validation, payment_status, invoice_path, fulfillment_type, physical_validation, refund_status, workshop_confirmed_at, order_failure_reason, " +
-        "order_items(id, product, size, shape, flavors, design, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total, workshop_type, workshop_date, workshop_time, workshop_participants), " +
-        "order_fulfillments(id, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone)"
-      )
-      .eq("customer_id", user.id)
-      .order("pickup_delivery_date", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Failed to load orders:", error);
-          setOrders([]);
-          return;
-        }
-        setOrders((data as unknown as CustomerOrder[]) ?? []);
-      });
+    let cancelled = false;
+    (async () => {
+      // Best-effort, self-service claim of any order placed as a guest
+      // (before this account existed, or from a device where the customer
+      // wasn't logged in) with the same verified e-mail — see
+      // claim_guest_orders_for_current_user() (SECURITY DEFINER, matches
+      // only on the caller's OWN auth.jwt() e-mail, never a client-supplied
+      // value, and only ever touches an order whose customer_id is still
+      // NULL). Awaited first so a freshly-claimed order appears in the very
+      // same load. `as any`: this RPC isn't in the generated Supabase types
+      // yet (migration not applied at generation time) — drop the cast once
+      // types are regenerated after the migration runs. A failure here
+      // (e.g. not deployed yet) is logged and never blocks the customer's
+      // already-linked orders from loading normally.
+      const { error: claimError } = await (supabase.rpc as any)("claim_guest_orders_for_current_user");
+      if (claimError) console.error("claim_guest_orders_for_current_user failed (non-blocking):", claimError);
+      if (cancelled) return;
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select(
+          "id, order_number, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone, delivery_fee, total_amount, order_validation, payment_status, invoice_path, fulfillment_type, physical_validation, refund_status, workshop_confirmed_at, order_failure_reason, " +
+          "order_items(id, product, size, shape, flavors, design, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total, workshop_type, workshop_date, workshop_time, workshop_participants), " +
+          "order_fulfillments(id, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone)"
+        )
+        .eq("customer_id", user.id)
+        .order("pickup_delivery_date", { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        console.error("Failed to load orders:", error);
+        setOrders([]);
+        return;
+      }
+      setOrders((data as unknown as CustomerOrder[]) ?? []);
+    })();
+    return () => { cancelled = true; };
   }, [user]);
 
   const statusLabel = (order: CustomerOrder) => {
