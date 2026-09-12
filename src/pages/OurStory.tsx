@@ -184,6 +184,32 @@ const OurStory = () => {
         </div>
       </section>
 
+      {/* 2026, chapitre mis en avant */}
+      <section className="bg-primary text-primary-foreground py-12 md:py-16">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
+            <div className="order-1">
+              <p className="font-sans uppercase tracking-[0.3em] text-[10px] opacity-70 mb-4">
+                {t("THE NEXT CHAPTER", "LA SUITE DE L'HISTOIRE")}
+              </p>
+              <h2 className="font-sans text-2xl md:text-3xl uppercase tracking-[0.105em] mb-6 font-semibold">
+                {t("2026", "2026")}
+              </h2>
+              <div className="space-y-4">
+                {chapter2026.map((paragraph, i) => (
+                  <p key={i} className="text-sm md:text-[15px] leading-relaxed opacity-95" style={{ textAlign: "justify" }}>
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <div className="order-2">
+              <PhotoSlot className="aspect-[4/3] max-w-[420px] mx-auto" label="2026" light />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Chapitres en alternance */}
       <section className="bg-background pb-8">
         <div className="container mx-auto px-4">
@@ -218,32 +244,6 @@ const OurStory = () => {
               </div>
             );
           })}
-        </div>
-      </section>
-
-      {/* 2026, chapitre mis en avant */}
-      <section className="bg-primary text-primary-foreground py-12 md:py-16">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-            <div className="order-1">
-              <p className="font-sans uppercase tracking-[0.3em] text-[10px] opacity-70 mb-4">
-                {t("THE NEXT CHAPTER", "LA SUITE DE L'HISTOIRE")}
-              </p>
-              <h2 className="font-sans text-2xl md:text-3xl uppercase tracking-[0.105em] mb-6 font-semibold">
-                {t("2026", "2026")}
-              </h2>
-              <div className="space-y-4">
-                {chapter2026.map((paragraph, i) => (
-                  <p key={i} className="text-sm md:text-[15px] leading-relaxed opacity-95" style={{ textAlign: "justify" }}>
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            </div>
-            <div className="order-2">
-              <PhotoSlot className="aspect-[4/3] max-w-[420px] mx-auto" label="2026" light />
-            </div>
-          </div>
         </div>
       </section>
 
