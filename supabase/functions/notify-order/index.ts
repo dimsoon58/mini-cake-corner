@@ -39,12 +39,31 @@ async function sendAdminEmail(
   resendApiKey: string,
   order: any,
   items: any[],
+  fulfillments: any[],
   siteUrl: string,
   token: string | null,
   autoConfirmed: boolean,
   mixed: boolean,
 ) {
   const reviewUrl = `${siteUrl}/admin/order/${order.id}${token ? `?token=${token}` : ""}`;
+  // Multi-date fulfillment: each physical order_item carries its own
+  // fulfillment_id (one order_fulfillments row per distinct pickup/delivery
+  // date). Falls back to the order-level legacy date for an old item with
+  // no fulfillment_id (never null-checked before this) — never a second
+  // source of truth, just the one already-authoritative date resolved per
+  // item instead of assumed to be the same for the whole order.
+  const fulfillmentById = new Map<string, any>((fulfillments || []).map((f: any) => [f.id, f]));
+  const itemDateLabel = (item: any): string | null => {
+    if (item.fulfillment_id) {
+      const f = fulfillmentById.get(item.fulfillment_id);
+      if (f?.pickup_delivery_date) {
+        return formatDateCH(f.pickup_delivery_date) + (f.pickup_delivery_slot ? ` · ${f.pickup_delivery_slot}` : "");
+      }
+    }
+    return order.pickup_delivery_date
+      ? formatDateCH(order.pickup_delivery_date) + (order.pickup_delivery_slot ? ` · ${order.pickup_delivery_slot}` : "")
+      : null;
+  };
   const refundDue = mixed
     ? Math.round(((Number(order.total_amount) || 0) -
         items.filter((it: any) => it.product === "workshop")
@@ -71,10 +90,21 @@ async function sendAdminEmail(
       ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
       : "";
 
+    // The exact design photo the customer picked on the site — never
+    // reconstructed from the design slug/id. design_image_url is already
+    // an absolute URL (set by Catalog.tsx at checkout); shown only when
+    // present, kept entirely separate from reference_images (the client's
+    // own uploaded photos), which stay in their own block below, unchanged.
+    const designImageBlock = item.design_image_url
+      ? `<img src="${item.design_image_url}" alt="Design choisi" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;margin:0 0 12px;" />`
+      : "";
+
     return `
       <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
         <h4 style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">🍰 Article ${i + 1} — CHF ${item.total}</h4>
+        ${designImageBlock}
         <table style="width:100%;border-collapse:collapse;">
+          ${row("Date", itemDateLabel(item))}
           ${row("Taille", item.size)}
           ${row("Forme", item.shape)}
           ${row("Parfum", (item.flavors || []).join(", "))}
@@ -84,7 +114,7 @@ async function sendAdminEmail(
           ${row("Texte sur le gâteau", item.cake_text ? `"${item.cake_text}" (${item.text_style || "normal"}, ${item.text_color || "default"})` : null)}
           ${row("Suppléments", item.extra || null)}
           ${row("Bougies", candlesList || null)}
-          ${row("Instructions", item.item_comment?.trim() || null)}
+          ${row("Instructions", realComment(item.item_comment))}
         </table>
       </div>`;
   }).join("");
@@ -275,6 +305,14 @@ serve(async (req) => {
 
     if (itemsError) throw new Error(`Failed to load order_items: ${itemsError.message}`);
 
+    // Multi-date fulfillment: one row per distinct physical pickup/delivery
+    // date, linked from each order_item via fulfillment_id — read here
+    // (service_role, no RLS concern) so each cake in the e-mail can show
+    // its own date instead of assuming the whole order shares one.
+    const { data: fulfillments, error: fulfillmentsError } = await supabase
+      .from("order_fulfillments").select("*").eq("order_id", orderId);
+    if (fulfillmentsError) throw new Error(`Failed to load order_fulfillments: ${fulfillmentsError.message}`);
+
     // A workshop-ONLY order is auto-confirmed: no Accepter / Refuser step, no
     // token, the admin e-mail is an info notification only.
     // A MIXED order (workshop + physical) still needs the admin to decide the
@@ -331,7 +369,7 @@ serve(async (req) => {
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (resendKey) {
-      try { results.email = await sendAdminEmail(resendKey, order, items || [], siteUrl, token, autoConfirmed, mixed); }
+      try { results.email = await sendAdminEmail(resendKey, order, items || [], fulfillments || [], siteUrl, token, autoConfirmed, mixed); }
       catch (e) { console.error("Email error:", e); results.errors.push(`Email: ${e instanceof Error ? e.message : String(e)}`); }
     } else { results.errors.push("RESEND_API_KEY not configured"); }
 
