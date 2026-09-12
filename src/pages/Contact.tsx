@@ -209,17 +209,23 @@ const Contact = () => {
 
             <AccordionItem
               titleEn="ORDERING & LEAD TIME"
-              titleFr="COMMANDES ET DÉLAIS"
+              titleFr="DÉLAIS DE COMMANDE"
             >
               {(l) =>
                 l === "fr" ? (
-                  <p>
-                    Tous nos gâteaux sont préparés à la commande. La <strong>première date de retrait ou de livraison disponible est 2 jours</strong> après la commande : les commandes pour le jour même et le lendemain ne sont pas possibles. Nous vous recommandons de commander quelques jours à l'avance, en particulier pour les week-ends et les périodes de fêtes.
-                  </p>
+                  <ul className="space-y-1 list-none">
+                    <li>Tous nos gâteaux sont préparés frais sur commande.</li>
+                    <li>Retrait ou livraison au plus tôt : <strong>2 jours après la commande.</strong></li>
+                    <li>Les commandes le jour même ou pour le lendemain ne sont pas possibles.</li>
+                    <li>Nous vous recommandons de commander à l'avance pour les week-ends et jours fériés.</li>
+                  </ul>
                 ) : (
-                  <p>
-                    All of our cakes are made fresh to order. The <strong>earliest available pickup or delivery date is 2 days</strong> after your order: same-day and next-day orders are not possible. We recommend ordering a few days ahead, especially for weekends and holidays.
-                  </p>
+                  <ul className="space-y-1 list-none">
+                    <li>All cakes are made fresh to order.</li>
+                    <li>Earliest pickup or delivery: <strong>2 days after ordering.</strong></li>
+                    <li>Same-day and next-day orders are not available.</li>
+                    <li>We recommend ordering ahead for weekends and holidays.</li>
+                  </ul>
                 )
               }
             </AccordionItem>
@@ -230,40 +236,40 @@ const Contact = () => {
             >
               {(l) =>
                 l === "fr" ? (
-                  <>
-                    <p>
-                      Les commandes passées <strong>4 à 5 jours à l'avance</strong> incluent un <strong>supplément express de 15 %</strong>. Les commandes passées <strong>2 à 3 jours à l'avance</strong> incluent un <strong>supplément express de 20 %</strong>. Le tarif standard s'applique à partir de 6 jours à l'avance.
-                    </p>
-                    <p className="text-foreground/60 text-xs">
-                      Le supplément est calculé sur le montant des produits, hors frais de livraison.
-                    </p>
-                  </>
+                  <ul className="space-y-1 list-none">
+                    <li>4–5 jours à l'avance — <strong>supplément de 15 %</strong></li>
+                    <li>2–3 jours à l'avance — <strong>supplément de 20 %</strong></li>
+                    <li>Le tarif standard s'applique à partir de 6 jours à l'avance.</li>
+                    <li className="text-foreground/60 text-xs">Les frais express s'appliquent uniquement aux produits, hors frais de livraison.</li>
+                  </ul>
                 ) : (
-                  <>
-                    <p>
-                      Orders placed <strong>4–5 days in advance</strong> include a <strong>15% express surcharge</strong>. Orders placed <strong>2–3 days in advance</strong> include a <strong>20% express surcharge</strong>. Standard pricing applies from 6 days in advance.
-                    </p>
-                    <p className="text-foreground/60 text-xs">
-                      The surcharge is calculated on the product amount, excluding delivery fees.
-                    </p>
-                  </>
+                  <ul className="space-y-1 list-none">
+                    <li>4–5 days in advance — <strong>15% surcharge</strong></li>
+                    <li>2–3 days in advance — <strong>20% surcharge</strong></li>
+                    <li>Standard pricing applies from 6 days in advance.</li>
+                    <li className="text-foreground/60 text-xs">Express fees apply to products only, excluding delivery.</li>
+                  </ul>
                 )
               }
             </AccordionItem>
 
             <AccordionItem
               titleEn="PAYMENT, CHANGES & CANCELLATIONS"
-              titleFr="PAIEMENT, MODIFICATIONS ET ANNULATIONS"
+              titleFr="PAIEMENT, MODIFICATIONS & ANNULATIONS"
             >
               {(l) =>
                 l === "fr" ? (
-                  <p>
-                    Les commandes ne sont confirmées qu'à réception du paiement. Si vous souhaitez annuler ou reporter votre commande, vous devez nous prévenir au moins <strong>5 jours à l'avance</strong> pour être remboursé ou changer la date. Sinon, <strong>aucun remboursement ni report ne sera possible</strong>.
-                  </p>
+                  <ul className="space-y-1 list-none">
+                    <li>Votre commande est confirmée dès réception du paiement.</li>
+                    <li>Toute modification ou annulation doit être effectuée au moins <strong>5 jours à l'avance.</strong></li>
+                    <li>Passé ce délai, <strong>aucun remboursement ni changement de date ne sera possible.</strong></li>
+                  </ul>
                 ) : (
-                  <p>
-                    Orders are confirmed only upon receipt of payment. If you wish to cancel or reschedule your order, you must notify us at least <strong>5 days in advance</strong> to receive a refund or change the date. Otherwise, <strong>no refunds or rescheduling will be possible</strong>.
-                  </p>
+                  <ul className="space-y-1 list-none">
+                    <li>Your order is confirmed once payment is received.</li>
+                    <li>Changes or cancellations require at least <strong>5 days' notice.</strong></li>
+                    <li>After this deadline, <strong>refunds and rescheduling are not possible.</strong></li>
+                  </ul>
                 )
               }
             </AccordionItem>
