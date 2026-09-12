@@ -150,7 +150,7 @@ export const ColorFamilyCandleCard = ({
           drops aspect-square entirely so the box is only ever as tall as
           the photo itself, regardless of the card's width. Non-compact
           (Candles.tsx) keeps the original square behaviour unchanged. */}
-      <div className={cn("flex items-center justify-center bg-secondary/20 overflow-hidden", compact ? "p-2 h-28" : "aspect-square p-4")}>
+      <div className={cn("flex items-center justify-center bg-secondary/20", compact ? "p-2 h-28" : "aspect-square p-4")}>
         <img src={candle.image} alt={t(candle.name, candle.nameFr || candle.name)} className={cn(imageClassName ?? candle.imageClassName ?? "h-40 w-40", "object-contain")} />
       </div>
       <CardContent className={cn("text-center", compact ? "p-2 space-y-1.5" : "p-4 space-y-3")}>
