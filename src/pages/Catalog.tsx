@@ -1577,8 +1577,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
           </SheetHeader>
           
           {selectedCake && (
-            <div className="mt-6 space-y-6">
-              <div className="aspect-square w-full max-w-[300px] mx-auto rounded-none overflow-hidden bg-muted/30">
+            <div className="mt-2 space-y-4">
+              <div className="aspect-square w-full max-w-[280px] mx-auto rounded-none overflow-hidden bg-muted/30">
                 <img
                   src={
                     selectedCake.images && selectedCake.images.length > 1
