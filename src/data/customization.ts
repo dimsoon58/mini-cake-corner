@@ -416,7 +416,7 @@ export const designExcludedExtras: Record<string, string[]> = {
   "glitter-base": ["glitter-base", "printed-picture"],
   "retro-ribbons-glitter": ["retro", "ribbons", "glitter-in-the-air", "sprinkles", "glitter-base", "printed-picture"],
   "printed-picture": ["printed-picture", "glitter-base", "glitter-in-the-air"],
-  "custom-drawing": ["drawing", "glitter-in-the-air"],
+  "custom-drawing": ["drawing", "glitter-in-the-air", "printed-picture"],
   "butterfly-garden": ["butterfly", "scattered-pearl"],
   "roses-please": ["retro", "pearl-border"],
   "heart-bomb": ["heart"],

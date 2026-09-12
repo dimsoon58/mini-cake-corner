@@ -412,7 +412,7 @@ const KitBentoCake = () => {
     setStep((s) => Math.min(s + 1, 6));
   };
   const goBack = () => { setStep((s) => Math.max(s - 1, 1)); };
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [step]);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }); }, [step]);
 
   const stepLabels = [t("Date","Date"), t("Shape","Forme"), t("Flavour","Parfum"), t("Piping","Poches"), t("Candles","Bougies"), t("Confirm","Confirmer")];
 
