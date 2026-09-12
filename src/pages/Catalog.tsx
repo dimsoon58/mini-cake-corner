@@ -2499,8 +2499,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       return (
                         <div key={candle.id} className="w-[calc(50%-6px)] min-w-0">
                           <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all", unitQty > 0 && "ring-2 ring-primary")}>
-                          <div className="flex items-center justify-center bg-secondary/20 p-2">
-                            <img src={candle.image} alt={candle.name} className={cn(candle.imageClassName ?? "h-40 w-40", "object-contain")} />
+                          <div className="flex items-center justify-center bg-secondary/20 p-2 h-28 overflow-hidden">
+                            <img src={candle.image} alt={candle.name} className={cn(candle.imageClassName ?? "h-24 w-24", "object-contain")} />
                           </div>
                           <div className="p-2 text-center">
                             <p className="text-xs font-medium text-foreground">{t(candle.name, candleNameFr[candle.id] ?? candle.name)}</p>
