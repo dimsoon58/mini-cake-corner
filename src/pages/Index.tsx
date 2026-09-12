@@ -249,7 +249,7 @@ const Index = () => {
       </section>
 
       {/* Discover Section, category cards */}
-      <section className="order-1 py-20 bg-background">
+      <section className="order-1 pt-20 pb-10 bg-background">
         <div className="relative w-full px-4 sm:px-8">
           <button onClick={() => scrollDiscover("left")} aria-label="Scroll left" className="flex absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background p-2 shadow-md items-center justify-center">
             <ChevronLeft className="h-6 w-6 text-foreground" />
