@@ -30,6 +30,7 @@ import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandl
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
+import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { flavorDescMap } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
@@ -1618,11 +1619,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      disabled={!!cartOrderDate}
+                      disabled={!MULTI_DATE_FULFILLMENT_ENABLED && !!cartOrderDate}
                       className={cn(
                         "w-full justify-start text-left font-normal",
                         !selections.orderDate && "text-muted-foreground",
-                        cartOrderDate && "opacity-60 cursor-not-allowed"
+                        !MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && "opacity-60 cursor-not-allowed"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
@@ -1651,7 +1652,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     />
                   </PopoverContent>
                 </Popover>
-                {cartOrderDate && (
+                {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (
                   <p className="text-xs text-muted-foreground">
                     {t(
                       `All items in this order will be prepared for ${format(new Date(cartOrderDate), "dd.MM.yyyy")}. To order for another date, please place a separate order.`,

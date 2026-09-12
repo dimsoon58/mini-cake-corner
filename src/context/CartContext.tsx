@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { trackAddToCart, trackRemoveFromCart } from "@/lib/analytics";
+import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 
 // Canonical shape for a candle attached to a cart item — used both for
 // candles added directly on the Candles page and for candles added on top
@@ -178,9 +179,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const addItem = (item: CartItem): AddItemResult => {
     // Workshop + cake in one cart is allowed — a single checkout, a single
     // payment captured immediately. The workshop part auto-confirms; the cake
-    // part waits for the admin. Only the pickup/delivery date must be
-    // consistent across dated items.
-    if (item.orderDate) {
+    // part waits for the admin.
+    //
+    // Multiple pickup/delivery DATES among physical items are only refused
+    // while MULTI_DATE_FULFILLMENT_ENABLED is false (see src/lib/
+    // featureFlags.ts) — Checkout groups physical items by date and creates
+    // one order_fulfillments row per distinct date server-side, but Make/
+    // Notion are not yet adapted to consume that, so this guard stays in
+    // place until the flag flips. Flipping it does not relax anything else
+    // here: workshop + cake mixing was already allowed regardless.
+    if (!MULTI_DATE_FULFILLMENT_ENABLED && item.orderDate) {
       const existingDate = items.find((i) => i.orderDate)?.orderDate;
       if (existingDate && existingDate !== item.orderDate) {
         return { ok: false, reason: "date_mismatch" };

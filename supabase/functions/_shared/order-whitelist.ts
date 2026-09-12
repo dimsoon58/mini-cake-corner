@@ -99,6 +99,12 @@ export const ORDER_ITEM_SERVER_FIELDS = [
   "workshop_time",
   "workshop_participants",
   "workshop_unit_price",
+  // Multi-date fulfillment (Sept 2026): links a PHYSICAL order_item to the
+  // order_fulfillments row (one per distinct pickup/delivery date) it
+  // belongs to. Set only by confirm-postfinance-payment, after creating that
+  // row — never client-supplied. Always null for a workshop item (workshops
+  // keep their own workshop_session_id / date / time, never a fulfillment).
+  "fulfillment_id",
 ] as const;
 
 // Every field allowed on a payload that create-postfinance-payment already

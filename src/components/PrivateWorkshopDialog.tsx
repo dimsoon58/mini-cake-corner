@@ -8,20 +8,25 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { submitToWeb3Forms } from "@/lib/web3forms";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
+import { HoneypotField } from "@/components/HoneypotField";
+import { submitContactRequest } from "@/lib/contactRequest";
+import { combinePhoneNumber } from "@/lib/identity";
 import { useLang } from "@/context/LanguageContext";
 import { useFieldError } from "@/lib/formErrors";
 
 // Extracted verbatim from Workshop.tsx so the same quote-request flow can be
 // reused elsewhere (e.g. the "larger group" case in the workshop booking
 // stepper). Behaviour is unchanged.
-
-const pwPhoneRegex = /^[+\d][\d\s().\-/]{6,}$/;
+//
+// Phone: same two-part country-code + local-number field as the checkout
+// page (src/components/PhoneNumberField.tsx) — no separate free-text phone
+// regex any more; the full international number is only assembled at
+// submit time via combinePhoneNumber(), same helper checkout uses.
 
 const privateSchema = z.object({
   fullName: z.string().trim().min(1, "Name is required").max(150),
   email: z.string().trim().email("Please enter a valid email address").max(255),
-  phone: z.string().trim().regex(pwPhoneRegex, "Please enter a valid phone number"),
   occasion: z.string().trim().max(150).optional(),
   participants: z.string().trim().min(1, "Number of participants is required").max(50),
   preferredDate: z.string().trim().max(100).optional(),
@@ -29,10 +34,19 @@ const privateSchema = z.object({
 });
 type PrivateData = z.infer<typeof privateSchema>;
 
+// Same light rule everywhere phone is now split into country code + local
+// part: an "incomplete" number is caught here rather than by a rigid regex
+// that would need to know every country's real format.
+const MIN_LOCAL_PHONE_DIGITS = 4;
+
 export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) => {
   const { t } = useLang();
   const fe = useFieldError();
   const [submitted, setSubmitted] = useState(false);
+  const [countryCode, setCountryCode] = useState("+41");
+  const [localPhone, setLocalPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
   const {
     register,
     handleSubmit,
@@ -41,26 +55,37 @@ export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; o
   } = useForm<PrivateData>({ resolver: zodResolver(privateSchema) });
 
   const handleClose = (v: boolean) => {
-    if (!v) setTimeout(() => { setSubmitted(false); reset(); }, 250);
+    if (!v) setTimeout(() => { setSubmitted(false); reset(); setCountryCode("+41"); setLocalPhone(""); setPhoneError(null); }, 250);
     onOpenChange(v);
   };
 
   const onSubmit = async (data: PrivateData) => {
+    if (localPhone.trim().length < MIN_LOCAL_PHONE_DIGITS) {
+      setPhoneError(t("Please enter a valid phone number", "Veuillez entrer un numéro de téléphone valide"));
+      return;
+    }
+    setPhoneError(null);
+
     try {
-      await submitToWeb3Forms(
+      await submitContactRequest(
+        "private_workshop",
         {
-          "First and last name": data.fullName,
-          "Email address": data.email,
-          "Phone number": data.phone,
-          "Occasion": data.occasion || "(not provided)",
-          "Number of participants": data.participants,
-          "Preferred date": data.preferredDate || "(not provided)",
-          "Message": data.message,
+          fullName: data.fullName,
+          email: data.email,
+          phone: combinePhoneNumber(countryCode, localPhone),
+          occasion: data.occasion || "(not provided)",
+          participants: data.participants,
+          preferredDate: data.preferredDate || "(not provided)",
+          message: data.message,
         },
-        { subject: "Private Workshop enquiry, Bento Cake Studio" }
+        data.email,
+        { honeypot },
       );
       setSubmitted(true);
     } catch (err) {
+      // Form data is deliberately left untouched here — reset() is only
+      // called on success or on closing the dialog, never on a failed
+      // submit, so the customer never has to retype anything.
       toast.error(err instanceof Error ? err.message : t("Something went wrong. Please try again.", "Une erreur s'est produite. Veuillez réessayer."));
     }
   };
@@ -89,6 +114,7 @@ export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; o
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2 text-left">
+              <HoneypotField value={honeypot} onChange={setHoneypot} />
               <div className="space-y-1.5">
                 <Label htmlFor="pw-name">{t("First and last name", "Prénom et nom")} <span className="text-destructive">*</span></Label>
                 <Input id="pw-name" {...register("fullName")} />
@@ -100,11 +126,15 @@ export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; o
                   <Input id="pw-email" type="email" {...register("email")} />
                   {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="pw-phone">{t("Phone number", "Numéro de téléphone")} <span className="text-destructive">*</span></Label>
-                  <Input id="pw-phone" type="tel" {...register("phone")} />
-                  {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
-                </div>
+                <PhoneNumberField
+                  id="pw-phone"
+                  label={t("Phone number", "Numéro de téléphone")}
+                  countryCode={countryCode}
+                  onCountryCodeChange={setCountryCode}
+                  localPhone={localPhone}
+                  onLocalPhoneChange={setLocalPhone}
+                  error={phoneError ?? undefined}
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">

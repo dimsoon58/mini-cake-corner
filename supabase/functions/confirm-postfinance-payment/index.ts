@@ -166,6 +166,7 @@ async function finalizeOrderDb(
   supabase: any,
   orderRecord: any,
   orderItems: Record<string, unknown>[],
+  fulfillments?: Record<string, unknown>[],
 ): Promise<void> {
   // Tolerate a partial previous run (crashed after some/all items): only
   // insert the rows that are missing. order_items has no natural key, so we
@@ -174,15 +175,115 @@ async function finalizeOrderDb(
     .from("order_items").select("id").eq("order_id", orderRecord.id).limit(1);
 
   if (!alreadyThere || alreadyThere.length === 0) {
+    // ── Fulfillment creation (Sept 2026): create one order_fulfillments row
+    // per distinct physical pickup/delivery date BEFORE order_items, so each
+    // physical item can be stamped with the right fulfillment_id in the SAME
+    // insert below. `fulfillments` is populated for EVERY physical order now
+    // (create-postfinance-payment always normalises to at least one entry,
+    // even on the legacy single-date path) — it is undefined/empty only for
+    // a workshop-only order, where this whole block is a no-op and
+    // fulfillment_id stays null for every row, exactly as before this
+    // feature existed.
+    //
+    // IDEMPOTENCY — corrected: creating the fulfillments and inserting
+    // order_items are two separate awaited calls, both still inside "no
+    // order_items yet" — a crash between them (after fulfillments exist, but
+    // before any item does) would previously have re-run this whole block on
+    // retry and tried to INSERT a second, duplicate set of
+    // order_fulfillments rows (rejected by the DB's one-fulfillment-per-date
+    // constraint, failing the retry outright instead of resuming). Fixed by
+    // checking for already-created fulfillments for this exact order_id
+    // FIRST and reusing them (matched by date) instead of blindly
+    // re-inserting.
+    let fulfillmentIds: string[] = [];
+    if (Array.isArray(fulfillments) && fulfillments.length > 0) {
+      const { data: existingFulfillments, error: existingFulfillErr } = await supabase
+        .from("order_fulfillments")
+        .select("id, pickup_delivery_date")
+        .eq("order_id", orderRecord.id);
+      if (existingFulfillErr) {
+        throw new Error(`Failed to check existing order_fulfillments: ${existingFulfillErr.message}`);
+      }
+
+      if (existingFulfillments && existingFulfillments.length > 0) {
+        // A previous run already created these (crashed before order_items
+        // landed) — reuse them by date instead of re-inserting. A count or
+        // date mismatch means the previous run's payload disagreed with this
+        // one; refuse to guess which id belongs to which date rather than
+        // silently mis-linking an order_item to the wrong fulfillment.
+        if (existingFulfillments.length !== fulfillments.length) {
+          throw new Error(
+            `order_fulfillments already exist for order ${orderRecord.id} (${existingFulfillments.length} row(s)) but do not match this payload (${fulfillments.length} expected) — refusing to guess the mapping.`,
+          );
+        }
+        fulfillmentIds = fulfillments.map((f: any) => {
+          const match = existingFulfillments.find((r: any) => r.pickup_delivery_date === f.date);
+          if (!match) {
+            throw new Error(
+              `No existing order_fulfillments row found for date ${f.date} on order ${orderRecord.id} — refusing to guess the mapping.`,
+            );
+          }
+          return match.id;
+        });
+      } else {
+        const fulfillmentRows = fulfillments.map((f: any) => ({
+          order_id: orderRecord.id,
+          pickup_delivery_date: f.date,
+          delivery_method: f.deliveryMethod,
+          pickup_delivery_slot: f.slot ?? null,
+          // Legacy compat field (orders.pickup_delivery_datetime) is being
+          // phased out in favour of date + slot — never meaningfully
+          // derivable per-fulfillment server-side, so left null on purpose.
+          pickup_delivery_datetime: null,
+          delivery_address: f.deliveryAddress ?? null,
+          delivery_place_id: f.deliveryPlaceId ?? null,
+          delivery_postal_code: f.deliveryPostalCode ?? null,
+          delivery_city: f.deliveryCity ?? null,
+          delivery_latitude: f.deliveryLatitude ?? null,
+          delivery_longitude: f.deliveryLongitude ?? null,
+          delivery_distance_km: f.deliveryDistanceKm ?? null,
+          delivery_zone: f.deliveryZone ?? null,
+          delivery_fee: f.deliveryFee ?? 0,
+        }));
+        const { data: insertedFulfillments, error: fulfillErr } = await supabase
+          .from("order_fulfillments")
+          .insert(fulfillmentRows)
+          .select("id");
+        if (fulfillErr) {
+          // Includes the DB's own "one fulfillment per date" uniqueness
+          // constraint — a malformed/duplicate-date payload fails loudly
+          // here rather than silently collapsing two dates into one.
+          throw new Error(`Failed to create order_fulfillments: ${fulfillErr.message}`);
+        }
+        fulfillmentIds = (insertedFulfillments ?? []).map((r: any) => r.id);
+      }
+      if (fulfillmentIds.length !== fulfillments.length) {
+        throw new Error(
+          `order_fulfillments insert returned ${fulfillmentIds.length} row(s), expected ${fulfillments.length}`,
+        );
+      }
+    }
+
     // Re-whitelist at the INSERT site (defence in depth): even a corrupted
     // pending_payments row can never inject order_validation / production_status
     // / a client id / assigned_to / internal_notes / any unknown column.
     // order_id + order_number are always forced to the authoritative values.
-    const cleanItems = orderItems.map((item) => ({
-      ...pickAllowed(item as Record<string, unknown>, ORDER_ITEM_PAYLOAD_FIELDS),
-      order_id: orderRecord.id,
-      order_number: orderRecord.order_number,
-    }));
+    // fulfillment_id is resolved from the transient _fulfillmentIndex tag
+    // create-postfinance-payment set on each physical item (every physical
+    // item today, single-date or multi-date alike) — never present (and so
+    // always null) for a workshop item, and fulfillmentIds stays empty only
+    // for a workshop-only order.
+    const cleanItems = orderItems.map((item) => {
+      const raw = item as Record<string, unknown>;
+      const fIdx = raw._fulfillmentIndex;
+      const fulfillmentId = typeof fIdx === "number" ? (fulfillmentIds[fIdx] ?? null) : null;
+      return {
+        ...pickAllowed(raw, ORDER_ITEM_PAYLOAD_FIELDS),
+        order_id: orderRecord.id,
+        order_number: orderRecord.order_number,
+        fulfillment_id: fulfillmentId,
+      };
+    });
     const { error: itemsError } = await supabase
       .from("order_items")
       .insert(cleanItems);
@@ -275,6 +376,7 @@ async function finalizeClaimed(
   supabase: any,
   orderRecord: any,
   orderItems: Record<string, unknown>[],
+  fulfillments?: Record<string, unknown>[],
 ): Promise<{ outcome: "finalized" | "not_claimed"; sideEffectsComplete?: boolean }> {
   const { data: claimed, error: claimError } = await supabase.rpc(
     "claim_order_finalization", { p_order_id: orderRecord.id },
@@ -285,7 +387,7 @@ async function finalizeClaimed(
   if (claimed !== true) return { outcome: "not_claimed" };
 
   try {
-    await finalizeOrderDb(supabase, orderRecord, orderItems);
+    await finalizeOrderDb(supabase, orderRecord, orderItems, fulfillments);
     await recordPaymentAttempt(supabase, { orderId: orderRecord.id, status: "completed" });
   } catch (e) {
     if (e instanceof WorkshopCapacityAbort) throw e; // persists its own state
@@ -454,7 +556,9 @@ serve(async (req) => {
         .maybeSingle();
 
       if (pendingForRetry?.payload?.orderItems) {
-        const result = await finalizeClaimed(supabase, existingOrder, pendingForRetry.payload.orderItems);
+        const result = await finalizeClaimed(
+          supabase, existingOrder, pendingForRetry.payload.orderItems, pendingForRetry.payload.fulfillments,
+        );
         if (result.outcome === "finalized") {
           return await confirmedResponse(supabase, orderId, true, result.sideEffectsComplete);
         }
@@ -532,6 +636,7 @@ serve(async (req) => {
 
     const order = pending.payload.order;
     const orderItems = pending.payload.orderItems;
+    const fulfillments = pending.payload.fulfillments;
 
     let orderRecord: any;
     const { data: insertedOrder, error: orderError } =
@@ -581,7 +686,7 @@ serve(async (req) => {
       return json({ confirmed: false, finalizing: true });
     }
 
-    const result = await finalizeClaimed(supabase, orderRecord, orderItems);
+    const result = await finalizeClaimed(supabase, orderRecord, orderItems, fulfillments);
     if (result.outcome === "finalized") {
       return await confirmedResponse(supabase, orderId, true, result.sideEffectsComplete);
     }
