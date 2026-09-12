@@ -72,13 +72,14 @@ export interface FamilyCandle {
   name: string;
   nameFr?: string;
   image: string;
+  imageClassName?: string;
   unitPrice: number;
   packPrice?: number;
   packSize?: number;
 }
 
 export const ColorFamilyCandleCard = ({
-  candle, colors, existing, onCommit, onRemove, imageClassName = "h-40 w-40", compact = false,
+  candle, colors, existing, onCommit, onRemove, imageClassName, compact = false,
 }: {
   candle: FamilyCandle;
   colors: FamilyColor[];
@@ -150,7 +151,7 @@ export const ColorFamilyCandleCard = ({
           the photo itself, regardless of the card's width. Non-compact
           (Candles.tsx) keeps the original square behaviour unchanged. */}
       <div className={cn("flex items-center justify-center bg-secondary/20", compact ? "p-2" : "aspect-square p-4")}>
-        <img src={candle.image} alt={t(candle.name, candle.nameFr || candle.name)} className={cn(imageClassName, "object-contain")} />
+        <img src={candle.image} alt={t(candle.name, candle.nameFr || candle.name)} className={cn(imageClassName ?? candle.imageClassName ?? "h-40 w-40", "object-contain")} />
       </div>
       <CardContent className={cn("text-center", compact ? "p-2 space-y-1.5" : "p-4 space-y-3")}>
         <h3 className={cn("font-sans tracking-[0.105em] font-semibold uppercase text-foreground", compact ? "text-[11px]" : "text-[13px]")}>
