@@ -140,27 +140,25 @@ export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; o
                 <Input id="pw-name" {...register("fullName")} />
                 {errors.fullName && <p className="text-sm text-destructive">{fe(errors.fullName.message)}</p>}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="pw-email">{t("Email address", "Adresse e-mail")} <span className="text-destructive">*</span></Label>
-                  <Input id="pw-email" type="email" {...register("email")} />
-                  {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
-                </div>
-                <PhoneNumberField
-                  id="pw-phone"
-                  label={t("Phone number", "Numéro de téléphone")}
-                  countryCode={countryCode}
-                  onCountryCodeChange={setCountryCode}
-                  localPhone={localPhone}
-                  onLocalPhoneChange={setLocalPhone}
-                  error={phoneError ?? undefined}
-                  // This form only — narrower country-code selector, more
-                  // room for the number itself. Every other PhoneNumberField
-                  // caller (Checkout, Contact, Business.tsx) omits this and
-                  // keeps the original 110px selector unchanged.
-                  selectorSize="compact"
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="pw-email">{t("Email address", "Adresse e-mail")} <span className="text-destructive">*</span></Label>
+                <Input id="pw-email" type="email" {...register("email")} />
+                {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
               </div>
+              {/* Phone gets its own full-width row (not squeezed into a
+                  2-column grid next to email) — at dialog width, a shared
+                  column left too little room to see the whole number while
+                  typing. Standard-width selector (no "compact" override
+                  needed any more now that the input has the full row). */}
+              <PhoneNumberField
+                id="pw-phone"
+                label={t("Phone number", "Numéro de téléphone")}
+                countryCode={countryCode}
+                onCountryCodeChange={setCountryCode}
+                localPhone={localPhone}
+                onLocalPhoneChange={setLocalPhone}
+                error={phoneError ?? undefined}
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="pw-occasion">{t("Occasion", "Occasion")} <span className="text-muted-foreground">{t("(optional)", "(optionnel)")}</span></Label>
