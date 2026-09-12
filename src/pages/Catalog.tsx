@@ -1947,8 +1947,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       value={selections.decorationColors[i] ?? ""}
                       onValueChange={(v) => {
                         const slots = Array.from({ length: maxColors }, (_, j) => selections.decorationColors[j] ?? "");
-                        slots[i] = v;
-                        setSelections({ ...selections, decorationColors: slots.filter(s => s !== "") });
+                        slots[i] = v === "__none__" ? "" : v;
+                        setSelections({ ...selections, decorationColors: slots.filter(s => s !== "" && s !== "__none__") });
                       }}
                     >
                       <SelectTrigger>
@@ -1956,7 +1956,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       </SelectTrigger>
                       <SelectContent className="w-[min(90vw,280px)]">
                         {i > 0 && (
-                          <SelectItem value="" itemText="—">
+                          <SelectItem value="__none__" itemText="—">
                             <span className="text-muted-foreground italic">{t("— None —", "— Aucune —")}</span>
                           </SelectItem>
                         )}
