@@ -503,13 +503,7 @@ const DotCakes = () => {
                               })}
                             </SelectContent>
                           </Select>
-                          {info && (
-                            <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 border border-border/40">
-                              {info.warn && <span aria-hidden="true">⚠️ </span>}
-                              <span className="font-medium">{t("Contains:", "Contient :")}</span>{" "}
-                              {t(info.en, info.fr)}
-                            </div>
-                          )}
+
                         </div>
                       );
                     })}
