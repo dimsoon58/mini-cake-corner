@@ -154,6 +154,11 @@ export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; o
                   localPhone={localPhone}
                   onLocalPhoneChange={setLocalPhone}
                   error={phoneError ?? undefined}
+                  // This form only — narrower country-code selector, more
+                  // room for the number itself. Every other PhoneNumberField
+                  // caller (Checkout, Contact, Business.tsx) omits this and
+                  // keeps the original 110px selector unchanged.
+                  selectorSize="compact"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
