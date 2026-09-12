@@ -2696,13 +2696,13 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
             </div>
             <div className="text-center max-w-2xl mx-auto py-6">
               <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
-                {t("Can't find what you're looking for?", "Vous ne trouvez pas ce que vous cherchez ?")}
+                {t("CAN'T FIND WHAT YOU'RE LOOKING FOR?", "VOUS NE TROUVEZ PAS CE QUE VOUS CHERCHEZ ?")}
               </h3>
               <p className="text-muted-foreground text-sm mb-10">
-                {t("Every cake in our collections can be personalised, but if you're dreaming of something completely different, we'd love to create a fully bespoke design just for you. Tell us about your idea, your colours and your occasion, and we'll bring it to life.", "Tous nos gâteaux sont personnalisables. Si vous avez une idée particulière, nous serons ravies de créer un gâteau entièrement sur mesure pour vous.")}
+                {t("Have something special in mind? Tell us your idea and we'll bring it to life.", "Vous avez une idée particulière en tête ? Partagez-la avec nous et nous lui donnerons vie.")}
               </p>
               <p className="text-muted-foreground text-sm italic mb-10">
-                {t("Please note: We aim to respond within 48 hours. For the best availability, please submit your request at least one week before your desired date.", "À noter : Nous répondons à votre demande sous 48 heures. Pour une meilleure disponibilité, nous vous recommandons de nous contacter au moins une semaine à l'avance.")}
+                {t("Please allow up to 48h for a reply. We recommend ordering at least one week in advance.", "Nous vous répondons sous 48h. Nous vous recommandons de faire votre demande au moins une semaine à l'avance.")}
               </p>
               {!showRequestForm ? (
                 <Button
