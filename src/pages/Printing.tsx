@@ -32,6 +32,7 @@ const Printing = () => {
   const { addItem } = useCart();
   const { t } = useLang();
   const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
+  const [calOpen, setCalOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [comment, setComment] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,7 +121,7 @@ const Printing = () => {
             <label className="text-sm font-medium text-foreground">
               {t("Pick-up Date", "Date de retrait")} <span className="text-destructive">*</span>
             </label>
-            <Popover>
+            <Popover open={calOpen} onOpenChange={setCalOpen}>
               <PopoverTrigger asChild>
                 <Button
                   type="button"
@@ -138,7 +139,7 @@ const Printing = () => {
                 <Calendar
                   mode="single"
                   selected={orderDate}
-                  onSelect={setOrderDate}
+                  onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
                   disabled={(date) => isOrderDateDisabled(date)}
                   initialFocus
                   className="p-3 pointer-events-auto"

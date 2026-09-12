@@ -1116,6 +1116,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const { t } = useLang();
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1641,7 +1642,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 4 days in advance)", "Date de préparation de la commande (minimum 4 jours à l'avance)")}</p></TooltipContent>
                   </Tooltip>
                 </label>
-                <Popover>
+                <Popover open={calOpen} onOpenChange={setCalOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -1664,7 +1665,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <Calendar
                       mode="single"
                       selected={selections.orderDate || undefined}
-                      onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
+                      onSelect={(date) => { setSelections({ ...selections, orderDate: date || null }); setCalOpen(false); }}
                       disabled={(date) => {
                         // Food-order lead time: J0/J+1 blocked, J+2+
                         // selectable (was wrongly hardcoded to J+4 here,

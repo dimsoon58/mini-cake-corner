@@ -112,6 +112,7 @@ const DotCakes = () => {
   // CartContext.addItem. Once it's on, start blank so a new pack added from
   // this page doesn't silently inherit whatever date is already in the cart.
   const [orderDate, setOrderDate] = useState<Date | undefined>(() =>
+  const [calOpen, setCalOpen] = useState(false);
     MULTI_DATE_FULFILLMENT_ENABLED ? undefined : (cartOrderDate ? new Date(cartOrderDate) : undefined)
   );
   const [packSize, setPackSize] = useState<number | null>(null);
@@ -317,7 +318,7 @@ const DotCakes = () => {
               <p className="text-sm text-muted-foreground">
                 {t("Minimum 4 days' notice required.", "Minimum 4 jours à l'avance requis.")}
               </p>
-              <Popover>
+              <Popover open={calOpen} onOpenChange={setCalOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" disabled={!MULTI_DATE_FULFILLMENT_ENABLED && !!cartOrderDate}
                     className={cn(
@@ -336,7 +337,7 @@ const DotCakes = () => {
                       (was wrongly hardcoded to J+4 here — see
                       src/lib/orderDates.ts, the single shared source of
                       truth for this rule). */}
-                  <Calendar mode="single" selected={orderDate} onSelect={setOrderDate}
+                  <Calendar mode="single" selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
                     disabled={(date) => isOrderDateDisabled(date)} initialFocus />
                 </PopoverContent>
               </Popover>

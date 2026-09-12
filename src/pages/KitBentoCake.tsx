@@ -238,6 +238,7 @@ const KitBentoCake = () => {
   // CartContext.addItem. Once it's on, start blank so a new item added from
   // this page doesn't silently inherit whatever date is already in the cart.
   const [orderDate, setOrderDate] = useState<Date | undefined>(() =>
+  const [calOpen, setCalOpen] = useState(false);
     MULTI_DATE_FULFILLMENT_ENABLED ? undefined : (cartOrderDate ? new Date(cartOrderDate) : undefined)
   );
   const [selectedShape, setSelectedShape] = useState("");
@@ -507,7 +508,7 @@ const KitBentoCake = () => {
                 {t("Choose Your Pickup Date", "Choisir votre date de retrait")}<span className="text-destructive ml-1">*</span>
               </h2>
               <p className="text-sm text-muted-foreground">{t("Minimum 4 days notice required.", "Un délai minimum de 4 jours est requis.")}</p>
-              <Popover>
+              <Popover open={calOpen} onOpenChange={setCalOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" disabled={!MULTI_DATE_FULFILLMENT_ENABLED && !!cartOrderDate}
                     className={cn("w-full max-w-xs justify-start text-left font-normal rounded-none px-3 text-sm", !orderDate && "text-muted-foreground", !MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && "opacity-60 cursor-not-allowed")}>
@@ -521,7 +522,7 @@ const KitBentoCake = () => {
                       src/lib/orderDates.ts, the single shared source of
                       truth for this rule, which also carries the J+2/J+3
                       and J+4/J+5 near-date-surcharge tiers). */}
-                  <Calendar mode="single" selected={orderDate} onSelect={setOrderDate} disabled={(date) => isOrderDateDisabled(date)} initialFocus />
+                  <Calendar mode="single" selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }} disabled={(date) => isOrderDateDisabled(date)} initialFocus />
                 </PopoverContent>
               </Popover>
               {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (
