@@ -802,31 +802,31 @@ const KitBentoCake = () => {
                 {t("Review & Confirm","Vérifier et confirmer")}
               </h2>
               <div className="border border-border divide-y divide-border">
-                <div className="flex justify-between px-4 py-3 text-sm">
+                <div className="grid grid-cols-[100px_1fr] gap-3 px-4 py-3 text-sm">
                   <span className="text-muted-foreground">{t("Date","Date")}</span>
-                  <span className="font-medium">{format(orderDate, "PPP")}</span>
+                  <span className="font-medium text-right">{format(orderDate, "PPP")}</span>
                 </div>
-                <div className="flex justify-between px-4 py-3 text-sm">
+                <div className="grid grid-cols-[100px_1fr] gap-3 px-4 py-3 text-sm">
                   <span className="text-muted-foreground">{t("Shape","Forme")}</span>
-                  <span className="font-medium">{t(shapes.find(s => s.id === selectedShape)?.name || "", shapes.find(s => s.id === selectedShape)?.nameFr || "")}</span>
+                  <span className="font-medium text-right">{t(shapes.find(s => s.id === selectedShape)?.name || "", shapes.find(s => s.id === selectedShape)?.nameFr || "")}</span>
                 </div>
-                <div className="flex justify-between px-4 py-3 text-sm">
+                <div className="grid grid-cols-[100px_1fr] gap-3 px-4 py-3 text-sm">
                   <span className="text-muted-foreground">{t("Flavour","Parfum")}</span>
-                  <span className="font-medium">{t(getFlavorName(), getFlavorNameFr())}</span>
+                  <span className="font-medium text-right">{t(getFlavorName(), getFlavorNameFr())}</span>
                 </div>
-                <div className="flex justify-between px-4 py-3 text-sm">
+                <div className="grid grid-cols-[100px_1fr] gap-3 px-4 py-3 text-sm">
                   <span className="text-muted-foreground">{t("Piping","Poches à douille")}</span>
-                  <span className="font-medium">{t(pipingBagOptions.find(p => p.id === selectedPipingOption)?.name || "", pipingBagOptions.find(p => p.id === selectedPipingOption)?.nameFr || "")} · {pipingColors.map(id => { const c = baseColors.find(c => c.id === id); return c ? t(c.name, c.nameFr) : ""; }).join(", ")}</span>
+                  <span className="font-medium text-right">{t(pipingBagOptions.find(p => p.id === selectedPipingOption)?.name || "", pipingBagOptions.find(p => p.id === selectedPipingOption)?.nameFr || "")} · {pipingColors.map(id => { const c = baseColors.find(c => c.id === id); return c ? t(c.name, c.nameFr) : ""; }).join(", ")}</span>
                 </div>
                 {getCandlesTotal() > 0 && (
-                  <div className="flex justify-between px-4 py-3 text-sm">
+                  <div className="grid grid-cols-[100px_1fr] gap-3 px-4 py-3 text-sm">
                     <span className="text-muted-foreground">{t("Candles","Bougies")}</span>
-                    <span className="font-medium">CHF {getCandlesTotal().toFixed(2)}</span>
+                    <span className="font-medium text-right">CHF {getCandlesTotal().toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between px-4 py-3">
+                <div className="grid grid-cols-[100px_1fr] gap-3 px-4 py-3">
                   <span className="text-sm font-semibold uppercase tracking-[0.08em]">{t("Total","Total")}</span>
-                  <span className="font-semibold">CHF {totalPrice}</span>
+                  <span className="font-semibold text-right">CHF {totalPrice}</span>
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
