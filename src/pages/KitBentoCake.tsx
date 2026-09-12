@@ -100,7 +100,6 @@ export const flavorCategories = [
       { id: "chocolate-lover-berrylicious", name: "Chocolate Lover x Berrylicious", nameFr: "Chocolate Lover x Berrylicious", description: "Chocolate sponge with raspberry coulis and chocolate ganache", descriptionFr: "Génoise chocolat, coulis de framboise et ganache au chocolat", image: flavorChocolateLoverBerrylicious },
       { id: "tiramisu", name: "Tiramisu", nameFr: "Tiramisu", description: "Fluffy vanilla sponge filled with fresh coffee and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie de café frais et de crème fouettée", image: flavorTiramisu },
       { id: "praline", name: "Praline Obsession", nameFr: "Praline Obsession", description: "Fluffy vanilla sponge filled with caramelised almond, hazelnut and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie d'amandes et de noisettes caramélisées et de crème fouettée", image: flavorPraline },
-      { id: "pistachio-lovers", name: "Pistachio Lovers", nameFr: "Pistachio Lovers", description: "Fluffy vanilla sponge filled with pistachio cream and whipped cream", descriptionFr: "Génoise vanille garnie de crème pistache et crème fouettée", image: flavorPistachio },
       { id: "passion-fruit", name: "Passion Fruit", nameFr: "Passion Fruit", description: "Fluffy vanilla sponge filled with fresh passion fruit curd and whipped cream", descriptionFr: "Génoise vanille moelleuse garnie de curd de fruit de la passion et de crème fouettée", image: flavorPassionFruit },
     ],
   },
@@ -139,7 +138,6 @@ export const glutenFreeFlavorCategories = [
     extraPrice: 8,
     flavors: [
       { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", nameFr: "Orange Blossom Gluten-free", image: flavorVanilla },
-      { id: "pistachio-gf", name: "Pistachio Gluten-free", nameFr: "Pistachio Gluten-free", image: flavorPistachio },
       { id: "tiramisu-gf", name: "Tiramisu Gluten-free", nameFr: "Tiramisu Gluten-free", image: flavorTiramisu },
       { id: "passion-fruit-gf", name: "Passion Fruit Gluten-free", nameFr: "Passion Fruit Gluten-free", image: flavorPassionFruit },
       { id: "praline-gf", name: "Praline Gluten-free", nameFr: "Praline Gluten-free", image: flavorPraline },

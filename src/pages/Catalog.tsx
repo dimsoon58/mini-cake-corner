@@ -232,10 +232,10 @@ const flavors = [
 // per-flavor extraPrice values above, which are untouched.
 const STANDARD_FLAVOR_IDS = ["vanilla", "red-velvet", "chocolate"];
 const PREMIUM_FLAVOR_IDS = ["chocolate-lovers", "dark-berrylicious", "white-berrylicious", "salted-caramel", "lemon-curd"];
-const DELUXE_FLAVOR_IDS = ["chocolate-lover-berrylicious", "tiramisu", "praline", "pistachio-lovers", "passion-fruit"];
+const DELUXE_FLAVOR_IDS = ["chocolate-lover-berrylicious", "tiramisu", "praline", "passion-fruit"];
 const GF_STANDARD_FLAVOR_IDS = ["vanilla-gf", "red-velvet-gf", "chocolate-gf"];
 const GF_PREMIUM_FLAVOR_IDS = ["chocolate-gf-berrylicious", "vanilla-gf-berrylicious", "lemon-curd-gf", "chocolate-lovers-gf"];
-const GF_DELUXE_FLAVOR_IDS = ["orange-blossom-gf", "pistachio-gf", "tiramisu-gf", "passion-fruit-gf", "praline-gf"];
+const GF_DELUXE_FLAVOR_IDS = ["orange-blossom-gf", "tiramisu-gf", "passion-fruit-gf", "praline-gf"];
 
 const standardFlavors = flavors.filter((f) => STANDARD_FLAVOR_IDS.includes(f.id));
 const premiumFlavors = flavors.filter((f) => PREMIUM_FLAVOR_IDS.includes(f.id));
