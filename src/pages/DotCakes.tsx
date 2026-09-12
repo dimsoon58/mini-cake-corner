@@ -418,13 +418,13 @@ const DotCakes = () => {
                 const allFlavourOptions = [...flavorCategories, ...(showGlutenFree ? glutenFreeFlavorCategories : [])];
                 const renderFlavorOption = (flavor: { id: string; name: string; nameFr?: string; description?: string; descriptionFr?: string; image: string }, surcharge: number) => {
                   const info = allergenMap[flavor.id];
-                  const label = `${t(flavor.name, (flavor as { nameFr?: string }).nameFr ?? flavor.name)}${surcharge > 0 ? ` (+CHF ${surcharge.toFixed(2)}/cake)` : ""}`;
+                  const label = `${t(flavor.name, (flavor as { nameFr?: string }).nameFr ?? flavor.name)}`;
                   return (
                     <SelectItem key={flavor.id} value={flavor.id} itemText={label}>
                       <div className="flex items-start gap-2">
                         <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
                         <div>
-                          <span>{t(flavor.name, (flavor as { nameFr?: string }).nameFr ?? flavor.name)}{surcharge > 0 ? ` (+CHF ${surcharge.toFixed(2)}/cake)` : ""}</span>
+                          <span>{t(flavor.name, (flavor as { nameFr?: string }).nameFr ?? flavor.name)}</span>
                           {(flavor.description || flavor.descriptionFr) && (
                             <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
                               {t(flavor.description ?? "", flavor.descriptionFr ?? "")}
