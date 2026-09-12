@@ -42,6 +42,11 @@ export const ORDER_ITEM_CLIENT_FIELDS = [
   "design_image_url",
   "base_color",
   "decoration_color",
+  // Gender Reveal only: the colour inside the cake ("Rose" / "Bleu") — a
+  // genuinely different piece of information from decoration_color (which
+  // can legitimately stay empty for this design). Null for every other
+  // product/design.
+  "inside_color",
   "cake_text",
   "text_color",
   "text_style",

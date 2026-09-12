@@ -51,6 +51,13 @@ export interface CartItem {
      optional so every other add-to-cart page is unaffected. */
   glitterColorName?: string;
   glitterCherriesColorName?: string;
+  /* Gender Reveal only: the colour inside the cake ("Rose" / "Bleu",
+     already French — an internal, admin-facing value, not translated by
+     useLang()). Deliberately separate from decorationColor/decorationColorName
+     (a genuinely different piece of information — see order_items.inside_color)
+     — optional so every other design is unaffected. Persisted to
+     order_items.inside_color. */
+  insideColor?: string;
   candles: CandleSelection[];
   comment: string;
   imageUrls: string[];

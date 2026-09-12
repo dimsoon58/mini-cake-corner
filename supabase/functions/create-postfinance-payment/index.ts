@@ -109,6 +109,7 @@ interface OrderItemRow {
   design_image_url?: string | null;
   base_color?: string | null;
   decoration_color?: string | null;
+  inside_color?: string | null;
   cake_text?: string | null;
   text_color?: string | null;
   text_style?: string | null;

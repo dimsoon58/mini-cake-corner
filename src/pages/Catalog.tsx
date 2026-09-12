@@ -1432,6 +1432,15 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       const genderName = genderColors.find(c => c.id === selections.genderColor)?.name;
       if (genderName) decoColorNames.push(`Inside: ${genderName}`);
     }
+    // Dedicated field for order_items.inside_color — deliberately NOT the
+    // same value as decoColorNames above (that's cart-display-only text and
+    // is never sent to the server; see order-whitelist.ts). Always French:
+    // this reaches Notion's production agenda, an internal FR-speaking
+    // surface, not the customer-facing language. "" (-> null) for every
+    // design other than Gender Reveal.
+    const insideColorFr = selectedCake.styleId === "gender-reveal"
+      ? (selections.genderColor === "pink" ? "Rose" : selections.genderColor === "blue" ? "Bleu" : "")
+      : "";
     const roseColorName = selections.roseColor ? baseColors.find(c => c.id === selections.roseColor)?.name : "";
     if (roseColorName) decoColorNames.push(`Roses: ${roseColorName}`);
     const textColorObj = baseColors.find(c => c.id === selections.textColor);
@@ -1482,6 +1491,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       baseColorName: baseColorObj?.name || "",
       decorationColor: [...selections.decorationColors, ...(selections.roseColor ? [`roses-${selections.roseColor}`] : [])].join(", "),
       decorationColorName: decoColorNames.join(", "),
+      insideColor: insideColorFr,
       cakeText: finalText,
       textColor: selections.textColor,
       textColorName: textColorObj?.name || "",

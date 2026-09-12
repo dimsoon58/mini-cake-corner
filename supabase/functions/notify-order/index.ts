@@ -19,6 +19,22 @@ function row(label: string, value: string | undefined | null): string {
   return `<tr><td style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
 }
 
+// Catalog.tsx embeds this exact tag into item_comment for a Shag-Cake-style
+// design with two option photos ("[Preferred design: Option N]"), purely so
+// the design photo actually picked survives as data — never something the
+// customer typed. This email now shows that photo directly (design_image_url,
+// below), so the tag is no longer needed here at all — split out the same
+// way src/lib/orderLabels.ts's splitComment() already does for the customer/
+// admin-facing pages, so only the customer's real comment (if any) is shown.
+// Kept as a local copy (Deno function, can't import from src/) — same regex,
+// same behaviour; update both if this tag format ever changes.
+const PREFERRED_DESIGN_RE = /^\[Preferred design: Option (\d+)\]\s*/;
+function realComment(comment: string | null | undefined): string | null {
+  if (!comment) return null;
+  const stripped = comment.replace(PREFERRED_DESIGN_RE, "").trim();
+  return stripped || null;
+}
+
 async function sendAdminEmail(
   resendApiKey: string,
   order: any,

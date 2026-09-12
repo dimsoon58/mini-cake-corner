@@ -1173,6 +1173,10 @@ const Checkout = () => {
           design_image_url: item.designImageUrl || null,
           base_color: item.baseColor || null,
           decoration_color: item.decorationColor || null,
+          // Gender Reveal only ("Rose" / "Bleu") — a distinct piece of data
+          // from decoration_color, which stays null/empty here since this
+          // design has no other decoration colour of its own.
+          inside_color: item.insideColor || null,
           cake_text: item.cakeText || null,
           text_color: item.textColor || null,
           text_style: item.textStyle || null,
