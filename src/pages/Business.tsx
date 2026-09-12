@@ -193,7 +193,6 @@ const eventsSchema = z.object({
   fullName: z.string().trim().min(1, "Name is required").max(150),
   companyAgency: z.string().trim().max(200).optional(),
   email: z.string().trim().email("Please enter a valid email address").max(255),
-  phone: z.string().trim().regex(phoneRegex, "Please enter a valid phone number"),
   eventDate: z.date({ required_error: "Please select a date" }),
   estimatedGuests: z.string().trim().min(1, "Estimated number of guests is required").max(50),
   projectDescription: z.string().trim().min(1, "Please tell us about your project").max(3000),
@@ -205,6 +204,10 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const fe = useFieldError();
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [countryCode, setCountryCode] = useState("+41");
+  const [localPhone, setLocalPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
   const {
     register,
     handleSubmit,
@@ -216,18 +219,25 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const eventDate = watch("eventDate");
 
   const onSubmit = async (data: EventsData) => {
+    if (localPhone.trim().length < MIN_LOCAL_PHONE_DIGITS) {
+      setPhoneError(t("Please enter a valid phone number", "Veuillez entrer un numéro de téléphone valide"));
+      return;
+    }
+    setPhoneError(null);
     try {
-      await submitToWeb3Forms(
+      await submitContactRequest(
+        "corporate_events",
         {
-          "First and last name": data.fullName,
-          "Company / Agency": data.companyAgency || "(not provided)",
-          "Email address": data.email,
-          "Phone number": data.phone,
-          "Event date": format(data.eventDate, "dd.MM.yyyy"),
-          "Estimated number of guests": data.estimatedGuests,
-          "Project description": data.projectDescription,
+          fullName: data.fullName,
+          companyAgency: data.companyAgency || "(not provided)",
+          email: data.email,
+          phone: combinePhoneNumber(countryCode, localPhone),
+          eventDate: format(data.eventDate, "dd.MM.yyyy"),
+          estimatedGuests: data.estimatedGuests,
+          projectDescription: data.projectDescription,
         },
-        { subject: "Event Quote Request, Bento Cake Studio", files }
+        data.email,
+        { files, honeypot },
       );
       onSuccess();
     } catch (err) {
@@ -237,6 +247,7 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2 text-left">
+      <HoneypotField value={honeypot} onChange={setHoneypot} />
       <div className="space-y-1.5">
         <Label htmlFor="ev-name">{t("First and last name", "Prénom et nom")} <RequiredMark /></Label>
         <Input id="ev-name" {...register("fullName")} />
@@ -252,11 +263,15 @@ const EventsForm = ({ onSuccess }: { onSuccess: () => void }) => {
           <Input id="ev-email" type="email" {...register("email")} />
           {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="ev-phone">{t("Phone number", "Numéro de téléphone")} <RequiredMark /></Label>
-          <Input id="ev-phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
-        </div>
+        <PhoneNumberField
+          id="ev-phone"
+          label={t("Phone number", "Numéro de téléphone")}
+          countryCode={countryCode}
+          onCountryCodeChange={setCountryCode}
+          localPhone={localPhone}
+          onLocalPhoneChange={setLocalPhone}
+          error={phoneError ?? undefined}
+        />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
