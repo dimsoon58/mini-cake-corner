@@ -17,7 +17,7 @@ function getCustomerLang(order: any): "fr" | "en" {
   return order?.lang === "en" ? "en" : "fr";
 }
 
-async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
+async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: any[] = [], fulfillments: any[] = []) {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
 
@@ -36,6 +36,49 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
 
   const row = (label: string, value: string) =>
     `<tr><td style="padding:6px 8px;color:#888;font-size:14px;width:45%;">${label}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${value}</td></tr>`;
+
+  // Multi-date fulfillment (Sept 2026): while MULTI_DATE_FULFILLMENT_ENABLED
+  // is false on the frontend, every physical order has exactly ONE
+  // order_fulfillments row, so groupByFulfillment is always false today and
+  // the summary table below renders EXACTLY as it always has (the single
+  // pickup/delivery-date/method rows, unchanged). Grouping only activates
+  // once a real order genuinely spans 2+ distinct physical pickup/delivery
+  // dates — one order is still exactly one confirmation e-mail either way,
+  // this only replaces the single date/method rows with one block per date,
+  // each listing the physical items assigned to it.
+  const physicalItems = items.filter((it) => it.product !== "workshop");
+  const fulfillmentById = new Map<string, any>(fulfillments.map((f: any) => [f.id, f]));
+  const physicalFulfillmentIds = Array.from(new Set(
+    physicalItems.filter((it) => it.fulfillment_id).map((it) => it.fulfillment_id),
+  )).sort((a, b) => {
+    const da = fulfillmentById.get(a)?.pickup_delivery_date ?? "";
+    const db = fulfillmentById.get(b)?.pickup_delivery_date ?? "";
+    return String(da).localeCompare(String(db));
+  });
+  const groupByFulfillment = physicalFulfillmentIds.length > 1;
+
+  const describeItem = (item: any): string =>
+    item.size
+      ? `${item.size}${item.flavors?.length ? " — " + item.flavors.join(", ") : ""}`
+      : (item.design || tr("Custom cake", "Gâteau personnalisé"));
+
+  const fulfillmentBlockHtml = (fulfillmentId: string): string => {
+    const f = fulfillmentById.get(fulfillmentId);
+    const method = f?.delivery_method === "delivery" ? tr("Delivery", "Livraison") : tr("Pickup at store", "Retrait sur place");
+    const groupItems = physicalItems.filter((it) => it.fulfillment_id === fulfillmentId);
+    const itemsHtml = groupItems.map((it) =>
+      `<li style="margin:0 0 3px;">${describeItem(it)}</li>`
+    ).join("");
+    return `<tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
+      <td colspan="2" style="padding:10px 14px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+        <p style="margin:0 0 4px;color:#351E13;font-size:13px;font-weight:700;">
+          ${formatDateCH(f?.pickup_delivery_date)}${f?.pickup_delivery_slot ? ` · ${f.pickup_delivery_slot}` : ""} — ${method}
+        </p>
+        ${f?.delivery_method === "delivery" && f?.delivery_address ? `<p style="margin:0 0 6px;color:#7A6540;font-size:12px;">${f.delivery_address}</p>` : ""}
+        ${itemsHtml ? `<ul style="margin:0;padding-left:18px;color:#351E13;font-size:12px;">${itemsHtml}</ul>` : ""}
+      </td>
+    </tr>`;
+  };
 
   const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
   const subject = tr(`We've received your order ${orderNumber} 🎂`, `Nous avons bien reçu votre commande ${orderNumber} 🎂`);
@@ -97,6 +140,9 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
             <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order number", "Numéro de commande")}</td>
             <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
           </tr>
+          ${groupByFulfillment
+            ? physicalFulfillmentIds.map(fulfillmentBlockHtml).join("")
+            : `
           ${hasPickupOrDelivery ? `<tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
             <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
             <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${formatDateCH(order.pickup_delivery_date)}</td>
@@ -106,6 +152,7 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any) {
             <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Method", "Mode")}</td>
             <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${deliveryInfo}</td>
           </tr>` : ""}
+          `}
           <tr style="background:#78020C;">
             <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total amount", "Montant total")}</td>
             <td style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
@@ -181,10 +228,21 @@ serve(async (req) => {
 
     if (orderError || !order) throw new Error("Order not found");
 
+    // Needed only for the multi-date fulfillment grouping in the summary
+    // table (see sendOrderReceivedEmail) — a no-op fetch cost-wise, and the
+    // function itself falls back to today's exact single-block rendering
+    // whenever there's at most one fulfillment (every order today).
+    const { data: itemsData, error: itemsError } = await supabase
+      .from("order_items").select("*").eq("order_id", orderId);
+    if (itemsError) console.error(`Failed to load order_items for ${orderId} (non-fatal):`, itemsError);
+    const { data: fulfillmentsData, error: fulfillmentsError } = await supabase
+      .from("order_fulfillments").select("*").eq("order_id", orderId);
+    if (fulfillmentsError) console.error(`Failed to load order_fulfillments for ${orderId} (non-fatal):`, fulfillmentsError);
+
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) throw new Error("RESEND_API_KEY not configured");
 
-    const result = await sendOrderReceivedEmail(resendKey, order);
+    const result = await sendOrderReceivedEmail(resendKey, order, itemsData || [], fulfillmentsData || []);
 
     return new Response(JSON.stringify({ success: true, id: result.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

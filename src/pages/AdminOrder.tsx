@@ -33,6 +33,7 @@ const AdminOrder = () => {
 
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [fulfillments, setFulfillments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pin, setPin] = useState("");
@@ -80,6 +81,7 @@ const AdminOrder = () => {
       } else {
         setOrder(data.order);
         setItems(data.items || []);
+        setFulfillments(data.fulfillments || []);
       }
       setLoading(false);
     };
@@ -200,6 +202,14 @@ const AdminOrder = () => {
     || (isMixed && !workshopConfirmed);
   const refundToDo = order.refund_status === "to_refund";
   const customerName = `${order.first_name || ""} ${order.last_name || ""}`.trim();
+  // Multi-date fulfillment: order_fulfillments has one row per distinct
+  // pickup/delivery date (get-order-detail now returns it, service_role,
+  // no RLS concern). ≤1 row is today's ordinary case — same single block
+  // as before. 2+ rows means this order genuinely spans multiple dates, so
+  // the single "Pickup / Delivery" block is replaced by one per date.
+  const isMultiDate = fulfillments.length > 1;
+  const fulfillmentById = (fulfillmentId: string | null | undefined) =>
+    fulfillmentId ? fulfillments.find((f) => f.id === fulfillmentId) : null;
 
   return (
     <Layout>
@@ -245,7 +255,28 @@ const AdminOrder = () => {
           </div>
 
           {/* Pickup / Delivery — physical products only */}
-          {order.delivery_method && (
+          {isMultiDate ? (
+            <div className="space-y-3">
+              {fulfillments.map((f, idx) => (
+                <div key={f.id} className="bg-muted/30 rounded-lg p-4 space-y-1">
+                  <h3 className="font-medium text-foreground mb-2">
+                    {t("📦 Pickup / Delivery", "📦 Retrait / Livraison")} — {t("date", "date")} {idx + 1}
+                  </h3>
+                  <DetailRow label={t("Date", "Date")} value={formatDateFromIso(f.pickup_delivery_date)} />
+                  <DetailRow label={t("Time", "Heure")} value={f.pickup_delivery_slot} />
+                  <DetailRow label={t("Option", "Option")} value={f.delivery_method === "delivery" ? t("Delivery", "Livraison") : t("Pickup at store", "Retrait en boutique")} />
+                  {f.delivery_method === "delivery" && (
+                    <DetailRow label={t("Address", "Adresse")} value={f.delivery_address} />
+                  )}
+                </div>
+              ))}
+              {order.order_comment && (
+                <div className="bg-muted/30 rounded-lg p-4 space-y-1">
+                  <DetailRow label={t("Delivery Notes", "Notes de livraison")} value={order.order_comment} />
+                </div>
+              )}
+            </div>
+          ) : order.delivery_method && (
           <div className="bg-muted/30 rounded-lg p-4 space-y-1">
             <h3 className="font-medium text-foreground mb-2">{t("📦 Pickup / Delivery", "📦 Retrait / Livraison")}</h3>
             <DetailRow label={t("Date", "Date")} value={formatDateFromIso(order.pickup_delivery_date)} />
@@ -301,6 +332,9 @@ const AdminOrder = () => {
                       <span className="font-medium text-sm">{productLabel} {i + 1}</span>
                       <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
                     </div>
+                    {isMultiDate && (
+                      <DetailRow label={t("Date", "Date")} value={formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date)} />
+                    )}
                     {item.size && <DetailRow label={t("Size", "Taille")} value={sizeLabel(item.size)} />}
                     {item.shape && <DetailRow label={t("Shape", "Forme")} value={shapeLabel(item.shape)} />}
                     <DetailRow label={t("Flavour", "Parfum")} value={(item.flavors || []).join(", ")} />

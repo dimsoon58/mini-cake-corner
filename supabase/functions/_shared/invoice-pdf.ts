@@ -321,19 +321,36 @@ export async function generateInvoicePdf(
     },
   ];
 
+  const sectionRowH = 24;
   for (const invoiceRow of rows) {
-    if (y - dataRowH < margin) {
+    const rowH = invoiceRow.section ? sectionRowH : dataRowH;
+    if (y - rowH < margin) {
       startPage();
       drawTableHeader();
     }
 
     const rowTop = y;
-    const rowBot = y - dataRowH;
-    const textY = rowBot + dataRowH / 2 - 4;
+    const rowBot = y - rowH;
+    const textY = rowBot + rowH / 2 - 4;
     const font = invoiceRow.bold ? fontBold : fontRegular;
 
+    if (invoiceRow.section) {
+      // Full-width date/mode header ("07.10.2026 — Retrait") above the group
+      // of physical items for that fulfillment — no columns, no price, just
+      // the label. Only ever drawn when items genuinely span 2+ distinct
+      // pickup/delivery dates (see groupByFulfillment above); a normal
+      // single-date order never reaches this branch.
+      page.drawRectangle({
+        x: tableLeft, y: rowBot, width: tableWidth, height: rowH,
+        color: totalRowFill, borderColor, borderWidth: 0.75,
+      });
+      page.drawText(invoiceRow.description, { x: col1 + 8, y: textY, size: 9, font: fontBold, color: textDark });
+      y = rowBot;
+      continue;
+    }
+
     page.drawRectangle({
-      x: tableLeft, y: rowBot, width: tableWidth, height: dataRowH,
+      x: tableLeft, y: rowBot, width: tableWidth, height: rowH,
       color: invoiceRow.bold ? totalRowFill : cream,
       borderColor, borderWidth: 0.75,
     });
