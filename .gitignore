@@ -34,3 +34,4 @@ _to_delete/
 # Fichiers temporaires du systeme de fichiers
 .fuse_hidden*
 *.bak
+vite.config.ts.timestamp-*.mjs
