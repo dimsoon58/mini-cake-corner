@@ -2,16 +2,21 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { HoneypotField } from "@/components/HoneypotField";
 import { submitContactRequest } from "@/lib/contactRequest";
 import { combinePhoneNumber } from "@/lib/identity";
+import { cn } from "@/lib/utils";
 import { useLang } from "@/context/LanguageContext";
 import { useFieldError } from "@/lib/formErrors";
 
@@ -29,7 +34,7 @@ const privateSchema = z.object({
   email: z.string().trim().email("Please enter a valid email address").max(255),
   occasion: z.string().trim().max(150).optional(),
   participants: z.string().trim().min(1, "Number of participants is required").max(50),
-  preferredDate: z.string().trim().max(100).optional(),
+  preferredDate: z.date().optional(),
   message: z.string().trim().min(1, "Please tell us about your event").max(2000),
 });
 type PrivateData = z.infer<typeof privateSchema>;
@@ -51,8 +56,12 @@ export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; o
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<PrivateData>({ resolver: zodResolver(privateSchema) });
+
+  const preferredDate = watch("preferredDate");
 
   const handleClose = (v: boolean) => {
     if (!v) setTimeout(() => { setSubmitted(false); reset(); setCountryCode("+41"); setLocalPhone(""); setPhoneError(null); }, 250);
@@ -75,7 +84,7 @@ export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; o
           phone: combinePhoneNumber(countryCode, localPhone),
           occasion: data.occasion || "(not provided)",
           participants: data.participants,
-          preferredDate: data.preferredDate || "(not provided)",
+          preferredDate: data.preferredDate ? format(data.preferredDate, "dd.MM.yyyy") : "(not provided)",
           message: data.message,
         },
         data.email,
@@ -149,7 +158,49 @@ export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; o
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="pw-date">{t("Preferred date", "Date souhaitée")} <span className="text-muted-foreground">{t("(optional)", "(optionnel)")}</span></Label>
-                <Input id="pw-date" placeholder={t("e.g. mid-March, a weekend…", "ex. mi-mars, un week-end…")} {...register("preferredDate")} />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="pw-date"
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal rounded-none",
+                        !preferredDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {preferredDate ? format(preferredDate, "dd.MM.yyyy") : t("Select a date", "Sélectionner une date")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={preferredDate}
+                      onSelect={(date) => setValue("preferredDate", date ?? undefined, { shouldValidate: true })}
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today;
+                      }}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                    {preferredDate && (
+                      <div className="p-2 pt-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setValue("preferredDate", undefined, { shouldValidate: true })}
+                        >
+                          {t("Clear date", "Effacer la date")}
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="pw-message">{t("Tell us about your event", "Parlez-nous de votre événement")} <span className="text-destructive">*</span></Label>
