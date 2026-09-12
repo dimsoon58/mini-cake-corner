@@ -30,6 +30,36 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
 const workshops = [
   {
     emoji: "",
+    title: "Paint Workshop",
+    titleFr: "Atelier Peinture",
+    image: imgPaint,
+    tagline: "Turn your cake into edible art.",
+    taglineFr: "Transformez votre gâteau en œuvre d'art comestible.",
+    features: [
+      "Ready-to-decorate cake",
+      "Edible paint",
+      "Creative designs",
+      "Perfect for beginners",
+    ],
+    featuresFr: [
+      "Gâteau prêt à décorer",
+      "Peinture comestible",
+      "Créations originales",
+      "Idéal pour les débutants",
+    ],
+    meta: [
+      { icon: Clock, label: "1h30", labelFr: "1h30" },
+      { icon: Users, label: "10 people", labelFr: "10 personnes" },
+      { icon: MapPin, label: "Geneva", labelFr: "Genève" },
+    ],
+    price: "CHF 65",
+    ctaLabel: "Book Now",
+    ctaLabelFr: "Réserver",
+    ctaTo: "/workshop-booking?type=paint",
+  },
+
+  {
+    emoji: "",
     title: "Signature Workshop",
     titleFr: "Atelier Signature",
     image: imgSignature,
@@ -59,35 +89,6 @@ const workshops = [
     ctaLabel: "Book Now",
     ctaLabelFr: "Réserver",
     ctaTo: "/workshop-booking?type=signature",
-  },
-  {
-    emoji: "",
-    title: "Paint Workshop",
-    titleFr: "Atelier Peinture",
-    image: imgPaint,
-    tagline: "Turn your cake into edible art.",
-    taglineFr: "Transformez votre gâteau en œuvre d'art comestible.",
-    features: [
-      "Ready-to-decorate cake",
-      "Edible paint",
-      "Creative designs",
-      "Perfect for beginners",
-    ],
-    featuresFr: [
-      "Gâteau prêt à décorer",
-      "Peinture comestible",
-      "Créations originales",
-      "Idéal pour les débutants",
-    ],
-    meta: [
-      { icon: Clock, label: "2 hours", labelFr: "2 heures" },
-      { icon: Users, label: "10 people", labelFr: "10 personnes" },
-      { icon: MapPin, label: "Geneva", labelFr: "Genève" },
-    ],
-    price: "CHF 65",
-    ctaLabel: "Book Now",
-    ctaLabelFr: "Réserver",
-    ctaTo: "/workshop-booking?type=paint",
   },
 ];
 
