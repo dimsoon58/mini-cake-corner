@@ -338,26 +338,47 @@ const MyOrders = () => {
             </div>
 
             <div className="border-t border-border/60 pt-4 text-sm space-y-1">
-              {order.delivery_method && (
-                <>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("Pickup / Delivery date", "Date de retrait / livraison")}</span>
-                <span className="text-foreground">{formatDateCH(order.pickup_delivery_date)}{order.pickup_delivery_slot ? ` · ${order.pickup_delivery_slot}` : ""}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("Method", "Mode")}</span>
-                <span className="text-foreground">
-                  {deliveryMethodLabel(order.delivery_method)}
-                  {order.delivery_method === "delivery" && order.delivery_zone ? ` — ${order.delivery_zone}` : ""}
-                </span>
-              </div>
-                </>
-              )}
-              {order.delivery_method === "delivery" && order.delivery_address && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground flex-shrink-0">{t("Address", "Adresse")}</span>
-                  <span className="text-foreground text-right">{order.delivery_address}</span>
+              {isMultiDateOrder(order) ? (
+                <div className="space-y-3 pb-2">
+                  {[...order.order_fulfillments]
+                    .sort((a, b) => (a.pickup_delivery_date || "").localeCompare(b.pickup_delivery_date || ""))
+                    .map((f) => (
+                    <div key={f.id} className="space-y-0.5">
+                      <p className="text-foreground font-medium">
+                        {formatDateCH(f.pickup_delivery_date)}{f.pickup_delivery_slot ? ` · ${f.pickup_delivery_slot}` : ""}
+                        {f.delivery_method ? ` — ${deliveryMethodLabel(f.delivery_method)}` : ""}
+                        {f.delivery_method === "delivery" && f.delivery_zone ? ` (${f.delivery_zone})` : ""}
+                      </p>
+                      {f.delivery_method === "delivery" && f.delivery_address && (
+                        <p className="text-muted-foreground text-xs">{f.delivery_address}</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <>
+                  {order.delivery_method && (
+                    <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t("Pickup / Delivery date", "Date de retrait / livraison")}</span>
+                    <span className="text-foreground">{formatDateCH(order.pickup_delivery_date)}{order.pickup_delivery_slot ? ` · ${order.pickup_delivery_slot}` : ""}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t("Method", "Mode")}</span>
+                    <span className="text-foreground">
+                      {deliveryMethodLabel(order.delivery_method)}
+                      {order.delivery_method === "delivery" && order.delivery_zone ? ` — ${order.delivery_zone}` : ""}
+                    </span>
+                  </div>
+                    </>
+                  )}
+                  {order.delivery_method === "delivery" && order.delivery_address && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground flex-shrink-0">{t("Address", "Adresse")}</span>
+                      <span className="text-foreground text-right">{order.delivery_address}</span>
+                    </div>
+                  )}
+                </>
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("Status", "Statut")}</span>

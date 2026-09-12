@@ -96,7 +96,16 @@ serve(async (req) => {
       .from("order_items").select("*").eq("order_id", orderId).order("created_at", { ascending: true });
     if (itemsErr) throw new Error(`Failed to load order items: ${itemsErr.message}`);
 
-    return new Response(JSON.stringify({ order, items: items ?? [] }), {
+    // Multi-date fulfillment: physical orders have one row per distinct
+    // pickup/delivery date (order_items._fulfillmentIndex → fulfillment_id
+    // at confirm-postfinance-payment time). This function already reads via
+    // service_role, so no RLS concern here (unlike MyOrders.tsx, which
+    // needed 20260912120000_order_fulfillments_customer_select_policy.sql).
+    const { data: fulfillments, error: fulfillmentsErr } = await supabase
+      .from("order_fulfillments").select("*").eq("order_id", orderId).order("pickup_delivery_date", { ascending: true });
+    if (fulfillmentsErr) throw new Error(`Failed to load order fulfillments: ${fulfillmentsErr.message}`);
+
+    return new Response(JSON.stringify({ order, items: items ?? [], fulfillments: fulfillments ?? [] }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
