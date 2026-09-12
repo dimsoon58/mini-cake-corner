@@ -1796,6 +1796,19 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           <SelectLabel>{t("Deluxe", "Deluxe")}</SelectLabel>
                           {deluxeFlavors.map(renderFlavorOption)}
                         </SelectGroup>
+                        <div className="px-2 py-1">
+                          <button
+                            type="button"
+                            onPointerDown={e => e.preventDefault()}
+                            onClick={() => setShowGlutenFreeFlavors(v => !v)}
+                            className="flex w-full items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1.5 px-1 hover:underline rounded"
+                          >
+                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform flex-shrink-0", showGlutenFreeFlavors && "rotate-180")} />
+                            {showGlutenFreeFlavors
+                              ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
+                              : t("See gluten-free flavours", "Voir les parfums sans gluten")}
+                          </button>
+                        </div>
                         {showGlutenFreeFlavors && (
                           <>
                             <SelectGroup>
@@ -1816,16 +1829,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     </Select>
                   );
                 })()}
-                <button
-                  type="button"
-                  onClick={() => setShowGlutenFreeFlavors(v => !v)}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1 hover:underline"
-                >
-                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showGlutenFreeFlavors && "rotate-180")} />
-                  {showGlutenFreeFlavors
-                    ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
-                    : t("See gluten-free flavours", "Voir les parfums sans gluten")}
-                </button>
                 <AllergenNotice className="pt-1" />
               </div>
 
