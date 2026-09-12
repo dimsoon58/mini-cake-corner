@@ -210,7 +210,7 @@ const OurStory = () => {
                   {chapter.id === "first-years" ? (
                     <img src={imgFirstYears} alt={t("The first years", "Les premières années")} className="aspect-[4/3] max-w-[420px] mx-auto w-full object-cover" />
                   ) : chapter.id === "2021" ? (
-                    <img src={img2021} alt="2021" className="aspect-[4/3] max-w-[420px] mx-auto w-full object-cover" />
+                    <img src={img2021} alt="2021" className="max-w-[560px] mx-auto w-full" />
                   ) : (
                     <PhotoSlot className="aspect-[4/3] max-w-[420px] mx-auto" label={chapter.id} />
                   )}
