@@ -107,14 +107,14 @@ const Account = () => {
     }
 
     setIsSaving(true);
-    // Only the fields a customer is allowed to change — reward_balance and
-    // welcome_discount_* are never sent from here (and are now protected
-    // server-side by a trigger even if they were).
+    // Only the fields a customer is allowed to change — first_name/last_name
+    // are intentionally NOT here (the name field is display-only, no input
+    // ever lets the customer edit it any more), same as reward_balance and
+    // welcome_discount_* which were already never sent from here (and are
+    // now protected server-side by a trigger even if they were).
     const { error } = await supabase
       .from("profiles")
       .update({
-        first_name: normalizeName(firstName),
-        last_name: normalizeName(lastName),
         phone: combinePhoneNumber(countryCode, phone),
         birth_date: birthDate ? format(birthDate, "yyyy-MM-dd") : null,
         newsletter_subscription: newsletterSubscription,
@@ -202,26 +202,17 @@ const Account = () => {
 
           {editing ? (
             <form onSubmit={handleSave} className="border border-border/60 p-5 space-y-5">
+              {/* Name is display-only — no input, no way to change it here or
+                  anywhere else. Shown so the customer can still check it
+                  while editing the rest of their details. */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="firstName">{t("First Name", "Prénom")}</Label>
-                  <Input
-                    id="firstName"
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    onBlur={() => setFirstName((prev) => normalizeName(prev))}
-                  />
+                  <Label>{t("First Name", "Prénom")}</Label>
+                  <p className="mt-2 text-sm text-foreground">{firstName || "—"}</p>
                 </div>
                 <div>
-                  <Label htmlFor="lastName">{t("Last Name", "Nom")}</Label>
-                  <Input
-                    id="lastName"
-                    required
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    onBlur={() => setLastName((prev) => normalizeName(prev))}
-                  />
+                  <Label>{t("Last Name", "Nom")}</Label>
+                  <p className="mt-2 text-sm text-foreground">{lastName || "—"}</p>
                 </div>
               </div>
 
