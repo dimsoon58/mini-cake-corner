@@ -1897,7 +1897,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0 mt-[1px]" aria-hidden="true">
                       <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clipRule="evenodd" />
                     </svg>
-                    {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
+                    {t("Please note: darker colours may leave temporary colour on the lips.", "À noter : les couleurs foncées peuvent temporairement laisser des traces sur les lèvres.")}
                   </p>
                 </div>
                 <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
@@ -1962,7 +1962,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0 mt-[1px]" aria-hidden="true">
                       <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clipRule="evenodd" />
                     </svg>
-                    {t("We recommend choosing light colours, as dark colours may temporarily stain lips.", "Nous vous recommandons de choisir des couleurs claires, car les couleurs foncées peuvent temporairement colorer les lèvres.")}
+                    {t("Please note: darker colours may leave temporary colour on the lips.", "À noter : les couleurs foncées peuvent temporairement laisser des traces sur les lèvres.")}
                   </p>
                 </div>
                 <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
