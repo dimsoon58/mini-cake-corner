@@ -309,7 +309,7 @@ const Index = () => {
       </div>{/* end flex-col reorder wrapper */}
 
       {/* Customers Section */}
-      <section className="pt-12 pb-8 bg-cream">
+      <section className="pt-12 pb-6 bg-cream">
         <div className="container mx-auto px-4">
           <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-10">
             {t("OUR CUSTOMERS", "NOS CLIENTS")}
@@ -319,7 +319,7 @@ const Index = () => {
       </section>
 
       {/* Customer Comments Section */}
-      <section className="pt-4 pb-2 bg-background">
+      <section className="pt-4 pb-3 bg-background">
         <div className="container mx-auto px-4">
           <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-10">
             {t("CUSTOMER COMMENTS", "AVIS CLIENTS")}
