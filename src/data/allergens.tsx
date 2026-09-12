@@ -80,9 +80,9 @@ export const AllergenDisplay = ({ flavorId }: { flavorId: string }) => {
   if (!info) return null;
 
   return (
-    <p className="text-[10px] leading-tight mt-1 text-muted-foreground">
+    <p className="text-[10px] leading-tight mt-2.5 text-muted-foreground italic">
       {info.warn && <span aria-hidden="true">⚠️ </span>}
-      <span className="font-medium">{t("Contains:", "Contient :")}</span>{" "}
+      <span className="font-semibold not-italic">{t("Contains:", "Contient :")}</span>{" "}
       {t(info.en, info.fr)}
     </p>
   );
