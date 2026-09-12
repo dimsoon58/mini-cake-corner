@@ -2494,7 +2494,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <div className="w-[calc(50%-6px)] min-w-0">
                       <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all border border-foreground/20", getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
                       <div className="h-40 flex items-center justify-center bg-secondary/20 p-2">
-                        <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_CATALOG[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-36 w-auto object-contain transition-all duration-200" />
+                        <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_CATALOG[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-36 w-36 object-contain transition-all duration-200" />
                       </div>
                       <div className="p-2 text-center">
                         <p className="text-xs font-medium text-foreground">{t("Number Candle", "Bougie chiffre")}</p>
