@@ -382,89 +382,67 @@ const Candles = () => {
             );
           })}
 
-        </div>
-
-        {/* Number Candle – clean product-style card */}
-        <div className="max-w-xs mx-auto mt-6">
-          <Card className="overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20">
-            <CardContent className="p-6 flex flex-col items-center gap-5">
-
-              {/* Title + price */}
-              <div className="text-center">
-                <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-0.5">
-                  {t("Number Candle", "Bougie chiffre")}
-                </h3>
-                <p className="text-[11px] text-muted-foreground">
-                  CHF {NUMBER_CANDLE_PRICE} / {t("piece", "pièce")}
-                </p>
-              </div>
-
-              {/* Large candle preview */}
-              <div className="flex items-center justify-center h-52 w-full">
-                <img
-                  key={numberCandleDigit}
-                  src={NUMBER_CANDLE_IMAGES[numberCandleDigit]}
-                  alt={`${t("Number Candle", "Bougie chiffre")} ${numberCandleDigit}`}
-                  className="h-52 w-auto object-contain transition-all duration-200"
-                />
-              </div>
-
-              {/* Number dropdown */}
-              <div className="w-full space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-[0.08em]">
-                  {t("Choose a number", "Choisir un chiffre")}
-                </label>
+          {/* Number Candle – same grid card as the others */}
+          <Card className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20">
+            <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
+              <img
+                key={numberCandleDigit}
+                src={NUMBER_CANDLE_IMAGES[numberCandleDigit]}
+                alt={`${t("Number Candle", "Bougie chiffre")} ${numberCandleDigit}`}
+                className="h-40 w-auto object-contain transition-all duration-200"
+              />
+            </div>
+            <CardContent className="p-4 text-center flex flex-col flex-1">
+              <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-1">
+                {t("Number Candle", "Bougie chiffre")}
+              </h3>
+              <p className="text-[11px] text-muted-foreground mb-3">
+                CHF {NUMBER_CANDLE_PRICE} / {t("piece", "pièce")}
+              </p>
+              <div className="mt-auto space-y-3">
+                {/* Number dropdown */}
                 <select
                   value={numberCandleDigit}
                   onChange={(e) => setNumberCandleDigit(e.target.value)}
-                  className="w-full border border-input bg-background text-foreground text-sm font-medium px-3 py-2.5 rounded-none focus:outline-none focus:ring-2 focus:ring-ring appearance-none cursor-pointer"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}
+                  className="w-full border border-input bg-background text-foreground text-sm font-medium px-3 py-2 rounded-none focus:outline-none focus:ring-2 focus:ring-ring appearance-none cursor-pointer"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center" }}
                   aria-label={t("Select a number", "Sélectionner un chiffre")}
                 >
                   {NUMBER_CANDLE_DIGITS.map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
-              </div>
-
-              {/* Quantity */}
-              <div className="w-full space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-[0.08em]">
-                  {t("Quantity", "Quantité")}
-                </label>
-                <div className="flex items-center gap-3">
+                {/* Quantity */}
+                <div className="flex items-center justify-center gap-2">
                   <button
                     type="button"
                     onClick={() => changeQty(NUMBER_CANDLE_ID, -1)}
                     disabled={getQty(NUMBER_CANDLE_ID) <= 1}
                     className={cn(
-                      "w-8 h-8 rounded-none flex items-center justify-center text-sm font-bold transition-all",
+                      "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
                       getQty(NUMBER_CANDLE_ID) <= 1
                         ? "bg-muted text-muted-foreground cursor-not-allowed"
                         : "bg-primary text-primary-foreground hover:bg-primary/90"
                     )}
                     aria-label={t("Decrease quantity", "Diminuer la quantité")}
                   >−</button>
-                  <span className="flex-1 text-center font-semibold text-foreground text-base">
+                  <span className="w-6 text-center font-medium text-foreground text-sm">
                     {getQty(NUMBER_CANDLE_ID)}
                   </span>
                   <button
                     type="button"
                     onClick={() => changeQty(NUMBER_CANDLE_ID, 1)}
-                    className="w-8 h-8 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
+                    className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
                     aria-label={t("Increase quantity", "Augmenter la quantité")}
                   >+</button>
                 </div>
+                <Button
+                  onClick={handleAddNumberCandleToCart}
+                  className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] tracking-[0.105em] uppercase"
+                >
+                  {t("Add to Cart", "Ajouter au panier")}
+                </Button>
               </div>
-
-              {/* Add to cart */}
-              <Button
-                onClick={handleAddNumberCandleToCart}
-                className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] tracking-[0.105em] uppercase"
-              >
-                {t("Add to Cart", "Ajouter au panier")} — CHF {NUMBER_CANDLE_PRICE * getQty(NUMBER_CANDLE_ID)}
-              </Button>
-
             </CardContent>
           </Card>
         </div>
