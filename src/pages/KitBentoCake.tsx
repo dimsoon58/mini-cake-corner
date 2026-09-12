@@ -666,10 +666,10 @@ const KitBentoCake = () => {
               </div>
               <RadioGroup value={selectedPipingOption} onValueChange={(val) => { setSelectedPipingOption(val); setPipingColors([]); }} className="flex gap-6">
                 {pipingBagOptions.map((option) => (
-                  <div key={option.id} className="flex items-center space-x-2">
+                  <div key={option.id} className="flex items-start space-x-2 pt-0.5">
                     <RadioGroupItem value={option.id} id={option.id} />
                     <Label htmlFor={option.id} className="cursor-pointer">
-                      {t(option.name, option.nameFr)} <span className="text-muted-foreground">(CHF {option.price})</span>
+                      <span className="block">{t(option.name, option.nameFr)}</span><span className="block text-muted-foreground text-xs">(CHF {option.price})</span>
                     </Label>
                   </div>
                 ))}
