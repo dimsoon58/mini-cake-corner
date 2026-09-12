@@ -16,6 +16,11 @@ import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { HoneypotField } from "@/components/HoneypotField";
 import { submitContactRequest } from "@/lib/contactRequest";
 import { combinePhoneNumber } from "@/lib/identity";
+// Reused as a plain Europe/Zurich "days until this date" utility — NOT the
+// cake-order lead-time/express rule itself (that stays 2 days + a J+2/J+3
+// surcharge, untouched, and lives only in Checkout.tsx / create-postfinance-
+// payment). Workshops need their own, longer, surcharge-free minimum below.
+import { calendarDaysUntil } from "@/lib/orderDates";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/context/LanguageContext";
 import { useFieldError } from "@/lib/formErrors";
@@ -43,6 +48,12 @@ type PrivateData = z.infer<typeof privateSchema>;
 // part: an "incomplete" number is caught here rather than by a rigid regex
 // that would need to know every country's real format.
 const MIN_LOCAL_PHONE_DIGITS = 4;
+
+// A private/custom workshop needs organisation time — a longer, FLAT minimum
+// lead time than a cake order, and no express surcharge to skip it (the
+// cake-order 2-day lead + J+2/J+3 surcharge in src/lib/orderDates.ts is a
+// separate rule and is untouched by this constant).
+const WORKSHOP_MIN_LEAD_DAYS = 4;
 
 export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) => {
   const { t } = useLang();
@@ -178,11 +189,13 @@ export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; o
                       mode="single"
                       selected={preferredDate}
                       onSelect={(date) => setValue("preferredDate", date ?? undefined, { shouldValidate: true })}
-                      disabled={(date) => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        return date < today;
-                      }}
+                      // Workshop-specific: minimum 4 calendar days out (Europe/
+                      // Zurich, recomputed on every render — never a fixed
+                      // date), no express-style shortcut. calendarDaysUntil()
+                      // is the same Zurich-day-difference helper the cake
+                      // calendar uses, just compared to a different, longer
+                      // minimum — the cake 2-day rule itself is untouched.
+                      disabled={(date) => calendarDaysUntil(date) < WORKSHOP_MIN_LEAD_DAYS}
                       initialFocus
                       className="p-3 pointer-events-auto"
                     />
