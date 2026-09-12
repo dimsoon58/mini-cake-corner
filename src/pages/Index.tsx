@@ -321,7 +321,7 @@ const Index = () => {
       {/* Customer Comments Section */}
       <section className="pt-4 pb-2 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="font-sans text-xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-10">
+          <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-10">
             {t("CUSTOMER COMMENTS", "AVIS CLIENTS")}
           </h2>
           <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" contain />
