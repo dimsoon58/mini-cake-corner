@@ -239,6 +239,8 @@ const KitBentoCake = () => {
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
   const [step, setStep] = useState(1);
+  const [configuratorVisible, setConfiguratorVisible] = useState(false);
+  const configuratorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const option = pipingBagOptions.find(p => p.id === selectedPipingOption);
@@ -417,7 +419,9 @@ const KitBentoCake = () => {
     setStep((s) => Math.min(s + 1, 6));
   };
   const goBack = () => { setStep((s) => Math.max(s - 1, 1)); };
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }); }, [step]);
+  useEffect(() => {
+    if (configuratorVisible) window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [step, configuratorVisible]);
 
   const stepLabels = [t("Date","Date"), t("Shape","Forme"), t("Flavour","Parfum"), t("Piping","Poches"), t("Candles","Bougies"), t("Confirm","Confirmer")];
 
@@ -436,7 +440,31 @@ const KitBentoCake = () => {
           {t("Starting from", "À partir de")} <span className="font-semibold text-foreground">CHF {BASE_PRICE}</span>
         </p>
 
-        <div className="max-w-2xl mx-auto py-4 px-4">
+        {/* CTA — visible only before configurator opens */}
+        {!configuratorVisible && (
+          <div className="flex flex-col items-center gap-8 mb-12">
+            <button
+              onClick={() => {
+                setConfiguratorVisible(true);
+                setTimeout(() => {
+                  configuratorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 50);
+              }}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-semibold uppercase tracking-[0.18em] rounded-none px-10 py-3.5 transition-colors"
+            >
+              {t("Create your DIY Kit →", "Créer mon Kit DIY →")}
+            </button>
+            {/* DIY Kit image – shown on landing screen */}
+            <img src={diyKitBox} alt={t("Bento Cake Studio DIY kit","Kit DIY Bento Cake Studio")} loading="lazy" className="w-full max-w-md mx-auto" />
+          </div>
+        )}
+
+        {/* Configurator – hidden until CTA is clicked */}
+        <div
+          ref={configuratorRef}
+          className={configuratorVisible ? "max-w-2xl mx-auto py-4 px-4 transition-all duration-500 ease-out opacity-100 translate-y-0" : "max-w-2xl mx-auto py-4 px-4 pointer-events-none select-none opacity-0 translate-y-4 h-0 overflow-hidden"}
+          aria-hidden={!configuratorVisible}
+        >
           {/* Stepper */}
           <div className="flex items-start mb-10">
             {stepLabels.map((label, i) => {
@@ -799,11 +827,11 @@ const KitBentoCake = () => {
             </div>
           )}
 
-          {/* DIY Kit image */}
+          {/* DIY Kit image – shown below configurator */}
           <div className="pt-12 pb-8">
             <img src={diyKitBox} alt={t("Bento Cake Studio DIY kit","Kit DIY Bento Cake Studio")} loading="lazy" className="w-full max-w-md mx-auto" />
           </div>
-        </div>
+        </div> {/* end configurator div */}
       </div>
 
       {/* Cart Confirmation Sheet */}
