@@ -1104,6 +1104,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
+  const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
   const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   // Active carousel image per multi-photo design (keyed by cake id). Kept
@@ -1795,22 +1796,36 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           <SelectLabel>{t("Deluxe", "Deluxe")}</SelectLabel>
                           {deluxeFlavors.map(renderFlavorOption)}
                         </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>{t("Gluten-Free — Standard", "Sans Gluten — Standard")}</SelectLabel>
-                          {glutenFreeStandardFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>{t("Gluten-Free — Premium", "Sans Gluten — Premium")}</SelectLabel>
-                          {glutenFreePremiumFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>{t("Gluten-Free — Deluxe", "Sans Gluten — Deluxe")}</SelectLabel>
-                          {glutenFreeDeluxeFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
+                        {showGlutenFreeFlavors && (
+                          <>
+                            <SelectGroup>
+                              <SelectLabel>{t("Gluten-Free — Standard", "Sans Gluten — Standard")}</SelectLabel>
+                              {glutenFreeStandardFlavors.map(renderFlavorOption)}
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel>{t("Gluten-Free — Premium", "Sans Gluten — Premium")}</SelectLabel>
+                              {glutenFreePremiumFlavors.map(renderFlavorOption)}
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel>{t("Gluten-Free — Deluxe", "Sans Gluten — Deluxe")}</SelectLabel>
+                              {glutenFreeDeluxeFlavors.map(renderFlavorOption)}
+                            </SelectGroup>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                   );
                 })()}
+                <button
+                  type="button"
+                  onClick={() => setShowGlutenFreeFlavors(v => !v)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1 hover:underline"
+                >
+                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showGlutenFreeFlavors && "rotate-180")} />
+                  {showGlutenFreeFlavors
+                    ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
+                    : t("See gluten-free flavours", "Voir les parfums sans gluten")}
+                </button>
                 <AllergenNotice className="pt-1" />
               </div>
 
