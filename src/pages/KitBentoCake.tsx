@@ -710,79 +710,76 @@ const KitBentoCake = () => {
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Add Candles (Optional)","Ajouter des bougies (optionnel)")}
               </h2>
-              <div className="flex flex-wrap justify-center gap-4">
-                <div className="w-40 sm:w-48 min-w-0">
-                  <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
-                    <div className="flex items-center justify-center bg-secondary/20 p-2">
-                      <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_KIT[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-40 w-40 object-contain" />
-                    </div>
-                    <CardContent className="p-2 text-center">
-                      <h3 className="font-medium text-foreground text-xs mb-0.5">{t("Number Candle","Bougie chiffre")}</h3>
-                      <p className="text-[10px] text-muted-foreground mb-1.5">CHF {NUMBER_CANDLE_PRICE} / pièce</p>
-                      <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
-                        <SelectTrigger className="h-7 text-xs mb-1.5"><SelectValue /></SelectTrigger>
-                        <SelectContent>{NUMBER_CANDLE_DIGITS.map((digit) => <SelectItem key={digit} value={digit}>{digit}</SelectItem>)}</SelectContent>
-                      </Select>
-                      <div className="flex items-center justify-center gap-1.5 mb-1">
-                        <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, -1)} disabled={getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0}
-                          className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90")}>−</button>
-                        <span className="w-5 text-center font-medium text-foreground text-sm">{getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID)}</span>
-                        <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, 1)}
-                          className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
-                      </div>
+              <div className="grid grid-cols-2 gap-4">
 
+                {/* Number Candle card */}
+                <Card className={cn("flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20 rounded-none", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
+                  <div className="flex items-center justify-center bg-secondary/20 p-2 h-28">
+                    <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_KIT[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-24 w-24 object-contain" />
+                  </div>
+                  <CardContent className="p-2 text-center space-y-1.5">
+                    <h3 className="font-sans tracking-[0.105em] font-semibold uppercase text-foreground text-[11px]">{t("Number Candle","Bougie chiffre")}</h3>
+                    <p className="text-[10px] text-muted-foreground">CHF {NUMBER_CANDLE_PRICE} / pièce</p>
+                    {getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && (
+                      <p className="text-xs text-primary font-medium">CHF {getCandlePrice(NUMBER_CANDLE_ID)}</p>
+                    )}
+                    <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>{NUMBER_CANDLE_DIGITS.map((digit) => <SelectItem key={digit} value={digit}>{digit}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, -1)} disabled={getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0}
+                        className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90")}>−</button>
+                      <span className="w-5 text-center font-medium text-foreground text-sm">{getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID)}</span>
+                      <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, 1)}
+                        className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Other candle cards */}
                 {candles.slice(0, showAllCandles ? undefined : INITIAL_CANDLES_SHOWN).map((candle) => {
                   const family = FAMILY_CANDLE_COLORS[candle.id];
                   if (family) {
                     return (
-                      <div key={candle.id} className="w-40 sm:w-48 min-w-0">
-                        <ColorFamilyCandleCard candle={candle} colors={family}
-                          existing={candleSelections.find((c) => c.id === candle.id)}
-                          onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
-                          onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
-                          imageClassName={candle.imageClassName ?? "h-40 w-40"} compact />
-                      </div>
+                      <ColorFamilyCandleCard key={candle.id} candle={candle} colors={family}
+                        existing={candleSelections.find((c) => c.id === candle.id)}
+                        onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
+                        onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
+                        imageClassName={candle.imageClassName ?? "h-24 w-24"} compact />
                     );
                   }
                   const qty = getSimpleCandleQty(candleSelections, candle.id);
                   const price = getCandlePrice(candle.id);
                   const hasPackApplied = candle.packSize && qty >= candle.packSize;
                   return (
-                    <div key={candle.id} className="w-40 sm:w-48 min-w-0">
-                      <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", qty > 0 && "ring-2 ring-primary")}>
-                        <div className="flex items-center justify-center bg-secondary/20 p-2">
-                          <img src={candle.image} alt={t(candle.name, candle.nameFr)} className={cn(candle.imageClassName ?? "h-40 w-40", "object-contain")} />
+                    <Card key={candle.id} className={cn("flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20 rounded-none", qty > 0 && "ring-2 ring-primary")}>
+                      <div className="flex items-center justify-center bg-secondary/20 p-2 h-28">
+                        <img src={candle.image} alt={t(candle.name, candle.nameFr)} className={cn(candle.imageClassName ?? "h-24 w-24", "object-contain")} />
+                      </div>
+                      <CardContent className="p-2 text-center space-y-1.5">
+                        <h3 className="font-sans tracking-[0.105em] font-semibold uppercase text-foreground text-[11px]">{t(candle.name, candle.nameFr)}</h3>
+                        {candle.hasPack ? (
+                          <p className="text-[10px] text-muted-foreground">CHF {candle.unitPrice}/pièce · Pack {candle.packSize}: CHF {candle.packPrice}</p>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground">CHF {candle.unitPrice} / pièce</p>
+                        )}
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button onClick={() => handleCandleQtyChange(candle.id, -1)} disabled={qty === 0}
+                            className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all", qty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90")}>−</button>
+                          <span className="w-5 text-center font-medium text-foreground text-sm">{qty}</span>
+                          <button onClick={() => handleCandleQtyChange(candle.id, 1)}
+                            className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
                         </div>
-                        <CardContent className="p-2 text-center">
-                          <h3 className="font-medium text-foreground text-xs mb-0.5">{t(candle.name, candle.nameFr)}</h3>
-                          {candle.hasPack ? (
-                            <p className="text-[10px] text-muted-foreground mb-1">CHF {candle.unitPrice}/pièce · Pack {candle.packSize}: CHF {candle.packPrice}</p>
-                          ) : (
-                            <p className="text-[10px] text-muted-foreground mb-1.5">CHF {candle.unitPrice} / pièce</p>
-                          )}
-                          <div className="flex items-center justify-center gap-1.5 mb-1">
-                            <button onClick={() => handleCandleQtyChange(candle.id, -1)} disabled={qty === 0}
-                              className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all", qty === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90")}>−</button>
-                            <span className="w-5 text-center font-medium text-foreground text-sm">{qty}</span>
-                            <button onClick={() => handleCandleQtyChange(candle.id, 1)}
-                              className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
-                          </div>
-                          {qty > 0 && candle.hasPack && (
-                            <p className={cn("text-[10px] font-medium", hasPackApplied ? "text-green-700" : "text-muted-foreground")}>
-                              {hasPackApplied ? `✓ ${t("Pack price applied","Prix pack appliqué")}, CHF ${price}` : `CHF ${price}`}
-                            </p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
+                        {qty > 0 && candle.hasPack && (
+                          <p className={cn("text-[10px] font-medium", hasPackApplied ? "text-green-700" : "text-muted-foreground")}>
+                            {hasPackApplied ? `✓ ${t("Pack price applied","Prix pack appliqué")}, CHF ${price}` : `CHF ${price}`}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
                   );
                 })}
-                      {getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && (
-                        <p className="text-[10px] text-primary font-medium">CHF {getCandlePrice(NUMBER_CANDLE_ID)}</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
               </div>
               <button onClick={() => setShowAllCandles(!showAllCandles)}
                 className="w-full flex items-center justify-center gap-1 text-sm text-primary font-medium py-2 hover:underline">
