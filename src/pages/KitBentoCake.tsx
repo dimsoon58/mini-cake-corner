@@ -238,9 +238,9 @@ const KitBentoCake = () => {
   // CartContext.addItem. Once it's on, start blank so a new item added from
   // this page doesn't silently inherit whatever date is already in the cart.
   const [orderDate, setOrderDate] = useState<Date | undefined>(() =>
-  const [calOpen, setCalOpen] = useState(false);
     MULTI_DATE_FULFILLMENT_ENABLED ? undefined : (cartOrderDate ? new Date(cartOrderDate) : undefined)
   );
+  const [calOpen, setCalOpen] = useState(false);
   const [selectedShape, setSelectedShape] = useState("");
   const [selectedFlavor, setSelectedFlavor] = useState("");
   const [selectedPipingOption, setSelectedPipingOption] = useState("");

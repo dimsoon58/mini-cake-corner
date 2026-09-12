@@ -112,9 +112,9 @@ const DotCakes = () => {
   // CartContext.addItem. Once it's on, start blank so a new pack added from
   // this page doesn't silently inherit whatever date is already in the cart.
   const [orderDate, setOrderDate] = useState<Date | undefined>(() =>
-  const [calOpen, setCalOpen] = useState(false);
     MULTI_DATE_FULFILLMENT_ENABLED ? undefined : (cartOrderDate ? new Date(cartOrderDate) : undefined)
   );
+  const [calOpen, setCalOpen] = useState(false);
   const [packSize, setPackSize] = useState<number | null>(null);
   const [selectedFlavours, setSelectedFlavours] = useState<string[]>([]);
   const [candleSelections, setCandleSelections] = useState<CandleSelection[]>([]);
@@ -461,7 +461,7 @@ const DotCakes = () => {
                             }}
                           >
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder={i === 0 ? t("Select a flavour", "Choisir un parfum")} />
+                              <SelectValue placeholder={t("Select a flavour", "Choisir un parfum")} />
                             </SelectTrigger>
                             <SelectContent nativeScroll className="w-[min(90vw,420px)]">
                 
