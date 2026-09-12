@@ -466,13 +466,13 @@ const KitBentoCake = () => {
           aria-hidden={!configuratorVisible}
         >
           {/* Stepper */}
-          <div className="flex items-start mb-10">
+          <div className="overflow-x-auto mb-10"><div className="flex items-start min-w-max mx-auto">
             {stepLabels.map((label, i) => {
               const num = i + 1;
               const isActive = step === num;
               const isDone = step > num;
               return (
-                <div key={label} className="flex-1 flex flex-col items-center relative">
+                <div key={label} className="flex-none w-16 flex flex-col items-center relative">
                   {i < stepLabels.length - 1 && (
                     <div className={cn("absolute top-[18px] left-1/2 w-full h-px transition-colors", isDone ? "bg-primary" : "bg-border")} />
                   )}
@@ -490,7 +490,7 @@ const KitBentoCake = () => {
                 </div>
               );
             })}
-          </div>
+          </div></div>
 
           {/* STEP 1: DATE */}
           {step === 1 && (

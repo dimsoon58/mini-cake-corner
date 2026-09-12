@@ -279,13 +279,13 @@ const DotCakes = () => {
           >
 
           {/* Stepper */}
-          <div className="flex items-start mb-10">
+          <div className="overflow-x-auto mb-10"><div className="flex items-start min-w-max mx-auto">
             {STEPS.map((s, i) => {
               const num = i + 1;
               const isActive = step === num;
               const isDone = step > num;
               return (
-                <div key={s.key} className="flex-1 flex flex-col items-center relative">
+                <div key={s.key} className="flex-none w-16 flex flex-col items-center relative">
                   {i < STEPS.length - 1 && (
                     <div className={cn(
                       "absolute top-[18px] left-1/2 w-full h-px transition-colors",
@@ -309,7 +309,7 @@ const DotCakes = () => {
                 </div>
               );
             })}
-          </div>
+          </div></div>
 
           {/* STEP 1: DATE */}
           {step === 1 && (
