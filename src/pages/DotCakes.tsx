@@ -239,7 +239,7 @@ const DotCakes = () => {
         {/* SIDEBAR */}
 
         {/* MAIN */}
-        <main className="max-w-2xl mx-auto py-12 px-4">
+        <main className="w-full max-w-2xl mx-auto py-12 px-4">
           <h1 className="font-sans text-4xl md:text-5xl tracking-[0.105em] uppercase text-foreground mb-6 font-semibold text-center">
             {t("Dot Cakes", "Dot Cakes")}
           </h1>
