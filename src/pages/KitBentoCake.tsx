@@ -724,7 +724,7 @@ const KitBentoCake = () => {
                       <p className="text-xs text-primary font-medium">CHF {getCandlePrice(NUMBER_CANDLE_ID)}</p>
                     )}
                     <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
-                      <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-7 text-xs text-center"><SelectValue /></SelectTrigger>
                       <SelectContent>{NUMBER_CANDLE_DIGITS.map((digit) => <SelectItem key={digit} value={digit}>{digit}</SelectItem>)}</SelectContent>
                     </Select>
                     <div className="flex items-center justify-center gap-1.5">
