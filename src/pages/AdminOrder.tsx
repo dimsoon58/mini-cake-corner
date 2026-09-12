@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
+import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
   if (!value) return null;
@@ -33,27 +34,55 @@ const AdminOrder = () => {
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // Fetches through get-order-detail (service_role, gated by the SAME
+  // order_action_tokens row the Accept/Refuse links use) instead of reading
+  // `orders`/`order_items` directly from the browser. A direct client-side
+  // read is subject to RLS — orders is scoped to the signed-in customer's
+  // own rows, and the admin opening this link is never signed in as that
+  // customer, so the query always returned zero rows (no error, just
+  // empty), which is exactly why this page used to show "Order not found"
+  // even for a perfectly valid id/token. Accept/Refuse never hit this,
+  // because they live on a separate page (OrderAction.tsx) that only calls
+  // manage-order (also service_role) and never reads `orders` client-side.
+  // get-order-detail deliberately ignores order_action_tokens.used — this
+  // view must stay available after Accept/Refuse has consumed the token,
+  // exactly like manage-order's own tolerant re-check of a used token.
   useEffect(() => {
     const fetchOrder = async () => {
-      if (!id) return;
-      const { data, error } = await supabase
-        .from("orders").select("*").eq("id", id).single();
-      if (error) console.error("Error fetching order:", error);
-      setOrder(data);
-
-      const { data: itemsData, error: itemsError } = await supabase
-        .from("order_items").select("*").eq("order_id", id).order("created_at", { ascending: true });
-      if (itemsError) console.error("Error fetching order_items:", itemsError);
-      setItems(itemsData || []);
-
+      if (!id) { setLoading(false); return; }
+      if (!token) {
+        // No token at all — never even attempt the lookup (there is nothing
+        // valid to gate it with). The "Secure token missing" banner below
+        // already explains this; loading just stops here.
+        setLoading(false);
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("get-order-detail", {
+        body: { orderId: id, token },
+      });
+      if (error) {
+        console.error("get-order-detail invocation failed:", error);
+        setLoadError(t("Could not load this order. Please try the link again.", "Impossible de charger cette commande. Merci de réessayer le lien."));
+      } else if (data?.error) {
+        console.error("get-order-detail error:", data.error);
+        setLoadError(
+          data.error === "Invalid or unknown action token"
+            ? t("This link is not valid for this order.", "Ce lien n'est pas valide pour cette commande.")
+            : t("Order not found.", "Commande introuvable.")
+        );
+      } else {
+        setOrder(data.order);
+        setItems(data.items || []);
+      }
       setLoading(false);
     };
     fetchOrder();
-  }, [id]);
+  }, [id, token, t]);
 
   const handleAction = async (action: "approve" | "reject") => {
     if (!pin.trim()) {
@@ -134,7 +163,14 @@ const AdminOrder = () => {
     return (
       <Layout>
         <main className="container mx-auto px-4 py-16 text-center">
-          <p className="text-muted-foreground">{t("Order not found.", "Commande introuvable.")}</p>
+          <p className="text-muted-foreground">
+            {!token
+              ? t(
+                  "Secure link required. Please use the link from the notification e-mail to view this order.",
+                  "Lien sécurisé requis. Merci d'utiliser le lien reçu dans l'e-mail de notification pour consulter cette commande."
+                )
+              : loadError || t("Order not found.", "Commande introuvable.")}
+          </p>
         </main>
       </Layout>
     );
@@ -247,16 +283,31 @@ const AdminOrder = () => {
                   );
                 }
 
+                // Readable labels only — never the raw stored id when a real
+                // catalogue name exists for it (same resolution MyOrders.tsx
+                // uses for the customer-facing order history: sizeLabel/
+                // shapeLabel/designLabel against @/data/customization, with
+                // the [Preferred design: Option N] tag split out of the
+                // comment and folded into the Design line instead).
+                const productLabel = t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product;
+                const { designPhoto, comment } = splitComment(item.item_comment);
+                const referenceImage: string | null = item.design_image_url || (item.reference_images?.[0] ?? null);
+
                 return (
                   <div key={item.id || i} className="rounded-lg border border-border p-4 space-y-1">
                     <div className="flex justify-between mb-2">
-                      <span className="font-medium text-sm">{t("Cake", "Gâteau")} {i + 1}</span>
+                      <span className="font-medium text-sm">{productLabel} {i + 1}</span>
                       <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
                     </div>
-                    <DetailRow label={t("Size", "Taille")} value={item.size} />
-                    <DetailRow label={t("Shape", "Forme")} value={item.shape} />
+                    {item.size && <DetailRow label={t("Size", "Taille")} value={sizeLabel(item.size)} />}
+                    {item.shape && <DetailRow label={t("Shape", "Forme")} value={shapeLabel(item.shape)} />}
                     <DetailRow label={t("Flavour", "Parfum")} value={(item.flavors || []).join(", ")} />
-                    <DetailRow label={t("Design / Style", "Design / Style")} value={item.design} />
+                    {item.design && (
+                      <DetailRow
+                        label={t("Design / Style", "Design / Style")}
+                        value={`${designLabel(item.design)}${designPhoto ? ` — ${t("Photo", "Photo")} ${designPhoto}` : ""}`}
+                      />
+                    )}
                     <DetailRow label={t("Base Colour", "Couleur de base")} value={item.base_color} />
                     <DetailRow label={t("Decoration Colour", "Couleur de décoration")} value={item.decoration_color} />
                     {item.cake_text && (
@@ -269,7 +320,15 @@ const AdminOrder = () => {
                       <DetailRow label={t("Extras", "Extras")} value={item.extra} />
                     )}
                     {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
-                    <DetailRow label={t("Special Instructions", "Instructions particulières")} value={item.item_comment} />
+                    {referenceImage && (
+                      <div className="flex gap-2 text-sm">
+                        <span className="text-muted-foreground min-w-[140px]">{t("Reference image", "Image de référence")}:</span>
+                        <a href={referenceImage} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                          {t("View image", "Voir l'image")} →
+                        </a>
+                      </div>
+                    )}
+                    <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
                   </div>
                 );
               })}
