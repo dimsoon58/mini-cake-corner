@@ -118,8 +118,8 @@ export function expressSelectedCopy(date: Date | null | undefined, lang: "en" | 
 // above already states the precise rate for whichever date is in view.
 export const EXPRESS_COPY = {
   legend: {
-    en: "Highlighted dates carry a near-date surcharge (+20% within 2–3 days, +15% within 4–5 days).",
-    fr: "Les dates en évidence comportent un supplément (+20 % à J+2/J+3, +15 % à J+4/J+5).",
+    en: "Orders placed 4–5 days in advance include a 15% express surcharge. Orders placed 2–3 days in advance include a 20% express surcharge. Standard pricing applies from 6 days in advance.",
+    fr: "Les commandes passées 4 à 5 jours à l'avance incluent un supplément express de 15 %. Les commandes passées 2 à 3 jours à l'avance incluent un supplément express de 20 %. Le tarif standard s'applique à partir de 6 jours à l'avance.",
   },
   summaryLabel: {
     en: "Near-date surcharge",
