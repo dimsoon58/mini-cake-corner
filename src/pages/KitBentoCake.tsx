@@ -61,6 +61,17 @@ import candleRibbon from "@/assets/candle-ribbon.png";
 import candlePinkCar from "@/assets/candle-pink-car.png";
 import candleRainbow from "@/assets/candle-rainbow.png";
 import diyKitBox from "@/assets/diy-kit-box.jpg";
+import candleNum0 from "@/assets/candle-number-0.png";
+import candleNum1 from "@/assets/candle-number-1.png";
+import candleNum2 from "@/assets/candle-number-2.png";
+import candleNum3 from "@/assets/candle-number-3.png";
+import candleNum4 from "@/assets/candle-number-4.png";
+import candleNum5 from "@/assets/candle-number-5.png";
+import candleNum6 from "@/assets/candle-number-6.png";
+import candleNum7 from "@/assets/candle-number-7.png";
+import candleNum8 from "@/assets/candle-number-8.png";
+import candleNum9 from "@/assets/candle-number-9.png";
+export const NUMBER_CANDLE_IMAGES_KIT: Record<string, string> = {"0":candleNum0,"1":candleNum1,"2":candleNum2,"3":candleNum3,"4":candleNum4,"5":candleNum5,"6":candleNum6,"7":candleNum7,"8":candleNum8,"9":candleNum9};
 
 const BASE_PRICE = 40;
 
@@ -702,8 +713,8 @@ const KitBentoCake = () => {
               <div className="flex flex-wrap justify-center gap-4">
                 <div className="w-40 sm:w-48 min-w-0">
                   <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
-                    <div className="h-56 flex items-center justify-center bg-secondary/20 p-2">
-                      <span className="text-6xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
+                    <div className="flex items-center justify-center bg-secondary/20 p-2">
+                      <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_KIT[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-40 w-40 object-contain" />
                     </div>
                     <CardContent className="p-2 text-center">
                       <h3 className="font-medium text-foreground text-xs mb-0.5">{t("Number Candle","Bougie chiffre")}</h3>

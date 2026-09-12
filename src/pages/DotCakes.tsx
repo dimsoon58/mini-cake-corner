@@ -14,7 +14,7 @@ import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { isOrderDateDisabled } from "@/lib/orderDates";
-import { flavorCategories, glutenFreeFlavorCategories, candles as kitCandles } from "@/pages/KitBentoCake";
+import { flavorCategories, glutenFreeFlavorCategories, candles as kitCandles, NUMBER_CANDLE_IMAGES_KIT } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
@@ -548,8 +548,8 @@ const DotCakes = () => {
                 {/* Number candle */}
                 <div className="w-40 sm:w-48 min-w-0">
                   <Card className={cn("flex flex-col overflow-hidden w-full bg-white/60 hover:bg-white/80 transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
-                    <div className="h-56 flex items-center justify-center bg-secondary/20 p-2">
-                      <span className="text-6xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
+                    <div className="flex items-center justify-center bg-secondary/20 p-2">
+                      <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_KIT[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-40 w-40 object-contain" />
                     </div>
                     <CardContent className="p-2 text-center">
                       <h3 className="font-medium text-foreground text-xs mb-0.5">{t("Number Candle", "Bougie chiffre")}</h3>
