@@ -717,15 +717,7 @@ const CatalogCarousel = ({ images, name, imagePositions }: { images: string[]; n
       >
         <ChevronRight className="w-4 h-4" />
       </button>
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-        {images.map((_, i) => (
-          <button
-            key={i}
-            onClick={(e) => { e.stopPropagation(); emblaApi?.scrollTo(i); }}
-            className={cn("w-2 h-2 rounded-full transition-colors", i === selectedIndex ? "bg-foreground" : "bg-foreground/40")}
-          />
-        ))}
-      </div>
+
     </div>
   );
 };
