@@ -86,7 +86,10 @@ async function sendWorkshopEmail(
   // mixed orders.
   const confirmed = !!order.workshop_confirmed_at;
 
-  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
+  // Same wordmark asset + size as the other Bento Cake Studio emails
+  // (manage-order's sendApprovalEmail / sendDeclineEmail, send-order-
+  // received-email): 240px, auto height. Was logo-red.png at height:72px.
+  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png";
   const subject = confirmed
     ? tr(
         "Your workshop booking is confirmed – Bento Cake Studio",
@@ -148,7 +151,7 @@ async function sendWorkshopEmail(
 
     <div style="background:#FDF8E1;margin:0 20px;">
       <div style="padding:36px 40px 0;text-align:center;">
-        <img src="${logoUrl}" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
+        <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
       <div style="padding:0 40px 36px;">

@@ -23,6 +23,7 @@ import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
+import { splitComment } from "@/lib/orderLabels";
 import {
   sizes,
   shapes,
@@ -236,7 +237,16 @@ const Cart = () => {
   };
 
   const handleCommentChange = (itemId: string, comment: string) => {
-    updateItem(itemId, { comment });
+    // The edit textarea only ever shows/edits the customer-typed portion
+    // (see splitComment) — re-attach the "[Preferred design: Option N]" tag
+    // here, if this item has one, so editing the comment never silently
+    // drops which design photo was picked (still needed by the admin
+    // invoice/email — see orderLabels.ts).
+    const { designPhoto } = splitComment(items.find((i) => i.id === itemId)?.comment);
+    const nextComment = designPhoto != null
+      ? `[Preferred design: Option ${designPhoto}]${comment ? " " + comment : ""}`
+      : comment;
+    updateItem(itemId, { comment: nextComment });
   };
 
   const handleImageFilesChange = (itemId: string, imageFiles: File[]) => {
@@ -693,34 +703,43 @@ const CartItemSummary = ({ item }: { item: any }) => {
         )}
       </div>
 
-      {(item.baseColorName || item.decorationColorName || item.cakeText || item.comment) && (
-        <div className="border-t border-border/30 mt-5 pt-5 space-y-3">
-          {item.baseColorName && (
-            <div className="flex gap-2 text-sm">
-              <span className="text-muted-foreground/70 shrink-0 w-28">{t("Base", "Base")}</span>
-              <span className="text-foreground">{item.baseColorName}</span>
-            </div>
-          )}
-          {item.decorationColorName && (
-            <div className="flex gap-2 text-sm">
-              <span className="text-muted-foreground/70 shrink-0 w-28">{t("Decoration", "Décoration")}</span>
-              <span className="text-foreground">{item.decorationColorName}</span>
-            </div>
-          )}
-          {item.cakeText && (
-            <div className="flex gap-2 text-sm">
-              <span className="text-muted-foreground/70 shrink-0 w-28">{t("Text", "Texte")}</span>
-              <span className="text-foreground">"{item.cakeText}"</span>
-            </div>
-          )}
-          {item.comment && (
-            <div className="flex gap-2 text-sm">
-              <span className="text-muted-foreground/70 shrink-0 w-28">{t("Comment", "Commentaire")}</span>
-              <span className="text-foreground break-words">{item.comment}</span>
-            </div>
-          )}
-        </div>
-      )}
+      {(() => {
+        // item.comment may carry the internal "[Preferred design: Option N]"
+        // tag Catalog.tsx embeds for a multi-photo design (see orderLabels.ts)
+        // — that tag is data for the admin invoice/email, never something the
+        // customer typed, so it must never be shown here as their comment.
+        // splitComment(...).comment is null/empty for a tag-only value, and
+        // the plain customer text otherwise (or unchanged if there's no tag).
+        const displayComment = splitComment(item.comment).comment;
+        return (item.baseColorName || item.decorationColorName || item.cakeText || displayComment) && (
+          <div className="border-t border-border/30 mt-5 pt-5 space-y-3">
+            {item.baseColorName && (
+              <div className="flex gap-2 text-sm">
+                <span className="text-muted-foreground/70 shrink-0 w-28">{t("Base", "Base")}</span>
+                <span className="text-foreground">{item.baseColorName}</span>
+              </div>
+            )}
+            {item.decorationColorName && (
+              <div className="flex gap-2 text-sm">
+                <span className="text-muted-foreground/70 shrink-0 w-28">{t("Decoration", "Décoration")}</span>
+                <span className="text-foreground">{item.decorationColorName}</span>
+              </div>
+            )}
+            {item.cakeText && (
+              <div className="flex gap-2 text-sm">
+                <span className="text-muted-foreground/70 shrink-0 w-28">{t("Text", "Texte")}</span>
+                <span className="text-foreground">"{item.cakeText}"</span>
+              </div>
+            )}
+            {displayComment && (
+              <div className="flex gap-2 text-sm">
+                <span className="text-muted-foreground/70 shrink-0 w-28">{t("Comment", "Commentaire")}</span>
+                <span className="text-foreground break-words">{displayComment}</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="flex justify-between items-center pt-3 mt-3 border-t border-border/30">
         <span className="text-sm text-muted-foreground">{t("Total", "Total")}</span>
@@ -1105,7 +1124,7 @@ const CartItemEditor = ({
       {/* Comment */}
       <EditSection label={t("Comment", "Commentaire")} tooltip={t("Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.", "Indiquez toute précision que vous souhaitez apporter. Veuillez noter que si vous demandez des décorations ou des suppléments non sélectionnés, le prix peut varier.")}>
         <Textarea
-          value={item.comment || ""}
+          value={splitComment(item.comment).comment || ""}
           onChange={(e) => onCommentChange(e.target.value)}
           placeholder={t("Any special requests or details about your cake...", "Toute demande particulière ou détail concernant votre gâteau...")}
           className="min-h-[80px]"

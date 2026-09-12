@@ -106,7 +106,13 @@ const DotCakes = () => {
   const { t } = useLang();
 
   const [step, setStep] = useState(1);
-  const [orderDate, setOrderDate] = useState<Date | undefined>(() => (cartOrderDate ? new Date(cartOrderDate) : undefined));
+  // While MULTI_DATE_FULFILLMENT_ENABLED is off, pre-filling with the cart's
+  // existing date matches the single-date-per-cart rule enforced by
+  // CartContext.addItem. Once it's on, start blank so a new pack added from
+  // this page doesn't silently inherit whatever date is already in the cart.
+  const [orderDate, setOrderDate] = useState<Date | undefined>(() =>
+    MULTI_DATE_FULFILLMENT_ENABLED ? undefined : (cartOrderDate ? new Date(cartOrderDate) : undefined)
+  );
   const [packSize, setPackSize] = useState<number | null>(null);
   const [selectedFlavours, setSelectedFlavours] = useState<string[]>([]);
   const [candleSelections, setCandleSelections] = useState<CandleSelection[]>([]);
