@@ -105,6 +105,12 @@ export const ORDER_ITEM_SERVER_FIELDS = [
   // row — never client-supplied. Always null for a workshop item (workshops
   // keep their own workshop_session_id / date / time, never a fulfillment).
   "fulfillment_id",
+  // Reward/workshop bugfix (Sept 2026): how much of THIS line's total was
+  // paid with the customer's reward balance, set by create-postfinance-
+  // payment's reward-allocation loop. Never affects `total` itself — purely
+  // informational, read back later by claim_workshop_reservations_batch to
+  // seed workshop_reservations.reward_amount_used for cancellation math.
+  "reward_amount_used",
 ] as const;
 
 // Every field allowed on a payload that create-postfinance-payment already

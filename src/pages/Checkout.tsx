@@ -576,11 +576,20 @@ const Checkout = () => {
   }, [items]);
 
   const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
-  // Reward balance & the welcome discount never apply to workshops — this is
-  // the base they are computed against (products only, delivery excluded).
-  const rewardEligibleItemsTotal = items
-    .filter((item) => item.product !== "workshop")
-    .reduce((sum, item) => sum + item.total, 0);
+  // Reward-eligible base, mirroring create-postfinance-payment's own
+  // hasPhysicalItem rule exactly: workshops are excluded ONLY when there is
+  // a physical item to protect (cake-only / mixed — reward must never touch
+  // a workshop line there, so its order_items.total stays the untouched
+  // amount mixed-cart refund isolation depends on). A workshop-ONLY cart has
+  // no physical portion to protect, so the cagnotte is eligible against the
+  // full cart — this was the "cagnotte does nothing on a workshop-only
+  // order" bug; cake-only and mixed are unchanged.
+  // The welcome discount is a SEPARATE rule (discountedItem/discountedBase
+  // below) and is not affected by this — workshops never carry it, in every
+  // cart shape, unchanged.
+  const rewardEligibleItemsTotal = !hasPhysical
+    ? itemsTotal
+    : items.filter((item) => item.product !== "workshop").reduce((sum, item) => sum + item.total, 0);
 
   // Clears any address/quote already entered — used when the customer edits
   // the address, or switches back to pick-up. Never leaves a stale fee

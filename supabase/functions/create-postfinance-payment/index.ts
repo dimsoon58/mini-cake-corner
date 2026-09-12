@@ -138,6 +138,11 @@ interface OrderItemRow {
   workshop_time?: string | null;
   workshop_participants?: number | null;
   workshop_unit_price?: number | null;
+  // Reward/workshop bugfix (Sept 2026): set below, in the reward-allocation
+  // loop, alongside (never instead of) the PostFinance line-item discount —
+  // `total` above is NEVER touched by this. 0 for every line the loop
+  // doesn't reduce.
+  reward_amount_used?: number;
 }
 
 interface PaymentRequest {
@@ -159,7 +164,8 @@ interface PaymentRequest {
   deliveryPlaceId?: string | null;
   // Intent only — the amount the customer asked to spend from their reward
   // balance. Never trusted directly: it is capped by the reward-eligible
-  // (non-workshop) subtotal minus the welcome discount, then passed to
+  // subtotal (non-workshop items, UNLESS the order is workshop-only — see
+  // hasPhysicalItem below) minus the welcome discount, then passed to
   // reserve_reward() which returns the amount actually reserved.
   rewardAmountToUse?: number;
   // ── Multi-date fulfillment (Sept 2026), OPTIONAL and additive ─────────
@@ -1095,16 +1101,23 @@ serve(async (req) => {
     // capture; release_reward_reservation(p_order_id) gives it back on any
     // failure before the payment page.
     //
-    // Workshops are excluded from the eligible base and never receive a
-    // reward deduction on their PostFinance line.
+    // Workshops are excluded from the eligible base ONLY when there is a
+    // physical item to protect (cake-only / mixed) — reward must never touch
+    // a workshop line there, so order_items.total for that workshop line
+    // stays the exact, untouched amount mixed-cart refund isolation depends
+    // on (see [[pricing-composition]]). A workshop-ONLY order has no
+    // physical portion to protect, so the cagnotte rule the customer sees
+    // everywhere else (spend it against whatever you're buying) applies to
+    // it too — this is the fix for the "cagnotte does nothing on a
+    // workshop-only order" bug. Mixed carts are 100% unchanged.
     const requestedReward = Number(rewardAmountToUse ?? 0);
     if (!Number.isFinite(requestedReward) || requestedReward < 0) {
       throw new Error("Invalid rewardAmountToUse");
     }
 
-    const rewardEligibleSubtotal = orderItems
-      .filter((item) => item.product !== "workshop")
-      .reduce((sum, item) => sum + item.total, 0);
+    const rewardEligibleSubtotal = hasPhysicalItem
+      ? orderItems.filter((item) => item.product !== "workshop").reduce((sum, item) => sum + item.total, 0)
+      : orderItems.reduce((sum, item) => sum + item.total, 0);
     const maxReward = roundToCents(Math.max(0, rewardEligibleSubtotal - discountAmount));
 
     let reservedReward = 0;
@@ -1187,18 +1200,28 @@ serve(async (req) => {
       };
     });
 
-    // Reward can only reduce NON-workshop lines. Allocate reservedReward
-    // across them in order; the running remainder must land exactly on 0 or
-    // the whole transaction is rejected (and the reservation released) —
-    // never let the PostFinance total and orders.total_amount diverge.
+    // Reward can only reduce a workshop line when there is NO physical item
+    // in the order (workshop-only) — a mixed order keeps the exact previous
+    // rule (workshop lines always skipped) so order_items.total for its
+    // workshop line(s) is never touched, preserving refund isolation.
+    // Allocate reservedReward across the eligible lines in order; the
+    // running remainder must land exactly on 0 or the whole transaction is
+    // rejected (and the reservation released) — never let the PostFinance
+    // total and orders.total_amount diverge. order_items.total itself is
+    // NEVER modified here (unchanged from before) — only the ephemeral
+    // PostFinance line (`line.amountIncludingTax`) and the new, purely
+    // informational orderItems[i].reward_amount_used (persisted later for
+    // workshop-cancellation refund math, read by claim_workshop_
+    // reservations_batch — see the companion migrations).
     if (reservedReward > 0) {
       let rewardRemaining = reservedReward;
       for (let i = 0; i < lineItems.length && rewardRemaining > 0; i++) {
-        if (orderItems[i].product === "workshop") continue;
+        if (hasPhysicalItem && orderItems[i].product === "workshop") continue;
         const line = lineItems[i];
         const lineTotal = roundToCents(line.amountIncludingTax * line.quantity);
         const deduct = roundToCents(Math.min(rewardRemaining, lineTotal));
         line.amountIncludingTax = roundToCents(line.amountIncludingTax - deduct / line.quantity);
+        orderItems[i].reward_amount_used = deduct;
         rewardRemaining = roundToCents(rewardRemaining - deduct);
       }
       if (roundToCents(rewardRemaining) !== 0) {

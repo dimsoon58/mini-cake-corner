@@ -1,0 +1,40 @@
+-- ============================================================================
+-- *** DEFERRED — DO NOT APPLY YET ***
+-- ============================================================================
+-- Kept in supabase/deferred-migrations/, NOT supabase/migrations/ — see this
+-- directory's own README.md for why a code comment alone ("DO NOT RUN YET")
+-- is not a real guard against `supabase db push` or any tool that blindly
+-- applies every file in the active migrations folder. Physical location is
+-- the only reliable gate. To apply this file when the time comes: copy (not
+-- move) it into supabase/migrations/ with a fresh timestamp prefix that
+-- sorts correctly relative to whatever has been applied since, per the
+-- README's own checklist.
+--
+-- Cleanup step of the backward-compatible cancel_workshop_seats_atomic
+-- rollout (see supabase/migrations/20260912100300_cancel_workshop_seats_
+-- atomic.sql for the full explanation). This migration DROPS the OLD
+-- 6-argument public.cancel_workshop_seats(text, uuid, integer, text,
+-- numeric, text).
+--
+-- Apply this ONLY after ALL of the following are true:
+--   1. 20260912100000 / 100100 / 100200 / 100300 are already applied.
+--   2. The NEW cancel-workshop-seats Edge Function (the one that calls
+--      cancel_workshop_seats_atomic, not the old cancel_workshop_seats) has
+--      been deployed to production.
+--   3. At least one real workshop cancellation has been tested end-to-end
+--      against production with the new Edge Function and confirmed correct
+--      (cash due recorded as 'pending', no PostFinance call made, reward
+--      restored when applicable).
+-- If this migration is applied BEFORE step 2, every workshop cancellation
+-- will break immediately (the then-still-live OLD Edge Function calling a
+-- function that no longer exists) — there is no reason to ever apply this
+-- out of order, which is exactly why it is its own separate migration file
+-- instead of being folded into 20260912100300.
+--
+-- After this runs, cancel_workshop_seats_atomic remains the ONLY seat-
+-- cancellation RPC — a future cleanup could rename it back to
+-- cancel_workshop_seats for a tidier name, but that is optional and not
+-- included here to keep this migration to exactly one irreversible action
+-- (the DROP) plus nothing else.
+
+drop function if exists public.cancel_workshop_seats(text, uuid, integer, text, numeric, text);
