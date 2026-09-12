@@ -13,7 +13,7 @@ import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
-import { isOrderDateDisabled } from "@/lib/orderDates";
+import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
 import { flavorCategories, glutenFreeFlavorCategories, candles as kitCandles, NUMBER_CANDLE_IMAGES_KIT } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
@@ -339,6 +339,9 @@ const DotCakes = () => {
                       truth for this rule). */}
                   <Calendar mode="single" selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
                     disabled={(date) => isOrderDateDisabled(date)} initialFocus />
+                  {expressCalendarNotice(orderDate, lang) && (
+                    <p className="text-[10px] italic text-muted-foreground px-3 pb-3">ⓘ {expressCalendarNotice(orderDate, lang)}</p>
+                  )}
                 </PopoverContent>
               </Popover>
               {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (

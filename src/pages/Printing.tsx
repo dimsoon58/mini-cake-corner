@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { isOrderDateDisabled } from "@/lib/orderDates";
+import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { CalendarIcon, Upload, X, ChevronLeft, ChevronRight } from "lucide-react";
 import printingGallery1 from "@/assets/printing-gallery-1.jpg";

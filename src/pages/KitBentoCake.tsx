@@ -21,7 +21,7 @@ import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { toast } from "sonner";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
-import { isOrderDateDisabled } from "@/lib/orderDates";
+import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
 
 // Flavor images
 import flavorVanilla from "@/assets/flavor-vanilla.png";
@@ -523,6 +523,9 @@ const KitBentoCake = () => {
                       truth for this rule, which also carries the J+2/J+3
                       and J+4/J+5 near-date-surcharge tiers). */}
                   <Calendar mode="single" selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }} disabled={(date) => isOrderDateDisabled(date)} initialFocus />
+                  {expressCalendarNotice(orderDate, lang) && (
+                    <p className="text-[10px] italic text-muted-foreground px-3 pb-3">ⓘ {expressCalendarNotice(orderDate, lang)}</p>
+                  )}
                 </PopoverContent>
               </Popover>
               {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (

@@ -31,7 +31,7 @@ import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorF
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
-import { isOrderDateDisabled } from "@/lib/orderDates";
+import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { flavorDescMap } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
@@ -1113,7 +1113,7 @@ const CakeCardImage = ({ images, name, index, onIndexChange }: { images: string[
 const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }: CatalogProps) => {
   const { addItem, cartOrderDate } = useCart();
   const { toast } = useToast();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
@@ -1680,6 +1680,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       initialFocus
                       className={cn("p-3 pointer-events-auto")}
                     />
+                    {expressCalendarNotice(selections.orderDate || null, lang) && (
+                      <p className="text-[10px] italic text-muted-foreground px-3 pb-3">ⓘ {expressCalendarNotice(selections.orderDate || null, lang)}</p>
+                    )}
                   </PopoverContent>
                 </Popover>
                 {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (

@@ -110,6 +110,17 @@ export function expressSelectedCopy(date: Date | null | undefined, lang: "en" | 
     : `This date qualifies as a near-date order. A ${p}% surcharge will be applied to your cart, excluding delivery fees.`;
 }
 
+// Short inline notice shown directly below the calendar when an express date
+// is selected — compact italic line (ⓘ Express order — A X% surcharge applies).
+export function expressCalendarNotice(date: Date | null | undefined, lang: "en" | "fr"): string {
+  const rate = expressSurchargeRate(date);
+  if (rate === 0) return "";
+  const p = ratePercentLabel(rate);
+  return lang === "fr"
+    ? `Commande express — Un supplément de ${p} % s'applique à cette date.`
+    : `Express order — A ${p}% surcharge applies to this date.`;
+}
+
 // Legend + order-summary label stay rate-agnostic (no percentage stated):
 // a multi-date cart's aggregate surcharge can legitimately blend the two
 // rates (e.g. one item at +20%, another at +15%), so naming a single
