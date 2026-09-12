@@ -1832,22 +1832,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 <AllergenNotice className="pt-1" />
               </div>
 
-              {/* Design Display */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  {t("Design", "Design")}
-                  <Tooltip>
-                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">{t("You can select any design. You can also add extras and/or inspiration pictures in the next steps.", "Vous pouvez choisir n'importe quel design. Vous pourrez aussi ajouter des extras et/ou des photos d'inspiration aux étapes suivantes.")}</p></TooltipContent>
-                  </Tooltip>
-                </label>
-                <div className="bg-secondary/50 rounded-lg p-4">
-                  <p className="font-medium text-foreground">{t(selectedCake.styleName, styleNameFr[selectedCake.styleId] ?? selectedCake.styleName)}</p>
-                  <p className="text-sm text-primary mt-1">
-                    +CHF {selectedCake.stylePrice[selections.size as keyof typeof selectedCake.stylePrice]}
-                  </p>
-                </div>
-              </div>
+              {/* Design Display — hidden */}
 
               {/* Shag Cake Design Preference */}
               {selectedCake?.images && selectedCake.images.length > 1 && !["retro-vintage", "shag-cake", "printed-picture", "custom-drawing", "roses-please", "butterfly-garden", "gender-reveal"].includes(selectedCake.styleId) && (
