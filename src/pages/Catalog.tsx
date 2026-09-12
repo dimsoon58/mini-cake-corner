@@ -2398,6 +2398,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   <p className="text-xs text-muted-foreground mb-2">
                     {t("Upload reference images (max 5, 5 MB per image, JPG, PNG, WEBP)", "Téléchargez des images de référence (max. 5, 5 Mo par image, JPG, PNG, WEBP)")}
                   </p>
+                  <p className="text-xs text-muted-foreground/80 italic mb-2">
+                    {t("Please note: We do not work with fondant, so fondant elements cannot be reproduced.", "À noter : Nous ne travaillons pas avec de pâte à sucre, les éléments en pâte à sucre ne pourront donc pas être reproduits.")}
+                  </p>
                   <input
                     ref={commentFileInputRef}
                     type="file"
