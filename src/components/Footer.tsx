@@ -103,16 +103,32 @@ const Footer = () => {
             </p>
           </div>
 
-          {/* Instagram */}
+          {/* Réseaux sociaux */}
           <div>
-            <p className={headingClass}>INSTAGRAM</p>
+            <p className={headingClass}>FOLLOW US</p>
             <a
               href="https://www.instagram.com/bentocakestudio"
               target="_blank"
               rel="noopener noreferrer"
               className="block text-sm opacity-90 hover:opacity-100 transition-opacity mb-3"
             >
-              @bentocakestudio
+              Instagram — @bentocakestudio
+            </a>
+            <a
+              href="https://www.tiktok.com/@bentocakestudio"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm opacity-90 hover:opacity-100 transition-opacity mb-3"
+            >
+              TikTok — @bentocakestudio
+            </a>
+            <a
+              href="https://www.linkedin.com/company/bentocakestudio/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm opacity-90 hover:opacity-100 transition-opacity mb-3"
+            >
+              LinkedIn — Bento Cake Studio
             </a>
           </div>
 
