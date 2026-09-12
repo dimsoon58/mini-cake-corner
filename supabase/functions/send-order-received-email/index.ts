@@ -80,7 +80,10 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
     </tr>`;
   };
 
-  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
+  // Same wordmark asset + size as the other Bento Cake Studio decision
+  // emails (manage-order's sendApprovalEmail / sendDeclineEmail): 240px,
+  // auto height. Was logo-red.png at height:72px here.
+  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png";
   const subject = tr(`We've received your order ${orderNumber} 🎂`, `Nous avons bien reçu votre commande ${orderNumber} 🎂`);
 
   const html = `
@@ -92,7 +95,7 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
 
     <div style="background:#FDF8E1;margin:0 20px;">
       <div style="padding:36px 40px 0;text-align:center;">
-        <img src="${logoUrl}" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
+        <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
       <div style="padding:0 40px 36px;">
@@ -101,7 +104,9 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
-          ${tr("Thank you for your order at Bento Cake Studio 🤍", "Merci pour votre commande chez Bento Cake Studio 🤍")}
+          ${isMixed
+            ? tr("Thank you for your order at Bento Cake Studio.", "Merci pour votre commande chez Bento Cake Studio.")
+            : tr("Thank you for your order at Bento Cake Studio 🤍", "Merci pour votre commande chez Bento Cake Studio 🤍")}
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">
@@ -115,8 +120,8 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
             ${isMixed
               ? tr(
-                  "Your workshop booking is confirmed (you will receive a separate email for it). The cake / products part of this order is currently pending validation by our team — we will confirm as soon as possible whether we can fulfil it.",
-                  "Votre réservation d'atelier est confirmée (vous recevez un email séparé à ce sujet). La partie gâteau / produits de cette commande est actuellement en attente de validation par notre équipe — nous vous confirmerons dans les plus brefs délais si nous pouvons la réaliser.",
+                  "Your workshop booking is confirmed. The cake / products part is still pending validation by our team. You will receive a separate email for each part.",
+                  "Votre réservation d'atelier est confirmée. La partie gâteau / produits reste en attente de validation par notre équipe. Vous recevrez un email séparé pour chaque partie.",
                 )
               : tr(
                   "Your order is currently pending validation by our team. We will review the details of your order and confirm as soon as possible whether we can fulfil it.",
@@ -125,12 +130,13 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
           </p>
         </div>
 
+        ${isMixed ? "" : `
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 28px;">
           ${tr(
             "You will then receive a new email confirming the acceptance, or if necessary, the refusal of your order.",
             "Vous recevrez ensuite un nouvel email pour vous confirmer l'acceptation ou, si nécessaire, le refus de votre commande."
           )}
-        </p>
+        </p>`}
 
         <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Summary", "Récapitulatif")}
@@ -161,10 +167,15 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
 
         <p style="color:#351E13;font-size:13px;line-height:1.7;margin:24px 0 0;border-top:1px solid #D4C89A;padding-top:20px;">
           <strong>${tr("Important:", "Important :")}</strong><br/>
-          ${tr(
-            "Your order is not yet definitively confirmed until you receive our acceptance email.",
-            "Votre commande n'est pas encore définitivement confirmée tant que vous n'avez pas reçu notre email d'acceptation."
-          )}
+          ${isMixed
+            ? tr(
+                "If the cake / products part is declined, the corresponding amount will be refunded.",
+                "En cas de refus de la partie gâteau / produits, le montant correspondant sera remboursé."
+              )
+            : tr(
+                "Your order is not yet definitively confirmed until you receive our acceptance email.",
+                "Votre commande n'est pas encore définitivement confirmée tant que vous n'avez pas reçu notre email d'acceptation."
+              )}
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:24px 0 0;">
