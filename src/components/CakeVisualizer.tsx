@@ -621,7 +621,7 @@ const CakeVisualizer = (props: CakeVisualizerProps) => {
         {props.currentStep < 1 && <span>Sélectionnez une taille pour voir l'aperçu</span>}
         {props.currentStep >= 1 && props.currentStep < 4 && <span>Aperçu basique</span>}
         {props.currentStep >= 4 && props.currentStep < 6 && <span>Couleurs appliquées</span>}
-        {props.currentStep >= 6 && <span>🎉 Personnalisation complète</span>}
+        {props.currentStep >= 6 && <span>Personnalisation complète</span>}
       </div>
       
       <p className="text-[10px] text-muted-foreground mt-1">

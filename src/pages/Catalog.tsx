@@ -2216,7 +2216,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               <div className="space-y-3">
                 {!extrasHiddenForDesign && (
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  ✨ {t("Extra", "Extras")}
+                  {t("Extra", "Extras")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
                     <TooltipContent><p className="text-xs max-w-[220px]">{t("You can add any additional elements to personalise your design.", "Vous pouvez ajouter tous les éléments supplémentaires que vous souhaitez pour personnaliser votre design.")}</p></TooltipContent>
@@ -2435,7 +2435,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Comment & Image Upload Section */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground flex items-center gap-1">
-                  💬 {t("Comment", "Commentaire")}
+                  {t("Comment", "Commentaire")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
                     <TooltipContent><p className="text-xs max-w-[240px]">{t("Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.", "Notez toutes les précisions que vous souhaitez apporter. Veuillez noter que si vous demandez des décorations ou des extras qui n'ont pas été sélectionnés, le prix peut changer.")}</p></TooltipContent>
@@ -2506,7 +2506,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Candles Section - Packs first, then individual */}
               <div className="space-y-3 p-4">
-                <label className="text-sm font-medium text-foreground">🕯️ {t("Candles (Optional)", "Bougies (optionnel)")}</label>
+                <label className="text-sm font-medium text-foreground">{t("Candles (Optional)", "Bougies (optionnel)")}</label>
                 
                 {/* All candles in one ordered list */}
                 <div className="space-y-2">

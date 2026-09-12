@@ -1802,7 +1802,7 @@ const Checkout = () => {
                       return (
                         <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3">
                           <div className="flex justify-between items-start">
-                            <span className="font-medium text-sm text-foreground">🕯️ {item.candleProductName} ×{item.candleProductQty || 1}</span>
+                            <span className="font-medium text-sm text-foreground">{item.candleProductName} ×{item.candleProductQty || 1}</span>
                             <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
                           </div>
                         </div>
@@ -1865,7 +1865,7 @@ const Checkout = () => {
                           ))}
                           {candleEntries.map((e: any, i: number) => (
                             <div key={i} className="flex justify-between">
-                              <span>🕯️ {e.name} ×{e.qty}</span>
+                              <span>{e.name} ×{e.qty}</span>
                               <span>+ CHF {e.price}</span>
                             </div>
                           ))}
@@ -1991,7 +1991,7 @@ const Checkout = () => {
                   />
                   <div>
                     <Label htmlFor="newsletter" className="text-sm cursor-pointer leading-relaxed">
-                      {t("Unlock exclusive updates & offers ✨", "Recevez nos actualités et offres exclusives ✨")}
+                      {t("Unlock exclusive updates & offers ", "Recevez nos actualités et offres exclusives ")}
                     </Label>
                     <p className="text-xs text-foreground/50 mt-1">
                       {isLoggedIn ? (

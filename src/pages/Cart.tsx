@@ -422,7 +422,7 @@ const Cart = () => {
                             <img src={item.candleProductImage} alt={item.candleProductName} className="h-16 w-16 object-contain flex-shrink-0" />
                           ) : (
                             <div className="h-16 w-16 flex items-center justify-center flex-shrink-0 bg-secondary/20 text-2xl" aria-hidden="true">
-                              🕯️
+                              
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
@@ -685,7 +685,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
             <div className="border-t border-border my-1" />
             {candleEntries.map((e: any, i: number) => (
               <div key={i} className="flex justify-between">
-                <span className="text-muted-foreground">🕯️ {e.name} ×{e.qty}</span>
+                <span className="text-muted-foreground">{e.name} ×{e.qty}</span>
                 <span className="text-foreground">+ CHF {e.price}</span>
               </div>
             ))}
@@ -956,7 +956,7 @@ const CartItemEditor = ({
       )}
 
       {/* Extras */}
-      <EditSection label={t("✨ Extra", "✨ Suppléments")} tooltip={t("You can add any additional elements to personalise your design.", "Vous pouvez ajouter des éléments supplémentaires pour personnaliser votre design.")}>
+      <EditSection label={t("Extra", "Suppléments")} tooltip={t("You can add any additional elements to personalise your design.", "Vous pouvez ajouter des éléments supplémentaires pour personnaliser votre design.")}>
         {extraGroups.map((group) => {
           const visibleExtras = group.ids
             .map(id => extras.find(e => e.id === id))
@@ -1103,7 +1103,7 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Comment */}
-      <EditSection label={t("💬 Comment", "💬 Commentaire")} tooltip={t("Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.", "Indiquez toute précision que vous souhaitez apporter. Veuillez noter que si vous demandez des décorations ou des suppléments non sélectionnés, le prix peut varier.")}>
+      <EditSection label={t("Comment", "Commentaire")} tooltip={t("Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.", "Indiquez toute précision que vous souhaitez apporter. Veuillez noter que si vous demandez des décorations ou des suppléments non sélectionnés, le prix peut varier.")}>
         <Textarea
           value={item.comment || ""}
           onChange={(e) => onCommentChange(e.target.value)}
@@ -1161,7 +1161,7 @@ const CartItemEditor = ({
       </EditSection>
 
       {/* Candles - packs first, then individual */}
-      <EditSection label={t("🕯️ Candles", "🕯️ Bougies")}>
+      <EditSection label={t("Candles", "Bougies")}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {cartCandles.map((candle) => {
             const family = FAMILY_CANDLE_COLORS[candle.id];
