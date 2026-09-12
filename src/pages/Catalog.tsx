@@ -57,6 +57,22 @@ import candleGoldSpiral from "@/assets/candle-gold-spiral.png";
 import candleChampagneSpiral from "@/assets/candle-champagne-spiral.png";
 import candleRainbow from "@/assets/candle-rainbow.png";
 import candleRedCar from "@/assets/candle-red-car-new.png";
+import candleNum0 from "@/assets/candle-number-0.png";
+import candleNum1 from "@/assets/candle-number-1.png";
+import candleNum2 from "@/assets/candle-number-2.png";
+import candleNum3 from "@/assets/candle-number-3.png";
+import candleNum4 from "@/assets/candle-number-4.png";
+import candleNum5 from "@/assets/candle-number-5.png";
+import candleNum6 from "@/assets/candle-number-6.png";
+import candleNum7 from "@/assets/candle-number-7.png";
+import candleNum8 from "@/assets/candle-number-8.png";
+import candleNum9 from "@/assets/candle-number-9.png";
+const NUMBER_CANDLE_IMAGES_CATALOG: Record<string, string> = {
+  "0": candleNum0, "1": candleNum1, "2": candleNum2,
+  "3": candleNum3, "4": candleNum4, "5": candleNum5,
+  "6": candleNum6, "7": candleNum7, "8": candleNum8,
+  "9": candleNum9,
+};
 import candleBlueCar from "@/assets/candle-blue-car-new.png";
 import candleYellowCar from "@/assets/candle-yellow-car-new.png";
 import candleHeart from "@/assets/candle-heart-new.png";
@@ -2498,7 +2514,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
                       return (
                         <div key={candle.id} className="w-[calc(50%-6px)] min-w-0">
-                          <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all", unitQty > 0 && "ring-2 ring-primary")}>
+                          <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all border border-foreground/20", unitQty > 0 && "ring-2 ring-primary")}>
                           <div className="flex items-center justify-center bg-secondary/20 p-2 h-28">
                             <img src={candle.image} alt={candle.name} className="h-24 w-auto object-contain" />
                           </div>
@@ -2540,9 +2556,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
                     {/* Number Candle — digit picker, no product photo, flat rate */}
                     <div className="w-[calc(50%-6px)] min-w-0">
-                      <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all", getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
-                      <div className="h-32 flex items-center justify-center bg-secondary/20 p-2">
-                        <span className="text-4xl font-bold text-primary" aria-hidden="true">{numberCandleDigit}</span>
+                      <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all border border-foreground/20", getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
+                      <div className="h-28 flex items-center justify-center bg-secondary/20 p-2">
+                        <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_CATALOG[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-24 w-auto object-contain transition-all duration-200" />
                       </div>
                       <div className="p-2 text-center">
                         <p className="text-xs font-medium text-foreground">{t("Number Candle", "Bougie chiffre")}</p>
