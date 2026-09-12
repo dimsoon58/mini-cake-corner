@@ -2500,7 +2500,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         <p className="text-xs font-medium text-foreground">{t("Number Candle", "Bougie chiffre")}</p>
                         <p className="text-[10px] text-muted-foreground mb-1">CHF {NUMBER_CANDLE_PRICE} {t("each", "/ pièce")}</p>
                         <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
-                          <SelectTrigger className="h-7 text-xs mb-1.5" aria-label={t("Choose a digit", "Choisir un chiffre")}>
+                          <SelectTrigger className="h-7 text-xs text-center mb-1.5" aria-label={t("Choose a digit", "Choisir un chiffre")}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
