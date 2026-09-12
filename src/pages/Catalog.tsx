@@ -1723,7 +1723,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         itemText={`${t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF ${size.price}`}
                       >
                         <div className="flex items-start gap-2 py-0.5 w-full">
-                          <img src={size.image} alt={size.name} className="w-20 h-20 object-contain flex-shrink-0" />
+                          <img src={size.image} alt={size.name} className="w-28 h-28 object-contain flex-shrink-0" />
                           <div className="min-w-0 flex-1">
                             <span className="block">{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
                             {sizeInfo[size.id] && (
@@ -1793,7 +1793,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         itemText={`${t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)}${extra > 0 ? ` (+CHF ${extra})` : ""}`}
                       >
                         <div className="flex items-start gap-2">
-                          <img src={flavor.image} alt={flavor.name} className="w-20 h-20 object-contain flex-shrink-0" />
+                          <img src={flavor.image} alt={flavor.name} className="w-28 h-28 object-contain flex-shrink-0" />
                           <div>
                           <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
                           {flavorDescMap[flavor.id] && (
@@ -2493,8 +2493,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     {/* Number Candle — digit picker, no product photo, flat rate */}
                     <div className="w-[calc(50%-6px)] min-w-0">
                       <div className={cn("w-full flex flex-col overflow-hidden rounded-none bg-white/60 hover:bg-white/80 transition-all border border-foreground/20", getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
-                      <div className="h-40 flex items-center justify-center bg-secondary/20 p-2">
-                        <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_CATALOG[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-36 w-36 object-contain transition-all duration-200" />
+                      <div className="h-52 flex items-center justify-center bg-secondary/20 p-2">
+                        <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_CATALOG[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-48 w-48 object-contain transition-all duration-200" />
                       </div>
                       <div className="p-2 text-center">
                         <p className="text-xs font-medium text-foreground">{t("Number Candle", "Bougie chiffre")}</p>
