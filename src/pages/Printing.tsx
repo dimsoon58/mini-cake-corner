@@ -3,7 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { isOrderDateDisabled } from "@/lib/orderDates";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
-import { CalendarIcon, Upload, X } from "lucide-react";
+import { CalendarIcon, Upload, X, ChevronLeft, ChevronRight } from "lucide-react";
+import printingGallery1 from "@/assets/printing-gallery-1.jpg";
+import printingGallery2 from "@/assets/printing-gallery-2.jpg";
+import printingGallery3 from "@/assets/printing-gallery-3.jpg";
+import printingGallery4 from "@/assets/printing-gallery-4.jpg";
+import printingGallery5 from "@/assets/printing-gallery-5.jpg";
+import printingGallery6 from "@/assets/printing-gallery-6.jpg";
+
+const printingGallery = [
+  printingGallery1, printingGallery2, printingGallery3,
+  printingGallery4, printingGallery5, printingGallery6,
+];
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -215,6 +226,50 @@ const Printing = () => {
           </Button>
         </div>
       </div>
+
+      {/* ── PRINTED MOMENTS gallery ── */}
+      <section className="pb-20 pt-10">
+        <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-10">
+          {t("PRINTED MOMENTS", "PRINTED MOMENTS")}
+        </h2>
+        <div className="relative">
+          <button
+            onClick={() => {
+              const el = document.getElementById("printing-gallery-scroll");
+              el?.scrollBy({ left: -288, behavior: "smooth" });
+            }}
+            aria-label={t("Previous", "Précédent")}
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background rounded-none p-2 shadow-md"
+          >
+            <ChevronLeft className="h-5 w-5 text-foreground" />
+          </button>
+          <div
+            id="printing-gallery-scroll"
+            className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {printingGallery.map((photo, index) => (
+              <div key={index} className="flex-shrink-0 w-64 h-64 overflow-hidden">
+                <img
+                  src={photo}
+                  alt={`Printed cake ${index + 1}`}
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => {
+              const el = document.getElementById("printing-gallery-scroll");
+              el?.scrollBy({ left: 288, behavior: "smooth" });
+            }}
+            aria-label={t("Next", "Suivant")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/90 hover:bg-background rounded-none p-2 shadow-md"
+          >
+            <ChevronRight className="h-5 w-5 text-foreground" />
+          </button>
+        </div>
+      </section>
     </Layout>
   );
 };
