@@ -38,10 +38,32 @@ function formatInvoiceDate(dateInput: string): string {
 export async function generateInvoicePdf(
   order: any,
   items: any[],
-  opts?: { mode?: "full" | "workshop_only_kept"; refundedAmount?: number },
+  opts?: { mode?: "full" | "workshop_only_kept"; refundedAmount?: number; fulfillments?: any[] },
 ): Promise<string> {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
+
+  // Multi-date fulfillment (Sept 2026): while MULTI_DATE_FULFILLMENT_ENABLED
+  // is false on the frontend, every physical order has exactly ONE
+  // order_fulfillments row, so this never changes today's invoice at all —
+  // grouping only activates once a real order genuinely spans 2+ distinct
+  // physical pickup/delivery dates. One order is still exactly one
+  // transaction and one invoice either way; this only adds a date/mode
+  // section header above each group's lines.
+  const fulfillments: any[] = opts?.fulfillments ?? [];
+  const fulfillmentById = new Map<string, any>(fulfillments.map((f: any) => [f.id, f]));
+  const physicalFulfillmentIds = new Set(
+    items
+      .filter((it: any) => it.product !== "workshop" && it.fulfillment_id)
+      .map((it: any) => it.fulfillment_id),
+  );
+  const groupByFulfillment = physicalFulfillmentIds.size > 1;
+  const fulfillmentSectionLabel = (f: any): string => {
+    const method = f.delivery_method === "delivery" ? tr("Delivery", "Livraison") : tr("Pickup", "Retrait");
+    const parts = [formatDateCH(f.pickup_delivery_date), method];
+    if (f.pickup_delivery_slot) parts.push(f.pickup_delivery_slot);
+    return parts.join(" — ");
+  };
 
   // "workshop_only_kept": mixed order whose cake part was refused. `items` is
   // the workshop lines only, invoice total is their sum (NOT order.total_amount).
@@ -165,9 +187,9 @@ export async function generateInvoicePdf(
 
   drawTableHeader();
 
-  type InvoiceRow = { description: string; quantity: string; unitPrice: string; total: string; bold?: boolean };
+  type InvoiceRow = { description: string; quantity: string; unitPrice: string; total: string; bold?: boolean; section?: boolean };
 
-  const itemRows: InvoiceRow[] = items.map((item: any) => {
+  const rowForItem = (item: any): InvoiceRow => {
     if (item.product === "workshop") {
       // Description is the WORKSHOP NAME ONLY — date / time / booking reference
       // are left off (too long, broke the invoice layout). They still live on
@@ -192,9 +214,49 @@ export async function generateInvoicePdf(
       unitPrice: formatInvoicePrice(total),
       total: formatInvoicePrice(total),
     };
-  });
+  };
 
-  const productLineCount = itemRows.length;
+  // Real product/workshop line count — computed from `items` directly (never
+  // from itemRows.length below), since grouping inserts extra section-header
+  // rows that must never be counted as billable lines in the TOTAL row's QTY.
+  const productLineCount = items.length;
+
+  let itemRows: InvoiceRow[];
+  if (groupByFulfillment) {
+    // Workshop lines first, exactly as before (never grouped by date — they
+    // keep their own session date shown separately, not on the invoice).
+    const workshopRows = items.filter((it: any) => it.product === "workshop").map(rowForItem);
+    const sortedFulfillmentIds = Array.from(physicalFulfillmentIds).sort((a, b) => {
+      const da = fulfillmentById.get(a)?.pickup_delivery_date ?? "";
+      const db = fulfillmentById.get(b)?.pickup_delivery_date ?? "";
+      return String(da).localeCompare(String(db));
+    });
+    const groupedRows: InvoiceRow[] = [];
+    for (const fid of sortedFulfillmentIds) {
+      const f = fulfillmentById.get(fid);
+      groupedRows.push({
+        description: f ? fulfillmentSectionLabel(f) : tr("Pickup / delivery", "Retrait / livraison"),
+        quantity: "", unitPrice: "", total: "", section: true,
+      });
+      groupedRows.push(
+        ...items
+          .filter((it: any) => it.product !== "workshop" && it.fulfillment_id === fid)
+          .map(rowForItem),
+      );
+    }
+    // Defensive only: a physical item with no fulfillment_id at all (should
+    // never happen once every physical order goes through fulfillment
+    // creation) — never silently dropped, just appended ungrouped.
+    const ungroupedRows = items
+      .filter((it: any) => it.product !== "workshop" && !it.fulfillment_id)
+      .map(rowForItem);
+    itemRows = [...workshopRows, ...groupedRows, ...ungroupedRows];
+  } else {
+    // Exactly today's behaviour — one order always has one fulfillment while
+    // MULTI_DATE_FULFILLMENT_ENABLED is false, so this is the only branch
+    // that ever runs in production right now. Zero visual change.
+    itemRows = items.map(rowForItem);
+  }
 
   // "workshop_only_kept" (mixed order, cake part refused): ONLY the workshop
   // lines. Express surcharge, delivery, welcome discount and reward belong to
