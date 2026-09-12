@@ -258,9 +258,6 @@ const DotCakes = () => {
               <button
                 onClick={() => {
                   setConfiguratorVisible(true);
-                  setTimeout(() => {
-                    configuratorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 50);
                 }}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-semibold uppercase tracking-[0.18em] rounded-none px-10 py-3.5 transition-colors"
               >
