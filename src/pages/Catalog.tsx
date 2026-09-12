@@ -1947,7 +1947,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 </label>
                 {maxColors > 1 && (
                 <p className="text-xs text-muted-foreground">
-                  {t(`You can choose up to ${maxColors} colours. You can also explain how you would like them to be arranged in the comment section.`, `Vous pouvez choisir jusqu'à ${maxColors} couleurs. Vous pouvez aussi préciser dans la zone de commentaire comment vous souhaitez qu'elles soient disposées.`)}
+                  {t(`Choose up to ${maxColors} colours. Tell us how you'd like them arranged in the comments.`, `Choisissez jusqu'à ${maxColors} couleurs. Précisez leur disposition dans les commentaires.`)}
                 </p>
                 )}
 <div
