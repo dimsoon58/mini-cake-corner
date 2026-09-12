@@ -10,7 +10,11 @@ const FooterNewsletter = () => {
   const { t } = useLang();
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  // "idle" while typing/before first submit, "success" once Brevo accepted
+  // it (a contact that already existed is also a success — subscribe-
+  // newsletter/index.ts itself returns { success: true } for that case, no
+  // special handling needed here), "error" for anything else.
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -18,44 +22,60 @@ const FooterNewsletter = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return;
     setSubmitting(true);
     try {
-      await supabase.functions.invoke("subscribe-newsletter", {
+      // supabase.functions.invoke() does NOT throw on a non-2xx response —
+      // it resolves with { data, error }. The previous version never read
+      // `error` here, so a Brevo/Edge Function failure was silently treated
+      // as a success (and a genuinely thrown network error was swallowed by
+      // an empty catch right below) — no error was ever shown, and the
+      // success message never matched what the customer actually got.
+      const { error } = await supabase.functions.invoke("subscribe-newsletter", {
         body: { email: trimmed, firstName: "", lastName: "", source: "footer" },
       });
-    } catch {
-      /* non bloquant */
+      if (error) throw error;
+      setStatus("success");
+      setEmail("");
+    } catch (err) {
+      console.error("Newsletter subscription failed:", err);
+      setStatus("error");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
-    setSubmitted(true);
-    setEmail("");
   };
 
-  if (submitted) {
+  if (status === "success") {
     return (
       <p className="text-sm opacity-90">
-        {t("Thank you! Check your inbox.", "Merci ! Consultez votre boîte mail.")}
+        {t("You are now subscribed to our newsletter.", "Vous êtes maintenant inscrit(e) à notre newsletter.")}
       </p>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-3 border-b border-primary-foreground/40 pb-2 max-w-[320px]">
-      <input
-        type="email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder={t("Your email", "Votre email")}
-        aria-label={t("Your email", "Votre email")}
-        className="flex-1 min-w-0 bg-transparent text-sm text-primary-foreground placeholder:text-primary-foreground/50 outline-none"
-      />
-      <button
-        type="submit"
-        disabled={submitting}
-        className="flex-shrink-0 uppercase tracking-[0.105em] text-[11px] font-medium hover:opacity-70 transition-opacity disabled:opacity-40"
-      >
-        {submitting ? "..." : t("SUBSCRIBE", "S'INSCRIRE")}
-      </button>
-    </form>
+    <div>
+      <form onSubmit={handleSubmit} className="flex items-center gap-3 border-b border-primary-foreground/40 pb-2 max-w-[320px]">
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder={t("Your email", "Votre email")}
+          aria-label={t("Your email", "Votre email")}
+          className="flex-1 min-w-0 bg-transparent text-sm text-primary-foreground placeholder:text-primary-foreground/50 outline-none"
+        />
+        <button
+          type="submit"
+          disabled={submitting}
+          className="flex-shrink-0 uppercase tracking-[0.105em] text-[11px] font-medium hover:opacity-70 transition-opacity disabled:opacity-40"
+        >
+          {submitting ? "..." : t("SUBSCRIBE", "S'INSCRIRE")}
+        </button>
+      </form>
+      {status === "error" && (
+        <p className="text-sm text-red-200 mt-2">
+          {t("Something went wrong. Please try again.", "Une erreur est survenue. Merci de réessayer.")}
+        </p>
+      )}
+    </div>
   );
 };
 
