@@ -329,7 +329,7 @@ const Index = () => {
       </section>
 
       {/* CTA Section, lace doily style */}
-      <section className="py-16 bg-background">
+      <section className="pt-4 pb-16 bg-background">
         <div className="w-full px-4 sm:px-6">
           <div className="w-full border-[3px] border-primary p-1.5">
             <div className="text-center border border-primary px-8 py-16 md:px-16">
