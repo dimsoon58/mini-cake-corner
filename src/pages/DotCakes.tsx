@@ -180,8 +180,8 @@ const DotCakes = () => {
       toast.error(t("Please choose a pack.", "Veuillez choisir un pack."));
       return;
     }
-    if (step === 3 && selectedFlavours.length === 0) {
-      toast.error(t("Please choose at least one flavour.", "Veuillez choisir au moins un parfum."));
+    if (step === 3 && selectedFlavours.length < (pack?.flavours ?? 1)) {
+      toast.error(t("Please choose all " + (pack?.flavours ?? 1) + " flavours.", "Veuillez choisir les " + (pack?.flavours ?? 1) + " parfums."));
       return;
     }
     setStep((s) => Math.min(s + 1, 5));
@@ -373,7 +373,7 @@ const DotCakes = () => {
                     )}>
                     <span className="block font-semibold text-foreground text-sm">{t("Pack of " + p.size, "Pack de " + p.size)}</span>
                     <span className="block text-sm text-muted-foreground">
-                      {t("Up to " + p.flavours + " flavours · CHF " + p.price, "Jusqu'à " + p.flavours + " parfums · CHF " + p.price)}
+                      {t(p.flavours + " flavours · CHF " + p.price, p.flavours + " parfums · CHF " + p.price)}
                     </span>
                   </button>
                 ))}
@@ -411,7 +411,7 @@ const DotCakes = () => {
           {step === 3 && pack && (
             <div className="space-y-5 max-w-2xl mx-auto">
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
-                {t("Choose up to " + pack.flavours + " Flavours", "Choisissez jusqu'à " + pack.flavours + " parfums")}<span className="text-destructive ml-1">*</span>
+                {t("Choose " + pack.flavours + " Flavours", "Choisissez " + pack.flavours + " parfums")}<span className="text-destructive ml-1">*</span>
               </h2>
               {(() => {
                 const allFlavourOptions = [...flavorCategories, ...(showGlutenFree ? glutenFreeFlavorCategories : [])];
@@ -449,7 +449,7 @@ const DotCakes = () => {
                         <div key={i} className="space-y-1.5">
                           <label className="text-xs font-semibold uppercase tracking-[0.10em] text-foreground/70">
                             {t(`Flavour ${i + 1}`, `Parfum ${i + 1}`)}
-                            {i === 0 && <span className="text-destructive ml-1">*</span>}
+                            <span className="text-destructive ml-1">*</span>
                           </label>
                           <Select
                             value={currentVal || (i === 0 ? "" : "__none__")}
@@ -460,14 +460,10 @@ const DotCakes = () => {
                             }}
                           >
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder={i === 0 ? t("Select a flavour", "Choisir un parfum") : t("Optional — add a flavour", "Optionnel — ajouter un parfum")} />
+                              <SelectValue placeholder={i === 0 ? t("Select a flavour", "Choisir un parfum")} />
                             </SelectTrigger>
                             <SelectContent nativeScroll className="w-[min(90vw,420px)]">
-                              {i > 0 && (
-                                <SelectItem value="__none__" itemText="—">
-                                  <span className="text-muted-foreground italic">{t("— None —", "— Aucun —")}</span>
-                                </SelectItem>
-                              )}
+                
                               {flavorCategories.map((cat) => {
                                 const tier = tierByCategory[cat.name];
                                 return (
