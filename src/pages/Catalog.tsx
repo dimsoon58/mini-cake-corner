@@ -2653,7 +2653,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           />
                         </div>
                       )}
-                      <div className="p-6 text-center flex flex-col flex-1">
+                      <div className="px-6 pt-3 pb-6 text-center flex flex-col flex-1">
                         <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">
                           {t(cake.name, cakeNameFr[cake.id] ?? cake.name)}
                         </h3>
