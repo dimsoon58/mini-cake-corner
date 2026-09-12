@@ -42,6 +42,21 @@ function getCustomerLang(order: any): "fr" | "en" {
   return order?.lang === "en" ? "en" : "fr";
 }
 
+// Catalog.tsx embeds this exact tag into item_comment for a Shag-Cake-style
+// design with two option photos ("[Preferred design: Option N]"), purely so
+// the design photo actually picked survives as data — never something the
+// customer typed, and never written back to Supabase differently; this only
+// cleans the value at display time. Same regex/behaviour as
+// notify-order/index.ts's realComment() and src/lib/orderLabels.ts's
+// splitComment() — kept as a local copy here too (Deno function, can't
+// import from src/); update all three if this tag format ever changes.
+const PREFERRED_DESIGN_RE = /^\[Preferred design: Option (\d+)\]\s*/;
+function realComment(comment: string | null | undefined): string | null {
+  if (!comment) return null;
+  const stripped = comment.replace(PREFERRED_DESIGN_RE, "").trim();
+  return stripped || null;
+}
+
 // ── Approval confirmation email ─────────────────────────────────────
 
 async function sendApprovalEmail(resendApiKey: string, order: any, items: any[], paymentMethodLabel: string, pdfBase64?: string | null) {
@@ -84,7 +99,8 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
     if (item.cake_text) rows.push(row(tr("Text on cake", "Texte sur le gâteau"), item.cake_text));
     if (item.extra) rows.push(row(tr("Extras", "Suppléments"), item.extra));
     if (candleStr) rows.push(row(tr("Candles", "Bougies"), candleStr));
-    if (item.item_comment?.trim()) rows.push(row(tr("Additional note", "Remarque complémentaire"), item.item_comment.trim()));
+    const cakeComment = realComment(item.item_comment);
+    if (cakeComment) rows.push(row(tr("Additional note", "Remarque complémentaire"), cakeComment));
 
     return `
       <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
