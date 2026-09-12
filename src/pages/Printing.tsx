@@ -248,7 +248,7 @@ const Printing = () => {
             className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {printingGallery.map((photo, index) => (
-              <div key={index} className="flex-shrink-0 w-64 h-64 overflow-hidden">
+              <div key={index} className="flex-shrink-0 w-80 h-52 overflow-hidden">
                 <img
                   src={photo}
                   alt={`Printed cake ${index + 1}`}
