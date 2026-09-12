@@ -221,7 +221,13 @@ const KitBentoCake = () => {
   const { addItem, cartOrderDate } = useCart();
   const navigate = useNavigate();
 
-  const [orderDate, setOrderDate] = useState<Date | undefined>(() => (cartOrderDate ? new Date(cartOrderDate) : undefined));
+  // While MULTI_DATE_FULFILLMENT_ENABLED is off, pre-filling with the cart's
+  // existing date matches the single-date-per-cart rule enforced by
+  // CartContext.addItem. Once it's on, start blank so a new item added from
+  // this page doesn't silently inherit whatever date is already in the cart.
+  const [orderDate, setOrderDate] = useState<Date | undefined>(() =>
+    MULTI_DATE_FULFILLMENT_ENABLED ? undefined : (cartOrderDate ? new Date(cartOrderDate) : undefined)
+  );
   const [selectedShape, setSelectedShape] = useState("");
   const [selectedFlavor, setSelectedFlavor] = useState("");
   const [selectedPipingOption, setSelectedPipingOption] = useState("");

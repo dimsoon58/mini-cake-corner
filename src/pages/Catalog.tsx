@@ -1112,7 +1112,12 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   // handleSelectCake when the customer picks the design.
   const [cardImageIndex, setCardImageIndex] = useState<Record<string, number>>({});
   const [selections, setSelections] = useState<CakeSelections>({
-    orderDate: cartOrderDate ? new Date(cartOrderDate) : null,
+    // While MULTI_DATE_FULFILLMENT_ENABLED is off, pre-filling with the
+    // cart's existing date matches the single-date-per-cart rule enforced
+    // by CartContext.addItem. Once it's on, each new item must start blank
+    // so the customer picks its own date explicitly instead of silently
+    // inheriting whatever the first cart item's date was.
+    orderDate: MULTI_DATE_FULFILLMENT_ENABLED ? null : (cartOrderDate ? new Date(cartOrderDate) : null),
     orderTime: "",
     size: "bento",
     shape: "round",
@@ -1159,7 +1164,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     const imageCount = cake.images?.length ?? 1;
     const startImageIndex = Math.min(Math.max(imageIndex, 0), Math.max(imageCount - 1, 0));
     setSelections({
-      orderDate: cartOrderDate ? new Date(cartOrderDate) : null,
+      // Same reasoning as the initial state above — blank per new item once
+      // multi-date is enabled, instead of inheriting the cart's date.
+      orderDate: MULTI_DATE_FULFILLMENT_ENABLED ? null : (cartOrderDate ? new Date(cartOrderDate) : null),
       orderTime: "",
       size: defaultSize,
       shape: "round",
