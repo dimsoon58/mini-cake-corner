@@ -432,7 +432,7 @@ const DotCakes = () => {
                           )}
                           {info && (
                             <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                              {info.warn && <span aria-hidden="true">⚠️ </span>}
+                              
                               <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
                             </div>
                           )}

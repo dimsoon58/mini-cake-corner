@@ -588,7 +588,7 @@ const KitBentoCake = () => {
                           )}
                           {info && (
                             <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                              {info.warn && <span aria-hidden="true">⚠️ </span>}
+                              
                               <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
                             </div>
                           )}
@@ -640,7 +640,7 @@ const KitBentoCake = () => {
               })()}
               {selectedFlavor && allergenMap[selectedFlavor] && (
                 <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 border border-border/40">
-                  {allergenMap[selectedFlavor].warn && <span aria-hidden="true">⚠️ </span>}
+                  
                   <span className="font-medium">{t("Contains:", "Contient :")}</span>{" "}
                   {t(allergenMap[selectedFlavor].en, allergenMap[selectedFlavor].fr)}
                 </div>

@@ -1316,7 +1316,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     setSelections({ ...selections, commentImages: [...selections.commentImages, ...accepted] });
     if (commentFileInputRef.current) commentFileInputRef.current.value = "";
     toast({
-      title: t(`${accepted.length} image${accepted.length > 1 ? "s" : ""} added ✓`, `${accepted.length} image${accepted.length > 1 ? "s" : ""} ajoutée${accepted.length > 1 ? "s" : ""} ✓`),
+      title: t(`${accepted.length} image${accepted.length > 1 ? "s" : ""} added`, `${accepted.length} image${accepted.length > 1 ? "s" : ""} ajoutée${accepted.length > 1 ? "s" : ""}`),
       description: rejected > 0
         ? t(`${rejected} image(s) ignored (max 5 reached).`, `${rejected} image(s) ignorée(s) (maximum de 5 atteint).`)
         : t(`${selections.commentImages.length + accepted.length}/5 reference images.`, `${selections.commentImages.length + accepted.length}/5 images de référence.`),
@@ -1804,7 +1804,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           )}
                           {info && (
                             <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                              {info.warn && <span aria-hidden="true">⚠️ </span>}
+                              
                               <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
                             </div>
                           )}

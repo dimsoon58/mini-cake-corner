@@ -367,7 +367,7 @@ const Cart = () => {
 
               {cartOrderDate && (
                 <div className="mb-4 bg-cream/60 border border-border/30 px-4 py-2.5 flex items-center justify-between gap-3">
-                  <span className="text-xs text-foreground/70">📅 {t("Pickup", "Retrait le")} {formatDateFromIso(cartOrderDate)}</span>
+                  <span className="text-xs text-foreground/70">{t("Pickup", "Retrait le")} {formatDateFromIso(cartOrderDate)}</span>
                   <button onClick={handleClearAll} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0">
                     {t("Change date", "Modifier la date")}
                   </button>
@@ -827,7 +827,7 @@ const CartItemEditor = ({
     <TooltipProvider delayDuration={200}>
     <div className="space-y-6">
       {item.orderDate && (
-        <p className="text-sm text-muted-foreground">📅 {formatDateFromIso(item.orderDate)}</p>
+        <p className="text-sm text-muted-foreground">{formatDateFromIso(item.orderDate)}</p>
       )}
 
       {/* Size with box images */}

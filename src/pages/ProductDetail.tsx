@@ -49,7 +49,7 @@ const ProductDetail = () => {
     }
 
     toast({
-      title: t("Added to cart! 🎉", "Ajouté au panier ! 🎉"),
+      title: t("Added to cart!", "Ajouté au panier !"),
       description: `${product.name} - ${selectedFlavor}, ${selectedSize}`,
     });
   };
@@ -94,7 +94,7 @@ const ProductDetail = () => {
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="text-2xl">🍰</div>
+            
             <h1 className="text-2xl font-bold text-foreground">Sweet Bento</h1>
           </Link>
           <Button variant="outline" size="icon">
