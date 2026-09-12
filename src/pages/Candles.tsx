@@ -312,7 +312,7 @@ const Candles = () => {
             return (
               <Card
                 key={candle.id}
-                className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20"
+                className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20 rounded-none"
               >
                 <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
                   <img
@@ -383,7 +383,7 @@ const Candles = () => {
           })}
 
           {/* Number Candle – same grid card as the others */}
-          <Card className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20">
+          <Card className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20 rounded-none">
             <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
               <img
                 key={numberCandleDigit}
