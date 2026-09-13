@@ -718,6 +718,22 @@ const Checkout = () => {
 
   const canUseWelcomeDiscountNow = welcomeVoucherEligible || justSubscribingNow;
 
+  // Display-only, for the newsletter checkbox copy below — never used for
+  // pricing/eligibility itself (canUseWelcomeDiscountNow, untouched, still
+  // governs that). Same gates as justSubscribingNow (still eligible to
+  // claim: not used, not reserved, not already subscribed, no expired
+  // voucher), just WITHOUT requiring the box to already be checked — this
+  // answers "would checking it actually grant 10%?", not "is it checked
+  // right now?". Also true when a voucher is already active
+  // (welcomeVoucherEligible) — a customer who used the discount, whose
+  // voucher expired, or who is mid-way through a reservation for another
+  // order sees the plain newsletter copy instead of a false 10% promise.
+  const newsletterWouldGrantWelcomeDiscount = welcomeVoucherEligible || (
+    baseWelcomeDiscountEligible
+    && profile?.newsletter_subscription !== true
+    && (!profile?.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date())
+  );
+
   // Mirrors, item for item, the selection rule enforced server-side in
   // create-postfinance-payment: candles ("product" === "candles") are
   // entirely excluded whenever at least one non-candle product is in the
@@ -2104,7 +2120,14 @@ const Checkout = () => {
                     </Label>
                     <p className="text-xs text-foreground/50 mt-1">
                       {isLoggedIn ? (
-                        t("Subscribe to our newsletter to unlock 10% off your first order.", "Inscrivez-vous à notre newsletter pour débloquer -10 % sur votre première commande.")
+                        // Only ever promises 10% when the customer is genuinely
+                        // still able to claim it (see newsletterWouldGrantWelcomeDiscount
+                        // above) — a customer who already used it, whose voucher
+                        // expired, or who has one reserved on another order gets
+                        // the plain copy instead, never a false promise.
+                        newsletterWouldGrantWelcomeDiscount
+                          ? t("Subscribe to our newsletter and enjoy 10% off your first order.", "Inscrivez-vous à notre newsletter et profitez de 10 % sur votre première commande.")
+                          : t("Subscribe to our newsletter to receive our news and exclusive offers.", "Inscrivez-vous à notre newsletter pour recevoir nos nouveautés et offres exclusives.")
                       ) : (
                         <>
                           {t("Want 10% off your first order? ", "Vous voulez -10 % sur votre première commande ? ")}
