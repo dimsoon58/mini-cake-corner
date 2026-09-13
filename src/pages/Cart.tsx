@@ -23,7 +23,7 @@ import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
-import { splitComment } from "@/lib/orderLabels";
+import { splitComment, flavorLabel } from "@/lib/orderLabels";
 import {
   sizes,
   shapes,
@@ -708,13 +708,13 @@ const CartItemSummary = ({ item }: { item: any }) => {
         </div>
         {flavorExtra > 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("Flavour:", "Parfum :")} {item.flavorName}</span>
+            <span className="text-muted-foreground">{t("Flavour:", "Parfum :")} {flavorLabel(item.flavorName)}</span>
             <span className="text-foreground">+ CHF {flavorExtra}</span>
           </div>
         )}
         {flavorExtra === 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("Flavour:", "Parfum :")} {item.flavorName}</span>
+            <span className="text-muted-foreground">{t("Flavour:", "Parfum :")} {flavorLabel(item.flavorName)}</span>
             <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
           </div>
         )}

@@ -57,6 +57,25 @@ export function designLabel(designId: string): string {
   return styles.find((s) => s.id === designId)?.name || prettifyId(designId);
 }
 
+// Display only — a Dot Cakes pack's flavorName carries a trailing category
+// annotation baked in at add-to-cart time (DotCakes.tsx: "Red Velvet
+// (Standard Flavours)"), needed downstream exactly as stored — it's split
+// into order_items.flavors and read from there by Notion, kitchen emails,
+// invoices and MyOrders/AdminOrder, so the raw value is NEVER touched here,
+// only how it's shown. Multiple flavours are comma-joined by the same
+// callers ("A (Tier), B (Tier)"); this strips the trailing "(...)" off each
+// one for a clean line ("A, B") while preserving order and duplicates. A
+// flavorName with no annotation (every non-Dot-Cakes product) passes
+// through unchanged.
+export function flavorLabel(flavorName: string | null | undefined): string {
+  if (!flavorName) return "";
+  return flavorName
+    .split(",")
+    .map((part) => part.trim().replace(/\s*\([^)]*\)\s*$/, ""))
+    .filter(Boolean)
+    .join(", ");
+}
+
 // Catalog.tsx embeds this exact tag into item_comment for a Shag-Cake-style
 // design with two option photos ("[Preferred design: Option N]"), so the
 // admin invoice/email keeps seeing which photo was picked. Neither the
