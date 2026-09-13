@@ -2567,17 +2567,16 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       const family = FAMILY_CANDLE_COLORS[candle.id];
                       if (family) {
                         return (
-                          <div key={candle.id} className="w-[calc(50%-6px)] min-w-0">
-                            <ColorFamilyCandleCard
-                              candle={candle}
-                              colors={family}
-                              existing={selections.candles.find((c) => c.id === candle.id)}
-                              onCommit={(entry) => setSelections((prev) => ({ ...prev, candles: upsertCandleSelection(prev.candles, entry) }))}
-                              onRemove={() => setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, candle.id) }))}
-                              imageClassName="h-24 w-auto"
-                              compact
-                            />
-                          </div>
+                          <ColorFamilyCandleCard
+                            key={candle.id}
+                            candle={candle}
+                            colors={family}
+                            existing={selections.candles.find((c) => c.id === candle.id)}
+                            onCommit={(entry) => setSelections((prev) => ({ ...prev, candles: upsertCandleSelection(prev.candles, entry) }))}
+                            onRemove={() => setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, candle.id) }))}
+                            imageClassName="h-24 w-auto"
+                            compact
+                          />
                         );
                       }
 
@@ -2586,8 +2585,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       const isPackApplied = candle.hasPack && unitQty >= (candle.packSize || 6);
 
                       return (
-                        <div key={candle.id} className="w-[calc(50%-6px)] min-w-0">
-                          <div className={cn("w-full flex flex-col overflow-hidden rounded-none bg-white/60 hover:bg-white/80 transition-all border border-foreground/20", unitQty > 0 && "ring-2 ring-primary")}>
+                        <div key={candle.id} className={cn("flex flex-col overflow-hidden rounded-none bg-white/60 hover:bg-white/80 transition-all border border-foreground/20", unitQty > 0 && "ring-2 ring-primary")}>
                           <div className="flex items-center justify-center bg-secondary/20 p-2 h-28">
                             <img src={candle.image} alt={candle.name} className="h-24 w-auto object-contain" />
                           </div>
@@ -2621,7 +2619,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                             {totalPrice > 0 && (
                               <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {totalPrice}</p>
                             )}
-                          </div>
                           </div>
                         </div>
                       );
