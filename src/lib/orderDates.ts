@@ -88,17 +88,23 @@ function ratePercentLabel(rate: number): string {
   return String(Math.round(rate * 100));
 }
 
-// Per-date copy — computed from the date's own rate so it always states the
-// tier that actually applies to THAT date (20% or 15%), never a stale flat
-// number. Returns "" for a date with no surcharge (caller should treat that
-// as "don't show anything").
-export function expressHoverCopy(date: Date | null | undefined, lang: "en" | "fr"): string {
+// Compact two-line tooltip shown on the calendar day cell itself (hover on
+// desktop, tap on mobile — see ExpressDayContent in ExpressDateNotice.tsx),
+// so the customer learns about the surcharge while still picking a date,
+// not only after in the cart/checkout. Same rate/day-count source as every
+// other express-copy helper here (expressSurchargeRate + calendarDaysUntil)
+// — a shorter two-part format suited to a small tooltip, distinct from
+// expressSelectedCopy's longer paragraph shown once a date is selected.
+// Returns null for a date with no express surcharge (caller shows nothing).
+export function expressTooltipCopy(date: Date | null | undefined, lang: "en" | "fr"): { title: string; detail: string } | null {
+  if (!date) return null;
   const rate = expressSurchargeRate(date);
-  if (rate === 0) return "";
-  const p = ratePercentLabel(rate);
+  if (rate === 0) return null;
+  const x = calendarDaysUntil(date) + 1;
+  const y = ratePercentLabel(rate);
   return lang === "fr"
-    ? `Commande express : un supplément de ${p} % s'applique pour cette date.`
-    : `Express order: a ${p}% surcharge applies to this date.`;
+    ? { title: `Supplément express +${y} %`, detail: `Cette date se situe à moins de ${x} jours.` }
+    : { title: `Express surcharge +${y}%`, detail: `This date is less than ${x} days away.` };
 }
 
 // Explanatory notice shown when the current order date carries an express

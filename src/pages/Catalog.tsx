@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
+import { expressCalendarProps } from "@/components/ExpressDateNotice";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { flavorDescMap } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
@@ -1681,6 +1682,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
+                      {...expressCalendarProps}
                       mode="single"
                       selected={selections.orderDate || undefined}
                       onSelect={(date) => { setSelections({ ...selections, orderDate: date || null }); setCalOpen(false); }}
@@ -1698,11 +1700,19 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       initialFocus
                       className={cn("p-3 pointer-events-auto")}
                     />
-                    {expressCalendarNotice(selections.orderDate || null, lang) && (
-                      <p className="text-[10px] italic text-muted-foreground px-3 pb-3">ⓘ {expressCalendarNotice(selections.orderDate || null, lang)}</p>
-                    )}
                   </PopoverContent>
                 </Popover>
+                {/* Outside the Popover on purpose: PopoverContent unmounts
+                    the instant a date is picked (onSelect above closes it),
+                    so a notice placed inside it can never survive past that
+                    same tap/click on mobile OR desktop — it would only ever
+                    flash for an instant. Placed here, keyed off
+                    selections.orderDate directly, it stays visible once a
+                    date is chosen, which is exactly what a touch device (no
+                    hover) needs to actually see it. */}
+                {expressCalendarNotice(selections.orderDate || null, lang) && (
+                  <p className="text-[10px] italic text-muted-foreground">ⓘ {expressCalendarNotice(selections.orderDate || null, lang)}</p>
+                )}
                 {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (
                   <p className="text-xs text-muted-foreground">
                     {t(

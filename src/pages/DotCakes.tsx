@@ -14,6 +14,7 @@ import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
+import { expressCalendarProps } from "@/components/ExpressDateNotice";
 import { flavorCategories, glutenFreeFlavorCategories, candles as kitCandles, NUMBER_CANDLE_IMAGES_KIT } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
@@ -337,13 +338,20 @@ const DotCakes = () => {
                       (was wrongly hardcoded to J+4 here — see
                       src/lib/orderDates.ts, the single shared source of
                       truth for this rule). */}
-                  <Calendar mode="single" selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
+                  <Calendar {...expressCalendarProps} mode="single" selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
                     disabled={(date) => isOrderDateDisabled(date)} initialFocus />
-                  {expressCalendarNotice(orderDate, lang) && (
-                    <p className="text-[10px] italic text-muted-foreground px-3 pb-3">ⓘ {expressCalendarNotice(orderDate, lang)}</p>
-                  )}
                 </PopoverContent>
               </Popover>
+              {/* Outside the Popover on purpose: PopoverContent unmounts the
+                  instant a date is picked (onSelect above closes it), so a
+                  notice placed inside it can never survive past that same
+                  tap/click on mobile OR desktop — it would only ever flash
+                  for an instant. Placed here, keyed off orderDate directly,
+                  it stays visible once a date is chosen, which is exactly
+                  what a touch device (no hover) needs to actually see it. */}
+              {expressCalendarNotice(orderDate, lang) && (
+                <p className="text-[10px] italic text-muted-foreground">ⓘ {expressCalendarNotice(orderDate, lang)}</p>
+              )}
               {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (
                 <p className="text-xs text-muted-foreground">
                   {t(
