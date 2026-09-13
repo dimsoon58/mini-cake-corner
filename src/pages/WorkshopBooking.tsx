@@ -265,16 +265,16 @@ const WorkshopBooking = () => {
       <h2 className="font-sans uppercase tracking-[0.105em] text-lg text-foreground mb-2">
         {t("Choose your sponge", "Choisissez votre génoise")}
       </h2>
-      <p className="text-sm text-muted-foreground mb-6">
+      <p className="text-sm text-muted-foreground mb-4">
         {t("Each participant chooses their sponge cake flavour.", "Chaque participant choisit sa génoise.")}
       </p>
-      <div className="space-y-4">
+      <div className="divide-y divide-border">
         {Array.from({ length: participants }, (_, i) => (
-          <div key={i} className="border border-border p-4 bg-card">
-            <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground mb-3">
+          <div key={i} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2.5">
+            <span className="text-xs uppercase tracking-[0.1em] text-muted-foreground w-28 shrink-0">
               {t(`Participant ${i + 1}`, `Participant ${i + 1}`)}
-            </p>
-            <div className="grid grid-cols-2 gap-3">
+            </span>
+            <div className="flex gap-2">
               {(["vanilla", "chocolate"] as const).map((choice) => (
                 <button
                   key={choice}
@@ -284,19 +284,12 @@ const WorkshopBooking = () => {
                     next[i] = choice;
                     return next;
                   })}
-                  className={`py-3 px-4 border text-sm uppercase tracking-wider transition-colors text-left flex flex-col gap-0.5
+                  className={`px-4 py-1.5 border text-xs uppercase tracking-wider transition-colors font-medium
                     ${spongeChoices[i] === choice
                       ? "border-primary bg-primary/5 text-primary"
                       : "border-border text-foreground hover:border-primary/60"}`}
                 >
-                  <span className="font-medium">
-                    {choice === "vanilla" ? t("Vanilla", "Vanille") : t("Chocolate", "Chocolat")}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground normal-case tracking-normal">
-                    {choice === "vanilla"
-                      ? t("Vanilla sponge", "Génoise vanille")
-                      : t("Chocolate sponge", "Génoise chocolat")}
-                  </span>
+                  {choice === "vanilla" ? t("Vanilla", "Vanille") : t("Chocolate", "Chocolat")}
                 </button>
               ))}
             </div>
@@ -305,6 +298,7 @@ const WorkshopBooking = () => {
       </div>
     </div>
   );
+
 
   // ── Step 3: booking information ───────────────────────────────────────────
   // Buyer contact details (name / email / phone) are NOT collected here — they
