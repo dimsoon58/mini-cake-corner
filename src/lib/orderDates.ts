@@ -9,7 +9,7 @@
 //   * No daily order cap. Every calendar day is available.
 //   * Lead time: the customer can never order for today or tomorrow. First
 //     selectable date = today + 2 calendar days (Europe/Zurich).
-//   * Near-date surcharge, tiered (replaces the old flat +10%):
+//   * Express surcharge, tiered (replaces the old flat +10%):
 //       J+2 / J+3 -> +20% on the physical-product amount
 //       J+4 / J+5 -> +15% on the physical-product amount
 //       J+6+      -> no surcharge
@@ -54,7 +54,7 @@ export function isOrderDateDisabled(date: Date): boolean {
   return calendarDaysUntil(date) < LEAD_DAYS;
 }
 
-// The near-date surcharge RATE for a given date: 0.20 (J+2/J+3), 0.15
+// The express surcharge RATE for a given date: 0.20 (J+2/J+3), 0.15
 // (J+4/J+5), or 0 (J+6+, an unselectable date, or no date at all). Never a
 // flat rate — this is the single place both the rate tiers live, so
 // expressSurcharge() and every display helper below stay in sync with it.
@@ -67,7 +67,7 @@ export function expressSurchargeRate(date: Date | null | undefined): number {
   return 0;
 }
 
-// True for a selectable date that carries ANY near-date surcharge tier
+// True for a selectable date that carries ANY express surcharge tier
 // (J+2..J+5) — used by the calendar's dot marker, which doesn't need to know
 // which of the two rates applies.
 export function isExpressDate(date: Date | null | undefined): boolean {
@@ -97,17 +97,30 @@ export function expressHoverCopy(date: Date | null | undefined, lang: "en" | "fr
   if (rate === 0) return "";
   const p = ratePercentLabel(rate);
   return lang === "fr"
-    ? `Date rapprochée : un supplément de ${p} % s'applique pour cette date.`
-    : `Near-date order: a ${p}% surcharge applies to this date.`;
+    ? `Commande express : un supplément de ${p} % s'applique pour cette date.`
+    : `Express order: a ${p}% surcharge applies to this date.`;
 }
 
+// Explanatory notice shown when the current order date carries an express
+// surcharge (ExpressDateNotice, rendered in Cart/Checkout/Printing). States
+// the exact lead-time window in "less than X days" phrasing — X = calendar
+// days until the date (from the same calendarDaysUntil() used everywhere
+// else in this file) + 1, so J+2 -> "less than 3 days", J+3 -> "less than 4
+// days", J+4 -> "less than 5 days", J+5 -> "less than 6 days" — together
+// with Y, the exact rate THIS date's own tier carries (from
+// expressSurchargeRate — never a hardcoded number, so a future tier change
+// is picked up here automatically). Returns "" for a J+6+ date (or no
+// date), same convention as every other express-copy helper: nothing to
+// show once there is no surcharge to explain.
 export function expressSelectedCopy(date: Date | null | undefined, lang: "en" | "fr"): string {
+  if (!date) return "";
   const rate = expressSurchargeRate(date);
   if (rate === 0) return "";
-  const p = ratePercentLabel(rate);
+  const x = calendarDaysUntil(date) + 1;
+  const y = ratePercentLabel(rate);
   return lang === "fr"
-    ? `Cette date correspond à une commande à date rapprochée. Un supplément de ${p} % sera appliqué à votre panier, hors frais de livraison.`
-    : `This date qualifies as a near-date order. A ${p}% surcharge will be applied to your cart, excluding delivery fees.`;
+    ? `Cette date se situe à moins de ${x} jours. Un supplément express de ${y} % s'applique à votre commande, hors frais de livraison. Sous réserve de disponibilité.`
+    : `This date is less than ${x} days away. A ${y}% express surcharge applies to your order, excluding delivery fees. Subject to availability.`;
 }
 
 // Short inline notice shown directly below the calendar when an express date
@@ -121,19 +134,46 @@ export function expressCalendarNotice(date: Date | null | undefined, lang: "en" 
     : `Express order — A ${p}% surcharge applies to this date.`;
 }
 
-// Legend + order-summary label stay rate-agnostic (no percentage stated):
-// a multi-date cart's aggregate surcharge can legitimately blend the two
-// rates (e.g. one item at +20%, another at +15%), so naming a single
-// percentage here would be wrong for that case. The exact CHF amount is
-// always shown next to this label, and the per-date hover/selected copy
-// above already states the precise rate for whichever date is in view.
+// Legend stays rate-agnostic (no single percentage stated) on purpose — it
+// already spells out both tiers by name, so there is nothing ambiguous
+// about it either way.
 export const EXPRESS_COPY = {
   legend: {
     en: "Orders placed 4–5 days in advance include a 15% express surcharge. Orders placed 2–3 days in advance include a 20% express surcharge. Standard pricing applies from 6 days in advance.",
     fr: "Les commandes passées 4 à 5 jours à l'avance incluent un supplément express de 15 %. Les commandes passées 2 à 3 jours à l'avance incluent un supplément express de 20 %. Le tarif standard s'applique à partir de 6 jours à l'avance.",
   },
   summaryLabel: {
-    en: "Near-date surcharge",
-    fr: "Supplément date rapprochée",
+    en: "Express surcharge",
+    fr: "Supplément express",
   },
 } as const;
+
+// The single express rate to show next to the cart/checkout summary line
+// (e.g. "Express surcharge (15%)"), or null when it can't be stated as one
+// truthful number — either no date here carries a surcharge, or (a
+// multi-date cart) two or more dates carry DIFFERENT rates, whose blended
+// total has no single percentage. Callers must render the summary label
+// WITHOUT a percentage suffix in that null case — see expressSummaryLabel
+// below — never estimate one from amount ÷ subtotal.
+export function uniformExpressRate(dates: Array<Date | null | undefined>): number | null {
+  let rate: number | null = null;
+  for (const date of dates) {
+    const r = expressSurchargeRate(date);
+    if (r === 0) continue;
+    if (rate === null) rate = r;
+    else if (rate !== r) return null;
+  }
+  return rate;
+}
+
+// Cart/checkout summary label for the express surcharge line. Appends the
+// dynamic rate ("(15%)" / "(15 %)") when — and only when — uniformExpressRate
+// found a single rate to state; falls back to the bare label for a blended
+// multi-date total, exactly as before this wording fix (the exact CHF
+// amount is always shown next to it regardless).
+export function expressSummaryLabel(lang: "en" | "fr", rate: number | null): string {
+  const base = EXPRESS_COPY.summaryLabel[lang];
+  if (rate === null) return base;
+  const p = ratePercentLabel(rate);
+  return lang === "fr" ? `${base} (${p} %)` : `${base} (${p}%)`;
+}

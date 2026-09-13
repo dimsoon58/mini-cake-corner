@@ -1687,7 +1687,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       disabled={(date) => {
                         // Food-order lead time: J0/J+1 blocked, J+2+
                         // selectable (was wrongly hardcoded to J+4 here,
-                        // which made the J+2/J+3 near-date-surcharge tier
+                        // which made the J+2/J+3 express-surcharge tier
                         // unreachable from this page — see src/lib/orderDates.ts,
                         // the single shared source of truth for this rule).
                         if (isOrderDateDisabled(date)) return true;

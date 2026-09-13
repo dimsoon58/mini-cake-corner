@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { formatSessionDate } from "@/data/workshopSessions";
-import { expressSurcharge, EXPRESS_COPY } from "@/lib/orderDates";
+import { expressSurcharge, expressSummaryLabel, uniformExpressRate } from "@/lib/orderDates";
 import { ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { FlavorDesc } from "@/data/flavorDesc";
@@ -570,9 +570,14 @@ const Cart = () => {
                       .reduce((s, i) => s + i.total, 0);
                     const surcharge = expressSurcharge(physicalTotal, orderDateObj);
                     if (surcharge <= 0) return null;
+                    // Single cart order date here, so uniformExpressRate
+                    // always resolves to that date's own rate (never null)
+                    // — the null/blended case only matters in Checkout.tsx's
+                    // multi-date summary.
+                    const rate = uniformExpressRate([orderDateObj]);
                     return (
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{EXPRESS_COPY.summaryLabel[lang === "fr" ? "fr" : "en"]}</span>
+                        <span className="text-muted-foreground">{expressSummaryLabel(lang === "fr" ? "fr" : "en", rate)}</span>
                         <span className="text-foreground">CHF {surcharge.toFixed(2)}</span>
                       </div>
                     );

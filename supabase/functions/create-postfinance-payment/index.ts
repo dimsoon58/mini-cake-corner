@@ -1259,7 +1259,7 @@ serve(async (req) => {
       }
     }
 
-    // Near-date surcharge is its own readable line — reward is already
+    // Express surcharge is its own readable line — reward is already
     // allocated (loop above) and can never touch it, and it is added BEFORE
     // the delivery line so the delivery fee never receives it. No percentage
     // in the label: a multi-date order can legitimately blend the 20% and
@@ -1268,7 +1268,7 @@ serve(async (req) => {
     if (expressSurcharge > 0) {
       lineItems.push({
         uniqueId: "express-surcharge",
-        name: orderLang === "fr" ? "Supplément date rapprochée" : "Near-date surcharge",
+        name: orderLang === "fr" ? "Supplément express" : "Express surcharge",
         quantity: 1,
         amountIncludingTax: expressSurcharge,
         type: "FEE",

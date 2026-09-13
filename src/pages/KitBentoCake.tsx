@@ -521,7 +521,7 @@ const KitBentoCake = () => {
                       (was wrongly hardcoded to J+4 here — see
                       src/lib/orderDates.ts, the single shared source of
                       truth for this rule, which also carries the J+2/J+3
-                      and J+4/J+5 near-date-surcharge tiers). */}
+                      and J+4/J+5 express-surcharge tiers). */}
                   <Calendar mode="single" selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }} disabled={(date) => isOrderDateDisabled(date)} initialFocus />
                   {expressCalendarNotice(orderDate, lang) && (
                     <p className="text-[10px] italic text-muted-foreground px-3 pb-3">ⓘ {expressCalendarNotice(orderDate, lang)}</p>

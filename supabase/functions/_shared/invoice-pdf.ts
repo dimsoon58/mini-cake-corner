@@ -265,7 +265,7 @@ export async function generateInvoicePdf(
     const expressSurchargeInvoice = Number(order.express_surcharge_amount) || 0;
     if (expressSurchargeInvoice > 0) {
       itemRows.push({
-        description: tr("Near-date surcharge", "Supplément date rapprochée"),
+        description: tr("Express surcharge", "Supplément express"),
         quantity: "1",
         unitPrice: formatInvoicePrice(expressSurchargeInvoice),
         total: formatInvoicePrice(expressSurchargeInvoice),

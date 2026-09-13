@@ -2,7 +2,7 @@ import type { DayContentProps } from "react-day-picker";
 import { useLang } from "@/context/LanguageContext";
 import { isExpressDate, expressHoverCopy, expressSelectedCopy, EXPRESS_COPY } from "@/lib/orderDates";
 
-// Day number with a discreet native hover tooltip on a near-date-surcharge
+// Day number with a discreet native hover tooltip on an express-surcharge
 // day (desktop) — the tooltip text is computed from THAT day's own rate
 // (20% or 15%), never a single fixed percentage.
 function ExpressDayContent(props: DayContentProps) {
@@ -16,7 +16,7 @@ function ExpressDayContent(props: DayContentProps) {
   );
 }
 
-// Spread onto the shadcn <Calendar> so near-date-surcharge days (J+2..J+5)
+// Spread onto the shadcn <Calendar> so express-surcharge days (J+2..J+5)
 // get a discreet marker + a hover tooltip. No emoji, no icons.
 export const expressCalendarProps = {
   modifiers: { express: (date: Date) => isExpressDate(date) },
@@ -39,9 +39,10 @@ export function ExpressLegend() {
   );
 }
 
-// Visible notice shown when the currently selected order date carries a
-// near-date surcharge — the mobile-friendly equivalent of the desktop
-// hover. Text states THIS date's own rate (20% or 15%).
+// Visible notice shown when the currently selected order date carries an
+// express surcharge — the mobile-friendly equivalent of the desktop
+// hover. Text states THIS date's own rate (20% or 15%) and lead-time
+// window (see expressSelectedCopy).
 export function ExpressDateNotice({ date }: { date: Date | null | undefined }) {
   const { lang } = useLang();
   if (!isExpressDate(date)) return null;

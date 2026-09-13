@@ -52,7 +52,7 @@ import DeliveryAddressAutocomplete, { type AddressSelection } from "@/components
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { isOrderDateDisabled, expressSurcharge, EXPRESS_COPY } from "@/lib/orderDates";
+import { isOrderDateDisabled, expressSurcharge, expressSummaryLabel, uniformExpressRate } from "@/lib/orderDates";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
@@ -766,7 +766,7 @@ const Checkout = () => {
     ? Math.round(Math.min(rewardBalance, maxRewardUsable) * 100) / 100
     : 0;
 
-  // Near-date surcharge (tiered: +20% J+2/J+3, +15% J+4/J+5) — DISPLAY ONLY. The server
+  // Express surcharge (tiered: +20% J+2/J+3, +15% J+4/J+5) — DISPLAY ONLY. The server
   // (create-postfinance-payment) re-derives it from the Europe/Zurich date vs
   // pickup_delivery_date and is the sole authority on the charged amount.
   // Base = physical FOOD products only (workshops, candles and delivery
@@ -780,6 +780,15 @@ const Checkout = () => {
   const expressSurchargeAmount = isMultiDateActive
     ? multiDateExpressSurchargeTotal
     : expressSurcharge(physicalProductsTotal, deliveryDate);
+
+  // Rate to show next to the summary line below ("Express surcharge
+  // (15%)") — same date source as expressSurchargeAmount just above, so the
+  // displayed percentage can never drift from the amount it labels. Null
+  // (no percentage shown, base label only) when a multi-date cart blends
+  // two different rates — see uniformExpressRate.
+  const expressSurchargeRateForSummary = isMultiDateActive
+    ? uniformExpressRate(physicalDateGroups.map((g) => new Date(g.date + "T00:00:00")))
+    : uniformExpressRate([deliveryDate]);
 
   // deliveryPrice already resolves to 0 when there's nothing to charge, in
   // BOTH modes (single: gated by deliveryOption === "delivery" internally;
@@ -1967,7 +1976,7 @@ const Checkout = () => {
 
               {expressSurchargeAmount > 0 && (
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-muted-foreground">{EXPRESS_COPY.summaryLabel[lang === "fr" ? "fr" : "en"]}</span>
+                  <span className="text-muted-foreground">{expressSummaryLabel(lang === "fr" ? "fr" : "en", expressSurchargeRateForSummary)}</span>
                   <span className="font-medium">CHF {expressSurchargeAmount.toFixed(2)}</span>
                 </div>
               )}
