@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useCart, CandleSelection } from "@/context/CartContext";
+import { useCart, CandleSelection, CartItem } from "@/context/CartContext";
 import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -507,19 +507,25 @@ const Cart = () => {
                         </p>
                       )}
 
-                      {/* The exact design photo the customer picked, if the
-                          site captured one for this design (designImageUrl,
-                          set once at add-to-cart time — never rebuilt from
-                          item.design/item.style here). Nothing shown when
-                          it's empty. Fixed thumbnail box so a portrait or
-                          landscape source photo never stretches. */}
-                      {item.designImageUrl && (
-                        <img
-                          src={item.designImageUrl}
-                          alt={t("Chosen design", "Design choisi")}
-                          className="w-20 h-20 object-cover rounded mb-4 flex-shrink-0"
-                        />
-                      )}
+                      {/* The exact design/product photo the customer picked,
+                          if the site captured one (designImageUrl, set once
+                          at add-to-cart time — never rebuilt from
+                          item.design/item.style here). Every physical
+                          product now sets this the same way Bento Cake
+                          always has: a real catalogue design/hero photo for
+                          Catalog/Dot Cakes/DIY Kit, or — when there's no
+                          hosted URL yet, i.e. Printing, whose file is only
+                          uploaded to storage at checkout — a local preview
+                          of the exact photo the customer just uploaded
+                          (item.imageFiles[0]), so the cart never shows a
+                          generic placeholder when the real thing is right
+                          there. Nothing shown when neither is available.
+                          Fixed thumbnail box so a portrait or landscape
+                          source photo never stretches. Delegated to
+                          ItemDesignImage so the local blob: URL (Printing
+                          only) is created once per file and properly
+                          revoked, never leaked on every re-render. */}
+                      <ItemDesignImage item={item} alt={t("Chosen design", "Design choisi")} />
 
                       {isEditing ? (
                         <CartItemEditor
@@ -653,6 +659,41 @@ const Cart = () => {
         )}
       </main>
     </Layout>
+  );
+};
+
+/* ---------- Design/product photo thumbnail ---------- */
+// Shows item.designImageUrl when set (every product's normal case — a real
+// hosted URL, nothing to create or clean up). Falls back to a LOCAL preview
+// of the customer's own uploaded file (Printing, pre-checkout only, before
+// its real URL exists) via URL.createObjectURL — done here, in a dedicated
+// component with its own effect, rather than inline in JSX, specifically so
+// the blob: URL is created exactly once per file and revoked (URL.revokeObjectURL)
+// on cleanup — when the file changes, is removed, or this card unmounts —
+// instead of leaking a brand new, never-released blob URL on every re-render
+// of the cart (every quantity change, every other item's edit, etc.).
+const ItemDesignImage = ({ item, alt }: { item: CartItem; alt: string }) => {
+  const file = item.imageFiles?.[0];
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (item.designImageUrl || !file) {
+      setObjectUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [item.designImageUrl, file]);
+
+  const src = item.designImageUrl || objectUrl;
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-20 h-20 object-cover rounded mb-4 flex-shrink-0"
+    />
   );
 };
 

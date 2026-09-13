@@ -396,6 +396,15 @@ const KitBentoCake = () => {
       imageFiles: [],
       textStyle: "normal",
       total: totalPrice,
+      // The DIY Kit has no per-order design choice (shape is round/heart
+      // with no photo of its own; flavour is a single pick but only has a
+      // small icon, not a real product photo) — same situation as Dot
+      // Cakes. Reuses the exact same designImageUrl field and absolute-URL
+      // construction as Catalog.tsx's chosenDesignImage, pointed at this
+      // page's own hero photo (diyKitBox, already shown twice on this page)
+      // so Cart/checkout/the confirmation email show the actual kit photo
+      // instead of nothing, via the same mechanism as Bento Cake end to end.
+      designImageUrl: new URL(diyKitBox, window.location.origin).href,
     };
 
     const added = addItem(cartItem);

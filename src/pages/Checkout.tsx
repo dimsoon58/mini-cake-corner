@@ -1177,10 +1177,22 @@ const Checkout = () => {
           workshop_unit_price: isWorkshop ? (item.workshopUnitPrice ?? null) : null,
           workshop_has_minor: isWorkshop ? !!item.workshopHasMinor : false,
           workshop_minor_consent_confirmed: isWorkshop ? !!item.workshopMinorConsentConfirmed : false,
-          // Exact catalogue design photo the customer clicked (multi-option
-          // designs only) — complements `design`, never replaces it. null for
-          // every other case; old orders stay null and keep working.
-          design_image_url: item.designImageUrl || null,
+          // Exact catalogue/hero design photo the customer clicked or was
+          // shown (multi-option designs, Dot Cakes, DIY Kit) — complements
+          // `design`, never replaces it. Falls back to the first uploaded
+          // reference photo (item.imageUrls, already resolved above from
+          // this same item's imageFiles) only when no such design photo was
+          // captured — today that's Printing only, where the "design" IS
+          // simply the exact image the customer uploaded to be printed, now
+          // hosted at this same URL. Deliberately excludes bento_cake/
+          // rectangle_cake even as a hypothetical fallback: Catalog.tsx is
+          // the single source of truth for their designImageUrl, and those
+          // two products must show EXACTLY what they already show today,
+          // never a reference photo standing in for a missing design pick.
+          // null when neither exists; old orders stay null and keep working.
+          design_image_url: item.designImageUrl
+            || (item.product !== "bento_cake" && item.product !== "rectangle_cake" ? item.imageUrls?.[0] : null)
+            || null,
           base_color: item.baseColor || null,
           decoration_color: item.decorationColor || null,
           // Gender Reveal only ("Rose" / "Bleu") — a distinct piece of data

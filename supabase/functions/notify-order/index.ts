@@ -114,7 +114,14 @@ async function sendAdminEmail(
     // an absolute URL (set by Catalog.tsx at checkout); shown only when
     // present, kept entirely separate from reference_images (the client's
     // own uploaded photos), which stay in their own block below, unchanged.
-    const designImageBlock = item.design_image_url
+    // Deliberately scoped to bento_cake/rectangle_cake (Catalog.tsx's own
+    // products) only: order_items.design_image_url is now also populated
+    // for Dot Cakes, DIY Kit and Printing (Sept 2026 image-consistency
+    // fix — see Cart.tsx/Checkout.tsx), but this internal Accept/Refuse
+    // email should stay exactly as light as it already was for those
+    // products, per explicit request — the customer-facing confirmation
+    // email is where those photos now show up instead.
+    const designImageBlock = item.design_image_url && (item.product === "bento_cake" || item.product === "rectangle_cake")
       ? `<img src="${item.design_image_url}" alt="Design choisi" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;margin:0 0 12px;" />`
       : "";
 

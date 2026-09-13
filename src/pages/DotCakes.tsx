@@ -203,6 +203,16 @@ const DotCakes = () => {
     const selectedCandles = candleSelections.map((c) =>
       c.id === NUMBER_CANDLE_ID ? { ...c, digit: numberCandleDigit } : c
     );
+    // Dot Cakes has no per-order design choice (no design step, and several
+    // flavours can be picked at once — no single flavour photo represents
+    // the whole item), so unlike Catalog.tsx there's no real "the customer's
+    // own photo" to use. Reuses the exact same field (designImageUrl) and
+    // the same absolute-URL construction as Catalog.tsx's chosenDesignImage,
+    // pointed at this page's own hero photo (dotGallery1, already shown on
+    // the landing screen) — so Cart/checkout/the confirmation email finally
+    // show a real product photo instead of nothing, same mechanism as Bento
+    // Cake end to end, just with a fixed source image for this product line.
+    const designImageUrl = new URL(dotGallery1, window.location.origin).href;
     const added = addItem({
       id: "", product: "dot_cakes",
       orderDate: format(orderDate, "yyyy-MM-dd"), orderTime: "",
@@ -215,6 +225,7 @@ const DotCakes = () => {
       extras: [], extrasNames: [], ribbonColor: "", ribbonColorName: "",
       butterflyColor: "", butterflyColorName: "",
       candles: selectedCandles, comment: "", imageUrls: [], imageFiles: [], total,
+      designImageUrl,
     });
     if (!added.ok) {
       toast.error(t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."));
