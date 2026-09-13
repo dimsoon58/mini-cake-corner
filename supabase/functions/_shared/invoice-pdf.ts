@@ -26,6 +26,18 @@ function formatDateCH(dateValue?: string): string {
   const [year, month, day] = dateValue.split("-");
   return year && month && day ? `${day}.${month}.${year}` : dateValue;
 }
+// Display only — a Dot Cakes pack's flavors can carry a trailing category
+// annotation baked in at add-to-cart time ("Red Velvet (Standard Flavours)"),
+// needed exactly as stored in order_items.flavors (Notion, kitchen ops) —
+// never touched here, only how it prints. Strips the trailing "(...)" off
+// each entry, preserving order and duplicates. An entry with no annotation
+// (every non-Dot-Cakes product) passes through unchanged. Same behaviour as
+// src/lib/orderLabels.ts's flavorLabel() (frontend cart) — kept as a local
+// copy here (Deno function, can't import from src/).
+function flavorsLabel(flavors: string[] | null | undefined): string {
+  if (!flavors?.length) return "";
+  return flavors.map((f) => f.trim().replace(/\s*\([^)]*\)\s*$/, "")).filter(Boolean).join(", ");
+}
 function formatInvoicePrice(amount: number | string): string {
   const n = typeof amount === "string" ? parseFloat(amount) : amount;
   return Number.isInteger(n) ? `${n}.-` : n.toFixed(2);
@@ -205,7 +217,7 @@ export async function generateInvoicePdf(
     }
 
     const desc = item.size
-      ? `${item.size}${item.flavors?.length ? " — " + item.flavors.join(", ") : ""}`
+      ? `${item.size}${item.flavors?.length ? " — " + flavorsLabel(item.flavors) : ""}`
       : (item.design || tr("Custom cake", "Gâteau personnalisé"));
     const total = item.total ?? 0;
     return {

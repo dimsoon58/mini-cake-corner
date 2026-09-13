@@ -12,6 +12,19 @@ function formatDateCH(dateValue?: string): string {
   return year && month && day ? `${day}.${month}.${year}` : dateValue;
 }
 
+// Display only — a Dot Cakes pack's flavors can carry a trailing category
+// annotation baked in at add-to-cart time ("Red Velvet (Standard Flavours)"),
+// needed exactly as stored in order_items.flavors (Notion, kitchen ops) —
+// never touched here, only how it's shown. Strips the trailing "(...)" off
+// each entry, preserving order and duplicates. An entry with no annotation
+// (every non-Dot-Cakes product) passes through unchanged. Same behaviour as
+// src/lib/orderLabels.ts's flavorLabel() (frontend cart) — kept as a local
+// copy here (Deno function, can't import from src/).
+function flavorsLabel(flavors: string[] | null | undefined): string {
+  if (!flavors?.length) return "";
+  return flavors.map((f) => f.trim().replace(/\s*\([^)]*\)\s*$/, "")).filter(Boolean).join(", ");
+}
+
 // orders.lang is written by Checkout.tsx directly; French is the default.
 function getCustomerLang(order: any): "fr" | "en" {
   return order?.lang === "en" ? "en" : "fr";
@@ -64,7 +77,7 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
 
   const describeItem = (item: any): string =>
     item.size
-      ? `${item.size}${item.flavors?.length ? " — " + item.flavors.join(", ") : ""}`
+      ? `${item.size}${item.flavors?.length ? " — " + flavorsLabel(item.flavors) : ""}`
       : (item.design || tr("Custom cake", "Gâteau personnalisé"));
 
   const fulfillmentBlockHtml = (fulfillmentId: string): string => {

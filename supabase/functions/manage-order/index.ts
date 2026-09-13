@@ -21,6 +21,20 @@ function formatDateCH(dateValue?: string): string {
   return year && month && day ? `${day}.${month}.${year}` : dateValue;
 }
 
+// Display only — a Dot Cakes pack's flavors can carry a trailing category
+// annotation baked in at add-to-cart time ("Red Velvet (Standard Flavours)"),
+// needed exactly as stored in order_items.flavors (Notion, kitchen ops) —
+// never touched here, only how it's shown/printed. Strips the trailing
+// "(...)" off each entry, preserving order and duplicates. An entry with no
+// annotation (every non-Dot-Cakes product) passes through unchanged. Same
+// behaviour as src/lib/orderLabels.ts's flavorLabel() (frontend cart) and
+// _shared/invoice-pdf.ts's copy — kept as a local copy here too (Deno
+// function, can't import from src/).
+function flavorsLabel(flavors: string[] | null | undefined): string {
+  if (!flavors?.length) return "";
+  return flavors.map((f) => f.trim().replace(/\s*\([^)]*\)\s*$/, "")).filter(Boolean).join(", ");
+}
+
 function customerName(order: any): string {
   return `${order.first_name || ""} ${order.last_name || ""}`.trim();
 }
@@ -144,7 +158,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
     const rows: string[] = [itemFulfillmentRows(item)];
     if (!isPrinting) {
       if (item.size) rows.push(row(tr("Size", "Taille"), item.size));
-      if (item.flavors?.length) rows.push(row(tr("Flavour", "Parfum"), item.flavors.join(", ")));
+      if (item.flavors?.length) rows.push(row(tr("Flavour", "Parfum"), flavorsLabel(item.flavors)));
       if (item.shape) rows.push(row(tr("Shape", "Forme"), item.shape));
       if (item.design) rows.push(row(tr("Design", "Design"), item.design));
       if (item.base_color) rows.push(row(tr("Base colour", "Couleur de base"), item.base_color));
@@ -246,7 +260,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
         + `${item.workshop_participants ? ` — ${item.workshop_participants} ${tr("participant(s)", "participant(s)")}` : ""}`
       : item.product === "edible_printing"
         ? tr("Printing", "Impression")
-        : `${item.size || ""} ${item.shape || ""} — ${(item.flavors || []).join(", ")}`;
+        : `${item.size || ""} ${item.shape || ""} — ${flavorsLabel(item.flavors)}`;
     return `
     <tr>
       <td style="padding:12px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${label}</td>
@@ -772,7 +786,7 @@ async function generateInvoicePdf(
     }
 
     const desc = item.size
-      ? `${item.size}${item.flavors?.length ? " — " + item.flavors.join(", ") : ""}`
+      ? `${item.size}${item.flavors?.length ? " — " + flavorsLabel(item.flavors) : ""}`
       : (item.design || tr("Custom cake", "Gâteau personnalisé"));
     const total = item.total ?? 0;
     return {

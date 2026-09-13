@@ -20,6 +20,19 @@ function formatDateCH(dateValue?: string): string {
   return year && month && day ? `${day}.${month}.${year}` : dateValue;
 }
 
+// Display only — a Dot Cakes pack's flavors can carry a trailing category
+// annotation baked in at add-to-cart time ("Red Velvet (Standard Flavours)"),
+// needed exactly as stored in order_items.flavors (Notion, kitchen ops) —
+// never touched here, only how it's shown. Strips the trailing "(...)" off
+// each entry, preserving order and duplicates. An entry with no annotation
+// (every non-Dot-Cakes product) passes through unchanged. Same behaviour as
+// src/lib/orderLabels.ts's flavorLabel() (frontend cart) — kept as a local
+// copy here (Deno function, can't import from src/).
+function flavorsLabel(flavors: string[] | null | undefined): string {
+  if (!flavors?.length) return "";
+  return flavors.map((f) => f.trim().replace(/\s*\([^)]*\)\s*$/, "")).filter(Boolean).join(", ");
+}
+
 function row(label: string, value: string | undefined | null): string {
   if (!value) return "";
   return `<tr><td style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
@@ -113,7 +126,7 @@ async function sendAdminEmail(
           ${row("Date", itemDateLabel(item))}
           ${row("Taille", item.size)}
           ${row("Forme", item.shape)}
-          ${row("Parfum", (item.flavors || []).join(", "))}
+          ${row("Parfum", flavorsLabel(item.flavors))}
           ${row("Design", item.design)}
           ${row("Couleur de base", item.base_color)}
           ${row("Couleur de déco", item.decoration_color)}
