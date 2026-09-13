@@ -94,7 +94,7 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
         </p>
         ${f?.delivery_method === "delivery"
           ? (f?.delivery_address ? `<p style="margin:0 0 6px;color:#7A6540;font-size:12px;">${f.delivery_address}</p>` : "")
-          : `<p style="margin:0 0 6px;color:#7A6540;font-size:12px;">${STORE_ADDRESS}</p>`}
+          : `<p style="margin:0 0 6px;color:#7A6540;font-size:12px;">${tr("Address", "Adresse")}: ${STORE_ADDRESS}</p>`}
         ${itemsHtml ? `<ul style="margin:0;padding-left:18px;color:#351E13;font-size:12px;">${itemsHtml}</ul>` : ""}
       </td>
     </tr>`;
@@ -178,7 +178,7 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
             <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Method", "Mode")}</td>
             <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${deliveryInfo}</td>
           </tr>` : ""}
-          ${hasPickupOrDelivery && order.delivery_method === "pickup" ? `<tr style="border-bottom:1px solid #D4C89A;">
+          ${hasPickupOrDelivery && order.delivery_method !== "delivery" ? `<tr style="border-bottom:1px solid #D4C89A;">
             <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Address", "Adresse")}</td>
             <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${STORE_ADDRESS}</td>
           </tr>` : ""}
