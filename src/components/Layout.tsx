@@ -23,7 +23,7 @@ type NavItem = { to?: string; label: string; children?: { to: string; label: str
 const navFr: Record<string, string> = {
   "Home": "Accueil",
   "Cakes": "Gâteaux",
-  "DIY Kit": "Kit DIY",
+  "Bento Kit": "Bento Kit",
   "Candles": "Bougies",
   "Workshop": "Atelier",
   "Partnerships & Press": "Partenariats & Presse",
@@ -40,7 +40,7 @@ const navLinks: NavItem[] = [
   { label: "Cakes", children: [
     { to: "/catalog", label: "Bento Cakes" },
     { to: "/dot-cakes", label: "Dot Cakes" },
-    { to: "/kit-bento-cake", label: "DIY Kit" },
+    { to: "/kit-bento-cake", label: "Bento Kit" },
     { to: "/candles", label: "Candles" },
   ] },
   { to: "/printing", label: "Printing" },
