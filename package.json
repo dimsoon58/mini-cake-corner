@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run check:inspiration-pricing",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:inspiration-pricing": "node scripts/check-inspiration-pricing-sync.mjs"
   },
   "dependencies": {
     "@fontsource/dancing-script": "^5.2.8",

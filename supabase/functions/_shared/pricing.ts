@@ -118,6 +118,111 @@ export const CAKE_DESIGNS: Record<string, SizePriceMap> = {
   "rectangle-flowers": { rectangle: 45 },
 };
 
+// -- Inspirations gallery --------------------------------------------------
+// Each Inspiration photo (src/pages/Inspiration.tsx / src/data/inspirations.ts)
+// has its own custom price per size -- there is no single flat price for
+// "inspiration" the way there is for every fixed catalogue design above.
+// Catalog.tsx sends the per-photo id ("inspiration-N", where N is the
+// STABLE image number registered on that entry in
+// src/data/inspirations.ts's INSPIRATIONS array -- NOT its position in
+// that array, which can change) as order_items.design specifically so the
+// server can charge the correct one instead of rejecting every size (the
+// bug this table fixes: there was no "inspiration" key here at all, so
+// "design inspiration unavailable for size X" fired for every single
+// Inspiration order regardless of size).
+//
+// MUST be kept byte-for-byte in sync with src/data/inspirations.ts's
+// INSPIRATIONS array (same id -> same price object) -- this is a
+// duplicate by necessity (Deno functions can't import from src/), same
+// convention as every other shared table/template duplicated across that
+// boundary elsewhere in this repo. Run
+// scripts/check-inspiration-pricing-sync.mjs to verify these two files
+// still agree.
+export const INSPIRATION_DESIGNS: Record<string, SizePriceMap> = {
+  "inspiration-1": { retro: 14, medium: 21, large: 31 },
+  "inspiration-2": { retro: 22, medium: 30, large: 40 },
+  "inspiration-3": { retro: 19, medium: 30, large: 45 },
+  "inspiration-4": { retro: 8, medium: 15, large: 20 },
+  "inspiration-6": { bento: 0, retro: 0, medium: 0, large: 0 },
+  "inspiration-7": { bento: 11, retro: 12, medium: 15, large: 21 },
+  "inspiration-8": { bento: 3, retro: 5, medium: 10, large: 15 },
+  "inspiration-9": { bento: 15, retro: 15, medium: 15, large: 15 },
+  "inspiration-10": { bento: 3, retro: 4, medium: 5, large: 8 },
+  "inspiration-11": { bento: 15, retro: 15, medium: 15, large: 15 },
+  "inspiration-12": { bento: 3, retro: 4, medium: 5, large: 6 },
+  "inspiration-13": { retro: 45, medium: 75, large: 108 },
+  "inspiration-14": { retro: 13, medium: 20, large: 30 },
+  "inspiration-15": { retro: 10, medium: 15, large: 23 },
+  "inspiration-16": { retro: 10, medium: 16, large: 23 },
+  "inspiration-17": { bento: 3, retro: 5, medium: 10, large: 15 },
+  "inspiration-18": { retro: 14, medium: 21, large: 31 },
+  "inspiration-19": { retro: 8, medium: 15, large: 20 },
+  "inspiration-20": { bento: 0, retro: 0, medium: 0, large: 0 },
+  "inspiration-21": { retro: 21, medium: 31, large: 41 },
+  "inspiration-22": { retro: 40, medium: 67, large: 98 },
+  "inspiration-23": { retro: 20, medium: 33, large: 48 },
+  "inspiration-24": { retro: 40, medium: 67, large: 98 },
+  "inspiration-25": { bento: 3, retro: 4, medium: 5, large: 6 },
+  "inspiration-26": { retro: 8, medium: 10, large: 15 },
+  "inspiration-27": { bento: 0, retro: 0, medium: 0, large: 0 },
+  "inspiration-28": { bento: 10, retro: 12, medium: 16, large: 23 },
+  "inspiration-29": { retro: 15, medium: 20, large: 30 },
+  "inspiration-30": { retro: 12, medium: 15, large: 21 },
+  "inspiration-31": { bento: 3, retro: 4, medium: 5, large: 8 },
+  "inspiration-32": { bento: 0, retro: 0, medium: 0, large: 0 },
+  "inspiration-33": { bento: 6, retro: 8, medium: 15, large: 20 },
+  "inspiration-34": { retro: 21, medium: 25, large: 30 },
+  "inspiration-35": { bento: 4, retro: 4, medium: 6, large: 10 },
+  "inspiration-36": { bento: 3, retro: 5, medium: 10, large: 15 },
+  "inspiration-37": { bento: 6, retro: 8, medium: 15, large: 20 },
+  "inspiration-38": { bento: 6, retro: 8, medium: 15, large: 20 },
+  "inspiration-39": { bento: 8, retro: 8, medium: 10, large: 15 },
+  "inspiration-40": { retro: 18, medium: 26, large: 35 },
+  "inspiration-41": { retro: 10, medium: 16, large: 23 },
+  "inspiration-42": { bento: 3, retro: 5, medium: 10, large: 15 },
+  "inspiration-43": { bento: 8, retro: 8, medium: 10, large: 15 },
+  "inspiration-44": { retro: 13, medium: 25, large: 32 },
+  "inspiration-45": { bento: 8, retro: 8, medium: 10, large: 15 },
+  "inspiration-46": { bento: 8, retro: 8, medium: 10, large: 15 },
+  "inspiration-47": { retro: 11, medium: 18, large: 25 },
+  "inspiration-48": { retro: 22, medium: 30, large: 45 },
+  "inspiration-49": { retro: 12, medium: 20, large: 30 },
+  "inspiration-50": { retro: 15, medium: 24, large: 33 },
+  "inspiration-51": { retro: 13, medium: 23, large: 30 },
+  "inspiration-52": { retro: 11, medium: 18, large: 25 },
+  "inspiration-53": { bento: 0, retro: 0, medium: 0, large: 0 },
+  "inspiration-54": { retro: 6, medium: 10, large: 15 },
+  "inspiration-55": { bento: 8, retro: 8, medium: 10, large: 15 },
+  "inspiration-56": { retro: 11, medium: 18, large: 25 },
+  "inspiration-57": { retro: 6, medium: 10, large: 15 },
+  "inspiration-58": { retro: 13, medium: 18, large: 25 },
+  "inspiration-59": { retro: 6, medium: 10, large: 15 },
+  "inspiration-60": { retro: 10, medium: 15, large: 23 },
+  "inspiration-61": { retro: 12, medium: 20, large: 28 },
+  "inspiration-62": { retro: 16, medium: 25, large: 35 },
+  "inspiration-63": { retro: 20, medium: 33, large: 48 },
+  "inspiration-64": { retro: 6, medium: 10, large: 15 },
+  "inspiration-65": { retro: 11, medium: 18, large: 25 },
+  "inspiration-66": { retro: 10, medium: 14, large: 18 },
+  "inspiration-67": { retro: 11, medium: 18, large: 25 },
+  "inspiration-68": { retro: 10, medium: 18, large: 27 },
+  "inspiration-69": { bento: 6, retro: 8, medium: 15, large: 20 },
+  "inspiration-70": { retro: 6, medium: 8, large: 10 },
+  "inspiration-71": { retro: 6, medium: 10, large: 15 },
+  "inspiration-72": { retro: 12, medium: 21, large: 28 },
+  "inspiration-73": { retro: 8, medium: 12, large: 17 },
+  "inspiration-74": { retro: 11, medium: 18, large: 25 },
+  "inspiration-75": { bento: 9, retro: 12, medium: 20, large: 28 },
+  "inspiration-76": { retro: 13, medium: 23, large: 30 },
+  "inspiration-77": { bento: 6, retro: 8, medium: 15, large: 20 },
+  "inspiration-78": { bento: 3, retro: 4, medium: 5, large: 8 },
+  "inspiration-79": { bento: 11, retro: 12, medium: 15, large: 20 },
+  "inspiration-80": { bento: 13, retro: 20, medium: 27, large: 52 },
+  "inspiration-81": { retro: 10, medium: 15, large: 20 },
+  "inspiration-82": { bento: 10, retro: 12, medium: 16, large: 23 },
+  "inspiration-83": { bento: 0, retro: 0, medium: 0, large: 0 },
+};
+
 export const CAKE_EXTRAS: Record<string, SizePriceMap> = {
   "gold-leaves": { bento: 3, retro: 4, medium: 5, large: 8, rectangle: 12 },
   cherries: { retro: 4, medium: 8, large: 12, rectangle: 20 },
@@ -288,7 +393,10 @@ function priceCakeFamily(input: PricingInput, product: "bento_cake" | "rectangle
   if (flavorPrice === undefined) return fail(`flavor ${input.flavors[0]} unavailable for size ${size}`);
 
   if (!input.design) return fail("design is required");
-  const designPrice = CAKE_DESIGNS[input.design]?.[size];
+  // An Inspiration cake's design id is "inspiration-N" (see
+  // INSPIRATION_DESIGNS above) — checked as a fallback so every fixed
+  // catalogue design above keeps resolving exactly as before.
+  const designPrice = (CAKE_DESIGNS[input.design] ?? INSPIRATION_DESIGNS[input.design])?.[size];
   if (designPrice === undefined) return fail(`design ${input.design} unavailable for size ${size}`);
 
   let extrasTotal = 0;

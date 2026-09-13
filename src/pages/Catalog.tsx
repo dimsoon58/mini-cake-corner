@@ -1479,14 +1479,15 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     // the design has several option photos, that's the exact one they
     // clicked (selections.shagDesignPreference — the same index behind the
     // "[Preferred design: Option N]" comment); otherwise it's the design's
-    // single photo. null only for an inspiration cake, whose photo is a
-    // client reference already carried in imageUrls, not a catalogue design.
+    // single photo. For an Inspiration cake, selectedCake.image IS the
+    // inspiration photo itself (the exact design actually chosen, not just
+    // a loose reference) — shown here too now, so the cart/admin/invoice
+    // can display it instead of an unhelpful "Inspiration #N" label. Still
+    // also carried in imageUrls below, unchanged — no second image system.
     const chosenDesignImage =
       selectedCake.images && selectedCake.images.length > 1
         ? selectedCake.images[selections.shagDesignPreference] ?? selectedCake.images[0]
-        : selectedCake.styleId === "inspiration"
-          ? null
-          : selectedCake.image || null;
+        : selectedCake.image || null;
     const designImageUrl = chosenDesignImage
       ? new URL(chosenDesignImage, window.location.origin).href
       : null;
@@ -1502,7 +1503,15 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       shapeName: shapeObj?.name || "",
       flavor: selections.flavor,
       flavorName: flavorObj?.name || "",
-      style: selectedCake.styleId,
+      // An Inspiration cake's styleId is always the generic "inspiration"
+      // (every colour-config/exclusion lookup keyed by styleId elsewhere in
+      // this file relies on that constant string, so it must stay
+      // unchanged) — but the server's design price table can't charge a
+      // single price for ~80 different inspiration photos under one shared
+      // id. selectedCake.id is already the per-photo identifier
+      // ("inspiration-N", set in openInspiration()); send THAT as the
+      // design/style actually priced and stored, only for this one case.
+      style: selectedCake.styleId === "inspiration" ? selectedCake.id : selectedCake.styleId,
       styleName: selectedCake.styleName,
       baseColor: genderWhite ? "white" : selections.baseColor,
       baseColorName: baseColorObj?.name || "",
@@ -1555,8 +1564,17 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   // Ouvre le panneau pour une photo d'inspiration donnee
   const openInspiration = (index: number) => {
     if (isNaN(index) || index < 0 || index >= inspirationItems.length) return;
+    // inspirationItems[index].id is the stable, image-number-derived
+    // identifier registered explicitly on each entry in
+    // src/data/inspirations.ts (NOT derived from this array position/index
+    // — the array can be reordered, or an entry added/removed, without
+    // ever changing which id refers to which photo). This id is what gets
+    // sent to the server as order_items.design (see addItem() above) and
+    // must match a key in supabase/functions/_shared/pricing.ts's
+    // INSPIRATION_DESIGNS table exactly.
+    const inspirationId = inspirationItems[index].id;
     handleSelectCake({
-      id: `inspiration-${index + 1}`,
+      id: inspirationId,
       name: t(`Inspiration Cake #${index + 1}`, `Gâteau d'inspiration n°${index + 1}`),
       description: t("Based on the inspiration photo you selected", "D'après la photo d'inspiration que vous avez sélectionnée"),
       image: inspirationItems[index].src,

@@ -1,6 +1,9 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { trackAddToCart, trackRemoveFromCart } from "@/lib/analytics";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
+import { INSPIRATIONS } from "@/data/inspirations";
+import { useLang } from "@/context/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
 
 // Canonical shape for a candle attached to a cart item — used both for
 // candles added directly on the Candles page and for candles added on top
@@ -164,6 +167,14 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 const CART_STORAGE_KEY = "cake-cart-items";
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
+  const { t } = useLang();
+  const { toast } = useToast();
+  // Set (once, synchronously, by the items initializer below) whenever a
+  // pre-fix Inspiration cart item had to be dropped rather than silently
+  // remapped — see the migration comment below. Consumed by the effect
+  // right under it to show exactly one toast per mount, then reset.
+  const [staleInspirationDropped, setStaleInspirationDropped] = useState(0);
+
   const [items, setItems] = useState<CartItem[]>(() => {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
     if (!stored) return [];
@@ -172,10 +183,73 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     // Drop any stored item without a currently-valid product — stale data
     // left over from before this field existed (or from a renamed product
     // type) must never resurface into a live cart again.
-    return parsed
-      .filter((item: any) => VALID_PRODUCTS.has(item?.product))
-      .map((item: any) => ({ ...item, imageFiles: [] }));
+    const withValidProduct = parsed.filter((item: any) => VALID_PRODUCTS.has(item?.product));
+
+    // Carts saved before the Inspirations pricing fix can still hold a
+    // cake item with the old, generic style: "inspiration" — a single id
+    // shared by every Inspiration photo, which the server has never
+    // priced (supabase/functions/_shared/pricing.ts's INSPIRATION_DESIGNS
+    // rejects unknown design ids on purpose, never charges a guessed
+    // price) and never will. That value must never reach checkout again:
+    //  - Every Inspiration item, before and after the fix, also carries
+    //    imageUrls: [selectedCake.image] (Catalog.tsx) — the exact photo's
+    //    built asset URL, whose filename embeds the original image number
+    //    (e.g. ".../inspiration-14-<hash>.jpg", from src/assets/
+    //    inspiration-14.jpg). That number is unambiguous and independent
+    //    of this bug, so if it's present and that photo still exists in
+    //    today's INSPIRATIONS list, remap the item to its current stable
+    //    id ("inspiration-14") instead of the old generic one.
+    //  - If the photo can't be identified (no imageUrls) or no longer
+    //    exists (removed from the gallery since), the item is dropped —
+    //    never left as "inspiration" for checkout to choke on — and the
+    //    customer is told once (see the effect below) so the cart doesn't
+    //    just silently lose an item with no explanation.
+    let staleCount = 0;
+    const migrated = withValidProduct.reduce((acc: any[], item: any) => {
+      if (item?.style !== "inspiration") {
+        acc.push(item);
+        return acc;
+      }
+      const match = /inspiration-(\d+)/.exec(item?.imageUrls?.[0] || "");
+      const candidateId = match ? `inspiration-${match[1]}` : null;
+      const candidate = candidateId ? INSPIRATIONS.find((i) => i.id === candidateId) : undefined;
+      if (candidate) {
+        acc.push({
+          ...item,
+          style: candidate.id,
+          // Old buggy add-to-cart run always left this null for
+          // Inspiration items — backfill it now so the cart can finally
+          // show the photo instead of a bare "Inspiration #N" label.
+          designImageUrl: item.designImageUrl || candidate.src,
+        });
+      } else {
+        staleCount++;
+      }
+      return acc;
+    }, []);
+
+    if (staleCount > 0) {
+      // Deferred: this initializer runs during render, before effects —
+      // setState here would be dropped. queueMicrotask fires right after
+      // mount, in time for the effect below to read the updated value.
+      queueMicrotask(() => setStaleInspirationDropped(staleCount));
+    }
+
+    return migrated.map((item: any) => ({ ...item, imageFiles: [] }));
   });
+
+  useEffect(() => {
+    if (staleInspirationDropped === 0) return;
+    toast({
+      title: t("Cake removed from cart", "Gâteau retiré du panier"),
+      description: t(
+        "One of your Inspiration cakes could no longer be identified after a recent update. Please select it again from the Inspirations page.",
+        "Un de vos gâteaux d'inspiration n'a pas pu être identifié après une récente mise à jour. Merci de le sélectionner à nouveau depuis la page Inspirations."
+      ),
+      variant: "destructive",
+    });
+    setStaleInspirationDropped(0);
+  }, [staleInspirationDropped, toast, t]);
 
   useEffect(() => {
     // Exclude non-serializable File objects from localStorage

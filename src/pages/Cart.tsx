@@ -670,17 +670,43 @@ const CartItemSummary = ({ item }: { item: any }) => {
             <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
           </div>
         )}
-        {!isDiyKit && styleExtra > 0 && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
-            <span className="text-foreground">+ CHF {styleExtra}</span>
+        {/* An Inspiration cake's styleName is the unhelpful "Inspiration #N"
+            — the photo the customer actually picked (designImageUrl) is
+            far clearer. The style id/name are still sent to the order as
+            before (order_items.design keeps "inspiration-N" — needed for
+            server-side pricing), only the display here changes. Every
+            other design keeps its plain text label, unchanged. */}
+        {!isDiyKit && item.style?.startsWith("inspiration-") ? (
+          <div className="flex justify-between items-center gap-3">
+            <span className="text-muted-foreground flex items-center gap-2">
+              {t("Design:", "Design :")}
+              {item.designImageUrl ? (
+                <img src={item.designImageUrl} alt={t("Chosen design", "Design choisi")} className="h-10 w-10 object-cover rounded flex-shrink-0" />
+              ) : (
+                t("Inspiration photo", "Photo d'inspiration")
+              )}
+            </span>
+            {styleExtra > 0 ? (
+              <span className="text-foreground">+ CHF {styleExtra}</span>
+            ) : (
+              <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
+            )}
           </div>
-        )}
-        {!isDiyKit && styleExtra === 0 && item.styleName && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
-            <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
-          </div>
+        ) : (
+          <>
+            {!isDiyKit && styleExtra > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
+                <span className="text-foreground">+ CHF {styleExtra}</span>
+              </div>
+            )}
+            {!isDiyKit && styleExtra === 0 && item.styleName && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
+                <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
+              </div>
+            )}
+          </>
         )}
         {extraEntries.length > 0 && (
           <>
