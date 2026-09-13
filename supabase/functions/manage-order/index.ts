@@ -186,31 +186,56 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
       address: order.delivery_address ?? null,
     };
   }
-  // Rows shown at the top of EACH physical item's own card — date, slot,
-  // mode, and (pickup only) the store's fixed address, always shown
-  // regardless of what the customer typed anywhere else.
-  function itemFulfillmentRows(item: any): string {
-    const f = resolveItemFulfillment(item);
-    if (!f.method) return "";
-    const modeLabel = f.method === "delivery" ? tr("Delivery", "Livraison") : tr("Pickup at store", "Retrait sur place");
-    return [
-      f.date ? row(tr("Date", "Date"), formatDateCH(f.date)) : "",
-      f.slot ? row(tr("Time", "Heure"), f.slot) : "",
-      row(tr("Mode", "Mode"), modeLabel),
-      f.method === "delivery"
-        ? row(tr("Address", "Adresse"), f.address || "—")
-        : row(tr("Address", "Adresse"), STORE_ADDRESS),
-    ].join("");
+  // Pickup/delivery date, slot, mode and address now live ONLY in the one
+  // consolidated "Pickup & delivery" recap block built below (pickupDeliveryBlock) —
+  // no longer repeated inside every single item's own card (itemFulfillmentRows,
+  // which used to render exactly these four rows per item, was removed).
+
+  // Groups physical items that share the same date + slot + mode (+ address,
+  // for a delivery) into one recap line, so an order with several items on
+  // the same pickup/delivery date shows that date once, not once per item.
+  // Sorted chronologically (undated groups — e.g. a "to be confirmed" case —
+  // sort last).
+  function groupKey(f: { date: string | null; slot: string | null; method: string | null; address: string | null }): string {
+    return [f.date ?? "", f.slot ?? "", f.method ?? "", f.method === "delivery" ? (f.address ?? "") : ""].join("|");
+  }
+  type PickupDeliveryGroup = { date: string | null; slot: string | null; method: string | null; address: string | null; itemIndexes: number[] };
+  function buildPickupDeliveryGroups(): PickupDeliveryGroup[] {
+    const groups = new Map<string, PickupDeliveryGroup>();
+    physicalItems.forEach((item: any, i: number) => {
+      const f = resolveItemFulfillment(item);
+      const key = groupKey(f);
+      if (!groups.has(key)) groups.set(key, { ...f, itemIndexes: [] });
+      groups.get(key)!.itemIndexes.push(i);
+    });
+    return Array.from(groups.values()).sort((a, b) => {
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return 1; // undated ("to be confirmed") groups sort last
+      if (!b.date) return -1;
+      return a.date.localeCompare(b.date);
+    });
+  }
+  // Same "Item N — Product" numbering as each item's own card title below —
+  // sharing this one function keeps the recap's item references and the
+  // card headers always in sync. No numbering at all when there's only one
+  // physical item (nothing to disambiguate).
+  function itemLabel(i: number): string {
+    const item = physicalItems[i];
+    const name = productLabel(item.product, lang);
+    return physicalItems.length > 1 ? `${tr("Item", "Article")} ${i + 1} — ${name}` : name;
   }
 
   // Bento identity: bordeaux #78020C (accents, section titles, borders,
   // banners) + cream #FDF8E1 (main background). Running text uses the SAME
   // browns already used for this in send-order-received-email — not a new
   // approximate colour: #351E13 for body copy / row values / card titles,
-  // #7A6540 for the muted label side of a row. Text on a bordeaux surface
-  // is cream (table headers, Total row, footer bar).
+  // #7A6540 for the muted label side of a row. Lighter typography pass:
+  // labels AND values are normal weight — bold is reserved for section
+  // titles, item titles, the pickup/delivery recap's dates, and the total,
+  // so those actually stand out instead of every single field competing
+  // for attention.
   const row = (label: string, value: string) =>
-    `<tr><td style="padding:6px 8px;color:#7A6540;font-size:14px;width:40%;">${label}</td><td style="padding:6px 8px;color:#351E13;font-size:14px;font-weight:600;">${value}</td></tr>`;
+    `<tr><td style="padding:6px 8px;color:#7A6540;font-size:14px;width:40%;">${label}</td><td style="padding:6px 8px;color:#351E13;font-size:14px;">${value}</td></tr>`;
 
   // Physical items only — workshops render in their own block below.
   const cakeDetailsRows = physicalItems.map((item: any, i: number) => {
@@ -225,10 +250,10 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
     // stay completely untouched for every other product.
     const isPrinting = item.product === "edible_printing";
 
-    // This item's own pickup/delivery info, first — never the order-wide
-    // block (removed above), which is only ever right when every item in
-    // the order happens to share one date.
-    const rows: string[] = [itemFulfillmentRows(item)];
+    // Date/time/mode/address are no longer repeated here — they live once
+    // each in the "Pickup & delivery" recap block above (pickupDeliveryBlock).
+    // This card only carries the product's own characteristics.
+    const rows: string[] = [];
     if (!isPrinting) {
       // diy_kit's size is always the same fixed "kit-bento" id — never a
       // real choice, and resolving it would just repeat the product name
@@ -272,7 +297,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
 
     return `
       <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${physicalItems.length > 1 ? `${tr("Item", "Article")} ${i + 1} — ${productLabel(item.product, lang)}` : productLabel(item.product, lang)}</h3>
+        <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${itemLabel(i)}</h3>
         ${designImageBlock}
         <table style="border-collapse:collapse;width:100%;">
           ${rows.join("")}
@@ -290,6 +315,42 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
           ${tr("Order details", "Détails de la commande")}
         </p>
         ${cakeDetailsRows}`
+    : "";
+
+  // One consolidated "Pickup & delivery" recap, shown once near the top of
+  // the email, before the item cards — replaces the old per-item date/slot/
+  // mode/address rows (itemFulfillmentRows, removed above). Items sharing
+  // the exact same date + slot + mode (+ address, for a delivery) are
+  // merged into a single line via buildPickupDeliveryGroups. The store
+  // address is shown at most ONCE for the whole recap, below the table,
+  // whenever at least one group is a pickup — never repeated per pickup
+  // date/line.
+  const pickupDeliveryGroups = physicalItems.length > 0 ? buildPickupDeliveryGroups() : [];
+  const hasPickupGroup = pickupDeliveryGroups.some((g) => g.method !== "delivery");
+  const pickupDeliveryRowsHtml = pickupDeliveryGroups.map((g) => {
+    const modeLabel = g.method === "delivery" ? tr("Delivery", "Livraison") : tr("Pickup at store", "Retrait sur place");
+    const itemsLine = g.itemIndexes.map(itemLabel).join(", ");
+    return `<tr style="border-bottom:1px solid #78020C;">
+      <td style="padding:12px 14px;color:#351E13;font-size:14px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+        <p style="margin:0 0 4px;">${itemsLine}</p>
+        <p style="margin:0;">
+          <strong style="font-weight:700;">${g.date ? formatDateCH(g.date) : tr("Date to be confirmed", "Date à confirmer")}</strong>${g.slot ? ` · ${g.slot}` : ""} — ${modeLabel}
+        </p>
+        ${g.method === "delivery" && g.address ? `<p style="margin:4px 0 0;color:#7A6540;font-size:13px;">${g.address}</p>` : ""}
+      </td>
+    </tr>`;
+  }).join("");
+  const pickupDeliveryBlock = pickupDeliveryGroups.length > 0
+    ? `
+        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+          ${tr("Pickup & delivery", "Retrait et livraison")}
+        </p>
+        <table style="border-collapse:collapse;width:100%;border:1px solid #78020C;margin:0 0 8px;">
+          ${pickupDeliveryRowsHtml}
+        </table>
+        ${hasPickupGroup
+          ? `<p style="color:#7A6540;font-size:12px;margin:0 0 20px;">${tr("Store address for pickups", "Adresse de la boutique pour les retraits")}: ${STORE_ADDRESS}</p>`
+          : ""}`
     : "";
 
   // Workshop detail block — one card per workshop line, shown only when the
@@ -384,6 +445,8 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
                 `Votre commande <strong>n° ${orderNumber}</strong> est maintenant confirmée.`
               )}
         </p>
+
+        ${pickupDeliveryBlock}
 
         ${cakeDetailsBlock}
 
