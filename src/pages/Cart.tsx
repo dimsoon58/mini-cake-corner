@@ -365,14 +365,30 @@ const Cart = () => {
                 <button onClick={handleClearAll} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">{t("Clear cart", "Vider le panier")}</button>
               </div>
 
-              {cartOrderDate && (
-                <div className="mb-4 bg-cream/60 border border-border/30 px-4 py-2.5 flex items-center justify-between gap-3">
-                  <span className="text-xs text-foreground/70">{t("Pickup", "Retrait le")} {formatDateFromIso(cartOrderDate)}</span>
-                  <button onClick={handleClearAll} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0">
-                    {t("Change date", "Modifier la date")}
-                  </button>
-                </div>
-              )}
+              {/* This banner is a cart-wide summary only — it never decides
+                  what's charged or how fulfillment is split (that's still
+                  cartOrderDate / per-item orderDate, untouched below and
+                  everywhere else in this file). With 2+ different pickup/
+                  delivery dates among the cart's items, stating any single
+                  one here would be misleading, so it switches to a plain
+                  "multiple dates" notice instead — each item's own card
+                  below always shows its own exact date regardless. */}
+              {(() => {
+                const distinctDates = Array.from(new Set(items.filter((i) => i.orderDate).map((i) => i.orderDate)));
+                if (distinctDates.length === 0) return null;
+                return (
+                  <div className="mb-4 bg-cream/60 border border-border/30 px-4 py-2.5 flex items-center justify-between gap-3">
+                    <span className="text-xs text-foreground/70">
+                      {distinctDates.length > 1
+                        ? t("Multiple pickup dates", "Plusieurs dates de retrait")
+                        : `${t("Pickup", "Retrait le")} ${formatDateFromIso(distinctDates[0]!)}`}
+                    </span>
+                    <button onClick={handleClearAll} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0">
+                      {t("Change date", "Modifier la date")}
+                    </button>
+                  </div>
+                );
+              })()}
 
               {items.map((item) => {
                 const isEditing = editingItemId === item.id;
@@ -476,7 +492,34 @@ const Cart = () => {
                 return (
                   <Card key={item.id} className="overflow-hidden rounded-none">
                     <CardContent className="p-6">
-                      <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-4">{item.sizeName} {item.shapeName} {t("Cake", "Gâteau")}</h3>
+                      <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-2">{item.sizeName} {item.shapeName} {t("Cake", "Gâteau")}</h3>
+
+                      {/* This item's OWN pickup/delivery date — never the
+                          cart-wide banner above, which can be misleading
+                          the moment two cakes in the same cart have
+                          different dates (see the "Multiple pickup dates"
+                          fallback on that banner). Straight from
+                          item.orderDate, already stored per CartItem —
+                          no derived/global date here. */}
+                      {item.orderDate && (
+                        <p className="text-sm font-bold text-foreground mb-3">
+                          {t("PICKUP", "RETRAIT")} — {formatDateFromIso(item.orderDate)}
+                        </p>
+                      )}
+
+                      {/* The exact design photo the customer picked, if the
+                          site captured one for this design (designImageUrl,
+                          set once at add-to-cart time — never rebuilt from
+                          item.design/item.style here). Nothing shown when
+                          it's empty. Fixed thumbnail box so a portrait or
+                          landscape source photo never stretches. */}
+                      {item.designImageUrl && (
+                        <img
+                          src={item.designImageUrl}
+                          alt={t("Chosen design", "Design choisi")}
+                          className="w-20 h-20 object-cover rounded mb-4 flex-shrink-0"
+                        />
+                      )}
 
                       {isEditing ? (
                         <CartItemEditor
@@ -676,21 +719,13 @@ const CartItemSummary = ({ item }: { item: any }) => {
           </div>
         )}
         {/* An Inspiration cake's styleName is the unhelpful "Inspiration #N"
-            — the photo the customer actually picked (designImageUrl) is
-            far clearer. The style id/name are still sent to the order as
-            before (order_items.design keeps "inspiration-N" — needed for
-            server-side pricing), only the display here changes. Every
-            other design keeps its plain text label, unchanged. */}
+            — the actual photo is now shown as a thumbnail at the top of
+            this card (item.designImageUrl), so this row only needs a
+            plain, readable label instead of that raw name. Every other
+            design keeps its own plain text label, unchanged. */}
         {!isDiyKit && item.style?.startsWith("inspiration-") ? (
           <div className="flex justify-between items-center gap-3">
-            <span className="text-muted-foreground flex items-center gap-2">
-              {t("Design:", "Design :")}
-              {item.designImageUrl ? (
-                <img src={item.designImageUrl} alt={t("Chosen design", "Design choisi")} className="h-10 w-10 object-cover rounded flex-shrink-0" />
-              ) : (
-                t("Inspiration photo", "Photo d'inspiration")
-              )}
-            </span>
+            <span className="text-muted-foreground">{t("Design:", "Design :")} {t("Inspiration photo", "Photo d'inspiration")}</span>
             {styleExtra > 0 ? (
               <span className="text-foreground">+ CHF {styleExtra}</span>
             ) : (
