@@ -8,6 +8,19 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PRODUCT_LABELS, formatDateCH, sizeLabel, shapeLabel, designLabel, flavorLabel, splitComment } from "@/lib/orderLabels";
+// Real product-line photos for the "no exact design captured" fallback
+// below — never the generic cake emoji. Same source photos already used as
+// each product's own hero/representative image on its page (DotCakes.tsx,
+// KitBentoCake.tsx, Workshop.tsx, Catalog.tsx's bento/rectangle galleries),
+// reused here rather than inventing new imagery.
+import dotCakesFallback from "@/assets/dot-gallery-1.jpg";
+import diyKitFallback from "@/assets/diy-kit-box.jpg";
+import candlesFallback from "@/assets/candle-heart-new.png";
+import bentoCakeFallback from "@/assets/bento-gallery-1.jpg";
+import rectangleCakeFallback from "@/assets/rectangle-signature.jpg";
+import workshopSignatureFallback from "@/assets/workshop-signature.jpg";
+import workshopPaintFallback from "@/assets/workshop-paint.png";
+import printingFallback from "@/assets/printing-gallery-1.jpg";
 
 // Products whose stored `design` is a fixed internal id (never a real
 // customer choice — Dot Cakes/DIY Kit/Printing/Candles don't have a
@@ -24,6 +37,10 @@ type CustomerOrderItem = {
   flavors: string[] | null;
   design: string | null;
   design_image_url: string | null;
+  // The client's own uploaded photos — for Printing this IS the exact image
+  // to be printed, so it's the right fallback when design_image_url hasn't
+  // been captured (older orders, placed before this was persisted here too).
+  reference_images: string[] | null;
   extra: string | null;
   extras_price: number;
   candle_name: string | null;
@@ -205,7 +222,7 @@ const MyOrders = () => {
         .from("orders")
         .select(
           "id, order_number, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone, delivery_fee, total_amount, order_validation, payment_status, invoice_path, fulfillment_type, physical_validation, refund_status, workshop_confirmed_at, order_failure_reason, " +
-          "order_items(id, product, size, shape, flavors, design, design_image_url, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total, workshop_type, workshop_date, workshop_time, workshop_participants, fulfillment_id), " +
+          "order_items(id, product, size, shape, flavors, design, design_image_url, reference_images, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total, workshop_type, workshop_date, workshop_time, workshop_participants, fulfillment_id), " +
           "order_fulfillments(id, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone)"
         )
         .eq("customer_id", user.id)
@@ -366,13 +383,46 @@ const MyOrders = () => {
   const isRejectedOrCancelled = (order: CustomerOrder) =>
     order.order_validation === "rejected" || order.order_validation === "cancelled" || !!order.order_failure_reason;
 
-  // One product card — image (the exact design photo the customer picked,
-  // design_image_url, when the site captured one; a plain fallback
-  // otherwise) on the left, name/price/details on the right. Labels
-  // (Design/Flavour/Extras/Candles/Comment) are bold, values are not — a
-  // real visual hierarchy instead of one flat wall of same-weight text.
+  // Resolves the photo shown on one item's card, in priority order:
+  //   1. design_image_url — the exact design/product photo the customer
+  //      picked, when the site captured one (every product now sets this
+  //      the same way Bento Cake always has — see Cart.tsx/Checkout.tsx).
+  //   2. For Printing specifically: the first of the client's own uploaded
+  //      reference_images — for this one product, that upload IS the exact
+  //      design (the photo to be printed), so it's a real, non-generic
+  //      choice too, not a placeholder. Only used as a fallback here since
+  //      Checkout.tsx already persists it as design_image_url on any new
+  //      order — this only still matters for older orders.
+  //   3. A real, representative photo for that product line — never the
+  //      cake emoji, which showed for every product with neither of the
+  //      above (mainly older orders placed before design_image_url existed
+  //      for that product).
+  // Always a real photo, or null for a genuinely unknown/unmapped product —
+  // never an emoji standing in for a missing image.
+  const itemDisplayImage = (item: CustomerOrderItem): string | null => {
+    if (item.design_image_url) return item.design_image_url;
+    if (item.product === "edible_printing" && item.reference_images?.length) {
+      return item.reference_images[0];
+    }
+    switch (item.product) {
+      case "dot_cakes": return dotCakesFallback;
+      case "diy_kit": return diyKitFallback;
+      case "candles": return candlesFallback;
+      case "bento_cake": return bentoCakeFallback;
+      case "rectangle_cake": return rectangleCakeFallback;
+      case "edible_printing": return printingFallback;
+      case "workshop": return item.workshop_type === "paint" ? workshopPaintFallback : workshopSignatureFallback;
+      default: return null;
+    }
+  };
+
+  // One product card — image (see itemDisplayImage above) on the left,
+  // name/price/details on the right. Labels (Design/Flavour/Extras/Candles/
+  // Comment) are bold, values are not — a real visual hierarchy instead of
+  // one flat wall of same-weight text.
   const ItemCard = ({ item }: { item: CustomerOrderItem }) => {
     const { designPhoto, comment } = splitComment(item.item_comment);
+    const displayImage = itemDisplayImage(item);
     const title = item.product === "workshop"
       ? (item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature"))
       : (t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product);
@@ -385,10 +435,8 @@ const MyOrders = () => {
     return (
       <div className="flex gap-3 p-3 border border-border/50 bg-background">
         <div className="w-16 h-16 flex-shrink-0 bg-secondary/40 flex items-center justify-center overflow-hidden">
-          {item.design_image_url ? (
-            <img src={item.design_image_url} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-2xl" aria-hidden="true">🍰</span>
+          {displayImage && (
+            <img src={displayImage} alt="" className="w-full h-full object-cover" />
           )}
         </div>
         <div className="flex-1 min-w-0 space-y-1">
