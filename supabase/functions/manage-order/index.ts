@@ -59,7 +59,7 @@ function realComment(comment: string | null | undefined): string | null {
 
 // ── Approval confirmation email ─────────────────────────────────────
 
-async function sendApprovalEmail(resendApiKey: string, order: any, items: any[], paymentMethodLabel: string, pdfBase64?: string | null) {
+async function sendApprovalEmail(resendApiKey: string, order: any, items: any[], paymentMethodLabel: string, pdfBase64?: string | null, fulfillments: any[] = []) {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
 
@@ -71,6 +71,50 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
   const physicalItems = items.filter((it: any) => it.product !== "workshop");
   const workshopOnly = workshopItems.length > 0 && physicalItems.length === 0;
   const mixed = workshopItems.length > 0 && physicalItems.length > 0;
+
+  // Multi-date fulfillment: each physical order_item carries its own
+  // fulfillment_id (one order_fulfillments row per distinct pickup/delivery
+  // date) — resolved per item so every cake/product shows ITS OWN date,
+  // slot and mode instead of one order-wide block that's only ever correct
+  // when every item happens to share the same date. Falls back to the
+  // order-level columns for an item with no fulfillment_id (legacy single-
+  // fulfillment orders) — never a second source of truth, just the one
+  // already-authoritative date resolved per item.
+  const fulfillmentById = new Map<string, any>((fulfillments || []).map((f: any) => [f.id, f]));
+  const STORE_ADDRESS = "Rue Prévost-Martin 8, 1205 Genève";
+  function resolveItemFulfillment(item: any): { date: string | null; slot: string | null; method: string | null; address: string | null } {
+    const f = item.fulfillment_id ? fulfillmentById.get(item.fulfillment_id) : null;
+    if (f) {
+      return {
+        date: f.pickup_delivery_date ?? null,
+        slot: f.pickup_delivery_slot ?? null,
+        method: f.delivery_method ?? null,
+        address: f.delivery_address ?? null,
+      };
+    }
+    return {
+      date: order.pickup_delivery_date ?? null,
+      slot: order.pickup_delivery_slot ?? null,
+      method: order.delivery_method ?? null,
+      address: order.delivery_address ?? null,
+    };
+  }
+  // Rows shown at the top of EACH physical item's own card — date, slot,
+  // mode, and (pickup only) the store's fixed address, always shown
+  // regardless of what the customer typed anywhere else.
+  function itemFulfillmentRows(item: any): string {
+    const f = resolveItemFulfillment(item);
+    if (!f.method) return "";
+    const modeLabel = f.method === "delivery" ? tr("Delivery", "Livraison") : tr("Pickup at store", "Retrait sur place");
+    return [
+      f.date ? row(tr("Date", "Date"), formatDateCH(f.date)) : "",
+      f.slot ? row(tr("Time", "Heure"), f.slot) : "",
+      row(tr("Mode", "Mode"), modeLabel),
+      f.method === "delivery"
+        ? row(tr("Address", "Adresse"), f.address || "—")
+        : row(tr("Address", "Adresse"), STORE_ADDRESS),
+    ].join("");
+  }
 
   // Bento identity: bordeaux #78020C (accents, section titles, borders,
   // banners) + cream #FDF8E1 (main background). Running text uses the SAME
@@ -87,7 +131,10 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
       ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
       : "";
 
-    const rows: string[] = [];
+    // This item's own pickup/delivery info, first — never the order-wide
+    // block (removed above), which is only ever right when every item in
+    // the order happens to share one date.
+    const rows: string[] = [itemFulfillmentRows(item)];
     if (item.size) rows.push(row(tr("Size", "Taille"), item.size));
     if (item.flavors?.length) rows.push(row(tr("Flavour", "Parfum"), item.flavors.join(", ")));
     if (item.shape) rows.push(row(tr("Shape", "Forme"), item.shape));
@@ -227,21 +274,6 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
                 `Votre commande <strong>n° ${orderNumber}</strong> est maintenant confirmée.`
               )}
         </p>
-
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
-          ${order.delivery_method === "delivery"
-            ? tr("Delivery details", "Détails de la livraison")
-            : order.delivery_method === "pickup"
-              ? tr("Pickup details", "Détails du retrait")
-              : tr("Payment", "Paiement")}
-        </p>
-        <table style="border-collapse:collapse;width:100%;border:1px solid #78020C;margin:0 0 24px;">
-          ${order.delivery_method ? row(tr("Date", "Date"), formatDateCH(order.pickup_delivery_date)) : ""}
-          ${order.delivery_method && order.pickup_delivery_slot ? row(tr("Time", "Heure"), order.pickup_delivery_slot) : ""}
-          ${order.delivery_method === "pickup" ? row(tr("Mode", "Mode"), tr("Pickup at store", "Retrait sur place")) : ""}
-          ${order.delivery_method === "delivery" ? row(tr("Mode", "Mode"), tr("Delivery", "Livraison")) : ""}
-          ${order.delivery_method === "delivery" ? row(tr("Address", "Adresse"), order.delivery_address || "—") : ""}
-        </table>
 
         ${cakeDetailsBlock}
 
@@ -1246,7 +1278,7 @@ serve(async (req) => {
 
       const resendKeyApprove = Deno.env.get("RESEND_API_KEY");
       if (resendKeyApprove) {
-        try { approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order, orderItems, paymentMethodLabel, invoicePdfBase64); }
+        try { approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order, orderItems, paymentMethodLabel, invoicePdfBase64, orderFulfillments); }
         catch (e) { console.error("Approval email error:", e); }
       }
 
