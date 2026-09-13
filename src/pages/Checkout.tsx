@@ -52,7 +52,7 @@ import DeliveryAddressAutocomplete, { type AddressSelection } from "@/components
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { isOrderDateDisabled, expressSurcharge, expressSummaryLabel, uniformExpressRate } from "@/lib/orderDates";
+import { isOrderDateDisabled, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
 import { cartItemTitle, flavorLabel } from "@/lib/orderLabels";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
@@ -487,13 +487,9 @@ const Checkout = () => {
     const d = getFulfillmentDraft(g.date);
     return sum + (d.deliveryOption === "delivery" && d.deliveryQuoteStatus === "ok" && d.deliveryQuote ? d.deliveryQuote.fee : 0);
   }, 0);
-  const multiDateExpressSurchargeTotal = physicalDateGroups.reduce((sum, g) => {
-    // Candles are a decorative add-on, not a food product — excluded from
-    // the surcharge base the same way workshops are (server mirrors this
-    // exactly in create-postfinance-payment).
-    const groupExpressEligibleTotal = g.items.reduce((s, i) => (i.product === "candles" ? s : s + i.total), 0);
-    return sum + expressSurcharge(groupExpressEligibleTotal, new Date(g.date + "T00:00:00"));
-  }, 0);
+  // Express surcharge is computed per date group further below
+  // (expressBreakdown, near expressSurchargeAmount) — each date group priced
+  // at its OWN tier, never one blended rate for the whole multi-date cart.
 
   const [deliveryDate, setDeliveryDate] = useState<Date>(() => {
     const firstPhysicalWithDate = items.find((i) => i.product !== "workshop" && i.orderDate);
@@ -772,24 +768,24 @@ const Checkout = () => {
   // pickup_delivery_date and is the sole authority on the charged amount.
   // Base = physical FOOD products only (workshops, candles and delivery
   // excluded — candles are a decorative add-on, not a food product).
-  // Multi-date active: each date is evaluated against its OWN items'
-  // subtotal (multiDateExpressSurchargeTotal, computed above) — a J+2 date
-  // and a J+9 date in the same order must not share one flag.
+  // Multi-date active: each date group is priced against its OWN items'
+  // subtotal, at its OWN tier — a J+2 date (20%) and a J+4 date (15%) in the
+  // same order never share one rate, and expressBreakdown.byRate lists both
+  // amounts separately for the summary below instead of one blended line.
   const physicalProductsTotal = items
     .filter((item) => item.product !== "workshop" && item.product !== "candles")
     .reduce((sum, item) => sum + item.total, 0);
-  const expressSurchargeAmount = isMultiDateActive
-    ? multiDateExpressSurchargeTotal
-    : expressSurcharge(physicalProductsTotal, deliveryDate);
-
-  // Rate to show next to the summary line below ("Express surcharge
-  // (15%)") — same date source as expressSurchargeAmount just above, so the
-  // displayed percentage can never drift from the amount it labels. Null
-  // (no percentage shown, base label only) when a multi-date cart blends
-  // two different rates — see uniformExpressRate.
-  const expressSurchargeRateForSummary = isMultiDateActive
-    ? uniformExpressRate(physicalDateGroups.map((g) => new Date(g.date + "T00:00:00")))
-    : uniformExpressRate([deliveryDate]);
+  const expressGroups: ExpressGroup[] = isMultiDateActive
+    ? physicalDateGroups.map((g) => ({
+        date: new Date(g.date + "T00:00:00"),
+        // Candles are a decorative add-on, not a food product — excluded
+        // from the surcharge base the same way workshops are (server
+        // mirrors this exactly in create-postfinance-payment).
+        eligibleTotal: g.items.reduce((s, i) => (i.product === "candles" ? s : s + i.total), 0),
+      }))
+    : [{ date: deliveryDate, eligibleTotal: physicalProductsTotal }];
+  const expressBreakdown = expressSurchargeBreakdown(expressGroups);
+  const expressSurchargeAmount = expressBreakdown.total;
 
   // deliveryPrice already resolves to 0 when there's nothing to charge, in
   // BOTH modes (single: gated by deliveryOption === "delivery" internally;
@@ -2001,12 +1997,12 @@ const Checkout = () => {
                 <span className="font-medium">CHF {itemsTotal.toFixed(2)}</span>
               </div>
 
-              {expressSurchargeAmount > 0 && (
-                <div className="flex justify-between items-center mb-2 text-sm">
-                  <span className="text-muted-foreground">{expressSummaryLabel(lang === "fr" ? "fr" : "en", expressSurchargeRateForSummary)}</span>
-                  <span className="font-medium">CHF {expressSurchargeAmount.toFixed(2)}</span>
+              {expressBreakdown.byRate.map(({ rate, amount }) => (
+                <div key={rate} className="flex justify-between items-center mb-2 text-sm">
+                  <span className="text-muted-foreground">{expressSummaryLabel(lang === "fr" ? "fr" : "en", rate)}</span>
+                  <span className="font-medium">CHF {amount.toFixed(2)}</span>
                 </div>
-              )}
+              ))}
 
               {canUseWelcomeDiscountNow && (
                 <div className="flex items-center space-x-3 py-2">

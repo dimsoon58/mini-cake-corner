@@ -154,29 +154,58 @@ export const EXPRESS_COPY = {
   },
 } as const;
 
-// The single express rate to show next to the cart/checkout summary line
-// (e.g. "Express surcharge (15%)"), or null when it can't be stated as one
-// truthful number — either no date here carries a surcharge, or (a
-// multi-date cart) two or more dates carry DIFFERENT rates, whose blended
-// total has no single percentage. Callers must render the summary label
-// WITHOUT a percentage suffix in that null case — see expressSummaryLabel
-// below — never estimate one from amount ÷ subtotal.
-export function uniformExpressRate(dates: Array<Date | null | undefined>): number | null {
-  let rate: number | null = null;
-  for (const date of dates) {
-    const r = expressSurchargeRate(date);
-    if (r === 0) continue;
-    if (rate === null) rate = r;
-    else if (rate !== r) return null;
-  }
-  return rate;
+// One express-eligible group: a single pickup/delivery date together with
+// the CHF total of ITS OWN physical/food items only (workshops, candles and
+// delivery already excluded by the caller — same convention as
+// expressSurcharge's own base). Cart.tsx/Checkout.tsx each build this list
+// by grouping their items by item.orderDate, so a cart spanning a J+2 date
+// (20%) and a J+4 date (15%) charges 20% only on the J+2 date's own
+// products and 15% only on the J+4 date's — never one blended rate applied
+// to the whole cart.
+export interface ExpressGroup {
+  date: Date | null | undefined;
+  eligibleTotal: number;
 }
 
-// Cart/checkout summary label for the express surcharge line. Appends the
-// dynamic rate ("(15%)" / "(15 %)") when — and only when — uniformExpressRate
-// found a single rate to state; falls back to the bare label for a blended
-// multi-date total, exactly as before this wording fix (the exact CHF
-// amount is always shown next to it regardless).
+// One express-surcharge amount, broken down by the exact rate that produced
+// it — the customer-facing counterpart of expressSurcharge's per-group math
+// above. Every group is priced against its OWN date and OWN total via
+// expressSurchargeRate/expressSurcharge (the same tiered rules, the same
+// rounding), then amounts sharing the same rate are summed together, so
+// `total` always equals the sum of every group's own surcharge — exactly
+// what create-postfinance-payment independently re-derives and charges,
+// never a re-estimate from a blended percentage. `byRate` lists only the
+// rates actually present (20%, 15%, both, or neither), sorted highest
+// first, so the caller can render one "Express surcharge (20%)" / "(15%)"
+// line per rate instead of one line that can only ever state a single
+// truthful percentage.
+export interface ExpressSurchargeBreakdown {
+  total: number;
+  byRate: Array<{ rate: number; amount: number }>;
+}
+
+export function expressSurchargeBreakdown(groups: ExpressGroup[]): ExpressSurchargeBreakdown {
+  const amountByRate = new Map<number, number>();
+  for (const group of groups) {
+    const rate = expressSurchargeRate(group.date);
+    if (rate === 0) continue;
+    const amount = expressSurcharge(group.eligibleTotal, group.date);
+    amountByRate.set(rate, Math.round(((amountByRate.get(rate) ?? 0) + amount) * 100) / 100);
+  }
+  const byRate = Array.from(amountByRate.entries())
+    .map(([rate, amount]) => ({ rate, amount }))
+    .sort((a, b) => b.rate - a.rate);
+  const total = Math.round(byRate.reduce((sum, r) => sum + r.amount, 0) * 100) / 100;
+  return { total, byRate };
+}
+
+// Cart/checkout summary label for one express-surcharge line. Appends the
+// exact rate ("(15%)" / "(15 %)") this line's amount was charged at — every
+// caller now renders one line per entry of expressSurchargeBreakdown's
+// byRate (always a concrete rate, e.g. both a "(20%)" and a "(15%)" line
+// side by side for a cart spanning both tiers), so `rate` is null only for
+// a caller with no date/surcharge context at all (falls back to the bare
+// label; the exact CHF amount is always shown next to it regardless).
 export function expressSummaryLabel(lang: "en" | "fr", rate: number | null): string {
   const base = EXPRESS_COPY.summaryLabel[lang];
   if (rate === null) return base;

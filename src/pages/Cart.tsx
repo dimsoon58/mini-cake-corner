@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { formatSessionDate } from "@/data/workshopSessions";
-import { expressSurcharge, expressSummaryLabel, uniformExpressRate } from "@/lib/orderDates";
+import { expressSurchargeBreakdown, expressSummaryLabel } from "@/lib/orderDates";
 import { ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { FlavorDesc } from "@/data/flavorDesc";
@@ -74,6 +74,30 @@ const Cart = () => {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
+
+  // Express surcharge, computed per DATE (multi-date fulfillment: a cart can
+  // now span several pickup/delivery dates, each with its own rate) — never
+  // one date's rate applied to the whole cart's physical total. Groups the
+  // express-eligible items (food products only: workshops and candles are
+  // excluded, same base as always) by their OWN item.orderDate, prices each
+  // date's own subtotal at that date's own tier, then expressSurchargeBreakdown
+  // sums those per-date amounts back together by rate — so a cart with a
+  // J+2 (20%) date and a J+4 (15%) date shows both "Express surcharge (20%)"
+  // and "Express surcharge (15%)" as two separate, individually-accurate
+  // lines, each charging only its own date's products. Single-date carts
+  // (the common case) reduce to exactly the one line/rate as before.
+  const expressGroups = (() => {
+    const byDate = new Map<string, number>();
+    for (const item of items) {
+      if (item.product === "workshop" || item.product === "candles" || !item.orderDate) continue;
+      byDate.set(item.orderDate, (byDate.get(item.orderDate) ?? 0) + item.total);
+    }
+    return Array.from(byDate.entries()).map(([date, eligibleTotal]) => ({
+      date: new Date(date + "T00:00:00"),
+      eligibleTotal,
+    }));
+  })();
+  const expressBreakdown = expressSurchargeBreakdown(expressGroups);
 
   // GA4 view_cart — once when the cart page opens with something in it.
   const viewCartSentRef = useRef(false);
@@ -609,36 +633,15 @@ const Cart = () => {
                       </div>
                     ))}
                   </div>
-                  {(() => {
-                    const orderDateObj = cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null;
-                    // Candles are a decorative add-on, not a food product —
-                    // excluded from the surcharge base the same way
-                    // workshops are (server mirrors this exactly).
-                    const physicalTotal = items
-                      .filter((i) => i.product !== "workshop" && i.product !== "candles")
-                      .reduce((s, i) => s + i.total, 0);
-                    const surcharge = expressSurcharge(physicalTotal, orderDateObj);
-                    if (surcharge <= 0) return null;
-                    // Single cart order date here, so uniformExpressRate
-                    // always resolves to that date's own rate (never null)
-                    // — the null/blended case only matters in Checkout.tsx's
-                    // multi-date summary.
-                    const rate = uniformExpressRate([orderDateObj]);
-                    return (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{expressSummaryLabel(lang === "fr" ? "fr" : "en", rate)}</span>
-                        <span className="text-foreground">CHF {surcharge.toFixed(2)}</span>
-                      </div>
-                    );
-                  })()}
+                  {expressBreakdown.byRate.map(({ rate, amount }) => (
+                    <div key={rate} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{expressSummaryLabel(lang === "fr" ? "fr" : "en", rate)}</span>
+                      <span className="text-foreground">CHF {amount.toFixed(2)}</span>
+                    </div>
+                  ))}
                   <div className="flex justify-between text-lg font-bold">
                     <span className="text-foreground">{t("Total", "Total")}</span>
-                    <span className="text-primary">CHF {(
-                      totalPrice + expressSurcharge(
-                        items.filter((i) => i.product !== "workshop" && i.product !== "candles").reduce((s, i) => s + i.total, 0),
-                        cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null,
-                      )
-                    ).toFixed(2)}</span>
+                    <span className="text-primary">CHF {(totalPrice + expressBreakdown.total).toFixed(2)}</span>
                   </div>
                   <ExpressDateNotice date={cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null} />
                   {items.some((i) => i.product === "workshop") &&
