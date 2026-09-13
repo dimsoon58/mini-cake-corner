@@ -131,21 +131,30 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
       ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
       : "";
 
+    // Edible Printing has none of a cake's own attributes (no size, shape,
+    // design, colours, text or candles — Printing.tsx never sets any of
+    // them to a real value). Shown as its own minimal card — title +
+    // pickup/delivery info + note — never the cake fields below, which
+    // stay completely untouched for every other product.
+    const isPrinting = item.product === "edible_printing";
+
     // This item's own pickup/delivery info, first — never the order-wide
     // block (removed above), which is only ever right when every item in
     // the order happens to share one date.
     const rows: string[] = [itemFulfillmentRows(item)];
-    if (item.size) rows.push(row(tr("Size", "Taille"), item.size));
-    if (item.flavors?.length) rows.push(row(tr("Flavour", "Parfum"), item.flavors.join(", ")));
-    if (item.shape) rows.push(row(tr("Shape", "Forme"), item.shape));
-    if (item.design) rows.push(row(tr("Design", "Design"), item.design));
-    if (item.base_color) rows.push(row(tr("Base colour", "Couleur de base"), item.base_color));
-    if (item.decoration_color) rows.push(row(tr("Decoration colour", "Couleur de décoration"), item.decoration_color));
-    if (item.text_color) rows.push(row(tr("Text colour", "Couleur du texte"), item.text_color));
-    if (item.text_style) rows.push(row(tr("Text style", "Style du texte"), item.text_style));
-    if (item.cake_text) rows.push(row(tr("Text on cake", "Texte sur le gâteau"), item.cake_text));
-    if (item.extra) rows.push(row(tr("Extras", "Suppléments"), item.extra));
-    if (candleStr) rows.push(row(tr("Candles", "Bougies"), candleStr));
+    if (!isPrinting) {
+      if (item.size) rows.push(row(tr("Size", "Taille"), item.size));
+      if (item.flavors?.length) rows.push(row(tr("Flavour", "Parfum"), item.flavors.join(", ")));
+      if (item.shape) rows.push(row(tr("Shape", "Forme"), item.shape));
+      if (item.design) rows.push(row(tr("Design", "Design"), item.design));
+      if (item.base_color) rows.push(row(tr("Base colour", "Couleur de base"), item.base_color));
+      if (item.decoration_color) rows.push(row(tr("Decoration colour", "Couleur de décoration"), item.decoration_color));
+      if (item.text_color) rows.push(row(tr("Text colour", "Couleur du texte"), item.text_color));
+      if (item.text_style) rows.push(row(tr("Text style", "Style du texte"), item.text_style));
+      if (item.cake_text) rows.push(row(tr("Text on cake", "Texte sur le gâteau"), item.cake_text));
+      if (item.extra) rows.push(row(tr("Extras", "Suppléments"), item.extra));
+      if (candleStr) rows.push(row(tr("Candles", "Bougies"), candleStr));
+    }
     const cakeComment = realComment(item.item_comment);
     if (cakeComment) rows.push(row(tr("Additional note", "Remarque complémentaire"), cakeComment));
 
@@ -162,7 +171,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
 
     return `
       <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${tr("Cake", "Gâteau")}${physicalItems.length > 1 ? ` ${i + 1}` : ""}</h3>
+        <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${isPrinting ? tr("Printing", "Impression") : tr("Cake", "Gâteau")}${physicalItems.length > 1 ? ` ${i + 1}` : ""}</h3>
         ${designImageBlock}
         <table style="border-collapse:collapse;width:100%;">
           ${rows.join("")}
@@ -231,7 +240,9 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
         + `${item.workshop_date ? " — " + formatDateCH(item.workshop_date) : ""}`
         + `${item.workshop_time ? " · " + item.workshop_time : ""}`
         + `${item.workshop_participants ? ` — ${item.workshop_participants} ${tr("participant(s)", "participant(s)")}` : ""}`
-      : `${item.size || ""} ${item.shape || ""} — ${(item.flavors || []).join(", ")}`;
+      : item.product === "edible_printing"
+        ? tr("Printing", "Impression")
+        : `${item.size || ""} ${item.shape || ""} — ${(item.flavors || []).join(", ")}`;
     return `
     <tr>
       <td style="padding:12px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${label}</td>
