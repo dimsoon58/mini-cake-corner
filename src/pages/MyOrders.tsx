@@ -23,6 +23,7 @@ type CustomerOrderItem = {
   shape: string | null;
   flavors: string[] | null;
   design: string | null;
+  design_image_url: string | null;
   extra: string | null;
   extras_price: number;
   candle_name: string | null;
@@ -34,6 +35,12 @@ type CustomerOrderItem = {
   workshop_date: string | null;
   workshop_time: string | null;
   workshop_participants: number | null;
+  // Links this physical item to the order_fulfillments row it's picked up/
+  // delivered with — null for a workshop line (workshops carry their own
+  // workshop_date, never a fulfillment) or for an item added before
+  // multi-date fulfillment existed (falls back to the order-level date,
+  // same convention as every backend email/invoice already uses).
+  fulfillment_id: string | null;
 };
 
 type CustomerOrderFulfillment = {
@@ -83,6 +90,53 @@ function fulfillmentDates(order: CustomerOrder): string[] {
 }
 function isMultiDateOrder(order: CustomerOrder): boolean {
   return (order.order_fulfillments?.length ?? 0) > 1;
+}
+
+// A group of physical items that share one pickup/delivery date — the
+// "date first, then its products" layout. `fulfillment` is null only when
+// no order_fulfillments row could be matched at all (an order placed
+// before multi-date fulfillment existed AND with no fulfillments rows —
+// falls back to the order-level pickup_delivery_date/slot/method,
+// resolved by the caller, same as every backend email/invoice already
+// does for this exact gap).
+type FulfillmentGroup = { fulfillment: CustomerOrderFulfillment | null; items: CustomerOrderItem[] };
+
+function groupItemsByFulfillment(order: CustomerOrder): FulfillmentGroup[] {
+  const physicalItems = order.order_items.filter((i) => i.product !== "workshop");
+  if (!physicalItems.length) return [];
+
+  const fulfillmentById = new Map(order.order_fulfillments.map((f) => [f.id, f]));
+  const sortedFulfillments = [...order.order_fulfillments].sort(
+    (a, b) => (a.pickup_delivery_date || "").localeCompare(b.pickup_delivery_date || "")
+  );
+
+  // Single (or no) fulfillment row: every physical item is one group —
+  // never split, regardless of fulfillment_id (this is the ≤1-date case,
+  // covers both today's normal orders and any legacy row with none).
+  if (sortedFulfillments.length <= 1) {
+    return [{ fulfillment: sortedFulfillments[0] ?? null, items: physicalItems }];
+  }
+
+  // Genuinely multi-date: group strictly by fulfillment_id. An item with no
+  // fulfillment_id (or one that doesn't match any known fulfillment row —
+  // shouldn't happen, defensive) falls into its own "date unknown" group
+  // rather than being silently dropped or misattributed to the wrong date.
+  const groups = new Map<string, CustomerOrderItem[]>();
+  const unassigned: CustomerOrderItem[] = [];
+  for (const item of physicalItems) {
+    if (item.fulfillment_id && fulfillmentById.has(item.fulfillment_id)) {
+      const arr = groups.get(item.fulfillment_id) ?? [];
+      arr.push(item);
+      groups.set(item.fulfillment_id, arr);
+    } else {
+      unassigned.push(item);
+    }
+  }
+  const result: FulfillmentGroup[] = sortedFulfillments
+    .map((f) => ({ fulfillment: f, items: groups.get(f.id) ?? [] }))
+    .filter((g) => g.items.length > 0);
+  if (unassigned.length) result.push({ fulfillment: null, items: unassigned });
+  return result;
 }
 
 // Collapsed-card summary date: identical to today's rendering for the
@@ -151,7 +205,7 @@ const MyOrders = () => {
         .from("orders")
         .select(
           "id, order_number, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone, delivery_fee, total_amount, order_validation, payment_status, invoice_path, fulfillment_type, physical_validation, refund_status, workshop_confirmed_at, order_failure_reason, " +
-          "order_items(id, product, size, shape, flavors, design, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total, workshop_type, workshop_date, workshop_time, workshop_participants), " +
+          "order_items(id, product, size, shape, flavors, design, design_image_url, extra, extras_price, candle_name, candle_quantity, candles_price, item_comment, total, workshop_type, workshop_date, workshop_time, workshop_participants, fulfillment_id), " +
           "order_fulfillments(id, pickup_delivery_date, pickup_delivery_slot, delivery_method, delivery_address, delivery_zone)"
         )
         .eq("customer_id", user.id)
@@ -230,18 +284,44 @@ const MyOrders = () => {
     if (!order.invoice_path) return;
     setInvoiceLoadingId(order.id);
     // Open a blank tab SYNCHRONOUSLY, still inside the click handler, before
-    // any await — some browsers (Safari in particular) stop treating a
-    // window.open() call as user-initiated once it happens after an awaited
-    // network call, and silently block it with no visible error. Opening
-    // the tab now and redirecting it once the signed URL resolves keeps
-    // this a genuine, unblocked user gesture end to end.
-    const invoiceTab = window.open("", "_blank", "noopener,noreferrer");
+    // any await — some browsers (Safari in particular, also on iOS) stop
+    // treating a window.open() call as user-initiated once it happens
+    // after an awaited network call, and silently block it with no
+    // visible error. Opening the tab now and redirecting it once the
+    // signed URL resolves keeps this a genuine, unblocked user gesture
+    // end to end.
+    //
+    // The actual bug (found by tracing this precisely): the "noopener"
+    // feature was passed to THIS FIRST call. Per spec, window.open()
+    // ALWAYS returns null when "noopener" (or "noreferrer", which implies
+    // it) is set — there is no way to both keep a handle to the new tab
+    // AND deny it window.opener. That made `invoiceTab` null on every
+    // single call, in every browser, all the time — not just Safari —
+    // so this code always silently fell through to the `else` branch
+    // below: a SECOND window.open(), called only after the await, which
+    // Safari (and strict popup blockers generally) then blocked as an
+    // untrusted popup. createSignedUrl() itself was never the problem.
+    // Fix: don't pass "noopener"/"noreferrer" on this first call, so we
+    // actually get the tab reference back and can navigate it once the
+    // signed URL is ready — the content it ends up showing is always our
+    // own Supabase storage response (a PDF), never third-party/untrusted,
+    // so there's nothing meaningful for that tab to do with window.opener
+    // even if it wanted to.
+    const invoiceTab = window.open("", "_blank");
+    if (invoiceTab) {
+      // Defense in depth: we already don't pass "noopener" (that's what
+      // lets us keep this handle), but explicitly clearing .opener has the
+      // same practical effect — the new tab can't reach back into this
+      // page via window.opener — without sacrificing the reference we need
+      // to navigate it below.
+      invoiceTab.opener = null;
+    }
     try {
       const { data, error } = await supabase.storage
         .from("invoice")
         .createSignedUrl(order.invoice_path, 60 * 5);
       if (error || !data?.signedUrl) {
-        console.error("Failed to get invoice URL:", error);
+        console.error("Failed to get invoice signed URL:", order.id, order.invoice_path, error);
         invoiceTab?.close();
         toast({
           title: t("Could not open the invoice", "Impossible d'ouvrir la facture"),
@@ -256,13 +336,15 @@ const MyOrders = () => {
       if (invoiceTab) {
         invoiceTab.location.href = data.signedUrl;
       } else {
-        // The pre-opened tab itself got blocked (very strict blocker) —
-        // fall back to a direct open now; this one at least carries a real
-        // URL, which some blockers still allow through.
+        // The pre-opened tab itself got blocked — a genuine, strict popup
+        // blocker this time (invoiceTab is a real handle now, so this is
+        // no longer the noopener self-inflicted case above). Fall back to
+        // a direct open now; this one at least carries a real URL, which
+        // some blockers still allow through even when called late.
         window.open(data.signedUrl, "_blank", "noopener,noreferrer");
       }
     } catch (err) {
-      console.error("Invoice fetch threw:", err);
+      console.error("Invoice fetch threw:", order.id, order.invoice_path, err);
       invoiceTab?.close();
       toast({
         title: t("Could not open the invoice", "Impossible d'ouvrir la facture"),
@@ -275,6 +357,107 @@ const MyOrders = () => {
     } finally {
       setInvoiceLoadingId(null);
     }
+  };
+
+  // A pending order simply hasn't reached the confirmation step yet — an
+  // invoice will exist once it does. A rejected/cancelled order never will,
+  // so the two must never share the same "not yet" wording (which implies
+  // "later" for a case where there's no "later" coming).
+  const isRejectedOrCancelled = (order: CustomerOrder) =>
+    order.order_validation === "rejected" || order.order_validation === "cancelled" || !!order.order_failure_reason;
+
+  // One product card — image (the exact design photo the customer picked,
+  // design_image_url, when the site captured one; a plain fallback
+  // otherwise) on the left, name/price/details on the right. Labels
+  // (Design/Flavour/Extras/Candles/Comment) are bold, values are not — a
+  // real visual hierarchy instead of one flat wall of same-weight text.
+  const ItemCard = ({ item }: { item: CustomerOrderItem }) => {
+    const { designPhoto, comment } = splitComment(item.item_comment);
+    const title = item.product === "workshop"
+      ? (item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature"))
+      : (t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product);
+    // diy_kit's size is always the same fixed "kit-bento" id — never a real
+    // choice, and resolving it here would just repeat the product name
+    // ("DIY Kit — DIY Kit" in English). Dot Cakes' size IS meaningful (the
+    // pack count), kept.
+    const sizeSuffix = item.product !== "workshop" && item.product !== "diy_kit" && item.size ? ` — ${sizeLabel(item.size, lang)}` : "";
+    const shapeSuffix = item.product !== "workshop" && item.shape && item.shape !== "round" ? ` (${shapeLabel(item.shape, lang)})` : "";
+    return (
+      <div className="flex gap-3 p-3 border border-border/50 bg-background">
+        <div className="w-16 h-16 flex-shrink-0 bg-secondary/40 flex items-center justify-center overflow-hidden">
+          {item.design_image_url ? (
+            <img src={item.design_image_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-2xl" aria-hidden="true">🍰</span>
+          )}
+        </div>
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm font-semibold text-foreground">{title}{sizeSuffix}{shapeSuffix}</p>
+            <p className="text-sm font-bold text-foreground whitespace-nowrap">CHF {item.total}</p>
+          </div>
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            {item.product === "workshop" && (
+              <>
+                {item.workshop_date && <p><strong className="font-semibold text-foreground/80">{t("Date:", "Date :")}</strong> {formatDateCH(item.workshop_date)}{item.workshop_time ? ` · ${item.workshop_time}` : ""}</p>}
+                {item.workshop_participants != null && <p><strong className="font-semibold text-foreground/80">{t("Participants:", "Participants :")}</strong> {item.workshop_participants}</p>}
+              </>
+            )}
+            {/* Dot Cakes/DIY Kit/Printing/Candles: "design" is a fixed
+                internal id, never a real customer choice — showing it
+                would just repeat the product name for no new info. */}
+            {item.design && !PRODUCTS_WITHOUT_MEANINGFUL_DESIGN.has(item.product) && (
+              <p>
+                <strong className="font-semibold text-foreground/80">{t("Design:", "Design :")}</strong> {designLabel(item.design)}
+                {designPhoto ? ` — ${t("Photo", "Photo")} ${designPhoto}` : ""}
+              </p>
+            )}
+            {item.flavors?.length ? <p><strong className="font-semibold text-foreground/80">{t("Flavour:", "Parfum :")}</strong> {flavorLabel(item.flavors.join(","))}</p> : null}
+            {item.extra && <p><strong className="font-semibold text-foreground/80">{t("Extras:", "Extras :")}</strong> {item.extra} (+CHF {item.extras_price})</p>}
+            {item.candle_name && (
+              <p>
+                <strong className="font-semibold text-foreground/80">{t("Candles:", "Bougies :")}</strong> {item.candle_name}
+                {item.candle_quantity ? ` ×${item.candle_quantity}` : ""} (+CHF {item.candles_price})
+              </p>
+            )}
+            {comment && <p><strong className="font-semibold text-foreground/80">{t("Comment:", "Commentaire :")}</strong> {comment}</p>}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Group header — the date/method a group of product cards is attached
+  // to, shown ABOVE those cards (never a date list disconnected from the
+  // items at the bottom). `fulfillment: null` only for the legacy/no-
+  // fulfillment-row fallback, resolved from the order-level columns —
+  // same single group either way, single-date or multi-date orders share
+  // this exact rendering.
+  const FulfillmentHeader = ({ group, order }: { group: FulfillmentGroup; order: CustomerOrder }) => {
+    const date = group.fulfillment?.pickup_delivery_date ?? order.pickup_delivery_date;
+    const slot = group.fulfillment?.pickup_delivery_slot ?? order.pickup_delivery_slot;
+    const method = group.fulfillment?.delivery_method ?? order.delivery_method;
+    const address = group.fulfillment?.delivery_address ?? order.delivery_address;
+    const zone = group.fulfillment?.delivery_zone ?? order.delivery_zone;
+    if (!date && !method) {
+      return (
+        <p className="text-sm font-bold uppercase tracking-wide text-foreground">
+          {t("Date to be confirmed", "Date à confirmer")}
+        </p>
+      );
+    }
+    return (
+      <div>
+        <p className="text-sm font-bold uppercase tracking-wide text-foreground">
+          {deliveryMethodLabel(method) || t("Pickup", "Retrait")}
+          {" — "}{formatDateCH(date)}{slot ? ` · ${slot}` : ""}
+          {method === "delivery" && zone ? ` (${zone})` : ""}
+        </p>
+        {method === "delivery" && address && (
+          <p className="text-xs text-muted-foreground mt-0.5">{address}</p>
+        )}
+      </div>
+    );
   };
 
   const OrderCard = ({ order, past }: { order: CustomerOrder; past?: boolean }) => {
@@ -317,104 +500,41 @@ const MyOrders = () => {
         </button>
 
         {isExpanded && (
-          <div className="border-t border-border/60 p-5 space-y-5 bg-secondary/10">
-            <div className="space-y-4">
-              {order.order_items.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">
-                  {t("Item details aren't available for this order.", "Le détail des articles n'est pas disponible pour cette commande.")}
-                </p>
-              ) : (
-                order.order_items.map((item) => {
-                  const { designPhoto, comment } = splitComment(item.item_comment);
-                  return (
-                    <div key={item.id} className="text-sm space-y-1">
-                      <p className="font-medium text-foreground">
-                        {item.product === "workshop"
-                          ? (item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature"))
-                          : (t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product)}
-                        {/* diy_kit's size is always the same fixed "kit-bento" id —
-                            never a real choice, and resolving it here would just
-                            repeat the product name ("DIY Kit — DIY Kit" in English).
-                            Dot Cakes' size IS meaningful (the pack count), kept. */}
-                        {item.product !== "workshop" && item.product !== "diy_kit" && item.size && ` — ${sizeLabel(item.size, lang)}`}
-                        {item.product !== "workshop" && item.shape && item.shape !== "round" && ` (${shapeLabel(item.shape, lang)})`}
-                      </p>
-                      <div className="text-muted-foreground space-y-0.5 pl-0.5">
-                        {item.product === "workshop" && (
-                          <>
-                            {item.workshop_date && <p>{t("Date:", "Date :")} {formatDateCH(item.workshop_date)}{item.workshop_time ? ` · ${item.workshop_time}` : ""}</p>}
-                            {item.workshop_participants != null && <p>{t("Participants:", "Participants :")} {item.workshop_participants}</p>}
-                          </>
-                        )}
-                        {/* Dot Cakes/DIY Kit/Printing/Candles: "design" is a fixed
-                            internal id, never a real customer choice — showing it
-                            would just repeat the product name for no new info. */}
-                        {item.design && !PRODUCTS_WITHOUT_MEANINGFUL_DESIGN.has(item.product) && (
-                          <p>
-                            {t("Design:", "Design :")} {designLabel(item.design)}
-                            {designPhoto ? ` — ${t("Photo", "Photo")} ${designPhoto}` : ""}
-                          </p>
-                        )}
-                        {item.flavors?.length ? <p>{t("Flavour:", "Parfum :")} {flavorLabel(item.flavors.join(","))}</p> : null}
-                        {item.extra && <p>{t("Extras:", "Extras :")} {item.extra} (+CHF {item.extras_price})</p>}
-                        {item.candle_name && (
-                          <p>
-                            🕯️ {item.candle_name}
-                            {item.candle_quantity ? ` ×${item.candle_quantity}` : ""} (+CHF {item.candles_price})
-                          </p>
-                        )}
-                        {comment && <p>{t("Comment:", "Commentaire :")} {comment}</p>}
-                      </div>
-                      <p className="text-foreground font-medium">CHF {item.total}</p>
+          <div className="border-t border-border/60 p-5 space-y-6 bg-secondary/10">
+            {order.order_items.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">
+                {t("Item details aren't available for this order.", "Le détail des articles n'est pas disponible pour cette commande.")}
+              </p>
+            ) : (
+              <div className="space-y-6">
+                {/* Physical products — the date they're attached to shown
+                    ABOVE that date's products, resolved from
+                    order_fulfillments + order_items.fulfillment_id (never a
+                    date list disconnected from the items at the bottom).
+                    Single-date orders get the exact same layout — one
+                    group, one header. */}
+                {groupItemsByFulfillment(order).map((group, gi) => (
+                  <div key={group.fulfillment?.id ?? `group-${gi}`} className="space-y-3">
+                    <FulfillmentHeader group={group} order={order} />
+                    <div className="space-y-3">
+                      {group.items.map((item) => <ItemCard key={item.id} item={item} />)}
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  </div>
+                ))}
+                {/* Workshops carry their own date (workshop_date), never a
+                    fulfillment — kept separate from the pickup/delivery
+                    groups above, each card still states its own date. */}
+                {order.order_items.filter((i) => i.product === "workshop").length > 0 && (
+                  <div className="space-y-3">
+                    {order.order_items.filter((i) => i.product === "workshop").map((item) => (
+                      <ItemCard key={item.id} item={item} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="border-t border-border/60 pt-4 text-sm space-y-1">
-              {isMultiDateOrder(order) ? (
-                <div className="space-y-3 pb-2">
-                  {[...order.order_fulfillments]
-                    .sort((a, b) => (a.pickup_delivery_date || "").localeCompare(b.pickup_delivery_date || ""))
-                    .map((f) => (
-                    <div key={f.id} className="space-y-0.5">
-                      <p className="text-foreground font-medium">
-                        {formatDateCH(f.pickup_delivery_date)}{f.pickup_delivery_slot ? ` · ${f.pickup_delivery_slot}` : ""}
-                        {f.delivery_method ? ` — ${deliveryMethodLabel(f.delivery_method)}` : ""}
-                        {f.delivery_method === "delivery" && f.delivery_zone ? ` (${f.delivery_zone})` : ""}
-                      </p>
-                      {f.delivery_method === "delivery" && f.delivery_address && (
-                        <p className="text-muted-foreground text-xs">{f.delivery_address}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <>
-                  {order.delivery_method && (
-                    <>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t("Pickup / Delivery date", "Date de retrait / livraison")}</span>
-                    <span className="text-foreground">{formatDateCH(order.pickup_delivery_date)}{order.pickup_delivery_slot ? ` · ${order.pickup_delivery_slot}` : ""}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t("Method", "Mode")}</span>
-                    <span className="text-foreground">
-                      {deliveryMethodLabel(order.delivery_method)}
-                      {order.delivery_method === "delivery" && order.delivery_zone ? ` — ${order.delivery_zone}` : ""}
-                    </span>
-                  </div>
-                    </>
-                  )}
-                  {order.delivery_method === "delivery" && order.delivery_address && (
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground flex-shrink-0">{t("Address", "Adresse")}</span>
-                      <span className="text-foreground text-right">{order.delivery_address}</span>
-                    </div>
-                  )}
-                </>
-              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("Status", "Statut")}</span>
                 <span className="text-foreground">{statusLabel(order)}</span>
@@ -439,9 +559,9 @@ const MyOrders = () => {
                   : <FileText className="h-3.5 w-3.5 mr-2" />}
                 {t("View Invoice", "Voir la facture")}
               </Button>
-            ) : (
+            ) : isRejectedOrCancelled(order) ? null : (
               <p className="text-xs text-muted-foreground italic">
-                {t("Invoice not available yet.", "Facture pas encore disponible.")}
+                {t("Invoice available after order confirmation.", "Facture disponible après confirmation de la commande.")}
               </p>
             )}
           </div>
