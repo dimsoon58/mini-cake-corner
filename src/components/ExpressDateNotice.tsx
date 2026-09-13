@@ -46,9 +46,7 @@ function ExpressDayContent(props: DayContentProps) {
 export const expressCalendarProps = {
   modifiers: { express: (date: Date) => isExpressDate(date) },
   modifiersClassNames: {
-    express:
-      "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 " +
-      "after:h-1 after:w-1 after:rounded-full after:bg-primary/70 after:content-['']",
+    express: "",
   },
   components: { DayContent: ExpressDayContent },
 };
