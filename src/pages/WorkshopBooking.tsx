@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
-import { Clock, Users, MapPin, Check, ChevronLeft, ChevronRight, Calendar, Info as InfoIcon, CreditCard } from "lucide-react";
+import { Clock, Users, MapPin, Check, ChevronLeft, ChevronRight, Calendar, Info as InfoIcon, CreditCard, Cake } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +24,7 @@ import {
 const STEPS = [
   { icon: Calendar, labelEn: "Date", labelFr: "Date" },
   { icon: Users, labelEn: "Participants", labelFr: "Participants" },
+  { icon: Cake, labelEn: "Sponge", labelFr: "Génoise" },
   { icon: InfoIcon, labelEn: "Information", labelFr: "Informations" },
   { icon: CreditCard, labelEn: "Confirm", labelFr: "Confirmation" },
 ];
@@ -78,6 +79,7 @@ const WorkshopBooking = () => {
   const [step, setStep] = useState(0);
   const [selectedSession, setSelectedSession] = useState<WorkshopSession | null>(null);
   const [participants, setParticipants] = useState(1);
+  const [spongeChoices, setSpongeChoices] = useState<string[]>(["vanilla"]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
 
@@ -117,6 +119,15 @@ const WorkshopBooking = () => {
   useEffect(() => {
     setParticipants((p) => Math.min(Math.max(1, p), maxAllowed));
   }, [maxAllowed]);
+
+  // Resize spongeChoices array when number of participants changes.
+  useEffect(() => {
+    setSpongeChoices((prev) => {
+      if (prev.length === participants) return prev;
+      if (prev.length < participants) return [...prev, ...Array(participants - prev.length).fill("vanilla")];
+      return prev.slice(0, participants);
+    });
+  }, [participants]);
 
   // Price per person: the server (get_workshop_availability / workshop_sessions)
   // is authoritative. The static constant is only a fallback before the RPC
@@ -248,10 +259,57 @@ const WorkshopBooking = () => {
     );
   };
 
-  // ── Step 2: booking information ───────────────────────────────────────────
+  // ── Step 2: sponge cake choice ──────────────────────────────────────────────
+  const Step2 = () => (
+    <div>
+      <h2 className="font-sans uppercase tracking-[0.105em] text-lg text-foreground mb-2">
+        {t("Choose your sponge", "Choisissez votre génoise")}
+      </h2>
+      <p className="text-sm text-muted-foreground mb-6">
+        {t("Each participant chooses their sponge cake flavour.", "Chaque participant choisit sa génoise.")}
+      </p>
+      <div className="space-y-4">
+        {Array.from({ length: participants }, (_, i) => (
+          <div key={i} className="border border-border p-4 bg-card">
+            <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground mb-3">
+              {t(`Participant ${i + 1}`, `Participant ${i + 1}`)}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {(["vanilla", "chocolate"] as const).map((choice) => (
+                <button
+                  key={choice}
+                  type="button"
+                  onClick={() => setSpongeChoices((prev) => {
+                    const next = [...prev];
+                    next[i] = choice;
+                    return next;
+                  })}
+                  className={`py-3 px-4 border text-sm uppercase tracking-wider transition-colors text-left flex flex-col gap-0.5
+                    ${spongeChoices[i] === choice
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-foreground hover:border-primary/60"}`}
+                >
+                  <span className="font-medium">
+                    {choice === "vanilla" ? t("Vanilla", "Vanille") : t("Chocolate", "Chocolat")}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground normal-case tracking-normal">
+                    {choice === "vanilla"
+                      ? t("Vanilla sponge", "Génoise vanille")
+                      : t("Chocolate sponge", "Génoise chocolat")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ── Step 3: booking information ───────────────────────────────────────────
   // Buyer contact details (name / email / phone) are NOT collected here — they
   // belong to the checkout customer. Only booking-level info lives here.
-  const Step2 = () => (
+  const Step3 = () => (
     <div>
       <h2 className="font-sans uppercase tracking-[0.105em] text-lg text-foreground mb-6">
         {t("Booking information", "Informations de réservation")}
@@ -324,13 +382,13 @@ const WorkshopBooking = () => {
     </div>
   );
 
-  // ── Step 3: summary + confirm ─────────────────────────────────────────────
+  // ── Step 4: summary + confirm ─────────────────────────────────────────────
   const handleAddToCart = async () => {
     if (!selectedSession) { setStep(0); return; }
-    if (hasMinor === null) { setMinorError(t("Please answer this question.", "Veuillez répondre à cette question.")); setStep(2); return; }
+    if (hasMinor === null) { setMinorError(t("Please answer this question.", "Veuillez répondre à cette question.")); setStep(3); return; }
     if (hasMinor === true && !minorConsent) {
       setMinorError(t("Please confirm this to continue.", "Veuillez confirmer pour continuer."));
-      setStep(2);
+      setStep(3);
       return;
     }
 
@@ -383,6 +441,7 @@ const WorkshopBooking = () => {
       workshopUnitPrice: unitPrice,
       workshopHasMinor: hasMinor === true,
       workshopMinorConsentConfirmed: hasMinor === true ? minorConsent : false,
+      workshopSpongeChoices: spongeChoices,
       total: unitPrice * participants,
     });
 
@@ -395,7 +454,7 @@ const WorkshopBooking = () => {
     navigate("/cart");
   };
 
-  const Step3 = () => (
+  const Step4 = () => (
     <div>
       <h2 className="font-sans uppercase tracking-[0.105em] text-lg text-foreground mb-6">
         {t("Booking summary", "Récapitulatif de réservation")}
@@ -411,6 +470,13 @@ const WorkshopBooking = () => {
           />
           <Row label={t("Duration", "Durée")} value={t(info.duration, info.durationFr)} />
           <Row label={t("Participants", "Participants")} value={String(participants)} />
+          {spongeChoices.map((choice, i) => (
+            <Row
+              key={i}
+              label={t(`Participant ${i + 1}`, `Participant ${i + 1}`)}
+              value={choice === "vanilla" ? t("Vanilla sponge", "Génoise vanille") : t("Chocolate sponge", "Génoise chocolat")}
+            />
+          ))}
           <Row
             label={t("Minor participant(s)", "Participant(s) mineur(s)")}
             value={hasMinor ? t("Yes", "Oui") : t("No", "Non")}
@@ -445,12 +511,13 @@ const WorkshopBooking = () => {
   const canAdvance = () => {
     if (step === 0) return selectedSession !== null && sessionSelectable(selectedSession);
     if (step === 1) return participants >= 1 && participants <= maxAllowed;
-    if (step === 2) return true; // validated on attempt
+    if (step === 2) return spongeChoices.length === participants && spongeChoices.every(Boolean);
+    if (step === 3) return true; // validated on attempt
     return false;
   };
 
   const advance = () => {
-    if (step === 2) {
+    if (step === 3) {
       if (hasMinor === null) {
         setMinorError(t("Please answer this question.", "Veuillez répondre à cette question."));
         return;
@@ -539,9 +606,10 @@ const WorkshopBooking = () => {
                 {step === 1 && Step1()}
                 {step === 2 && Step2()}
                 {step === 3 && Step3()}
+                {step === 4 && Step4()}
               </div>
 
-              {step < 3 && (
+              {step < 4 && (
                 <div className="flex justify-between mt-8 pt-6 border-t border-border">
                   <Button
                     variant="outline"

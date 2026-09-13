@@ -446,6 +446,15 @@ const Cart = () => {
                               {item.workshopParticipants} × CHF {item.workshopUnitPrice}
                             </span>
                           </div>
+                          {item.workshopSpongeChoices && item.workshopSpongeChoices.length > 0 && (
+                            <div className="mt-1 space-y-0.5">
+                              {item.workshopSpongeChoices.map((ch, i) => (
+                                <p key={i} className="text-[10px] text-muted-foreground">
+                                  P{i + 1}: {ch === "vanilla" ? "Génoise vanille" : "Génoise chocolat"}
+                                </p>
+                              ))}
+                            </div>
+                          )}
                           {item.comment && (
                             <div className="flex justify-between gap-4">
                               <span className="text-muted-foreground shrink-0">{t("Notes", "Notes")}</span>

@@ -1238,6 +1238,7 @@ const Checkout = () => {
           workshop_date: isWorkshop ? (item.workshopDate ?? null) : null,
           workshop_time: isWorkshop ? (item.workshopTime ?? null) : null,
           workshop_participants: isWorkshop ? (item.workshopParticipants ?? null) : null,
+          workshop_sponge_choices: isWorkshop ? (item.workshopSpongeChoices ?? null) : null,
           workshop_unit_price: isWorkshop ? (item.workshopUnitPrice ?? null) : null,
           workshop_has_minor: isWorkshop ? !!item.workshopHasMinor : false,
           workshop_minor_consent_confirmed: isWorkshop ? !!item.workshopMinorConsentConfirmed : false,
@@ -1399,6 +1400,7 @@ const Checkout = () => {
           workshop_type: item.product === "workshop" ? (item.workshopType ?? null) : null,
           workshop_session_id: item.product === "workshop" ? (item.workshopSessionId ?? null) : null,
           workshop_participants: item.product === "workshop" ? (item.workshopParticipants ?? null) : null,
+          workshop_sponge_choices: item.product === "workshop" ? (item.workshopSpongeChoices ?? null) : null,
         })),
         items: items.map((item) => ({
           sizeName: item.sizeName,
@@ -1958,6 +1960,15 @@ const Checkout = () => {
                             </span>
                             <span className="font-semibold text-sm text-primary whitespace-nowrap">CHF {item.total}</span>
                           </div>
+                          {item.workshopSpongeChoices && item.workshopSpongeChoices.length > 0 && (
+                            <div className="mt-1 space-y-0.5">
+                              {item.workshopSpongeChoices.map((ch: string, i: number) => (
+                                <p key={i} className="text-[10px] text-muted-foreground">
+                                  P{i + 1}: {ch === "vanilla" ? t("Vanilla sponge", "Génoise vanille") : t("Chocolate sponge", "Génoise chocolat")}
+                                </p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     }

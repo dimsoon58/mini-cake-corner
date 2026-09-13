@@ -90,6 +90,7 @@ export interface CartItem {
      order_items.workshop_minor_consent_confirmed. */
   workshopHasMinor?: boolean;
   workshopMinorConsentConfirmed?: boolean;
+  workshopSpongeChoices?: string[];  // one per participant: "vanilla" | "chocolate"
   total: number;
   /* Standalone candle product (added from the Candles page) */
   isCandleProduct?: boolean;
