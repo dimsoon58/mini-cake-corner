@@ -1648,7 +1648,10 @@ const Checkout = () => {
                   <Label htmlFor="pickup" className="cursor-pointer flex-1">
                     <span className="font-medium">{t("Pick-up", "Retrait")}</span>
                     <p className="text-sm text-muted-foreground">
-                      {t("Pick up your order at our store", "Retirez votre commande à notre boutique")}
+                      {t("Pick up your order at our studio", "Récupérez votre commande à notre atelier")}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Rue Prévost-Martin 8, 1205 {t("Geneva", "Genève")}
                     </p>
                   </Label>
                 </div>
