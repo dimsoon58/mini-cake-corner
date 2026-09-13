@@ -639,8 +639,8 @@ const Cart = () => {
                    items.some((i) => i.product !== "workshop") && (
                     <p className="text-xs text-muted-foreground border border-border bg-muted/40 p-3 rounded-none">
                       {t(
-                        "Your cart has a workshop and cake/products. You pay once now: your workshop place is confirmed immediately, and the cake part is confirmed by our team afterwards.",
-                        "Votre panier contient un atelier et des gâteaux/produits. Vous payez une seule fois : votre place d'atelier est confirmée immédiatement, la partie gâteau est validée ensuite par notre équipe.",
+                        "Workshop confirmed immediately. Cakes and products are confirmed separately.",
+                        "Workshop confirmé immédiatement. Gâteaux et produits confirmés séparément.",
                       )}
                     </p>
                   )}
