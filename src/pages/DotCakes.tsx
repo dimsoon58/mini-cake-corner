@@ -175,7 +175,7 @@ const DotCakes = () => {
 
   const goNext = () => {
     if (step === 1 && !orderDate) {
-      toast.error(t("Please choose your pick-up date (minimum 4 days' notice).", "Veuillez choisir votre date de retrait (minimum 4 jours à l'avance)."));
+      toast.error(t("Please choose your pick-up date (minimum 2 days' notice).", "Veuillez choisir votre date de retrait (minimum 2 jours à l'avance)."));
       return;
     }
     if (step === 2 && !pack) {
@@ -317,7 +317,7 @@ const DotCakes = () => {
                 {t("Choose Your Date", "Choisissez votre date")}<span className="text-destructive ml-1">*</span>
               </h2>
               <p className="text-sm text-muted-foreground">
-                {t("Minimum 4 days' notice required.", "Minimum 4 jours à l'avance requis.")}
+                {t("Minimum 2 days' notice required.", "Minimum 2 jours à l'avance requis.")}
               </p>
               <Popover open={calOpen} onOpenChange={setCalOpen}>
                 <PopoverTrigger asChild>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
-import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
+import { expressCalendarProps, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { CalendarIcon, Upload, X, ChevronLeft, ChevronRight } from "lucide-react";
 import printingGallery1 from "@/assets/printing-gallery-1.jpg";
 import printingGallery2 from "@/assets/printing-gallery-2.jpg";
@@ -145,7 +145,6 @@ const Printing = () => {
                   className="p-3 pointer-events-auto"
                   {...expressCalendarProps}
                 />
-                <div className="px-3 pb-3"><ExpressLegend /></div>
               </PopoverContent>
             </Popover>
             <p className="text-xs text-muted-foreground">{t("Minimum 2 days' notice.", "Minimum 2 jours à l'avance.")}</p>

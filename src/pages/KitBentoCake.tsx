@@ -214,7 +214,7 @@ export const candles = [
 ];
 
 const tooltipTexts: Record<string, string> = {
-  date: "Date required to schedule the preparation of your order (minimum 4 days in advance).",
+  date: "Date required to schedule the preparation of your order (minimum 2 days in advance).",
   shape: "Choose the shape of your cake.",
   flavor: "Please select the flavour of your cake.",
   baseColor: "The base colour is essential to personalise your cake.",
@@ -222,7 +222,7 @@ const tooltipTexts: Record<string, string> = {
 };
 
 const tooltipTextsFr: Record<string, string> = {
-  date: "Date requise pour planifier la préparation de votre commande (minimum 4 jours à l'avance).",
+  date: "Date requise pour planifier la préparation de votre commande (minimum 2 jours à l'avance).",
   shape: "Choisissez la forme de votre gâteau.",
   flavor: "Veuillez sélectionner le parfum de votre gâteau.",
   baseColor: "La couleur de base est essentielle pour personnaliser votre gâteau.",
@@ -508,7 +508,7 @@ const KitBentoCake = () => {
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Choose Your Pickup Date", "Choisir votre date de retrait")}<span className="text-destructive ml-1">*</span>
               </h2>
-              <p className="text-sm text-muted-foreground">{t("Minimum 4 days notice required.", "Un délai minimum de 4 jours est requis.")}</p>
+              <p className="text-sm text-muted-foreground">{t("Minimum 2 days notice required.", "Un délai minimum de 2 jours est requis.")}</p>
               <Popover open={calOpen} onOpenChange={setCalOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" disabled={!MULTI_DATE_FULFILLMENT_ENABLED && !!cartOrderDate}

@@ -1658,7 +1658,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Pickup Date", "Date de retrait")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 4 days in advance)", "Date de préparation de la commande (minimum 4 jours à l'avance)")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 2 days in advance)", "Date de préparation de la commande (minimum 2 jours à l'avance)")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Popover open={calOpen} onOpenChange={setCalOpen}>
