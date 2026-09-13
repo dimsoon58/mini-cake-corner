@@ -8,6 +8,12 @@ const corsHeaders = {
 
 const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
 
+// Fixed pickup address — shown systematically whenever a date/method row
+// says "Pickup at store"/"Retrait sur place", never left implicit. Same
+// address as elsewhere (Footer.tsx, _shared/delivery-pricing.ts's
+// DELIVERY_ORIGIN, manage-order/index.ts, send-order-received-email/index.ts).
+const STORE_ADDRESS = "Rue Prévost-Martin 8, 1205 Genève";
+
 function formatDateCH(dateValue?: string): string {
   if (!dateValue) return "—";
   const [year, month, day] = dateValue.split("-");
@@ -175,7 +181,7 @@ async function sendAdminEmail(
             ${row("Date", formatDateCH(order.pickup_delivery_date))}
             ${row("Créneau", order.pickup_delivery_slot || "—")}
             ${row("Option", order.delivery_method === "delivery" ? "🚚 Livraison" : "🏪 Retrait sur place")}
-            ${row("Adresse", order.delivery_method === "delivery" ? order.delivery_address : null)}
+            ${row("Adresse", order.delivery_method === "delivery" ? order.delivery_address : STORE_ADDRESS)}
             ${row("Remarques", order.order_comment || null)}
           </table>
         </div>` : ""}

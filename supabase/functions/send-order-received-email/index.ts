@@ -17,6 +17,11 @@ function getCustomerLang(order: any): "fr" | "en" {
   return order?.lang === "en" ? "en" : "fr";
 }
 
+// Fixed pickup address — shown systematically whenever a date/method row
+// says "Pickup at store", never left implicit. Same address as elsewhere
+// (Footer.tsx, _shared/delivery-pricing.ts's DELIVERY_ORIGIN).
+const STORE_ADDRESS = "Rue Prévost-Martin 8, 1205 Genève";
+
 async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: any[] = [], fulfillments: any[] = []) {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
@@ -74,7 +79,9 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
         <p style="margin:0 0 4px;color:#351E13;font-size:13px;font-weight:700;">
           ${formatDateCH(f?.pickup_delivery_date)}${f?.pickup_delivery_slot ? ` · ${f.pickup_delivery_slot}` : ""} — ${method}
         </p>
-        ${f?.delivery_method === "delivery" && f?.delivery_address ? `<p style="margin:0 0 6px;color:#7A6540;font-size:12px;">${f.delivery_address}</p>` : ""}
+        ${f?.delivery_method === "delivery"
+          ? (f?.delivery_address ? `<p style="margin:0 0 6px;color:#7A6540;font-size:12px;">${f.delivery_address}</p>` : "")
+          : `<p style="margin:0 0 6px;color:#7A6540;font-size:12px;">${STORE_ADDRESS}</p>`}
         ${itemsHtml ? `<ul style="margin:0;padding-left:18px;color:#351E13;font-size:12px;">${itemsHtml}</ul>` : ""}
       </td>
     </tr>`;
@@ -157,6 +164,10 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
           ${hasPickupOrDelivery ? `<tr style="border-bottom:1px solid #D4C89A;">
             <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Method", "Mode")}</td>
             <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${deliveryInfo}</td>
+          </tr>` : ""}
+          ${hasPickupOrDelivery && order.delivery_method === "pickup" ? `<tr style="border-bottom:1px solid #D4C89A;">
+            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Address", "Adresse")}</td>
+            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${STORE_ADDRESS}</td>
           </tr>` : ""}
           `}
           <tr style="background:#78020C;">

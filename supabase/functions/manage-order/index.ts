@@ -156,7 +156,11 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
       if (candleStr) rows.push(row(tr("Candles", "Bougies"), candleStr));
     }
     const cakeComment = realComment(item.item_comment);
-    if (cakeComment) rows.push(row(tr("Additional note", "Remarque complémentaire"), cakeComment));
+    if (cakeComment) {
+      rows.push(isPrinting
+        ? row(tr("Additional comment", "Commentaire complémentaire"), cakeComment)
+        : row(tr("Additional note", "Remarque complémentaire"), cakeComment));
+    }
 
     // The exact design photo the customer picked on the site — never
     // reconstructed from item.design (the slug/text), only order_items.
