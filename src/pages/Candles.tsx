@@ -50,7 +50,8 @@ const Candles = () => {
   const { t } = useLang();
   const { addItem } = useCart();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [numberCandleDigit, setNumberCandleDigit] = useState("0");
+  const [numberCandleDigits, setNumberCandleDigits] = useState<string[]>(["0"]);
+  const [numberCandlePreview, setNumberCandlePreview] = useState("0");
 
   // Forces ColorFamilyCandleCard to remount (fresh draft) after each
   // successful add — a standalone purchase here is always a brand-new cart
@@ -220,9 +221,10 @@ const Candles = () => {
   };
 
   const handleAddNumberCandleToCart = () => {
-    const qty = getQty(NUMBER_CANDLE_ID);
-    const price = priceCandleSelection({ id: NUMBER_CANDLE_ID, quantity: qty, hasPack: false, digit: numberCandleDigit }, undefined, true);
-    const label = composeCandleName({ digit: numberCandleDigit }, t("Number Candle", "Bougie chiffre"));
+    if (numberCandleDigits.length === 0) return;
+    const qty = numberCandleDigits.length;
+    const price = qty * NUMBER_CANDLE_PRICE;
+    const label = composeCandleName({ digits: numberCandleDigits }, t("Number Candle", "Bougie chiffre"));
 
     addItem({
       id: "",
@@ -230,7 +232,7 @@ const Candles = () => {
       orderDate: "",
       orderTime: "",
       size: "candles",
-      sizeName: `${qty}× ${label}`,
+      sizeName: `${qty}× ${t("Number Candle", "Bougie chiffre")}`,
       shape: "",
       shapeName: "",
       flavor: "",
@@ -251,19 +253,17 @@ const Candles = () => {
       ribbonColorName: "",
       butterflyColor: "",
       butterflyColorName: "",
-      candles: [{ id: NUMBER_CANDLE_ID, quantity: qty, hasPack: false, digit: numberCandleDigit }],
+      candles: [{ id: NUMBER_CANDLE_ID, quantity: qty, hasPack: false, digits: numberCandleDigits }],
       comment: "",
       imageUrls: [],
       imageFiles: [],
       total: price,
       isCandleProduct: true,
-      candleProductId: `${NUMBER_CANDLE_ID}-${numberCandleDigit}`,
+      candleProductId: NUMBER_CANDLE_ID,
       candleProductName: label,
-      candleProductVariant: numberCandleDigit,
+      candleProductVariant: numberCandleDigits.join(", "),
       candleProductQty: qty,
       candleProductHasPack: false,
-      // Flat rate, never pack-eligible — same reasoning as the family
-      // piece purchase above.
       candleProductUnitPrice: NUMBER_CANDLE_PRICE,
     });
 
@@ -276,7 +276,8 @@ const Candles = () => {
         },
       }
     );
-    setQuantities((prev) => ({ ...prev, [NUMBER_CANDLE_ID]: 1 }));
+    setNumberCandleDigits(["0"]);
+    setNumberCandlePreview("0");
   };
 
   return (
@@ -293,13 +294,13 @@ const Candles = () => {
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-          {/* Number Candle – same grid card as the others */}
+          {/* Number Candle – multi-digit picker */}
           <Card className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20 rounded-none">
             <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
               <img
-                key={numberCandleDigit}
-                src={NUMBER_CANDLE_IMAGES[numberCandleDigit]}
-                alt={`${t("Number Candle", "Bougie chiffre")} ${numberCandleDigit}`}
+                key={numberCandlePreview}
+                src={NUMBER_CANDLE_IMAGES[numberCandlePreview]}
+                alt={`${t("Number Candle", "Bougie chiffre")} ${numberCandlePreview}`}
                 className="w-full h-full object-contain transition-all duration-200"
               />
             </div>
@@ -310,53 +311,41 @@ const Candles = () => {
               <p className="text-[11px] text-muted-foreground mb-3">
                 CHF {NUMBER_CANDLE_PRICE} / {t("piece", "pièce")}
               </p>
-              <div className="mt-auto space-y-3">
-                {/* Number dropdown */}
-                <select
-                  value={numberCandleDigit}
-                  onChange={(e) => setNumberCandleDigit(e.target.value)}
-                  className="w-full border border-input bg-background text-foreground text-sm font-medium px-3 py-2 rounded-none focus:outline-none focus:ring-2 focus:ring-ring appearance-none cursor-pointer"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center" }}
-                  aria-label={t("Select a number", "Sélectionner un chiffre")}
-                >
-                  {NUMBER_CANDLE_DIGITS.map((d) => (
-                    <option key={d} value={d}>{d}</option>
+              <div className="mt-auto space-y-2">
+                {/* Per-candle digit rows */}
+                <div className="space-y-1.5 text-left">
+                  {numberCandleDigits.map((d, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-muted-foreground shrink-0 w-14">{t(`Candle ${i+1}`, `Bougie ${i+1}`)}</span>
+                      <Select value={d} onValueChange={(v) => { const next=[...numberCandleDigits]; next[i]=v; setNumberCandleDigits(next); setNumberCandlePreview(v); }}>
+                        <SelectTrigger className="h-7 text-sm flex-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>{NUMBER_CANDLE_DIGITS.map((digit) => <SelectItem key={digit} value={digit}>{digit}</SelectItem>)}</SelectContent>
+                      </Select>
+                      {numberCandleDigits.length > 1 && (
+                        <button onClick={() => setNumberCandleDigits(numberCandleDigits.filter((_,idx)=>idx!==i))} className="text-muted-foreground hover:text-foreground text-sm leading-none px-1 shrink-0">×</button>
+                      )}
+                    </div>
                   ))}
-                </select>
-                {/* Quantity */}
-                <div className="flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => changeQty(NUMBER_CANDLE_ID, -1)}
-                    disabled={getQty(NUMBER_CANDLE_ID) <= 1}
-                    className={cn(
-                      "w-7 h-7 rounded-none flex items-center justify-center text-sm font-bold transition-all",
-                      getQty(NUMBER_CANDLE_ID) <= 1
-                        ? "bg-muted text-muted-foreground cursor-not-allowed"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90"
-                    )}
-                    aria-label={t("Decrease quantity", "Diminuer la quantité")}
-                  >−</button>
-                  <span className="w-6 text-center font-medium text-foreground text-sm">
-                    {getQty(NUMBER_CANDLE_ID)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => changeQty(NUMBER_CANDLE_ID, 1)}
-                    className="w-7 h-7 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold hover:bg-primary/90 transition-all"
-                    aria-label={t("Increase quantity", "Augmenter la quantité")}
-                  >+</button>
                 </div>
+                <button
+                  onClick={() => { const next=[...numberCandleDigits,"0"]; setNumberCandleDigits(next); setNumberCandlePreview("0"); }}
+                  className="text-[11px] uppercase tracking-wider text-primary hover:underline font-medium w-full text-center py-0.5"
+                >+ {t("Add another candle", "Ajouter une bougie")}</button>
+                {numberCandleDigits.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {numberCandleDigits.length} {t("candle(s)", "bougie(s)")} · CHF {numberCandleDigits.length * NUMBER_CANDLE_PRICE}
+                  </p>
+                )}
                 <Button
                   onClick={handleAddNumberCandleToCart}
+                  disabled={numberCandleDigits.length === 0}
                   className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] tracking-[0.105em] uppercase"
                 >
-                  {t("Add to Cart", "Ajouter au panier")}
+                  {t("Add to Cart", "Ajouter au panier")} — CHF {numberCandleDigits.length * NUMBER_CANDLE_PRICE}
                 </Button>
               </div>
             </CardContent>
           </Card>
-
           {candles.map((candle) => {
             const familyColors = FAMILY_CANDLE_COLORS[candle.id];
             if (familyColors) {

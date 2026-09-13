@@ -18,6 +18,7 @@ export interface CandleSelection {
   hasPack: boolean;
   colors?: string[];
   digit?: string;
+  digits?: string[];  // multi-digit number candle selection
 }
 
 export interface CartItem {

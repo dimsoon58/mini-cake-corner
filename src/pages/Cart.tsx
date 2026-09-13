@@ -1376,49 +1376,24 @@ const CartItemEditor = ({
             );
           })}
 
-          {/* Number Candle — digit picker, no product photo, flat rate */}
+          {/* Number Candle — multi-digit display */}
           {(() => {
-            const qty = getCandleUnitQty(NUMBER_CANDLE_ID);
-            const digit = (item.candles || []).find((c: CandleSelection) => c.id === NUMBER_CANDLE_ID)?.digit || "0";
+            const entry = (item.candles || []).find((c: CandleSelection) => c.id === NUMBER_CANDLE_ID);
+            if (!entry) return null;
+            const digits: string[] = entry.digits || (entry.digit ? [entry.digit] : []);
+            if (digits.length === 0) return null;
+            const total = digits.length * NUMBER_CANDLE_PRICE;
             return (
-              <div
-                className={cn(
-                  "flex flex-col items-center p-2 rounded-lg border transition-all min-w-0",
-                  qty > 0 ? "ring-2 ring-primary border-primary bg-secondary" : "border-border"
-                )}
-              >
+              <div className={cn(
+                "flex flex-col items-center p-2 rounded-lg border transition-all min-w-0",
+                "ring-2 ring-primary border-primary bg-secondary"
+              )}>
                 <div className="h-20 w-20 mb-1 flex items-center justify-center bg-secondary/20">
-                  <span className="text-2xl font-bold text-primary" aria-hidden="true">{digit}</span>
+                  <span className="text-xl font-bold text-primary tracking-wider">{digits.join(" · ")}</span>
                 </div>
                 <span className="text-xs font-medium text-foreground text-center">{t("Number Candle", "Bougie chiffre")}</span>
-                <span className="text-xs text-muted-foreground">CHF {NUMBER_CANDLE_PRICE}{t("/ea", "/pièce")}</span>
-                <Select value={digit} onValueChange={onNumberCandleDigitChange}>
-                  <SelectTrigger className="h-6 text-xs mt-1 w-16" aria-label={t("Choose a digit", "Choisir un chiffre")}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {NUMBER_CANDLE_DIGITS.map((d) => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex items-center gap-2 mt-2">
-                  <button
-                    onClick={() => onCandleQtyChange(NUMBER_CANDLE_ID, -1)}
-                    disabled={qty === 0}
-                    className="h-7 w-7 rounded-none border border-border flex items-center justify-center text-foreground disabled:opacity-30 hover:bg-muted"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className="text-sm font-medium w-6 text-center text-foreground">{qty}</span>
-                  <button
-                    onClick={() => onCandleQtyChange(NUMBER_CANDLE_ID, 1)}
-                    className="h-7 w-7 rounded-none border border-border flex items-center justify-center text-foreground hover:bg-muted"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </div>
-                {qty > 0 && <span className="text-xs text-primary font-medium mt-1">CHF {qty * NUMBER_CANDLE_PRICE}</span>}
+                <span className="text-[10px] text-muted-foreground mt-0.5">{digits.length} × CHF {NUMBER_CANDLE_PRICE}</span>
+                <span className="text-xs text-primary font-medium mt-1">CHF {total}</span>
               </div>
             );
           })()}

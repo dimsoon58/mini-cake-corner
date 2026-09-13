@@ -56,10 +56,13 @@ export const priceCandleSelection = (
  * yet — the colours branch is then simply never reached.
  */
 export const composeCandleName = (
-  entry: Pick<CandleSelection, "colors" | "digit">,
+  entry: Pick<CandleSelection, "colors" | "digit" | "digits">,
   candleName: string,
   colorLabel?: (colorId: string) => string,
 ): string => {
+  if (entry.digits && entry.digits.length > 0) {
+    return `${candleName} – ${entry.digits.join(", ")}`;
+  }
   if (entry.digit !== undefined) {
     return `${candleName}${entry.digit ? ` – ${entry.digit}` : ""}`;
   }

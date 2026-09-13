@@ -247,9 +247,19 @@ const KitBentoCake = () => {
   const [selectedPipingOption, setSelectedPipingOption] = useState("");
   const [pipingColors, setPipingColors] = useState<string[]>([]);
   const [candleSelections, setCandleSelections] = useState<CandleSelection[]>([]);
-  const [numberCandleDigit, setNumberCandleDigit] = useState("0");
+  const [numberCandleDigits, setNumberCandleDigits] = useState<string[]>([]);
+  const [numberCandlePreview, setNumberCandlePreview] = useState("0");
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [showAllCandles, setShowAllCandles] = useState(false);
+
+  // Sync candleSelections quantity for number candle with numberCandleDigits array
+  useEffect(() => {
+    setCandleSelections((prev) => {
+      const others = prev.filter((c) => c.id !== NUMBER_CANDLE_ID);
+      if (numberCandleDigits.length === 0) return others;
+      return [...others, { id: NUMBER_CANDLE_ID, quantity: numberCandleDigits.length, hasPack: false }];
+    });
+  }, [numberCandleDigits]);
   const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
   const [step, setStep] = useState(1);
   const [configuratorVisible, setConfiguratorVisible] = useState(false);
@@ -359,7 +369,7 @@ const KitBentoCake = () => {
 
     const pipingColorNames = pipingColors.map(id => baseColors.find(c => c.id === id)?.name || "").join(", ");
     const selectedCandles = candleSelections.map((c) =>
-      c.id === NUMBER_CANDLE_ID ? { ...c, digit: numberCandleDigit } : c
+      c.id === NUMBER_CANDLE_ID ? { ...c, digits: numberCandleDigits } : c
     );
 
     const cartItem = {
@@ -606,12 +616,7 @@ const KitBentoCake = () => {
                               {t(flavor.description ?? "", flavor.descriptionFr ?? "")}
                             </div>
                           )}
-                          {info && (
-                            <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                              
-                              <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
-                            </div>
-                          )}
+
                         </div>
                       </div>
                     </SelectItem>
@@ -658,13 +663,7 @@ const KitBentoCake = () => {
                   </Select>
                 );
               })()}
-              {selectedFlavor && allergenMap[selectedFlavor] && (
-                <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 border border-border/40">
-                  
-                  <span className="font-medium">{t("Contains:", "Contient :")}</span>{" "}
-                  {t(allergenMap[selectedFlavor].en, allergenMap[selectedFlavor].fr)}
-                </div>
-              )}
+
               <AllergenNotice className="pt-1" />
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={goBack} className="rounded-none border-border text-[11px] font-semibold uppercase tracking-[0.12em] px-6 py-2.5">← {t("Back","Retour")}</Button>
@@ -731,27 +730,34 @@ const KitBentoCake = () => {
               <div className="grid grid-cols-2 gap-4">
 
                 {/* Number Candle card */}
-                <Card className={cn("flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20 rounded-none", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
+                <Card className={cn("flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20 rounded-none", numberCandleDigits.length > 0 && "ring-2 ring-primary")}>
                   <div className="flex items-center justify-center bg-secondary/20 p-2 h-28">
-                    <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_KIT[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-24 w-24 object-contain" />
+                    <img key={numberCandlePreview} src={NUMBER_CANDLE_IMAGES_KIT[numberCandlePreview]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandlePreview}`} className="h-24 w-24 object-contain transition-all duration-200" />
                   </div>
                   <CardContent className="p-2 text-center space-y-1.5">
                     <h3 className="font-sans tracking-[0.105em] font-semibold uppercase text-foreground text-[11px]">{t("Number Candle","Bougie chiffre")}</h3>
-                    <p className="text-[10px] text-muted-foreground">CHF {NUMBER_CANDLE_PRICE} / pièce</p>
-                    {getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) > 0 && (
-                      <p className="text-xs text-primary font-medium">CHF {getCandlePrice(NUMBER_CANDLE_ID)}</p>
+                    <p className="text-[10px] text-muted-foreground">CHF {NUMBER_CANDLE_PRICE} / {t("piece","pièce")}</p>
+                    {numberCandleDigits.length > 0 && (
+                      <div className="space-y-1 text-left">
+                        {numberCandleDigits.map((d, i) => (
+                          <div key={i} className="flex items-center gap-1">
+                            <span className="text-[9px] text-muted-foreground shrink-0 w-12">{t(`Candle ${i+1}`,`Bougie ${i+1}`)}</span>
+                            <Select value={d} onValueChange={(v) => { const next=[...numberCandleDigits]; next[i]=v; setNumberCandleDigits(next); setNumberCandlePreview(v); }}>
+                              <SelectTrigger className="h-5 text-xs flex-1 px-1"><SelectValue /></SelectTrigger>
+                              <SelectContent>{NUMBER_CANDLE_DIGITS.map((digit) => <SelectItem key={digit} value={digit}>{digit}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <button onClick={() => { const next=numberCandleDigits.filter((_,idx)=>idx!==i); setNumberCandleDigits(next); }} className="text-muted-foreground hover:text-foreground text-xs leading-none px-0.5 shrink-0">×</button>
+                          </div>
+                        ))}
+                      </div>
                     )}
-                    <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
-                      <SelectTrigger className="h-7 text-xs text-center"><SelectValue /></SelectTrigger>
-                      <SelectContent>{NUMBER_CANDLE_DIGITS.map((digit) => <SelectItem key={digit} value={digit}>{digit}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, -1)} disabled={getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0}
-                        className={cn("w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all", getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID) === 0 ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:bg-primary/90")}>−</button>
-                      <span className="w-5 text-center font-medium text-foreground text-sm">{getSimpleCandleQty(candleSelections, NUMBER_CANDLE_ID)}</span>
-                      <button onClick={() => handleCandleQtyChange(NUMBER_CANDLE_ID, 1)}
-                        className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all">+</button>
-                    </div>
+                    <button
+                      onClick={() => { const next=[...numberCandleDigits,"0"]; setNumberCandleDigits(next); setNumberCandlePreview("0"); }}
+                      className="text-[9px] uppercase tracking-wider text-primary hover:underline font-medium"
+                    >+ {t("Add candle","Ajouter")}</button>
+                    {numberCandleDigits.length > 0 && (
+                      <p className="text-[10px] text-primary font-medium">CHF {numberCandleDigits.length * NUMBER_CANDLE_PRICE}</p>
+                    )}
                   </CardContent>
                 </Card>
 
