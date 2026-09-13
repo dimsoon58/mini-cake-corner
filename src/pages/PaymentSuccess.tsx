@@ -7,6 +7,7 @@ import { firePurchaseOnce } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
 import { useLang } from "@/context/LanguageContext";
 import Layout from "@/components/Layout";
+import { clearStoredOrderId } from "@/lib/checkoutOrderId";
 
 // Poll confirm-postfinance-payment until it reaches an authoritative outcome.
 // ~4s interval; after this many attempts (~2 min) we stop and show a neutral
@@ -51,11 +52,16 @@ const PaymentSuccess = () => {
 
   // The cart is cleared ONLY once the payment is really confirmed — never
   // merely because this page rendered (a failed / abandoned payment must keep
-  // the cart so the customer can retry).
+  // the cart so the customer can retry). The stored checkout orderId
+  // (CHECKOUT_ORDER_ID_KEY, reused by Checkout.tsx across a reload so an
+  // outstanding reward reservation is never orphaned — see checkoutOrderId.ts)
+  // is cleared alongside it, for the same reason: the payment this orderId
+  // was reserving points for is now genuinely, definitively resolved.
   useEffect(() => {
     if (phase === "confirmed" && !cartClearedRef.current) {
       cartClearedRef.current = true;
       clearCart();
+      clearStoredOrderId();
     }
   }, [phase, clearCart]);
 
