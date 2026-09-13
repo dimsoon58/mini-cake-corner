@@ -30,3 +30,12 @@ verify_jwt = false
 # function, never a user JWT. Added by the 2026-09-11/12 consolidation audit.
 [functions.health-check-pending-payments]
 verify_jwt = false
+
+# Reward-reservation reconciliation sweep — called by pg_cron / pg_net only,
+# never a Supabase client and never exposed to the frontend. Authenticated by
+# the ?s=<RECONCILE_REWARD_SWEEP_SECRET> URL secret inside the function
+# (constant-time compare), never a user JWT. Added 2026-09-13 (payment-
+# resilience / reward-reservation follow-up) — see
+# 20260913140300_schedule_reward_reservation_reconciliation.sql.
+[functions.reconcile-stale-reward-reservations]
+verify_jwt = false

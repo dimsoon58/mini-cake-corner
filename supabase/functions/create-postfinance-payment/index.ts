@@ -16,7 +16,7 @@ import {
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { ORDER_CLIENT_FIELDS, ORDER_ITEM_CLIENT_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
-import { priceOrderItem, type PricingInput } from "../_shared/pricing.ts";
+import { priceOrderItem, type CandleInput, type PricingInput } from "../_shared/pricing.ts";
 import { resolveDeliveryFeeByDistance } from "../_shared/delivery-pricing.ts";
 import { resolveDeliveryForPlaceId } from "../_shared/google-maps.ts";
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "../_shared/workshops.ts";
@@ -355,6 +355,206 @@ async function resolveOneFulfillment(
   return resolved;
 }
 
+// ── Cart fingerprint (payment-resume safety, 2026-09-13) ───────────────────
+//
+// Pure, side-effect-free comparison between the cart the customer is
+// submitting RIGHT NOW and the snapshot already stored in
+// pending_payments.payload for the SAME orderId — used ONLY to decide
+// whether it is safe to resume the existing PostFinance transaction
+// (handleRetry, unchanged) or whether the cart has materially changed since
+// that transaction was created. This NEVER calls reserve_reward(), NEVER
+// claims the welcome discount, NEVER writes to pending_payments, NEVER talks
+// to PostFinance — it is a normalise-and-compare operation, not a payment
+// attempt. Every value it needs is either already in memory (the current
+// request's whitelisted order / orderItems / pricingItems / fulfillments) or
+// one plain SELECT away (the stored payload; the reward_reservations row for
+// its OWN authoritative amount — see buildFingerprintFromCurrentRequest's
+// caller, which reads reward_reservations.amount directly, never
+// payload.order.reward_amount_used, which is merely what the reservation
+// amount WAS at creation time, not what is protecting the balance today).
+//
+// Compared, per item: product/size/shape/flavors/design/extras/candles
+// (canonicalised — arrays sorted, candle entries normalised) and the item's
+// OWN price. The price itself is freshly computed via priceOrderItem() (a
+// pure function, no DB/network access) for the CURRENT cart, but taken
+// directly from the STORED item's already-resolved `total` for the snapshot
+// side — never recomputed for the stored side, since it was already
+// correctly priced and is exactly what PostFinance was told to charge.
+// Order-level: delivery method/date/address selection (per fulfillment when
+// multi-date is active, else the legacy single top-level fields — never the
+// resolved delivery FEE itself, which is a deterministic function of the
+// selection and so needs no separate Google Maps call just to confirm
+// equality), the reward amount requested NOW vs the EXISTING reservation's
+// authoritative amount, and whether the welcome discount is being claimed
+// now vs whether it was applied in the stored snapshot. Deliberately never
+// compares free-text/cosmetic fields (item_comment, design_image_url,
+// reference_images) — those cannot change what PostFinance charges, so a
+// harmless edit there must never force a whole new payment attempt.
+//
+// If every one of these components matches, the total charged MUST be
+// identical by construction (deterministic pricing given identical inputs) —
+// a stronger guarantee than comparing one total number, which could mask two
+// unrelated changes that happen to cancel out. order.total_amount itself is
+// therefore never read from either side for this comparison.
+//
+// KNOWN LIMITATION: a workshop line's price also depends on
+// workshopSessionId, which pending_payments.payload's orderItems does not
+// carry (ORDER_ITEM_CLIENT_FIELDS excludes every workshop_* pricing field —
+// it is resolved server-side from workshop_sessions instead, not taken from
+// the client). For a workshop item this comparison therefore falls back to
+// total-price equality alone (freshly computed via priceOrderItem for the
+// current request vs the stored item's own total) — it cannot distinguish
+// "same price, different session" for a workshop line specifically. Every
+// non-workshop product is compared on its full selection, never price alone.
+
+interface CanonicalItemSnapshot {
+  product: string;
+  size: string | null;
+  shape: string | null;
+  flavors: string[];
+  design: string | null;
+  extras: string[];
+  candles: { id: string; quantity: number; colors: string[]; digit: string | null }[];
+  fulfillmentDate: string | null;
+  fulfillmentMethod: string | null;
+  fulfillmentPlaceId: string | null;
+  total: number;
+}
+
+function canonicalCandles(candles: CandleInput[] | null | undefined): CanonicalItemSnapshot["candles"] {
+  return [...(candles ?? [])]
+    .map((c) => ({
+      id: String(c.id ?? ""),
+      quantity: Number(c.quantity ?? 0),
+      colors: [...(c.colors ?? [])].map(String).sort(),
+      digit: c.digit != null ? String(c.digit) : null,
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id) || a.digit?.localeCompare(b.digit ?? "") || 0);
+}
+
+// Per-item fulfillment (date/method/placeId) for the CURRENT request — reads
+// the multi-date `fulfillments` array when present (authoritative, same rule
+// as the rest of this file), else falls back to the legacy single top-level
+// order.pickup_delivery_date / order.delivery_method / deliveryPlaceId for
+// every physical item, exactly like every other part of this function
+// already does when multi-date fulfillment isn't in use.
+function resolveItemFulfillmentForFingerprint(
+  itemIndex: number,
+  fulfillmentInputs: FulfillmentInput[] | undefined,
+  order: OrderRow,
+  deliveryPlaceId: string | null | undefined,
+): { date: string | null; method: string | null; placeId: string | null } {
+  if (Array.isArray(fulfillmentInputs) && fulfillmentInputs.length > 0) {
+    const f = fulfillmentInputs.find((fi) => Array.isArray(fi.itemIndexes) && fi.itemIndexes.includes(itemIndex));
+    if (f) {
+      return {
+        date: f.date ? String(f.date).slice(0, 10) : null,
+        method: f.deliveryMethod ?? null,
+        placeId: f.deliveryMethod === "delivery" ? (f.deliveryPlaceId ?? null) : null,
+      };
+    }
+  }
+  return {
+    date: order.pickup_delivery_date ? String(order.pickup_delivery_date).slice(0, 10) : null,
+    method: order.delivery_method ?? null,
+    placeId: order.delivery_method === "delivery" ? (deliveryPlaceId ?? null) : null,
+  };
+}
+
+// Builds the CURRENT cart's canonical snapshot — freshly prices every item
+// via priceOrderItem() (pure). Aborts (returns null) on any pricing failure,
+// exactly like the real pricing loop further down would — a cart that can't
+// even be priced can never be considered "matching" anything.
+function buildCurrentCartSnapshot(
+  orderItems: OrderItemRow[],
+  pricingItems: PricingInput[],
+  fulfillmentInputs: FulfillmentInput[] | undefined,
+  order: OrderRow,
+  deliveryPlaceId: string | null | undefined,
+): CanonicalItemSnapshot[] | null {
+  const out: CanonicalItemSnapshot[] = [];
+  for (let i = 0; i < orderItems.length; i++) {
+    const priced = priceOrderItem(pricingItems[i]);
+    if (!priced.ok) return null;
+    const isWorkshop = orderItems[i].product === "workshop";
+    const fulfillment = isWorkshop
+      ? { date: null, method: null, placeId: null }
+      : resolveItemFulfillmentForFingerprint(i, fulfillmentInputs, order, deliveryPlaceId);
+    out.push({
+      product: orderItems[i].product ?? "",
+      size: orderItems[i].size ?? null,
+      shape: orderItems[i].shape ?? null,
+      flavors: [...(orderItems[i].flavors ?? [])].map(String).sort(),
+      design: orderItems[i].design ?? null,
+      extras: [...(orderItems[i].extras ?? [])].map(String).sort(),
+      candles: canonicalCandles(orderItems[i].candles as CandleInput[] | undefined),
+      fulfillmentDate: fulfillment.date,
+      fulfillmentMethod: fulfillment.method,
+      fulfillmentPlaceId: fulfillment.placeId,
+      total: roundToCents(priced.total),
+    });
+  }
+  return out;
+}
+
+// Builds the STORED snapshot from pending_payments.payload — never
+// recomputes a price, only reads what was already resolved and charged.
+// storedFulfillments is the payload's OWN resolvedFulfillments array
+// (ResolvedFulfillment[], already carrying itemIndexes/date/deliveryMethod/
+// deliveryPlaceId) when the original attempt used multi-date fulfillment,
+// else the legacy single top-level fields on the stored order, exactly
+// mirroring buildCurrentCartSnapshot's own fallback.
+function buildStoredCartSnapshot(
+  storedOrderItems: (OrderItemRow & { total?: number })[],
+  storedFulfillments: ResolvedFulfillment[] | undefined,
+  storedOrder: OrderRow,
+): CanonicalItemSnapshot[] {
+  return storedOrderItems.map((item, i) => {
+    const isWorkshop = item.product === "workshop";
+    let fulfillmentDate: string | null = null;
+    let fulfillmentMethod: string | null = null;
+    let fulfillmentPlaceId: string | null = null;
+    if (!isWorkshop) {
+      const f = Array.isArray(storedFulfillments) && storedFulfillments.length > 0
+        ? storedFulfillments.find((sf) => Array.isArray(sf.itemIndexes) && sf.itemIndexes.includes(i))
+        : null;
+      if (f) {
+        fulfillmentDate = f.date ?? null;
+        fulfillmentMethod = f.deliveryMethod ?? null;
+        fulfillmentPlaceId = f.deliveryMethod === "delivery" ? (f.deliveryPlaceId ?? null) : null;
+      } else {
+        fulfillmentDate = storedOrder.pickup_delivery_date ? String(storedOrder.pickup_delivery_date).slice(0, 10) : null;
+        fulfillmentMethod = storedOrder.delivery_method ?? null;
+        // storedOrder never carries the raw deliveryPlaceId (not part of
+        // ORDER_CLIENT_FIELDS) — the delivery ADDRESS is what's stable and
+        // comparable on the legacy single-date path instead.
+        fulfillmentPlaceId = null;
+      }
+    }
+    return {
+      product: item.product ?? "",
+      size: item.size ?? null,
+      shape: item.shape ?? null,
+      flavors: [...(item.flavors ?? [])].map(String).sort(),
+      design: item.design ?? null,
+      extras: [...(item.extras ?? [])].map(String).sort(),
+      candles: canonicalCandles(item.candles as CandleInput[] | undefined),
+      fulfillmentDate,
+      fulfillmentMethod,
+      fulfillmentPlaceId,
+      total: roundToCents(Number(item.total ?? 0)),
+    };
+  });
+}
+
+// True when the two snapshots describe the exact same payable cart. Both
+// sides are built through the same deterministic, literal-key-order
+// construction above, so a plain JSON comparison is exact and stable.
+function cartSnapshotsMatch(a: CanonicalItemSnapshot[], b: CanonicalItemSnapshot[]): boolean {
+  if (a.length !== b.length) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 // Fixed voucher base price for a single order_item, resolved from the
 // (product, size) pair as a whole — never from item.size alone, and never
 // derived from any client-supplied number (item.total is never read here
@@ -617,6 +817,101 @@ async function handleRetry(
   }, 200);
 }
 
+// ── Cart changed since this pending payment was created ────────────────────
+// Reached only when earlyPending exists AND the cart fingerprint no longer
+// matches it (see buildCurrentCartSnapshot / buildStoredCartSnapshot /
+// cartSnapshotsMatch above). NEVER creates a new PostFinance transaction
+// here, and NEVER resumes the old one silently as if the customer's NEW
+// selections applied to it — that would charge for something they never
+// agreed to. First proves the OLD attempt's real status, using the exact
+// same primitives handleRetry itself trusts (same CREATING-lease rule, same
+// merchantReference search) — this function only ever differs from
+// handleRetry in what it does with a LIVE old attempt (report it, never
+// resume it under the new cart) and with a genuinely dead one (release +
+// clean up, then tell the frontend to start over with a fresh orderId —
+// never silently reuse this orderId for the different cart).
+async function handleCartMismatch(
+  supabase: any,
+  credentials: PostFinanceCredentials,
+  orderId: string,
+  row: { postfinance_transaction_id: string; payload: any; created_at: string },
+  lang: string,
+): Promise<Response> {
+  const en = lang === "en";
+  const txId = String(row.postfinance_transaction_id || "");
+  const customerId = row.payload?.order?.customer_id ?? null;
+  const previousTotal = row.payload?.order?.total_amount ?? null;
+
+  // Already finalised (webhook or an earlier poll beat this request) — the
+  // old attempt succeeded outright, cart differences are moot.
+  const { data: ord } = await supabase
+    .from("orders").select("id, order_validation").eq("id", orderId).maybeSingle();
+  if (ord) {
+    return jsonResponse({ status: "already_confirmed", orderId, orderValidation: ord.order_validation }, 200);
+  }
+
+  const respondUnresolved = () => jsonResponse({
+    status: "cart_changed_previous_unresolved",
+    previousTotal,
+    message: en
+      ? "We're still checking your previous payment attempt. Please wait a moment and try again."
+      : "Nous vérifions encore votre précédente tentative de paiement. Merci de patienter un instant puis de réessayer.",
+  }, 200);
+
+  const respondAbandoned = async (reason: string) => {
+    await releaseReservationsForOrder(supabase, orderId, customerId);
+    await supabase.from("pending_payments").delete().eq("order_id", orderId);
+    await recordPaymentAttempt(supabase, {
+      orderId, status: "payment_failed", errorType: `cart_changed_${reason}`, lang,
+    });
+    return jsonResponse({
+      status: "cart_changed_previous_abandoned",
+      message: en
+        ? "Your previous payment attempt did not complete. You can now start a new checkout with your updated cart."
+        : "Votre précédente tentative de paiement n'a pas abouti. Vous pouvez maintenant relancer le paiement avec votre panier mis à jour.",
+    }, 200);
+  };
+
+  // Never abandons a live/succeeded attempt just because a newer cart
+  // differs from it — the customer must explicitly choose (frontend shows
+  // "continue previous payment" using previousTotal), never a silent switch.
+  const respondInProgress = () => jsonResponse({
+    status: "cart_changed_payment_in_progress",
+    previousTotal,
+    message: en
+      ? "A payment for your previous cart is still in progress. You can continue that payment, or wait for it to resolve before starting a new one."
+      : "Un paiement pour votre panier précédent est toujours en cours. Vous pouvez continuer ce paiement, ou attendre qu'il soit résolu avant d'en démarrer un nouveau.",
+  }, 200);
+
+  if (txId === REWARD_ONLY_TRANSACTION_ID) {
+    // No real external transaction exists to check — the reservation is
+    // protecting a reward-only checkout PostFinance has no knowledge of.
+    // Never guess: report it as still in progress rather than discarding it.
+    return respondInProgress();
+  }
+
+  if (txId && txId !== "CREATING") {
+    const state = await getTransactionState(credentials, txId);
+    const cls = classifyTxState(state);
+    if (cls === "failure") return await respondAbandoned(`tx_${String(state).toLowerCase()}`);
+    return respondInProgress(); // success or in_progress — never abandon a live/succeeded attempt
+  }
+
+  // Still "CREATING" — same lease rule as handleRetry: too young to search.
+  const creatingAgeMs = Date.now() - Date.parse(row.created_at);
+  if (!(creatingAgeMs >= CREATING_LEASE_MS)) {
+    return respondUnresolved();
+  }
+
+  const found = await findTransactionByMerchantReference(credentials, orderId, { pendingCreatedAt: row.created_at });
+  if (!found.conclusive) return respondUnresolved();
+  if (!found.transaction) return await respondAbandoned("no_transaction_found");
+
+  const cls = classifyTxState(found.transaction.state);
+  if (cls === "failure") return await respondAbandoned(`tx_${String(found.transaction.state).toLowerCase()}`);
+  return respondInProgress(); // success or in_progress
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -721,8 +1016,8 @@ serve(async (req) => {
     order.customer_id = authenticatedUser?.id ?? null;
 
     // Fast path — read-only. If the placeholder for this orderId already
-    // exists (the first call got that far), route straight to handleRetry and
-    // skip re-running pricing + Google Maps. This is NOT the serialization
+    // exists (the first call got that far), decide whether it's safe to
+    // resume it before doing anything else. This is NOT the serialization
     // point: that is still the UNIQUE pending_payments INSERT further down,
     // which also catches two truly-parallel first calls.
     {
@@ -732,7 +1027,48 @@ serve(async (req) => {
         .eq("order_id", orderId)
         .maybeSingle();
       if (earlyPending) {
-        return await handleRetry(supabase, credentials, orderId, earlyPending, orderLang);
+        // ── Cart-fingerprint check before ANY resume (2026-09-13) ─────────
+        // Never assume the cart being submitted now still matches the one
+        // that created this pending payment — see buildCurrentCartSnapshot /
+        // buildStoredCartSnapshot / cartSnapshotsMatch above. A changed cart
+        // must never silently resume a transaction priced for something else
+        // (handleCartMismatch below never resumes; it only ever reports or,
+        // once the old attempt is PROVEN dead, releases it).
+        const storedPayload = earlyPending.payload ?? {};
+        const storedOrder = (storedPayload.order ?? {}) as OrderRow;
+        const storedOrderItems = (storedPayload.orderItems ?? []) as (OrderItemRow & { total?: number })[];
+        const storedFulfillments = storedPayload.fulfillments as ResolvedFulfillment[] | undefined;
+
+        const currentSnapshot = buildCurrentCartSnapshot(orderItems, pricingItems, rawFulfillments, order, deliveryPlaceId);
+        const storedSnapshot = storedOrderItems.length
+          ? buildStoredCartSnapshot(storedOrderItems, storedFulfillments, storedOrder)
+          : null;
+
+        // Reward: compared against the EXISTING reservation's own
+        // authoritative amount — never payload.order.reward_amount_used,
+        // which is only what it WAS at creation time, per explicit
+        // instruction. No reservation row at all reads as 0 on both sides.
+        const { data: existingReservation } = await supabase
+          .from("reward_reservations")
+          .select("amount")
+          .eq("order_id", orderId)
+          .maybeSingle();
+        const reservedRewardAmount = roundToCents(Number(existingReservation?.amount ?? 0));
+        const requestedRewardAmount = roundToCents(Number(rewardAmountToUse ?? 0));
+
+        const storedWelcomeDiscountApplied = Number(storedOrder.welcome_discount_amount ?? 0) > 0;
+        const requestedWelcomeDiscount = !!useWelcomeDiscount;
+
+        const cartUnchanged = !!currentSnapshot
+          && !!storedSnapshot
+          && cartSnapshotsMatch(currentSnapshot, storedSnapshot)
+          && reservedRewardAmount === requestedRewardAmount
+          && storedWelcomeDiscountApplied === requestedWelcomeDiscount;
+
+        if (cartUnchanged) {
+          return await handleRetry(supabase, credentials, orderId, earlyPending, orderLang);
+        }
+        return await handleCartMismatch(supabase, credentials, orderId, earlyPending, orderLang);
       }
     }
 

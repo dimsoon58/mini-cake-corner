@@ -46,7 +46,12 @@ type UiState =
   // Same orderId — the server is still resolving a previous attempt.
   | { kind: "in_progress"; message: string }
   // The previous attempt is dead — a brand-new checkout is required.
-  | { kind: "restart"; message: string };
+  | { kind: "restart"; message: string }
+  // 2026-09-13: the cart submitted now no longer matches the snapshot the
+  // existing pending payment was created for (create-postfinance-payment's
+  // cart-fingerprint check) AND the old attempt is still genuinely alive —
+  // never silently resumed under the new cart, never silently discarded.
+  | { kind: "cart_changed_in_progress"; message: string; previousTotal: number | null };
 
 // create-postfinance-payment always returns a hosted PostFinance
 // payment-page URL for a fresh checkout. On a retry (same orderId) it may
@@ -93,7 +98,9 @@ export const PostFinanceCheckout = ({ payload, onRequestNewOrder }: EmbeddedChec
       }
 
       // Same orderId, server still resolving — offer a manual re-check.
-      if (data?.status === "in_progress") {
+      // cart_changed_previous_unresolved is the same "wait and retry" case,
+      // just reached via the cart-fingerprint-mismatch path instead.
+      if (data?.status === "in_progress" || data?.status === "cart_changed_previous_unresolved") {
         setState({
           kind: "in_progress",
           message: data.message
@@ -105,8 +112,31 @@ export const PostFinanceCheckout = ({ payload, onRequestNewOrder }: EmbeddedChec
         return;
       }
 
+      // The cart changed AND the previous attempt (for the OLD cart) is still
+      // genuinely alive at PostFinance. NEVER resumed under the new cart and
+      // NEVER silently discarded — the customer must be told plainly.
+      // Retrying with THIS button re-submits the SAME (new) cart, which will
+      // hit this same state again until the old attempt actually resolves
+      // (it pays or dies) — that is intentional: only the old attempt's own
+      // resolution, or explicit account-level follow-up, may release it.
+      if (data?.status === "cart_changed_payment_in_progress") {
+        setState({
+          kind: "cart_changed_in_progress",
+          message: data.message
+            ?? t(
+              "A payment for your previous cart is still in progress. You can continue that payment, or wait for it to resolve before starting a new one.",
+              "Un paiement pour votre panier précédent est toujours en cours. Vous pouvez continuer ce paiement, ou attendre qu'il soit résolu avant d'en démarrer un nouveau.",
+            ),
+          previousTotal: typeof data.previousTotal === "number" ? data.previousTotal : null,
+        });
+        return;
+      }
+
       // Previous attempt is dead — the parent must rebuild with a new orderId.
-      if (data?.status === "restart_checkout" || data?.retryWithNewOrder === true) {
+      // cart_changed_previous_abandoned is the exact same outcome, reached
+      // via the cart-fingerprint-mismatch path: the OLD attempt (whichever
+      // cart it was for) is proven dead, so a fresh one is required anyway.
+      if (data?.status === "restart_checkout" || data?.status === "cart_changed_previous_abandoned" || data?.retryWithNewOrder === true) {
         setState({
           kind: "restart",
           message: data.message
@@ -166,6 +196,25 @@ export const PostFinanceCheckout = ({ payload, onRequestNewOrder }: EmbeddedChec
               {t("Start over", "Recommencer")}
             </Button>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (state.kind === "cart_changed_in_progress") {
+    return (
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3 text-center">
+        <p className="text-sm text-muted-foreground">{state.message}</p>
+        {state.previousTotal != null && (
+          <p className="text-sm font-medium text-foreground">
+            {t(`Previous payment amount: CHF ${state.previousTotal.toFixed(2)}`, `Montant du paiement précédent : CHF ${state.previousTotal.toFixed(2)}`)}
+          </p>
+        )}
+        <div className="flex flex-col sm:flex-row gap-2 justify-center">
+          <Button onClick={retrySameOrder} size="sm" variant="outline">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            {t("Check again", "Vérifier à nouveau")}
+          </Button>
         </div>
       </div>
     );

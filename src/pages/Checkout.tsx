@@ -56,6 +56,7 @@ import { isOrderDateDisabled, expressSurchargeBreakdown, expressSummaryLabel, ty
 import { cartItemTitle, flavorLabel } from "@/lib/orderLabels";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
+import { getStoredOrderId, setStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 
 // Anti double-payment guard. Set when the customer is handed to PostFinance,
@@ -557,6 +558,13 @@ const Checkout = () => {
         supabase.functions
           .invoke("confirm-postfinance-payment", { body: { orderId: failedOrderId } })
           .catch((e) => console.error("failed-payment reconciliation error:", e));
+        // confirm-postfinance-payment releases the reward reservation for a
+        // confirmed FAILED/DECLINE/VOIDED transaction — safe to stop reusing
+        // this orderId on the next "Proceed to Payment" click.
+        if (failedOrderId === getStoredOrderId()) {
+          clearStoredOrderId();
+          setResumedReservation(null);
+        }
       }
 
       toast({
@@ -573,6 +581,37 @@ const Checkout = () => {
 
   // The in-flight lock never outlives this page.
   useEffect(() => () => clearCheckoutInFlight(), []);
+
+  // Reward reservation already outstanding for THIS tab's payment attempt
+  // (2026-09-13 payment-resilience fix) — e.g. the customer opened
+  // PostFinance in a new tab, then reloaded or reopened this one. Read-only:
+  // get_reward_reservation_for_order only returns a row that belongs to the
+  // CALLING customer AND matches this exact orderId (never "a" reservation
+  // picked arbitrarily) — see its migration for the security rationale. This
+  // never creates, releases or resumes anything by itself — it only informs
+  // the "Points utilisés" display below so it doesn't look like the points
+  // simply vanished. Clicking "Proceed to Payment" again reuses the same
+  // orderId (getStoredOrderId, handleSubmit) and lets create-postfinance-
+  // payment's own cart-fingerprint check decide whether to actually resume.
+  const [resumedReservation, setResumedReservation] = useState<{ orderId: string; amount: number } | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    const storedOrderId = getStoredOrderId();
+    if (!storedOrderId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc(
+        "get_reward_reservation_for_order" as any,
+        { p_order_id: storedOrderId } as any,
+      );
+      if (cancelled || error) return;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row?.amount > 0) {
+        setResumedReservation({ orderId: storedOrderId, amount: Number(row.amount) });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   // GA4 funnel guards — each step at most once per Checkout mount.
   const beginCheckoutSentRef = useRef(false);
@@ -773,11 +812,17 @@ const Checkout = () => {
   // the business rule; still just a display cap, never trusted as the real
   // ceiling.
   const maxRewardUsable = Math.max(0, Math.round((rewardEligibleItemsTotal - estimatedWelcomeDiscount) * 100) / 100);
-  // No amount choice — enabling the option always requests the maximum
-  // usable amount (never more than what's left to pay on products).
-  const estimatedRewardUsed = (useReward && rewardEligible)
-    ? Math.round(Math.min(rewardBalance, maxRewardUsable) * 100) / 100
-    : 0;
+  // A reservation already outstanding for THIS exact orderId (see
+  // resumedReservation above) is the AUTHORITATIVE amount — never
+  // recomputed from the current (already-reduced-by-the-reservation-itself)
+  // rewardBalance, and never re-offered as a fresh choice to select. The
+  // normal "no amount choice, always the max usable" rule only applies when
+  // there is nothing already reserved for this payment attempt.
+  const estimatedRewardUsed = resumedReservation
+    ? resumedReservation.amount
+    : (useReward && rewardEligible)
+      ? Math.round(Math.min(rewardBalance, maxRewardUsable) * 100) / 100
+      : 0;
 
   // Express surcharge (tiered: +20% J+2/J+3, +15% J+4/J+5) — DISPLAY ONLY. The server
   // (create-postfinance-payment) re-derives it from the Europe/Zurich date vs
@@ -1060,7 +1105,14 @@ const Checkout = () => {
         return;
       }
 
-      const orderId = crypto.randomUUID();
+      // Reuse a still-outstanding attempt's orderId rather than always
+      // minting a fresh one — see CHECKOUT_ORDER_ID_KEY above. The server
+      // (create-postfinance-payment) independently verifies whether the
+      // cart submitted now still matches what that orderId's reservation/
+      // pending_payment was created for; this is only about NOT abandoning
+      // a still-open reward reservation by orphaning its orderId client-side.
+      const orderId = getStoredOrderId() ?? crypto.randomUUID();
+      setStoredOrderId(orderId);
       const slot = !hasPhysical ? null : (deliveryOption === "pickup" ? pickupTime : deliveryTime);
 
       // Multi-date fulfillment payload — undefined on every order today
@@ -2040,7 +2092,26 @@ const Checkout = () => {
                 </div>
               )}
 
-              {rewardEligible && (
+              {resumedReservation ? (
+                // A payment attempt for THIS exact order is already holding
+                // this amount server-side (see resumedReservation above) —
+                // never re-offered as a fresh checkbox choice. Shown plainly
+                // so the points never look like they simply vanished.
+                <div className="border border-primary/30 bg-primary/5 rounded-none p-3 mb-2 text-sm">
+                  <p className="font-medium text-foreground">
+                    {t(
+                      `Points used: CHF ${resumedReservation.amount.toFixed(2)}`,
+                      `Points utilisés : CHF ${resumedReservation.amount.toFixed(2)}`,
+                    )}
+                  </p>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    {t(
+                      "Already applied to this payment in progress — click “Proceed to Payment” to continue it.",
+                      "Déjà appliqués à ce paiement en cours — cliquez sur « Procéder au paiement » pour le reprendre.",
+                    )}
+                  </p>
+                </div>
+              ) : rewardEligible && (
                 <div className="flex items-center space-x-3 py-2">
                   <Checkbox
                     id="useReward"
@@ -2053,7 +2124,7 @@ const Checkout = () => {
                 </div>
               )}
 
-              {estimatedRewardUsed > 0 && (
+              {!resumedReservation && estimatedRewardUsed > 0 && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">{t("Reward balance used", "Cagnotte utilisée")}</span>
                   <span className="font-medium text-primary">- CHF {estimatedRewardUsed.toFixed(2)}</span>
@@ -2188,6 +2259,13 @@ const Checkout = () => {
                 payload={checkoutPayload}
                 onRequestNewOrder={() => {
                   clearCheckoutInFlight();
+                  // The previous attempt is confirmed dead (server-proven —
+                  // see restart_checkout / cart_changed_previous_abandoned in
+                  // EmbeddedCheckout.tsx) — only NOW is it safe to let the
+                  // next "Proceed to Payment" click mint a genuinely new
+                  // orderId instead of reusing this one.
+                  clearStoredOrderId();
+                  setResumedReservation(null);
                   setShowEmbeddedCheckout(false);
                   setCheckoutPayload(null);
                   setShowPaymentFailed(true);
