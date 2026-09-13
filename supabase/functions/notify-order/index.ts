@@ -111,6 +111,7 @@ async function sendAdminEmail(
           ${row("Design", item.design)}
           ${row("Couleur de base", item.base_color)}
           ${row("Couleur de déco", item.decoration_color)}
+          ${row("Couleur intérieure", item.inside_color)}
           ${row("Texte sur le gâteau", item.cake_text ? `"${item.cake_text}" (${item.text_style || "normal"}, ${item.text_color || "default"})` : null)}
           ${row("Suppléments", item.extra || null)}
           ${row("Bougies", candlesList || null)}
