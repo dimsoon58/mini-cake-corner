@@ -33,7 +33,7 @@ const PRODUCT_CATALOG: Record<string, { item_name: string; item_category: string
   bento_cake: { item_name: "Bento Cake", item_category: "Bento Cakes" },
   rectangle_cake: { item_name: "Rectangle Cake", item_category: "Rectangle Cakes" },
   dot_cakes: { item_name: "Dot Cake", item_category: "Dot Cakes" },
-  diy_kit: { item_name: "DIY Bento Cake Kit", item_category: "DIY Kit" },
+  diy_kit: { item_name: "Bento Kit", item_category: "Bento Kit" },
   candles: { item_name: "Candles", item_category: "Candles" },
   edible_printing: { item_name: "Edible Printing", item_category: "Edible Printing" },
 };

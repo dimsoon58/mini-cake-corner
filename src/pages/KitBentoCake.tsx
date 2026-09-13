@@ -368,13 +368,13 @@ const KitBentoCake = () => {
       orderDate: orderDate ? format(orderDate, "yyyy-MM-dd") : "",
       orderTime: "",
       size: "kit-bento",
-      sizeName: "DIY Kit",
+      sizeName: "Bento Kit",
       shape: selectedShape,
       shapeName: shapes.find(s => s.id === selectedShape)?.name || "",
       flavor: selectedFlavor,
       flavorName: getFlavorName(),
       style: "diy-kit",
-      styleName: "DIY Kit",
+      styleName: "Bento Kit",
       baseColor: "",
       baseColorName: "",
       decorationColor: "",
@@ -451,7 +451,7 @@ const KitBentoCake = () => {
     <Layout>
       <div className="container mx-auto px-4 pt-12">
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
-          {t("DIY KIT", "DIY KIT")}
+          {t("BENTO KIT", "BENTO KIT")}
         </h1>
         <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto text-sm md:text-base">
           {t("A bento cake ready to decorate at home.", "Un bento cake prêt à décorer à la maison.")}
@@ -471,7 +471,7 @@ const KitBentoCake = () => {
                 }}
               className="bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-semibold uppercase tracking-[0.18em] rounded-none px-10 py-3.5 transition-colors"
             >
-              {t("Create your DIY Kit →", "Créer mon Kit DIY →")}
+              {t("Create your Bento Kit →", "Créer mon Bento Kit →")}
             </button>
             {/* DIY Kit image – shown on landing screen */}
             <img src={diyKitBox} alt={t("Bento Cake Studio DIY kit","Kit DIY Bento Cake Studio")} loading="lazy" className="w-full max-w-md mx-auto" />
@@ -868,7 +868,7 @@ const KitBentoCake = () => {
           </SheetHeader>
           <div className="mt-6 space-y-4">
             <div className="bg-secondary/50 p-4 space-y-2">
-              <p><strong>{t("DIY Kit","Kit DIY")}</strong></p>
+              <p><strong>{t("Bento Kit","Bento Kit")}</strong></p>
               <p className="text-sm text-muted-foreground">{t("Date:","Date :")} {orderDate ? format(orderDate, "dd.MM.yyyy") : ""}</p>
               <p className="text-sm text-muted-foreground">{t("Shape:","Forme :")} {t(shapes.find(s => s.id === selectedShape)?.name || "", shapes.find(s => s.id === selectedShape)?.nameFr || "")}</p>
               <p className="text-sm text-muted-foreground">{t("Flavour:","Parfum :")} {t(getFlavorName(), getFlavorNameFr())}</p>

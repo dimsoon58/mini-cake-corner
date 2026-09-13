@@ -12,7 +12,7 @@ export const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
   bento_cake: { en: "Bento Cake", fr: "Bento Cake" },
   rectangle_cake: { en: "Rectangle Cake", fr: "Gâteau Rectangle" },
   dot_cakes: { en: "Dot Cakes", fr: "Dot Cakes" },
-  diy_kit: { en: "DIY Kit", fr: "Kit DIY" },
+  diy_kit: { en: "Bento Kit", fr: "Bento Kit" },
   candles: { en: "Candles", fr: "Bougies" },
   edible_printing: { en: "Printing", fr: "Impression" },
   workshop: { en: "Workshop", fr: "Atelier" },
@@ -67,7 +67,7 @@ export function sizeLabel(sizeId: string, lang: "en" | "fr" = "en"): string {
   if (packMatch) {
     return lang === "fr" ? `Dot Cakes ${packMatch[1]} pièces` : `Dot Cakes pack of ${packMatch[1]}`;
   }
-  if (sizeId === "kit-bento") return lang === "fr" ? "Kit Bento" : "DIY Kit";
+  if (sizeId === "kit-bento") return "Bento Kit";
   if (lang === "fr" && SIZE_LABELS_FR[sizeId]) return SIZE_LABELS_FR[sizeId];
   const known = sizes.find((s) => s.id === sizeId)?.name;
   return known || prettifyId(sizeId);
@@ -97,7 +97,7 @@ export function cartItemTitle(
     return `${item.sizeName || ""} ${item.shapeName || ""} ${t("Cake", "Gâteau")}`.replace(/\s+/g, " ").trim();
   }
   if (item.product === "edible_printing") return t("Printing", "Impression");
-  if (item.product === "diy_kit") return t("DIY Kit", "Kit DIY");
+  if (item.product === "diy_kit") return t("Bento Kit", "Bento Kit");
   if (item.size) return sizeLabel(item.size, lang);
   return item.sizeName || t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product;
 }
