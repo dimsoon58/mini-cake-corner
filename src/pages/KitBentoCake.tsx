@@ -229,7 +229,7 @@ const tooltipTextsFr: Record<string, string> = {
 };
 
 const KitBentoCake = () => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { addItem, cartOrderDate } = useCart();
   const navigate = useNavigate();
 

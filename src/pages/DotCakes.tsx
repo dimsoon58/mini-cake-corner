@@ -104,7 +104,7 @@ const STEPS = [
 const DotCakes = () => {
   const navigate = useNavigate();
   const { addItem, cartOrderDate } = useCart();
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   const [step, setStep] = useState(1);
   // While MULTI_DATE_FULFILLMENT_ENABLED is off, pre-filling with the cart's
