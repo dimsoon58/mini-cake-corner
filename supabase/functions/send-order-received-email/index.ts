@@ -24,6 +24,66 @@ function flavorsLabel(flavors: string[] | null | undefined): string {
   if (!flavors?.length) return "";
   return flavors.map((f) => f.trim().replace(/\s*\([^)]*\)\s*$/, "")).filter(Boolean).join(", ");
 }
+// Bilingual, customer-facing labels for the fixed product/size/shape id
+// sets — same mapping as src/lib/orderLabels.ts's PRODUCT_LABELS/sizeLabel/
+// shapeLabel (frontend cart + My Orders) and manage-order/index.ts's own
+// copy, kept as a local copy here too (Deno function, can't import from
+// src/) — keep all three in sync if this ever changes.
+const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
+  bento_cake: { en: "Bento Cake", fr: "Bento Cake" },
+  rectangle_cake: { en: "Rectangle Cake", fr: "Gâteau Rectangle" },
+  dot_cakes: { en: "Dot Cakes", fr: "Dot Cakes" },
+  diy_kit: { en: "DIY Kit", fr: "Kit DIY" },
+  candles: { en: "Candles", fr: "Bougies" },
+  edible_printing: { en: "Printing", fr: "Impression" },
+  workshop: { en: "Workshop", fr: "Atelier" },
+};
+const SIZE_LABELS_FR: Record<string, string> = {
+  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "Kit Bento",
+};
+const SIZE_LABELS_EN: Record<string, string> = {
+  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "DIY Kit",
+};
+const SHAPE_LABELS_FR: Record<string, string> = { round: "Rond", heart: "Cœur" };
+const SHAPE_LABELS_EN: Record<string, string> = { round: "Round", heart: "Heart" };
+const DOT_CAKES_PACK_RE = /^dot-cakes-(\d+)$/;
+
+function prettifyId(id: string): string {
+  return id.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function productLabel(product: string, lang: "en" | "fr"): string {
+  return PRODUCT_LABELS[product]?.[lang] || prettifyId(product);
+}
+function sizeLabel(sizeId: string, lang: "en" | "fr"): string {
+  const packMatch = sizeId.match(DOT_CAKES_PACK_RE);
+  if (packMatch) return lang === "fr" ? `Dot Cakes ${packMatch[1]} pièces` : `Dot Cakes pack of ${packMatch[1]}`;
+  const table = lang === "fr" ? SIZE_LABELS_FR : SIZE_LABELS_EN;
+  return table[sizeId] || prettifyId(sizeId);
+}
+function shapeLabel(shapeId: string, lang: "en" | "fr"): string {
+  const table = lang === "fr" ? SHAPE_LABELS_FR : SHAPE_LABELS_EN;
+  return table[shapeId] || prettifyId(shapeId);
+}
+// One-line item description for the multi-date grouped item list — never a
+// raw id: size/shape resolved through sizeLabel/shapeLabel, "round" (the
+// default shape) omitted as uninformative, edible_printing/diy_kit
+// collapsed to just their product name since neither has a meaningful
+// size/shape of its own to add.
+function physicalItemDescription(item: any, lang: "en" | "fr"): string {
+  if (item.product === "edible_printing") return productLabel("edible_printing", lang);
+  if (item.product === "diy_kit") {
+    return item.flavors?.length ? `${productLabel("diy_kit", lang)} — ${flavorsLabel(item.flavors)}` : productLabel("diy_kit", lang);
+  }
+  // A standalone candle line's "size" is always the fixed "candles" id —
+  // never a real choice. Its own candle_name is the meaningful detail.
+  if (item.product === "candles") {
+    return item.candle_name ? `${productLabel("candles", lang)} — ${item.candle_name}` : productLabel("candles", lang);
+  }
+  const sizePart = item.size ? sizeLabel(item.size, lang) : "";
+  const shapePart = item.shape && item.shape !== "round" ? ` ${shapeLabel(item.shape, lang)}` : "";
+  const flavourPart = item.flavors?.length ? ` — ${flavorsLabel(item.flavors)}` : "";
+  return `${sizePart}${shapePart}${flavourPart}`.trim() || productLabel(item.product, lang);
+}
 
 // orders.lang is written by Checkout.tsx directly; French is the default.
 function getCustomerLang(order: any): "fr" | "en" {
@@ -76,9 +136,9 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
   const groupByFulfillment = physicalFulfillmentIds.length > 1;
 
   const describeItem = (item: any): string =>
-    item.size
-      ? `${item.size}${item.flavors?.length ? " — " + flavorsLabel(item.flavors) : ""}`
-      : (item.design || tr("Custom cake", "Gâteau personnalisé"));
+    item.size || item.design
+      ? physicalItemDescription(item, lang)
+      : tr("Custom cake", "Gâteau personnalisé");
 
   const fulfillmentBlockHtml = (fulfillmentId: string): string => {
     const f = fulfillmentById.get(fulfillmentId);

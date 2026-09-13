@@ -53,6 +53,7 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isOrderDateDisabled, expressSurcharge, expressSummaryLabel, uniformExpressRate } from "@/lib/orderDates";
+import { cartItemTitle, flavorLabel } from "@/lib/orderLabels";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
@@ -1924,20 +1925,34 @@ const Checkout = () => {
                       <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
                         <div className="flex justify-between items-start">
                           <span className="font-medium text-sm text-foreground">
-                            {item.sizeName} {item.shapeName} {t("Cake", "Gâteau")}
+                            {cartItemTitle(item, lang, t)}
                           </span>
                           <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
                         </div>
                         <div className="text-xs text-muted-foreground space-y-0.5">
-                          <div className="flex justify-between">
-                            <span>{t("Base", "Base")} ({item.sizeName})</span>
-                            <span>CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>{t("Flavour:", "Parfum :")} {item.flavorName}</span>
-                            <span>{flavorExtra > 0 ? `+ CHF ${flavorExtra}` : t("included", "inclus")}</span>
-                          </div>
-                          {item.styleName && (
+                          {/* Dot Cakes/DIY Kit/Printing aren't in the
+                              static sizes catalogue this row prices
+                              against (sizePrice resolves to 0 — their real
+                              price lives entirely in item.total, untouched
+                              here); showing "CHF 0" would be misleading. */}
+                          {item.product !== "dot_cakes" && item.product !== "diy_kit" && item.product !== "edible_printing" && (
+                            <div className="flex justify-between">
+                              <span>{t("Base", "Base")} ({item.sizeName})</span>
+                              <span>CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
+                            </div>
+                          )}
+                          {item.flavorName && (
+                            <div className="flex justify-between">
+                              <span>{t("Flavour:", "Parfum :")} {flavorLabel(item.flavorName)}</span>
+                              <span>{flavorExtra > 0 ? `+ CHF ${flavorExtra}` : t("included", "inclus")}</span>
+                            </div>
+                          )}
+                          {/* Dot Cakes/DIY Kit/Printing: styleName is just
+                              the product's own name again ("Dot Cakes",
+                              "DIY Kit", "Edible Printing") — not a real
+                              design choice, so this row would just repeat
+                              the card title for no new information. */}
+                          {item.styleName && item.product !== "dot_cakes" && item.product !== "diy_kit" && item.product !== "edible_printing" && (
                             <div className="flex justify-between">
                               <span>{t("Design:", "Design :")} {item.styleName}</span>
                               <span>{styleExtra > 0 ? `+ CHF ${styleExtra}` : t("included", "inclus")}</span>

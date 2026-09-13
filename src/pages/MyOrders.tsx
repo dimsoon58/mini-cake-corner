@@ -7,7 +7,14 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { PRODUCT_LABELS, formatDateCH, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
+import { PRODUCT_LABELS, formatDateCH, sizeLabel, shapeLabel, designLabel, flavorLabel, splitComment } from "@/lib/orderLabels";
+
+// Products whose stored `design` is a fixed internal id (never a real
+// customer choice — Dot Cakes/DIY Kit/Printing/Candles don't have a
+// "design" step), so showing it ("Design: Dot Cakes") would just repeat
+// the product name with zero new information. Only bento_cake and
+// rectangle_cake have a genuine design pick worth a row of its own.
+const PRODUCTS_WITHOUT_MEANINGFUL_DESIGN = new Set(["dot_cakes", "diy_kit", "edible_printing", "candles"]);
 
 type CustomerOrderItem = {
   id: string;
@@ -90,18 +97,20 @@ function summaryDateLabel(order: CustomerOrder, t: (en: string, fr: string) => s
   return `${formatDateCH(dates[0])} (+${rest} ${t(rest > 1 ? "other dates" : "other date", rest > 1 ? "autres dates" : "autre date")})`;
 }
 
-function itemsSummary(items: CustomerOrder["order_items"]): string {
+function itemsSummary(items: CustomerOrder["order_items"], lang: "en" | "fr"): string {
   return items
     .map((item) =>
       item.product === "workshop"
-        ? `${item.workshop_type === "paint" ? "Atelier Peinture" : "Atelier Signature"}${item.workshop_date ? ` (${formatDateCH(item.workshop_date)})` : ""}`
-        : item.size ? `${item.size}${item.flavors?.length ? ` — ${item.flavors.join(", ")}` : ""}` : (item.design || ""))
+        ? `${item.workshop_type === "paint" ? (lang === "fr" ? "Atelier Peinture" : "Paint Workshop") : (lang === "fr" ? "Atelier Signature" : "Signature Workshop")}${item.workshop_date ? ` (${formatDateCH(item.workshop_date)})` : ""}`
+        : item.size
+          ? `${sizeLabel(item.size, lang)}${item.flavors?.length ? ` — ${flavorLabel(item.flavors.join(","))}` : ""}`
+          : (item.design ? designLabel(item.design) : ""))
     .filter(Boolean)
     .join(", ");
 }
 
 const MyOrders = () => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
@@ -287,7 +296,7 @@ const MyOrders = () => {
                 {statusLabel(order)}
               </span>
             </div>
-            <p className="text-sm text-foreground/75">{itemsSummary(order.order_items) || "—"}</p>
+            <p className="text-sm text-foreground/75">{itemsSummary(order.order_items, lang) || "—"}</p>
             <p className="text-xs text-muted-foreground mt-1">
               {t("Date", "Date")}: {summaryDateLabel(order, t)} · CHF {order.total_amount}
             </p>
@@ -323,8 +332,12 @@ const MyOrders = () => {
                         {item.product === "workshop"
                           ? (item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature"))
                           : (t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product)}
-                        {item.product !== "workshop" && item.size && ` — ${sizeLabel(item.size)}`}
-                        {item.product !== "workshop" && item.shape && item.shape !== "round" && ` (${shapeLabel(item.shape)})`}
+                        {/* diy_kit's size is always the same fixed "kit-bento" id —
+                            never a real choice, and resolving it here would just
+                            repeat the product name ("DIY Kit — DIY Kit" in English).
+                            Dot Cakes' size IS meaningful (the pack count), kept. */}
+                        {item.product !== "workshop" && item.product !== "diy_kit" && item.size && ` — ${sizeLabel(item.size, lang)}`}
+                        {item.product !== "workshop" && item.shape && item.shape !== "round" && ` (${shapeLabel(item.shape, lang)})`}
                       </p>
                       <div className="text-muted-foreground space-y-0.5 pl-0.5">
                         {item.product === "workshop" && (
@@ -333,13 +346,16 @@ const MyOrders = () => {
                             {item.workshop_participants != null && <p>{t("Participants:", "Participants :")} {item.workshop_participants}</p>}
                           </>
                         )}
-                        {item.design && (
+                        {/* Dot Cakes/DIY Kit/Printing/Candles: "design" is a fixed
+                            internal id, never a real customer choice — showing it
+                            would just repeat the product name for no new info. */}
+                        {item.design && !PRODUCTS_WITHOUT_MEANINGFUL_DESIGN.has(item.product) && (
                           <p>
                             {t("Design:", "Design :")} {designLabel(item.design)}
                             {designPhoto ? ` — ${t("Photo", "Photo")} ${designPhoto}` : ""}
                           </p>
                         )}
-                        {item.flavors?.length ? <p>{t("Flavour:", "Parfum :")} {item.flavors.join(", ")}</p> : null}
+                        {item.flavors?.length ? <p>{t("Flavour:", "Parfum :")} {flavorLabel(item.flavors.join(","))}</p> : null}
                         {item.extra && <p>{t("Extras:", "Extras :")} {item.extra} (+CHF {item.extras_price})</p>}
                         {item.candle_name && (
                           <p>

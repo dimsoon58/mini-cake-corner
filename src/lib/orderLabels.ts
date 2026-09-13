@@ -9,12 +9,12 @@
 import { sizes, shapes, styles } from "@/data/customization";
 
 export const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
-  bento_cake: { en: "Cake", fr: "Gâteau" },
+  bento_cake: { en: "Bento Cake", fr: "Bento Cake" },
   rectangle_cake: { en: "Rectangle Cake", fr: "Gâteau Rectangle" },
   dot_cakes: { en: "Dot Cakes", fr: "Dot Cakes" },
   diy_kit: { en: "DIY Kit", fr: "Kit DIY" },
   candles: { en: "Candles", fr: "Bougies" },
-  edible_printing: { en: "Edible Printing", fr: "Impression Comestible" },
+  edible_printing: { en: "Printing", fr: "Impression" },
   workshop: { en: "Workshop", fr: "Atelier" },
 };
 
@@ -34,23 +34,72 @@ function prettifyId(id: string): string {
 
 // Dot Cakes packs store their size as a dynamic "dot-cakes-<N>" id (N = pack
 // size) — never in the static `sizes` catalogue, since the pack size isn't
-// a fixed option. Special-cased here so it reads as "Pack of 20" instead of
-// falling through to the generic prettify ("Dot Cakes 20") — this is also
-// the "how many did they order" figure for a Dot Cakes line (there is no
-// separate numeric quantity column for cakes — each order_items row is one
-// cake, or for Dot Cakes, one whole pack of this size).
+// a fixed option. Special-cased here so it reads as "Dot Cakes 20 pieces"
+// instead of falling through to the generic prettify ("Dot Cakes 20") —
+// this is also the "how many did they order" figure for a Dot Cakes line
+// (there is no separate numeric quantity column for cakes — each
+// order_items row is one cake, or for Dot Cakes, one whole pack of this
+// size).
 const DOT_CAKES_PACK_RE = /^dot-cakes-(\d+)$/;
 
-export function sizeLabel(sizeId: string): string {
-  const known = sizes.find((s) => s.id === sizeId)?.name;
-  if (known) return known;
+// `sizes`/`shapes` (@/data/customization) only carry an English `name` —
+// bilingual only for the small, fully-enumerable id sets (product sizes,
+// shapes, and the two dynamic size ids that aren't in that catalogue:
+// diy_kit's fixed "kit-bento" and Dot Cakes' "dot-cakes-<N>" pack size).
+// Design/style ids (30+, free-text marketing names with no French
+// catalogue copy yet) stay as their English catalogue name via
+// designLabel() below — never a raw hyphenated id, just not translated.
+const SIZE_LABELS_FR: Record<string, string> = {
+  bento: "Bento",
+  retro: "Retro Box",
+  medium: "Medium",
+  large: "Large",
+  rectangle: "Rectangle",
+  "kit-bento": "Kit Bento",
+};
+const SHAPE_LABELS_FR: Record<string, string> = {
+  round: "Rond",
+  heart: "Cœur",
+};
+
+export function sizeLabel(sizeId: string, lang: "en" | "fr" = "en"): string {
   const packMatch = sizeId.match(DOT_CAKES_PACK_RE);
-  if (packMatch) return `Pack of ${packMatch[1]}`;
-  return prettifyId(sizeId);
+  if (packMatch) {
+    return lang === "fr" ? `Dot Cakes ${packMatch[1]} pièces` : `Dot Cakes pack of ${packMatch[1]}`;
+  }
+  if (sizeId === "kit-bento") return lang === "fr" ? "Kit Bento" : "DIY Kit";
+  if (lang === "fr" && SIZE_LABELS_FR[sizeId]) return SIZE_LABELS_FR[sizeId];
+  const known = sizes.find((s) => s.id === sizeId)?.name;
+  return known || prettifyId(sizeId);
 }
 
-export function shapeLabel(shapeId: string): string {
+export function shapeLabel(shapeId: string, lang: "en" | "fr" = "en"): string {
+  if (lang === "fr" && SHAPE_LABELS_FR[shapeId]) return SHAPE_LABELS_FR[shapeId];
   return shapes.find((s) => s.id === shapeId)?.name || prettifyId(shapeId);
+}
+
+// Cart/Checkout review card title — a live CartItem, before checkout (so no
+// order_items row yet; item.product/size/sizeName/shapeName come straight
+// off the cart). Bento/Rectangle cakes keep their existing "<Size> <Shape>
+// Cake" title (sizeName/shapeName already read right for those two). Every
+// other product's sizeName was set once, in English, at add-to-cart time
+// (DotCakes.tsx/KitBentoCake.tsx/Printing.tsx) — resolved fresh here
+// instead, from item.size via sizeLabel (handles the "dot-cakes-<N>" pack
+// pattern) or a direct product label, so the title is never stuck in
+// English for a French customer and never doubles up with a generic "Cake"
+// suffix that doesn't apply to a Dot Cakes pack or a DIY Kit.
+export function cartItemTitle(
+  item: { product: string; size?: string | null; sizeName?: string | null; shapeName?: string | null },
+  lang: "en" | "fr",
+  t: (en: string, fr: string) => string,
+): string {
+  if (item.product === "bento_cake" || item.product === "rectangle_cake") {
+    return `${item.sizeName || ""} ${item.shapeName || ""} ${t("Cake", "Gâteau")}`.replace(/\s+/g, " ").trim();
+  }
+  if (item.product === "edible_printing") return t("Printing", "Impression");
+  if (item.product === "diy_kit") return t("DIY Kit", "Kit DIY");
+  if (item.size) return sizeLabel(item.size, lang);
+  return item.sizeName || t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product;
 }
 
 export function designLabel(designId: string): string {

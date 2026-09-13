@@ -23,7 +23,7 @@ import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
-import { splitComment, flavorLabel } from "@/lib/orderLabels";
+import { splitComment, flavorLabel, cartItemTitle } from "@/lib/orderLabels";
 import {
   sizes,
   shapes,
@@ -492,7 +492,7 @@ const Cart = () => {
                 return (
                   <Card key={item.id} className="overflow-hidden rounded-none">
                     <CardContent className="p-6">
-                      <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-2">{item.sizeName} {item.shapeName} {t("Cake", "Gâteau")}</h3>
+                      <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground mb-2">{cartItemTitle(item, lang, t)}</h3>
 
                       {/* This item's OWN pickup/delivery date — never the
                           cart-wide banner above, which can be misleading
@@ -597,7 +597,7 @@ const Cart = () => {
                             ? `${item.styleName || t("Workshop", "Atelier")}${item.workshopParticipants ? ` ×${item.workshopParticipants}` : ""}`
                             : item.isCandleProduct
                               ? item.candleProductName
-                              : `${item.sizeName} ${item.shapeName} ${t("Cake", "Gâteau")}`
+                              : cartItemTitle(item, lang, t)
                         }</span>
                         <span className="text-foreground">CHF {item.total}</span>
                       </div>
@@ -660,6 +660,10 @@ const Cart = () => {
 const CartItemSummary = ({ item }: { item: any }) => {
   const { t } = useLang();
   const isDiyKit = item.product === "diy_kit";
+  // Dot Cakes/DIY Kit/Printing/Candles: "design"/styleName is a fixed
+  // internal product name, never a real customer choice — showing it as a
+  // "Design:" row would just repeat the product name for no new info.
+  const hasNoMeaningfulDesign = isDiyKit || item.product === "dot_cakes" || item.product === "edible_printing";
   const sizeObj = sizes.find(s => s.id === item.size);
   const sizePrice = isDiyKit ? DIY_KIT_BASE_PRICE : (sizeObj?.price || 0);
   const shapeObj = shapes.find(s => s.id === item.shape);
@@ -702,17 +706,24 @@ const CartItemSummary = ({ item }: { item: any }) => {
 
       {/* Price Breakdown */}
       <div className="bg-muted/30 rounded-lg p-3 space-y-3 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{item.sizeName} ({item.shapeName})</span>
-          <span className="text-foreground">CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
-        </div>
-        {flavorExtra > 0 && (
+        {/* Dot Cakes/Printing aren't in the static sizes catalogue this row
+            prices against (sizePrice resolves to 0 for them — their real
+            price lives entirely in item.total, computed elsewhere,
+            untouched here) — showing "CHF 0" would be misleading, so this
+            purely informational row is skipped for those two only. */}
+        {item.product !== "dot_cakes" && item.product !== "edible_printing" && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">{item.sizeName}{item.shapeName ? ` (${item.shapeName})` : ""}</span>
+            <span className="text-foreground">CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
+          </div>
+        )}
+        {item.flavorName && flavorExtra > 0 && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t("Flavour:", "Parfum :")} {flavorLabel(item.flavorName)}</span>
             <span className="text-foreground">+ CHF {flavorExtra}</span>
           </div>
         )}
-        {flavorExtra === 0 && (
+        {item.flavorName && flavorExtra === 0 && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t("Flavour:", "Parfum :")} {flavorLabel(item.flavorName)}</span>
             <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
@@ -722,8 +733,12 @@ const CartItemSummary = ({ item }: { item: any }) => {
             — the actual photo is now shown as a thumbnail at the top of
             this card (item.designImageUrl), so this row only needs a
             plain, readable label instead of that raw name. Every other
-            design keeps its own plain text label, unchanged. */}
-        {!isDiyKit && item.style?.startsWith("inspiration-") ? (
+            design keeps its own plain text label, unchanged. Dot Cakes/
+            Printing/DIY Kit don't have a real "design" pick at all — their
+            styleName is just their own product name again ("Dot Cakes",
+            "Edible Printing"), so this row is skipped for them too, same
+            as the equivalent fix in the confirmation e-mails/invoice. */}
+        {hasNoMeaningfulDesign ? null : item.style?.startsWith("inspiration-") ? (
           <div className="flex justify-between items-center gap-3">
             <span className="text-muted-foreground">{t("Design:", "Design :")} {t("Inspiration photo", "Photo d'inspiration")}</span>
             {styleExtra > 0 ? (
@@ -734,13 +749,13 @@ const CartItemSummary = ({ item }: { item: any }) => {
           </div>
         ) : (
           <>
-            {!isDiyKit && styleExtra > 0 && (
+            {styleExtra > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
                 <span className="text-foreground">+ CHF {styleExtra}</span>
               </div>
             )}
-            {!isDiyKit && styleExtra === 0 && item.styleName && (
+            {styleExtra === 0 && item.styleName && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
                 <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>

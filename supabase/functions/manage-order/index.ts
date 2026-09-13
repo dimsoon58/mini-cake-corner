@@ -35,6 +35,79 @@ function flavorsLabel(flavors: string[] | null | undefined): string {
   return flavors.map((f) => f.trim().replace(/\s*\([^)]*\)\s*$/, "")).filter(Boolean).join(", ");
 }
 
+// Bilingual, customer-facing labels for the fixed product/size/shape id
+// sets — same mapping as src/lib/orderLabels.ts's PRODUCT_LABELS/sizeLabel/
+// shapeLabel (frontend cart + My Orders), kept as a local copy here (Deno
+// function, can't import from src/) — keep both in sync if this ever
+// changes. Design/style ids (30+, free-text marketing names with no French
+// catalogue copy yet) are only de-hyphenated/Title-Cased via prettifyId —
+// never translated, never shown as a raw id either.
+const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
+  bento_cake: { en: "Bento Cake", fr: "Bento Cake" },
+  rectangle_cake: { en: "Rectangle Cake", fr: "Gâteau Rectangle" },
+  dot_cakes: { en: "Dot Cakes", fr: "Dot Cakes" },
+  diy_kit: { en: "DIY Kit", fr: "Kit DIY" },
+  candles: { en: "Candles", fr: "Bougies" },
+  edible_printing: { en: "Printing", fr: "Impression" },
+  workshop: { en: "Workshop", fr: "Atelier" },
+};
+const SIZE_LABELS_FR: Record<string, string> = {
+  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "Kit Bento",
+};
+const SIZE_LABELS_EN: Record<string, string> = {
+  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "DIY Kit",
+};
+const SHAPE_LABELS_FR: Record<string, string> = { round: "Rond", heart: "Cœur" };
+const SHAPE_LABELS_EN: Record<string, string> = { round: "Round", heart: "Heart" };
+const DOT_CAKES_PACK_RE = /^dot-cakes-(\d+)$/;
+
+function prettifyId(id: string): string {
+  return id.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function productLabel(product: string, lang: "en" | "fr"): string {
+  return PRODUCT_LABELS[product]?.[lang] || prettifyId(product);
+}
+function sizeLabel(sizeId: string, lang: "en" | "fr"): string {
+  const packMatch = sizeId.match(DOT_CAKES_PACK_RE);
+  if (packMatch) return lang === "fr" ? `Dot Cakes ${packMatch[1]} pièces` : `Dot Cakes pack of ${packMatch[1]}`;
+  const table = lang === "fr" ? SIZE_LABELS_FR : SIZE_LABELS_EN;
+  return table[sizeId] || prettifyId(sizeId);
+}
+function shapeLabel(shapeId: string, lang: "en" | "fr"): string {
+  const table = lang === "fr" ? SHAPE_LABELS_FR : SHAPE_LABELS_EN;
+  return table[shapeId] || prettifyId(shapeId);
+}
+function designLabel(designId: string): string {
+  return prettifyId(designId);
+}
+// Dot Cakes/DIY Kit/Printing/Candles: "design" is a fixed internal id,
+// never a real customer choice — showing it would just repeat the product
+// name for no new information (e.g. "Design: Dot Cakes"). Only bento_cake
+// and rectangle_cake have a genuine design pick worth a row of its own.
+const PRODUCTS_WITHOUT_MEANINGFUL_DESIGN = new Set(["dot_cakes", "diy_kit", "edible_printing", "candles"]);
+
+// One-line item description for a summary table (payment recap, invoice) —
+// used wherever a full field-by-field card isn't shown. Never a raw id:
+// size/shape resolved through sizeLabel/shapeLabel, "round" (the default
+// shape) omitted as uninformative, edible_printing/diy_kit collapsed to
+// just their product name since neither has a meaningful size/shape of
+// its own to add.
+function physicalItemDescription(item: any, lang: "en" | "fr"): string {
+  if (item.product === "edible_printing") return productLabel("edible_printing", lang);
+  if (item.product === "diy_kit") {
+    return item.flavors?.length ? `${productLabel("diy_kit", lang)} — ${flavorsLabel(item.flavors)}` : productLabel("diy_kit", lang);
+  }
+  // A standalone candle line's "size" is always the fixed "candles" id —
+  // never a real choice. Its own candle_name is the meaningful detail.
+  if (item.product === "candles") {
+    return item.candle_name ? `${productLabel("candles", lang)} — ${item.candle_name}` : productLabel("candles", lang);
+  }
+  const sizePart = item.size ? sizeLabel(item.size, lang) : "";
+  const shapePart = item.shape && item.shape !== "round" ? ` ${shapeLabel(item.shape, lang)}` : "";
+  const flavourPart = item.flavors?.length ? ` — ${flavorsLabel(item.flavors)}` : "";
+  return `${sizePart}${shapePart}${flavourPart}`.trim() || productLabel(item.product, lang);
+}
+
 function customerName(order: any): string {
   return `${order.first_name || ""} ${order.last_name || ""}`.trim();
 }
@@ -157,14 +230,24 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
     // the order happens to share one date.
     const rows: string[] = [itemFulfillmentRows(item)];
     if (!isPrinting) {
-      if (item.size) rows.push(row(tr("Size", "Taille"), item.size));
+      // diy_kit's size is always the same fixed "kit-bento" id — never a
+      // real choice, and resolving it would just repeat the product name
+      // ("DIY Kit — DIY Kit" in English). Dot Cakes' size IS meaningful
+      // (the pack count), kept.
+      if (item.product !== "diy_kit" && item.product !== "candles" && item.size) rows.push(row(tr("Size", "Taille"), sizeLabel(item.size, lang)));
       if (item.flavors?.length) rows.push(row(tr("Flavour", "Parfum"), flavorsLabel(item.flavors)));
-      if (item.shape) rows.push(row(tr("Shape", "Forme"), item.shape));
-      if (item.design) rows.push(row(tr("Design", "Design"), item.design));
+      if (item.shape) rows.push(row(tr("Shape", "Forme"), shapeLabel(item.shape, lang)));
+      // Dot Cakes/DIY Kit/Candles: "design" is a fixed internal id, never a
+      // real customer choice — showing it would just repeat the product
+      // name for no new information (edible_printing is already excluded
+      // above via isPrinting).
+      if (item.design && !PRODUCTS_WITHOUT_MEANINGFUL_DESIGN.has(item.product)) rows.push(row(tr("Design", "Design"), designLabel(item.design)));
       if (item.base_color) rows.push(row(tr("Base colour", "Couleur de base"), item.base_color));
       if (item.decoration_color) rows.push(row(tr("Decoration colour", "Couleur de décoration"), item.decoration_color));
       if (item.text_color) rows.push(row(tr("Text colour", "Couleur du texte"), item.text_color));
-      if (item.text_style) rows.push(row(tr("Text style", "Style du texte"), item.text_style));
+      // "normal" is the default text style, never a real customer choice —
+      // only show this row when they picked something else (e.g. uppercase).
+      if (item.text_style && item.text_style !== "normal") rows.push(row(tr("Text style", "Style du texte"), item.text_style));
       if (item.cake_text) rows.push(row(tr("Text on cake", "Texte sur le gâteau"), item.cake_text));
       if (item.extra) rows.push(row(tr("Extras", "Suppléments"), item.extra));
       if (candleStr) rows.push(row(tr("Candles", "Bougies"), candleStr));
@@ -189,7 +272,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
 
     return `
       <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${isPrinting ? tr("Printing", "Impression") : tr("Cake", "Gâteau")}${physicalItems.length > 1 ? ` ${i + 1}` : ""}</h3>
+        <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${physicalItems.length > 1 ? `${tr("Item", "Article")} ${i + 1} — ${productLabel(item.product, lang)}` : productLabel(item.product, lang)}</h3>
         ${designImageBlock}
         <table style="border-collapse:collapse;width:100%;">
           ${rows.join("")}
@@ -258,9 +341,7 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
         + `${item.workshop_date ? " — " + formatDateCH(item.workshop_date) : ""}`
         + `${item.workshop_time ? " · " + item.workshop_time : ""}`
         + `${item.workshop_participants ? ` — ${item.workshop_participants} ${tr("participant(s)", "participant(s)")}` : ""}`
-      : item.product === "edible_printing"
-        ? tr("Printing", "Impression")
-        : `${item.size || ""} ${item.shape || ""} — ${flavorsLabel(item.flavors)}`;
+      : physicalItemDescription(item, lang);
     return `
     <tr>
       <td style="padding:12px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${label}</td>
@@ -785,9 +866,9 @@ async function generateInvoicePdf(
       };
     }
 
-    const desc = item.size
-      ? `${item.size}${item.flavors?.length ? " — " + flavorsLabel(item.flavors) : ""}`
-      : (item.design || tr("Custom cake", "Gâteau personnalisé"));
+    const desc = item.size || item.design
+      ? physicalItemDescription(item, lang)
+      : tr("Custom cake", "Gâteau personnalisé");
     const total = item.total ?? 0;
     return {
       description: desc,
