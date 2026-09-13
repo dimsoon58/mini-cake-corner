@@ -1969,13 +1969,13 @@ const Checkout = () => {
                 </div>
               )}
 
-              <div className="flex justify-between items-center mb-2">
+              <div className="flex justify-between items-center mb-2 text-sm">
                 <span className="text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
                 <span className="font-medium">CHF {itemsTotal.toFixed(2)}</span>
               </div>
 
               {expressSurchargeAmount > 0 && (
-                <div className="flex justify-between items-center mb-2">
+                <div className="flex justify-between items-center mb-2 text-sm">
                   <span className="text-muted-foreground">{expressSummaryLabel(lang === "fr" ? "fr" : "en", expressSurchargeRateForSummary)}</span>
                   <span className="font-medium">CHF {expressSurchargeAmount.toFixed(2)}</span>
                 </div>
