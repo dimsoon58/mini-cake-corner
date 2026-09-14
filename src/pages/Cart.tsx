@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useCart, CandleSelection, CartItem } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { getStoredOrderId } from "@/lib/checkoutOrderId";
-import { getWelcomeDiscountEligibility, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
+import { isWelcomeDiscountSelectedForAttempt, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
 import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,7 @@ const formatDateFromIso = (dateValue: string) => {
 const Cart = () => {
   const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate } = useCart();
   const { t, lang } = useLang();
-  const { user, profile } = useAuth();
+  const { profile } = useAuth();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   // "Modify date" — scoped to exactly ONE cart line (its item.id), never the
@@ -117,24 +117,29 @@ const Cart = () => {
 
   const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
 
-  // Welcome discount (-10%) preview — same eligibility rule and same
-  // discounted-item selection Checkout.tsx uses for the real thing (shared
-  // in src/lib/welcomeDiscount.ts), read straight from the account's own
-  // profile (the real backend source), never from any Checkout-only local
-  // state. This is what fixes the cart silently showing no discount after
-  // the customer starts, then abandons or returns from, a PostFinance
-  // payment: profile.welcome_discount_reserved_order_id stays set for that
-  // whole in-flight attempt, but getWelcomeDiscountEligibility recognizes it
-  // as the SAME attempt (getStoredOrderId, this tab's own sessionStorage
-  // slot — see checkoutOrderId.ts) and keeps showing it instead of treating
-  // it like someone else's concurrent claim. Preview only: nothing here
-  // applies, reserves, or consumes the discount — only
-  // create-postfinance-payment (payment) and the decide_order_physical SQL
-  // trigger (marks it used, only after a genuinely valid confirmed order)
-  // ever change its real state.
-  const { voucherActiveNow: welcomeDiscountActive } = getWelcomeDiscountEligibility(user, profile, getStoredOrderId());
+  // Welcome discount (-10%) preview — NEVER shown just because the account
+  // is ELIGIBLE (that would apply itself the instant an eligible customer
+  // opens the cart, with no action from them — the 2026-09-14 bug). Cart.tsx
+  // has no checkbox of its own, so the only thing that may show -10% here is
+  // an actual SELECTION that already round-tripped through the server: a
+  // live reservation (profiles.welcome_discount_reserved_order_id, set only
+  // by claim_welcome_discount inside create-postfinance-payment — i.e. only
+  // once the customer both checked "Use my welcome offer" AND pressed
+  // "Proceed to Payment") for THIS SAME browser tab's own current/last
+  // attempt (getStoredOrderId — checkoutOrderId.ts's sessionStorage slot).
+  // That's exactly what keeps the line visible if the customer opens
+  // PostFinance and comes back, refreshes, or hits Back — their own
+  // selection round-tripped through the server and is remembered for that
+  // attempt — while a customer who never checked the box, merely being
+  // eligible, sees the plain price. Preview only: nothing here applies,
+  // reserves, or consumes the discount — only create-postfinance-payment
+  // (payment) and the decide_order_physical SQL trigger (marks it used,
+  // only after a genuinely valid confirmed order) ever change its real
+  // state. See isWelcomeDiscountSelectedForAttempt's own comment for why
+  // eligibility and selection must never be the same check.
+  const welcomeDiscountSelected = isWelcomeDiscountSelectedForAttempt(profile, getStoredOrderId());
   const { item: welcomeDiscountItem, base: welcomeDiscountBase } = pickWelcomeDiscountItem(items);
-  const welcomeDiscountAmount = (welcomeDiscountActive && welcomeDiscountItem)
+  const welcomeDiscountAmount = (welcomeDiscountSelected && welcomeDiscountItem)
     ? computeWelcomeDiscountAmount(welcomeDiscountBase)
     : 0;
 

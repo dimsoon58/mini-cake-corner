@@ -146,3 +146,45 @@ export function getWelcomeDiscountEligibility(
 
   return { baseEligible, voucherActiveNow };
 }
+
+// "Eligible" (getWelcomeDiscountEligibility above) answers "CAN this
+// account use the offer?" — it says nothing about whether the customer
+// has ever actually chosen to. This function answers the SEPARATE
+// question this page actually needs before showing -10% with no
+// checkbox of its own: "HAS the customer selected it, for a checkout
+// attempt that's still theirs?" (2026-09-14 fix: Cart.tsx was showing
+// the discount the instant an account was merely eligible, with no
+// regard to whether anything had ever been chosen — this replaces that
+// check on Cart.tsx.)
+//
+// The only proof of an actual selection is the SAME durable, server-side
+// reservation getWelcomeDiscountEligibility already reads
+// (profiles.welcome_discount_reserved_order_id) — set exclusively by
+// claim_welcome_discount() inside create-postfinance-payment, i.e. only
+// once the customer has both checked "Use my welcome offer" AND pressed
+// "Proceed to Payment". Merely ticking the checkbox on Checkout.tsx
+// before submitting is local, ephemeral React state — it never reaches
+// here and never should; this function only ever sees a selection that
+// has actually round-tripped through the server.
+//
+// myOwnOrderId is checkoutOrderId.ts's sessionStorage slot — the SAME
+// comparison used for eligibility, so "my reservation" means exactly the
+// same thing in both places and can never drift between them. A
+// reservation for any OTHER order id is never treated as a selection
+// here, same as it's never treated as blocking eligibility there.
+//
+// welcome_discount_used_at is checked directly (not just via
+// baseEligible) because decide_order_physical's approve path sets
+// used_at WITHOUT clearing welcome_discount_reserved_order_id — so a
+// completed order's reservation can still equal myOwnOrderId for a
+// short window before checkoutOrderId.ts's clearStoredOrderId() runs;
+// without this guard a stale, already-spent reservation could look like
+// an active selection.
+export function isWelcomeDiscountSelectedForAttempt(
+  profile: Pick<Profile, "welcome_discount_reserved_order_id" | "welcome_discount_used_at"> | null | undefined,
+  myOwnOrderId: string | null,
+): boolean {
+  return !!myOwnOrderId
+    && profile?.welcome_discount_reserved_order_id === myOwnOrderId
+    && !profile?.welcome_discount_used_at;
+}
