@@ -1123,6 +1123,14 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
+  const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
+  // Declared before the effect below, which reads it in both its body and
+  // its dependency array — referencing it while still part of the same
+  // component body BEFORE this line runs is a TDZ ReferenceError ("Cannot
+  // access 'numberCandleDigits' before initialization"), thrown on every
+  // render (crashed this whole page in production).
+  const [numberCandleDigits, setNumberCandleDigits] = useState<string[]>([]);
+  const [numberCandlePreview, setNumberCandlePreview] = useState("0");
 
   useEffect(() => {
     setSelections((prev) => {
@@ -1134,9 +1142,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [numberCandleDigits]);
-  const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
-  const [numberCandleDigits, setNumberCandleDigits] = useState<string[]>([]);
-  const [numberCandlePreview, setNumberCandlePreview] = useState("0");
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   // Active carousel image per multi-photo design (keyed by cake id). Kept
   // here so it persists across re-renders and is the image passed to
