@@ -14,8 +14,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useCart, CandleSelection, CartItem } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
-import { getStoredOrderId } from "@/lib/checkoutOrderId";
+import { getStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { isWelcomeDiscountSelectedForAttempt, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
+import { useToast } from "@/hooks/use-toast";
 import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -77,7 +78,8 @@ const formatDateFromIso = (dateValue: string) => {
 const Cart = () => {
   const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate } = useCart();
   const { t, lang } = useLang();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   // "Modify date" — scoped to exactly ONE cart line (its item.id), never the
@@ -181,9 +183,85 @@ const Cart = () => {
 
   // "Clear all" — emit remove_from_cart per line, then clear (clearCart
   // itself is intentionally event-free; see CartContext).
-  const handleClearAll = () => {
+  //
+  // 2026-09-14: if a checkout attempt is outstanding (getStoredOrderId) for
+  // a LOGGED-IN customer, clearing the cart used to only ever touch
+  // frontend state — reward_reservations and pending_payments were left
+  // exactly as they were, silently holding the customer's points out of
+  // their spendable balance with no way left to ever release them. Guest
+  // checkouts are skipped entirely here: a guest can never hold a reward or
+  // welcome-discount reservation (both require a profiles row), so there is
+  // nothing abandon-checkout could ever release for one — clearing stays
+  // exactly as before for them.
+  //
+  // clearingCart both prevents a real double-click from firing two requests
+  // and gives abandon-checkout's own idempotent design (see that function)
+  // a first line of defense — a genuine race there still can't double-
+  // release, this just avoids it in the common case.
+  const [clearingCart, setClearingCart] = useState(false);
+  const doClearCart = () => {
     items.forEach((it) => trackRemoveFromCart(it));
     clearCart();
+  };
+  const handleClearAll = async () => {
+    if (clearingCart) return;
+    const storedOrderId = getStoredOrderId();
+    if (!user || !storedOrderId) {
+      doClearCart();
+      return;
+    }
+
+    setClearingCart(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("abandon-checkout", {
+        body: { orderId: storedOrderId },
+      });
+      if (error) {
+        console.error("abandon-checkout error:", error);
+        toast({
+          title: t("Could not clear the cart", "Impossible de vider le panier"),
+          description: t("Please try again in a moment.", "Merci de réessayer dans un instant."),
+          variant: "destructive",
+        });
+        return; // never clear silently when the backend couldn't confirm anything
+      }
+
+      if (data?.status === "abandoned") {
+        doClearCart();
+        clearStoredOrderId();
+        return;
+      }
+
+      if (data?.status === "already_confirmed") {
+        toast({
+          title: t("This order was already confirmed", "Cette commande a déjà été confirmée"),
+          description: t(
+            "Check My Orders — this checkout attempt already went through.",
+            "Vérifiez Mes commandes — cette tentative de paiement a déjà abouti.",
+          ),
+        });
+        return;
+      }
+
+      // "payment_in_progress" (or anything else non-"abandoned") — a real
+      // payment attempt is still active; never clear silently.
+      toast({
+        title: t("Payment still in progress", "Paiement toujours en cours"),
+        description: data?.message || t(
+          "We can't clear your cart yet — a payment attempt for it is still active.",
+          "Impossible de vider le panier pour l'instant — une tentative de paiement est encore active.",
+        ),
+      });
+    } catch (e) {
+      console.error("abandon-checkout threw:", e);
+      toast({
+        title: t("Could not clear the cart", "Impossible de vider le panier"),
+        description: t("Please try again in a moment.", "Merci de réessayer dans un instant."),
+        variant: "destructive",
+      });
+    } finally {
+      setClearingCart(false);
+    }
   };
 
   const recalcAndUpdate = (itemId: string, updates: Record<string, any>) => {
@@ -454,7 +532,7 @@ const Cart = () => {
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
               <div className="flex justify-end mb-2">
-                <button onClick={handleClearAll} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">{t("Clear cart", "Vider le panier")}</button>
+                <button onClick={handleClearAll} disabled={clearingCart} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">{t("Clear cart", "Vider le panier")}</button>
               </div>
 
               {/* This banner is a cart-wide summary only — it never decides
