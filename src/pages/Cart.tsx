@@ -16,6 +16,7 @@ import { useCart, CandleSelection, CartItem } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { getStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { isWelcomeDiscountSelectedForAttempt, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
+import { sumChf, roundChf, formatChf } from "@/lib/money";
 import { useToast } from "@/hooks/use-toast";
 import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info, CalendarIcon } from "lucide-react";
@@ -117,7 +118,11 @@ const Cart = () => {
     setDateEditItemId(null);
   };
 
-  const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
+  // 2026-09-14: combined with sumChf (integer cents), not plain +/- — see
+  // money.ts. Chaining plain floats here is what produced e.g.
+  // "CHF 48.699999999999996" instead of "CHF 48.70". No price/discount rule
+  // changes — display/estimate only, exactly as before.
+  const totalPrice = sumChf(...items.map((item) => item.total));
 
   // Welcome discount (-10%) preview — NEVER shown just because the account
   // is ELIGIBLE (that would apply itself the instant an eligible customer
@@ -142,7 +147,7 @@ const Cart = () => {
   const welcomeDiscountSelected = isWelcomeDiscountSelectedForAttempt(profile, getStoredOrderId());
   const { item: welcomeDiscountItem, base: welcomeDiscountBase } = pickWelcomeDiscountItem(items);
   const welcomeDiscountAmount = (welcomeDiscountSelected && welcomeDiscountItem)
-    ? computeWelcomeDiscountAmount(welcomeDiscountBase)
+    ? roundChf(computeWelcomeDiscountAmount(welcomeDiscountBase))
     : 0;
 
   // Express surcharge, computed per DATE (multi-date fulfillment: a cart can
@@ -157,14 +162,16 @@ const Cart = () => {
   // lines, each charging only its own date's products. Single-date carts
   // (the common case) reduce to exactly the one line/rate as before.
   const expressGroups = (() => {
-    const byDate = new Map<string, number>();
+    const byDate = new Map<string, number[]>();
     for (const item of items) {
       if (item.product === "workshop" || item.product === "candles" || !item.orderDate) continue;
-      byDate.set(item.orderDate, (byDate.get(item.orderDate) ?? 0) + item.total);
+      const totals = byDate.get(item.orderDate) ?? [];
+      totals.push(item.total);
+      byDate.set(item.orderDate, totals);
     }
-    return Array.from(byDate.entries()).map(([date, eligibleTotal]) => ({
+    return Array.from(byDate.entries()).map(([date, totals]) => ({
       date: new Date(date + "T00:00:00"),
-      eligibleTotal,
+      eligibleTotal: sumChf(...totals),
     }));
   })();
   const expressBreakdown = expressSurchargeBreakdown(expressGroups);
@@ -573,7 +580,7 @@ const Cart = () => {
                             <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground">{workshopName}</h3>
                             <p className="text-xs text-muted-foreground mt-0.5">{t("Workshop", "Atelier")}</p>
                           </div>
-                          <span className="font-semibold text-primary whitespace-nowrap text-base">CHF {item.total}</span>
+                          <span className="font-semibold text-primary whitespace-nowrap text-base">CHF {formatChf(item.total)}</span>
                         </div>
                         <div className="text-sm text-foreground/80 space-y-1">
                           <div className="flex justify-between gap-4">
@@ -589,7 +596,7 @@ const Cart = () => {
                           <div className="flex justify-between gap-4">
                             <span className="text-muted-foreground">{t("Participants", "Participants")}</span>
                             <span className="text-right">
-                              {item.workshopParticipants} × CHF {item.workshopUnitPrice}
+                              {item.workshopParticipants} × CHF {formatChf(item.workshopUnitPrice)}
                             </span>
                           </div>
                           {item.workshopSpongeChoices && item.workshopSpongeChoices.length > 0 && (
@@ -634,7 +641,7 @@ const Cart = () => {
                             <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground">{item.candleProductName}</h3>
                             <p className="text-xs text-muted-foreground mt-0.5">{t("Candle", "Bougie")}</p>
                           </div>
-                          <span className="font-semibold text-primary whitespace-nowrap text-base">CHF {item.total}</span>
+                          <span className="font-semibold text-primary whitespace-nowrap text-base">CHF {formatChf(item.total)}</span>
                         </div>
                         {!item.candleProductQtyLocked && (
                           <div className="flex items-center gap-2 mb-3">
@@ -819,29 +826,29 @@ const Cart = () => {
                               ? item.candleProductName
                               : cartItemTitle(item, lang, t)
                         }</span>
-                        <span className="text-foreground">CHF {item.total}</span>
+                        <span className="text-foreground">CHF {formatChf(item.total)}</span>
                       </div>
                     ))}
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
-                    <span className="text-foreground">CHF {totalPrice.toFixed(2)}</span>
+                    <span className="text-foreground">CHF {formatChf(totalPrice)}</span>
                   </div>
                   {welcomeDiscountAmount > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{t("Welcome discount -10%", "Réduction bienvenue -10%")}</span>
-                      <span className="text-primary">- CHF {welcomeDiscountAmount.toFixed(2)}</span>
+                      <span className="text-primary">- CHF {formatChf(welcomeDiscountAmount)}</span>
                     </div>
                   )}
                   {expressBreakdown.byRate.map(({ rate, amount }) => (
                     <div key={rate} className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{expressSummaryLabel(lang === "fr" ? "fr" : "en", rate)}</span>
-                      <span className="text-foreground">CHF {amount.toFixed(2)}</span>
+                      <span className="text-foreground">CHF {formatChf(amount)}</span>
                     </div>
                   ))}
                   <div className="flex justify-between text-lg font-bold">
                     <span className="text-foreground">{t("Total", "Total")}</span>
-                    <span className="text-primary">CHF {(totalPrice + expressBreakdown.total - welcomeDiscountAmount).toFixed(2)}</span>
+                    <span className="text-primary">CHF {formatChf(sumChf(totalPrice, expressBreakdown.total, -welcomeDiscountAmount))}</span>
                   </div>
                   <ExpressDateNotice date={cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null} />
                   {items.some((i) => i.product === "workshop") &&
@@ -958,13 +965,13 @@ const CartItemSummary = ({ item }: { item: any }) => {
         {item.product !== "dot_cakes" && item.product !== "edible_printing" && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">{item.sizeName}{item.shapeName ? ` (${item.shapeName})` : ""}</span>
-            <span className="text-foreground">CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
+            <span className="text-foreground">CHF {formatChf(sizePrice)}{shapeExtra > 0 ? ` + ${formatChf(shapeExtra)}` : ""}</span>
           </div>
         )}
         {item.flavorName && flavorExtra > 0 && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t("Flavour:", "Parfum :")} {flavorLabel(item.flavorName)}</span>
-            <span className="text-foreground">+ CHF {flavorExtra}</span>
+            <span className="text-foreground">+ CHF {formatChf(flavorExtra)}</span>
           </div>
         )}
         {item.flavorName && flavorExtra === 0 && (
@@ -986,7 +993,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
           <div className="flex justify-between items-center gap-3">
             <span className="text-muted-foreground">{t("Design:", "Design :")} {t("Inspiration photo", "Photo d'inspiration")}</span>
             {styleExtra > 0 ? (
-              <span className="text-foreground">+ CHF {styleExtra}</span>
+              <span className="text-foreground">+ CHF {formatChf(styleExtra)}</span>
             ) : (
               <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
             )}
@@ -996,7 +1003,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
             {styleExtra > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("Design:", "Design :")} {item.styleName}</span>
-                <span className="text-foreground">+ CHF {styleExtra}</span>
+                <span className="text-foreground">+ CHF {formatChf(styleExtra)}</span>
               </div>
             )}
             {styleExtra === 0 && item.styleName && (
@@ -1013,7 +1020,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
             {extraEntries.map((e: any, i: number) => (
               <div key={i} className="flex justify-between">
                 <span className="text-muted-foreground">+ {e.name}</span>
-                <span className="text-foreground">+ CHF {e.price}</span>
+                <span className="text-foreground">+ CHF {formatChf(e.price)}</span>
               </div>
             ))}
           </>
@@ -1024,7 +1031,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
             {candleEntries.map((e: any, i: number) => (
               <div key={i} className="flex justify-between">
                 <span className="text-muted-foreground">{e.name} ×{e.qty}</span>
-                <span className="text-foreground">+ CHF {e.price}</span>
+                <span className="text-foreground">+ CHF {formatChf(e.price)}</span>
               </div>
             ))}
           </>
@@ -1071,7 +1078,7 @@ const CartItemSummary = ({ item }: { item: any }) => {
 
       <div className="flex justify-between items-center pt-3 mt-3 border-t border-border/30">
         <span className="text-sm text-muted-foreground">{t("Total", "Total")}</span>
-        <span className="text-lg font-bold text-primary">CHF {item.total}</span>
+        <span className="text-lg font-bold text-primary">CHF {formatChf(item.total)}</span>
       </div>
     </div>
   );
@@ -1170,7 +1177,7 @@ const CartItemEditor = ({
               <img src={size.image} alt={size.name} className="h-12 w-12 object-contain rounded" />
               <div className="flex-1">
                 <span className="font-medium text-foreground">{size.name}</span>
-                <span className="text-sm text-muted-foreground ml-2">CHF {size.price}</span>
+                <span className="text-sm text-muted-foreground ml-2">CHF {formatChf(size.price)}</span>
                 {sizeInfo[size.id] && (
                   <span className="block text-xs text-primary/80 mt-0.5">
                     {t(sizeInfo[size.id].en, sizeInfo[size.id].fr)}
@@ -1220,7 +1227,7 @@ const CartItemEditor = ({
               <img src={style.image} alt={style.name} className="h-16 w-16 object-cover rounded" />
               <span className="text-xs font-medium text-foreground text-center leading-tight">{style.name}</span>
               {item.size && style.price[item.size as keyof typeof style.price] > 0 && (
-                <span className="text-xs text-primary">+CHF {style.price[item.size as keyof typeof style.price]}</span>
+                <span className="text-xs text-primary">+CHF {formatChf(style.price[item.size as keyof typeof style.price])}</span>
               )}
             </button>
           ))}
@@ -1346,7 +1353,7 @@ const CartItemEditor = ({
                             </Tooltip>
                           )}
                         </div>
-                        <p className="text-[10px] text-primary">+CHF {price}</p>
+                        <p className="text-[10px] text-primary">+CHF {formatChf(price)}</p>
                       </div>
                     </button>
                   );
@@ -1541,9 +1548,9 @@ const CartItemEditor = ({
               >
                 <img src={candle.image} alt={candle.name} className="h-20 w-20 object-contain mb-1" />
                 <span className="text-xs font-medium text-foreground text-center">{candle.name}</span>
-                <span className="text-xs text-muted-foreground">CHF {candle.unitPrice}{t("/ea", "/pièce")}</span>
+                <span className="text-xs text-muted-foreground">CHF {formatChf(candle.unitPrice)}{t("/ea", "/pièce")}</span>
                 {candle.hasPack && (
-                  <span className="text-[10px] text-muted-foreground">{t("Pack", "Lot")} {candle.packSize} = CHF {candle.packPrice}</span>
+                  <span className="text-[10px] text-muted-foreground">{t("Pack", "Lot")} {candle.packSize} = CHF {formatChf(candle.packPrice)}</span>
                 )}
                 <div className="flex items-center gap-2 mt-2">
                   <button
@@ -1561,7 +1568,7 @@ const CartItemEditor = ({
                     <Plus className="h-3 w-3" />
                   </button>
                 </div>
-                {qty > 0 && <span className="text-xs text-primary font-medium mt-1">CHF {price}</span>}
+                {qty > 0 && <span className="text-xs text-primary font-medium mt-1">CHF {formatChf(price)}</span>}
                 {isPackApplied && <span className="text-xs text-green-600 font-medium">{t("✓ Pack applied", "✓ Lot appliqué")}</span>}
               </div>
             );
@@ -1583,8 +1590,8 @@ const CartItemEditor = ({
                   <span className="text-xl font-bold text-primary tracking-wider">{digits.join(" · ")}</span>
                 </div>
                 <span className="text-xs font-medium text-foreground text-center">{t("Number Candle", "Bougie chiffre")}</span>
-                <span className="text-[10px] text-muted-foreground mt-0.5">{digits.length} × CHF {NUMBER_CANDLE_PRICE}</span>
-                <span className="text-xs text-primary font-medium mt-1">CHF {total}</span>
+                <span className="text-[10px] text-muted-foreground mt-0.5">{digits.length} × CHF {formatChf(NUMBER_CANDLE_PRICE)}</span>
+                <span className="text-xs text-primary font-medium mt-1">CHF {formatChf(total)}</span>
               </div>
             );
           })()}

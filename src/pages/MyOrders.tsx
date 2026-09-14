@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PRODUCT_LABELS, formatDateCH, sizeLabel, shapeLabel, designLabel, flavorLabel, splitComment } from "@/lib/orderLabels";
+import { formatChf } from "@/lib/money";
 // Real product-line photos for the "no exact design captured" fallback
 // below — never the generic cake emoji. Same source photos already used as
 // each product's own hero/representative image on its page (DotCakes.tsx,
@@ -442,7 +443,7 @@ const MyOrders = () => {
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-semibold text-foreground">{title}{sizeSuffix}{shapeSuffix}</p>
-            <p className="text-sm font-bold text-foreground whitespace-nowrap">CHF {item.total}</p>
+            <p className="text-sm font-bold text-foreground whitespace-nowrap">CHF {formatChf(item.total)}</p>
           </div>
           <div className="text-xs text-muted-foreground space-y-0.5">
             {item.product === "workshop" && (
@@ -461,11 +462,11 @@ const MyOrders = () => {
               </p>
             )}
             {item.flavors?.length ? <p><strong className="font-semibold text-foreground/80">{t("Flavour:", "Parfum :")}</strong> {flavorLabel(item.flavors.join(","))}</p> : null}
-            {item.extra && <p><strong className="font-semibold text-foreground/80">{t("Extras:", "Extras :")}</strong> {item.extra} (+CHF {item.extras_price})</p>}
+            {item.extra && <p><strong className="font-semibold text-foreground/80">{t("Extras:", "Extras :")}</strong> {item.extra} (+CHF {formatChf(item.extras_price)})</p>}
             {item.candle_name && (
               <p>
                 <strong className="font-semibold text-foreground/80">{t("Candles:", "Bougies :")}</strong> {item.candle_name}
-                {item.candle_quantity ? ` ×${item.candle_quantity}` : ""} (+CHF {item.candles_price})
+                {item.candle_quantity ? ` ×${item.candle_quantity}` : ""} (+CHF {formatChf(item.candles_price)})
               </p>
             )}
             {comment && <p><strong className="font-semibold text-foreground/80">{t("Comment:", "Commentaire :")}</strong> {comment}</p>}
@@ -529,7 +530,7 @@ const MyOrders = () => {
             </div>
             <p className="text-sm text-foreground/75">{itemsSummary(order.order_items, lang) || "—"}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {t("Date", "Date")}: {summaryDateLabel(order, t)} · CHF {order.total_amount}
+              {t("Date", "Date")}: {summaryDateLabel(order, t)} · CHF {formatChf(order.total_amount)}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
@@ -589,7 +590,7 @@ const MyOrders = () => {
               </div>
               <div className="flex justify-between font-semibold pt-1">
                 <span className="text-foreground">{t("Total", "Total")}</span>
-                <span className="text-foreground">CHF {order.total_amount}</span>
+                <span className="text-foreground">CHF {formatChf(order.total_amount)}</span>
               </div>
             </div>
 

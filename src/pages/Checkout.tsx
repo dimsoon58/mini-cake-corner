@@ -60,6 +60,7 @@ import { getStoredOrderId, setStoredOrderId, clearStoredOrderId } from "@/lib/ch
 import { onOrderCompleted } from "@/lib/orderCompletionChannel";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { getWelcomeDiscountEligibility, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
+import { sumChf, roundChf, formatChf } from "@/lib/money";
 
 // Anti double-payment guard. Set when the customer is handed to PostFinance,
 // short TTL so a stale value can never wedge the checkout. Cleared on
@@ -346,6 +347,17 @@ const Checkout = () => {
   const physicalItems = items.filter((i) => i.product !== "workshop");
   const workshopItems = items.filter((i) => i.product === "workshop");
   const hasPhysical = physicalItems.length > 0;
+
+  // 2026-09-14: the welcome offer never applies to a workshop (see
+  // pickWelcomeDiscountItem in welcomeDiscount.ts — it already skips every
+  // workshop item when picking which line the -10% applies to, so a
+  // workshop-only cart already computes a 0 discount regardless). This flag
+  // is only for the CHECKBOX's own click-time guard below: a workshop-only
+  // cart must never even let the box become checked (immediate message
+  // instead), while a mixed cart still allows checking it — the discount
+  // then simply lands on the eligible item, exactly as pickWelcomeDiscountItem
+  // already restricts it to.
+  const workshopOnlyCart = workshopItems.length > 0 && !hasPhysical;
 
   // ── Multi-date fulfillment (Sept 2026) — grouping only, no UI/behaviour
   // change while MULTI_DATE_FULFILLMENT_ENABLED is false. Physical items
@@ -691,7 +703,13 @@ const Checkout = () => {
     });
   }, [items]);
 
-  const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
+  // 2026-09-14: every CHF total below is combined with sumChf (integer
+  // cents under the hood) instead of plain +/- — chaining plain floats here
+  // (subtotal, discount, reward, surcharge, delivery) is exactly what
+  // produced e.g. "CHF 48.699999999999996" instead of "CHF 48.70". This
+  // changes no price or discount RULE and nothing sent to the server —
+  // see money.ts.
+  const itemsTotal = sumChf(...items.map((item) => item.total));
   // Reward-eligible base, mirroring create-postfinance-payment's own
   // hasPhysicalItem rule exactly: workshops are excluded ONLY when there is
   // a physical item to protect (cake-only / mixed — reward must never touch
@@ -705,7 +723,7 @@ const Checkout = () => {
   // cart shape, unchanged.
   const rewardEligibleItemsTotal = !hasPhysical
     ? itemsTotal
-    : items.filter((item) => item.product !== "workshop").reduce((sum, item) => sum + item.total, 0);
+    : sumChf(...items.filter((item) => item.product !== "workshop").map((item) => item.total));
 
   // Clears any address/quote already entered — used when the customer edits
   // the address, or switches back to pick-up. Never leaves a stale fee
@@ -834,7 +852,7 @@ const Checkout = () => {
   const { item: discountedItem, base: discountedBase } = pickWelcomeDiscountItem(items);
 
   const estimatedWelcomeDiscount = (useWelcomeDiscount && canUseWelcomeDiscountNow && discountedItem)
-    ? computeWelcomeDiscountAmount(discountedBase)
+    ? roundChf(computeWelcomeDiscountAmount(discountedBase))
     : 0;
 
   // Reward balance ("cagnotte") — display-only. profile.reward_balance is a
@@ -847,7 +865,7 @@ const Checkout = () => {
   // Products only, after the welcome discount, delivery excluded — matches
   // the business rule; still just a display cap, never trusted as the real
   // ceiling.
-  const maxRewardUsable = Math.max(0, Math.round((rewardEligibleItemsTotal - estimatedWelcomeDiscount) * 100) / 100);
+  const maxRewardUsable = Math.max(0, sumChf(rewardEligibleItemsTotal, -estimatedWelcomeDiscount));
   // A reservation already outstanding for THIS exact orderId (see
   // resumedReservation above) is the AUTHORITATIVE amount — never
   // recomputed from the current (already-reduced-by-the-reservation-itself)
@@ -855,9 +873,9 @@ const Checkout = () => {
   // normal "no amount choice, always the max usable" rule only applies when
   // there is nothing already reserved for this payment attempt.
   const estimatedRewardUsed = resumedReservation
-    ? resumedReservation.amount
+    ? roundChf(resumedReservation.amount)
     : (useReward && rewardEligible)
-      ? Math.round(Math.min(rewardBalance, maxRewardUsable) * 100) / 100
+      ? roundChf(Math.min(rewardBalance, maxRewardUsable))
       : 0;
 
   // Express surcharge (tiered: +20% J+2/J+3, +15% J+4/J+5) — DISPLAY ONLY. The server
@@ -869,20 +887,20 @@ const Checkout = () => {
   // subtotal, at its OWN tier — a J+2 date (20%) and a J+4 date (15%) in the
   // same order never share one rate, and expressBreakdown.byRate lists both
   // amounts separately for the summary below instead of one blended line.
-  const physicalProductsTotal = items
-    .filter((item) => item.product !== "workshop" && item.product !== "candles")
-    .reduce((sum, item) => sum + item.total, 0);
+  const physicalProductsTotal = sumChf(
+    ...items.filter((item) => item.product !== "workshop" && item.product !== "candles").map((item) => item.total),
+  );
   const expressGroups: ExpressGroup[] = isMultiDateActive
     ? physicalDateGroups.map((g) => ({
         date: new Date(g.date + "T00:00:00"),
         // Candles are a decorative add-on, not a food product — excluded
         // from the surcharge base the same way workshops are (server
         // mirrors this exactly in create-postfinance-payment).
-        eligibleTotal: g.items.reduce((s, i) => (i.product === "candles" ? s : s + i.total), 0),
+        eligibleTotal: sumChf(...g.items.filter((i) => i.product !== "candles").map((i) => i.total)),
       }))
     : [{ date: deliveryDate, eligibleTotal: physicalProductsTotal }];
   const expressBreakdown = expressSurchargeBreakdown(expressGroups);
-  const expressSurchargeAmount = expressBreakdown.total;
+  const expressSurchargeAmount = roundChf(expressBreakdown.total);
 
   // deliveryPrice already resolves to 0 when there's nothing to charge, in
   // BOTH modes (single: gated by deliveryOption === "delivery" internally;
@@ -890,11 +908,17 @@ const Checkout = () => {
   // no need to re-gate on the single deliveryOption state here, which would
   // be WRONG for the multi-date case (that state isn't even used then, so
   // checking it here would silently drop a real multi-date delivery total).
-  const totalPrice = itemsTotal
-    - estimatedWelcomeDiscount
-    - estimatedRewardUsed
-    + expressSurchargeAmount
-    + (hasPhysical ? deliveryPrice : 0);
+  //
+  // 2026-09-14: combined with sumChf (integer cents), not plain +/- — this
+  // exact chain (subtotal - discount - reward + surcharge + delivery) is
+  // what produced "CHF 48.699999999999996" instead of "CHF 48.70" before.
+  const totalPrice = sumChf(
+    itemsTotal,
+    -estimatedWelcomeDiscount,
+    -estimatedRewardUsed,
+    expressSurchargeAmount,
+    hasPhysical ? deliveryPrice : 0,
+  );
 
   // Build phone number with country code
   const fullPhoneNumber = combinePhoneNumber(countryCode, phone);
@@ -1747,7 +1771,7 @@ const Checkout = () => {
                   )}
                   {deliveryQuoteStatus === "ok" && deliveryQuote && (
                     <p className="text-sm text-primary">
-                      {t("Delivery", "Livraison")} — CHF {deliveryQuote.fee.toFixed(2)}
+                      {t("Delivery", "Livraison")} — CHF {formatChf(deliveryQuote.fee)}
                     </p>
                   )}
                   {deliveryQuoteStatus === "out_of_range" && (
@@ -1860,7 +1884,7 @@ const Checkout = () => {
                   const draft = getFulfillmentDraft(group.date);
                   const groupDate = new Date(group.date + "T00:00:00");
                   const groupLabel = formatDisplayDate(groupDate);
-                  const groupTotal = group.items.reduce((s, i) => s + i.total, 0);
+                  const groupTotal = sumChf(...group.items.map((i) => i.total));
                   return (
                     <div key={group.date} className="border border-border p-4 space-y-4">
                       <div className="flex items-center justify-between">
@@ -1868,7 +1892,7 @@ const Checkout = () => {
                           {groupLabel}
                         </h3>
                         <span className="text-xs text-muted-foreground">
-                          {t(`${group.items.length} item(s) — CHF ${groupTotal.toFixed(2)}`, `${group.items.length} article(s) — CHF ${groupTotal.toFixed(2)}`)}
+                          {t(`${group.items.length} item(s) — CHF ${formatChf(groupTotal)}`, `${group.items.length} article(s) — CHF ${formatChf(groupTotal)}`)}
                         </span>
                       </div>
                       <ExpressDateNotice date={groupDate} />
@@ -1938,7 +1962,7 @@ const Checkout = () => {
                               <p className="text-sm text-muted-foreground">{t("Calculating delivery fee…", "Calcul des frais de livraison…")}</p>
                             )}
                             {draft.deliveryQuoteStatus === "ok" && draft.deliveryQuote && (
-                              <p className="text-sm text-primary">{t("Delivery", "Livraison")} — CHF {draft.deliveryQuote.fee.toFixed(2)}</p>
+                              <p className="text-sm text-primary">{t("Delivery", "Livraison")} — CHF {formatChf(draft.deliveryQuote.fee)}</p>
                             )}
                             {draft.deliveryQuoteStatus === "out_of_range" && (
                               <p className="text-sm text-destructive">{t("Delivery is not available for this address.", "La livraison n'est pas disponible pour cette adresse.")}</p>
@@ -1981,7 +2005,7 @@ const Checkout = () => {
             <div className="border-t border-border pt-6 mt-6">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-muted-foreground">{t("Items", "Articles")} ({items.length})</span>
-                <span className="font-medium">CHF {itemsTotal}</span>
+                <span className="font-medium">CHF {formatChf(itemsTotal)}</span>
               </div>
 
               {items.length > 0 && (
@@ -1998,7 +2022,7 @@ const Checkout = () => {
                               {item.workshopTime ? ` ${item.workshopTime}` : ""}
                               {item.workshopParticipants ? ` (×${item.workshopParticipants})` : ""}
                             </span>
-                            <span className="font-semibold text-sm text-primary whitespace-nowrap">CHF {item.total}</span>
+                            <span className="font-semibold text-sm text-primary whitespace-nowrap">CHF {formatChf(item.total)}</span>
                           </div>
                           {item.workshopSpongeChoices && item.workshopSpongeChoices.length > 0 && (
                             <div className="mt-1 space-y-0.5">
@@ -2017,7 +2041,7 @@ const Checkout = () => {
                         <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3">
                           <div className="flex justify-between items-start">
                             <span className="font-medium text-sm text-foreground">{item.candleProductName} ×{item.candleProductQty || 1}</span>
-                            <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                            <span className="font-semibold text-sm text-primary">CHF {formatChf(item.total)}</span>
                           </div>
                         </div>
                       );
@@ -2054,7 +2078,7 @@ const Checkout = () => {
                           <span className="font-medium text-sm text-foreground">
                             {cartItemTitle(item, lang, t)}
                           </span>
-                          <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                          <span className="font-semibold text-sm text-primary">CHF {formatChf(item.total)}</span>
                         </div>
                         <div className="text-xs text-muted-foreground space-y-0.5">
                           {/* Dot Cakes/DIY Kit/Printing aren't in the
@@ -2065,7 +2089,7 @@ const Checkout = () => {
                           {item.product !== "dot_cakes" && item.product !== "diy_kit" && item.product !== "edible_printing" && (
                             <div className="flex justify-between">
                               <span>{t("Base", "Base")} ({item.sizeName})</span>
-                              <span>CHF {sizePrice}{shapeExtra > 0 ? ` + ${shapeExtra}` : ""}</span>
+                              <span>CHF {formatChf(sizePrice)}{shapeExtra > 0 ? ` + ${formatChf(shapeExtra)}` : ""}</span>
                             </div>
                           )}
                           {item.flavorName && (
@@ -2088,13 +2112,13 @@ const Checkout = () => {
                           {extraEntries.map((e: any, i: number) => (
                             <div key={i} className="flex justify-between">
                               <span>+ {e.name}</span>
-                              <span>+ CHF {e.price}</span>
+                              <span>+ CHF {formatChf(e.price)}</span>
                             </div>
                           ))}
                           {candleEntries.map((e: any, i: number) => (
                             <div key={i} className="flex justify-between">
                               <span>{e.name} ×{e.qty}</span>
-                              <span>+ CHF {e.price}</span>
+                              <span>+ CHF {formatChf(e.price)}</span>
                             </div>
                           ))}
                           {item.baseColorName && <p>{t("Base Colour:", "Couleur de base :")} {item.baseColorName}</p>}
@@ -2113,13 +2137,13 @@ const Checkout = () => {
 
               <div className="flex justify-between items-center mb-2 text-sm">
                 <span className="text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
-                <span className="font-medium">CHF {itemsTotal.toFixed(2)}</span>
+                <span className="font-medium">CHF {formatChf(itemsTotal)}</span>
               </div>
 
               {expressBreakdown.byRate.map(({ rate, amount }) => (
                 <div key={rate} className="flex justify-between items-center mb-2 text-sm">
                   <span className="text-muted-foreground">{expressSummaryLabel(lang === "fr" ? "fr" : "en", rate)}</span>
-                  <span className="font-medium">CHF {amount.toFixed(2)}</span>
+                  <span className="font-medium">CHF {formatChf(amount)}</span>
                 </div>
               ))}
 
@@ -2128,7 +2152,24 @@ const Checkout = () => {
                   <Checkbox
                     id="useWelcomeDiscount"
                     checked={useWelcomeDiscount}
-                    onCheckedChange={(c) => setUseWelcomeDiscount(c === true)}
+                    onCheckedChange={(c) => {
+                      // 2026-09-14: only intercepts an actual attempt to
+                      // CHECK the box on a workshop-only cart — unchecking
+                      // (c === false) always goes through untouched, and
+                      // nothing here changes before this exact click (the
+                      // checkbox stays visible/enabled exactly as before).
+                      if (c === true && workshopOnlyCart) {
+                        toast({
+                          title: t(
+                            "The -10% welcome offer does not apply to workshops.",
+                            "L'offre de bienvenue -10% ne s'applique pas aux ateliers.",
+                          ),
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      setUseWelcomeDiscount(c === true);
+                    }}
                   />
                   <Label htmlFor="useWelcomeDiscount" className="text-sm cursor-pointer">
                     {t("Use my welcome offer -10%", "Utiliser mon offre de bienvenue -10%")}
@@ -2139,7 +2180,7 @@ const Checkout = () => {
               {useWelcomeDiscount && canUseWelcomeDiscountNow && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">{t("Welcome discount -10%", "Réduction bienvenue -10%")}</span>
-                  <span className="font-medium text-primary">- CHF {estimatedWelcomeDiscount.toFixed(2)}</span>
+                  <span className="font-medium text-primary">- CHF {formatChf(estimatedWelcomeDiscount)}</span>
                 </div>
               )}
 
@@ -2151,8 +2192,8 @@ const Checkout = () => {
                 <div className="border border-primary/30 bg-primary/5 rounded-none p-3 mb-2 text-sm">
                   <p className="font-medium text-foreground">
                     {t(
-                      `Points used: CHF ${resumedReservation.amount.toFixed(2)}`,
-                      `Points utilisés : CHF ${resumedReservation.amount.toFixed(2)}`,
+                      `Points used: CHF ${formatChf(resumedReservation.amount)}`,
+                      `Points utilisés : CHF ${formatChf(resumedReservation.amount)}`,
                     )}
                   </p>
                   <p className="text-muted-foreground text-xs mt-1">
@@ -2170,7 +2211,7 @@ const Checkout = () => {
                     onCheckedChange={(c) => setUseReward(c === true)}
                   />
                   <Label htmlFor="useReward" className="text-sm cursor-pointer">
-                    {t(`Use my balance (CHF ${rewardBalance.toFixed(2)} available)`, `Utiliser ma cagnotte (CHF ${rewardBalance.toFixed(2)} disponible)`)}
+                    {t(`Use my balance (CHF ${formatChf(rewardBalance)} available)`, `Utiliser ma cagnotte (CHF ${formatChf(rewardBalance)} disponible)`)}
                   </Label>
                 </div>
               )}
@@ -2178,26 +2219,26 @@ const Checkout = () => {
               {!resumedReservation && estimatedRewardUsed > 0 && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">{t("Reward balance used", "Cagnotte utilisée")}</span>
-                  <span className="font-medium text-primary">- CHF {estimatedRewardUsed.toFixed(2)}</span>
+                  <span className="font-medium text-primary">- CHF {formatChf(estimatedRewardUsed)}</span>
                 </div>
               )}
 
               {hasPhysical && !isMultiDateActive && deliveryOption === "delivery" && deliveryQuoteStatus === "ok" && deliveryQuote && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">{t("Delivery", "Livraison")}</span>
-                  <span className="font-medium">CHF {deliveryQuote.fee.toFixed(2)}</span>
+                  <span className="font-medium">CHF {formatChf(deliveryQuote.fee)}</span>
                 </div>
               )}
 
               {hasPhysical && isMultiDateActive && multiDateDeliveryFeeTotal > 0 && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">{t("Delivery (all dates)", "Livraison (toutes dates)")}</span>
-                  <span className="font-medium">CHF {multiDateDeliveryFeeTotal.toFixed(2)}</span>
+                  <span className="font-medium">CHF {formatChf(multiDateDeliveryFeeTotal)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-lg font-semibold pt-2 border-t border-border">
                 <span>{t("Total", "Total")}</span>
-                <span className="text-primary">CHF {totalPrice}</span>
+                <span className="text-primary">CHF {formatChf(totalPrice)}</span>
               </div>
             </div>
 
