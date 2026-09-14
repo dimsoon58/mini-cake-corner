@@ -23,87 +23,75 @@ const FAQ = () => {
         },
         {
           question: "What kind of cream do you use?",
-          questionFr: "Quelle crème utilisez-vous ?",
+          questionFr: "Quel type de crème utilisez-vous ?",
           answer: "We use whipped cream to keep the cake light, airy, and not too sweet.",
-          answerFr: "Nous utilisons de la crème fouettée, pour un gâteau léger, aérien et pas trop sucré."
+          answerFr: "Nous utilisons de la crème chantilly afin de garder nos gâteaux légers, aériens et peu sucrés."
         },
         {
           question: "Do you use buttercream?",
-          questionFr: "Est-ce que vous utilisez de la crème au beurre ?",
-          answer: "Yes, but only for certain details such as writing, drawings, and dark-coloured decorations. Its firmer texture helps keep details intact and prevents darker colours from transferring onto lighter ones.\nFor our Bento Kits, we also use buttercream instead of whipped cream, as it holds up better during transport, in warmer temperatures, and when working with different colours, making it easier to achieve a clean and beautiful result at home.",
-          answerFr: "Oui, mais uniquement pour certains détails comme les écritures, les dessins et les décorations aux couleurs foncées. Sa meilleure tenue permet de garder les détails intacts et d'éviter que les couleurs foncées ne se transfèrent sur les autres teintes.\nPour nos Bento Kits, nous utilisons également de la crème au beurre plutôt que de la chantilly, car elle résiste mieux au transport, à la chaleur et aux mélanges de couleurs, pour vous garantir un résultat plus facile à réaliser et plus propre à la maison."
+          questionFr: "Utilisez-vous de la crème au beurre ?",
+          answer: "Yes, but only for certain details such as writing, drawings and dark-coloured decorations. Its firmer texture helps keep details precise and reduces colour transfer.\n\nButtercream is also used in our Bento Kits as it is more stable during transport and easier to work with at home.",
+          answerFr: "Oui, mais uniquement pour certains détails tels que les écritures, les dessins et les décorations aux couleurs foncées. Sa texture plus ferme permet de conserver des détails précis et de limiter le transfert des couleurs.\n\nNous utilisons également de la crème au beurre dans nos Bento Kits, car elle est plus stable pendant le transport et plus facile à travailler à la maison."
         },
         {
           question: "Should I take my cake out of the fridge before serving?",
-          questionFr: "Dois-je sortir mon gâteau du réfrigérateur avant de le déguster ?",
+          questionFr: "Dois-je sortir mon gâteau du réfrigérateur avant de le servir ?",
           answer: "No, there's no need. We recommend keeping your cake refrigerated and taking it out only when you're ready to enjoy it.",
-          answerFr: "Non, ce n'est pas nécessaire. Nous vous recommandons de conserver votre gâteau au réfrigérateur et de le sortir uniquement au moment de le déguster."
+          answerFr: "Non, ce n'est pas nécessaire. Nous vous recommandons de conserver votre gâteau au réfrigérateur et de le sortir uniquement lorsque vous êtes prête à le déguster."
         },
         {
           question: "Do your cakes contain allergens?",
           questionFr: "Vos gâteaux contiennent-ils des allergènes ?",
-          answer: "Yes. Depending on the flavour, our cakes may contain gluten (wheat), eggs, milk and nuts. Specific allergens are listed for each flavour when placing your order.\nOur products are prepared in a kitchen where gluten, nuts and other allergens are also handled. While we take precautions to minimise cross-contact, we cannot guarantee the complete absence of traces.\nIf you have a severe allergy or intolerance, please contact us before placing your order.",
-          answerFr: "Oui. Selon le parfum choisi, nos gâteaux peuvent contenir du gluten (blé), des œufs, du lait et des fruits à coque. Les allergènes spécifiques sont indiqués pour chaque parfum lors de votre commande.\nNos produits sont préparés dans une cuisine où sont également manipulés du gluten, des fruits à coque et d'autres allergènes. Malgré les précautions prises pour limiter les contaminations croisées, nous ne pouvons garantir l'absence totale de traces.\nEn cas d'allergie ou d'intolérance sévère, nous vous recommandons de nous contacter avant de passer commande."
-        },
-        {
-          question: "How many days can a cake be kept?",
-          questionFr: "Combien de jours peut-on conserver un gâteau ?",
-          answer: "The cake can be kept for 2 days. Please note that when dark and light colours are combined, slight colour transfer may occur over time.",
-          answerFr: "Le gâteau se conserve 2 jours. Veuillez noter que lorsque des couleurs foncées et claires sont associées, un léger transfert de couleur peut apparaître avec le temps."
+          answer: "Our cakes contain gluten (wheat), eggs and milk. Depending on the flavour, additional allergens may be present. Our products are prepared in a kitchen where nuts and other allergens are also handled, so we cannot guarantee the complete absence of traces.\n\nIf you have an allergy or intolerance, please check the allergen information provided for each flavour or contact us before placing your order.",
+          answerFr: "Nos gâteaux contiennent du gluten (blé), des œufs et du lait. Selon le parfum choisi, d'autres allergènes peuvent être présents. Nos produits sont préparés dans une cuisine où des fruits à coque et d'autres allergènes sont également manipulés. Nous ne pouvons donc pas garantir l'absence totale de traces.\n\nSi vous avez une allergie ou une intolérance, veuillez consulter les informations relatives aux allergènes indiquées pour chaque parfum ou nous contacter avant de passer commande."
         },
         {
           question: "How should I store my cake?",
           questionFr: "Comment conserver mon gâteau ?",
-          answer: "Please keep your cake refrigerated between 0°C and 4°C.\nFor optimal freshness and texture, we recommend enjoying it within 48 hours.\nAvoid prolonged exposure to room temperature.",
-          answerFr: "Conservez votre gâteau au réfrigérateur, entre 0 °C et 4 °C.\nPour une fraîcheur et une texture optimales, nous vous recommandons de le déguster dans les 48 heures.\nÉvitez toute exposition prolongée à température ambiante."
+          answer: "Keep your cake refrigerated between 0°C and 4°C and consume it within 48 hours for optimal freshness and texture. Please note that when dark and light colours are combined, slight colour transfer may occur over time.",
+          answerFr: "Conservez votre gâteau au réfrigérateur entre 0°C et 4°C et consommez-le dans les 48 heures afin de préserver au mieux sa fraîcheur et sa texture. Veuillez noter que lorsque des couleurs foncées et claires sont associées, un léger transfert de couleur peut apparaître avec le temps."
         },
         {
           question: "How long can the cake stay outside?",
-          questionFr: "Combien de temps le gâteau peut-il rester hors du frigo ?",
-          answer: "The cake can be left outside for up to 2 hours. We recommend keeping it refrigerated as much as possible to maintain its freshness and quality.",
-          answerFr: "Le gâteau peut rester hors du réfrigérateur pendant 2 heures maximum. Nous vous recommandons de le garder au frais autant que possible afin de préserver sa fraîcheur et sa qualité."
+          questionFr: "Combien de temps le gâteau peut-il rester hors du réfrigérateur ?",
+          answer: "We recommend keeping the cake refrigerated until serving and limiting the time spent at room temperature as much as possible, especially during warmer weather.",
+          answerFr: "Nous vous recommandons de conserver le gâteau au réfrigérateur jusqu'au moment de le servir et de limiter autant que possible le temps passé à température ambiante, en particulier lorsqu'il fait chaud."
         },
         {
           question: "Does the food colouring stain the lips?",
-          questionFr: "Les colorants alimentaires tachent-ils les lèvres ?",
-          answer: "Darker colours may temporarily stain the lips. The deeper the colour, the more noticeable the staining may be. We recommend choosing lighter colours to avoid any discomfort.",
-          answerFr: "Les couleurs foncées peuvent colorer temporairement les lèvres. Plus la couleur est intense, plus la trace est visible. Nous vous conseillons de choisir des teintes plus claires pour éviter tout désagrément."
+          questionFr: "Les colorants alimentaires peuvent-ils colorer les lèvres ?",
+          answer: "Darker colours may temporarily stain the lips or tongue. The deeper the colour, the more noticeable the staining may be. If you would prefer to avoid this, we recommend choosing lighter colours.",
+          answerFr: "Les couleurs foncées peuvent temporairement colorer les lèvres ou la langue. Plus la couleur est intense, plus cet effet peut être visible. Si vous souhaitez l'éviter, nous vous recommandons de choisir des couleurs plus claires."
         },
         {
           question: "Can pregnant women eat your cakes?",
-          questionFr: "Les femmes enceintes peuvent-elles manger vos gâteaux ?",
-          answer: "Yes. All of our cakes are safe to eat during pregnancy, as we do not use raw eggs in our recipes.\nHowever, as a precaution, we do not recommend choosing our Passion Fruit or Lemon Curd fillings during pregnancy. Although the eggs used in these fillings are cooked, some healthcare professionals recommend avoiding them due to the small potential risk associated with egg-based curds.",
-          answerFr: "Oui. Tous nos gâteaux peuvent être consommés pendant la grossesse, car nous n'utilisons pas d'œufs crus dans nos recettes.\nPar précaution, nous déconseillons toutefois les garnitures Fruit de la Passion et Lemon Curd pendant la grossesse. Bien que les œufs de ces garnitures soient cuits, certains professionnels de santé recommandent de les éviter en raison du faible risque associé aux curds à base d'œufs."
+          questionFr: "Les femmes enceintes peuvent-elles manger nos gâteaux ?",
+          answer: "Our cakes are made without raw eggs. However, as a precaution, we do not recommend our Passion Fruit or Lemon Curd fillings during pregnancy. If you have any specific dietary or health concerns, we recommend checking with your healthcare professional before ordering.",
+          answerFr: "Nos gâteaux sont préparés sans œufs crus. Cependant, par mesure de précaution, nous déconseillons les garnitures Passion Fruit et Lemon Curd pendant la grossesse. En cas de question spécifique liée à votre alimentation ou à votre santé, nous vous recommandons de demander conseil à votre professionnel de santé avant de commander."
         }
       ]
     },
     {
       title: "Ordering",
-      titleFr: "Commander",
+      titleFr: "Commandes",
       questions: [
         {
           question: "How can I place an order?",
-          questionFr: "Comment passer commande ?",
-          answer: "You can place your order directly on our website. If you have any questions, feel free to contact us via Instagram or WhatsApp, and we'll be happy to help.",
-          answerFr: "Vous pouvez commander directement sur notre site. Si vous avez la moindre question, n'hésitez pas à nous écrire sur Instagram ou WhatsApp : nous serons ravies de vous aider."
-        },
-        {
-          question: "What are the steps to place an order?",
-          questionFr: "Quelles informations faut-il fournir pour commander ?",
-          answer: "To place an order, please provide the date, size, shape, flavour, design, desired colours, text and text colour, and you may also include a reference photo of a design you like.",
-          answerFr: "Pour passer commande, merci d'indiquer la date, la taille, la forme, le parfum, le design, les couleurs souhaitées, le texte et sa couleur. Vous pouvez également joindre une photo de référence d'un design qui vous plaît."
+          questionFr: "Comment passer une commande ?",
+          answer: "Orders can be placed directly through our website. Simply choose your cake, customise the available options, select your date and complete the payment online.\n\nFor a design or request that is not available in our catalogue, please use our Custom Request form.",
+          answerFr: "Les commandes peuvent être passées directement sur notre site internet. Il vous suffit de choisir votre gâteau, de personnaliser les options disponibles, de sélectionner votre date et d'effectuer le paiement en ligne.\n\nPour un design ou une demande qui n'est pas disponible dans notre catalogue, veuillez utiliser notre formulaire Custom Request."
         },
         {
           question: "Can I place a last-minute order?",
-          questionFr: "Puis-je commander à la dernière minute ?",
-          answer: "Yes, subject to availability. Orders placed 4–5 days in advance are subject to a 15% express surcharge, and orders placed 2–3 days in advance to a 20% surcharge.",
-          answerFr: "Oui, selon nos disponibilités. Les commandes passées 4 à 5 jours à l'avance sont soumises à un supplément express de 15 %, et celles passées 2 à 3 jours à l'avance à un supplément de 20 %."
+          questionFr: "Puis-je passer une commande de dernière minute ?",
+          answer: "Yes, subject to availability. We recommend placing your order at least 6 days in advance. For shorter notice, an express surcharge automatically applies:\n\n4–5 days before pickup: +15%\n2–3 days before pickup: +20%\n\nOrders placed less than 2 days in advance cannot be accepted.",
+          answerFr: "Oui, sous réserve de disponibilité. Nous vous recommandons de passer votre commande au moins 6 jours à l'avance. Pour les commandes passées dans un délai plus court, un supplément express s'applique automatiquement :\n\n4 à 5 jours avant le retrait : +15 %\n2 à 3 jours avant le retrait : +20 %\n\nLes commandes passées moins de 2 jours à l'avance ne peuvent pas être acceptées."
         },
         {
           question: "Can I cancel or modify my order?",
           questionFr: "Puis-je annuler ou modifier ma commande ?",
-          answer: "Orders are confirmed only upon receipt of payment. If you wish to cancel or reschedule your order, you must notify us at least 5 days in advance to be eligible for a refund or date change. After this time, no refunds or rescheduling will be possible.",
-          answerFr: "Les commandes ne sont confirmées qu'à réception du paiement. Si vous souhaitez annuler ou reporter votre commande, vous devez nous prévenir au moins 5 jours à l'avance pour bénéficier d'un remboursement ou d'un changement de date. Passé ce délai, aucun remboursement ni changement de date ne sera possible."
+          answer: "Orders are confirmed once full payment has been received. Cancellations or date changes must be requested at least 5 days before the scheduled pickup date. After this deadline, orders are non-refundable and cannot be rescheduled.\n\nChanges to the design, flavour, size or other order details are subject to availability and may not be possible once production has begun.",
+          answerFr: "Les commandes sont confirmées dès réception du paiement intégral. Toute annulation ou demande de changement de date doit être effectuée au moins 5 jours avant la date de retrait prévue. Passé ce délai, la commande n'est plus remboursable et ne peut plus être reportée.\n\nLes modifications concernant le design, le parfum, la taille ou tout autre détail de la commande sont soumises à disponibilité et peuvent ne plus être possibles une fois la production commencée."
         }
       ]
     },
@@ -115,61 +103,55 @@ const FAQ = () => {
           question: "Is payment required to confirm the order?",
           questionFr: "Le paiement est-il nécessaire pour confirmer la commande ?",
           answer: "Yes, full payment is required to confirm and secure your order.",
-          answerFr: "Oui, le paiement intégral est requis pour confirmer et réserver votre commande."
+          answerFr: "Oui, le paiement intégral est nécessaire pour confirmer et garantir votre commande."
         },
         {
-          question: "Can we pay in cash?",
-          questionFr: "Peut-on payer en espèces ?",
-          answer: "No, we do not accept cash payments.",
-          answerFr: "Non, nous n'acceptons pas les paiements en espèces."
+          question: "Do you accept cash payments?",
+          questionFr: "Acceptez-vous les paiements en espèces ?",
+          answer: "No, we do not accept cash payments. All orders must be paid online to be confirmed.",
+          answerFr: "Non, nous n'acceptons pas les paiements en espèces. Toutes les commandes doivent être payées en ligne afin d'être confirmées."
         }
       ]
     },
     {
       title: "Pickup & Delivery",
-      titleFr: "Retrait et livraison",
+      titleFr: "Retrait & Livraison",
       questions: [
         {
-          question: "Where can I pick up my order?",
+          question: "How can I collect my order?",
           questionFr: "Où puis-je récupérer ma commande ?",
-          answer: "Rue Prévost-Martin 8, 1205 Geneva.",
-          answerFr: "Rue Prévost-Martin 8, 1205 Genève."
+          answer: "Orders can be collected from our pickup location at Rue Prévost-Martin 8, 1205 Geneva, at the date and time selected or confirmed for your order. Please arrive within your scheduled pickup time.",
+          answerFr: "Les commandes peuvent être récupérées à notre point de retrait situé Rue Prévost-Martin 8, 1205 Genève, à la date et à l'heure sélectionnées ou confirmées pour votre commande. Merci de respecter le créneau de retrait prévu."
         },
         {
-          question: "How can I collect my order?",
-          questionFr: "Comment récupérer ma commande ?",
-          answer: "Once your order is ready, you can collect it at the agreed pickup location and time. All pickup details will be shared with you after your order is confirmed.",
-          answerFr: "Une fois votre commande prête, vous pouvez la récupérer au lieu et à l'heure convenus. Tous les détails du retrait vous seront communiqués après la confirmation de votre commande."
+          question: "Do you offer delivery?",
+          questionFr: "Proposez-vous la livraison ?",
+          answer: "Yes, delivery is available within Geneva and surrounding areas, subject to availability. Delivery fees are calculated based on distance and will be displayed or confirmed when placing your order.",
+          answerFr: "Oui, la livraison est disponible à Genève et dans les environs, sous réserve de disponibilité. Les frais de livraison sont calculés en fonction de la distance et sont affichés ou confirmés lors de votre commande."
         },
         {
           question: "How should I transport the cake?",
-          questionFr: "Comment transporter le gâteau ?",
-          answer: "We recommend placing the cake on the floor of the car so it stays as stable as possible during the journey. Please turn off the heating to prevent it from melting. To remove the plastic wrap, place the cake on a flat surface, hold the wrap gently and pull it away slowly so the cake is not damaged.",
-          answerFr: "Nous vous recommandons de poser le gâteau au sol dans la voiture, afin qu'il reste le plus stable possible pendant le trajet. Pensez à éteindre le chauffage pour éviter qu'il ne fonde. Pour retirer le film plastique, posez le gâteau sur une surface plane, saisissez délicatement le film et retirez-le doucement afin de ne pas abîmer le gâteau."
+          questionFr: "Comment transporter mon gâteau ?",
+          answer: "Keep the cake flat and stable during transport. We recommend placing it on the floor of the car rather than on a seat. Keep the car cool and avoid direct sunlight or heat.\n\nWhen removing the plastic wrap, place the cake on a flat surface and gently pull the wrap away from the cake to avoid damaging the decoration.",
+          answerFr: "Gardez le gâteau bien à plat et stable pendant le transport. Nous vous recommandons de le placer sur le sol de la voiture plutôt que sur un siège. Gardez la voiture au frais et évitez toute exposition directe au soleil ou à la chaleur.\n\nPour retirer le film plastique, placez le gâteau sur une surface plane et retirez délicatement le film en l'éloignant du gâteau afin de ne pas abîmer la décoration."
         },
         {
           question: "Can I get a refund if my cake is damaged after pickup?",
-          questionFr: "Puis-je être remboursée si mon gâteau est abîmé après le retrait ?",
-          answer: "Once the order has been collected, responsibility is transferred to the customer. We cannot be held liable for any damage or accidents after pickup, and no refunds will be issued.",
-          answerFr: "Dès la remise de la commande, la responsabilité est transférée au client. Nous ne pouvons être tenues responsables des dommages ou accidents survenus après le retrait, et aucun remboursement ne sera effectué."
+          questionFr: "Puis-je être remboursée si mon gâteau est endommagé après le retrait ?",
+          answer: "Once the cake has been collected, the customer is responsible for its transport and handling. Unfortunately, we cannot offer refunds for damage occurring after pickup.",
+          answerFr: "Une fois le gâteau récupéré, le client est responsable de son transport et de sa manipulation. Malheureusement, nous ne pouvons pas effectuer de remboursement pour les dommages survenus après le retrait."
         }
       ]
     },
     {
-      title: "Refund",
-      titleFr: "Remboursement",
+      title: "Issues & Refunds",
+      titleFr: "Problèmes & Remboursements",
       questions: [
         {
-          question: "Complain about an order?",
-          questionFr: "Comment signaler un problème sur une commande ?",
-          answer: "Please note that the images you submit are for inspiration purposes only.\nVariations in color, writing, decoration, and accessories may occur.\nIf you are not satisfied with your order, you must contact us within 48 hours after pickup.\nPlease provide clear photos of the cake to support your complaint.\nAfter this 48-hour period, we will no longer be able to process any claims or refunds.",
-          answerFr: "Veuillez noter que les images que vous nous envoyez servent uniquement d'inspiration.\nDes variations de couleur, d'écriture, de décoration et d'accessoires peuvent survenir.\nSi vous n'êtes pas satisfaite de votre commande, vous devez nous contacter dans les 48 heures suivant le retrait.\nMerci de joindre des photos nettes du gâteau à l'appui de votre réclamation.\nPassé ce délai de 48 heures, aucune réclamation ni aucun remboursement ne pourra être traité."
-        },
-        {
-          question: "How to get a refund if you want to cancel your order?",
-          questionFr: "Comment obtenir un remboursement en cas d'annulation ?",
-          answer: "To request a refund, please send us an email at contact@bentocakestudio.ch at least 5 days before your scheduled pickup date.\nNo refunds will be eligible after this deadline.",
-          answerFr: "Pour demander un remboursement, merci de nous écrire à contact@bentocakestudio.ch au moins 5 jours avant la date de retrait prévue.\nAucun remboursement ne sera possible passé ce délai."
+          question: "What should I do if there is an issue with my order?",
+          questionFr: "Que faire en cas de problème avec ma commande ?",
+          answer: "As each cake is handmade, slight variations in colour, writing, decoration and placement may occur. Reference images are used as inspiration and exact replication cannot be guaranteed.\n\nIf there is an issue with your order, please contact us within 48 hours of pickup and provide clear photos of the cake so we can review your request. Claims submitted after 48 hours may no longer be eligible for review.",
+          answerFr: "Chaque gâteau étant réalisé à la main, de légères variations de couleur, d'écriture, de décoration ou de placement peuvent survenir. Les images de référence servent d'inspiration et une reproduction parfaitement identique ne peut pas être garantie.\n\nEn cas de problème avec votre commande, veuillez nous contacter dans les 48 heures suivant le retrait et nous envoyer des photos claires du gâteau afin que nous puissions examiner votre demande. Les réclamations envoyées après ce délai de 48 heures peuvent ne plus être prises en compte."
         }
       ]
     },
@@ -178,8 +160,8 @@ const FAQ = () => {
       titleFr: "Contact",
       questions: [
         {
-          question: "How can we contact you?",
-          questionFr: "Comment vous contacter ?",
+          question: "How can I contact you?",
+          questionFr: "Comment puis-je vous contacter ?",
           answer: "contact-section",
           answerFr: "contact-section"
         }
@@ -207,9 +189,9 @@ const FAQ = () => {
                     <AccordionContent className="text-muted-foreground leading-relaxed whitespace-pre-line">
                       {item.answer === "contact-section" ? (
                         <p>
-                          {t("You can contact us via Instagram", "Vous pouvez nous contacter sur Instagram")}{" "}
+                          {t("You can contact us via Instagram", "Vous pouvez nous contacter via Instagram")}{" "}
                           <a href="https://www.instagram.com/bentocakestudio/" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">@bentocakestudio</a>
-                          {t(", on WhatsApp at +41 78 337 95 00, or by email at", ", sur WhatsApp au +41 78 337 95 00, ou par e-mail à")}{" "}
+                          {t(", on WhatsApp at +41 78 337 95 00, or by email at", ", sur WhatsApp au +41 78 337 95 00 ou par e-mail à")}{" "}
                           <a href="mailto:contact@bentocakestudio.ch" className="text-primary underline hover:text-primary/80">contact@bentocakestudio.ch</a>.
                         </p>
                       ) : (
