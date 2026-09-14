@@ -58,9 +58,18 @@ const SelectScrollDownButton = React.forwardRef<
 ));
 SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayName;
 
+// nativeScroll is a real, intentionally-used prop (see below — it swaps the
+// custom Radix scroll-button UI for a plain native-scrolling list on the
+// callers that opt in) but was missing from forwardRef's own public prop
+// type, which only ever came from ComponentPropsWithoutRef<typeof
+// SelectPrimitive.Content> — the inline parameter annotation a few lines
+// down included it, but that's not what TypeScript uses to type this
+// component for its callers, so every <SelectContent nativeScroll> call
+// site (Catalog.tsx, DotCakes.tsx, KitBentoCake.tsx) failed to typecheck
+// despite working correctly at runtime. Pure type fix, no behaviour change.
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> & { nativeScroll?: boolean }
 >(({ className, children, position = "popper", nativeScroll = false, ...props }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> & { nativeScroll?: boolean }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content

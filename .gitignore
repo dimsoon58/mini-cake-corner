@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Playwright smoke-test run artifacts (screenshots/traces on failure, HTML
+# report) — regenerated on every run, never meant to be committed.
+test-results/
+playwright-report/
+blob-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

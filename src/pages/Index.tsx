@@ -127,6 +127,10 @@ const features = [
 ];
 
 const PhotoCarousel = ({ photos, altPrefix, contain = false }: { photos: string[]; altPrefix: string; contain?: boolean }) => {
+  // Was missing entirely — the empty-state branch below calls t(...) without
+  // this component ever calling useLang() itself, a real "Cannot find name
+  // 't'" crash risk (not just a type error) whenever photos is empty.
+  const { t } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: "left" | "right") => {
