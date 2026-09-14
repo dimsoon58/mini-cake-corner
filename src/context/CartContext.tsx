@@ -4,6 +4,8 @@ import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { INSPIRATIONS } from "@/data/inspirations";
 import { useLang } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
+import { getStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
+import { onOrderCompleted } from "@/lib/orderCompletionChannel";
 
 // Canonical shape for a candle attached to a cart item — used both for
 // candles added directly on the Candles page and for candles added on top
@@ -305,6 +307,30 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const clearCart = () => {
     setItems([]);
   };
+
+  // 2026-09-14: cross-tab sync — the original Checkout tab is commonly left
+  // behind once PostFinance's payment page opens in a NEW tab
+  // (EmbeddedCheckout.tsx's link is target="_blank"); when that other tab
+  // pays and PaymentSuccess.tsx confirms the order, it broadcasts the exact
+  // orderId (see orderCompletionChannel.ts) — never on a mere "Proceed to
+  // Payment" click, only once the order is genuinely, server-confirmed
+  // finalised. Every tab (this one included) subscribes here, at the single
+  // app-wide CartProvider, so it applies no matter which page a stale tab
+  // happens to be showing. Reuses the SAME clearCart() already used by
+  // PaymentSuccess.tsx — never a second clearing implementation. Only acts
+  // if THIS tab's own tracked attempt (getStoredOrderId) is the exact
+  // orderId that just completed — a different, unrelated cart/checkout
+  // started since is never touched, so a genuinely new order in progress in
+  // this same tab can never be wiped by an unrelated completion elsewhere.
+  useEffect(() => {
+    const unsubscribe = onOrderCompleted((orderId) => {
+      if (getStoredOrderId() === orderId) {
+        clearCart();
+        clearStoredOrderId();
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const cartOrderDate = items.find((i) => i.orderDate)?.orderDate || null;
   const cartHasWorkshop = items.some((i) => i.product === "workshop");

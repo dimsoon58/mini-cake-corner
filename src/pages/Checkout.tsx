@@ -57,6 +57,7 @@ import { cartItemTitle, flavorLabel } from "@/lib/orderLabels";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 import { getStoredOrderId, setStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
+import { onOrderCompleted } from "@/lib/orderCompletionChannel";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { getWelcomeDiscountEligibility, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
 
@@ -645,6 +646,35 @@ const Checkout = () => {
     return () => { cancelled = true; };
   }, [user, profile, refreshProfile]);
 
+  // 2026-09-14: the exact orderId THIS tab most recently submitted (set
+  // once, in handleSubmit, right where getStoredOrderId()/setStoredOrderId
+  // already establish it — never re-derived from sessionStorage later,
+  // which could already have been cleared by CartContext's own
+  // onOrderCompleted listener by the time the effect below runs; capturing
+  // it once here avoids any ordering race between the two independent
+  // listeners). Used only to recognise "the attempt I'm showing is the one
+  // that just completed in another tab" below.
+  const myOrderIdRef = useRef<string | null>(null);
+
+  // Cross-tab sync: if the attempt THIS tab most recently submitted just
+  // completed elsewhere (PostFinance's page opens in a new tab — see
+  // orderCompletionChannel.ts), hide the stale "Open Payment Page" /
+  // embedded-checkout view so this old Checkout tab stops looking like a
+  // still-open order. The cart itself and the stored orderId are already
+  // handled by CartContext's own listener (reused, not duplicated) — once
+  // items clears, the existing "Your cart is empty" notice below takes
+  // over. Never fires from a plain "Proceed to Payment" click, and never
+  // touches an unrelated, still-in-progress attempt.
+  useEffect(() => {
+    const unsubscribe = onOrderCompleted((orderId) => {
+      if (orderId && orderId === myOrderIdRef.current) {
+        setShowEmbeddedCheckout(false);
+        setCheckoutPayload(null);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
   // GA4 funnel guards — each step at most once per Checkout mount.
   const beginCheckoutSentRef = useRef(false);
   const shippingInfoSentRef = useRef(false);
@@ -1119,6 +1149,7 @@ const Checkout = () => {
       // a still-open reward reservation by orphaning its orderId client-side.
       const orderId = getStoredOrderId() ?? crypto.randomUUID();
       setStoredOrderId(orderId);
+      myOrderIdRef.current = orderId;
       const slot = !hasPhysical ? null : (deliveryOption === "pickup" ? pickupTime : deliveryTime);
 
       // Multi-date fulfillment payload — undefined on every order today

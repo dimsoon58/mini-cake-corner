@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLang } from "@/context/LanguageContext";
 import Layout from "@/components/Layout";
 import { clearStoredOrderId } from "@/lib/checkoutOrderId";
+import { broadcastOrderCompleted } from "@/lib/orderCompletionChannel";
 
 // Poll confirm-postfinance-payment until it reaches an authoritative outcome.
 // ~4s interval; after this many attempts (~2 min) we stop and show a neutral
@@ -57,13 +58,23 @@ const PaymentSuccess = () => {
   // outstanding reward reservation is never orphaned — see checkoutOrderId.ts)
   // is cleared alongside it, for the same reason: the payment this orderId
   // was reserving points for is now genuinely, definitively resolved.
+  //
+  // 2026-09-14: also broadcasts this exact orderId to every OTHER open tab
+  // (see orderCompletionChannel.ts) — the original Checkout tab is commonly
+  // left behind once PostFinance's payment page opens in a NEW tab
+  // (EmbeddedCheckout.tsx's link is target="_blank"), and had no way to
+  // learn the order it was showing had already been paid elsewhere. Fired
+  // from this exact spot and no other: only once the cart/orderId here have
+  // ALREADY been cleared for real, server-confirmed reasons — never on a
+  // mere "Proceed to Payment" click, never speculatively.
   useEffect(() => {
     if (phase === "confirmed" && !cartClearedRef.current) {
       cartClearedRef.current = true;
       clearCart();
       clearStoredOrderId();
+      if (orderId) broadcastOrderCompleted(orderId);
     }
-  }, [phase, clearCart]);
+  }, [phase, clearCart, orderId]);
 
   useEffect(() => {
     if (!orderId) {
