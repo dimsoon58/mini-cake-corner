@@ -584,6 +584,47 @@ const Checkout = () => {
     return () => { cancelled = true; };
   }, [user]);
 
+  // Welcome-discount reservation reconciliation (2026-09-14). A stale
+  // reservation (profiles.welcome_discount_reserved_order_id pointing at a
+  // dead, abandoned checkout attempt from before) hides the "Use my welcome
+  // offer" checkbox entirely, via canUseWelcomeDiscountNow below — and
+  // nothing else can ever release it: claim_welcome_discount's own 30-minute
+  // self-heal only runs when THIS checkbox is checked and submitted, which
+  // is exactly what a stale reservation prevents. A voucher that was never
+  // actually used (welcome_discount_used_at stays null) could otherwise stay
+  // locked out forever. Fix: call the read-only-except-for-releasing RPC
+  // once per distinct reservation id that looks foreign (doesn't match this
+  // tab's own getStoredOrderId) — it only ever nulls out a reservation
+  // already PROVEN dead (same 30-minute + no orders + no live
+  // pending_payments rule claim_welcome_discount itself uses, see that
+  // migration), never touches welcome_discount_used_at, and never claims or
+  // applies anything. If it released something, refreshProfile() picks up
+  // the change and canUseWelcomeDiscountNow re-evaluates — the checkbox then
+  // appears on its own, still starting unchecked. Tracked by the exact
+  // reservation id already attempted (not a plain boolean) so a genuinely
+  // still-live reservation is only ever retried once, while a DIFFERENT
+  // reservation appearing later (still mounted) gets its own attempt.
+  const reconciledWelcomeReservationRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user || !profile) return;
+    const reservedOrderId = profile.welcome_discount_reserved_order_id ?? null;
+    if (!reservedOrderId) return; // nothing reserved, nothing to reconcile
+    const myOrderId = getStoredOrderId();
+    if (reservedOrderId === myOrderId) return; // already mine, already valid — see getWelcomeDiscountEligibility
+    if (reconciledWelcomeReservationRef.current === reservedOrderId) return; // already attempted for this exact reservation
+    reconciledWelcomeReservationRef.current = reservedOrderId;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("reconcile_welcome_discount_reservation" as any);
+      if (cancelled || error) return;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row && (row as any).welcome_discount_reserved_order_id !== reservedOrderId) {
+        await refreshProfile();
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, profile, refreshProfile]);
+
   // GA4 funnel guards — each step at most once per Checkout mount.
   const beginCheckoutSentRef = useRef(false);
   const shippingInfoSentRef = useRef(false);
