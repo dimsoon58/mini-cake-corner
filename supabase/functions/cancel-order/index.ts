@@ -57,8 +57,8 @@ async function sendCancellationEmail(resendApiKey: string, order: any) {
   let paymentParagraph = "";
   if (order.refund_status === "to_refund") {
     paymentParagraph = `<p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">${tr(
-      "The corresponding refund will be processed separately. You will receive confirmation once it has been completed.",
-      "Le remboursement correspondant sera traité séparément. Vous recevrez une confirmation une fois celui-ci effectué.",
+      "The corresponding refund will be processed separately.",
+      "Le remboursement correspondant sera traité séparément.",
     )}</p>`;
   }
 
@@ -98,12 +98,8 @@ async function sendCancellationEmail(resendApiKey: string, order: any) {
 
         ${paymentParagraph}
 
-        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
-          ${tr("If you have any questions, you can reply directly to this email.", "Si vous avez une question, vous pouvez répondre directement à cet email.")}
-        </p>
-
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0;">
-          ${tr("Warm regards", "Bien chaleureusement")},<br>
+          ${tr("See you soon", "À bientôt")},<br>
           <strong>${tr("The Bento Cake Studio Team", "L’équipe Bento Cake Studio")}</strong> 🤍
         </p>
       </div>
