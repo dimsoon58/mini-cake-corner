@@ -130,6 +130,12 @@ const FAQ = () => {
       titleFr: "Retrait et livraison",
       questions: [
         {
+          question: "Where can I pick up my order?",
+          questionFr: "Où puis-je récupérer ma commande ?",
+          answer: "Rue Prévost-Martin 8, 1205 Geneva.",
+          answerFr: "Rue Prévost-Martin 8, 1205 Genève."
+        },
+        {
           question: "How can I collect my order?",
           questionFr: "Comment récupérer ma commande ?",
           answer: "Once your order is ready, you can collect it at the agreed pickup location and time. All pickup details will be shared with you after your order is confirmed.",
