@@ -29,22 +29,74 @@ interface HookPayload {
   };
 }
 
+// 2026-09-14: dark-mode hardening. Gmail mobile applies its own automatic
+// dark-mode re-coloring to any email that doesn't explicitly declare it
+// handles dark mode itself — which was silently turning our cream card
+// (#FDF8E1) near-black/brown and our bordeaux accent (#78020C) pink. Three
+// layers of defense, all purely visual — content, the confirmation link and
+// the send logic below are untouched:
+//   1. `color-scheme`/`supported-color-schemes` meta tags — the primary
+//      signal that tells Gmail/Outlook/Apple Mail "this email already
+//      handles dark mode, don't auto-invert our colors".
+//   2. A `<style>` block with `@media (prefers-color-scheme: dark)`, keyed
+//      off classes — Gmail's MOBILE apps (unlike Gmail webmail) do honor an
+//      embedded <style> in <head>, including media queries, so this reaches
+//      exactly the client the report was about.
+//   3. Explicit `bgcolor` attributes + inline `background-color` (not the
+//      `background` shorthand) on every table/cell that carries a brand
+//      color, plus a `[data-ogsc]` fallback (the attribute Gmail itself
+//      stamps on elements it's about to dark-style) — belt-and-suspenders
+//      for any client/situation that still tries to remap regardless.
+// Every dark-mode rule only ever swaps one on-brand color for another
+// (deeper bordeaux / warm dark brown / soft cream) — never Gmail's own
+// guess — and light mode is completely unaffected: same colors, same
+// spacing, same fonts as before, just now expressed as tables/cells with
+// explicit background colors instead of plain divs.
 function wrapEmail(bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;">
-    <div style="background:#FDF8E1;margin:0 20px;">
-      <div style="padding:36px 40px 0;text-align:center;">
-        <img src="${LOGO_URL}" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
-      </div>
-      <div style="padding:0 40px 36px;color:#351E13;font-size:15px;line-height:1.8;">
-        ${bodyHtml}
-      </div>
-    </div>
-    <div style="height:24px;background:#78020C;"></div>
-  </div>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  @media (prefers-color-scheme: dark) {
+    .bcs-outer, .bcs-spacer { background-color: #3D0208 !important; }
+    .bcs-card { background-color: #241209 !important; }
+    .bcs-text { color: #F3E9D2 !important; }
+    .bcs-btn { background-color: #A3141F !important; color: #FDF8E1 !important; }
+  }
+  [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #3D0208 !important; }
+  [data-ogsc] .bcs-card { background-color: #241209 !important; }
+  [data-ogsc] .bcs-text { color: #F3E9D2 !important; }
+  [data-ogsc] .bcs-btn { background-color: #A3141F !important; color: #FDF8E1 !important; }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C;">
+    <tr>
+      <td align="center" style="padding:0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:520px;margin:0 auto;">
+          <tr>
+            <td style="padding:0 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;">
+                <tr>
+                  <td>
+                    <div style="padding:36px 40px 0;text-align:center;">
+                      <img src="${LOGO_URL}" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
+                    </div>
+                    <div class="bcs-text" style="padding:0 40px 36px;color:#351E13;font-size:15px;line-height:1.8;">
+                      ${bodyHtml}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C;">&nbsp;</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 }
@@ -55,7 +107,7 @@ function buttonHtml(url: string, label: string): string {
   // link is still present in the plain-text part for any client that needs
   // it. The href itself is unchanged.
   return `<div style="text-align:center;margin:28px 0;">
-    <a href="${url}" style="display:inline-block;background:#78020C;color:#FDF8E1;text-decoration:none;padding:14px 32px;font-weight:400;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
+    <a href="${url}" class="bcs-btn" style="display:inline-block;background-color:#78020C;color:#FDF8E1;text-decoration:none;padding:14px 32px;font-weight:400;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
   </div>`;
 }
 
