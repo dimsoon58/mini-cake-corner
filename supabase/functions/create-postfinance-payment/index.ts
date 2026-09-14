@@ -1542,21 +1542,36 @@ serve(async (req) => {
             item.extras?.length ? `Extras: ${item.extras.join(", ")}` : null,
           ].filter(Boolean).join(" • ");
 
-      // Workshop line: quantity = participants, unit price = the
-      // server-derived per-person price (never quantity 1 with the total).
-      // Non-workshop line: quantity 1; the welcome discount is subtracted
-      // directly from the one discounted line (no invented discount line
-      // type — none is confirmed in PostFinance/Wallee docs).
+      // 2026-09-14 CRITICAL FIX: PostFinance/Wallee's LineItemCreate.
+      // amountIncludingTax is the line's ALREADY-COMPUTED TOTAL charge, not
+      // a per-unit price — the API never multiplies it by `quantity` itself
+      // (quantity is purely informational, shown on the receipt; the only
+      // per-unit figure PostFinance exposes is unitPriceIncludingTax, a
+      // CALCULATED, read-only field on its side — see
+      // https://app-wallee.com/en/doc/api/model/line-item and the
+      // LineItemCreate model, which has no settable unit-price field at
+      // all). The previous code sent quantity: participants with
+      // amountIncludingTax: workshop_unit_price (e.g. quantity 2,
+      // amountIncludingTax 85) believing PostFinance would charge 2 × 85 —
+      // it instead charged exactly 85, silently under-billing every
+      // multi-participant workshop booking. quantity stays = participants
+      // (correct, informational, matches the "2 participant(s) × CHF 85"
+      // description below) but amountIncludingTax must be the full line
+      // total. Non-workshop line: quantity 1, so amountIncludingTax was
+      // already correct (a line total with quantity 1 is trivially its own
+      // total) — the welcome discount is subtracted directly from the one
+      // discounted line (no invented discount line type — none is
+      // confirmed in PostFinance/Wallee docs).
       const quantity = isWorkshop ? participants : 1;
-      const unitAmount = isWorkshop
-        ? Number(item.workshop_unit_price)
+      const lineAmount = isWorkshop
+        ? roundToCents(Number(item.workshop_unit_price) * participants)
         : (item === discountedItem ? roundToCents(item.total - discountAmount) : item.total);
 
       return {
         uniqueId: `item-${i}`,
         name,
         quantity,
-        amountIncludingTax: unitAmount,
+        amountIncludingTax: lineAmount,
         type: "PRODUCT",
         attributes: description ? { description: { label: "Details", value: description } } : undefined,
       };
@@ -1580,9 +1595,13 @@ serve(async (req) => {
       for (let i = 0; i < lineItems.length && rewardRemaining > 0; i++) {
         if (hasPhysicalItem && orderItems[i].product === "workshop") continue;
         const line = lineItems[i];
-        const lineTotal = roundToCents(line.amountIncludingTax * line.quantity);
+        // amountIncludingTax is ALWAYS the line's own full total already
+        // (see the 2026-09-14 fix above) — never re-multiply or re-divide
+        // by quantity here, that was the exact same under-charge bug for
+        // a multi-participant workshop line's reward deduction.
+        const lineTotal = line.amountIncludingTax;
         const deduct = roundToCents(Math.min(rewardRemaining, lineTotal));
-        line.amountIncludingTax = roundToCents(line.amountIncludingTax - deduct / line.quantity);
+        line.amountIncludingTax = roundToCents(line.amountIncludingTax - deduct);
         orderItems[i].reward_amount_used = deduct;
         rewardRemaining = roundToCents(rewardRemaining - deduct);
       }
@@ -1648,6 +1667,26 @@ serve(async (req) => {
     if (order.total_amount < 0) {
       throw new Error(
         `Computed total is negative (CHF ${order.total_amount}) — refusing to create a payment.`,
+      );
+    }
+
+    // 2026-09-14: guard added after a production under-charge (a
+    // multi-participant workshop line was sent to PostFinance at its unit
+    // price instead of its total — see the lineItems fix above). This is
+    // the last line of defense: independently of WHY lineItems and
+    // order.total_amount might ever diverge again, NEVER create a
+    // transaction that would charge the customer anything other than the
+    // server's own authoritative total. amountIncludingTax is always a
+    // line's full total (never multiplied by quantity — see above), so a
+    // plain sum is the true amount PostFinance would actually charge.
+    const lineItemsTotal = roundToCents(
+      lineItems.reduce((sum, line) => sum + line.amountIncludingTax, 0),
+    );
+    if (lineItemsTotal !== order.total_amount) {
+      await releaseRewardIfOutstanding();
+      await releaseWelcomeIfOutstanding();
+      throw new Error(
+        `Line items total (CHF ${lineItemsTotal}) does not match the server total (CHF ${order.total_amount}) — refusing to create a PostFinance transaction that could under- or over-charge the customer.`,
       );
     }
 
