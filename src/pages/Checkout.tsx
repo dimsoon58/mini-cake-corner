@@ -526,16 +526,36 @@ const Checkout = () => {
 
       const failedOrderId = searchParams.get("order_id");
       if (failedOrderId) {
-        supabase.functions
-          .invoke("confirm-postfinance-payment", { body: { orderId: failedOrderId } })
-          .catch((e) => console.error("failed-payment reconciliation error:", e));
-        // confirm-postfinance-payment releases the reward reservation for a
-        // confirmed FAILED/DECLINE/VOIDED transaction — safe to stop reusing
-        // this orderId on the next "Proceed to Payment" click.
-        if (failedOrderId === getStoredOrderId()) {
-          clearStoredOrderId();
-          setResumedReservation(null);
-        }
+        // 2026-09-14: confirm-postfinance-payment already releases the
+        // welcome + reward reservations tied to this orderId immediately
+        // (no 30-minute wait) once it confirms the FAILED/DECLINE/VOIDED
+        // state — but the browser's own cached `profile` never knew, so the
+        // "Use my welcome offer" checkbox stayed stuck on the stale,
+        // still-reserved snapshot even though the database had already let
+        // go of it. Fix: await the call, then await refreshProfile() so the
+        // just-released state is picked up right away — only THEN clear the
+        // local orderId/resumedReservation, so a genuinely failed call
+        // never drops the customer's own still-valid local attempt.
+        (async () => {
+          try {
+            const { error } = await supabase.functions.invoke("confirm-postfinance-payment", { body: { orderId: failedOrderId } });
+            if (error) {
+              console.error("failed-payment reconciliation error:", error);
+              return; // keep the local orderId untouched — nothing was confirmed released
+            }
+            await refreshProfile();
+            // confirm-postfinance-payment releases the reward reservation for a
+            // confirmed FAILED/DECLINE/VOIDED transaction — safe to stop reusing
+            // this orderId on the next "Proceed to Payment" click.
+            if (failedOrderId === getStoredOrderId()) {
+              clearStoredOrderId();
+              setResumedReservation(null);
+            }
+          } catch (e) {
+            console.error("failed-payment reconciliation error:", e);
+            // keep the local orderId untouched — nothing was confirmed released
+          }
+        })();
       }
 
       toast({
