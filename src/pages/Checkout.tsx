@@ -58,6 +58,7 @@ import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/compon
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 import { getStoredOrderId, setStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
+import { getWelcomeDiscountEligibility, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
 
 // Anti double-payment guard. Set when the customer is handed to PostFinance,
 // short TTL so a stale value can never wedge the checkout. Cleared on
@@ -84,36 +85,6 @@ function markCheckoutInFlight() {
 }
 function clearCheckoutInFlight() {
   try { sessionStorage.removeItem(CHECKOUT_INFLIGHT_KEY); } catch { /* ignore */ }
-}
-
-// Fixed voucher base price per (product, size) pair — must stay identical
-// to WELCOME_VOUCHER_BASE in create-postfinance-payment/index.ts (the
-// authoritative copy). Never a single size alone, so an inconsistent
-// combination can never resolve to a base. Intentionally NOT the live
-// catalogue price (e.g. retro/large differ from data/customization.ts and
-// Catalog.tsx today).
-const WELCOME_VOUCHER_BASE: Record<string, Record<string, number>> = {
-  bento_cake: { bento: 40, retro: 40, medium: 85, large: 160 },
-  rectangle_cake: { rectangle: 450 },
-  diy_kit: { "kit-bento": 40 },
-  edible_printing: { printing: 15 },
-  dot_cakes: {
-    "dot-cakes-4": 35,
-    "dot-cakes-6": 51,
-    "dot-cakes-9": 75,
-    "dot-cakes-12": 99,
-    "dot-cakes-20": 160,
-  },
-};
-
-// Display-only mirror of getWelcomeVoucherBase() in
-// create-postfinance-payment/index.ts. For Dot Cakes, item.size is written
-// pack-specific ("dot-cakes-6", set in DotCakes.tsx). Returns null when the
-// pair isn't in the fixed table above — including a stale cart still
-// carrying the old generic "dot-cakes" size — in which case the item is
-// never selected as the discounted one.
-function getWelcomeVoucherBase(item: { product: string; size: string }): number | null {
-  return WELCOME_VOUCHER_BASE[item.product]?.[item.size] ?? null;
 }
 
 // Generate 1-hour pickup time slots from 10:00 to 18:00
@@ -724,22 +695,14 @@ const Checkout = () => {
 
   // Server-verified at create-postfinance-payment time — this is only a
   // display estimate. A reservation already in flight
-  // (welcome_discount_reserved_order_id set) also hides the option, since
-  // the account isn't currently free to claim a new one.
-  // welcome_discount_expires_at is read directly from Supabase as the
-  // source of truth — never recomputed client-side. !!profile guards
-  // against treating a not-yet-loaded profile as eligible.
-  const baseWelcomeDiscountEligible = !!user
-    && !!user.email_confirmed_at
-    && !!profile
-    && !profile?.welcome_discount_used_at
-    && !profile?.welcome_discount_reserved_order_id;
-
-  // Genuinely already active in the DB right now.
-  const welcomeVoucherEligible = baseWelcomeDiscountEligible
-    && profile?.welcome_discount_available === true
-    && !!profile?.welcome_discount_expires_at
-    && new Date(profile.welcome_discount_expires_at) > new Date();
+  // (welcome_discount_reserved_order_id set) also hides the option, UNLESS
+  // it's a reservation for THIS SAME browser tab's own current/last checkout
+  // attempt (getStoredOrderId) — see getWelcomeDiscountEligibility's own
+  // comment for why: without that exception, simply refreshing the page or
+  // coming back from PostFinance made the customer's own still-unspent
+  // discount look gone, even though nothing had actually consumed it.
+  const { baseEligible: baseWelcomeDiscountEligible, voucherActiveNow: welcomeVoucherEligible } =
+    getWelcomeDiscountEligibility(user, profile, getStoredOrderId());
 
   // Not active yet, but checking the newsletter box in this same checkout
   // would activate it (via the DB trigger) before payment is requested —
@@ -774,31 +737,13 @@ const Checkout = () => {
   );
 
   // Mirrors, item for item, the selection rule enforced server-side in
-  // create-postfinance-payment: candles ("product" === "candles") are
-  // entirely excluded whenever at least one non-candle product is in the
-  // cart. Among the remaining items, the one with the lowest VOUCHER BASE
-  // price wins (fixed per product type/size, never the real sale price
-  // which includes decorations/extras/supplements). A candles-only cart is
-  // the one exception that keeps using the real line total. Display only —
-  // the server independently recomputes and verifies this amount, never
-  // trusting this client-side value for anything financial.
-  const nonCandleItems = items.filter((item) => item.product !== "candles");
-  const isCandlesOnlyCart = nonCandleItems.length === 0;
-
-  let discountedItem: (typeof items)[number] | null = null;
-  let discountedBase = 0;
-  for (const item of (isCandlesOnlyCart ? items : nonCandleItems)) {
-    if (item.product === "workshop") continue; // workshops never carry the welcome discount
-    const base = isCandlesOnlyCart ? item.total : getWelcomeVoucherBase(item);
-    if (base === null) continue;
-    if (discountedItem === null || base < discountedBase) {
-      discountedItem = item;
-      discountedBase = base;
-    }
-  }
+  // create-postfinance-payment — see pickWelcomeDiscountItem's own comment.
+  // Display only — the server independently recomputes and verifies this
+  // amount, never trusting this client-side value for anything financial.
+  const { item: discountedItem, base: discountedBase } = pickWelcomeDiscountItem(items);
 
   const estimatedWelcomeDiscount = (useWelcomeDiscount && canUseWelcomeDiscountNow && discountedItem)
-    ? Math.round(discountedBase * 0.10 * 100) / 100
+    ? computeWelcomeDiscountAmount(discountedBase)
     : 0;
 
   // Reward balance ("cagnotte") — display-only. profile.reward_balance is a

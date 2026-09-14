@@ -13,6 +13,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useCart, CandleSelection, CartItem } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
+import { getStoredOrderId } from "@/lib/checkoutOrderId";
+import { getWelcomeDiscountEligibility, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
 import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -74,6 +77,7 @@ const formatDateFromIso = (dateValue: string) => {
 const Cart = () => {
   const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate } = useCart();
   const { t, lang } = useLang();
+  const { user, profile } = useAuth();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   // "Modify date" — scoped to exactly ONE cart line (its item.id), never the
@@ -112,6 +116,27 @@ const Cart = () => {
   };
 
   const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
+
+  // Welcome discount (-10%) preview — same eligibility rule and same
+  // discounted-item selection Checkout.tsx uses for the real thing (shared
+  // in src/lib/welcomeDiscount.ts), read straight from the account's own
+  // profile (the real backend source), never from any Checkout-only local
+  // state. This is what fixes the cart silently showing no discount after
+  // the customer starts, then abandons or returns from, a PostFinance
+  // payment: profile.welcome_discount_reserved_order_id stays set for that
+  // whole in-flight attempt, but getWelcomeDiscountEligibility recognizes it
+  // as the SAME attempt (getStoredOrderId, this tab's own sessionStorage
+  // slot — see checkoutOrderId.ts) and keeps showing it instead of treating
+  // it like someone else's concurrent claim. Preview only: nothing here
+  // applies, reserves, or consumes the discount — only
+  // create-postfinance-payment (payment) and the decide_order_physical SQL
+  // trigger (marks it used, only after a genuinely valid confirmed order)
+  // ever change its real state.
+  const { voucherActiveNow: welcomeDiscountActive } = getWelcomeDiscountEligibility(user, profile, getStoredOrderId());
+  const { item: welcomeDiscountItem, base: welcomeDiscountBase } = pickWelcomeDiscountItem(items);
+  const welcomeDiscountAmount = (welcomeDiscountActive && welcomeDiscountItem)
+    ? computeWelcomeDiscountAmount(welcomeDiscountBase)
+    : 0;
 
   // Express surcharge, computed per DATE (multi-date fulfillment: a cart can
   // now span several pickup/delivery dates, each with its own rate) — never
@@ -715,6 +740,16 @@ const Cart = () => {
                       </div>
                     ))}
                   </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
+                    <span className="text-foreground">CHF {totalPrice.toFixed(2)}</span>
+                  </div>
+                  {welcomeDiscountAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{t("Welcome discount -10%", "Réduction bienvenue -10%")}</span>
+                      <span className="text-primary">- CHF {welcomeDiscountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                   {expressBreakdown.byRate.map(({ rate, amount }) => (
                     <div key={rate} className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{expressSummaryLabel(lang === "fr" ? "fr" : "en", rate)}</span>
@@ -723,7 +758,7 @@ const Cart = () => {
                   ))}
                   <div className="flex justify-between text-lg font-bold">
                     <span className="text-foreground">{t("Total", "Total")}</span>
-                    <span className="text-primary">CHF {(totalPrice + expressBreakdown.total).toFixed(2)}</span>
+                    <span className="text-primary">CHF {(totalPrice + expressBreakdown.total - welcomeDiscountAmount).toFixed(2)}</span>
                   </div>
                   <ExpressDateNotice date={cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null} />
                   {items.some((i) => i.product === "workshop") &&
