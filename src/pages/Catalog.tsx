@@ -2692,8 +2692,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {cakes.map((cake) => (
                     <div
                       key={cake.id}
-                      className="relative rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
+                      className="relative rounded-none overflow-hidden border-[3px] border-primary flex flex-col"
                     >
+                      <div className="border border-primary m-1.5 flex flex-col flex-1 overflow-hidden">
 
                       {cake.images && cake.images.length > 1 ? (
                         <CakeCardImage
@@ -2731,6 +2732,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                             {t("CHOOSE THIS STYLE", "CHOISIR CE MODÈLE")}
                           </Button>
                         </div>
+                      </div>
                       </div>
                     </div>
                   ))}
