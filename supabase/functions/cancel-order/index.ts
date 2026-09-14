@@ -56,13 +56,63 @@ async function sendCancellationEmail(resendApiKey: string, order: any) {
 
   let paymentParagraph = "";
   if (order.refund_status === "to_refund") {
-    paymentParagraph = `<p style="color:#555;font-size:15px;line-height:1.7;">${tr(
+    paymentParagraph = `<p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">${tr(
       "The corresponding refund will be processed separately. You will receive confirmation once it has been completed.",
       "Le remboursement correspondant sera traité séparément. Vous recevrez une confirmation une fois celui-ci effectué.",
     )}</p>`;
   }
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;"><div style="max-width:600px;margin:0 auto;padding:24px;"><div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);"><div style="padding:28px 32px 0;text-align:center;"><div style="font-size:22px;font-weight:700;letter-spacing:.5px;color:#78020c;">BENTO CAKE studio</div></div><div style="padding:20px 32px 8px;text-align:center;"><h1 style="color:#333;font-size:24px;margin:0;font-weight:700;">${tr("Order cancellation", "Annulation de commande")}</h1></div><div style="padding:24px 32px 32px;"><p style="color:#555;font-size:15px;line-height:1.7;">${tr("Hello", "Bonjour")} ${esc(firstName)},</p><p style="color:#555;font-size:15px;line-height:1.7;">${tr(`Following your request, we confirm the cancellation of your order <strong>#${esc(orderNumber)}</strong>.`, `Suite à votre demande, nous confirmons l’annulation de votre commande <strong>n° ${esc(orderNumber)}</strong>.`)}</p>${paymentParagraph}<p style="color:#555;font-size:15px;line-height:1.7;">${tr("If you have any questions, you can reply directly to this email.", "Si vous avez une question, vous pouvez répondre directement à cet email.")}</p><p style="color:#555;font-size:15px;line-height:1.7;">${tr("Warm regards", "Bien chaleureusement")},<br><strong>${tr("The Bento Cake Studio Team", "L’équipe Bento Cake Studio")}</strong> 🤍</p></div><div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;"><p style="color:#aaa;font-size:11px;margin:0;">${tr("Bento Cake Studio · Geneva, Switzerland", "Bento Cake Studio · Genève, Suisse")}</p></div></div></div></body></html>`;
+  // Same Bento Cake Studio wordmark asset + size, wrapper structure, fonts,
+  // colours and footer as every other customer-facing email in this
+  // codebase (see send-order-received-email/index.ts, the reference
+  // template — identical shell in manage-order's sendApprovalEmail /
+  // sendDeclineEmail and send-workshop-email). Content below is otherwise
+  // unchanged: same wording, same conditional refund paragraph, same esc()
+  // escaping on customer-supplied fields.
+  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png";
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
+<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;">
+
+    <div style="background:#FDF8E1;margin:0 20px;">
+      <div style="padding:36px 40px 0;text-align:center;">
+        <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
+      </div>
+
+      <div style="padding:0 40px 36px;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
+          ${tr("Hello", "Bonjour")} ${esc(firstName)},
+        </p>
+
+        <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:0 0 20px;">
+          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
+            ${tr(
+              `Following your request, we confirm the cancellation of your order <strong>#${esc(orderNumber)}</strong>.`,
+              `Suite à votre demande, nous confirmons l’annulation de votre commande <strong>n° ${esc(orderNumber)}</strong>.`,
+            )}
+          </p>
+        </div>
+
+        ${paymentParagraph}
+
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
+          ${tr("If you have any questions, you can reply directly to this email.", "Si vous avez une question, vous pouvez répondre directement à cet email.")}
+        </p>
+
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0;">
+          ${tr("Warm regards", "Bien chaleureusement")},<br>
+          <strong>${tr("The Bento Cake Studio Team", "L’équipe Bento Cake Studio")}</strong> 🤍
+        </p>
+      </div>
+    </div>
+
+    <div style="height:24px;background:#78020C;"></div>
+  </div>
+</body>
+</html>`;
 
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
