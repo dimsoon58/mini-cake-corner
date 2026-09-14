@@ -10,7 +10,6 @@ import {
   TX_FAILURE_STATES,
   getTransactionState,
 } from "../_shared/postfinance-transactions.ts";
-import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 
 // A REAL "I'm giving up on this checkout" action for a customer who started
 // a checkout — reserving reward points and/or the welcome voucher — reached
@@ -60,55 +59,32 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 // The one and only place anything is actually released — reached ONLY once
 // the transaction tied to this orderId is proven dead (already terminal-
-// failed, or just successfully voided and re-confirmed VOIDED). Order of
-// operations matters for idempotency under a genuine double-click race:
-// pending_payments is deleted FIRST, and its affected-row count gates
-// whether this call is the one that actually releases anything — a second,
-// near-simultaneous call whose delete affects 0 rows (the first call already
-// removed it) skips the release entirely instead of calling
-// release_reward_reservation / the welcome-discount update a second time.
-async function finalizeAbandonment(
+// failed, or just successfully voided and re-confirmed VOIDED). Delegates
+// the ENTIRE DB-side cleanup to abandon_checkout_reservation() (see
+// 20260914170000_abandon_checkout_reservation.sql) — a single atomic
+// Postgres transaction: delete pending_payments, release the reward
+// reservation, release the welcome-discount reservation, log the attempt.
+// Any failure at any step rolls back the whole thing; this function must
+// NEVER be treated by the caller as "abandoned" unless released === true
+// comes back. Idempotency (a second call after an already-successful
+// abandonment, or a genuine double-click race) is handled entirely inside
+// that SQL function — see its own header comment.
+async function finalizeAbandonmentAtomic(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   orderId: string,
-  customerId: string | null,
-  lang: string,
-): Promise<void> {
-  const { data: deletedRows, error: deleteErr } = await supabase
-    .from("pending_payments")
-    .delete()
-    .eq("order_id", orderId)
-    .select("order_id");
-  if (deleteErr) {
-    console.error(`abandon-checkout: pending_payments delete failed for ${orderId}:`, deleteErr);
-    return; // never release on an unproven delete
-  }
-  if (!Array.isArray(deletedRows) || deletedRows.length === 0) {
-    // Already cleaned up by a concurrent call (or nothing was there) —
-    // nothing left to release. Idempotent no-op.
-    return;
-  }
-
-  const { error: rewardErr } = await supabase.rpc("release_reward_reservation", { p_order_id: orderId });
-  if (rewardErr) console.error(`abandon-checkout: release_reward_reservation failed for ${orderId}:`, rewardErr);
-
-  // Welcome-discount reservation — ONLY if it still points at THIS exact
-  // orderId (never a different, unrelated attempt for the same customer).
-  if (customerId) {
-    const { error: welcomeErr } = await supabase
-      .from("profiles")
-      .update({ welcome_discount_reserved_order_id: null, welcome_discount_reserved_at: null })
-      .eq("id", customerId)
-      .eq("welcome_discount_reserved_order_id", orderId);
-    if (welcomeErr) console.error(`abandon-checkout: welcome discount release failed for ${orderId}:`, welcomeErr);
-  }
-
-  await recordPaymentAttempt(supabase, {
-    orderId,
-    status: "payment_failed",
-    errorType: "checkout_abandoned_by_customer",
-    lang,
+  customerId: string,
+): Promise<{ released: boolean; reason: string | null }> {
+  const { data, error } = await supabase.rpc("abandon_checkout_reservation", {
+    p_order_id: orderId,
+    p_customer_id: customerId,
   });
+  if (error) {
+    console.error(`abandon-checkout: abandon_checkout_reservation RPC failed for ${orderId}:`, error);
+    return { released: false, reason: "rpc_error" };
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return { released: !!row?.released, reason: row?.reason ?? null };
 }
 
 serve(async (req) => {
@@ -157,17 +133,23 @@ serve(async (req) => {
       .maybeSingle();
     if (resErr) throw new Error(`reward_reservations lookup failed: ${resErr.message}`);
 
-    // Nothing outstanding at all for this orderId — either it was never a
-    // reward/reservation-bearing attempt, or a previous call (retry / the
-    // double-click case) already cleaned it up. Idempotent success: the
-    // frontend clears the cart exactly as if this were the first call.
-    if (!pending && !reservation) {
+    // Nothing outstanding at all for this orderId. release_reward_reservation
+    // does NOT delete the reward_reservations row — a checkout already
+    // abandoned successfully leaves pending_payments gone but a reservation
+    // row still present with status = 'released' (or 'consumed' for a real
+    // paid order). Only an ACTIVE ('reserved') reservation counts as
+    // "outstanding" here — anything else, with no pending_payments row
+    // either, means this orderId was already fully cleaned up (by a
+    // previous call, or a genuine double-click race) and must be reported
+    // as abandoned again, never as still ambiguous.
+    const hasActiveReservation = !!reservation && reservation.status === "reserved";
+    if (!pending && !hasActiveReservation) {
       return jsonResponse({ status: "abandoned" }, 200);
     }
 
     // ── Ownership — the reservation's own customer_id is authoritative
-    // (present even once "released", since finalizeAbandonment only
-    // deletes pending_payments, never the reservation row itself); the
+    // (present even once "released", since the atomic RPC only deletes
+    // pending_payments, never the reservation row itself); the
     // pending_payments payload's customer_id is the fallback when the
     // reservation row doesn't exist (e.g. a welcome-discount-only attempt,
     // no reward points involved).
@@ -219,8 +201,15 @@ serve(async (req) => {
 
     if (TX_FAILURE_STATES.has(upperState)) {
       // Already terminal-dead (FAILED / DECLINE / VOIDED) — no void call
-      // needed, clean up immediately.
-      await finalizeAbandonment(supabase, orderId, ownerId, lang);
+      // needed, clean up immediately. Only ever report "abandoned" once the
+      // atomic RPC itself confirms it actually released everything.
+      const finalized = await finalizeAbandonmentAtomic(supabase, orderId, authenticatedUser.id);
+      if (finalized.reason === "already_confirmed") {
+        return jsonResponse({ status: "already_confirmed", orderId }, 200);
+      }
+      if (!finalized.released) {
+        return respondInProgress();
+      }
       return jsonResponse({ status: "abandoned" }, 200);
     }
 
@@ -245,7 +234,16 @@ serve(async (req) => {
       return respondInProgress();
     }
 
-    await finalizeAbandonment(supabase, orderId, ownerId, lang);
+    // Only ever report "abandoned" once the atomic RPC itself confirms it
+    // actually released everything — never on the strength of the void
+    // call alone.
+    const finalized = await finalizeAbandonmentAtomic(supabase, orderId, authenticatedUser.id);
+    if (finalized.reason === "already_confirmed") {
+      return jsonResponse({ status: "already_confirmed", orderId }, 200);
+    }
+    if (!finalized.released) {
+      return respondInProgress();
+    }
     return jsonResponse({ status: "abandoned" }, 200);
   } catch (error) {
     console.error("Error in abandon-checkout:", error);
