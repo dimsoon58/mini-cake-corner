@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 // @ts-ignore
 import "@fontsource/dancing-script";
 import { Link } from "react-router-dom";
+import { format } from "date-fns";
 import ExtraImageLightbox from "@/components/ExtraImageLightbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,15 +10,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useCart, CandleSelection, CartItem } from "@/context/CartContext";
 import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
-import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info } from "lucide-react";
+import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { formatSessionDate } from "@/data/workshopSessions";
-import { expressSurchargeBreakdown, expressSummaryLabel } from "@/lib/orderDates";
-import { ExpressDateNotice } from "@/components/ExpressDateNotice";
+import { expressSurchargeBreakdown, expressSummaryLabel, isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
+import { ExpressDateNotice, expressCalendarProps } from "@/components/ExpressDateNotice";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
@@ -72,6 +75,41 @@ const Cart = () => {
   const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate } = useCart();
   const { t, lang } = useLang();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+
+  // "Modify date" — scoped to exactly ONE cart line (its item.id), never the
+  // whole cart. Was previously wired to handleClearAll (a copy-paste bug:
+  // both this and "Clear cart" called the same handler), which wiped every
+  // item instead of touching a single date. Popover is keyed by item.id so
+  // opening one item's calendar can never affect another item's date, even
+  // when several items in the cart each have their own distinct date.
+  const [dateEditItemId, setDateEditItemId] = useState<string | null>(null);
+  const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
+
+  useEffect(() => {
+    const fetchBookedDates = async () => {
+      const { data, error } = await supabase.rpc("get_fully_booked_dates");
+      if (!error && data) {
+        setFullyBookedDates(data.map((d: { booked_date: string }) => new Date(d.booked_date)));
+      }
+    };
+    fetchBookedDates();
+  }, []);
+
+  // Only ever writes item.orderDate on the single targeted line — every
+  // other field (product, size, shape, flavor, style, colors, text, extras,
+  // candles, images, comment, quantity, total, …) is left completely
+  // untouched, and no other cart item is read or written. Not selecting a
+  // date (closing the popover, clicking away, Escape) never calls this, so
+  // cancelling leaves the cart exactly as it was. item.total is a product
+  // price and is deliberately NOT recomputed here — only the express
+  // surcharge depends on the date, and that's derived from `items` fresh on
+  // every render (see expressGroups/expressBreakdown below), so it updates
+  // automatically for the new date with no extra code.
+  const handleDateChange = (itemId: string, date: Date | undefined) => {
+    if (!date) return;
+    updateItem(itemId, { orderDate: format(date, "yyyy-MM-dd") });
+    setDateEditItemId(null);
+  };
 
   const totalPrice = items.reduce((sum, item) => sum + item.total, 0);
 
@@ -396,20 +434,20 @@ const Cart = () => {
                   delivery dates among the cart's items, stating any single
                   one here would be misleading, so it switches to a plain
                   "multiple dates" notice instead — each item's own card
-                  below always shows its own exact date regardless. */}
+                  below always shows its own exact date, with its own
+                  "Modify date" control right next to it (a cart-wide button
+                  here could never identify which single line to change once
+                  the cart holds more than one date). */}
               {(() => {
                 const distinctDates = Array.from(new Set(items.filter((i) => i.orderDate).map((i) => i.orderDate)));
                 if (distinctDates.length === 0) return null;
                 return (
-                  <div className="mb-4 bg-cream/60 border border-border/30 px-4 py-2.5 flex items-center justify-between gap-3">
+                  <div className="mb-4 bg-cream/60 border border-border/30 px-4 py-2.5">
                     <span className="text-xs text-foreground/70">
                       {distinctDates.length > 1
                         ? t("Multiple pickup dates", "Plusieurs dates de retrait")
                         : `${t("Pickup", "Retrait le")} ${formatDateFromIso(distinctDates[0]!)}`}
                     </span>
-                    <button onClick={handleClearAll} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0">
-                      {t("Change date", "Modifier la date")}
-                    </button>
                   </div>
                 );
               })()}
@@ -535,9 +573,44 @@ const Cart = () => {
                           item.orderDate, already stored per CartItem —
                           no derived/global date here. */}
                       {item.orderDate && (
-                        <p className="text-sm font-bold text-foreground mb-3">
-                          {t("PICKUP", "RETRAIT")} — {formatDateFromIso(item.orderDate)}
-                        </p>
+                        <div className="flex items-center gap-2 mb-3">
+                          <p className="text-sm font-bold text-foreground">
+                            {t("PICKUP", "RETRAIT")} — {formatDateFromIso(item.orderDate)}
+                          </p>
+                          <Popover
+                            open={dateEditItemId === item.id}
+                            onOpenChange={(open) => setDateEditItemId(open ? item.id : null)}
+                          >
+                            <PopoverTrigger asChild>
+                              <button className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0">
+                                {t("Modify date", "Modifier la date")}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                {...expressCalendarProps}
+                                mode="single"
+                                // Pre-selects this item's OWN current date —
+                                // never another item's, never today.
+                                selected={new Date(`${item.orderDate}T00:00:00`)}
+                                onSelect={(date) => handleDateChange(item.id, date)}
+                                disabled={(date) => {
+                                  if (isOrderDateDisabled(date)) return true;
+                                  return fullyBookedDates.some(
+                                    (bookedDate) => bookedDate.toDateString() === date.toDateString()
+                                  );
+                                }}
+                                initialFocus
+                                className="p-3 pointer-events-auto"
+                              />
+                              {expressCalendarNotice(new Date(`${item.orderDate}T00:00:00`), lang) && (
+                                <p className="text-[10px] italic text-muted-foreground px-3 pb-3">
+                                  ⓘ {expressCalendarNotice(new Date(`${item.orderDate}T00:00:00`), lang)}
+                                </p>
+                              )}
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       )}
 
                       {/* The exact design/product photo the customer picked,
