@@ -42,6 +42,21 @@ async function sendCancellationEmail(
   const purchased = Number(reservation.purchased_seats) || 0;
   const cancelled = Number(reservation.cancelled_seats) || 0;
   const active = purchased - cancelled;
+  // 2026-09-14: the headline now says plainly that this IS a cancellation
+  // (previously just "has been updated", which never confirmed a
+  // cancellation happened at all) — with a distinct wording for a full vs a
+  // partial cancellation, since "your workshop" would be misleading when
+  // seats are still active on this same booking.
+  const isFullCancellation = active <= 0;
+  const cancellationHeadline = isFullCancellation
+    ? tr(
+        "We confirm the cancellation of your workshop.",
+        "Nous confirmons l'annulation de votre workshop.",
+      )
+    : tr(
+        "We confirm the cancellation of part of your booking.",
+        "Nous confirmons l'annulation d'une partie de votre réservation.",
+      );
 
   let refundLine: string;
   if (opts.refundStatus === "refunded") {
@@ -67,7 +82,13 @@ async function sendCancellationEmail(
     );
   }
 
-  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
+  // Matches the logo rendering already used by every other Bento Cake
+  // Studio customer email (manage-order's approval/decline emails,
+  // send-order-received-email, send-workshop-email) — same asset, same
+  // width:240px/height:auto, same position. This file and send-auth-email
+  // were the two left behind on the old logo-red.png at a fixed 72px
+  // height; only this one is in scope for this change.
+  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png";
   const subject = tr(
     "Update to your Workshop booking – Bento Cake Studio",
     "Mise à jour de votre réservation Workshop – Bento Cake Studio",
@@ -88,7 +109,7 @@ async function sendCancellationEmail(
 
     <div style="background:#FDF8E1;margin:0 20px;">
       <div style="padding:36px 40px 0;text-align:center;">
-        <img src="${logoUrl}" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
+        <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
       <div style="padding:0 40px 36px;">
@@ -97,10 +118,7 @@ async function sendCancellationEmail(
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
-          ${tr(
-            `Your booking <strong>${reference}</strong> has been updated.`,
-            `Votre réservation <strong>${reference}</strong> a été mise à jour.`,
-          )}
+          ${cancellationHeadline}
         </p>
 
         <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
