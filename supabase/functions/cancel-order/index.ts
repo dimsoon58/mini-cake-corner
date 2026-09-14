@@ -57,8 +57,8 @@ async function sendCancellationEmail(resendApiKey: string, order: any) {
   let paymentParagraph = "";
   if (order.refund_status === "to_refund") {
     paymentParagraph = `<p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">${tr(
-      "The corresponding refund will be processed separately.",
-      "Le remboursement correspondant sera traité séparément.",
+      "The refund will be processed within the next few business days.",
+      "Le remboursement sera effectué dans les prochains jours ouvrables.",
     )}</p>`;
   }
 
