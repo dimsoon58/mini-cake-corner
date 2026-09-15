@@ -158,6 +158,10 @@ const articles: Article[] = [
         pFr: "Passé ce délai de 5 jours, la commande ne pourra plus faire l'objet d'un remboursement, les éléments nécessaires à sa réalisation ayant été engagés.",
       },
       {
+        p: "In the event of a cancellation requested by the Customer after the order has been confirmed and payment has been captured, any transaction, processing and refund fees charged to Bento Cake Studio by the payment service provider may be deducted from the amount refunded. The amount of such fees may vary depending on the payment method used and the fees actually applied to the transaction. These fees will not be deducted where the cancellation results from a refusal or an inability to fulfil the order attributable to Bento Cake Studio.",
+        pFr: "En cas d’annulation demandée par le Client après confirmation et encaissement de la commande, les éventuels frais de transaction, de traitement et de remboursement facturés à Bento Cake Studio par le prestataire de paiement peuvent être déduits du montant remboursé. Le montant de ces frais peut varier en fonction du moyen de paiement utilisé et des frais effectivement appliqués à la transaction. Ces frais ne sont pas appliqués lorsque l’annulation résulte d’un refus ou d’une impossibilité imputable à Bento Cake Studio.",
+      },
+      {
         p: "Requests for changes may be made up to 5 days before the scheduled date, subject to feasibility and any applicable price adjustment.",
         pFr: "Les demandes de modification restent possibles jusqu'à 5 jours avant la date prévue, sous réserve de faisabilité et d'un éventuel ajustement tarifaire.",
       },
