@@ -38,6 +38,30 @@ function row(label: string, value: string | undefined | null): string {
   return `<tr><td style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
 }
 
+// 2026-09-15: reference images are per-ARTICLE, not per-order — each
+// order_items row already carries its own reference_images (select("*") on
+// order_items, no flattening at the query level). Rendered inside that
+// item's own card, right under its details, instead of the old single
+// global gallery at the bottom of the email (which merged every item's
+// photos together with no way to tell which cake a given image belonged
+// to). Returns "" when the item has none — never an empty "Reference
+// images" heading with nothing under it.
+function itemReferenceImagesBlock(item: any): string {
+  const urls: string[] = Array.isArray(item?.reference_images)
+    ? item.reference_images.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
+    : [];
+  if (!urls.length) return "";
+  return `
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb;">
+          <p style="margin:0 0 8px;color:#888;font-size:13px;font-weight:600;">📎 Images de référence</p>
+          <table style="width:100%;border-collapse:collapse;">
+            ${urls.map((url: string, j: number) =>
+              `<tr><td style="padding:6px 0;color:#888;font-size:13px;vertical-align:top;">Image ${j + 1}</td><td style="padding:6px 0;"><a href="${url}" style="color:#2563eb;" target="_blank">Ouvrir l’image</a><br/><img src="${url}" alt="Image de référence ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;margin-top:4px;" /></td></tr>`
+            ).join("")}
+          </table>
+        </div>`;
+}
+
 // Catalog.tsx embeds this exact tag into item_comment for a Shag-Cake-style
 // design with two option photos ("[Preferred design: Option N]"), purely so
 // the design photo actually picked survives as data — never something the
@@ -102,6 +126,7 @@ async function sendAdminEmail(
           ${row("Participants", item.workshop_participants != null ? String(item.workshop_participants) : null)}
           ${row("Notes", item.item_comment?.trim() || null)}
         </table>
+        ${itemReferenceImagesBlock(item)}
       </div>`;
     }
 
@@ -143,27 +168,9 @@ async function sendAdminEmail(
           ${row("Bougies", candlesList || null)}
           ${row("Instructions", realComment(item.item_comment))}
         </table>
+        ${itemReferenceImagesBlock(item)}
       </div>`;
   }).join("");
-
-  // Reference images live per-item now (order_items.reference_images)
-  const orderImageUrls: string[] = items.flatMap((item: any) =>
-    Array.isArray(item?.reference_images)
-      ? item.reference_images.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
-      : []
-  );
-
-  const imagesBlock = orderImageUrls.length
-    ? `
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📎 Images de référence</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          ${orderImageUrls.map((url: string, j: number) =>
-            `<tr><td style="padding:8px;color:#888;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#2563eb;" target="_blank">Ouvrir l’image</a><br/><img src="${url}" alt="Image de référence ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;margin-top:4px;" /></td></tr>`
-          ).join("")}
-        </table>
-      </div>`
-    : "";
 
   const html = `
 <!DOCTYPE html>
@@ -206,12 +213,10 @@ async function sendAdminEmail(
           </table>
         </div>` : ""}
 
-        <!-- Order Items -->
+        <!-- Order Items (each item's own reference images, if any, are
+             rendered inside its own card above — see itemReferenceImagesBlock) -->
         <h3 style="color:#333;font-size:15px;margin:0 0 4px;font-weight:600;">🍰 Articles commandés (${items.length})</h3>
         ${itemBlocks}
-
-        <!-- Reference Images -->
-        ${imagesBlock}
 
         <!-- Payment -->
         <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;margin:20px 0;">
