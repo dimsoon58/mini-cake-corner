@@ -123,12 +123,12 @@ const Footer = () => {
               TikTok — @bentocakestudio
             </a>
             <a
-              href="https://www.linkedin.com/company/bentocakestudio/"
+              href="https://ch.pinterest.com/bentocakestudiosnc/_saved/"
               target="_blank"
               rel="noopener noreferrer"
               className="block text-sm opacity-90 hover:opacity-100 transition-opacity mb-3"
             >
-              LinkedIn — Bento Cake Studio
+              Pinterest — @bentocakestudio
             </a>
           </div>
 
