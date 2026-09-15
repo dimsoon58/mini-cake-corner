@@ -191,7 +191,7 @@ const FAQ = () => {
                         <p>
                           {t("You can contact us via Instagram", "Vous pouvez nous contacter via Instagram")}{" "}
                           <a href="https://www.instagram.com/bentocakestudio/" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">@bentocakestudio</a>
-                          {t(", on WhatsApp at +41 78 337 95 00, or by email at", ", sur WhatsApp au +41 78 337 95 00 ou par e-mail à")}{" "}
+                          {t(", on WhatsApp at ", ", sur WhatsApp au ")}<a href="tel:+41783379500" className="text-primary underline hover:text-primary/80">+41 78 337 95 00</a>{t(", or by email at", ", ou par e-mail à")}{" "}
                           <a href="mailto:contact@bentocakestudio.ch" className="text-primary underline hover:text-primary/80">contact@bentocakestudio.ch</a>.
                         </p>
                       ) : (
