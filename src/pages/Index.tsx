@@ -196,8 +196,20 @@ const Index = () => {
     <Layout overlayHero>
       {/* Hero Section */}
       <section className="relative text-primary-foreground overflow-hidden min-h-[65vh] md:min-h-0 md:aspect-video">
+        {/* Mobile video */}
         <video
-          className="absolute inset-0 w-full h-full object-cover scale-[1.01]"
+          className="absolute inset-0 w-full h-full object-cover scale-[1.01] block md:hidden"
+          src="/hero-mobile.mp4"
+          poster={heroPoster}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+        />
+        {/* Desktop video */}
+        <video
+          className="absolute inset-0 w-full h-full object-cover scale-[1.01] hidden md:block"
           src={heroVideo}
           poster={heroPoster}
           autoPlay
