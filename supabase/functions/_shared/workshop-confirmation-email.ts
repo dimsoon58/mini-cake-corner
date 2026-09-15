@@ -132,6 +132,8 @@ export function renderWorkshopConfirmationEmail(
         ${heading}
       </p>
       <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;">
+        ${rowCell(tr("Order number", "Numéro de commande"), orderNumber)}
+        ${it.workshop_reference ? rowCell(tr("Workshop reservation reference", "Référence de réservation"), it.workshop_reference) : ""}
         ${rowCell(tr("Workshop", "Atelier"), title)}
         ${rowCell(tr("Date", "Date"), formatWorkshopDate(it.workshop_date))}
         ${rowCell(tr("Time", "Horaire"), it.workshop_time ?? "—")}
