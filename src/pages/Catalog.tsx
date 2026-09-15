@@ -1841,16 +1841,15 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         value={flavor.id}
                         itemText={`${t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)}${extra > 0 ? ` (+CHF ${extra})` : ""}`}
                       >
-                        <div className="flex items-start gap-2">
-                          <img src={flavor.image} alt={flavor.name} className="w-28 h-28 object-contain flex-shrink-0" />
-                          <div>
-                          <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
-                          {flavorDescMap[flavor.id] && (
-                            <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
-                              {t(flavorDescMap[flavor.id].en, flavorDescMap[flavor.id].fr)}
-                            </div>
-                          )}
-
+                        <div className="flex items-start gap-2 w-full">
+                          <img src={flavor.image} alt={flavor.name} className="w-20 h-20 object-contain flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <span className="block whitespace-normal leading-snug">{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
+                            {flavorDescMap[flavor.id] && (
+                              <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
+                                {t(flavorDescMap[flavor.id].en, flavorDescMap[flavor.id].fr)}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </SelectItem>

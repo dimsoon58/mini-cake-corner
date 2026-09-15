@@ -1341,7 +1341,7 @@ const CartItemEditor = ({
                       <ExtraImageLightbox src={extra.image} alt={extra.name} className="w-10 h-10 object-cover rounded flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1">
-                          <p className="text-xs font-medium text-foreground truncate">{extra.name}</p>
+                          <p className="text-xs font-medium text-foreground whitespace-normal leading-snug">{extra.name}</p>
                           {extraDescriptions[extra.id] && (
                             <Tooltip>
                               <TooltipTrigger asChild>

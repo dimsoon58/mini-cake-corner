@@ -607,16 +607,15 @@ const KitBentoCake = () => {
                       value={flavor.id}
                       itemText={`${t(flavor.name, flavor.nameFr)}${extraPrice > 0 ? ` (+CHF ${extraPrice})` : ""}`}
                     >
-                      <div className="flex items-start gap-2">
-                        <img src={flavor.image} alt={flavor.name} className="w-28 h-28 object-contain flex-shrink-0" />
-                        <div>
-                          <span>{t(flavor.name, flavor.nameFr)}{extraPrice > 0 ? ` (+CHF ${extraPrice})` : ""}</span>
+                      <div className="flex items-start gap-2 w-full">
+                        <img src={flavor.image} alt={flavor.name} className="w-20 h-20 object-contain flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span className="block whitespace-normal leading-snug">{t(flavor.name, flavor.nameFr)}{extraPrice > 0 ? ` (+CHF ${extraPrice})` : ""}</span>
                           {(flavor.description || flavor.descriptionFr) && (
                             <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
                               {t(flavor.description ?? "", flavor.descriptionFr ?? "")}
                             </div>
                           )}
-
                         </div>
                       </div>
                     </SelectItem>
