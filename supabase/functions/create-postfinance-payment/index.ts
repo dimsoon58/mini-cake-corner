@@ -1761,6 +1761,31 @@ serve(async (req) => {
       }, 200);
     }
 
+    // ─── Human-readable payment reference (PAY-YYMMDDNN) ──────────────────
+    // 2026-09-15: reserved ONLY here — past the reward-only early-return
+    // above — so a $0 cagnotte-only checkout (no real PostFinance
+    // transaction, ever) never consumes one. reserve_payment_reference() is
+    // idempotent (row-locks the pending_payments row, reuses
+    // payment_reference if already set) so it can never mint a second
+    // reference for this orderId, even under a race — see the migration for
+    // the full guarantee. Never mints/uses/touches order_number (ORD-...)
+    // or merchantReference (still orderId, untouched below) in any way.
+    // Non-fatal by design (same posture as the welcome-discount claim above):
+    // a real payment must never be blocked by a tracking-reference failure.
+    let paymentReference: string | null = null;
+    try {
+      const { data: refData, error: refError } = await supabase.rpc(
+        "reserve_payment_reference", { p_order_id: orderId },
+      );
+      if (refError) {
+        console.error("reserve_payment_reference RPC error (proceeding without a payment reference):", refError);
+      } else {
+        paymentReference = (refData as string) ?? null;
+      }
+    } catch (refErr) {
+      console.error("reserve_payment_reference threw (proceeding without a payment reference):", refErr);
+    }
+
     const transactionCreate = {
       currency: "CHF",
       language: order.lang === "en" ? "en-US" : "fr-CH",
@@ -1781,12 +1806,20 @@ serve(async (req) => {
       // orders alike (Accept/Refuse is a single whole-order decision).
       completionBehavior: "COMPLETE_DEFERRED",
       lineItems,
+      // Human-readable PAY-YYMMDDNN reference — identifies this payment
+      // attempt in the PostFinance dashboard. NOT a substitute for
+      // merchantReference (orderId, above — left completely untouched) or
+      // ORD-YYMMDDNN (the final order number, assigned later). Omitted
+      // entirely (both fields) if reservation failed above, rather than
+      // sending an empty/null reference.
+      ...(paymentReference ? { invoiceMerchantReference: paymentReference } : {}),
       metaData: {
         order_id: orderId,
         customer_name: `${order.first_name} ${order.last_name}`,
         customer_phone: order.phone,
         delivery_option: order.delivery_method || "none",
         delivery_address: order.delivery_address || "",
+        ...(paymentReference ? { payment_reference: paymentReference } : {}),
       },
     };
 

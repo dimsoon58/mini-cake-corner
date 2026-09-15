@@ -688,6 +688,11 @@ serve(async (req) => {
         ...pickAllowed(order as Record<string, unknown>, ORDER_PAYLOAD_FIELDS),
         id: orderId,
         postfinance_transaction_id: String(pending.postfinance_transaction_id),
+        // Carried verbatim from pending_payments — reserved (or, for a
+        // reward-only checkout, deliberately never reserved) by
+        // reserve_payment_reference() in create-postfinance-payment. Never
+        // regenerated or recomputed here.
+        payment_reference: pending.payment_reference ?? null,
         // 2026-09-15: we reach here once the transaction is verified
         // AUTHORIZED / COMPLETED / FULFILL (or it is reward-only) — the
         // authorization succeeded, but the money is NOT captured yet
