@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
 import {
@@ -323,6 +323,7 @@ const uploadImageFilesToStorage = async (
 const Checkout = () => {
   const { items, clearCart, updateItem } = useCart();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [firstName, setFirstName] = useState("");
   const { t, lang } = useLang();
@@ -670,22 +671,31 @@ const Checkout = () => {
 
   // Cross-tab sync: if the attempt THIS tab most recently submitted just
   // completed elsewhere (PostFinance's page opens in a new tab — see
-  // orderCompletionChannel.ts), hide the stale "Open Payment Page" /
-  // embedded-checkout view so this old Checkout tab stops looking like a
-  // still-open order. The cart itself and the stored orderId are already
-  // handled by CartContext's own listener (reused, not duplicated) — once
-  // items clears, the existing "Your cart is empty" notice below takes
-  // over. Never fires from a plain "Proceed to Payment" click, and never
-  // touches an unrelated, still-in-progress attempt.
+  // orderCompletionChannel.ts), this old Checkout tab is the one the
+  // customer lands back on once they switch back to it (or close the
+  // PostFinance/success tab). Never leave it sitting on its own emptied
+  // "Your cart is empty" checkout view — send it to the Home page instead
+  // (2026-09-15 request). Hiding the stale embedded-checkout view stays too,
+  // as a harmless no-op once navigate() has already moved away, and as the
+  // safe fallback if navigation were ever blocked for any reason. The cart
+  // itself and the stored orderId are already handled by CartContext's own
+  // listener (reused, not duplicated). Never fires from a plain "Proceed to
+  // Payment" click, never on a failed/cancelled payment (broadcastOrderCompleted
+  // is only ever called from PaymentSuccess.tsx's own phase === "confirmed"
+  // success path — see that file), and never touches an unrelated,
+  // still-in-progress attempt open in this same tab. The payment/success
+  // page itself is untouched by this — it keeps showing its own confirmation
+  // exactly as before; only the leftover Checkout tab's landing page changes.
   useEffect(() => {
     const unsubscribe = onOrderCompleted((orderId) => {
       if (orderId && orderId === myOrderIdRef.current) {
         setShowEmbeddedCheckout(false);
         setCheckoutPayload(null);
+        navigate("/", { replace: true });
       }
     });
     return unsubscribe;
-  }, []);
+  }, [navigate]);
 
   // GA4 funnel guards — each step at most once per Checkout mount.
   const beginCheckoutSentRef = useRef(false);
