@@ -8,14 +8,24 @@ import {
   physicalItemDescription,
   getCustomerLang,
 } from "../_shared/cake-order-confirmation-email.ts";
+import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
+import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
 
-// NEW MODEL: manage-order NEVER moves money and NEVER touches workshop
-// reservations. The payment is captured at checkout; the workshop part
-// auto-confirms in runSideEffects (workshop-only and mixed alike). manage-order
-// only records the admin's decision on the PHYSICAL part. A physical refusal is
-// flagged refund_status = 'to_refund' and refunded by hand in PostFinance.
-// (The old PostFinance capture/void/refund block and the
-// syncWorkshopReservationsAfterDecision helper were removed here.)
+// 2026-09-15: deferred capture restored (pre-04a6199 model, reused almost
+// verbatim — see the PostFinance capture/void block in the handler below).
+// The payment is only AUTHORIZED at checkout now — Accept is what actually
+// captures it (POST .../complete-online), Refuse voids it instead
+// (POST .../void-online). Applies to EVERY fulfilment type uniformly now,
+// workshop_only included (no more independent workshop auto-confirmation —
+// see _shared/order-side-effects.ts). A mixed order is decided as ONE
+// whole-order decision (product decision "Option A"): Accept captures the
+// full authorized amount and confirms cake + workshop together; Refuse voids
+// the full authorization and releases the workshop seat(s) together with the
+// cake part — never a partial capture, never an independent per-part
+// decision. Nothing is ever flagged refund_status = 'to_refund' on a normal
+// Refuse any more — nothing was captured, so there is nothing to refund
+// (mark_refunded / refund_status stay in place only for the rare defensive
+// case below where a transaction is somehow already captured).
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -98,27 +108,23 @@ async function sendDeclineEmail(
   const mixed = opts?.fulfillmentType === "mixed"
     || (declineWorkshopItems.length > 0 && declinePhysicalItems.length > 0);
 
-  // Amount the customer will be refunded BY HAND (server-computed upstream):
-  //   mixed -> only the cake part; cake-only -> the whole order.
-  const refundAmount = mixed && typeof opts?.refundDue === "number"
-    ? opts.refundDue
-    : Number(order.total_amount ?? 0);
-  const amountCHF = refundAmount.toFixed(2);
+  // 2026-09-15 (deferred capture restored): Refuse now voids the WHOLE
+  // order's authorization before this email is even sent (manage-order/
+  // index.ts) — nothing was ever captured, so nothing is ever refunded any
+  // more, for any fulfilment type, mixed included (Option A: no more
+  // "only the cake part declined, workshop stays confirmed" partial
+  // outcome). opts?.refundDue is no longer used here.
+  const amountCHF = Number(order.total_amount ?? 0).toFixed(2);
 
-  const refundText = rewardOnly
+  const outcomeText = rewardOnly
     ? tr(
         "Your order has therefore been cancelled. The amount used from your reward balance has been credited back to your account.",
         "Votre commande a donc été annulée. Le montant utilisé depuis votre cagnotte a été recrédité sur votre compte."
       )
-    : mixed
-      ? tr(
-          `Only the cake part of your order has been declined. A refund of CHF ${amountCHF} will be issued to your original payment method within the next few business days. Your workshop booking remains confirmed and paid — nothing changes for it.`,
-          `Seule la partie gâteau de votre commande a été refusée. Un remboursement de CHF ${amountCHF} sera effectué sur votre moyen de paiement d'origine dans les prochains jours ouvrables. Votre réservation d'atelier reste confirmée et payée — rien ne change de ce côté.`
-        )
-      : tr(
-          `Your order has therefore been cancelled, and you will receive a full refund. The amount of CHF ${amountCHF} will be credited back to your account within the next few business days, depending on your bank's processing times.`,
-          `Votre commande a donc été annulée et vous recevrez un remboursement intégral. Le montant de CHF ${amountCHF} sera recrédité sur votre compte dans les prochains jours ouvrables, selon les délais de votre établissement bancaire.`
-        );
+    : tr(
+        "Your order has therefore been cancelled. Nothing was charged — the authorization on your payment method has been released, and no further action is needed on your end.",
+        "Votre commande a donc été annulée. Aucun montant n'a été prélevé — l'autorisation sur votre moyen de paiement a été annulée, et vous n'avez rien d'autre à faire de votre côté."
+      );
 
   const html = `
 <!DOCTYPE html>
@@ -153,8 +159,8 @@ async function sendDeclineEmail(
                 )
               : mixed
                 ? tr(
-                    `We regret to inform you that the cake part of your order <strong>${orderNumber}</strong> cannot be confirmed. Your workshop booking is not affected.`,
-                    `Nous sommes au regret de vous informer que la partie gâteau de votre commande <strong>n° ${orderNumber}</strong> ne peut pas être confirmée. Votre réservation d'atelier n'est pas concernée.`
+                    `We regret to inform you that your order <strong>${orderNumber}</strong> — cake / products and workshop together — cannot be confirmed.`,
+                    `Nous sommes au regret de vous informer que votre commande <strong>n° ${orderNumber}</strong> — gâteau / produits et atelier ensemble — ne peut pas être confirmée.`
                   )
                 : tr(
                     `We regret to inform you that your order <strong>${orderNumber}</strong>, scheduled for <strong>${formatDateCH(order.pickup_delivery_date)}</strong>, cannot be fulfilled.`,
@@ -163,7 +169,7 @@ async function sendDeclineEmail(
           </p>
         </div>
 
-        ${(!workshopOnly && !mixed) ? `<p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 16px;">
+        ${!workshopOnly ? `<p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 16px;">
           ${tr(
             "To ensure the quality of each of our creations, we limit the number of orders we take each day, and we have reached our maximum capacity for this date.",
             "Afin de garantir la qualité de chacune de nos créations, nous limitons le nombre de commandes que nous réalisons chaque jour, et notre capacité maximale pour cette date a été atteinte."
@@ -171,7 +177,7 @@ async function sendDeclineEmail(
         </p>` : ""}
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 24px;">
-          ${refundText}
+          ${outcomeText}
         </p>
 
         <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
@@ -190,7 +196,7 @@ async function sendDeclineEmail(
             <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Status", "Statut")}</td>
             <td style="padding:10px 14px;color:#FDF8E1;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${rewardOnly
               ? tr("Reward balance credited", "Cagnotte recréditée")
-              : tr("Refund in progress", "Remboursement en cours")}</td>
+              : tr("Authorization cancelled — nothing charged", "Autorisation annulée — aucun montant prélevé")}</td>
           </tr>
         </table>
 
@@ -845,10 +851,9 @@ serve(async (req) => {
     const orderFulfillments = orderFulfillmentsData || [];
 
     // ── Fulfilment shape ────────────────────────────────────────────────
-    // NEW MODEL: the payment is ALREADY captured at checkout. manage-order
-    // NEVER moves money — no capture, no void, no automatic refund. It only
-    // records the admin's decision on the PHYSICAL part. A physical refusal is
-    // flagged refund_status = 'to_refund' and refunded by hand in PostFinance.
+    // 2026-09-15: every fulfilment type is decided here now, workshop_only
+    // included — Accept/Refuse is a single whole-order decision (see the
+    // header comment above).
     const workshopItems = orderItems.filter((it: any) => it.product === "workshop");
     const physicalItems = orderItems.filter((it: any) => it.product !== "workshop");
     const hasWorkshopItem = workshopItems.length > 0;
@@ -857,45 +862,121 @@ serve(async (req) => {
       (order.fulfillment_type as any) ||
       (hasWorkshopItem ? (hasPhysicalItem ? "mixed" : "workshop_only") : "cake_only");
 
-    if (fulfillmentType === "workshop_only") {
+    // "Still undecided?" — workshop_only has no physical_validation of its
+    // own (stays 'not_applicable'); its decision lives on order_validation
+    // directly. cake_only/mixed keep using physical_validation. Mirrors the
+    // exact same check decide_order_physical makes under its row lock — this
+    // is only a fast, friendly pre-check to avoid an unnecessary PostFinance
+    // call; the RPC is still the real, race-safe authority.
+    const isWorkshopOnly = fulfillmentType === "workshop_only";
+    const preDecisionState: string = isWorkshopOnly
+      ? (order.order_validation ?? "pending")
+      : (order.physical_validation ?? "pending");
+    if (preDecisionState !== "pending") {
       return new Response(JSON.stringify({
-        error: "Workshop-only orders are auto-confirmed — there is no admin decision to make.",
-        status: order.order_validation,
+        error: `This order has already been ${preDecisionState}`,
+        status: preDecisionState,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 });
     }
 
-    // The physical part is the only thing decided here. Any order with a
-    // physical part carries physical_validation ('pending' | 'approved' |
-    // 'rejected'), set at INSERT by confirm-postfinance-payment. For a
-    // cake-only order it mirrors order_validation; for a mixed order
-    // order_validation follows the workshop instead.
-    const physicalState: string = order.physical_validation ?? "pending";
-    if (physicalState !== "pending") {
-      return new Response(JSON.stringify({
-        error: `The physical part of this order has already been ${physicalState}`,
-        status: physicalState,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 });
-    }
-    // A mixed order whose workshop part has not confirmed yet cannot be decided.
-    if (fulfillmentType === "mixed" && !order.workshop_confirmed_at) {
-      return new Response(JSON.stringify({
-        error: "The workshop part is still confirming — please try again in a moment.",
-        status: "workshop_confirming",
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 });
-    }
-
-    // ── Atomic decision (RPC) ─────────────────────────────────────────
-    // decide_order_physical locks the order + the action token, verifies
-    // physical_validation='pending' (+ workshop_confirmed_at for mixed), runs
-    // the refund invariants, writes ONE decision (firing the reward trigger in
-    // the same transaction), finalises/releases the welcome discount and
-    // consumes the token — all atomically. Two simultaneous Accept/Reject can
-    // never both land. A retry of the winning request returns
-    // { already_decided: true } so the side-effects below can still run.
     const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
     const isRewardOnly = order.postfinance_transaction_id === "REWARD_ONLY";
     const paymentMethodLabel = isRewardOnly ? "Reward balance" : (order.payment_method || "PostFinance");
 
+    // ── Real PostFinance action — Accept captures, Refuse voids ─────────
+    // Strict order, non-negotiable: PostFinance action succeeds FIRST, THEN
+    // (and only then) the atomic Supabase decision below. Re-reads the LIVE
+    // transaction state before acting — never trusts order.payment_status
+    // for a money-moving decision. Idempotent recovery: if a previous
+    // attempt's PostFinance call already succeeded but the process crashed
+    // or the subsequent decide_order_physical call failed before the token
+    // was consumed, a retry finds the transaction ALREADY in the target
+    // terminal state (COMPLETED/FULFILL for approve, VOIDED for reject) and
+    // skips the PostFinance call entirely — never captures or voids twice.
+    // Reused near-verbatim from the pre-04a6199 deferred-capture model
+    // (verified against PostFinance's official TypeScript SDK:
+    // complete-online / void-online, no request body, no response body).
+    let paymentAction: string;
+    let wasDefensiveRefund = false;
+    if (!isRewardOnly) {
+      const credentials = getPostFinanceCredentials();
+      const txId = order.postfinance_transaction_id;
+      const transactionRead = await pfFetch(
+        credentials, `/payment/transactions/${txId}`, "GET",
+      ) as { state: string };
+      const transactionState = transactionRead.state;
+
+      if (action === "approve") {
+        if (transactionState === "AUTHORIZED") {
+          try {
+            await pfFetch(credentials, `/payment/transactions/${txId}/complete-online`, "POST");
+          } catch (e) {
+            throw new Error(`Payment capture failed. The order has not been approved and can be retried safely. PostFinance state: ${transactionState}. Details: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          const recheck = await pfFetch(credentials, `/payment/transactions/${txId}`, "GET") as { state: string };
+          if (recheck.state !== "COMPLETED" && recheck.state !== "FULFILL") {
+            throw new Error(`Payment capture did not confirm. The order has not been approved and can be retried safely. PostFinance state after complete-online: ${recheck.state}.`);
+          }
+          paymentAction = "Payment captured via PostFinance";
+        } else if (transactionState === "COMPLETED" || transactionState === "FULFILL") {
+          // Idempotent retry: a previous attempt already captured it.
+          paymentAction = "Payment already captured";
+        } else {
+          throw new Error(`Cannot approve: PostFinance transaction is in unexpected state ${transactionState} (expected AUTHORIZED, COMPLETED or FULFILL)`);
+        }
+      } else {
+        // reject
+        if (transactionState === "AUTHORIZED") {
+          try {
+            await pfFetch(credentials, `/payment/transactions/${txId}/void-online`, "POST");
+          } catch (e) {
+            throw new Error(`Payment void failed. The order has not been rejected and can be retried safely. PostFinance state: ${transactionState}. Details: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          const recheck = await pfFetch(credentials, `/payment/transactions/${txId}`, "GET") as { state: string };
+          if (recheck.state !== "VOIDED") {
+            throw new Error(`Void did not confirm. The order has not been rejected and can be retried safely. PostFinance state after void-online: ${recheck.state}.`);
+          }
+          paymentAction = "Authorization voided (nothing was captured — no refund needed)";
+        } else if (transactionState === "VOIDED") {
+          // Idempotent retry: a previous attempt already voided it.
+          paymentAction = "Authorization already voided";
+        } else if (transactionState === "COMPLETED" || transactionState === "FULFILL") {
+          // Defensive only — should be unreachable in the normal flow
+          // (decide_order_physical's row lock + "still pending" check never
+          // lets both an Accept and a Refuse land on the same order), but a
+          // genuinely concurrent conflicting decision could have captured it
+          // moments before this Refuse reached PostFinance. Money WAS taken
+          // here — refund it, exactly like the pre-04a6199 defensive branch.
+          // This is the ONLY path where a real refund is ever created.
+          try {
+            await pfFetch(credentials, `/payment/refunds`, "POST", {
+              externalId: `${txId}-refund`,
+              type: "MERCHANT_INITIATED_ONLINE",
+              transaction: Number(txId),
+            });
+          } catch (e) {
+            throw new Error(`Payment refund failed. The order has not been rejected and can be retried safely. PostFinance state: ${transactionState}. Details: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          paymentAction = "Payment was unexpectedly already captured — refunded in full";
+          wasDefensiveRefund = true;
+        } else {
+          throw new Error(`Cannot reject: PostFinance transaction is in unexpected state ${transactionState} (expected AUTHORIZED, VOIDED, COMPLETED or FULFILL)`);
+        }
+      }
+    } else {
+      paymentAction = action === "approve" ? "Paid entirely with reward balance" : "Reward balance released";
+    }
+
+    // ── Atomic decision (RPC) ─────────────────────────────────────────
+    // decide_order_physical locks the order + the action token, verifies the
+    // order is still undecided, writes ONE decision (firing the reward
+    // trigger in the same transaction), finalises/releases the welcome
+    // discount, transitions every workshop_reservations row of this order
+    // (pending -> confirmed/rejected) and consumes the token — all
+    // atomically. This runs ONLY after the real PostFinance action above
+    // already succeeded. Two simultaneous Accept/Reject can never both land.
+    // A retry of the winning request returns { already_decided: true } so
+    // the side-effects below can still run.
     let decision: any;
     {
       const { data, error } = await supabase.rpc("decide_order_physical", {
@@ -908,13 +989,25 @@ serve(async (req) => {
         // Expected "the decision cannot be made right now" cases -> 409 (the
         // admin can react: reload, retry). Genuine inconsistencies (refund
         // invariant, welcome-discount mismatch) -> 500 (technical error).
-        const isClientErr = /unknown action token|token already used|no admin decision|already (approved|rejected)|not confirmed yet|physical part already/i.test(msg);
+        const isClientErr = /unknown action token|token already used|already (approved|rejected)|order already/i.test(msg);
         return new Response(JSON.stringify({ error: msg }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: isClientErr ? 409 : 500,
         });
       }
       decision = data ?? {};
+    }
+
+    // The rare defensive-refund branch above genuinely took money and gave
+    // it back — decide_order_physical always writes payment_status =
+    // 'cancelled' on reject (the normal, nothing-was-ever-captured case);
+    // correct it to 'refunded' for this one specific, already-logged
+    // exception, as a small isolated follow-up write, not by threading it
+    // through the RPC's own contract.
+    if (wasDefensiveRefund) {
+      const { error: refundedErr } = await supabase
+        .from("orders").update({ payment_status: "refunded" }).eq("id", orderId);
+      if (refundedErr) console.error(`Failed to mark payment_status='refunded' after defensive refund for ${orderId}:`, refundedErr);
     }
 
     const alreadyDecided = decision.already_decided === true;
@@ -927,14 +1020,18 @@ serve(async (req) => {
     // from it, never from the initial HTTP `action`. If a concurrent request
     // lost the race (already_decided) and asked for the OPPOSITE decision, it
     // must send NO side-effect (no decline e-mail, no refuse invoice, no
-    // "refused_physical" to Make).
+    // "accepted"/"refused" to Make). workshop_only has no physical_validation
+    // of its own (stays 'not_applicable' forever) — its decision lives on
+    // order_validation directly; cake_only/mixed keep using
+    // physical_validation, unchanged.
+    const decidedStateForAction = isWorkshopOnly ? decidedOV : decidedPV;
     const effectiveAction: "approve" | "reject" | null =
-      decidedPV === "approved" ? "approve" : decidedPV === "rejected" ? "reject" : null;
+      decidedStateForAction === "approved" ? "approve" : decidedStateForAction === "rejected" ? "reject" : null;
 
     if (alreadyDecided && effectiveAction !== action) {
       return new Response(JSON.stringify({
-        error: `This order's physical part was already ${decidedPV} — your "${action}" request was not applied.`,
-        status: decidedPV,
+        error: `This order was already ${decidedStateForAction} — your "${action}" request was not applied.`,
+        status: decidedStateForAction,
         orderValidation: decidedOV,
         physicalValidation: decidedPV,
         refundStatus: decidedRefundStatus,
@@ -944,17 +1041,17 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 });
     }
     if (!effectiveAction) {
-      // physical_validation is neither approved nor rejected — should be
-      // impossible after a successful decide_order_physical. Defensive 409.
+      // Neither approved nor rejected — should be impossible after a
+      // successful decide_order_physical. Defensive 409.
       return new Response(JSON.stringify({
-        error: `Unexpected decision state (physical_validation=${decidedPV})`,
-        status: decidedPV,
+        error: `Unexpected decision state (${isWorkshopOnly ? "order_validation" : "physical_validation"}=${decidedStateForAction})`,
+        status: decidedStateForAction,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 });
     }
 
-    console.log(`Order ${orderId} (${fulfillmentType}) physical part ${decidedPV}` +
+    console.log(`Order ${orderId} (${fulfillmentType}) ${decidedStateForAction}` +
       (alreadyDecided ? " (idempotent retry of the winning request)" : "") +
-      (decidedRefundStatus === "to_refund" ? ` — CHF ${physicalRefundDue.toFixed(2)} to refund by hand` : ""));
+      ` — ${paymentAction}`);
 
     let invoiceNumberForWebhook: string | null = null;
     let invoiceUrlForWebhook: string | null = null;
@@ -962,17 +1059,14 @@ serve(async (req) => {
     let declineEmailResult: any = null;
 
     // ── Side-effects (invoice PDF, e-mails) — non-transactional, idempotent.
+    // paymentAction is already set above by the real PostFinance action.
     if (effectiveAction === "approve") {
-      // ONE invoice: the full order (workshop + cake for a mixed order).
+      // ONE invoice: the full order (workshop + cake for a mixed order, or
+      // workshop-only) — generateInvoicePdf is generic across item types,
+      // unchanged.
       let invoicePdfBase64: string | null = null;
       try { invoicePdfBase64 = await generateInvoicePdf(order, orderItems, { fulfillments: orderFulfillments }); }
       catch (e) { console.error("Invoice PDF generation error:", e); }
-
-      const resendKeyApprove = Deno.env.get("RESEND_API_KEY");
-      if (resendKeyApprove) {
-        try { approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order, orderItems, paymentMethodLabel, invoicePdfBase64, orderFulfillments); }
-        catch (e) { console.error("Approval email error:", e); }
-      }
 
       if (invoicePdfBase64) {
         try {
@@ -991,67 +1085,59 @@ serve(async (req) => {
           }
         } catch (e) { console.error("Invoice storage upload error:", e); }
       }
-    } else {
-      // Refused. Invoice ONLY for a mixed order = the WORKSHOP part that was
-      // kept (mode 'workshop_only_kept' -> workshop lines only, no express /
-      // delivery / discount / reward; label "TOTAL ATELIER").
-      if (fulfillmentType === "mixed") {
-        try {
-          const invoicePdfBase64 = await generateInvoicePdf(order, workshopItems, {
-            mode: "workshop_only_kept",
-            refundedAmount: physicalRefundDue,
-          });
-          const invoiceNum = order.invoice_number || order.order_number || "invoice";
-          const pdfBytes = Uint8Array.from(atob(invoicePdfBase64), (c) => c.charCodeAt(0));
-          const storagePath = `${invoiceNum}.pdf`;
-          const { error: upErr } = await supabase.storage.from("invoice")
-            .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
-          if (upErr) { console.error("Mixed-refuse invoice upload error:", upErr); }
-          else {
-            await supabase.from("orders").update({ invoice_path: storagePath }).eq("id", orderId).is("invoice_path", null);
-            invoiceNumberForWebhook = invoiceNum;
-            const { data: signed } = await supabase.storage.from("invoice")
-              .createSignedUrl(storagePath, 60 * 60 * 24 * 365 * 10);
-            invoiceUrlForWebhook = signed?.signedUrl ?? null;
-          }
-        } catch (e) { console.error("Mixed-refuse invoice generation error:", e); }
-      }
 
+      // 2026-09-15: workshop-only now goes through THIS same Accept path
+      // (no more independent auto-confirmation) — its customer email is
+      // send-workshop-email's own confirmed branch (same renderer/content as
+      // a website workshop confirmation), not sendApprovalEmail (the cake/
+      // mixed renderer). Reuses the EXISTING Edge Function exactly as
+      // runSideEffects already does — called synchronously here so the
+      // customer gets it immediately instead of waiting for the next
+      // retry-order-side-effects sweep. It re-fetches the order fresh
+      // (invoice_path already set above by the time it reads it) and is
+      // itself idempotent (workshop_email_sent_at), so a concurrent/late
+      // sweep run can never double-send.
+      if (isWorkshopOnly) {
+        try {
+          const { error: wsEmailErr } = await supabase.functions.invoke("send-workshop-email", { body: { orderId } });
+          if (wsEmailErr) console.error("send-workshop-email invoke error:", wsEmailErr);
+          else approvalEmailResult = { id: "send-workshop-email" };
+        } catch (e) { console.error("send-workshop-email invoke threw:", e); }
+      } else {
+        const resendKeyApprove = Deno.env.get("RESEND_API_KEY");
+        if (resendKeyApprove) {
+          try { approvalEmailResult = await sendApprovalEmail(resendKeyApprove, order, orderItems, paymentMethodLabel, invoicePdfBase64, orderFulfillments); }
+          catch (e) { console.error("Approval email error:", e); }
+        }
+      }
+    } else {
+      // 2026-09-15: Refuse now voids the WHOLE authorization before this
+      // point is ever reached — nothing was captured, so there is no
+      // invoice at all on refusal any more (the old "workshop part that was
+      // kept" partial invoice no longer applies under Option A).
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (resendKey) {
         try {
-          declineEmailResult = await sendDeclineEmail(resendKey, order, orderItems, {
-            fulfillmentType,
-            refundDue: physicalRefundDue,
-          });
+          declineEmailResult = await sendDeclineEmail(resendKey, order, orderItems, { fulfillmentType });
         } catch (e) { console.error("Decline email error:", e); }
       }
     }
 
-    const paymentAction = effectiveAction === "approve"
-      ? "Physical part accepted — payment already captured at checkout"
-      : (fulfillmentType === "mixed"
-          ? `Cake part refused — CHF ${physicalRefundDue.toFixed(2)} to refund by hand; workshop stays confirmed`
-          : `Order refused — CHF ${physicalRefundDue.toFixed(2)} to refund by hand`);
-
     // Notify Make.com webhook of status change — updates the EXISTING Notion
     // row (matched via supabase_id). Skipped for workshop-only orders (never
-    // sent to the production webhook, no Notion row). Mixed orders notify:
-    //   accept          -> "accepted"
-    //   refuse (mixed)  -> "refused_physical" (the workshop stays confirmed)
-    //   refuse (cake)   -> "refused"
+    // sent to the production "Commandes & Paiements" webhook — that board
+    // never had a row for one; the SEPARATE "Réservations Workshops" sync
+    // below is the right channel for those). 2026-09-15: a mixed refuse is
+    // now "refused" (the whole order, workshop included) — "refused_physical"
+    // no longer applies since there is no more independent "workshop stays
+    // confirmed" outcome under Option A.
     if (hasPhysicalItem) {
       try {
         const webhookOrderId = order.order_number || order.id;
-        const statusValue = effectiveAction === "approve"
-          ? "accepted"
-          : (fulfillmentType === "mixed" ? "refused_physical" : "refused");
+        const statusValue = effectiveAction === "approve" ? "accepted" : "refused";
         const webhookPayload: Record<string, unknown> = {
           order_id: webhookOrderId, supabase_id: order.id, status: statusValue,
         };
-        if (effectiveAction === "reject" && fulfillmentType === "mixed") {
-          webhookPayload.refund_due_amount = physicalRefundDue;
-        }
         if (invoiceNumberForWebhook) webhookPayload.invoice_number = invoiceNumberForWebhook;
         if (invoiceUrlForWebhook) webhookPayload.invoice_url = invoiceUrlForWebhook;
         await fetch("https://hook.eu1.make.com/dmmtxutu1pwcu3w3al8c25gifbspag7r", {
@@ -1067,9 +1153,31 @@ serve(async (req) => {
       console.log("Workshop-only order — Make.com status webhook skipped:", order.id);
     }
 
+    // "Réservations Workshops -> Notion" sync — dispatched synchronously here
+    // (same homogeneous, claim-based mechanism used everywhere else in this
+    // codebase — _shared/workshop-make.ts) so a workshop's confirmed/rejected
+    // status reaches Notion immediately on Accept/Refuse instead of waiting
+    // for the next retry-order-side-effects sweep (which still picks up
+    // anything that fails here — never a second delivery mechanism).
+    if (hasWorkshopItem) {
+      try {
+        const { data: reservations } = await supabase
+          .from("workshop_reservations").select("id").eq("order_id", orderId);
+        for (const reservation of reservations ?? []) {
+          try {
+            await claimAndDispatchWorkshopReservationSync(supabase, reservation.id);
+          } catch (e) {
+            console.error(`Workshop reservation Make sync failed for ${reservation.id} (order ${orderId}) — retry sweep will pick it up:`, e);
+          }
+        }
+      } catch (e) {
+        console.error(`Could not read workshop_reservations for ${orderId} to sync:`, e);
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
-      status: decidedPV,
+      status: decidedStateForAction,
       orderValidation: decidedOV,
       physicalValidation: decidedPV,
       fulfillmentType,

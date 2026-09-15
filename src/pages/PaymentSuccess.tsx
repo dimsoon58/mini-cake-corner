@@ -156,52 +156,74 @@ const PaymentSuccess = () => {
   }, [orderId, phase, capacity]);
 
   // ── Confirmed-screen wording, by order shape ──────────────────────────
-  // cake_only     : payment taken, order awaiting validation.
-  // workshop_only : payment taken, workshop auto-confirmed.
-  // mixed         : payment taken, workshop confirmed, physical part awaiting
-  //                 validation.
+  // 2026-09-15 (deferred capture restored): reaching this "confirmed" phase
+  // only ever means the PostFinance AUTHORIZATION succeeded — the money is
+  // blocked/reserved on the customer's payment method, NOT captured, and the
+  // order is awaiting the admin's Accept/Refuse decision for every
+  // fulfilment type now (workshop_only included — no more auto-confirm).
+  // Wording here must never claim the payment was received/captured, the
+  // order is definitively confirmed, or a workshop seat is confirmed, until
+  // that admin decision has actually happened (nothingPending below).
   // A capacity abort persisted order_validation='cancelled' — treated in its
   // own branch below, never here.
   const ft = info?.fulfillmentType;
-  const workshopConfirmed = !!info?.workshopConfirmed;
   const isWorkshopOnly = ft === "workshop_only";
   const isMixed = ft === "mixed";
-  // "fully done, nothing pending" = workshop-only (auto-confirmed) OR a cake/
-  // mixed order the admin already approved.
+  // "fully done, nothing pending" = the admin actually Accepted the order
+  // (whole-order decision — see manage-order/index.ts). workshop_only has no
+  // physical_validation of its own (stays 'not_applicable'); its decision is
+  // recorded directly on orderValidation instead.
   const nothingPending = isWorkshopOnly
-    ? workshopConfirmed
+    ? info?.orderValidation === "approved"
     : info?.physicalValidation === "approved";
 
   const headline = nothingPending
     ? t("Order Confirmed", "Commande confirmée")
-    : t("Payment received", "Paiement reçu");
+    : t("Request received", "Demande reçue");
 
   let bodyText: string;
   let panelTitle: string;
   let panelText: string;
   if (isWorkshopOnly) {
-    bodyText = t(
-      "Your payment has been received and your workshop booking is confirmed automatically.",
-      "Votre paiement a bien été reçu et votre réservation d'atelier est confirmée automatiquement.",
-    );
-    panelTitle = t("Workshop confirmed", "Atelier confirmé");
-    panelText = t(
-      "You will receive a confirmation e-mail with the date, time and practical details of your workshop.",
-      "Vous recevrez un e-mail de confirmation avec la date, l'heure et les informations pratiques de votre atelier.",
-    );
+    bodyText = nothingPending
+      ? t(
+          "Your payment has been received and your workshop booking is confirmed.",
+          "Votre paiement a bien été reçu et votre réservation d'atelier est confirmée.",
+        )
+      : t(
+          "Your workshop booking request has been received. Your seat is being held while we confirm it — nothing has been charged yet.",
+          "Votre demande de réservation d'atelier a bien été reçue. Votre place est retenue pendant que nous confirmons votre réservation — aucun montant n'a encore été prélevé.",
+        );
+    panelTitle = nothingPending
+      ? t("Workshop confirmed", "Atelier confirmé")
+      : t("Workshop booking pending confirmation", "Réservation d'atelier en attente de confirmation");
+    panelText = nothingPending
+      ? t(
+          "You will receive a confirmation e-mail with the date, time and practical details of your workshop.",
+          "Vous recevrez un e-mail de confirmation avec la date, l'heure et les informations pratiques de votre atelier.",
+        )
+      : t(
+          "We will confirm your booking within the next 24 hours. Only once confirmed will your payment be taken and you will receive a confirmation e-mail.",
+          "Nous confirmerons votre réservation dans les 24 heures. Ce n'est qu'une fois confirmée que votre paiement sera prélevé et que vous recevrez un e-mail de confirmation.",
+        );
   } else if (isMixed) {
-    bodyText = t(
-      "Your payment has been received. Your workshop place is confirmed. The cake / products part of your order is now awaiting validation by Bento Cake Studio.",
-      "Votre paiement a bien été reçu. Votre place d'atelier est confirmée. La partie gâteau / produits de votre commande est maintenant en attente de validation par Bento Cake Studio.",
-    );
-    panelTitle = info?.physicalValidation === "approved"
+    bodyText = nothingPending
+      ? t(
+          "Your payment has been received. Your order — workshop and cake / products — is now confirmed.",
+          "Votre paiement a bien été reçu. Votre commande — atelier et gâteau / produits — est maintenant confirmée.",
+        )
+      : t(
+          "Your order request has been received. It is now awaiting validation by Bento Cake Studio — nothing has been charged yet.",
+          "Votre demande de commande a bien été reçue. Elle est maintenant en attente de validation par Bento Cake Studio — aucun montant n'a encore été prélevé.",
+        );
+    panelTitle = nothingPending
       ? t("Order confirmed", "Commande confirmée")
-      : t("Cake part pending approval", "Partie gâteau en attente de validation");
-    panelText = info?.physicalValidation === "approved"
+      : t("Order pending approval", "Commande en attente de validation");
+    panelText = nothingPending
       ? t("We're excited to create something special for you!", "Nous avons hâte de créer quelque chose de spécial rien que pour vous !")
       : t(
-          "Your workshop is confirmed and paid. We will review the cake / products part and send you a confirmation within the next 24 hours.",
-          "Votre atelier est confirmé et payé. Nous examinons la partie gâteau / produits et vous enverrons une confirmation dans les 24 heures.",
+          "We will review your whole order — workshop and cake / products together — and send you a confirmation within the next 24 hours. Only once confirmed will your payment be taken.",
+          "Nous examinons votre commande dans son ensemble — atelier et gâteau / produits — et vous enverrons une confirmation dans les 24 heures. Ce n'est qu'une fois confirmée que votre paiement sera prélevé.",
         );
   } else {
     // cake_only
@@ -211,8 +233,8 @@ const PaymentSuccess = () => {
           "Votre commande a bien été enregistrée et votre paiement a bien été reçu. Nous préparons dès à présent votre commande.",
         )
       : t(
-          "Your payment has been received. Your order is now awaiting validation by Bento Cake Studio.",
-          "Votre paiement a bien été reçu. Votre commande est maintenant en attente de validation par Bento Cake Studio.",
+          "Your order request has been received. It is now awaiting validation by Bento Cake Studio — nothing has been charged yet.",
+          "Votre demande de commande a bien été reçue. Elle est maintenant en attente de validation par Bento Cake Studio — aucun montant n'a encore été prélevé.",
         );
     panelTitle = nothingPending
       ? t("Preparing Your Order", "Préparation de votre commande")
@@ -220,8 +242,8 @@ const PaymentSuccess = () => {
     panelText = nothingPending
       ? t("We're excited to create something special for you!", "Nous avons hâte de créer quelque chose de spécial rien que pour vous !")
       : t(
-          "Your payment has been received. We will confirm your order within the next 24 hours with the details of your pickup or delivery date and time. If we cannot fulfil it, you will be refunded.",
-          "Votre paiement a bien été reçu. Nous vous confirmerons votre commande dans les 24 heures, en précisant la date et l'heure de votre retrait ou de votre livraison. Si nous ne pouvons pas la réaliser, vous serez remboursé.",
+          "We will confirm your order within the next 24 hours with the details of your pickup or delivery date and time. Only once confirmed will your payment be taken. If we cannot fulfil it, the authorization will simply be released.",
+          "Nous vous confirmerons votre commande dans les 24 heures, en précisant la date et l'heure de votre retrait ou de votre livraison. Ce n'est qu'une fois confirmée que votre paiement sera prélevé. Si nous ne pouvons pas la réaliser, l'autorisation sera simplement annulée.",
         );
   }
 
@@ -241,14 +263,26 @@ const PaymentSuccess = () => {
                       "The remaining seats for this workshop were booked while your payment was being processed. No order was placed and nothing was charged (your reward balance has been released). Please choose another session.",
                       "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement. Aucune commande n'a été enregistrée et aucun montant n'a été prélevé (votre cagnotte a été libérée). Merci de choisir une autre session."
                     )
+                  // 2026-09-15 (deferred capture): the normal case now — nothing
+                  // was ever captured, so nothing is ever "refunded"/"pending
+                  // refund" here. The "refunded" / "to_refund" branches below
+                  // are kept only for backward compatibility with an order
+                  // that went through this exact path under the old
+                  // immediate-capture model (money genuinely already taken) —
+                  // never reachable for a new authorization-only checkout.
                   : capacity.refundState === "refunded"
                   ? t(
                       "The remaining seats for this workshop were booked while your payment was being processed, so your order could not be fulfilled. Your payment was received and has already been refunded. Please contact us if you have any question.",
                       "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Votre paiement a bien été reçu et a déjà été remboursé. Contactez-nous pour toute question."
                     )
-                  : t(
+                  : capacity.refundState === "to_refund"
+                  ? t(
                       "The remaining seats for this workshop were booked while your payment was being processed, so your order could not be fulfilled. Your payment has been received and a refund is being processed by our team — you do not need to do anything. Please contact us if you have any question.",
                       "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Votre paiement a bien été reçu et un remboursement est en cours de traitement par notre équipe — vous n'avez rien à faire. Contactez-nous pour toute question."
+                    )
+                  : t(
+                      "The remaining seats for this workshop were booked while your payment was being processed, so your order could not be fulfilled. Nothing was charged — the authorization on your payment method has been released. Please contact us if you have any question.",
+                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Aucun montant n'a été prélevé — l'autorisation sur votre moyen de paiement a été annulée. Contactez-nous pour toute question."
                     )}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-2">
@@ -309,46 +343,18 @@ const PaymentSuccess = () => {
                 </Button>
               </div>
             </>
-          ) : isMixed ? (
-            // Dedicated mixed-cart (workshop + cake/products) confirmation
-            // screen — two separate status blocks so the customer sees at a
-            // glance that the workshop is settled and only the physical part
-            // is still being reviewed. Same t() / useLang() system as the
-            // rest of the site; no new i18n mechanism.
-            <>
-              <CheckCircle className="w-16 h-16 text-primary mx-auto mb-6" />
-              <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-2">
-                {t("THANK YOU FOR YOUR ORDER", "MERCI POUR VOTRE COMMANDE")}
-              </h1>
-              <p className="text-muted-foreground mb-6">{t("Payment received", "Paiement reçu")}</p>
-
-              <div className="bg-muted border border-border p-4 mb-4 text-left">
-                <div className="flex items-center gap-2 mb-1">
-                  <Sparkles className="w-5 h-5 text-primary shrink-0" />
-                  <p className="font-medium text-foreground">{t("Workshop confirmed", "Atelier confirmé")}</p>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t("Your workshop booking is confirmed.", "Votre réservation à l'atelier est confirmée.")}
-                </p>
-              </div>
-
-              <div className="bg-muted border border-border p-4 mb-6 text-left">
-                <div className="flex items-center gap-2 mb-1">
-                  <Clock className="w-5 h-5 text-primary shrink-0" />
-                  <p className="font-medium text-foreground">
-                    {t("Cake and other products pending approval", "Gâteau et autres produits en cours de validation")}
-                  </p>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t("We are currently reviewing this part of your order.", "Nous vérifions actuellement cette partie de votre commande.")}
-                </p>
-              </div>
-
-              <p className="text-muted-foreground mb-8">
-                {t("You will receive a confirmation email within 24 hours.", "Vous recevrez un email de confirmation dans les 24 heures.")}
-              </p>
-            </>
           ) : (
+            // 2026-09-15: mixed orders now render through this SAME unified
+            // block as cake_only/workshop_only (headline/bodyText/panelTitle/
+            // panelText, all isMixed-aware — see above). The previous
+            // dedicated mixed screen unconditionally showed "Workshop
+            // confirmed" as its own always-settled status box, which was only
+            // ever true under the old immediate-capture model (the workshop
+            // auto-confirmed independently of the cake decision). Under
+            // deferred capture, Accept/Refuse is ONE whole-order decision —
+            // before it, neither part is confirmed; after it, both are
+            // together — so a single status block is now the correct
+            // representation, not two independently-worded ones.
             <>
               <CheckCircle className="w-16 h-16 text-primary mx-auto mb-6" />
               <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">

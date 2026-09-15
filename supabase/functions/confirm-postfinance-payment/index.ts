@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "../_shared/postfinance.ts";
+import { getTransactionState } from "../_shared/postfinance-transactions.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
 import { ORDER_ITEM_PAYLOAD_FIELDS, ORDER_PAYLOAD_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
@@ -12,16 +13,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// NEW MODEL — every transaction is created with completionBehavior
-// COMPLETE_IMMEDIATELY, so a successful payment goes straight to COMPLETED /
-// FULFILL. AUTHORIZED means the capture has not landed yet: treat it as
-// "still in progress", keep polling — never create a 'paid' order for it.
-const SUCCESS_STATES = new Set(["COMPLETED", "FULFILL"]);
+// 2026-09-15: deferred capture restored (pre-04a6199 model). Every
+// transaction is created with completionBehavior COMPLETE_DEFERRED — a
+// successful authorization lands on AUTHORIZED and STAYS there until an
+// admin Accepts the order (manage-order then captures it via
+// complete-online). AUTHORIZED is therefore already a "good enough to
+// create the order" state here — the order is inserted with
+// payment_status = 'pending' (see the insert below), never 'paid', until
+// the real capture succeeds on Accept.
+const SUCCESS_STATES = new Set(["AUTHORIZED", "COMPLETED", "FULFILL"]);
 const FAILURE_STATES = new Set(["FAILED", "DECLINE", "VOIDED"]);
 
-// Thrown when a workshop line cannot be reserved (session full / closed) AFTER
-// the payment was already CAPTURED (immediate capture). The money cannot be
-// voided — it is flagged for a manual PostFinance refund.
+// Thrown when a workshop line cannot be reserved (session full / closed)
+// right after the order row was created from a successful AUTHORIZATION
+// (deferred capture — nothing has been captured yet at this point). Carries
+// whether the situation is fully resolved with nothing owed.
 class WorkshopCapacityAbort extends Error {
   financiallyResolved: boolean;
   refundState: string;
@@ -33,10 +39,14 @@ class WorkshopCapacityAbort extends Error {
 }
 
 // Re-entrant, idempotent unwind of an order whose workshop reservation(s)
-// could not be secured. In the NEW model the payment is ALREADY captured at
-// checkout — there is nothing to void and NO automatic refund. The order is
-// marked cancelled + refund_status = 'to_refund' for the full amount; an admin
-// refunds it by hand in PostFinance and marks it done.
+// could not be secured. 2026-09-15 (deferred capture restored): at this
+// point the transaction is only AUTHORIZED — nothing was ever captured, so
+// there is nothing to refund. Instead this VOIDS the authorization
+// (POST .../void-online) so the blocked amount is released back to the
+// customer's payment method, same as a normal Refuse. refund_status is
+// never set to 'to_refund' here — that would incorrectly claim money was
+// taken. A void that does not confirm VOIDED is surfaced via the technical
+// alert below for manual verification, never silently assumed.
 async function abortOrderAfterCapture(
   supabase: any,
   orderRecord: any,
@@ -44,9 +54,32 @@ async function abortOrderAfterCapture(
 ): Promise<{ financiallyResolved: boolean; refundState: string; message: string }> {
   const txId: string = String(orderRecord.postfinance_transaction_id ?? "");
   const isRewardOnly = txId === REWARD_ONLY_TRANSACTION_ID;
+
+  // Void the authorization — idempotent: VOIDED is a terminal state, so a
+  // retry that finds it already VOIDED just confirms it again (no second
+  // void-online call needed/attempted).
+  let voided = isRewardOnly;
+  if (!isRewardOnly) {
+    try {
+      const credentials = getPostFinanceCredentials();
+      const currentState = await getTransactionState(credentials, txId);
+      if (String(currentState ?? "").toUpperCase() === "VOIDED") {
+        voided = true;
+      } else {
+        await pfFetch(credentials, `/payment/transactions/${txId}/void-online`, "POST");
+        const recheckedState = await getTransactionState(credentials, txId);
+        voided = String(recheckedState ?? "").toUpperCase() === "VOIDED";
+      }
+    } catch (e) {
+      console.error(`abortOrderAfterCapture: void-online failed for order ${orderRecord.id} / tx ${txId}:`, e);
+      voided = false;
+    }
+  }
   const note = isRewardOnly
-    ? "reward-only checkout — reward reservation released, nothing to refund"
-    : "payment already captured — flagged for a MANUAL PostFinance refund (full amount)";
+    ? "reward-only checkout — reward reservation released, nothing to void"
+    : voided
+      ? "authorization voided — nothing was ever captured, nothing to refund"
+      : "void-online did NOT confirm VOIDED — manual verification required in PostFinance";
 
   // Release the reservations this checkout held (idempotent).
   if (orderRecord.customer_id) {
@@ -110,44 +143,53 @@ async function abortOrderAfterCapture(
     }
   }
 
-  // Persist the abort. payment_status STAYS 'paid' (the money is really there);
-  // the order is cancelled and flagged for a manual refund of the full amount.
-  // physical_validation: a workshop-only order has NO physical part, so it stays
-  // 'not_applicable'; any order with a physical part goes 'rejected'.
+  // Persist the abort. payment_status was already 'pending' (never captured)
+  // and stays that way — never 'paid', never 'refunded': nothing was ever
+  // taken. physical_validation: a workshop-only order has NO physical part,
+  // so it stays 'not_applicable'; any order with a physical part goes
+  // 'rejected'. refund_status stays 'none' even when the void could not be
+  // confirmed — 'to_refund' would incorrectly claim money was captured; an
+  // unconfirmed void is instead surfaced only via the technical alert below.
   const isWorkshopOnly = orderRecord.fulfillment_type === "workshop_only";
   const abortUpdate: Record<string, unknown> = {
     order_failure_reason: "workshop_capacity_unavailable",
     order_validation: "cancelled",
-    refund_status: isRewardOnly ? "none" : "to_refund",
-    refund_due_amount: isRewardOnly ? 0 : (Number(orderRecord.total_amount) || 0),
+    refund_status: "none",
+    refund_due_amount: 0,
   };
   if (!isWorkshopOnly) abortUpdate.physical_validation = "rejected";
   const { error: orderUpdateErr } = await supabase
     .from("orders").update(abortUpdate).eq("id", orderRecord.id);
   if (orderUpdateErr) console.error(`Failed to persist abort state for ${orderRecord.id}:`, orderUpdateErr);
 
-  // pending_payments is dropped: the order row exists, the reason is persisted,
-  // the refund is a human task now — nothing left to retry here.
+  // pending_payments is dropped: the order row exists, the reason is
+  // persisted — nothing left to retry from this path (a still-unconfirmed
+  // void is a human task, tracked only via the alert, never by re-deriving
+  // it from a dropped pending_payments row).
   await supabase.from("pending_payments").delete().eq("order_id", orderRecord.id);
 
   if (!isRewardOnly) {
     EdgeRuntime.waitUntil(sendTechnicalAlert({
-      subject: `Atelier complet APRÈS paiement — remboursement manuel requis — commande ${orderRecord.id}`,
+      subject: voided
+        ? `Atelier complet après autorisation — autorisation annulée automatiquement — commande ${orderRecord.id}`
+        : `Atelier complet après autorisation — ANNULATION NON CONFIRMÉE, vérification manuelle requise — commande ${orderRecord.id}`,
       lines: [
         `Order ID : ${orderRecord.id}`,
         `Transaction PostFinance : ${txId}`,
-        `Montant encaissé à rembourser À LA MAIN : CHF ${Number(orderRecord.total_amount) || 0}`,
+        `Montant autorisé (jamais capturé) : CHF ${Number(orderRecord.total_amount) || 0}`,
         `Raison : ${reason}`,
         `Heure : ${new Date().toISOString()}`,
-        `Action : rembourser dans PostFinance puis marquer refund_status='refunded' sur la commande.`,
+        voided
+          ? `Action : aucune — l'autorisation a été annulée (void), rien n'a été prélevé.`
+          : `Action : vérifier/annuler manuellement la transaction ${txId} dans PostFinance — le void automatique n'a pas pu être confirmé.`,
       ],
     }).catch(() => {}));
   }
 
-  console.error(`Order ${orderRecord.id} aborted after capture — ${reason} — ${note}`);
+  console.error(`Order ${orderRecord.id} aborted after authorization — ${reason} — ${note}`);
   return {
-    financiallyResolved: isRewardOnly,
-    refundState: isRewardOnly ? "none" : "to_refund",
+    financiallyResolved: isRewardOnly || voided,
+    refundState: "none",
     message: `${reason} — ${note}`,
   };
 }
@@ -646,15 +688,25 @@ serve(async (req) => {
         ...pickAllowed(order as Record<string, unknown>, ORDER_PAYLOAD_FIELDS),
         id: orderId,
         postfinance_transaction_id: String(pending.postfinance_transaction_id),
-        // NEW MODEL: we only reach here after the transaction is verified
-        // COMPLETED / FULFILL (or it is reward-only) — the money is really
-        // taken, so the order is 'paid' from the start. order_validation stays
-        // 'pending' (cake / mixed) until the admin decides the physical part;
-        // a workshop-only order is flipped to 'approved' by runSideEffects.
-        payment_status: "paid",
-        paid_at: new Date().toISOString(),
-        // Any order with a physical part awaits the admin ('pending'); a
-        // workshop-only order has no physical part to decide.
+        // Carried verbatim from pending_payments — reserved (or, for a
+        // reward-only checkout, deliberately never reserved) by
+        // reserve_payment_reference() in create-postfinance-payment. Never
+        // regenerated or recomputed here.
+        payment_reference: pending.payment_reference ?? null,
+        // 2026-09-15: we reach here once the transaction is verified
+        // AUTHORIZED / COMPLETED / FULFILL (or it is reward-only) — the
+        // authorization succeeded, but the money is NOT captured yet
+        // (COMPLETE_DEFERRED). payment_status stays 'pending' — manage-order's
+        // Accept action is the ONLY place that ever sets it to 'paid', and
+        // only after a real successful capture. order_validation stays
+        // 'pending' for every fulfillment type now (workshop_only included —
+        // see manage-order/index.ts, which now decides workshop_only orders
+        // too instead of auto-confirming them).
+        payment_status: "pending",
+        // physical_validation is the admin decision on any order WITH a
+        // physical part (cake_only, mixed). A workshop-only order has none —
+        // 'not_applicable', same convention as before; its OWN admin decision
+        // now lives on order_validation directly (see decide_order_physical).
         physical_validation:
           (order as { fulfillment_type?: string }).fulfillment_type === "workshop_only"
             ? "not_applicable"

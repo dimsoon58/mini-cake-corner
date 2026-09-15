@@ -1761,6 +1761,31 @@ serve(async (req) => {
       }, 200);
     }
 
+    // ─── Human-readable payment reference (PAY-YYMMDDNN) ──────────────────
+    // 2026-09-15: reserved ONLY here — past the reward-only early-return
+    // above — so a $0 cagnotte-only checkout (no real PostFinance
+    // transaction, ever) never consumes one. reserve_payment_reference() is
+    // idempotent (row-locks the pending_payments row, reuses
+    // payment_reference if already set) so it can never mint a second
+    // reference for this orderId, even under a race — see the migration for
+    // the full guarantee. Never mints/uses/touches order_number (ORD-...)
+    // or merchantReference (still orderId, untouched below) in any way.
+    // Non-fatal by design (same posture as the welcome-discount claim above):
+    // a real payment must never be blocked by a tracking-reference failure.
+    let paymentReference: string | null = null;
+    try {
+      const { data: refData, error: refError } = await supabase.rpc(
+        "reserve_payment_reference", { p_order_id: orderId },
+      );
+      if (refError) {
+        console.error("reserve_payment_reference RPC error (proceeding without a payment reference):", refError);
+      } else {
+        paymentReference = (refData as string) ?? null;
+      }
+    } catch (refErr) {
+      console.error("reserve_payment_reference threw (proceeding without a payment reference):", refErr);
+    }
+
     const transactionCreate = {
       currency: "CHF",
       language: order.lang === "en" ? "en-US" : "fr-CH",
@@ -1770,18 +1795,31 @@ serve(async (req) => {
       // order_id lets Checkout reconcile a failed PostFinance attempt and
       // release the reservations tied to it.
       failedUrl: `${SITE_BASE_URL}/checkout?payment=failed&order_id=${encodeURIComponent(orderId)}`,
-      // NEW MODEL: every payment is captured immediately at checkout. There is
-      // no admin "capture on Accept" any more — payment_status = 'paid' means
-      // the money was really taken. manage-order never moves money; a physical
-      // refusal is flagged refund_status = 'to_refund' and refunded by hand.
-      completionBehavior: "COMPLETE_IMMEDIATELY",
+      // 2026-09-15: deferred capture restored (pre-04a6199 model). The
+      // transaction is only AUTHORIZED here — the funds are blocked/reserved
+      // on the customer's payment method, never captured. confirm-postfinance-
+      // payment creates the order as soon as the authorization succeeds
+      // (payment_status stays 'pending'); manage-order's Accept action is what
+      // actually captures the money (POST .../complete-online), Refuse voids
+      // the authorization instead (POST .../void-online) — see manage-order/
+      // index.ts. Applies uniformly to cake_only, workshop_only and mixed
+      // orders alike (Accept/Refuse is a single whole-order decision).
+      completionBehavior: "COMPLETE_DEFERRED",
       lineItems,
+      // Human-readable PAY-YYMMDDNN reference — identifies this payment
+      // attempt in the PostFinance dashboard. NOT a substitute for
+      // merchantReference (orderId, above — left completely untouched) or
+      // ORD-YYMMDDNN (the final order number, assigned later). Omitted
+      // entirely (both fields) if reservation failed above, rather than
+      // sending an empty/null reference.
+      ...(paymentReference ? { invoiceMerchantReference: paymentReference } : {}),
       metaData: {
         order_id: orderId,
         customer_name: `${order.first_name} ${order.last_name}`,
         customer_phone: order.phone,
         delivery_option: order.delivery_method || "none",
         delivery_address: order.delivery_address || "",
+        ...(paymentReference ? { payment_reference: paymentReference } : {}),
       },
     };
 
