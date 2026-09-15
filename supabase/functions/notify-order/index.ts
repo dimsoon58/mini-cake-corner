@@ -85,7 +85,7 @@ async function sendAdminEmail(
   fulfillments: any[],
   siteUrl: string,
   token: string | null,
-  autoConfirmed: boolean,
+  isWorkshopOnly: boolean,
   mixed: boolean,
 ) {
   const reviewUrl = `${siteUrl}/admin/order/${order.id}${token ? `?token=${token}` : ""}`;
@@ -107,11 +107,13 @@ async function sendAdminEmail(
       ? formatDateCH(order.pickup_delivery_date) + (order.pickup_delivery_slot ? ` · ${order.pickup_delivery_slot}` : "")
       : null;
   };
-  const refundDue = mixed
-    ? Math.round(((Number(order.total_amount) || 0) -
-        items.filter((it: any) => it.product === "workshop")
-             .reduce((s: number, it: any) => s + (Number(it.total) || 0), 0)) * 100) / 100
-    : 0;
+  // 2026-09-15 (deferred capture restored): nothing auto-confirms any more —
+  // workshop_only now goes through this SAME Accept/Refuse decision as every
+  // other order (see manage-order/index.ts). The payment is only AUTHORIZED
+  // at this point (never captured yet), and Accept/Refuse is always a single
+  // whole-order decision now (Option A) — there is no more partial "only the
+  // cake part" outcome for a mixed order, so refundDue and the old "refund
+  // by hand, workshop stays confirmed" wording are gone entirely.
 
   const itemBlocks = items.map((item: any, i: number) => {
     if (item.product === "workshop") {
@@ -182,10 +184,8 @@ async function sendAdminEmail(
       
       <!-- Header -->
       <div style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
-        <h1 style="color:#fff;font-size:26px;margin:0 0 8px;font-weight:700;">${autoConfirmed ? "🎨 Réservation workshop" : "🎂 Nouvelle commande Bento Cake"}</h1>
-        <p style="color:#ccc;margin:0;font-size:14px;">${autoConfirmed
-          ? `La réservation <strong style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> est confirmée automatiquement`
-          : `La commande <strong style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> attend votre validation`}</p>
+        <h1 style="color:#fff;font-size:26px;margin:0 0 8px;font-weight:700;">${isWorkshopOnly ? "🎨 Nouvelle réservation workshop" : "🎂 Nouvelle commande Bento Cake"}</h1>
+        <p style="color:#ccc;margin:0;font-size:14px;">${isWorkshopOnly ? "La réservation" : "La commande"} <strong style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> attend votre validation</p>
       </div>
 
       <div style="padding:28px;">
@@ -226,38 +226,26 @@ async function sendAdminEmail(
              ${row("Facture №", order.invoice_number || "—")}
             ${(Number(order.express_surcharge_amount) || 0) > 0 ? row("Supplément express", `CHF ${Number(order.express_surcharge_amount).toFixed(2)}`) : ""}
             ${row("Total", `CHF ${order.total_amount}`)}
-            ${row("Statut", autoConfirmed
-              ? "✅ Réservation workshop confirmée automatiquement — paiement encaissé"
-              : mixed
-                ? `✅ Paiement encaissé · Atelier confirmé automatiquement · ⏳ Partie gâteau en attente de votre validation`
-                : "✅ Paiement encaissé — en attente de votre validation")}
-            ${mixed ? row("Si vous refusez le gâteau", `Rembourser CHF ${refundDue.toFixed(2)} À LA MAIN dans PostFinance (l'atelier reste confirmé, ne PAS annuler les places)`) : ""}
+            ${row("Statut", mixed
+              ? "⏳ Paiement autorisé (non encaissé) — en attente de votre validation (gâteau + atelier ensemble)"
+              : "⏳ Paiement autorisé (non encaissé) — en attente de votre validation")}
           </table>
         </div>
 
-        ${autoConfirmed ? `
-        <!-- Public workshop: auto-confirmed, no manual action -->
-        <div style="text-align:center;margin:28px 0 8px;">
-          <p style="color:#16a34a;font-size:15px;font-weight:600;margin:0 0 6px;">Réservation confirmée automatiquement</p>
-          <p style="color:#666;font-size:13px;margin:0;">Aucune action requise. Le client a reçu son email de confirmation. Les places ont été décomptées.</p>
-        </div>
-
-        <p style="color:#999;font-size:12px;text-align:center;margin-top:12px;">
-          <a href="${reviewUrl}" style="color:#666;">Voir le détail complet de la réservation →</a>
-        </p>
-        ` : `
         <!-- Action Buttons -->
         <div style="text-align:center;margin:32px 0 16px;">
           <p style="color:#666;font-size:13px;margin-bottom:20px;">${mixed
-            ? `Le paiement est déjà encaissé et l'atelier confirmé. Votre décision ne concerne QUE la partie gâteau. Refuser = rembourser CHF ${refundDue.toFixed(2)} à la main dans PostFinance.`
-            : "Cliquez sur un bouton pour traiter immédiatement cette commande. Aucune connexion requise."}</p>
+            ? "Le paiement n'est qu'autorisé, pas encore encaissé. Votre décision porte sur la commande entière (gâteau et atelier ensemble). Accepter encaisse le paiement et confirme tout ; refuser annule l'autorisation sans rien prélever et libère la/les place(s) d'atelier."
+            : isWorkshopOnly
+              ? "Le paiement n'est qu'autorisé, pas encore encaissé. Accepter encaisse le paiement et confirme la réservation ; refuser annule l'autorisation sans rien prélever et libère la/les place(s)."
+              : "Le paiement n'est qu'autorisé, pas encore encaissé. Cliquez sur un bouton pour traiter cette commande. Aucune connexion requise."}</p>
 
           <a href="${siteUrl}/order-action?orderId=${order.id}&action=approve&token=${token}" style="display:inline-block;background:#16a34a;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
-            ${mixed ? "✅ Accepter le gâteau" : "✅ Accepter la commande"}
+            ${isWorkshopOnly ? "✅ Accepter la réservation" : "✅ Accepter la commande"}
           </a>
 
           <a href="${siteUrl}/order-action?orderId=${order.id}&action=decline&token=${token}" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
-            ${mixed ? "❌ Refuser le gâteau" : "❌ Refuser la commande"}
+            ${isWorkshopOnly ? "❌ Refuser la réservation" : "❌ Refuser la commande"}
           </a>
         </div>
 
@@ -266,9 +254,8 @@ async function sendAdminEmail(
         </p>
 
         <p style="color:#999;font-size:12px;text-align:center;margin-top:4px;">
-          <a href="${reviewUrl}" style="color:#666;">Voir le détail complet de la commande →</a>
+          <a href="${reviewUrl}" style="color:#666;">Voir le détail complet de la ${isWorkshopOnly ? "réservation" : "commande"} →</a>
         </p>
-        `}
       </div>
 
       <!-- Footer -->
@@ -293,8 +280,8 @@ async function sendAdminEmail(
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: ADMIN_EMAILS,
-      subject: autoConfirmed
-        ? `🎨 Réservation workshop confirmée ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.first_name || ""} ${order.last_name || ""} (CHF ${order.total_amount})`
+      subject: isWorkshopOnly
+        ? `🎨 Nouvelle réservation workshop ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.first_name || ""} ${order.last_name || ""} (CHF ${order.total_amount})`
         : `🎂 Nouvelle commande Bento Cake ${order.order_number || order.id.slice(0, 8).toUpperCase()} — ${order.first_name || ""} ${order.last_name || ""} (CHF ${order.total_amount})`,
       html,
     }),
@@ -345,24 +332,24 @@ serve(async (req) => {
       .from("order_fulfillments").select("*").eq("order_id", orderId);
     if (fulfillmentsError) throw new Error(`Failed to load order_fulfillments: ${fulfillmentsError.message}`);
 
-    // A workshop-ONLY order is auto-confirmed: no Accepter / Refuser step, no
-    // token, the admin e-mail is an info notification only.
-    // A MIXED order (workshop + physical) still needs the admin to decide the
-    // physical part — token + buttons — even though the workshop is confirmed.
+    // 2026-09-15 (deferred capture restored): EVERY fulfilment type now goes
+    // through the same Accept/Refuse admin decision, workshop_only included
+    // — no more auto-confirmation, no more "info notification only" email.
+    // A token is always created below.
     const wsItems = (items ?? []).filter((it: any) => it.product === "workshop");
     const physItems = (items ?? []).filter((it: any) => it.product !== "workshop");
     const fulfillmentType: string = order.fulfillment_type ||
       (wsItems.length > 0 ? (physItems.length > 0 ? "mixed" : "workshop_only") : "cake_only");
-    const autoConfirmed = fulfillmentType === "workshop_only";
+    const isWorkshopOnly = fulfillmentType === "workshop_only";
     const mixed = fulfillmentType === "mixed";
 
-    // Single-use accept/decline token (skipped for auto-confirmed workshops).
-    // notify-order is normally invoked once per order, but the payment-
-    // resilience webhook means a retry is possible if a previous invocation
-    // created the token and then died before Resend accepted the email. Reuse
-    // an existing token in that case instead of failing or stacking one.
+    // Single-use accept/decline token. notify-order is normally invoked once
+    // per order, but the payment-resilience webhook means a retry is
+    // possible if a previous invocation created the token and then died
+    // before Resend accepted the email. Reuse an existing token in that case
+    // instead of failing or stacking one.
     let token: string | null = null;
-    if (!autoConfirmed) {
+    {
       const { data: existingToken } = await supabase
         .from("order_action_tokens")
         .select("token")
@@ -401,7 +388,7 @@ serve(async (req) => {
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (resendKey) {
-      try { results.email = await sendAdminEmail(resendKey, order, items || [], fulfillments || [], siteUrl, token, autoConfirmed, mixed); }
+      try { results.email = await sendAdminEmail(resendKey, order, items || [], fulfillments || [], siteUrl, token, isWorkshopOnly, mixed); }
       catch (e) { console.error("Email error:", e); results.errors.push(`Email: ${e instanceof Error ? e.message : String(e)}`); }
     } else { results.errors.push("RESEND_API_KEY not configured"); }
 

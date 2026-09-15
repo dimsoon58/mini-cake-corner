@@ -94,17 +94,17 @@ const MARKER_COLUMNS =
 
 class DbReadError extends Error {}
 
-// ── Workshop auto-confirmation (no manual Accepter/Refuser for the workshop)
-//
-// NEW MODEL: the payment is ALREADY captured at checkout (COMPLETE_IMMEDIATELY).
-// There is nothing to capture here — this only verifies the money really
-// landed, flips the reservations to 'confirmed' and stamps
-// orders.workshop_confirmed_at.
-//
-//   workshop-only order  -> also flips order_validation to 'approved'.
-//   mixed order          -> ONLY the workshop part; order_validation stays
-//                           'pending' for the cake part, physical_validation is
-//                           set to 'pending'.
+// ── Workshop auto-confirmation — HISTORICAL, NOT CALLED from runSideEffects
+// any more (see the "0." comment there). Kept only because
+// autoConfirmPublicWorkshop below still exports it by its back-compat name.
+// Under the old COMPLETE_IMMEDIATELY model this ran the instant the payment
+// landed, since there was no admin decision left to make for a workshop.
+// 2026-09-15 (deferred capture restored): a workshop reservation now stays
+// 'pending' until manage-order's Accept action explicitly transitions it —
+// for every fulfilment type, workshop_only included. If this function is
+// ever invoked again in the future, note its own COMPLETED/FULFILL gate
+// below is now unreachable in the normal flow (the transaction is never
+// captured before Accept) — it would need to check for AUTHORIZED too.
 //
 // The seats were already secured transactionally by
 // claim_workshop_reservations_batch() inside finalizeOrderDb. Fully idempotent:
@@ -386,20 +386,19 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
   const hasPhysical = rows.some((it: any) => it.product !== "workshop");
   const hasWorkshop = rows.some((it: any) => it.product === "workshop");
 
-  // 0. Workshop auto-confirmation — the payment is already captured at
-  //    checkout, so this only verifies it landed + confirms the seats.
-  //    workshop-only → also order_validation='approved'.
-  //    mixed         → only the workshop part; the cake part stays 'pending'
-  //                    (physical_validation='pending') for the admin.
-  //    MUST run before the admin notification and the customer e-mails.
-  if (hasWorkshop && !o.workshop_confirmed_at &&
-      (o.order_validation === "pending" || !o.order_validation)) {
-    const mode = hasPhysical ? "mixed" : "workshop_only";
-    const { done } = await confirmWorkshopPart(supabase, orderId, mode as any);
-    if (!done) return { complete: false }; // retry next pass
-    const reread = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
-    if (reread.data) o = reread.data;
-  }
+  // 0. 2026-09-15 (deferred capture restored): workshop auto-confirmation is
+  //    DISABLED. The payment is only AUTHORIZED at this point, never
+  //    captured — a workshop reservation must stay 'pending' (still occupying
+  //    its seat — see get_workshop_availability) until an admin actually
+  //    Accepts the order, for every fulfilment type now (workshop_only
+  //    included). See manage-order/index.ts, which now captures the
+  //    authorization AND transitions the reservation(s) to 'confirmed' (or
+  //    voids + transitions them to 'rejected' on Refuse) as ONE whole-order
+  //    decision. confirmWorkshopPart() (below) is intentionally no longer
+  //    called from here; kept only as the (now-idempotent-no-op-until-called)
+  //    building block manage-order's Accept path reuses conceptually — the
+  //    real transition itself goes through set_workshop_reservations_status
+  //    directly in manage-order, not through this function.
 
   // 0b. Workshop-ONLY order → generate + store the invoice PDF now (same as
   //     manage-order does on a manual "Accepter" for a cake order). Best-effort;

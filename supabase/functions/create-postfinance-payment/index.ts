@@ -1770,11 +1770,16 @@ serve(async (req) => {
       // order_id lets Checkout reconcile a failed PostFinance attempt and
       // release the reservations tied to it.
       failedUrl: `${SITE_BASE_URL}/checkout?payment=failed&order_id=${encodeURIComponent(orderId)}`,
-      // NEW MODEL: every payment is captured immediately at checkout. There is
-      // no admin "capture on Accept" any more — payment_status = 'paid' means
-      // the money was really taken. manage-order never moves money; a physical
-      // refusal is flagged refund_status = 'to_refund' and refunded by hand.
-      completionBehavior: "COMPLETE_IMMEDIATELY",
+      // 2026-09-15: deferred capture restored (pre-04a6199 model). The
+      // transaction is only AUTHORIZED here — the funds are blocked/reserved
+      // on the customer's payment method, never captured. confirm-postfinance-
+      // payment creates the order as soon as the authorization succeeds
+      // (payment_status stays 'pending'); manage-order's Accept action is what
+      // actually captures the money (POST .../complete-online), Refuse voids
+      // the authorization instead (POST .../void-online) — see manage-order/
+      // index.ts. Applies uniformly to cake_only, workshop_only and mixed
+      // orders alike (Accept/Refuse is a single whole-order decision).
+      completionBehavior: "COMPLETE_DEFERRED",
       lineItems,
       metaData: {
         order_id: orderId,

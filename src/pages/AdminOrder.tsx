@@ -106,15 +106,20 @@ const AdminOrder = () => {
       if (error) { setResult({ type: "error", message: error.message }); return; }
       if (data?.error) { setResult({ type: "error", message: data.error }); return; }
       const mixed = data?.fulfillmentType === "mixed";
+      // 2026-09-15 (deferred capture restored): Approve now really captures
+      // the authorized PostFinance transaction here (manage-order); Refuse
+      // voids it — nothing was ever charged, so nothing is ever refunded on
+      // a normal Refuse any more. Accept/Refuse is one whole-order decision
+      // now (Option A) — a mixed order's workshop is captured/confirmed on
+      // Accept and released together with the cake part on Refuse, never
+      // independently.
       setResult({
         type: "success",
         message: action === "approve"
           ? (mixed
-              ? t("✅ Cake part approved. The payment was already taken at checkout — nothing to capture.", "✅ Partie gâteau validée. Le paiement a déjà été encaissé au checkout — rien à capturer.")
-              : t("✅ Order approved. The payment was already taken at checkout.", "✅ Commande validée. Le paiement a déjà été encaissé au checkout."))
-          : (mixed
-              ? t(`❌ Cake part refused. Refund CHF ${Number(data?.refundDueAmount || 0).toFixed(2)} BY HAND in PostFinance — the workshop stays confirmed.`, `❌ Partie gâteau refusée. Remboursez CHF ${Number(data?.refundDueAmount || 0).toFixed(2)} À LA MAIN dans PostFinance — l'atelier reste confirmé.`)
-              : t(`❌ Order refused. Refund CHF ${Number(data?.refundDueAmount || 0).toFixed(2)} BY HAND in PostFinance.`, `❌ Commande refusée. Remboursez CHF ${Number(data?.refundDueAmount || 0).toFixed(2)} À LA MAIN dans PostFinance.`)),
+              ? t("✅ Order approved. Payment captured — cake and workshop are both confirmed.", "✅ Commande validée. Paiement encaissé — gâteau et atelier sont tous deux confirmés.")
+              : t("✅ Order approved. Payment captured.", "✅ Commande validée. Paiement encaissé."))
+          : t("❌ Order refused. The authorization was voided — nothing was charged, no refund needed.", "❌ Commande refusée. L'autorisation a été annulée — aucun montant prélevé, aucun remboursement nécessaire."),
       });
       setOrder({
         ...order,
@@ -185,21 +190,24 @@ const AdminOrder = () => {
   const fulfillmentType: string = order.fulfillment_type ||
     (hasWorkshop ? (hasPhysical ? "mixed" : "workshop_only") : "cake_only");
   const isMixed = fulfillmentType === "mixed";
-  const workshopConfirmed = !!order.workshop_confirmed_at;
+  const isWorkshopOnly = fulfillmentType === "workshop_only";
   // Terminal / abnormal: a capacity abort persisted order_validation='cancelled'
   // + order_failure_reason. Handle it before any decision UI.
   const isCancelled = order.order_validation === "cancelled" || !!order.order_failure_reason;
-  // The physical part is the only admin decision — physical_validation carries
-  // it for every order with a physical part ('not_applicable' only for a
-  // workshop-only order).
-  const physicalState: string = order.physical_validation
-    ?? (fulfillmentType === "workshop_only" ? "not_applicable" : "pending");
-  // Decision UI shows only for: has a physical part, workshop part already
-  // confirmed (mixed), not cancelled, still pending.
-  const isResolved = isCancelled
-    || fulfillmentType === "workshop_only"
-    || physicalState !== "pending"
-    || (isMixed && !workshopConfirmed);
+  // 2026-09-15 (deferred capture restored): every fulfilment type now goes
+  // through the SAME Accept/Refuse admin decision, workshop_only included —
+  // physical_validation carries it for cake_only/mixed ('not_applicable'
+  // only for workshop_only, which never changes); workshop_only's own
+  // decision lives on order_validation directly instead (mirrors
+  // decide_order_physical / manage-order/index.ts exactly).
+  const decisionState: string = isWorkshopOnly
+    ? (order.order_validation ?? "pending")
+    : (order.physical_validation ?? "pending");
+  // Decision UI shows for any order that is not cancelled and still pending
+  // — no more "workshop_only is auto-confirmed" exception, no more waiting
+  // for an independent workshop confirmation before a mixed order can be
+  // decided (Accept/Refuse decides everything together now).
+  const isResolved = isCancelled || decisionState !== "pending";
   const refundToDo = order.refund_status === "to_refund";
   const customerName = `${order.first_name || ""} ${order.last_name || ""}`.trim();
   // Multi-date fulfillment: order_fulfillments has one row per distinct
@@ -223,15 +231,14 @@ const AdminOrder = () => {
             </h1>
             <span className={`ml-auto text-xs font-medium px-3 py-1 rounded-full ${
               isCancelled ? "bg-red-100 text-red-800" :
-              fulfillmentType === "workshop_only" ? (workshopConfirmed ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800") :
-              physicalState === "approved" ? "bg-emerald-100 text-emerald-800" :
-              physicalState === "pending" ? "bg-amber-100 text-amber-800" :
+              decisionState === "approved" ? "bg-emerald-100 text-emerald-800" :
+              decisionState === "pending" ? "bg-amber-100 text-amber-800" :
               "bg-red-100 text-red-800"
             }`}>
               {isCancelled ? "CANCELLED"
-                : fulfillmentType === "workshop_only" ? (workshopConfirmed ? "WORKSHOP ✓" : "WORKSHOP …")
-                : isMixed ? `${workshopConfirmed ? "WS ✓" : "WS …"} · ${String(physicalState).toUpperCase()}`
-                : String(physicalState).toUpperCase()}
+                : isWorkshopOnly ? `WORKSHOP · ${String(decisionState).toUpperCase()}`
+                : isMixed ? `WS+CAKE · ${String(decisionState).toUpperCase()}`
+                : String(decisionState).toUpperCase()}
             </span>
           </div>
 
@@ -379,22 +386,24 @@ const AdminOrder = () => {
             <DetailRow label={t("Total", "Total")} value={`CHF ${order.total_amount}`} />
             <DetailRow label={t("Payment", "Paiement")} value={
               order.payment_status === "paid"
-                ? t("✅ Taken at checkout", "✅ Encaissé au checkout")
-                : order.payment_status
+                ? t("✅ Captured", "✅ Encaissé")
+                : order.payment_status === "cancelled"
+                  ? t("Authorization voided — nothing charged", "Autorisation annulée — rien prélevé")
+                  : t("⏳ Authorized, not yet captured", "⏳ Autorisé, pas encore encaissé")
             } />
-            {isMixed && (
-              <DetailRow label={t("Workshop", "Atelier")} value={
-                order.workshop_confirmed_at ? t("✅ Confirmed & paid", "✅ Confirmé & payé") : t("⏳ Confirming…", "⏳ En cours de confirmation…")
-              } />
-            )}
-            <DetailRow label={isMixed ? t("Cake part", "Partie gâteau") : t("Status", "Statut")} value={
-              physicalState === "pending" ? t("⏳ Pending your decision", "⏳ En attente de votre décision") :
-              physicalState === "approved" ? t("✅ Approved", "✅ Validée") :
-              physicalState === "rejected" ? t("❌ Refused", "❌ Refusée") :
-              physicalState
+            <DetailRow label={t("Status", "Statut")} value={
+              decisionState === "pending" ? t("⏳ Pending your decision", "⏳ En attente de votre décision") :
+              decisionState === "approved" ? t("✅ Approved", "✅ Validée") :
+              decisionState === "rejected" ? t("❌ Refused", "❌ Refusée") :
+              decisionState
             } />
           </div>
 
+          {/* refundToDo / mark_refunded below only ever applies to the rare
+              defensive case where a transaction was somehow already captured
+              before a Refuse reached it — see manage-order/index.ts. Under
+              the normal flow (Refuse before any capture), nothing is ever
+              flagged here any more. */}
           {refundToDo && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
               <p className="font-medium text-red-800">
@@ -404,9 +413,10 @@ const AdminOrder = () => {
                 )}
               </p>
               <p className="text-sm text-red-700">
-                {isMixed
-                  ? t("Refund only this amount (the cake part). The workshop stays paid & confirmed — do NOT cancel the seats.", "Ne remboursez que ce montant (la partie gâteau). L'atelier reste payé & confirmé — n'annulez PAS les places.")
-                  : t("Refund the full amount in the PostFinance back office, then mark it done below.", "Remboursez le montant total dans le back-office PostFinance, puis marquez-le comme fait ci-dessous.")}
+                {t(
+                  "This order's payment was unexpectedly already captured before it was refused. Refund the full amount in the PostFinance back office, then mark it done below.",
+                  "Le paiement de cette commande avait été encaissé de façon inattendue avant son refus. Remboursez le montant total dans le back-office PostFinance, puis marquez-le comme fait ci-dessous.",
+                )}
               </p>
               <div className="space-y-2">
                 <Label htmlFor="pin-refund" className="text-red-800">{t("Admin PIN", "Code PIN administrateur")}</Label>
@@ -449,22 +459,20 @@ const AdminOrder = () => {
                 </div>
               )}
 
-              {isMixed && (
-                <p className="text-sm text-muted-foreground">
-                  {t(
-                    "The payment is already taken and the workshop is confirmed. Your decision only concerns the cake / products part. Refusing does NOT refund automatically — you refund by hand in PostFinance.",
-                    "Le paiement est déjà encaissé et l'atelier confirmé. Votre décision ne concerne que la partie gâteau / produits. Refuser ne rembourse PAS automatiquement — vous remboursez à la main dans PostFinance.",
-                  )}
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "The payment is only authorized, not yet captured. Approve captures it and confirms the order (cake and workshop together, if both are present). Refuse voids the authorization instead — nothing is charged, and any workshop seat is released immediately.",
+                  "Le paiement n'est qu'autorisé, pas encore encaissé. Valider encaisse le paiement et confirme la commande (gâteau et atelier ensemble, le cas échéant). Refuser annule l'autorisation à la place — rien n'est prélevé, et toute place d'atelier est libérée immédiatement.",
+                )}
+              </p>
               <div className="flex gap-3">
                 <Button onClick={() => handleAction("approve")} disabled={!!actionLoading || !token} className="flex-1">
                   {actionLoading === "approve" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                  {isMixed ? t("Approve cake part", "Valider le gâteau") : t("Approve order", "Valider la commande")}
+                  {t("Approve order", "Valider la commande")}
                 </Button>
                 <Button variant="destructive" onClick={() => handleAction("reject")} disabled={!!actionLoading || !token} className="flex-1">
                   {actionLoading === "reject" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <XCircle className="w-4 h-4 mr-2" />}
-                  {isMixed ? t("Refuse cake part", "Refuser le gâteau") : t("Refuse order", "Refuser la commande")}
+                  {t("Refuse order", "Refuser la commande")}
                 </Button>
               </div>
             </div>
@@ -472,24 +480,18 @@ const AdminOrder = () => {
             <div className="p-4 rounded-lg text-center bg-red-50 text-red-800">
               <p className="font-medium">
                 {order.order_failure_reason === "workshop_capacity_unavailable"
-                  ? t("⚠️ Workshop sold out after payment — the whole order was cancelled. The payment was taken; refund it by hand.", "⚠️ Atelier complet après paiement — toute la commande a été annulée. Le paiement a été encaissé ; à rembourser à la main.")
-                  : t("⚠️ This order was cancelled. If a payment was taken, refund it by hand.", "⚠️ Cette commande a été annulée. Si un paiement a été encaissé, à rembourser à la main.")}
+                  ? t("⚠️ Workshop sold out after authorization — the whole order was cancelled and the authorization voided. If it was somehow already captured, refund it by hand.", "⚠️ Atelier complet après autorisation — toute la commande a été annulée et l'autorisation annulée. Si le paiement a malgré tout été encaissé, à rembourser à la main.")
+                  : t("⚠️ This order was cancelled. If a payment was somehow already captured, refund it by hand.", "⚠️ Cette commande a été annulée. Si un paiement a malgré tout été encaissé, à rembourser à la main.")}
               </p>
-            </div>
-          ) : isMixed && !workshopConfirmed ? (
-            <div className="p-4 rounded-lg text-center bg-amber-50 text-amber-800">
-              <p className="font-medium">{t("⏳ The workshop part is still confirming — reload in a moment to decide the cake part.", "⏳ La partie atelier est en cours de confirmation — rechargez dans un instant pour décider de la partie gâteau.")}</p>
             </div>
           ) : (
             <div className={`p-4 rounded-lg text-center ${
-              physicalState === "approved" || fulfillmentType === "workshop_only" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"
+              decisionState === "approved" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"
             }`}>
               <p className="font-medium">
-                {fulfillmentType === "workshop_only"
-                  ? t("✅ Workshop order — auto-confirmed, no decision needed.", "✅ Commande atelier — confirmée automatiquement, aucune décision requise.")
-                  : physicalState === "approved"
-                    ? (isMixed ? t("✅ Cake part approved. Workshop confirmed.", "✅ Partie gâteau validée. Atelier confirmé.") : t("✅ This order has been approved.", "✅ Cette commande a été validée."))
-                    : (isMixed ? t("❌ Cake part refused. Workshop stays confirmed.", "❌ Partie gâteau refusée. L'atelier reste confirmé.") : t("❌ This order has been refused.", "❌ Cette commande a été refusée."))}
+                {decisionState === "approved"
+                  ? t("✅ This order has been approved and the payment captured.", "✅ Cette commande a été validée et le paiement encaissé.")
+                  : t("❌ This order has been refused. The authorization was voided — nothing was charged.", "❌ Cette commande a été refusée. L'autorisation a été annulée — rien n'a été prélevé.")}
               </p>
             </div>
           )}

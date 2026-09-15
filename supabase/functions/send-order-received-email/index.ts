@@ -191,8 +191,8 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">
           ${tr(
-            `We have successfully received your order <strong>#${orderNumber}</strong> and your payment.`,
-            `Nous avons bien reçu votre commande <strong>n° ${orderNumber}</strong> et votre paiement.`
+            `We have successfully received your order <strong>#${orderNumber}</strong>. Nothing has been charged yet — only your payment method has been authorized.`,
+            `Nous avons bien reçu votre commande <strong>n° ${orderNumber}</strong>. Aucun montant n'a encore été prélevé — seul votre moyen de paiement a été autorisé.`
           )}
         </p>
 
@@ -200,23 +200,22 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
             ${isMixed
               ? tr(
-                  "Your workshop booking is confirmed. The cake / products part is still pending validation by our team. You will receive a separate email for each part.",
-                  "Votre réservation d'atelier est confirmée. La partie gâteau / produits reste en attente de validation par notre équipe. Vous recevrez un email séparé pour chaque partie.",
+                  "Your order — workshop and cake / products together — is currently pending validation by our team. We will review it and confirm as soon as possible whether we can fulfil it. Your payment will only be taken once confirmed.",
+                  "Votre commande — atelier et gâteau / produits ensemble — est actuellement en attente de validation par notre équipe. Nous allons l'examiner et vous confirmer dans les plus brefs délais si nous pouvons la réaliser. Votre paiement ne sera prélevé qu'une fois la commande confirmée.",
                 )
               : tr(
-                  "Your order is currently pending validation by our team. We will review the details of your order and confirm as soon as possible whether we can fulfil it.",
-                  "Votre commande est actuellement en attente de validation par notre équipe. Nous allons vérifier les détails de votre commande et vous confirmer dans les plus brefs délais si nous pouvons la réaliser."
+                  "Your order is currently pending validation by our team. We will review the details of your order and confirm as soon as possible whether we can fulfil it. Your payment will only be taken once confirmed.",
+                  "Votre commande est actuellement en attente de validation par notre équipe. Nous allons vérifier les détails de votre commande et vous confirmer dans les plus brefs délais si nous pouvons la réaliser. Votre paiement ne sera prélevé qu'une fois la commande confirmée."
                 )}
           </p>
         </div>
 
-        ${isMixed ? "" : `
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 28px;">
           ${tr(
             "You will then receive a new email confirming the acceptance, or if necessary, the refusal of your order.",
             "Vous recevrez ensuite un nouvel email pour vous confirmer l'acceptation ou, si nécessaire, le refus de votre commande."
           )}
-        </p>`}
+        </p>
 
         <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Summary", "Récapitulatif")}
@@ -251,15 +250,10 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
 
         <p style="color:#351E13;font-size:13px;line-height:1.7;margin:24px 0 0;border-top:1px solid #D4C89A;padding-top:20px;">
           <strong>${tr("Important:", "Important :")}</strong><br/>
-          ${isMixed
-            ? tr(
-                "If the cake / products part is declined, the corresponding amount will be refunded.",
-                "En cas de refus de la partie gâteau / produits, le montant correspondant sera remboursé."
-              )
-            : tr(
-                "Your order is not yet definitively confirmed until you receive our acceptance email.",
-                "Votre commande n'est pas encore définitivement confirmée tant que vous n'avez pas reçu notre email d'acceptation."
-              )}
+          ${tr(
+              "Your order is not yet definitively confirmed until you receive our acceptance email. If it is declined, nothing will be charged — the authorization on your payment method will simply be released.",
+              "Votre commande n'est pas encore définitivement confirmée tant que vous n'avez pas reçu notre email d'acceptation. En cas de refus, aucun montant ne sera prélevé — l'autorisation sur votre moyen de paiement sera simplement annulée."
+            )}
         </p>
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:24px 0 0;">
