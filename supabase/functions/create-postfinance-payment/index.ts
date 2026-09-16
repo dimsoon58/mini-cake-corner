@@ -11,6 +11,7 @@ import {
   findTransactionByMerchantReference,
   getPaymentPageUrl,
   getTransactionState,
+  referenceCandidates,
   reportConflictingTransactions,
 } from "../_shared/postfinance-transactions.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
@@ -692,7 +693,7 @@ async function handleRetry(
   supabase: any,
   credentials: PostFinanceCredentials,
   orderId: string,
-  row: { postfinance_transaction_id: string; payload: any; created_at: string },
+  row: { postfinance_transaction_id: string; payload: any; created_at: string; payment_reference: string | null },
   lang: string,
 ): Promise<Response> {
   const en = lang === "en";
@@ -731,9 +732,12 @@ async function handleRetry(
 
   // Lease expired → the first request is assumed dead. Mandatory,
   // exhaustive/conclusive merchantReference search before anything else.
-  const found = await findTransactionByMerchantReference(credentials, orderId, {
-    pendingCreatedAt: row.created_at,
-  });
+  // Searches BOTH the current payment_reference (PAY-...) and the legacy
+  // orderId (UUID) — a transaction created before 2026-09-16 permanently
+  // carries the UUID as its merchantReference (see referenceCandidates).
+  const found = await findTransactionByMerchantReference(
+    credentials, referenceCandidates(row.payment_reference, orderId), { pendingCreatedAt: row.created_at },
+  );
 
   if (!found.conclusive) {
     await recordPaymentAttempt(supabase, {
@@ -834,7 +838,7 @@ async function handleCartMismatch(
   supabase: any,
   credentials: PostFinanceCredentials,
   orderId: string,
-  row: { postfinance_transaction_id: string; payload: any; created_at: string },
+  row: { postfinance_transaction_id: string; payload: any; created_at: string; payment_reference: string | null },
   lang: string,
 ): Promise<Response> {
   const en = lang === "en";
@@ -903,7 +907,9 @@ async function handleCartMismatch(
     return respondUnresolved();
   }
 
-  const found = await findTransactionByMerchantReference(credentials, orderId, { pendingCreatedAt: row.created_at });
+  const found = await findTransactionByMerchantReference(
+    credentials, referenceCandidates(row.payment_reference, orderId), { pendingCreatedAt: row.created_at },
+  );
   if (!found.conclusive) return respondUnresolved();
   if (!found.transaction) return await respondAbandoned("no_transaction_found");
 
@@ -1023,7 +1029,7 @@ serve(async (req) => {
     {
       const { data: earlyPending } = await supabase
         .from("pending_payments")
-        .select("postfinance_transaction_id, payload, created_at")
+        .select("postfinance_transaction_id, payload, created_at, payment_reference")
         .eq("order_id", orderId)
         .maybeSingle();
       if (earlyPending) {
@@ -1334,7 +1340,7 @@ serve(async (req) => {
     // operations, never a slow Google Maps call.
     const { data: existingPending } = await supabase
       .from("pending_payments")
-      .select("postfinance_transaction_id, payload, created_at")
+      .select("postfinance_transaction_id, payload, created_at, payment_reference")
       .eq("order_id", orderId)
       .maybeSingle();
     if (existingPending) {
@@ -1356,7 +1362,7 @@ serve(async (req) => {
       if ((placeholderError as { code?: string }).code === "23505") {
         const { data: raced } = await supabase
           .from("pending_payments")
-          .select("postfinance_transaction_id, payload, created_at")
+          .select("postfinance_transaction_id, payload, created_at, payment_reference")
           .eq("order_id", orderId)
           .maybeSingle();
         if (raced) return await handleRetry(supabase, credentials, orderId, raced, orderLang);
@@ -1769,9 +1775,26 @@ serve(async (req) => {
     // payment_reference if already set) so it can never mint a second
     // reference for this orderId, even under a race — see the migration for
     // the full guarantee. Never mints/uses/touches order_number (ORD-...)
-    // or merchantReference (still orderId, untouched below) in any way.
-    // Non-fatal by design (same posture as the welcome-discount claim above):
-    // a real payment must never be blocked by a tracking-reference failure.
+    // in any way. Non-fatal by design (same posture as the welcome-discount
+    // claim above): a real payment must never be blocked by a
+    // tracking-reference failure.
+    //
+    // 2026-09-16: this IS now sent as merchantReference below (previously
+    // always orderId, a raw UUID — unreadable in the PostFinance Checkout
+    // back office for accounting/reconciliation). Falls back to orderId only
+    // if the RPC above failed — merchantReference must never be empty/null.
+    // The fallback is exactly why every resume/search path (handleRetry,
+    // handleCartMismatch, reconcile-stale-reward-reservations, the webhook's
+    // orphan-transaction lookup) searches by BOTH candidates
+    // ([payment_reference, orderId], see referenceCandidates in
+    // _shared/postfinance-transactions.ts) — never assume which one a given
+    // transaction actually got. merchantReference itself can NEVER be
+    // changed again once set here (PostFinance locks it as soon as the
+    // transaction leaves the "Pending" state, which happens automatically,
+    // before the customer even reaches the payment page) — so every
+    // transaction created before this change permanently keeps the UUID,
+    // forever, and the dual-candidate search exists specifically so that
+    // never breaks.
     let paymentReference: string | null = null;
     try {
       const { data: refData, error: refError } = await supabase.rpc(
@@ -1790,7 +1813,7 @@ serve(async (req) => {
       currency: "CHF",
       language: order.lang === "en" ? "en-US" : "fr-CH",
       customerEmailAddress: order.email,
-      merchantReference: orderId,
+      merchantReference: paymentReference ?? orderId,
       successUrl: `${SITE_BASE_URL}/payment-success?order_id=${orderId}`,
       // order_id lets Checkout reconcile a failed PostFinance attempt and
       // release the reservations tied to it.
@@ -1806,12 +1829,13 @@ serve(async (req) => {
       // orders alike (Accept/Refuse is a single whole-order decision).
       completionBehavior: "COMPLETE_DEFERRED",
       lineItems,
-      // Human-readable PAY-YYMMDDNN reference — identifies this payment
-      // attempt in the PostFinance dashboard. NOT a substitute for
-      // merchantReference (orderId, above — left completely untouched) or
-      // ORD-YYMMDDNN (the final order number, assigned later). Omitted
-      // entirely (both fields) if reservation failed above, rather than
-      // sending an empty/null reference.
+      // Same PAY-YYMMDDNN reference as merchantReference above, also set here
+      // (invoiceMerchantReference identifies the INVOICE, a distinct
+      // PostFinance concept, separate from the transaction's own
+      // merchantReference) — NOT a substitute for ORD-YYMMDDNN (the final
+      // order number, assigned later, never sent to PostFinance at all).
+      // Omitted entirely if reservation failed above, rather than sending an
+      // empty/null reference.
       ...(paymentReference ? { invoiceMerchantReference: paymentReference } : {}),
       metaData: {
         order_id: orderId,

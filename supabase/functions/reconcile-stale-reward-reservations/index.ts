@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "../_shared/postfinance.ts";
-import { classifyTxState, findTransactionByMerchantReference, getTransactionState } from "../_shared/postfinance-transactions.ts";
+import { classifyTxState, findTransactionByMerchantReference, getTransactionState, referenceCandidates } from "../_shared/postfinance-transactions.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { ALERT_COOLDOWN_SECONDS, claimAndSendTechnicalAlert } from "../_shared/admin-alert.ts";
 
@@ -48,10 +48,13 @@ import { ALERT_COOLDOWN_SECONDS, claimAndSendTechnicalAlert } from "../_shared/a
 //      no real PostFinance transaction ever existed for this order) —
 //      nothing to search for; nudge confirm-postfinance-payment, which
 //      already knows how to resolve this sentinel case, and move on.
-//   2. Otherwise: findTransactionByMerchantReference(orderId) — the EXACT
-//      same, already-trusted search create-postfinance-payment's own
-//      handleRetry relies on (orderId is sent to PostFinance as
-//      merchantReference at transaction-creation time).
+//   2. Otherwise: findTransactionByMerchantReference([payment_reference,
+//      orderId]) — the EXACT same, already-trusted search create-postfinance-
+//      payment's own handleRetry relies on. 2026-09-16: merchantReference at
+//      creation is now payment_reference (PAY-YYMMDDNN) when available,
+//      falling back to orderId — searching both candidates covers every
+//      transaction regardless of when it was created (see referenceCandidates
+//      in _shared/postfinance-transactions.ts).
 //        - conclusive, no transaction found -> proven dead -> RELEASE
 //          (abandon_checkout_reservation — see below).
 //        - conclusive, transaction FAILED/DECLINE/VOIDED (already terminal)
@@ -270,7 +273,7 @@ serve(async (req) => {
     try {
       const { data: pending } = await supabase
         .from("pending_payments")
-        .select("postfinance_transaction_id, created_at")
+        .select("postfinance_transaction_id, created_at, payment_reference")
         .eq("order_id", orderId)
         .maybeSingle();
 
@@ -283,9 +286,11 @@ serve(async (req) => {
         continue;
       }
 
-      const found = await findTransactionByMerchantReference(credentials, orderId, {
-        pendingCreatedAt: pending?.created_at ?? null,
-      });
+      const found = await findTransactionByMerchantReference(
+        credentials, referenceCandidates(pending?.payment_reference, orderId), {
+          pendingCreatedAt: pending?.created_at ?? null,
+        },
+      );
 
       if (!found.conclusive) {
         // Could not prove it either way — the state cannot be determined
