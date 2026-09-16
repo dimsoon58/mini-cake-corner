@@ -17,7 +17,8 @@ import {
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { ORDER_CLIENT_FIELDS, ORDER_ITEM_CLIENT_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
-import { priceOrderItem, type CandleInput, type PricingInput } from "../_shared/pricing.ts";
+import { priceOrderItem, roundToCents, type CandleInput, type PricingInput } from "../_shared/pricing.ts";
+import { resolvePartnerReferral, computePartnerLineAmounts, type ResolvedPartner } from "../_shared/partner-referral.ts";
 import { resolveDeliveryFeeByDistance } from "../_shared/delivery-pricing.ts";
 import { resolveDeliveryForPlaceId } from "../_shared/google-maps.ts";
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "../_shared/workshops.ts";
@@ -96,6 +97,19 @@ interface OrderRow {
   express_surcharge_amount?: number;
   total_amount?: number;
   fulfillment_type?: "cake_only" | "workshop_only" | "mixed";
+  // Partner referral snapshot (2026-09-16) — all null/0 unless
+  // resolvePartnerReferral() independently validated an active partner.
+  partner_id?: string | null;
+  partner_name?: string | null;
+  partner_slug?: string | null;
+  partner_discount_rate?: number | null;
+  partner_discount_base?: number;
+  partner_discount_amount?: number;
+  partner_commission_rate?: number | null;
+  partner_commission_base?: number;
+  partner_commission_amount?: number;
+  partner_commission_status?: string | null;
+  partner_commission_paid_at?: string | null;
 }
 
 // Shape of an `orderItems[i]` AFTER the strict client whitelist + the
@@ -145,6 +159,14 @@ interface OrderItemRow {
   // `total` above is NEVER touched by this. 0 for every line the loop
   // doesn't reduce.
   reward_amount_used?: number;
+  // Partner referral snapshot, per item (2026-09-16) — see
+  // computePartnerLineAmounts(). 0 for every non-eligible-product line or
+  // whenever no partner referral is active.
+  base_cake_price?: number;
+  partner_discount_base?: number;
+  partner_discount_amount?: number;
+  partner_commission_base?: number;
+  partner_commission_amount?: number;
 }
 
 interface PaymentRequest {
@@ -170,6 +192,12 @@ interface PaymentRequest {
   // hasPhysicalItem below) minus the welcome discount, then passed to
   // reserve_reward() which returns the amount actually reserved.
   rewardAmountToUse?: number;
+  // Partner referral (2026-09-16) — the raw token only, exactly as carried
+  // by the frontend session (see src/lib/partnerReferral.ts). Never a
+  // discount amount, rate, or partner name: those are only ever read from
+  // the `partners` table by resolvePartnerReferral() below. Absent/invalid/
+  // inactive resolves to no partner and changes nothing else.
+  partnerReferralToken?: string | null;
   // ── Multi-date fulfillment (Sept 2026), OPTIONAL and additive ─────────
   // When present and non-empty, this is the AUTHORITATIVE source of every
   // pickup/delivery decision for physical items — the legacy top-level
@@ -216,10 +244,6 @@ interface ResolvedFulfillment {
   deliveryFee: number;
   expressSurcharge: number;
   itemIndexes: number[];
-}
-
-function roundToCents(amount: number): number {
-  return Math.round(amount * 100) / 100;
 }
 
 // First selectable pickup/delivery date = today + ORDER_LEAD_DAYS calendar
@@ -969,6 +993,7 @@ serve(async (req) => {
       pricingItems,
       deliveryPlaceId,
       rewardAmountToUse,
+      partnerReferralToken,
       fulfillments: rawFulfillments,
     } = body;
 
@@ -1078,6 +1103,28 @@ serve(async (req) => {
       }
     }
 
+    // ── Partner referral (2026-09-16) ────────────────────────────────────
+    // The client sends ONLY the raw token — never a discount amount, rate,
+    // or partner identity. Resolved here, independently, from the `partners`
+    // table (see _shared/partner-referral.ts for the exact fail-safe
+    // behaviour). null for every order without a valid, active referral —
+    // the overwhelming majority — in which case nothing below this point
+    // changes at all.
+    const partner = await resolvePartnerReferral(supabase, partnerReferralToken);
+
+    // Stamps orderItems[i]'s 5 partner-snapshot fields from the shared,
+    // single-source calculation — called once per item below (both the
+    // workshop branch, always baseCakePrice undefined -> all zero, and the
+    // general pricing branch).
+    function applyPartnerLineFields(i: number, product: string | undefined, baseCakePrice: number | undefined) {
+      const amounts = computePartnerLineAmounts(product, baseCakePrice, partner);
+      orderItems[i].base_cake_price = amounts.baseCakePrice;
+      orderItems[i].partner_discount_base = amounts.partnerDiscountBase;
+      orderItems[i].partner_discount_amount = amounts.partnerDiscountAmount;
+      orderItems[i].partner_commission_base = amounts.partnerCommissionBase;
+      orderItems[i].partner_commission_amount = amounts.partnerCommissionAmount;
+    }
+
     // Recompute and LOCK every item's real price before anything else below
     // reads item.total — welcome-discount base selection, PostFinance line
     // items, and order.total_amount all consume orderItems[i].total, so
@@ -1139,6 +1186,7 @@ serve(async (req) => {
         orderItems[i].workshop_participants = participants;
         orderItems[i].workshop_unit_price = unitPrice;
         orderItems[i].total = roundToCents(unitPrice * participants);
+        applyPartnerLineFields(i, orderItems[i].product, undefined); // workshop — never eligible
 
         // Non-locking pre-check: if the session is already full, don't send
         // the customer to PostFinance at all. NOT a substitute for the atomic
@@ -1158,6 +1206,7 @@ serve(async (req) => {
         throw new Error(`Pricing rejected for item ${i} (${pricingItems[i]?.product}): ${result.reason}`);
       }
       orderItems[i].total = result.total;
+      applyPartnerLineFields(i, orderItems[i].product, result.baseCakePrice);
     }
 
     // Delivery fee is never trusted from the client — recomputed here from
@@ -1384,8 +1433,13 @@ serve(async (req) => {
     // reaches the PostFinance payment page, the reservation is released
     // immediately (see the inner catch below) rather than sitting blocked
     // for the 30-minute abandonment window.
+    // Partner discount and welcome discount must never stack (never -20%).
+    // A valid, active partner referral takes priority for the whole order:
+    // the welcome-discount RPC is never even called, so the voucher is
+    // never reserved/consumed by this order and stays fully available for a
+    // future one — not merely "not applied on top", genuinely untouched.
     let welcomeDiscountClaimed = false;
-    if (useWelcomeDiscount && authenticatedUser?.email_confirmed_at) {
+    if (!partner && useWelcomeDiscount && authenticatedUser?.email_confirmed_at) {
       const { data: claimed, error: claimError } = await supabase.rpc("claim_welcome_discount", {
         p_customer_id: authenticatedUser.id,
         p_order_id: orderId,
@@ -1402,6 +1456,52 @@ serve(async (req) => {
     }
 
     const productsSubtotal = orderItems.reduce((sum, item) => sum + item.total, 0);
+
+    // ── Partner discount/commission — order-level totals ──────────────────
+    // Always the SUM of the already-rounded per-item amounts set above
+    // (never an independent rounding of the aggregate base), so order-level
+    // and item-level numbers can never disagree. All zero when `partner` is
+    // null — every order without a valid, active referral.
+    const partnerDiscountAmount = roundToCents(
+      orderItems.reduce((sum, item) => sum + (item.partner_discount_amount ?? 0), 0),
+    );
+    const partnerCommissionAmount = roundToCents(
+      orderItems.reduce((sum, item) => sum + (item.partner_commission_amount ?? 0), 0),
+    );
+    const partnerDiscountBaseTotal = roundToCents(
+      orderItems.reduce((sum, item) => sum + (item.partner_discount_base ?? 0), 0),
+    );
+
+    if (partner) {
+      order.partner_id = partner.id;
+      order.partner_name = partner.name;
+      order.partner_slug = partner.slug;
+      order.partner_discount_rate = partner.discountRate;
+      order.partner_discount_base = partnerDiscountBaseTotal;
+      order.partner_discount_amount = partnerDiscountAmount;
+      order.partner_commission_rate = partner.commissionRate;
+      order.partner_commission_base = partnerDiscountBaseTotal;
+      order.partner_commission_amount = partnerCommissionAmount;
+      // "pending" = commission owed, not yet paid out. "none" = a partner
+      // was resolved but the eligible base was 0 (e.g. workshop-only cart).
+      // Paying commission out (and any cancellation/refund adjustment) is
+      // explicitly a later step; partner_commission_paid_at is never
+      // touched here. The column's CHECK constraint only allows
+      // none/pending/paid/cancelled — never null — so every branch below
+      // sets an explicit string.
+      order.partner_commission_status = partnerCommissionAmount > 0 ? "pending" : "none";
+    } else {
+      order.partner_id = null;
+      order.partner_name = null;
+      order.partner_slug = null;
+      order.partner_discount_rate = null;
+      order.partner_discount_base = 0;
+      order.partner_discount_amount = 0;
+      order.partner_commission_rate = null;
+      order.partner_commission_base = 0;
+      order.partner_commission_amount = 0;
+      order.partner_commission_status = "none";
+    }
 
     // Selects the single order_item the -10% applies to: candles ("product"
     // === "candles") are entirely excluded from consideration whenever at
@@ -1485,7 +1585,12 @@ serve(async (req) => {
     const rewardEligibleSubtotal = hasPhysicalItem
       ? orderItems.filter((item) => item.product !== "workshop").reduce((sum, item) => sum + item.total, 0)
       : orderItems.reduce((sum, item) => sum + item.total, 0);
-    const maxReward = roundToCents(Math.max(0, rewardEligibleSubtotal - discountAmount));
+    // discountAmount (welcome) and partnerDiscountAmount are mutually
+    // exclusive — at most one is ever non-zero for a given order — but both
+    // terms are subtracted unconditionally here so reward can never be
+    // reserved against an amount the customer won't actually owe, whichever
+    // discount (if any) applies.
+    const maxReward = roundToCents(Math.max(0, rewardEligibleSubtotal - discountAmount - partnerDiscountAmount));
 
     let reservedReward = 0;
     let rewardReserved = false;
@@ -1567,11 +1672,20 @@ serve(async (req) => {
       // already correct (a line total with quantity 1 is trivially its own
       // total) — the welcome discount is subtracted directly from the one
       // discounted line (no invented discount line type — none is
-      // confirmed in PostFinance/Wallee docs).
+      // confirmed in PostFinance/Wallee docs). The partner discount is
+      // subtracted the same way, per eligible line (item.partner_discount_
+      // amount, 0 for every ineligible line) — welcome and partner are
+      // mutually exclusive for the whole order (see welcomeDiscountClaimed
+      // above), so at most one of the two subtractions is ever non-zero for
+      // any given item; adding both terms unconditionally is safe.
       const quantity = isWorkshop ? participants : 1;
       const lineAmount = isWorkshop
         ? roundToCents(Number(item.workshop_unit_price) * participants)
-        : (item === discountedItem ? roundToCents(item.total - discountAmount) : item.total);
+        : roundToCents(
+            item.total
+            - (item === discountedItem ? discountAmount : 0)
+            - (item.partner_discount_amount ?? 0),
+          );
 
       return {
         uniqueId: `item-${i}`,
@@ -1664,7 +1778,7 @@ serve(async (req) => {
     // orderItems[].total, deliveryFeeTotal and expressSurcharge are all
     // server-computed above, not client values.
     order.total_amount = roundToCents(
-      productsSubtotal - discountAmount - reservedReward + expressSurcharge + deliveryFeeTotal,
+      productsSubtotal - discountAmount - partnerDiscountAmount - reservedReward + expressSurcharge + deliveryFeeTotal,
     );
 
     // The welcome discount + reward are both capped so this can never go

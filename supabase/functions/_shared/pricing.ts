@@ -11,7 +11,16 @@ export const NUMBER_CANDLE_ID = "number-candle";
 export const NUMBER_CANDLE_PRICE = 5;
 export const NUMBER_CANDLE_DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
-export type PricingResult = { ok: true; total: number } | { ok: false; reason: string };
+// baseCakePrice: the flat size/pack price ALONE — before shape, flavour,
+// design, extras or candles — for the 3 partner-discount-eligible products
+// (bento_cake, rectangle_cake, dot_cakes) only. Computed from the exact same
+// already-validated lookup priceCakeFamily/priceDotCakes use for `total`
+// below (never a second, separately-maintained calculation) — undefined for
+// every other product, including workshop/diy_kit/edible_printing/candles,
+// which have no "base cake price" concept at all.
+export type PricingResult =
+  | { ok: true; total: number; baseCakePrice?: number }
+  | { ok: false; reason: string };
 
 export interface CandleInput {
   id: string;
@@ -37,6 +46,13 @@ export interface PricingInput {
 }
 
 const fail = (reason: string): PricingResult => ({ ok: false, reason });
+
+// Moved here 2026-09-16 (was a local copy inside create-postfinance-payment/
+// index.ts) so the new partner-referral discount/commission math can share
+// the exact same rounding rule instead of a second copy.
+export function roundToCents(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
 
 // ── Bento / Retro / Medium / Large / Rectangle ─────────────────────────────
 // Source of truth verified against Catalog.tsx (the live add-to-cart page)
@@ -409,7 +425,11 @@ function priceCakeFamily(input: PricingInput, product: "bento_cake" | "rectangle
   const candlesResult = priceCandles(input.candles);
   if (!candlesResult.ok) return candlesResult;
 
-  return { ok: true, total: basePrice + shapePrice + flavorPrice + designPrice + extrasTotal + candlesResult.total };
+  return {
+    ok: true,
+    total: basePrice + shapePrice + flavorPrice + designPrice + extrasTotal + candlesResult.total,
+    baseCakePrice: basePrice,
+  };
 }
 
 function priceDiyKit(input: PricingInput): PricingResult {
@@ -443,7 +463,11 @@ function priceDotCakes(input: PricingInput): PricingResult {
   }
   const candlesResult = priceCandles(input.candles);
   if (!candlesResult.ok) return candlesResult;
-  return { ok: true, total: Math.round((pack.price + surcharge + candlesResult.total) * 100) / 100 };
+  return {
+    ok: true,
+    total: Math.round((pack.price + surcharge + candlesResult.total) * 100) / 100,
+    baseCakePrice: pack.price,
+  };
 }
 
 function priceEdiblePrinting(input: PricingInput): PricingResult {

@@ -92,6 +92,21 @@ export const ORDER_SERVER_FIELDS = [
   // 'cake_only' | 'workshop_only' | 'mixed' — computed by create-postfinance-
   // payment from the (already priced) order_items, carried on the payload.
   "fulfillment_type",
+  // Partner referral snapshot (2026-09-16) — set ONLY when create-postfinance-
+  // payment independently resolved an active partner from a referral token
+  // (never from anything the client sent directly). All null/0 for the
+  // overwhelming majority of orders with no partner referral.
+  "partner_id",
+  "partner_name",
+  "partner_slug",
+  "partner_discount_rate",
+  "partner_discount_base",
+  "partner_discount_amount",
+  "partner_commission_rate",
+  "partner_commission_base",
+  "partner_commission_amount",
+  "partner_commission_status",
+  "partner_commission_paid_at",
 ] as const;
 
 export const ORDER_ITEM_SERVER_FIELDS = [
@@ -116,6 +131,16 @@ export const ORDER_ITEM_SERVER_FIELDS = [
   // informational, read back later by claim_workshop_reservations_batch to
   // seed workshop_reservations.reward_amount_used for cancellation math.
   "reward_amount_used",
+  // Partner referral snapshot, per item (2026-09-16) — 0 for every line that
+  // isn't a partner-discount-eligible product (bento_cake / rectangle_cake /
+  // dot_cakes) or when no partner referral is active. Kept per-item (not
+  // only at order level) so a future partial cancellation can adjust one
+  // cake's own commission without recomputing/guessing the whole order.
+  "base_cake_price",
+  "partner_discount_base",
+  "partner_discount_amount",
+  "partner_commission_base",
+  "partner_commission_amount",
 ] as const;
 
 // Every field allowed on a payload that create-postfinance-payment already
