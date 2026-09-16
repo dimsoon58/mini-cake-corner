@@ -19,12 +19,34 @@
 //      plus a `[data-ogsc]` fallback (the attribute Gmail itself stamps on
 //      elements it's about to dark-style) — belt-and-suspenders for any
 //      client/situation that still tries to remap regardless.
+//   4. 2026-09-16 (Yahoo Mail hardening): a live production test showed
+//      Yahoo's own dark-mode engine still force-recolouring the approved
+//      #FFF9DB card into khaki/olive despite layers 1-3. Added for customer
+//      brand emails only (FORCE_LIGHT_META_TAGS + the `:root` rule + this
+//      file's `!important` background-image:linear-gradient(<c>,<c>) on
+//      every #FFF9DB/#FFFFFF surface, which forces clients that specifically
+//      target flat `background-color` for inversion to treat the element as
+//      already-imaged and leave it alone) + `-webkit-text-fill-color`
+//      alongside every `color` so a client that only swaps the WebKit fill
+//      property can't alter text either. Still the exact same light-mode
+//      colors everywhere — never an alternate palette.
 // Purely visual everywhere this is used — content, links, prices and send
 // logic are untouched. Every class name is namespaced "bcs-" (customer/
 // brand emails) or "bcs-a-" (internal admin/ops emails).
 
 export const DARKMODE_META_TAGS =
   `<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">`;
+
+// Stronger force-light variant — customer-facing brand emails only (kept as
+// a SEPARATE constant, never changing DARKMODE_META_TAGS itself, so the
+// internal admin email and every other non-customer template are untouched
+// by this). "light only" is a stricter value than plain "light" that some
+// clients honor more aggressively; confirmed necessary 2026-09-16 after a
+// live Yahoo Mail test showed Yahoo's dark-mode engine still force-
+// recolouring the approved #FFF9DB card into a muddy khaki/olive despite the
+// existing "light" signal + media-query/[data-ogsc] reassertion below.
+export const FORCE_LIGHT_META_TAGS =
+  `<meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light">`;
 
 // Brand palette (bordeaux #78020C / light butter-yellow #FFF9DB) — every customer-facing
 // email: order awaiting-acceptance, order confirmed, order refused, order
@@ -36,28 +58,29 @@ export const DARKMODE_META_TAGS =
 // dark palette.
 export function brandDarkModeStyle(): string {
   return `<style>
+  :root { color-scheme: light only !important; supported-color-schemes: light !important; }
   @media (prefers-color-scheme: dark) {
     .bcs-outer, .bcs-spacer { background-color: #78020C !important; }
-    .bcs-card { background-color: #FFF9DB !important; }
-    .bcs-text { color: #351E13 !important; }
-    .bcs-label { color: #7A6540 !important; }
-    .bcs-title { color: #78020C !important; }
-    .bcs-callout { background-color: #FFFFFF !important; }
-    .bcs-row-alt { background-color: #FFF9DB !important; }
+    .bcs-card { background-color: #FFF9DB !important; background-image: linear-gradient(#FFF9DB,#FFF9DB) !important; }
+    .bcs-text { color: #351E13 !important; -webkit-text-fill-color: #351E13 !important; }
+    .bcs-label { color: #7A6540 !important; -webkit-text-fill-color: #7A6540 !important; }
+    .bcs-title { color: #78020C !important; -webkit-text-fill-color: #78020C !important; }
+    .bcs-callout { background-color: #FFFFFF !important; background-image: linear-gradient(#FFFFFF,#FFFFFF) !important; }
+    .bcs-row-alt { background-color: #FFF9DB !important; background-image: linear-gradient(#FFF9DB,#FFF9DB) !important; }
     .bcs-accent-bg { background-color: #78020C !important; }
-    .bcs-accent-text { color: #FFF9DB !important; }
-    .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; }
+    .bcs-accent-text { color: #FFF9DB !important; -webkit-text-fill-color: #FFF9DB !important; }
+    .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; -webkit-text-fill-color: #FFF9DB !important; }
   }
   [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #78020C !important; }
-  [data-ogsc] .bcs-card { background-color: #FFF9DB !important; }
-  [data-ogsc] .bcs-text { color: #351E13 !important; }
-  [data-ogsc] .bcs-label { color: #7A6540 !important; }
-  [data-ogsc] .bcs-title { color: #78020C !important; }
-  [data-ogsc] .bcs-callout { background-color: #FFFFFF !important; }
-  [data-ogsc] .bcs-row-alt { background-color: #FFF9DB !important; }
+  [data-ogsc] .bcs-card { background-color: #FFF9DB !important; background-image: linear-gradient(#FFF9DB,#FFF9DB) !important; }
+  [data-ogsc] .bcs-text { color: #351E13 !important; -webkit-text-fill-color: #351E13 !important; }
+  [data-ogsc] .bcs-label { color: #7A6540 !important; -webkit-text-fill-color: #7A6540 !important; }
+  [data-ogsc] .bcs-title { color: #78020C !important; -webkit-text-fill-color: #78020C !important; }
+  [data-ogsc] .bcs-callout { background-color: #FFFFFF !important; background-image: linear-gradient(#FFFFFF,#FFFFFF) !important; }
+  [data-ogsc] .bcs-row-alt { background-color: #FFF9DB !important; background-image: linear-gradient(#FFF9DB,#FFF9DB) !important; }
   [data-ogsc] .bcs-accent-bg { background-color: #78020C !important; }
-  [data-ogsc] .bcs-accent-text { color: #FFF9DB !important; }
-  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; }
+  [data-ogsc] .bcs-accent-text { color: #FFF9DB !important; -webkit-text-fill-color: #FFF9DB !important; }
+  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; -webkit-text-fill-color: #FFF9DB !important; }
 </style>`;
 }
 

@@ -1,4 +1,4 @@
-import { DARKMODE_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
+import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
 
 // Shared confirmation-email renderer for a "cake / product" order at its
 // CONFIRMED stage — the exact same visual template and information a
@@ -326,7 +326,7 @@ export function renderCakeOrderConfirmationEmail(
       : "";
 
     return `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;background-image:linear-gradient(#FFF9DB,#FFF9DB);border:1px solid #78020C;border-radius:12px;margin:12px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;border:1px solid #78020C;border-radius:12px;margin:12px 0;">
         <tr><td style="padding:20px;">
         <h3 class="bcs-text" style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${itemLabel(i)}</h3>
         ${designImageBlock}
@@ -396,7 +396,7 @@ export function renderCakeOrderConfirmationEmail(
       item.item_comment?.trim() ? row(tr("Notes", "Notes"), item.item_comment.trim()) : "",
     ].join("");
     return `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;background-image:linear-gradient(#FFF9DB,#FFF9DB);border:1px solid #78020C;border-radius:12px;margin:12px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;border:1px solid #78020C;border-radius:12px;margin:12px 0;">
         <tr><td style="padding:20px;">
         <h3 class="bcs-text" style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${wsName}${workshopItems.length > 1 ? ` ${i + 1}` : ""}</h3>
         <table style="border-collapse:collapse;width:100%;">${wsRows}</table>
@@ -416,7 +416,7 @@ export function renderCakeOrderConfirmationEmail(
   const orderImageUrls = getOrderImageUrls(items);
   const orderImagesBlock = orderImageUrls.length
     ? `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;background-image:linear-gradient(#FFF9DB,#FFF9DB);border:1px solid #78020C;border-radius:12px;margin:12px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;border:1px solid #78020C;border-radius:12px;margin:12px 0;">
         <tr><td style="padding:20px;">
         <h3 class="bcs-text" style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${tr("Reference images", "Images de référence")}</h3>
         <table style="border-collapse:collapse;width:100%;">
@@ -448,15 +448,15 @@ export function renderCakeOrderConfirmationEmail(
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${DARKMODE_META_TAGS}<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${FORCE_LIGHT_META_TAGS}<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 ${brandDarkModeStyle()}
 </head>
-<body bgcolor="#78020C" style="margin:0;padding:0;background-color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C;background-image:linear-gradient(#78020C,#78020C);">
+<body bgcolor="#78020C" style="margin:0;padding:0;background-color:#78020C!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
   <tr><td align="center" style="padding:0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
   <tr><td style="padding:0 20px;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;background-image:linear-gradient(#FFF9DB,#FFF9DB);">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
   <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
@@ -495,9 +495,9 @@ ${brandDarkModeStyle()}
         </p>
         <table style="width:100%;border-collapse:collapse;border:1px solid #78020C;margin-bottom:24px;">
           <thead>
-            <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C;background-image:linear-gradient(#78020C,#78020C);">
-              <th class="bcs-accent-text" style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
-              <th class="bcs-accent-text" style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
+            <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+              <th class="bcs-accent-text" style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
+              <th class="bcs-accent-text" style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
             </tr>
           </thead>
           <tbody>
@@ -520,9 +520,9 @@ ${brandDarkModeStyle()}
             </tr>` : ""}
           </tbody>
           <tfoot>
-            <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C;background-image:linear-gradient(#78020C,#78020C);">
-              <td class="bcs-accent-text" style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FFF9DB;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
-              <td class="bcs-accent-text" style="padding:10px 14px;font-size:15px;font-weight:700;color:#FFF9DB;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+            <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+              <td class="bcs-accent-text" style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
+              <td class="bcs-accent-text" style="padding:10px 14px;font-size:15px;font-weight:700;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
             </tr>
           </tfoot>
         </table>
@@ -554,7 +554,7 @@ ${brandDarkModeStyle()}
   </td></tr>
   </table>
   </td></tr>
-  <tr><td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C;background-image:linear-gradient(#78020C,#78020C);">&nbsp;</td></tr>
+  <tr><td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">&nbsp;</td></tr>
   </table>
   </td></tr>
   </table>

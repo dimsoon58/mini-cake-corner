@@ -51,40 +51,51 @@ interface HookPayload {
 //      color, plus a `[data-ogsc]` fallback (the attribute Gmail itself
 //      stamps on elements it's about to dark-style) — belt-and-suspenders
 //      for any client/situation that still tries to remap regardless.
+//   4. 2026-09-16 (Yahoo Mail hardening): a live production test showed
+//      Yahoo's dark-mode engine still force-recolouring #FFF9DB into khaki
+//      despite layers 1-3. Added: `content="light only"` (stronger than
+//      plain `light`), a `:root{color-scheme:light only!important}` rule,
+//      `!important` + a same-colour `background-image:linear-gradient(<c>,<c>)`
+//      on every #FFF9DB/#78020C surface (forces clients that specifically
+//      target flat background-color for inversion to treat the element as
+//      already-imaged), and `-webkit-text-fill-color` alongside every
+//      `color`. Still the exact same light-mode colors — never an alternate
+//      palette.
 // Light mode is completely unaffected: same colors, same spacing, same
 // fonts as before, expressed as tables/cells with explicit background
 // colors instead of plain divs.
 function wrapEmail(bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  :root { color-scheme: light only !important; supported-color-schemes: light !important; }
   @media (prefers-color-scheme: dark) {
     .bcs-outer, .bcs-spacer { background-color: #78020C !important; }
-    .bcs-card { background-color: #FFF9DB !important; }
-    .bcs-text { color: #351E13 !important; }
-    .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; }
+    .bcs-card { background-color: #FFF9DB !important; background-image: linear-gradient(#FFF9DB,#FFF9DB) !important; }
+    .bcs-text { color: #351E13 !important; -webkit-text-fill-color: #351E13 !important; }
+    .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; -webkit-text-fill-color: #FFF9DB !important; }
   }
   [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #78020C !important; }
-  [data-ogsc] .bcs-card { background-color: #FFF9DB !important; }
-  [data-ogsc] .bcs-text { color: #351E13 !important; }
-  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; }
+  [data-ogsc] .bcs-card { background-color: #FFF9DB !important; background-image: linear-gradient(#FFF9DB,#FFF9DB) !important; }
+  [data-ogsc] .bcs-text { color: #351E13 !important; -webkit-text-fill-color: #351E13 !important; }
+  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; -webkit-text-fill-color: #FFF9DB !important; }
 </style>
 </head>
-<body style="margin:0;padding:0;background-color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C;">
+<body style="margin:0;padding:0;background-color:#78020C!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
     <tr>
       <td align="center" style="padding:0;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:520px;margin:0 auto;">
           <tr>
             <td style="padding:0 20px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
                 <tr>
                   <td>
                     <div style="padding:36px 40px 0;text-align:center;">
                       <img src="${LOGO_URL}" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
                     </div>
-                    <div class="bcs-text" style="padding:0 40px 36px;color:#351E13;font-size:15px;line-height:1.8;">
+                    <div class="bcs-text" style="padding:0 40px 36px;color:#351E13;-webkit-text-fill-color:#351E13;font-size:15px;line-height:1.8;">
                       ${bodyHtml}
                     </div>
                   </td>
@@ -93,7 +104,7 @@ function wrapEmail(bodyHtml: string): string {
             </td>
           </tr>
           <tr>
-            <td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C;">&nbsp;</td>
+            <td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">&nbsp;</td>
           </tr>
         </table>
       </td>
@@ -109,7 +120,7 @@ function buttonHtml(url: string, label: string): string {
   // link is still present in the plain-text part for any client that needs
   // it. The href itself is unchanged.
   return `<div style="text-align:center;margin:28px 0;">
-    <a href="${url}" class="bcs-btn" style="display:inline-block;background-color:#78020C;color:#FFF9DB;text-decoration:none;padding:14px 32px;font-weight:400;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
+    <a href="${url}" class="bcs-btn" style="display:inline-block;background-color:#78020C!important;color:#FFF9DB!important;-webkit-text-fill-color:#FFF9DB!important;text-decoration:none;padding:14px 32px;font-weight:400;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
   </div>`;
 }
 
