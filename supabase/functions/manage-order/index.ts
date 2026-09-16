@@ -137,7 +137,7 @@ ${brandDarkModeStyle()}
   <tr><td align="center" style="padding:0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
   <tr><td style="padding:0 20px;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;">
   <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src="https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
@@ -155,7 +155,7 @@ ${brandDarkModeStyle()}
           )}
         </p>
 
-        <div class="bcs-callout" style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:0 0 20px;">
+        <div class="bcs-callout" style="border-left:3px solid #78020C;background:#FFFFFF;padding:14px 18px;margin:0 0 20px;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
             ${workshopOnly
               ? tr(
@@ -193,13 +193,13 @@ ${brandDarkModeStyle()}
             <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order", "Commande")}</td>
             <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
           </tr>
-          <tr class="bcs-row-alt" style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
+          <tr class="bcs-row-alt" style="border-bottom:1px solid #D4C89A;background:#FFF9DB;">
             <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Amount", "Montant")}</td>
             <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${amountCHF}</td>
           </tr>
           <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C;">
-            <td class="bcs-accent-text" style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Status", "Statut")}</td>
-            <td class="bcs-accent-text" style="padding:10px 14px;color:#FDF8E1;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${rewardOnly
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Status", "Statut")}</td>
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${rewardOnly
               ? tr("Reward balance credited", "Cagnotte recréditée")
               : tr("Authorization cancelled — nothing charged", "Autorisation annulée — aucun montant prélevé")}</td>
           </tr>
@@ -277,6 +277,47 @@ function formatInvoicePrice(amount: number | string): string {
 function formatInvoiceDate(dateInput: string): string {
   const d = new Date(dateInput);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+// Generic greedy word-wrap for a table cell — used by the DESCRIPTION column
+// so any label (item description, express surcharge, welcome/partner
+// discount, delivery...) wraps onto as many lines as it needs instead of
+// overflowing into the next column, regardless of how long the text is.
+// Guarantees every returned line's rendered width is <= maxWidth: a single
+// word that alone is still too wide (e.g. a long hyphenated partner name)
+// is hard-broken character by character as a last resort, so a table border
+// is never crossed no matter what text comes in. Kept in sync with the
+// identical copy in _shared/invoice-pdf.ts — update BOTH.
+function wrapText(text: string, font: { widthOfTextAtSize(t: string, s: number): number }, size: number, maxWidth: number): string[] {
+  const words = (text || "").split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [""];
+  const lines: string[] = [];
+  let current = "";
+  const flush = () => { if (current) { lines.push(current); current = ""; } };
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+    flush();
+    if (font.widthOfTextAtSize(word, size) <= maxWidth) {
+      current = word;
+      continue;
+    }
+    let chunk = "";
+    for (const ch of word) {
+      const next = chunk + ch;
+      if (chunk && font.widthOfTextAtSize(next, size) > maxWidth) {
+        lines.push(chunk);
+        chunk = ch;
+      } else {
+        chunk = next;
+      }
+    }
+    current = chunk;
+  }
+  flush();
+  return lines.length ? lines : [""];
 }
 
 async function generateInvoicePdf(
@@ -428,6 +469,11 @@ async function generateInvoicePdf(
   const col4 = tableLeft + tableWidth * 0.82;
   const headerRowH = 30;
   const dataRowH = 32;
+  // Usable width for wrapped DESCRIPTION text: column width minus the left
+  // text padding (8) and a small buffer before the col2 divider line so
+  // wrapped text never touches the border.
+  const descMaxWidth = col2 - col1 - 8 - 6;
+  const descLineHeight = 12;
 
   const drawTableHeader = () => {
     const headerBot = y - headerRowH;
@@ -606,7 +652,14 @@ async function generateInvoicePdf(
 
   const sectionRowH = 24;
   for (const invoiceRow of rows) {
-    const rowH = invoiceRow.section ? sectionRowH : dataRowH;
+    const font = invoiceRow.bold ? fontBold : fontRegular;
+    // DESCRIPTION wrapped to fit the column — a section row spans the full
+    // table width (no columns), so it's never wrapped. Row height grows only
+    // when a description genuinely needs more than one line; a single-line
+    // description keeps the exact same row height as before (no layout
+    // change for any existing short label).
+    const descLines = invoiceRow.section ? [invoiceRow.description] : wrapText(invoiceRow.description, font, 10, descMaxWidth);
+    const rowH = invoiceRow.section ? sectionRowH : dataRowH + (descLines.length - 1) * descLineHeight;
     if (y - rowH < margin) {
       // Row doesn't fit — start a new page and repeat the table header, so
       // a table row is never split across two pages.
@@ -617,7 +670,6 @@ async function generateInvoicePdf(
     const rowTop = y;
     const rowBot = y - rowH;
     const textY = rowBot + rowH / 2 - 4;
-    const font = invoiceRow.bold ? fontBold : fontRegular;
 
     if (invoiceRow.section) {
       // Full-width date/mode header ("07.10.2026 — Retrait") above the group
@@ -643,7 +695,12 @@ async function generateInvoicePdf(
       page.drawLine({ start: { x: cx, y: rowTop }, end: { x: cx, y: rowBot }, thickness: 0.5, color: borderColor });
     }
 
-    page.drawText(invoiceRow.description, { x: col1 + 8, y: textY, size: 10, font, color: textDark });
+    // Stacked, vertically centered on textY — degenerates to exactly the old
+    // single `drawText` at textY when descLines.length === 1.
+    descLines.forEach((line, i) => {
+      const lineY = textY + ((descLines.length - 1) / 2 - i) * descLineHeight;
+      page.drawText(line, { x: col1 + 8, y: lineY, size: 10, font, color: textDark });
+    });
     page.drawText(invoiceRow.quantity, { x: col2 + 8, y: textY, size: 10, font, color: textDark });
     if (invoiceRow.unitPrice) {
       page.drawText(invoiceRow.unitPrice, { x: col3 + 8, y: textY, size: 10, font, color: textDark });

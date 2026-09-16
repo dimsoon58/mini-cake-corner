@@ -32,7 +32,7 @@ interface HookPayload {
 // 2026-09-14: dark-mode hardening, revised 2026-09-16 to be LIGHT-ONLY.
 // Gmail mobile applies its own automatic dark-mode re-coloring to any email
 // that doesn't explicitly declare it handles dark mode itself — which was
-// silently turning our cream card (#FDF8E1) near-black/brown and our
+// silently turning our cream card (#FFF9DB) near-black/brown and our
 // bordeaux accent (#78020C) pink. BentoCake Studio emails intentionally have
 // NO dark theme — they must look identical regardless of the recipient's
 // device/client color scheme. Three layers of defense, all purely visual —
@@ -61,14 +61,14 @@ function wrapEmail(bodyHtml: string): string {
 <style>
   @media (prefers-color-scheme: dark) {
     .bcs-outer, .bcs-spacer { background-color: #78020C !important; }
-    .bcs-card { background-color: #FDF8E1 !important; }
+    .bcs-card { background-color: #FFF9DB !important; }
     .bcs-text { color: #351E13 !important; }
-    .bcs-btn { background-color: #78020C !important; color: #FDF8E1 !important; }
+    .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; }
   }
   [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #78020C !important; }
-  [data-ogsc] .bcs-card { background-color: #FDF8E1 !important; }
+  [data-ogsc] .bcs-card { background-color: #FFF9DB !important; }
   [data-ogsc] .bcs-text { color: #351E13 !important; }
-  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FDF8E1 !important; }
+  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; }
 </style>
 </head>
 <body style="margin:0;padding:0;background-color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
@@ -78,7 +78,7 @@ function wrapEmail(bodyHtml: string): string {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:520px;margin:0 auto;">
           <tr>
             <td style="padding:0 20px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;">
                 <tr>
                   <td>
                     <div style="padding:36px 40px 0;text-align:center;">
@@ -109,7 +109,7 @@ function buttonHtml(url: string, label: string): string {
   // link is still present in the plain-text part for any client that needs
   // it. The href itself is unchanged.
   return `<div style="text-align:center;margin:28px 0;">
-    <a href="${url}" class="bcs-btn" style="display:inline-block;background-color:#78020C;color:#FDF8E1;text-decoration:none;padding:14px 32px;font-weight:400;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
+    <a href="${url}" class="bcs-btn" style="display:inline-block;background-color:#78020C;color:#FFF9DB;text-decoration:none;padding:14px 32px;font-weight:400;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
   </div>`;
 }
 

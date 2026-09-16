@@ -145,14 +145,14 @@ export function renderWorkshopConfirmationEmail(
   }).join("");
 
   // "Before your workshop" — the shared Bento "info callout" style
-  // (left border + #F5EDCC), same as send-order-received-email.
+  // (left border + #FFFFFF), same as send-order-received-email.
   const bw = BEFORE_WORKSHOP[lang];
   const beforeParagraphs = bw.paragraphs.map((p) =>
     `<p style="color:#351E13;font-size:13px;line-height:1.7;margin:0 0 12px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${p}</p>`,
   ).join("");
 
   const beforeWorkshopBlock = `
-      <div class="bcs-callout" style="border-left:3px solid #78020C;background:#F5EDCC;padding:18px 20px;margin:24px 0 0;">
+      <div class="bcs-callout" style="border-left:3px solid #78020C;background:#FFFFFF;padding:18px 20px;margin:24px 0 0;">
         <p class="bcs-title" style="color:#78020C;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 12px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.title}</p>
         ${beforeParagraphs}
         <p style="color:#351E13;font-size:14px;line-height:1.7;margin:6px 0 0;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.closing}</p>
@@ -169,7 +169,7 @@ ${brandDarkModeStyle()}
   <tr><td align="center" style="padding:0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
   <tr><td style="padding:0 20px;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;">
   <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
@@ -204,12 +204,12 @@ ${brandDarkModeStyle()}
 
         <table style="border-collapse:collapse;width:100%;margin:16px 0 0;">
           <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C;">
-            <td class="bcs-accent-text" style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${
               !confirmed ? tr("Workshops total", "Total ateliers")
                 : isMixed ? tr("Workshop amount", "Montant atelier")
                 : tr("Amount paid", "Montant payé")
             }</td>
-            <td class="bcs-accent-text" style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${confirmed ? amountPaid : chf(workshopSubtotal)}</td>
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;font-size:15px;font-weight:700;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${confirmed ? amountPaid : chf(workshopSubtotal)}</td>
           </tr>
         </table>
 
@@ -220,7 +220,7 @@ ${brandDarkModeStyle()}
             "Présentez cet email ou votre référence de réservation le jour du workshop.",
           )}
         </p>` : `
-        <div class="bcs-callout" style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:24px 0 0;">
+        <div class="bcs-callout" style="border-left:3px solid #78020C;background:#FFFFFF;padding:14px 18px;margin:24px 0 0;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0 0 8px;">
             ${tr(
               "Your booking is pending validation by our team. You will receive a confirmation email as soon as it has been accepted.",

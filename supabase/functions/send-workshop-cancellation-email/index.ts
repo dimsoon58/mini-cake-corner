@@ -112,7 +112,7 @@ ${brandDarkModeStyle()}
   <tr><td align="center" style="padding:0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
   <tr><td style="padding:0 20px;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;">
   <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
@@ -138,7 +138,7 @@ ${brandDarkModeStyle()}
           ${rowCell(tr("Seats remaining", "Places restantes"), String(active))}
         </table>
 
-        <div class="bcs-callout" style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:24px 0 0;">
+        <div class="bcs-callout" style="border-left:3px solid #78020C;background:#FFFFFF;padding:14px 18px;margin:24px 0 0;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
             ${refundLine}
           </p>

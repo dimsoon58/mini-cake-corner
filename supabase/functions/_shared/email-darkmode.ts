@@ -26,7 +26,7 @@
 export const DARKMODE_META_TAGS =
   `<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">`;
 
-// Brand palette (bordeaux #78020C / cream #FDF8E1) — every customer-facing
+// Brand palette (bordeaux #78020C / light butter-yellow #FFF9DB) — every customer-facing
 // email: order awaiting-acceptance, order confirmed, order refused, order
 // cancellation, workshop booking (pending/confirmed), workshop seat
 // cancellation. 2026-09-16: every "dark mode" rule below re-asserts the
@@ -38,26 +38,26 @@ export function brandDarkModeStyle(): string {
   return `<style>
   @media (prefers-color-scheme: dark) {
     .bcs-outer, .bcs-spacer { background-color: #78020C !important; }
-    .bcs-card { background-color: #FDF8E1 !important; }
+    .bcs-card { background-color: #FFF9DB !important; }
     .bcs-text { color: #351E13 !important; }
     .bcs-label { color: #7A6540 !important; }
     .bcs-title { color: #78020C !important; }
-    .bcs-callout { background-color: #F5EDCC !important; }
-    .bcs-row-alt { background-color: #FDF3D0 !important; }
+    .bcs-callout { background-color: #FFFFFF !important; }
+    .bcs-row-alt { background-color: #FFF9DB !important; }
     .bcs-accent-bg { background-color: #78020C !important; }
-    .bcs-accent-text { color: #FDF8E1 !important; }
-    .bcs-btn { background-color: #78020C !important; color: #FDF8E1 !important; }
+    .bcs-accent-text { color: #FFF9DB !important; }
+    .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; }
   }
   [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #78020C !important; }
-  [data-ogsc] .bcs-card { background-color: #FDF8E1 !important; }
+  [data-ogsc] .bcs-card { background-color: #FFF9DB !important; }
   [data-ogsc] .bcs-text { color: #351E13 !important; }
   [data-ogsc] .bcs-label { color: #7A6540 !important; }
   [data-ogsc] .bcs-title { color: #78020C !important; }
-  [data-ogsc] .bcs-callout { background-color: #F5EDCC !important; }
-  [data-ogsc] .bcs-row-alt { background-color: #FDF3D0 !important; }
+  [data-ogsc] .bcs-callout { background-color: #FFFFFF !important; }
+  [data-ogsc] .bcs-row-alt { background-color: #FFF9DB !important; }
   [data-ogsc] .bcs-accent-bg { background-color: #78020C !important; }
-  [data-ogsc] .bcs-accent-text { color: #FDF8E1 !important; }
-  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FDF8E1 !important; }
+  [data-ogsc] .bcs-accent-text { color: #FFF9DB !important; }
+  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; }
 </style>`;
 }
 

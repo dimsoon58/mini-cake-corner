@@ -257,7 +257,7 @@ export function renderCakeOrderConfirmationEmail(
   }
 
   // Bento identity: bordeaux #78020C (accents, section titles, borders,
-  // banners) + cream #FDF8E1 (main background). Running text uses the SAME
+  // banners) + cream #FFF9DB (main background). Running text uses the SAME
   // browns already used for this in send-order-received-email: #351E13 for
   // body copy / row values / card titles, #7A6540 for the muted label side
   // of a row. Lighter typography pass: labels AND values are normal weight
@@ -326,7 +326,7 @@ export function renderCakeOrderConfirmationEmail(
       : "";
 
     return `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;background-image:linear-gradient(#FDF8E1,#FDF8E1);border:1px solid #78020C;border-radius:12px;margin:12px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;background-image:linear-gradient(#FFF9DB,#FFF9DB);border:1px solid #78020C;border-radius:12px;margin:12px 0;">
         <tr><td style="padding:20px;">
         <h3 class="bcs-text" style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${itemLabel(i)}</h3>
         ${designImageBlock}
@@ -396,7 +396,7 @@ export function renderCakeOrderConfirmationEmail(
       item.item_comment?.trim() ? row(tr("Notes", "Notes"), item.item_comment.trim()) : "",
     ].join("");
     return `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;background-image:linear-gradient(#FDF8E1,#FDF8E1);border:1px solid #78020C;border-radius:12px;margin:12px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;background-image:linear-gradient(#FFF9DB,#FFF9DB);border:1px solid #78020C;border-radius:12px;margin:12px 0;">
         <tr><td style="padding:20px;">
         <h3 class="bcs-text" style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${wsName}${workshopItems.length > 1 ? ` ${i + 1}` : ""}</h3>
         <table style="border-collapse:collapse;width:100%;">${wsRows}</table>
@@ -416,7 +416,7 @@ export function renderCakeOrderConfirmationEmail(
   const orderImageUrls = getOrderImageUrls(items);
   const orderImagesBlock = orderImageUrls.length
     ? `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;background-image:linear-gradient(#FDF8E1,#FDF8E1);border:1px solid #78020C;border-radius:12px;margin:12px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;background-image:linear-gradient(#FFF9DB,#FFF9DB);border:1px solid #78020C;border-radius:12px;margin:12px 0;">
         <tr><td style="padding:20px;">
         <h3 class="bcs-text" style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${tr("Reference images", "Images de référence")}</h3>
         <table style="border-collapse:collapse;width:100%;">
@@ -456,7 +456,7 @@ ${brandDarkModeStyle()}
   <tr><td align="center" style="padding:0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
   <tr><td style="padding:0 20px;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;background-image:linear-gradient(#FDF8E1,#FDF8E1);">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB;background-image:linear-gradient(#FFF9DB,#FFF9DB);">
   <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
@@ -496,8 +496,8 @@ ${brandDarkModeStyle()}
         <table style="width:100%;border-collapse:collapse;border:1px solid #78020C;margin-bottom:24px;">
           <thead>
             <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C;background-image:linear-gradient(#78020C,#78020C);">
-              <th class="bcs-accent-text" style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
-              <th class="bcs-accent-text" style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
+              <th class="bcs-accent-text" style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
+              <th class="bcs-accent-text" style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
             </tr>
           </thead>
           <tbody>
@@ -521,8 +521,8 @@ ${brandDarkModeStyle()}
           </tbody>
           <tfoot>
             <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C;background-image:linear-gradient(#78020C,#78020C);">
-              <td class="bcs-accent-text" style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
-              <td class="bcs-accent-text" style="padding:10px 14px;font-size:15px;font-weight:700;color:#FDF8E1;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+              <td class="bcs-accent-text" style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FFF9DB;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
+              <td class="bcs-accent-text" style="padding:10px 14px;font-size:15px;font-weight:700;color:#FFF9DB;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
             </tr>
           </tfoot>
         </table>
