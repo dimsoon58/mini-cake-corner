@@ -54,6 +54,7 @@ import {
   getAvailableSizesForStyle,
   getFlavorCategoryExtra,
 } from "@/data/customization";
+import { INSPIRATIONS } from "@/data/inspirations";
 
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
@@ -947,8 +948,12 @@ const CartItemSummary = ({ item }: { item: any }) => {
     ? (DIY_KIT_SHAPE_EXTRA[item.shape] ?? 0)
     : (shapeObj ? shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0 : 0);
   const flavorExtra = getFlavorCategoryExtra(item.flavor, item.size);
+  const isInspiration = item.style?.startsWith("inspiration-");
   const styleObj = styles.find(s => s.id === item.style);
-  const styleExtra = styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0;
+  const inspirationObj = isInspiration ? INSPIRATIONS.find(i => i.id === item.style) : undefined;
+  const styleExtra = isInspiration
+    ? (inspirationObj?.price[item.size as keyof typeof inspirationObj.price] || 0)
+    : (styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0);
 
   const candleEntries = (item.candles || [])
     .filter((c: CandleSelection) => c.quantity > 0)

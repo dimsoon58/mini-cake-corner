@@ -7,6 +7,7 @@ import {
   getFlavorCategoryExtra, getExtraPrice, getCandleTotalPrice, candles as customisationCandles,
   flavorCategories, extraGroups,
 } from "@/data/customization";
+import { INSPIRATIONS } from "@/data/inspirations";
 import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, composeCandleName } from "@/lib/candleCartHelpers";
 import { FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
@@ -2091,8 +2092,13 @@ const Checkout = () => {
                     const shapeObj = shapes.find(s => s.id === item.shape);
                     const shapeExtra = shapeObj ? (shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0) : 0;
                     const flavorExtra = getFlavorCategoryExtra(item.flavor, item.size);
+                    const isInspiration = item.style?.startsWith("inspiration-");
                     const styleObj = styles.find(s => s.id === item.style);
-                    const styleExtra = styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0;
+                    const inspirationObj = isInspiration ? INSPIRATIONS.find(i => i.id === item.style) : undefined;
+                    const styleExtra = isInspiration
+                      ? (inspirationObj?.price[item.size as keyof typeof inspirationObj.price] || 0)
+                      : (styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0);
+                    const styleDisplayName = isInspiration ? t("Inspiration photo", "Photo d'inspiration") : item.styleName;
                     const extraEntries = (item.extras || []).map((extraId: string) => {
                       const extra = catalogExtrasData.find(e => e.id === extraId);
                       if (!extra) return null;
@@ -2145,8 +2151,8 @@ const Checkout = () => {
                               the card title for no new information. */}
                           {item.styleName && item.product !== "dot_cakes" && item.product !== "diy_kit" && item.product !== "edible_printing" && (
                             <div className="flex justify-between">
-                              <span>{t("Design:", "Design :")} {item.styleName}</span>
-                              <span>{styleExtra > 0 ? `+ CHF ${styleExtra}` : t("included", "inclus")}</span>
+                              <span>{t("Design:", "Design :")} {styleDisplayName}</span>
+                              <span>{styleExtra > 0 ? `+ CHF ${formatChf(styleExtra)}` : t("included", "inclus")}</span>
                             </div>
                           )}
                           {extraEntries.map((e: any, i: number) => (

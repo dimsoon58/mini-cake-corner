@@ -547,6 +547,24 @@ async function generateInvoicePdf(
       });
     }
 
+    // Authoritative amount/rate/name straight off the order (see
+    // _shared/partner-referral.ts) — never recomputed here. Partner and
+    // welcome discounts are mutually exclusive by construction, so this and
+    // the block above never both fire for the same order.
+    const partnerDiscountInvoice = Number(order.partner_discount_amount) || 0;
+    if (order.partner_name && partnerDiscountInvoice > 0) {
+      const partnerRatePct = Math.round((Number(order.partner_discount_rate) || 0) * 100);
+      itemRows.push({
+        description: tr(
+          `${order.partner_name} partner benefit (-${partnerRatePct}% on the base price)`,
+          `Avantage partenaire ${order.partner_name} (-${partnerRatePct} % sur le prix de base)`,
+        ),
+        quantity: "",
+        unitPrice: "",
+        total: `- ${formatInvoicePrice(partnerDiscountInvoice)}`,
+      });
+    }
+
     const rewardUsedInvoice = Number(order.reward_amount_used) || 0;
     if (rewardUsedInvoice > 0) {
       itemRows.push({

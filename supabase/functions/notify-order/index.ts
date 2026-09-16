@@ -204,6 +204,7 @@ ${adminDarkModeStyle()}
             ${row("Nom", `${order.first_name || ""} ${order.last_name || ""}`.trim())}
             ${row("Email", order.email)}
             ${row("Téléphone", order.phone)}
+            ${row("Partenaire", order.partner_name)}
           </table>
         </div>
 
