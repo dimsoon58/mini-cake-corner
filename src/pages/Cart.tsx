@@ -860,6 +860,19 @@ const Cart = () => {
                       <span className="text-primary">- CHF {formatChf(partnerDiscountAmount)}</span>
                     </div>
                   )}
+                  {partnerDiscountAmount > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        `Partner benefit: -${Math.round(partnerReferral!.discountRate * 100)}% on the cake base price`,
+                        `Avantage partenaire : -${Math.round(partnerReferral!.discountRate * 100)} % sur le prix de base du gâteau`,
+                      )}
+                      <br />
+                      {t(
+                        "Excludes extras, options, surcharges and delivery.",
+                        "Hors extras, options, suppléments et livraison.",
+                      )}
+                    </p>
+                  )}
                   {welcomeDiscountAmount > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{t("Welcome discount -10%", "Réduction bienvenue -10%")}</span>
