@@ -584,8 +584,16 @@ const Checkout = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The in-flight lock never outlives this page.
-  useEffect(() => () => clearCheckoutInFlight(), []);
+  // The in-flight lock never outlives this page. Also cleared on MOUNT: a
+  // freshly loaded page instance can never itself have a submission already
+  // in flight, so a flag found here is stale from before a hard refresh
+  // (which skips the unmount cleanup below entirely) — without this, that
+  // stale flag blocks "Proceed to Payment" for up to CHECKOUT_INFLIGHT_TTL_MS
+  // after the reload, with no way to reach the existing resume logic.
+  useEffect(() => {
+    clearCheckoutInFlight();
+    return () => clearCheckoutInFlight();
+  }, []);
 
   // Reward reservation already outstanding for THIS tab's payment attempt
   // (2026-09-13 payment-resilience fix) — e.g. the customer opened
