@@ -59,7 +59,6 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
   const emailPayload: any = {
     from: "contact@bentocakestudio.ch",
     to: [order.email],
-    bcc: ["facturesbentocakestudio@gmail.com"],
     subject,
     html,
   };

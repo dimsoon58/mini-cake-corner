@@ -129,7 +129,6 @@ ${brandDarkModeStyle()}
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: [order.email],
-      bcc: ["facturesbentocakestudio@gmail.com"],
       subject: tr(`Order cancellation — #${orderNumber}`, `Annulation de votre commande — n° ${orderNumber}`),
       html,
     }),
