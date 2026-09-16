@@ -29,7 +29,10 @@ interface AuthContextType {
   // "email_not_confirmed", "user_already_exists") when present — used by the
   // Login/Signup pages to pick the right message. `error` stays the raw
   // message for logging/fallback; it is never shown verbatim to the user.
-  signUp: (fields: SignUpFields) => Promise<{ error: string | null; code: string | null }>;
+  // `alreadyRegistered` is true when Supabase's own anti-enumeration
+  // response for a CONFIRMED existing email fires (success, no error, but
+  // no new identity created) — see signUp() below for how it's derived.
+  signUp: (fields: SignUpFields) => Promise<{ error: string | null; code: string | null; alreadyRegistered: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null; code: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
@@ -94,7 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Keys here must match exactly what the existing handle_new_user()
     // Supabase trigger reads from auth.users.raw_user_meta_data — do not
     // rename these without checking the trigger definition first.
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -109,7 +112,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
       },
     });
-    return { error: error?.message ?? null, code: (error as { code?: string } | null)?.code ?? null };
+    // Supabase's own anti-enumeration signal: signUp() with an email that
+    // already belongs to a CONFIRMED existing user returns success (no
+    // error) but with an empty identities array, since no new identity was
+    // created — no confirmation email is sent in that case either. A
+    // genuinely new signup, or an existing but still-UNCONFIRMED account
+    // (Supabase resends the confirmation normally there), both return a
+    // non-empty identities array. This reuses that existing, secure signal —
+    // no new endpoint or lookup is introduced.
+    const alreadyRegistered = !error && (data.user?.identities?.length ?? 0) === 0;
+    return { error: error?.message ?? null, code: (error as { code?: string } | null)?.code ?? null, alreadyRegistered };
   };
 
   const signIn = async (email: string, password: string) => {

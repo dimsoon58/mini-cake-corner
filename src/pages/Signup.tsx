@@ -47,6 +47,7 @@ const Signup = () => {
   const [newsletterSubscription, setNewsletterSubscription] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [existingAccount, setExistingAccount] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS);
   const [isResending, setIsResending] = useState(false);
   const [resendNotice, setResendNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -106,7 +107,7 @@ const Signup = () => {
     }
 
     setIsSubmitting(true);
-    const { error, code } = await signUp({
+    const { error, code, alreadyRegistered } = await signUp({
       firstName: normalizeName(firstName),
       lastName: normalizeName(lastName),
       email: normalizeEmail(email),
@@ -120,8 +121,8 @@ const Signup = () => {
 
     if (error) {
       // Supabase only returns an explicit error here for the non-obfuscated
-      // cases (an already-registered CONFIRMED email returns a fake success
-      // instead — handled below by the "Check your email" screen, unchanged).
+      // cases — an already-registered CONFIRMED email returns a fake
+      // success instead, handled below via alreadyRegistered.
       const alreadyExists =
         code === "user_already_exists" || code === "email_exists" || /already registered/i.test(error);
       const badEmailFormat = code === "validation_failed" || /invalid format/i.test(error);
@@ -149,6 +150,16 @@ const Signup = () => {
         description,
         variant: "destructive",
       });
+      return;
+    }
+
+    // No error, but no new identity was created either — this email
+    // already belongs to a confirmed account and Supabase's obfuscated
+    // "success" fired instead of a real signup. No account was created and
+    // no confirmation email was sent, so show the dedicated existing-account
+    // screen rather than the "Check your email" one (never both).
+    if (alreadyRegistered) {
+      setExistingAccount(true);
       return;
     }
 
@@ -218,6 +229,42 @@ const Signup = () => {
                 {resendNotice.message}
               </p>
             )}
+          </div>
+        </main>
+      </Layout>
+    );
+  }
+
+  if (existingAccount) {
+    return (
+      <Layout>
+        <main className="max-w-md mx-auto px-6 py-24 text-center">
+          <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
+            {t("You already have an account", "Vous avez déjà un compte")}
+          </h1>
+          <p className="text-sm text-foreground/75 leading-relaxed">
+            {t(
+              "This email address is already associated with a BentoCake Studio account.",
+              "Cette adresse e-mail est déjà associée à un compte BentoCake Studio."
+            )}
+          </p>
+          <p className="text-sm text-foreground/75 leading-relaxed mt-2">
+            {t(
+              "Sign in to continue, or reset your password if you don't remember it.",
+              "Connectez-vous pour continuer ou réinitialisez votre mot de passe si vous ne vous en souvenez plus."
+            )}
+          </p>
+
+          <div className="mt-6 space-y-3">
+            <Button
+              asChild
+              className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] text-[13px] font-medium"
+            >
+              <Link to="/login">{t("Sign in", "Se connecter")}</Link>
+            </Button>
+            <Link to="/forgot-password" className="block text-sm text-primary hover:text-primary/80 underline">
+              {t("Forgot your password?", "Mot de passe oublié ?")}
+            </Link>
           </div>
         </main>
       </Layout>
