@@ -1,14 +1,19 @@
-// Shared dark-mode hardening for every BentoCake Studio email — the exact
-// technique proven in send-auth-email/index.ts (2026-09-14), extracted here
-// so every other template applies it identically instead of re-implementing
-// it per file. See send-auth-email/index.ts's own comment for why each
-// layer exists:
-//   1. `color-scheme`/`supported-color-schemes` meta tags — the primary
-//      signal that tells Gmail/Outlook/Apple Mail "this email already
-//      handles dark mode, don't auto-invert our colors".
+// Shared LIGHT-ONLY hardening for every BentoCake Studio email — the exact
+// technique proven in send-auth-email/index.ts (2026-09-14, revised
+// 2026-09-16 to drop the alternate dark palette), extracted here so every
+// other template applies it identically instead of re-implementing it per
+// file. See send-auth-email/index.ts's own comment for why each layer
+// exists:
+//   1. `color-scheme`/`supported-color-schemes` meta tags declaring `light`
+//      ONLY (no `dark`) — the primary signal that tells Gmail/Outlook/Apple
+//      Mail "this email has no dark variant, don't auto-invert our colors".
 //   2. A `<style>` block with `@media (prefers-color-scheme: dark)`, keyed
 //      off classes — reaches Gmail's mobile apps, which (unlike Gmail
-//      webmail) honor an embedded <style> in <head>, media queries included.
+//      webmail) honor an embedded <style> in <head>, including media
+//      queries, and can still auto-invert on the meta tag alone. Every rule
+//      inside RE-ASSERTS the exact same light-mode color, never an
+//      alternate dark one — 2026-09-16: BentoCake Studio emails intentionally
+//      stay visually identical in dark mode, there is no dark theme.
 //   3. Explicit `bgcolor` attributes + inline `background-color` (not the
 //      `background` shorthand) on every table/cell that carries a color,
 //      plus a `[data-ogsc]` fallback (the attribute Gmail itself stamps on
@@ -19,37 +24,40 @@
 // brand emails) or "bcs-a-" (internal admin/ops emails).
 
 export const DARKMODE_META_TAGS =
-  `<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">`;
+  `<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">`;
 
 // Brand palette (bordeaux #78020C / cream #FDF8E1) — every customer-facing
 // email: order awaiting-acceptance, order confirmed, order refused, order
 // cancellation, workshop booking (pending/confirmed), workshop seat
-// cancellation. Same dark-mode swaps as send-auth-email: deeper bordeaux /
-// warm dark brown / soft cream — never Gmail's own guess.
+// cancellation. 2026-09-16: every "dark mode" rule below re-asserts the
+// exact same light-mode color already used inline by these templates — kept
+// as a style block (not removed) only because Gmail's mobile apps need one
+// present to fully suppress their own auto-invert; there is no alternate
+// dark palette.
 export function brandDarkModeStyle(): string {
   return `<style>
   @media (prefers-color-scheme: dark) {
-    .bcs-outer, .bcs-spacer { background-color: #3D0208 !important; }
-    .bcs-card { background-color: #241209 !important; }
-    .bcs-text { color: #F3E9D2 !important; }
-    .bcs-label { color: #C9B98A !important; }
-    .bcs-title { color: #E2909B !important; }
-    .bcs-callout { background-color: #3D2E12 !important; }
-    .bcs-row-alt { background-color: #33240F !important; }
-    .bcs-accent-bg { background-color: #3D0208 !important; }
-    .bcs-accent-text { color: #F3E9D2 !important; }
-    .bcs-btn { background-color: #A3141F !important; color: #FDF8E1 !important; }
+    .bcs-outer, .bcs-spacer { background-color: #78020C !important; }
+    .bcs-card { background-color: #FDF8E1 !important; }
+    .bcs-text { color: #351E13 !important; }
+    .bcs-label { color: #7A6540 !important; }
+    .bcs-title { color: #78020C !important; }
+    .bcs-callout { background-color: #F5EDCC !important; }
+    .bcs-row-alt { background-color: #FDF3D0 !important; }
+    .bcs-accent-bg { background-color: #78020C !important; }
+    .bcs-accent-text { color: #FDF8E1 !important; }
+    .bcs-btn { background-color: #78020C !important; color: #FDF8E1 !important; }
   }
-  [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #3D0208 !important; }
-  [data-ogsc] .bcs-card { background-color: #241209 !important; }
-  [data-ogsc] .bcs-text { color: #F3E9D2 !important; }
-  [data-ogsc] .bcs-label { color: #C9B98A !important; }
-  [data-ogsc] .bcs-title { color: #E2909B !important; }
-  [data-ogsc] .bcs-callout { background-color: #3D2E12 !important; }
-  [data-ogsc] .bcs-row-alt { background-color: #33240F !important; }
-  [data-ogsc] .bcs-accent-bg { background-color: #3D0208 !important; }
-  [data-ogsc] .bcs-accent-text { color: #F3E9D2 !important; }
-  [data-ogsc] .bcs-btn { background-color: #A3141F !important; color: #FDF8E1 !important; }
+  [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #78020C !important; }
+  [data-ogsc] .bcs-card { background-color: #FDF8E1 !important; }
+  [data-ogsc] .bcs-text { color: #351E13 !important; }
+  [data-ogsc] .bcs-label { color: #7A6540 !important; }
+  [data-ogsc] .bcs-title { color: #78020C !important; }
+  [data-ogsc] .bcs-callout { background-color: #F5EDCC !important; }
+  [data-ogsc] .bcs-row-alt { background-color: #FDF3D0 !important; }
+  [data-ogsc] .bcs-accent-bg { background-color: #78020C !important; }
+  [data-ogsc] .bcs-accent-text { color: #FDF8E1 !important; }
+  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FDF8E1 !important; }
 </style>`;
 }
 

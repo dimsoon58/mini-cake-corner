@@ -29,44 +29,46 @@ interface HookPayload {
   };
 }
 
-// 2026-09-14: dark-mode hardening. Gmail mobile applies its own automatic
-// dark-mode re-coloring to any email that doesn't explicitly declare it
-// handles dark mode itself — which was silently turning our cream card
-// (#FDF8E1) near-black/brown and our bordeaux accent (#78020C) pink. Three
-// layers of defense, all purely visual — content, the confirmation link and
-// the send logic below are untouched:
-//   1. `color-scheme`/`supported-color-schemes` meta tags — the primary
-//      signal that tells Gmail/Outlook/Apple Mail "this email already
-//      handles dark mode, don't auto-invert our colors".
+// 2026-09-14: dark-mode hardening, revised 2026-09-16 to be LIGHT-ONLY.
+// Gmail mobile applies its own automatic dark-mode re-coloring to any email
+// that doesn't explicitly declare it handles dark mode itself — which was
+// silently turning our cream card (#FDF8E1) near-black/brown and our
+// bordeaux accent (#78020C) pink. BentoCake Studio emails intentionally have
+// NO dark theme — they must look identical regardless of the recipient's
+// device/client color scheme. Three layers of defense, all purely visual —
+// content, the confirmation link and the send logic below are untouched:
+//   1. `color-scheme`/`supported-color-schemes` meta tags declaring `light`
+//      ONLY (no `dark`) — the primary signal that tells Gmail/Outlook/Apple
+//      Mail "this email has no dark variant, don't auto-invert our colors".
 //   2. A `<style>` block with `@media (prefers-color-scheme: dark)`, keyed
 //      off classes — Gmail's MOBILE apps (unlike Gmail webmail) do honor an
-//      embedded <style> in <head>, including media queries, so this reaches
-//      exactly the client the report was about.
+//      embedded <style> in <head>, including media queries, and can still
+//      auto-invert on the meta tag alone, so this stays in place — but every
+//      rule inside now RE-ASSERTS the exact same light-mode color, never an
+//      alternate dark one.
 //   3. Explicit `bgcolor` attributes + inline `background-color` (not the
 //      `background` shorthand) on every table/cell that carries a brand
 //      color, plus a `[data-ogsc]` fallback (the attribute Gmail itself
 //      stamps on elements it's about to dark-style) — belt-and-suspenders
 //      for any client/situation that still tries to remap regardless.
-// Every dark-mode rule only ever swaps one on-brand color for another
-// (deeper bordeaux / warm dark brown / soft cream) — never Gmail's own
-// guess — and light mode is completely unaffected: same colors, same
-// spacing, same fonts as before, just now expressed as tables/cells with
-// explicit background colors instead of plain divs.
+// Light mode is completely unaffected: same colors, same spacing, same
+// fonts as before, expressed as tables/cells with explicit background
+// colors instead of plain divs.
 function wrapEmail(bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   @media (prefers-color-scheme: dark) {
-    .bcs-outer, .bcs-spacer { background-color: #3D0208 !important; }
-    .bcs-card { background-color: #241209 !important; }
-    .bcs-text { color: #F3E9D2 !important; }
-    .bcs-btn { background-color: #A3141F !important; color: #FDF8E1 !important; }
+    .bcs-outer, .bcs-spacer { background-color: #78020C !important; }
+    .bcs-card { background-color: #FDF8E1 !important; }
+    .bcs-text { color: #351E13 !important; }
+    .bcs-btn { background-color: #78020C !important; color: #FDF8E1 !important; }
   }
-  [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #3D0208 !important; }
-  [data-ogsc] .bcs-card { background-color: #241209 !important; }
-  [data-ogsc] .bcs-text { color: #F3E9D2 !important; }
-  [data-ogsc] .bcs-btn { background-color: #A3141F !important; color: #FDF8E1 !important; }
+  [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #78020C !important; }
+  [data-ogsc] .bcs-card { background-color: #FDF8E1 !important; }
+  [data-ogsc] .bcs-text { color: #351E13 !important; }
+  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FDF8E1 !important; }
 </style>
 </head>
 <body style="margin:0;padding:0;background-color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
