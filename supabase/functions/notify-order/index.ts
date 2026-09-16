@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { DARKMODE_META_TAGS, adminDarkModeStyle } from "../_shared/email-darkmode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,7 +36,7 @@ function flavorsLabel(flavors: string[] | null | undefined): string {
 
 function row(label: string, value: string | undefined | null): string {
   if (!value) return "";
-  return `<tr><td style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
+  return `<tr><td class="bcs-a-muted" style="padding:6px 12px;color:#888;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td><td class="bcs-a-text" style="padding:6px 12px;font-size:14px;color:#333;">${value}</td></tr>`;
 }
 
 // 2026-09-15: reference images are per-ARTICLE, not per-order — each
@@ -53,10 +54,10 @@ function itemReferenceImagesBlock(item: any): string {
   if (!urls.length) return "";
   return `
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb;">
-          <p style="margin:0 0 8px;color:#888;font-size:13px;font-weight:600;">📎 Images de référence</p>
+          <p class="bcs-a-muted" style="margin:0 0 8px;color:#888;font-size:13px;font-weight:600;">📎 Images de référence</p>
           <table style="width:100%;border-collapse:collapse;">
             ${urls.map((url: string, j: number) =>
-              `<tr><td style="padding:6px 0;color:#888;font-size:13px;vertical-align:top;">Image ${j + 1}</td><td style="padding:6px 0;"><a href="${url}" style="color:#2563eb;" target="_blank">Ouvrir l’image</a><br/><img src="${url}" alt="Image de référence ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;margin-top:4px;" /></td></tr>`
+              `<tr><td class="bcs-a-muted" style="padding:6px 0;color:#888;font-size:13px;vertical-align:top;">Image ${j + 1}</td><td style="padding:6px 0;"><a href="${url}" style="color:#2563eb;" target="_blank">Ouvrir l’image</a><br/><img src="${url}" alt="Image de référence ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;margin-top:4px;" /></td></tr>`
             ).join("")}
           </table>
         </div>`;
@@ -119,8 +120,8 @@ async function sendAdminEmail(
     if (item.product === "workshop") {
       const wsName = item.workshop_type === "paint" ? "Atelier Peinture" : "Atelier Signature";
       return `
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
-        <h4 style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">Atelier ${i + 1} — CHF ${item.total}</h4>
+      <div class="bcs-a-item" style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
+        <h4 class="bcs-a-text" style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">Atelier ${i + 1} — CHF ${item.total}</h4>
         <table style="width:100%;border-collapse:collapse;">
           ${row("Atelier", wsName)}
           ${row("Date", item.workshop_date)}
@@ -153,8 +154,8 @@ async function sendAdminEmail(
       : "";
 
     return `
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
-        <h4 style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">🍰 Article ${i + 1} — CHF ${item.total}</h4>
+      <div class="bcs-a-item" style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:20px;margin:12px 0;">
+        <h4 class="bcs-a-text" style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">🍰 Article ${i + 1} — CHF ${item.total}</h4>
         ${designImageBlock}
         <table style="width:100%;border-collapse:collapse;">
           ${row("Date", itemDateLabel(item))}
@@ -177,21 +178,27 @@ async function sendAdminEmail(
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:640px;margin:0 auto;padding:24px;">
-    <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-      
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${DARKMODE_META_TAGS}
+${adminDarkModeStyle()}
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4" class="bcs-a-bg" style="background-color:#f4f4f4;">
+  <tr><td align="center" style="padding:24px 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;margin:0 auto;">
+  <tr><td style="padding:0 24px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" class="bcs-a-card" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+    <tr><td>
+
       <!-- Header -->
-      <div style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
-        <h1 style="color:#fff;font-size:26px;margin:0 0 8px;font-weight:700;">${isWorkshopOnly ? "🎨 Nouvelle réservation workshop" : "🎂 Nouvelle commande Bento Cake"}</h1>
-        <p style="color:#ccc;margin:0;font-size:14px;">${isWorkshopOnly ? "La réservation" : "La commande"} <strong style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> attend votre validation</p>
+      <div class="bcs-a-header-bg" style="background:linear-gradient(135deg,#1a1a1a,#333);padding:32px;text-align:center;">
+        <h1 class="bcs-a-header-text" style="color:#fff;font-size:26px;margin:0 0 8px;font-weight:700;">${isWorkshopOnly ? "🎨 Nouvelle réservation workshop" : "🎂 Nouvelle commande Bento Cake"}</h1>
+        <p class="bcs-a-header-muted" style="color:#ccc;margin:0;font-size:14px;">${isWorkshopOnly ? "La réservation" : "La commande"} <strong class="bcs-a-header-text" style="color:#fff;">${order.order_number || order.id.slice(0, 8).toUpperCase()}</strong> attend votre validation</p>
       </div>
 
-      <div style="padding:28px;">
+      <div class="bcs-a-text" style="padding:28px;">
 
         <!-- Customer Info -->
-        <div style="background:#f0f7ff;border-radius:12px;padding:20px;margin-bottom:20px;">
+        <div class="bcs-a-callout-blue" style="background:#f0f7ff;border-radius:12px;padding:20px;margin-bottom:20px;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">👤 Informations client</h3>
           <table style="border-collapse:collapse;width:100%;">
             ${row("Nom", `${order.first_name || ""} ${order.last_name || ""}`.trim())}
@@ -202,7 +209,7 @@ async function sendAdminEmail(
 
         <!-- Pickup / Delivery (physical products only) -->
         ${order.delivery_method ? `
-        <div style="background:#f0fff4;border-radius:12px;padding:20px;margin-bottom:20px;">
+        <div class="bcs-a-callout-green" style="background:#f0fff4;border-radius:12px;padding:20px;margin-bottom:20px;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">📦 Retrait / Livraison</h3>
           <table style="border-collapse:collapse;width:100%;">
             ${row("Date", formatDateCH(order.pickup_delivery_date))}
@@ -219,7 +226,7 @@ async function sendAdminEmail(
         ${itemBlocks}
 
         <!-- Payment -->
-        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;margin:20px 0;">
+        <div class="bcs-a-callout-yellow" style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;margin:20px 0;">
           <h3 style="margin:0 0 12px;color:#333;font-size:15px;font-weight:600;">💳 Récapitulatif du paiement</h3>
           <table style="border-collapse:collapse;width:100%;">
              ${row("Commande №", order.order_number || order.id.slice(0, 8).toUpperCase())}
@@ -240,11 +247,11 @@ async function sendAdminEmail(
               ? "Le paiement n'est qu'autorisé, pas encore encaissé. Accepter encaisse le paiement et confirme la réservation ; refuser annule l'autorisation sans rien prélever et libère la/les place(s)."
               : "Le paiement n'est qu'autorisé, pas encore encaissé. Cliquez sur un bouton pour traiter cette commande. Aucune connexion requise."}</p>
 
-          <a href="${siteUrl}/order-action?orderId=${order.id}&action=approve&token=${token}" style="display:inline-block;background:#16a34a;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
+          <a href="${siteUrl}/order-action?orderId=${order.id}&action=approve&token=${token}" class="bcs-a-btn-accept" style="display:inline-block;background:#16a34a;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
             ${isWorkshopOnly ? "✅ Accepter la réservation" : "✅ Accepter la commande"}
           </a>
 
-          <a href="${siteUrl}/order-action?orderId=${order.id}&action=decline&token=${token}" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
+          <a href="${siteUrl}/order-action?orderId=${order.id}&action=decline&token=${token}" class="bcs-a-btn-decline" style="display:inline-block;background:#dc2626;color:#fff;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:17px;font-weight:600;margin:0 8px 12px;">
             ${isWorkshopOnly ? "❌ Refuser la réservation" : "❌ Refuser la commande"}
           </a>
         </div>
@@ -259,11 +266,15 @@ async function sendAdminEmail(
       </div>
 
       <!-- Footer -->
-      <div style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
-        <p style="color:#aaa;font-size:11px;margin:0;">Bento Cake Studio · Système de notification des commandes</p>
+      <div class="bcs-a-item" style="background:#fafafa;padding:16px;text-align:center;border-top:1px solid #eee;">
+        <p class="bcs-a-muted" style="color:#aaa;font-size:11px;margin:0;">Bento Cake Studio · Système de notification des commandes</p>
       </div>
-    </div>
-  </div>
+    </td></tr>
+    </table>
+  </td></tr>
+  </table>
+  </td></tr>
+  </table>
 </body>
 </html>`;
 

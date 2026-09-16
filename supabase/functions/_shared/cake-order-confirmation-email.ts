@@ -1,3 +1,5 @@
+import { DARKMODE_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
+
 // Shared confirmation-email renderer for a "cake / product" order at its
 // CONFIRMED stage — the exact same visual template and information a
 // website order gets once the admin accepts it. Handles cake-only AND
@@ -263,7 +265,7 @@ export function renderCakeOrderConfirmationEmail(
   // recap's dates, and the total, so those actually stand out instead of
   // every single field competing for attention.
   const row = (label: string, value: string) =>
-    `<tr><td style="padding:6px 8px;color:#7A6540;font-size:14px;width:40%;">${label}</td><td style="padding:6px 8px;color:#351E13;font-size:14px;">${value}</td></tr>`;
+    `<tr><td class="bcs-label" style="padding:6px 8px;color:#7A6540;font-size:14px;width:40%;">${label}</td><td class="bcs-text" style="padding:6px 8px;color:#351E13;font-size:14px;">${value}</td></tr>`;
 
   // Physical items only — workshops render in their own block below.
   const cakeDetailsRows = physicalItems.map((item: any, i: number) => {
@@ -324,7 +326,7 @@ export function renderCakeOrderConfirmationEmail(
       : "";
 
     return `
-      <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
+      <div class="bcs-card" style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
         <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${itemLabel(i)}</h3>
         ${designImageBlock}
         <table style="border-collapse:collapse;width:100%;">
@@ -337,7 +339,7 @@ export function renderCakeOrderConfirmationEmail(
   // physical/cake part.
   const cakeDetailsBlock = physicalItems.length > 0
     ? `
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
+        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
           ${tr("Order details", "Détails de la commande")}
         </p>
         ${cakeDetailsRows}`
@@ -360,20 +362,20 @@ export function renderCakeOrderConfirmationEmail(
         <p style="margin:0;">
           <strong style="font-weight:700;">${g.date ? formatDateCH(g.date) : tr("Date to be confirmed", "Date à confirmer")}</strong>${g.slot ? ` · ${g.slot}` : ""} — ${modeLabel}
         </p>
-        ${g.method === "delivery" && g.address ? `<p style="margin:4px 0 0;color:#7A6540;font-size:13px;">${g.address}</p>` : ""}
+        ${g.method === "delivery" && g.address ? `<p class="bcs-label" style="margin:4px 0 0;color:#7A6540;font-size:13px;">${g.address}</p>` : ""}
       </td>
     </tr>`;
   }).join("");
   const pickupDeliveryBlock = pickupDeliveryGroups.length > 0
     ? `
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Pickup & delivery", "Retrait et livraison")}
         </p>
         <table style="border-collapse:collapse;width:100%;border:1px solid #78020C;margin:0 0 8px;">
           ${pickupDeliveryRowsHtml}
         </table>
         ${hasPickupGroup
-          ? `<p style="color:#7A6540;font-size:12px;margin:0 0 20px;">${tr("Store address for pickups", "Adresse de la boutique pour les retraits")}: ${STORE_ADDRESS}</p>`
+          ? `<p class="bcs-label" style="color:#7A6540;font-size:12px;margin:0 0 20px;">${tr("Store address for pickups", "Adresse de la boutique pour les retraits")}: ${STORE_ADDRESS}</p>`
           : ""}`
     : "";
 
@@ -392,7 +394,7 @@ export function renderCakeOrderConfirmationEmail(
       item.item_comment?.trim() ? row(tr("Notes", "Notes"), item.item_comment.trim()) : "",
     ].join("");
     return `
-      <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
+      <div class="bcs-card" style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
         <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${wsName}${workshopItems.length > 1 ? ` ${i + 1}` : ""}</h3>
         <table style="border-collapse:collapse;width:100%;">${wsRows}</table>
       </div>`;
@@ -400,7 +402,7 @@ export function renderCakeOrderConfirmationEmail(
 
   const workshopDetailsBlock = workshopItems.length > 0
     ? `
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
+        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
           ${tr("Workshop details", "Détails du workshop")}
         </p>
         ${workshopDetailsRows}`
@@ -410,11 +412,11 @@ export function renderCakeOrderConfirmationEmail(
   const orderImageUrls = getOrderImageUrls(items);
   const orderImagesBlock = orderImageUrls.length
     ? `
-      <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
+      <div class="bcs-card" style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
         <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${tr("Reference images", "Images de référence")}</h3>
         <table style="border-collapse:collapse;width:100%;">
           ${orderImageUrls.map((url: string, j: number) =>
-            `<tr><td style="padding:8px;color:#7A6540;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#78020C;font-size:14px;display:inline-block;margin-bottom:6px;font-weight:600;text-decoration:underline;" target="_blank">${tr("Open image", "Ouvrir l’image")}</a><br/><img src="${url}" alt="${tr("Reference image", "Image de référence")} ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #78020C;display:block;" /></td></tr>`
+            `<tr><td class="bcs-label" style="padding:8px;color:#7A6540;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" class="bcs-title" style="color:#78020C;font-size:14px;display:inline-block;margin-bottom:6px;font-weight:600;text-decoration:underline;" target="_blank">${tr("Open image", "Ouvrir l’image")}</a><br/><img src="${url}" alt="${tr("Reference image", "Image de référence")} ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #78020C;display:block;" /></td></tr>`
           ).join("")}
         </table>
       </div>`
@@ -440,16 +442,21 @@ export function renderCakeOrderConfirmationEmail(
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;">
-
-    <div style="background:#FDF8E1;margin:0 20px;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${DARKMODE_META_TAGS}<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+${brandDarkModeStyle()}
+</head>
+<body style="margin:0;padding:0;background-color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C;">
+  <tr><td align="center" style="padding:0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
+  <tr><td style="padding:0 20px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;">
+  <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <div style="padding:0 40px 36px;">
+      <div class="bcs-text" style="padding:0 40px 36px;">
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Dear", "Bonjour")} ${customerName(order)},
         </p>
@@ -477,14 +484,14 @@ export function renderCakeOrderConfirmationEmail(
 
         ${orderImagesBlock}
 
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
+        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
           ${tr("Order summary", "Récapitulatif de la commande")}
         </p>
         <table style="width:100%;border-collapse:collapse;border:1px solid #78020C;margin-bottom:24px;">
           <thead>
-            <tr style="background:#78020C;">
-              <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
-              <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
+            <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C;">
+              <th class="bcs-accent-text" style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
+              <th class="bcs-accent-text" style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
             </tr>
           </thead>
           <tbody>
@@ -507,9 +514,9 @@ export function renderCakeOrderConfirmationEmail(
             </tr>` : ""}
           </tbody>
           <tfoot>
-            <tr style="background:#78020C;">
-              <td style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
-              <td style="padding:10px 14px;font-size:15px;font-weight:700;color:#FDF8E1;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+            <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C;">
+              <td class="bcs-accent-text" style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
+              <td class="bcs-accent-text" style="padding:10px 14px;font-size:15px;font-weight:700;color:#FDF8E1;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
             </tr>
           </tfoot>
         </table>
@@ -538,10 +545,13 @@ export function renderCakeOrderConfirmationEmail(
                 )}<br><br>${tr("See you soon", "À bientôt")},<br><strong>Bento Cake Studio</strong> 🤍`}
         </p>
       </div>
-    </div>
-
-    <div style="height:24px;background:#78020C;"></div>
-  </div>
+  </td></tr>
+  </table>
+  </td></tr>
+  <tr><td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C;">&nbsp;</td></tr>
+  </table>
+  </td></tr>
+  </table>
 </body>
 </html>`;
 
