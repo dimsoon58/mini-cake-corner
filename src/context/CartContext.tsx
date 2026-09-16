@@ -6,6 +6,12 @@ import { useLang } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { getStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { onOrderCompleted } from "@/lib/orderCompletionChannel";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  getStoredPartnerReferral,
+  setStoredPartnerReferral,
+  type PartnerReferral,
+} from "@/lib/partnerReferral";
 
 // Canonical shape for a candle attached to a cart item — used both for
 // candles added directly on the Candles page and for candles added on top
@@ -164,6 +170,12 @@ interface CartContextType {
      surface can pre-check and guide the customer before they even click. */
   cartHasWorkshop: boolean;
   cartHasCake: boolean;
+  /* Validated partner referral for the current shopping session (step 1 —
+     recognition only, see src/lib/partnerReferral.ts). null for every
+     visitor without a valid ?ref= token — the overwhelming majority. Never
+     used for pricing here; a later step recalculates and verifies the
+     discount/commission server-side. */
+  partnerReferral: PartnerReferral | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -261,6 +273,81 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(serializable));
   }, [items]);
 
+  // ── Partner referral recognition — step 1 (frontend only) ────────────
+  // Hydrate any referral already validated earlier this session (e.g. the
+  // customer landed on a partner link, then navigated to another page).
+  const [partnerReferral, setPartnerReferral] = useState<PartnerReferral | null>(
+    () => getStoredPartnerReferral(),
+  );
+
+  // Runs once, on site load — matches the task's own "on site load" spec.
+  // CartProvider mounts exactly once at the app root (see App.tsx) and never
+  // remounts on client-side navigation, so this also correctly covers a
+  // partner link landing directly on any page (e.g. /catalog?ref=...), not
+  // only "/". Absent ?ref, this does nothing at all — zero behaviour change
+  // for every normal visitor.
+  useEffect(() => {
+    let cancelled = false;
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (!ref) return;
+
+    // Already resolved for this exact token this session (e.g. a second
+    // effect run under React StrictMode in dev) — never re-validate or
+    // re-toast for the same token.
+    const already = getStoredPartnerReferral();
+    if (already?.token === ref) {
+      setPartnerReferral(already);
+      return;
+    }
+
+    (async () => {
+      try {
+        // resolve-partner-ref's confirmed live response shape:
+        // { valid: true, partner: { name: string, discountRate: number } }
+        // — discountRate is a FRACTION (0.10 = 10%), not a percentage.
+        const { data, error } = await supabase.functions.invoke("resolve-partner-ref", {
+          body: { token: ref },
+        });
+        if (cancelled || error || !data?.valid || !data?.partner) return;
+
+        const partner = data.partner as { name?: unknown; discountRate?: unknown };
+        if (typeof partner.name !== "string" || typeof partner.discountRate !== "number") return;
+
+        const resolved: PartnerReferral = {
+          token: ref,
+          partnerName: partner.name,
+          // Stored exactly as returned (a fraction) — never converted here,
+          // so a later step reads the same raw value the server verifies.
+          discountRate: partner.discountRate,
+        };
+        setPartnerReferral(resolved);
+        setStoredPartnerReferral(resolved);
+
+        // Display only — the fraction is converted to a whole percentage
+        // purely for the toast wording, never stored or used for pricing.
+        const displayPercent = Math.round(resolved.discountRate * 100);
+        toast({
+          title: t(
+            `${resolved.partnerName} partner benefit activated`,
+            `Avantage partenaire ${resolved.partnerName} activé`,
+          ),
+          description: t(
+            `${displayPercent}% off the base price of your eligible cake.`,
+            `${displayPercent} % de réduction sur le prix de base de votre gâteau éligible.`,
+          ),
+        });
+      } catch (e) {
+        // Invalid / inactive / missing token, or the call failed: never
+        // surface an error to the customer, never activate anything — the
+        // site continues exactly as normal, silently, as specified.
+        console.error("resolve-partner-ref failed (no referral activated):", e);
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const addItem = (item: CartItem): AddItemResult => {
     // Workshop + cake in one cart is allowed — a single checkout, a single
     // payment captured immediately. The workshop part auto-confirms; the cake
@@ -348,6 +435,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         cartOrderDate,
         cartHasWorkshop,
         cartHasCake,
+        partnerReferral,
       }}
     >
       {children}
