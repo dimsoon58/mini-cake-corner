@@ -2312,12 +2312,79 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           </div>
                         </div>
                       )}
+                      {/* Glitter colour – inline */}
+                      {(visibleExtras.some(e => e.id === "glitter") || visibleExtras.some(e => e.id === "glitter-base") || visibleExtras.some(e => e.id === "glitter-in-the-air")) && (selections.extras.includes("glitter") || selections.extras.includes("glitter-base") || selections.extras.includes("glitter-in-the-air")) && (
+                        <div className="space-y-2 pt-1">
+                          <p className="text-xs font-medium text-foreground">{t("Glitter Colour", "Couleur des paillettes")} <span className="text-destructive">*</span></p>
+                          <div className="flex flex-wrap gap-2">
+                            {(() => {
+                              const isGlitterInTheAir = selections.extras.includes("glitter-in-the-air");
+                              const availableColors = isGlitterInTheAir ? glitterColors.filter(c => c.id === "pink") : glitterColors;
+                              return availableColors.map((color) => (
+                                <button
+                                  key={color.id}
+                                  onClick={() => setSelections({ ...selections, glitterColor: color.id })}
+                                  className={cn(
+                                    "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                                    selections.glitterColor === color.id ? "ring-2 ring-primary" : ""
+                                  )}
+                                >
+                                  <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                                  <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                                </button>
+                              ));
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                      {/* Glitter Cherries colour – inline */}
+                      {visibleExtras.some(e => e.id === "glitter-cherries") && selections.extras.includes("glitter-cherries") && (
+                        <div className="space-y-2 pt-1">
+                          <p className="text-xs font-medium text-foreground">{t("Glitter Cherries Colour", "Couleur des cerises pailletées")}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {glitterCherriesColors.map((color) => (
+                              <button
+                                key={color.id}
+                                onClick={() => setSelections({ ...selections, glitterCherriesColor: color.id })}
+                                className={cn(
+                                  "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                                  selections.glitterCherriesColor === color.id ? "ring-2 ring-primary" : ""
+                                )}
+                              >
+                                <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                                <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Ribbon colour – inline */}
+                      {visibleExtras.some(e => e.id === "ribbons") && selections.extras.includes("ribbons") && (
+                        <div className="space-y-2 pt-1">
+                          <p className="text-xs font-medium text-foreground">{t("Ribbon Colour", "Couleur des rubans")} <span className="text-destructive">*</span></p>
+                          <div className="flex flex-wrap gap-2">
+                            {ribbonColors.map((color) => (
+                              <button
+                                key={color.id}
+                                onClick={() => setSelections({ ...selections, ribbonColor: color.id })}
+                                className={cn(
+                                  "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                                  selections.ribbonColor === color.id ? "ring-2 ring-primary" : ""
+                                )}
+                              >
+                                <div className={cn("w-6 h-6 rounded-full border", color.id === "white" ? "border-muted-foreground/30" : "border-transparent")} style={{ backgroundColor: color.color }} />
+                                <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
 
-                {/* Glitter Colour */}
-                {(selections.extras.includes("glitter") || selections.extras.includes("glitter-base") || selections.extras.includes("glitter-in-the-air") || ["retro-glitter-cake", "retro-ribbons-glitter"].includes(selectedCake?.styleId || "")) && (
+                {/* Glitter Colour – shown here only for glitter design styles (extras show inline above) */}
+                {["retro-glitter-cake", "retro-ribbons-glitter"].includes(selectedCake?.styleId || "") && (
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-foreground">{t("Glitter Colour", "Couleur des paillettes")} <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
@@ -2342,8 +2409,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   </div>
                 )}
 
-                {/* Glitter Cherries Colour */}
-                {(selections.extras.includes("glitter-cherries") || selectedCake?.styleId === "glitter-cherries-retro") && (
+                {/* Glitter Cherries Colour – shown here only for glitter-cherries-retro design (extras show inline above) */}
+                {selectedCake?.styleId === "glitter-cherries-retro" && (
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-foreground">{t("Glitter Cherries Colour", "Couleur des cerises pailletées")}</p>
                     <div className="flex flex-wrap gap-2">
@@ -2364,8 +2431,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   </div>
                 )}
 
-                {/* Ribbon Colour */}
-                {(selections.extras.includes("ribbons") || selectedCake?.styleId === "retro-ribbons" || selectedCake?.styleId === "retro-ribbons-glitter") && (
+                {/* Ribbon Colour – shown here only for ribbon design styles (extras show inline above) */}
+                {(selectedCake?.styleId === "retro-ribbons" || selectedCake?.styleId === "retro-ribbons-glitter") && (
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-foreground">{t("Ribbon Colour", "Couleur des rubans")} <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
