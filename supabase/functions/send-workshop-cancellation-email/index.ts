@@ -5,6 +5,14 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "../_shared/workshops.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
+import {
+  EMAIL_ACCENT_COLOR,
+  EMAIL_BODY_COLOR,
+  EMAIL_BODY_SIZE,
+  EMAIL_FONT_STACK,
+  EMAIL_LABEL_COLOR,
+  EMAIL_SMALL_SIZE,
+} from "../_shared/email-styles.ts";
 
 // Customer email after a partial (or full) workshop-seat cancellation.
 // Read-only on orders / workshop_sessions / workshop_reservations. No emoji.
@@ -92,10 +100,10 @@ async function sendCancellationEmail(
     "Mise à jour de votre réservation Workshop – Bento Cake Studio",
   );
 
-  const rowCell = (label: string, value: string) =>
-    `<tr style="border-bottom:1px solid #D4C89A;">
-      <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;width:55%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</td>
-      <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${value}</td>
+  const rowCell = (label: string, value: string, uppercase = false) =>
+    `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
+      <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};width:55%;font-family:${EMAIL_FONT_STACK};">${label}</td>
+      <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};${uppercase ? "text-transform:uppercase;" : ""}">${value}</td>
     </tr>`;
 
   const html = `
@@ -124,11 +132,11 @@ ${brandDarkModeStyle()}
           ${cancellationHeadline}
         </p>
 
-        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+        <p class="bcs-title" style="color:${EMAIL_ACCENT_COLOR};font-family:${EMAIL_FONT_STACK};font-size:${EMAIL_BODY_SIZE};font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Booking", "Réservation")} ${reference}
         </p>
-        <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;">
-          ${rowCell(tr("Workshop", "Atelier"), title)}
+        <table style="border-collapse:collapse;width:100%;border:1px solid ${EMAIL_ACCENT_COLOR};">
+          ${rowCell(tr("Workshop", "Atelier"), title, true)}
           ${rowCell(tr("Date", "Date"), `${formatWorkshopDate(session.workshop_date)} · ${session.workshop_time}`)}
           ${rowCell(tr("Seats purchased", "Places achetées"), String(purchased))}
           ${rowCell(tr("Seats cancelled", "Places annulées"), String(cancelled))}
@@ -136,7 +144,7 @@ ${brandDarkModeStyle()}
         </table>
 
         <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:14px 18px;margin:24px 0 0;">
-          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
+          <p style="color:#351E13;font-size:15px;line-height:1.7;margin:0;">
             ${refundLine}
           </p>
         </div>

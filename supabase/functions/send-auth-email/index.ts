@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { getSiteBaseUrl, getLogoEmailUrl } from "../_shared/site-config.ts";
 
 import { Webhook } from "npm:standardwebhooks@1.0.0";
+import { EMAIL_LABEL_COLOR, EMAIL_SMALL_SIZE } from "../_shared/email-styles.ts";
 
 // Supabase Auth Send Email Hook → this function → Resend API → customer.
 // Called server-to-server by Supabase itself (signature-verified via
@@ -12,10 +13,18 @@ import { Webhook } from "npm:standardwebhooks@1.0.0";
 
 const RESEND_URL = "https://api.resend.com/emails";
 const FROM = "Bento Cake Studio <contact@bentocakestudio.ch>";
-const LOGO_URL = `${getSiteBaseUrl()}/logo-red.png`;
+// Same wordmark asset + size as every other Bento Cake Studio customer email
+// (was logo-red.png at a fixed height:72px — the one template still left on
+// the old asset; see send-workshop-cancellation-email/index.ts for the same
+// fix applied earlier).
+const LOGO_URL = getLogoEmailUrl();
 // Matches AuthConfirm.tsx's route — update this alongside SITE_BASE_URL in
 // the other Edge Functions the day bentocakestudio.ch actually goes live.
 const SITE_URL = getSiteBaseUrl();
+// Every email's opening heading — same size as the body text (never a big
+// browser-default <h2>), bold instead of a caption-style uppercase label
+// since these read as full sentences, not short section titles.
+const H2_STYLE = "margin:0 0 12px;color:#351E13;font-size:15px;font-weight:700;line-height:1.8;";
 
 interface HookPayload {
   user: { email: string; new_email?: string };
@@ -95,7 +104,7 @@ function wrapEmail(bodyHtml: string): string {
                 <tr>
                   <td>
                     <div style="padding:36px 40px 0;text-align:center;">
-                      <img src="${LOGO_URL}" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
+                      <img src="${LOGO_URL}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
                     </div>
                     <div class="bcs-text" style="padding:0 40px 36px;color:#351E13;-webkit-text-fill-color:#351E13;font-size:15px;line-height:1.8;">
                       ${bodyHtml}
@@ -229,7 +238,7 @@ serve(async (req) => {
         // client-side via supabase.auth.verifyOtp() — see AuthConfirm.tsx.
         const confirmUrl = `${SITE_URL}/auth/confirm?token_hash=${token_hash}&type=email`;
         await sendViaResend(resendApiKey, user.email, "Confirm Your Signup", wrapEmail(`
-          <h2 style="margin-top:0;">Welcome to Bento Cake Studio!</h2>
+          <h2 style="${H2_STYLE}">Welcome to Bento Cake Studio!</h2>
           <p>Please confirm your email address to activate your account.</p>
           ${buttonHtml(confirmUrl, "Confirm your email")}
         `));
@@ -239,10 +248,10 @@ serve(async (req) => {
       case "recovery": {
         const resetUrl = buildVerifyUrl(supabaseUrl, token_hash, "recovery", redirect_to);
         await sendViaResend(resendApiKey, user.email, "Reset Your Password", wrapEmail(`
-          <h2 style="margin-top:0;">Reset your password</h2>
+          <h2 style="${H2_STYLE}">Reset your password</h2>
           <p>We received a request to reset your password. Click below to choose a new one.</p>
           ${buttonHtml(resetUrl, "Reset password")}
-          <p style="font-size:12px;color:#888;">If you didn't request this, you can safely ignore this email.</p>
+          <p style="font-size:${EMAIL_SMALL_SIZE};color:${EMAIL_LABEL_COLOR};">If you didn't request this, you can safely ignore this email.</p>
         `));
         break;
       }
@@ -259,14 +268,14 @@ serve(async (req) => {
           const newEmailUrl = buildVerifyUrl(supabaseUrl, token_hash, "email_change", redirect_to);
 
           await sendViaResend(resendApiKey, user.email, "Confirm Your Email Change", wrapEmail(`
-            <h2 style="margin-top:0;">Confirm your email change</h2>
+            <h2 style="${H2_STYLE}">Confirm your email change</h2>
             <p>We received a request to change the email address on your account. Click below to confirm from this, your current address.</p>
             ${buttonHtml(currentEmailUrl, "Confirm email change")}
           `));
 
           if (user.new_email) {
             await sendViaResend(resendApiKey, user.new_email, "Confirm Your New Email", wrapEmail(`
-              <h2 style="margin-top:0;">Confirm your new email address</h2>
+              <h2 style="${H2_STYLE}">Confirm your new email address</h2>
               ${buttonHtml(newEmailUrl, "Confirm new email")}
             `));
           } else {
@@ -276,7 +285,7 @@ serve(async (req) => {
           // Secure Email Change OFF → a single OTP, sent to the new address.
           const changeUrl = buildVerifyUrl(supabaseUrl, token_hash, "email_change", redirect_to);
           await sendViaResend(resendApiKey, user.new_email || user.email, "Confirm Your New Email", wrapEmail(`
-            <h2 style="margin-top:0;">Confirm your new email address</h2>
+            <h2 style="${H2_STYLE}">Confirm your new email address</h2>
             ${buttonHtml(changeUrl, "Confirm new email")}
           `));
         }
@@ -286,7 +295,7 @@ serve(async (req) => {
       case "magiclink": {
         const magicUrl = buildVerifyUrl(supabaseUrl, token_hash, "magiclink", redirect_to);
         await sendViaResend(resendApiKey, user.email, "Your Sign-In Link", wrapEmail(`
-          <h2 style="margin-top:0;">Sign in to Bento Cake Studio</h2>
+          <h2 style="${H2_STYLE}">Sign in to Bento Cake Studio</h2>
           ${buttonHtml(magicUrl, "Sign in")}
         `));
         break;
@@ -295,7 +304,7 @@ serve(async (req) => {
       case "invite": {
         const inviteUrl = buildVerifyUrl(supabaseUrl, token_hash, "invite", redirect_to);
         await sendViaResend(resendApiKey, user.email, "You've Been Invited", wrapEmail(`
-          <h2 style="margin-top:0;">You've been invited</h2>
+          <h2 style="${H2_STYLE}">You've been invited</h2>
           ${buttonHtml(inviteUrl, "Accept invitation")}
         `));
         break;
@@ -305,7 +314,7 @@ serve(async (req) => {
         // No link here by design — reauthentication is a one-time CODE the
         // user types back into the app, not a clickable link.
         await sendViaResend(resendApiKey, user.email, "Your Verification Code", wrapEmail(`
-          <h2 style="margin-top:0;">Your verification code</h2>
+          <h2 style="${H2_STYLE}">Your verification code</h2>
           <p style="font-size:28px;letter-spacing:6px;font-weight:700;text-align:center;">${token}</p>
         `));
         break;
@@ -319,7 +328,7 @@ serve(async (req) => {
         console.warn(`Unhandled email_action_type "${email_action_type}" — using generic fallback template.`);
         const genericUrl = buildVerifyUrl(supabaseUrl, token_hash, email_action_type, redirect_to);
         await sendViaResend(resendApiKey, user.email, "Verify Your Email", wrapEmail(`
-          <h2 style="margin-top:0;">Verify your email</h2>
+          <h2 style="${H2_STYLE}">Verify your email</h2>
           ${buttonHtml(genericUrl, "Verify")}
         `));
       }

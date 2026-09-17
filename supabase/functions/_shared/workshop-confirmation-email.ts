@@ -1,6 +1,14 @@
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "./workshops.ts";
 import { getLogoEmailUrl } from "./site-config.ts";
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
+import {
+  EMAIL_ACCENT_COLOR,
+  EMAIL_BODY_COLOR,
+  EMAIL_BODY_SIZE,
+  EMAIL_FONT_STACK,
+  EMAIL_LABEL_COLOR,
+  EMAIL_SMALL_SIZE,
+} from "./email-styles.ts";
 
 
 // Shared workshop confirmation-email renderer — the exact same visual
@@ -116,10 +124,10 @@ export function renderWorkshopConfirmationEmail(
         "Réservation de votre workshop – Bento Cake Studio",
       );
 
-  const rowCell = (label: string, value: string) =>
-    `<tr style="border-bottom:1px solid #D4C89A;">
-      <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</td>
-      <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${value}</td>
+  const rowCell = (label: string, value: string, uppercase = false) =>
+    `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
+      <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};width:48%;font-family:${EMAIL_FONT_STACK};">${label}</td>
+      <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};${uppercase ? "text-transform:uppercase;" : ""}">${value}</td>
     </tr>`;
 
   const blocks = workshopItems.map((it, i) => {
@@ -131,13 +139,13 @@ export function renderWorkshopConfirmationEmail(
     const title = workshopTitle((it.workshop_type as WorkshopType) ?? "signature", lang);
 
     return `
-      <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:${i === 0 ? "0" : "24px"} 0 8px;">
+      <p class="bcs-title" style="color:${EMAIL_ACCENT_COLOR};font-family:${EMAIL_FONT_STACK};font-size:${EMAIL_BODY_SIZE};font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin:${i === 0 ? "0" : "24px"} 0 8px;">
         ${heading}
       </p>
-      <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;">
+      <table style="border-collapse:collapse;width:100%;border:1px solid ${EMAIL_ACCENT_COLOR};">
         ${rowCell(tr("Order number", "Numéro de commande"), orderNumber)}
         ${it.workshop_reference ? rowCell(tr("Workshop reservation reference", "Référence de réservation"), it.workshop_reference) : ""}
-        ${rowCell(tr("Workshop", "Atelier"), title)}
+        ${rowCell(tr("Workshop", "Atelier"), title, true)}
         ${rowCell(tr("Date", "Date"), formatWorkshopDate(it.workshop_date))}
         ${rowCell(tr("Time", "Horaire"), it.workshop_time ?? "—")}
         ${rowCell(tr("Participants", "Participants"), it.workshop_participants != null ? String(it.workshop_participants) : "—")}
@@ -150,14 +158,14 @@ export function renderWorkshopConfirmationEmail(
   // (left border + #FFFFFF), same as send-order-received-email.
   const bw = BEFORE_WORKSHOP[lang];
   const beforeParagraphs = bw.paragraphs.map((p) =>
-    `<p style="color:#351E13;font-size:13px;line-height:1.7;margin:0 0 12px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${p}</p>`,
+    `<p style="color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};line-height:1.7;margin:0 0 12px;font-family:${EMAIL_FONT_STACK};">${p}</p>`,
   ).join("");
 
   const beforeWorkshopBlock = `
-      <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:18px 20px;margin:24px 0 0;">
-        <p class="bcs-title" style="color:#78020C;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 12px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.title}</p>
+      <div class="bcs-callout" style="border-left:3px solid ${EMAIL_ACCENT_COLOR};background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:18px 20px;margin:24px 0 0;">
+        <p class="bcs-title" style="color:${EMAIL_ACCENT_COLOR};font-family:${EMAIL_FONT_STACK};font-size:${EMAIL_BODY_SIZE};font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin:0 0 12px;">${bw.title}</p>
         ${beforeParagraphs}
-        <p style="color:#351E13;font-size:14px;line-height:1.7;margin:6px 0 0;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.closing}</p>
+        <p style="color:${EMAIL_BODY_COLOR};font-size:${EMAIL_BODY_SIZE};line-height:1.7;margin:6px 0 0;font-family:${EMAIL_FONT_STACK};">${bw.closing}</p>
       </div>`;
 
   const html = `
@@ -183,10 +191,10 @@ ${brandDarkModeStyle()}
         </p>
 
         ${confirmed ? `
-        <p style="color:#351E13;font-size:18px;line-height:1.6;font-weight:700;margin:0 0 12px;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;font-weight:700;margin:0 0 12px;">
           ${tr("Your workshop booking is confirmed!", "Votre réservation d'atelier est confirmée !")}
         </p>
-        <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0 0 20px;">
+        <p style="color:#351E13;font-size:15px;line-height:1.7;margin:0 0 20px;">
           ${tr(
             "Your payment has been received and your place is reserved.",
             "Votre paiement a bien été reçu et votre place est réservée.",
@@ -216,20 +224,20 @@ ${brandDarkModeStyle()}
         </table>
 
         ${confirmed ? `
-        <p style="color:#351E13;font-size:14px;line-height:1.7;margin:20px 0 0;">
+        <p style="color:#351E13;font-size:15px;line-height:1.7;margin:20px 0 0;">
           ${tr(
             "Please present this email or your booking reference on the day of the workshop.",
             "Présentez cet email ou votre référence de réservation le jour du workshop.",
           )}
         </p>` : `
         <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:14px 18px;margin:24px 0 0;">
-          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0 0 8px;">
+          <p style="color:#351E13;font-size:15px;line-height:1.7;margin:0 0 8px;">
             ${tr(
               "Your booking is pending validation by our team. You will receive a confirmation email as soon as it has been accepted.",
               "Votre réservation est en attente de validation par notre équipe. Vous recevrez un email de confirmation dès qu'elle aura été acceptée.",
             )}
           </p>
-          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
+          <p style="color:#351E13;font-size:15px;line-height:1.7;margin:0;">
             ${tr(
               "Please present this email or your booking reference on the day of the workshop.",
               "Présentez cet email ou votre référence de réservation le jour du workshop.",

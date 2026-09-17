@@ -11,6 +11,14 @@ import {
   getCustomerLang,
 } from "../_shared/cake-order-confirmation-email.ts";
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
+import {
+  EMAIL_ACCENT_COLOR,
+  EMAIL_BODY_COLOR,
+  EMAIL_BODY_SIZE,
+  EMAIL_FONT_STACK,
+  EMAIL_LABEL_COLOR,
+  EMAIL_SMALL_SIZE,
+} from "../_shared/email-styles.ts";
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -141,7 +149,7 @@ ${brandDarkModeStyle()}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
   <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
-        <img src=getLogoEmailUrl() alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
+        <img src="${getLogoEmailUrl()}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
       <div class="bcs-text" style="padding:0 40px 36px;">
@@ -157,7 +165,7 @@ ${brandDarkModeStyle()}
         </p>
 
         <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:14px 18px;margin:0 0 20px;">
-          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
+          <p style="color:#351E13;font-size:15px;line-height:1.7;margin:0;">
             ${workshopOnly
               ? tr(
                   `We regret to inform you that your workshop booking cannot be confirmed.`,
@@ -186,21 +194,21 @@ ${brandDarkModeStyle()}
           ${outcomeText}
         </p>
 
-        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+        <p class="bcs-title" style="color:${EMAIL_ACCENT_COLOR};font-family:${EMAIL_FONT_STACK};font-size:${EMAIL_BODY_SIZE};font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Order details", "Détails de la commande")}
         </p>
-        <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;margin:0 0 24px;">
-          <tr style="border-bottom:1px solid #D4C89A;">
-            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order", "Commande")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
+        <table style="border-collapse:collapse;width:100%;border:1px solid ${EMAIL_ACCENT_COLOR};margin:0 0 24px;">
+          <tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
+            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};width:48%;font-family:${EMAIL_FONT_STACK};">${tr("Order", "Commande")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${orderNumber}</td>
           </tr>
-          <tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid #D4C89A;background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
-            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Amount", "Montant")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${amountCHF}</td>
+          <tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
+            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Amount", "Montant")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">CHF ${amountCHF}</td>
           </tr>
           <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
-            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Status", "Statut")}</td>
-            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${rewardOnly
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:${EMAIL_FONT_STACK};">${tr("Status", "Statut")}</td>
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${rewardOnly
               ? tr("Reward balance credited", "Cagnotte recréditée")
               : tr("Authorization cancelled — nothing charged", "Autorisation annulée — aucun montant prélevé")}</td>
           </tr>
@@ -218,7 +226,7 @@ ${brandDarkModeStyle()}
               )}
         </p>
 
-        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0;border-top:1px solid #D4C89A;padding-top:20px;">
+        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0;border-top:1px solid ${EMAIL_ACCENT_COLOR};padding-top:20px;">
           ${tr("See you soon", "À bientôt")},<br>
           <strong>Bento Cake Studio</strong>
         </p>

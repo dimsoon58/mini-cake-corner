@@ -4,6 +4,14 @@ import { getLogoEmailUrl } from "../_shared/site-config.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
+import {
+  EMAIL_ACCENT_COLOR,
+  EMAIL_BODY_COLOR,
+  EMAIL_BODY_SIZE,
+  EMAIL_FONT_STACK,
+  EMAIL_LABEL_COLOR,
+  EMAIL_SMALL_SIZE,
+} from "../_shared/email-styles.ts";
 
 
 function formatDateCH(dateValue?: string): string {
@@ -147,15 +155,15 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
     const itemsHtml = groupItems.map((it) =>
       `<li style="margin:0 0 3px;">${describeItem(it)}</li>`
     ).join("");
-    return `<tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid #D4C89A;background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
-      <td colspan="2" style="padding:10px 14px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-        <p style="margin:0 0 4px;color:#351E13;font-size:13px;font-weight:700;">
+    return `<tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
+      <td colspan="2" style="padding:10px 14px;font-family:${EMAIL_FONT_STACK};">
+        <p style="margin:0 0 4px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;">
           ${formatDateCH(f?.pickup_delivery_date)}${f?.pickup_delivery_slot ? ` · ${f.pickup_delivery_slot}` : ""} — ${method}
         </p>
         ${f?.delivery_method === "delivery"
-          ? (f?.delivery_address ? `<p class="bcs-label" style="margin:0 0 6px;color:#7A6540;font-size:12px;">${f.delivery_address}</p>` : "")
-          : `<p class="bcs-label" style="margin:0 0 6px;color:#7A6540;font-size:12px;">${tr("Address", "Adresse")}: ${STORE_ADDRESS}</p>`}
-        ${itemsHtml ? `<ul style="margin:0;padding-left:18px;color:#351E13;font-size:12px;">${itemsHtml}</ul>` : ""}
+          ? (f?.delivery_address ? `<p class="bcs-label" style="margin:0 0 6px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};">${f.delivery_address}</p>` : "")
+          : `<p class="bcs-label" style="margin:0 0 6px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};">${tr("Address", "Adresse")}: ${STORE_ADDRESS}</p>`}
+        ${itemsHtml ? `<ul style="margin:0;padding-left:18px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};">${itemsHtml}</ul>` : ""}
       </td>
     </tr>`;
   };
@@ -202,7 +210,7 @@ ${brandDarkModeStyle()}
         </p>
 
         <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:14px 18px;margin:0 0 20px;">
-          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
+          <p style="color:#351E13;font-size:15px;line-height:1.7;margin:0;">
             ${isMixed
               ? tr(
                   "Your order — workshop and cake / products together — is currently pending validation by our team. We will review it and confirm as soon as possible whether we can fulfil it. Your payment will only be taken once confirmed.",
@@ -222,29 +230,29 @@ ${brandDarkModeStyle()}
           )}
         </p>
 
-        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+        <p class="bcs-title" style="color:${EMAIL_ACCENT_COLOR};font-family:${EMAIL_FONT_STACK};font-size:${EMAIL_BODY_SIZE};font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Summary", "Récapitulatif")}
         </p>
-        <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;">
-          <tr style="border-bottom:1px solid #D4C89A;">
-            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order number", "Numéro de commande")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
+        <table style="border-collapse:collapse;width:100%;border:1px solid ${EMAIL_ACCENT_COLOR};">
+          <tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
+            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};width:48%;font-family:${EMAIL_FONT_STACK};">${tr("Order number", "Numéro de commande")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${orderNumber}</td>
           </tr>
           ${groupByFulfillment
             ? physicalFulfillmentIds.map(fulfillmentBlockHtml).join("")
             : `
-          ${hasPickupOrDelivery ? `<tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid #D4C89A;background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
-            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${formatDateCH(order.pickup_delivery_date)}</td>
+          ${hasPickupOrDelivery ? `<tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
+            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${formatDateCH(order.pickup_delivery_date)}</td>
           </tr>` : ""}
-          ${hasPickupOrDelivery && order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid #D4C89A;"><td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Time slot", "Créneau")}</td><td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${order.pickup_delivery_slot}</td></tr>` : ""}
-          ${hasPickupOrDelivery ? `<tr style="border-bottom:1px solid #D4C89A;">
-            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Method", "Mode")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${deliveryInfo}</td>
+          ${hasPickupOrDelivery && order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};"><td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Time slot", "Créneau")}</td><td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${order.pickup_delivery_slot}</td></tr>` : ""}
+          ${hasPickupOrDelivery ? `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
+            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Method", "Mode")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${deliveryInfo}</td>
           </tr>` : ""}
-          ${hasPickupOrDelivery && order.delivery_method !== "delivery" ? `<tr style="border-bottom:1px solid #D4C89A;">
-            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Address", "Adresse")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${STORE_ADDRESS}</td>
+          ${hasPickupOrDelivery && order.delivery_method !== "delivery" ? `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
+            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Address", "Adresse")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${STORE_ADDRESS}</td>
           </tr>` : ""}
           `}
           <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
@@ -253,7 +261,7 @@ ${brandDarkModeStyle()}
           </tr>
         </table>
 
-        <p style="color:#351E13;font-size:13px;line-height:1.7;margin:24px 0 0;border-top:1px solid #D4C89A;padding-top:20px;">
+        <p style="color:#351E13;font-size:13px;line-height:1.7;margin:24px 0 0;border-top:1px solid ${EMAIL_ACCENT_COLOR};padding-top:20px;">
           <strong>${tr("Important:", "Important :")}</strong><br/>
           ${tr(
               "Your order is not yet definitively confirmed until you receive our acceptance email. If it is declined, nothing will be charged — the authorization on your payment method will simply be released.",

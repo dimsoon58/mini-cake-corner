@@ -93,7 +93,7 @@ ${brandDarkModeStyle()}
         </p>
 
         <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:14px 18px;margin:0 0 20px;">
-          <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
+          <p style="color:#351E13;font-size:15px;line-height:1.7;margin:0;">
             ${tr(
               `Following your request, we confirm the cancellation of your order <strong>#${esc(orderNumber)}</strong>.`,
               `Suite à votre demande, nous confirmons l’annulation de votre commande <strong>n° ${esc(orderNumber)}</strong>.`,
