@@ -15,6 +15,7 @@ import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/admin-auth.ts";
+import { applyOrderRefund } from "../_shared/order-refunds.ts";
 
 // 2026-09-15: deferred capture restored (pre-04a6199 model, reused almost
 // verbatim — see the PostFinance capture/void block in the handler below).
@@ -838,52 +839,29 @@ serve(async (req) => {
           headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 403,
         });
       }
-      const { data: mo } = await supabase
+      const { data: moFulfillment } = await supabase
         .from("orders")
-        .select("fulfillment_type, order_number, total_amount, refund_due_amount")
-        .eq("id", orderId).single();
-      const isMixedRefund = (mo?.fulfillment_type) === "mixed";
-      const refundUpd: Record<string, unknown> = {
-        refund_status: "refunded",
-        refund_marked_at: new Date().toISOString(),
-        refund_reference: (typeof refundReference === "string" && refundReference.trim())
-          ? refundReference.trim() : null,
-      };
-      if (!isMixedRefund) refundUpd.payment_status = "refunded";
-      const { data: rows, error: mErr } = await supabase
-        .from("orders")
-        .update(refundUpd)
-        .eq("id", orderId)
-        .eq("refund_status", "to_refund")
-        .select("id");
-      if (mErr) throw new Error(`Failed to mark refund done: ${mErr.message}`);
+        .select("fulfillment_type")
+        .eq("id", orderId).maybeSingle();
+      const isMixedRefund = (moFulfillment?.fulfillment_type) === "mixed";
+      const refundReferenceValue = (typeof refundReference === "string" && refundReference.trim())
+        ? refundReference.trim() : null;
 
-      // Best-effort Make status webhook (scenario may be inactive — never fails
-      // the request). Lets the Notion row show the refund is settled.
-      if ((Array.isArray(rows) ? rows.length : 0) > 0) {
-        try {
-          await fetch("https://hook.eu1.make.com/dmmtxutu1pwcu3w3al8c25gifbspag7r", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              order_id: mo?.order_number || orderId,
-              supabase_id: orderId,
-              status: "refund_completed",
-              refunded_amount: Number(mo?.refund_due_amount) || 0,
-              refund_reference: refundUpd.refund_reference ?? null,
-            }),
-          });
-        } catch (e) {
-          console.error("Make refund_completed webhook error:", e);
-        }
-      }
+      // Same write + Make status webhook the automatic PostFinance-refund
+      // path (postfinance-webhook) now also uses — see _shared/order-refunds.ts.
+      // A mixed order's cake-only manual refund is always partial by
+      // definition (the workshop part stays paid), hence !isMixedRefund.
+      const { matched, fulfillmentType } = await applyOrderRefund(supabase, orderId, {
+        refundReference: refundReferenceValue,
+        isFullRefund: !isMixedRefund,
+      });
 
       return new Response(JSON.stringify({
         success: true,
         status: "refund_marked",
-        fulfillmentType: mo?.fulfillment_type ?? null,
+        fulfillmentType,
         paymentStatus: isMixedRefund ? "paid" : "refunded",
-        matched: Array.isArray(rows) ? rows.length : 0,
+        matched,
       }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 200 });
     }
 

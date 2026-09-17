@@ -1,12 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
+import { getPostFinanceCredentials, pfFetch, type PostFinanceCredentials } from "../_shared/postfinance.ts";
 import {
   verifyWebhookSecret,
   verifyWebhookSignature,
 } from "../_shared/postfinance-webhook-verify.ts";
 import { areSideEffectsComplete } from "../_shared/order-side-effects.ts";
 import { reportConflictingTransactions } from "../_shared/postfinance-transactions.ts";
+import { recordSuccessfulOrderRefund } from "../_shared/order-refunds.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // PostFinance Checkout → Supabase webhook.
@@ -20,11 +21,16 @@ import { corsHeaders } from "../_shared/cors.ts";
 //   Webhook Listener : entity = Transaction, states =
 //                      AUTHORIZED, COMPLETED, FULFILL, FAILED, DECLINE, VOIDED
 //                      "Enable Payload Signature and State" recommended.
+//   Webhook Listener : entity = Refund, states = SUCCESSFUL, FAILED
+//                      (2026-09-19, refund automation — see "Refund entity
+//                      events" below. A SEPARATE listener registration from
+//                      the Transaction one above; both point at the same URL.)
 //
-// The payload is metadata only: { eventId, entityId (= transaction id),
-// listenerEntityTechnicalName, spaceId, state, ... }. We NEVER trust the
-// `state` in it — confirm-postfinance-payment re-reads the real state from the
-// PostFinance API. The webhook just tells confirm-postfinance-payment which
+// The payload is metadata only: { eventId, entityId (= transaction id, or —
+// for a Refund event — the refund id), listenerEntityTechnicalName, spaceId,
+// state, ... }. We NEVER trust the `state` in it — confirm-postfinance-payment
+// (Transaction events) / getRefundState below (Refund events) always re-read
+// the real state from the PostFinance API. The webhook just tells us which
 // order to act on; the finalisation itself is idempotent (claim_order_
 // finalization lease + mark_order_finalized + orders.id PK), so webhook + the
 // /payment-success poll running concurrently can only ever produce one order,
@@ -36,7 +42,8 @@ import { corsHeaders } from "../_shared/cors.ts";
 //   200  no-op: unknown entityId, pending_payments already purged, or the
 //        event was already processed / non-terminal state
 //   200  success: order finalised AND every side-effect delivered, or a
-//        terminal-failure cleanup ran
+//        terminal-failure cleanup ran (Transaction events); or the refund is
+//        recorded / not yet SUCCESSFUL / already recorded (Refund events)
 //   5xx  order not fully done yet (still finalising, or a side-effect —
 //        Make / e-mail — has not been delivered): PostFinance retries with
 //        backoff so Bento always ends up with the order
@@ -48,10 +55,155 @@ import { corsHeaders } from "../_shared/cors.ts";
 //   4. this exact webhook URL reachable (curl with ?s=)
 //   5. one real webhook delivery end-to-end
 //   6. ONLY THEN set POSTFINANCE_WEBHOOK_ENFORCE_SIGNATURE=true (ECDSA)
+//   7. Refund automation: GET /payment/refunds/{id} (getRefundState below)
+//      is PostFinance Checkout's documented "Retrieve a refund" endpoint
+//      (confirmed 2026-09-19 against the official API reference) — no
+//      longer unverified. POSTFINANCE_REFUND_READ_PATH (env, `{id}`
+//      placeholder) is kept as a plain override, not because the default
+//      is in doubt.
 
 
 function txt(cors: Record<string, string>, body: string, status: number): Response {
   return new Response(body, { status, headers: cors });
+}
+
+// ── Refund entity events (2026-09-19) ───────────────────────────────────
+// See the DEPLOY note above for the Refund webhook listener registration.
+// Never trusts the webhook payload's own `state` — always re-reads the
+// refund resource itself, exactly like the Transaction path re-reads the
+// transaction instead of trusting the webhook.
+async function getRefundState(
+  credentials: PostFinanceCredentials,
+  refundId: string,
+): Promise<{ state: string; amount: number | null; transactionId: string | null; externalId: string | null } | null> {
+  const pathTemplate = Deno.env.get("POSTFINANCE_REFUND_READ_PATH") || "/payment/refunds/{id}";
+  try {
+    // deno-lint-ignore no-explicit-any
+    const refund = await pfFetch(credentials, pathTemplate.replace("{id}", refundId), "GET") as any;
+    return {
+      state: String(refund?.state ?? ""),
+      amount: refund?.amount != null ? Number(refund.amount) : null,
+      transactionId: refund?.transaction != null ? String(refund.transaction) : null,
+      externalId: refund?.externalId ? String(refund.externalId) : null,
+    };
+  } catch (e) {
+    console.error(`getRefundState(${refundId}) failed:`, e);
+    return null;
+  }
+}
+
+// Records a refund PostFinance itself confirms as SUCCESSFUL. The admin
+// decides how much to refund directly in PostFinance Checkout (a small
+// partial, several successive partials, or the full amount) — this
+// function never judges the amount, it only reports what PostFinance
+// itself confirmed. orders.payment_status is deliberately never touched
+// here — only the admin's manual mark_refunded button ever sets that,
+// since only a human decision knows the whole order is settled.
+//
+// REPLAY: the eventId de-dup below is only ever marked AFTER
+// recordSuccessfulOrderRefund confirms BOTH the order was updated (or
+// already was) AND Make was confirmed notified (or already had been) —
+// never before. If either step fails, this returns 503 without marking
+// anything, so PostFinance's own retry re-delivers the same event;
+// recordSuccessfulOrderRefund's own replay handling (see its comment)
+// then repairs whatever didn't finish last time, never creating a second
+// order_refunds row.
+// deno-lint-ignore no-explicit-any
+async function handleRefundEvent(supabase: any, cors: Record<string, string>, refundId: string, eventId: string): Promise<Response> {
+  const credentials = getPostFinanceCredentials();
+  const refund = await getRefundState(credentials, refundId);
+  if (!refund) return txt(cors, "could not read refund — retry", 503);
+
+  if (refund.state !== "SUCCESSFUL") {
+    // Not terminal yet (CREATE / PENDING / MANUAL_CHECK) or terminal-failed
+    // (FAILED) — nothing to record either way. A later SUCCESSFUL event
+    // follows for a genuinely completed refund; a FAILED one needs no
+    // order-side write at all (the order stays exactly as it already is —
+    // the admin's existing manual path still applies).
+    return txt(cors, `ok (refund state ${refund.state || "unknown"})`, 200);
+  }
+
+  if (!refund.transactionId) {
+    console.error(`handleRefundEvent: refund ${refundId} has no transaction id — cannot resolve order`);
+    return txt(cors, "ok (refund has no transaction id)", 200);
+  }
+
+  // By the time a refund exists, the transaction was already captured and
+  // the order finalised — orders.postfinance_transaction_id is always the
+  // reliable lookup here (no need for the create-time merchantReference
+  // reconciliation chain below, which only exists for a transaction that
+  // might not have an order yet).
+  const { data: ord } = await supabase
+    .from("orders")
+    .select("id")
+    .eq("postfinance_transaction_id", refund.transactionId)
+    .maybeSingle();
+  if (!ord) return txt(cors, "ok (unknown transaction for refund)", 200);
+  const orderId = ord.id;
+
+  // Same event-dedup bookkeeping as the Transaction path — a second
+  // delivery of the SAME refund event is a pure no-op. Belt-and-suspenders
+  // alongside order_refunds.postfinance_refund_id UNIQUE below (either one
+  // alone would already prevent a duplicate row / double effect).
+  const { data: attempt } = await supabase
+    .from("payment_attempts")
+    .select("last_webhook_processed_event_id")
+    .eq("order_id", orderId)
+    .maybeSingle();
+  if (eventId && attempt?.last_webhook_processed_event_id === eventId) {
+    return txt(cors, "ok (event already processed)", 200);
+  }
+
+  const amount = refund.amount ?? 0;
+  if (amount <= 0) {
+    console.error(`handleRefundEvent: refund ${refundId} has no positive amount — nothing to log`);
+    return txt(cors, "ok (refund has no amount)", 200);
+  }
+
+  let result;
+  try {
+    result = await recordSuccessfulOrderRefund(supabase, orderId, {
+      postfinanceRefundId: refundId,
+      amount,
+    });
+  } catch (e) {
+    // A genuine Supabase failure (logging the refund or updating the
+    // order) — never swallowed, never marks the event processed. PostFinance
+    // retries; the next delivery repairs whatever didn't finish.
+    console.error(`handleRefundEvent: recordSuccessfulOrderRefund threw for order ${orderId}:`, e);
+    return txt(cors, "failed to record refund — retry", 503);
+  }
+
+  if (!result.makeNotified) {
+    // orders is already correctly synced at this point (or already was) —
+    // only the Make notification is outstanding. Retry via PostFinance's
+    // own backoff, exactly like the Transaction path already does for its
+    // own undelivered side-effects, rather than a separate sweep/cron.
+    return txt(cors, "refund recorded, Make notification pending — retry", 503);
+  }
+
+  if (eventId) {
+    // Both real side effects (orders sync + Make) are already confirmed at
+    // this point — this write is purely a fast-path optimisation (skip
+    // re-reading the refund on a pure duplicate delivery), never load-
+    // bearing for correctness any more: recordSuccessfulOrderRefund's own
+    // order_synced_at/make_notified_at markers already make a replay a safe
+    // no-op regardless. Still never silently ignored — logged, and retried
+    // via PostFinance's own backoff like everything else in this function.
+    const { error: markEventErr } = await supabase.from("payment_attempts")
+      .update({ last_webhook_processed_event_id: eventId, updated_at: new Date().toISOString() })
+      .eq("order_id", orderId);
+    if (markEventErr) {
+      console.error(`handleRefundEvent: failed to mark event ${eventId} processed for order ${orderId} (refund already fully recorded — safe to retry):`, markEventErr);
+      return txt(cors, "refund recorded, event bookkeeping failed — retry", 503);
+    }
+  }
+
+  return txt(
+    cors,
+    result.isNewRefund ? "ok (refund recorded)" : "ok (refund repaired)",
+    200,
+  );
 }
 
 serve(async (req) => {
@@ -94,10 +246,6 @@ serve(async (req) => {
   const eventId = String(payload?.eventId ?? "");
   const technicalName = String(payload?.listenerEntityTechnicalName ?? "");
 
-  // Only Transaction events carry a transaction id in entityId.
-  if (technicalName && technicalName !== "Transaction") {
-    return txt(cors, `ok (ignored entity ${technicalName})`, 200);
-  }
   if (!entityId) return txt(cors, "ok (no entityId)", 200);
 
   const supabase = createClient(
@@ -105,6 +253,17 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     { auth: { persistSession: false } },
   );
+
+  // Refund entity events — a separate, narrower path than the Transaction
+  // one below (see "Refund entity events" above handleRefundEvent).
+  if (technicalName === "Refund") {
+    return await handleRefundEvent(supabase, cors, entityId, eventId);
+  }
+  // Only Transaction events carry a transaction id in entityId, for
+  // everything below this point.
+  if (technicalName && technicalName !== "Transaction") {
+    return txt(cors, `ok (ignored entity ${technicalName})`, 200);
+  }
 
   // ── 3. Resolve the orderId from the transaction id ──
   let orderId: string | null = null;
