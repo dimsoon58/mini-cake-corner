@@ -297,7 +297,7 @@ const Candles = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
           {/* Number Candle – multi-digit picker */}
           <Card className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20 rounded-none">
-            <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
+            <div className="aspect-square flex items-center justify-center pr-4 pt-2 pb-2 bg-secondary/20">
               <img
                 key={numberCandlePreview}
                 src={NUMBER_CANDLE_IMAGES[numberCandlePreview]}
@@ -368,7 +368,7 @@ const Candles = () => {
                 key={candle.id}
                 className="flex flex-col overflow-hidden bg-white/60 hover:bg-white/80 transition-all border border-foreground/20 rounded-none"
               >
-                <div className="aspect-square flex items-center justify-center p-4 bg-secondary/20">
+                <div className="aspect-square flex items-center justify-center pr-4 pt-2 pb-2 bg-secondary/20">
                   <img
                     src={candle.image}
                     alt={candle.name}
