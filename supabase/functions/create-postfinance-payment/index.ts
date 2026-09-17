@@ -630,9 +630,9 @@ async function releaseRewardReservation(supabase: any, orderId: string): Promise
   }
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(cors: Record<string, string>, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+    headers: { ...cors, "Content-Type": "application/json" },
     status,
   });
 }
@@ -665,6 +665,7 @@ async function releaseReservationsForOrder(
 // transaction id — called from handleRetry once the id is known (either it was
 // already on pending_payments, or the merchantReference search just found it).
 async function resumeByTransaction(
+  cors: Record<string, string>,
   supabase: any,
   credentials: PostFinanceCredentials,
   orderId: string,
@@ -681,7 +682,7 @@ async function resumeByTransaction(
   if (cls === "success") {
     // Authorised / captured — the order itself is created by
     // confirm-postfinance-payment. Send the client to the polling screen.
-    return jsonResponse({ status: "authorized", transactionId: txId }, 200);
+    return jsonResponse(cors, { status: "authorized", transactionId: txId }, 200);
   }
 
   if (cls === "failure") {
@@ -691,7 +692,7 @@ async function resumeByTransaction(
       orderId, transactionId: txId, status: "payment_failed",
       errorType: `tx_${String(state).toLowerCase()}`, lang,
     });
-    return jsonResponse({
+    return jsonResponse(cors, {
       status: "failed",
       retryWithNewOrder: true,
       message: en
@@ -706,10 +707,10 @@ async function resumeByTransaction(
     await recordPaymentAttempt(supabase, {
       orderId, transactionId: txId, status: "payment_page_created", lang,
     });
-    return jsonResponse({ transactionId: Number(txId) || txId, paymentPageUrl: url, resumed: true }, 200);
+    return jsonResponse(cors, { transactionId: Number(txId) || txId, paymentPageUrl: url, resumed: true }, 200);
   } catch (e) {
     console.error("resumeByTransaction: payment-page-url failed:", e);
-    return jsonResponse({
+    return jsonResponse(cors, {
       status: "in_progress",
       message: en
         ? "We're still preparing your payment page. Please wait a moment and try again."
@@ -723,6 +724,7 @@ async function resumeByTransaction(
 // merchantReference wasn't found" — only a CONCLUSIVE search result unlocks a
 // restart; anything ambiguous returns in_progress on the SAME orderId.
 async function handleRetry(
+  cors: Record<string, string>,
   supabase: any,
   credentials: PostFinanceCredentials,
   orderId: string,
@@ -736,15 +738,15 @@ async function handleRetry(
   const { data: ord } = await supabase
     .from("orders").select("id, order_validation").eq("id", orderId).maybeSingle();
   if (ord) {
-    return jsonResponse({ status: "already_confirmed", orderId, orderValidation: ord.order_validation }, 200);
+    return jsonResponse(cors, { status: "already_confirmed", orderId, orderValidation: ord.order_validation }, 200);
   }
 
   if (txId === REWARD_ONLY_TRANSACTION_ID) {
-    return jsonResponse({ status: "authorized", transactionId: txId }, 200);
+    return jsonResponse(cors, { status: "authorized", transactionId: txId }, 200);
   }
 
   if (txId && txId !== "CREATING") {
-    return await resumeByTransaction(supabase, credentials, orderId, txId, row, en);
+    return await resumeByTransaction(cors, supabase, credentials, orderId, txId, row, en);
   }
 
   // ── Placeholder still "CREATING" ──────────────────────────────────────
@@ -755,7 +757,7 @@ async function handleRetry(
   const creatingAgeMs = Date.now() - Date.parse(row.created_at);
   if (!(creatingAgeMs >= CREATING_LEASE_MS)) {
     // Transient — no payment_attempts write (the first request owns the row).
-    return jsonResponse({
+    return jsonResponse(cors, {
       status: "in_progress",
       message: en
         ? "Your payment is being initialised. Please wait a moment and try again."
@@ -776,7 +778,7 @@ async function handleRetry(
     await recordPaymentAttempt(supabase, {
       orderId, status: "technical_error", errorType: "resume_inconclusive", lang,
     });
-    return jsonResponse({
+    return jsonResponse(cors, {
       status: "in_progress",
       message: en
         ? "We're still checking your payment. Please wait a moment and try again."
@@ -797,7 +799,7 @@ async function handleRetry(
 
     if (Array.isArray(adopted) && adopted.length === 1) {
       // We adopted it — resume with this transaction.
-      return await resumeByTransaction(
+      return await resumeByTransaction(cors, 
         supabase, credentials, orderId, foundId, row, en, found.transaction.state,
       );
     }
@@ -811,9 +813,9 @@ async function handleRetry(
       const { data: ord2 } = await supabase
         .from("orders").select("id, order_validation").eq("id", orderId).maybeSingle();
       if (ord2) {
-        return jsonResponse({ status: "already_confirmed", orderId, orderValidation: ord2.order_validation }, 200);
+        return jsonResponse(cors, { status: "already_confirmed", orderId, orderValidation: ord2.order_validation }, 200);
       }
-      return jsonResponse({
+      return jsonResponse(cors, {
         status: "in_progress",
         message: en
           ? "We're still checking your payment. Please wait a moment and try again."
@@ -824,7 +826,7 @@ async function handleRetry(
     const currentId = String(reread.postfinance_transaction_id || "");
     if (currentId === foundId || currentId === "" || currentId === "CREATING") {
       // Same id, or still adoptable — resume with the transaction we found.
-      return await resumeByTransaction(
+      return await resumeByTransaction(cors, 
         supabase, credentials, orderId, foundId, row, en, found.transaction.state,
       );
     }
@@ -832,7 +834,7 @@ async function handleRetry(
     // currentId is a DIFFERENT real transaction id. Same protection as the
     // webhook: read both states, alert, NEVER overwrite, NEVER a new payment.
     await reportConflictingTransactions(credentials, orderId, currentId, foundId);
-    return jsonResponse({
+    return jsonResponse(cors, {
       status: "in_progress",
       message: en
         ? "We're verifying your payment. Please contact us if you don't hear back shortly."
@@ -846,7 +848,7 @@ async function handleRetry(
   await recordPaymentAttempt(supabase, {
     orderId, status: "payment_failed", errorType: "no_transaction_created", lang,
   });
-  return jsonResponse({
+  return jsonResponse(cors, {
     status: "restart_checkout",
     message: en
       ? "No payment was started. Your cart has been saved — please try again."
@@ -868,6 +870,7 @@ async function handleRetry(
 // clean up, then tell the frontend to start over with a fresh orderId —
 // never silently reuse this orderId for the different cart).
 async function handleCartMismatch(
+  cors: Record<string, string>,
   supabase: any,
   credentials: PostFinanceCredentials,
   orderId: string,
@@ -884,10 +887,10 @@ async function handleCartMismatch(
   const { data: ord } = await supabase
     .from("orders").select("id, order_validation").eq("id", orderId).maybeSingle();
   if (ord) {
-    return jsonResponse({ status: "already_confirmed", orderId, orderValidation: ord.order_validation }, 200);
+    return jsonResponse(cors, { status: "already_confirmed", orderId, orderValidation: ord.order_validation }, 200);
   }
 
-  const respondUnresolved = () => jsonResponse({
+  const respondUnresolved = () => jsonResponse(cors, {
     status: "cart_changed_previous_unresolved",
     previousTotal,
     message: en
@@ -901,7 +904,7 @@ async function handleCartMismatch(
     await recordPaymentAttempt(supabase, {
       orderId, status: "payment_failed", errorType: `cart_changed_${reason}`, lang,
     });
-    return jsonResponse({
+    return jsonResponse(cors, {
       status: "cart_changed_previous_abandoned",
       message: en
         ? "Your previous payment attempt did not complete. You can now start a new checkout with your updated cart."
@@ -912,7 +915,7 @@ async function handleCartMismatch(
   // Never abandons a live/succeeded attempt just because a newer cart
   // differs from it — the customer must explicitly choose (frontend shows
   // "continue previous payment" using previousTotal), never a silent switch.
-  const respondInProgress = () => jsonResponse({
+  const respondInProgress = () => jsonResponse(cors, {
     status: "cart_changed_payment_in_progress",
     previousTotal,
     message: en
@@ -952,8 +955,9 @@ async function handleCartMismatch(
 }
 
 serve(async (req) => {
+  const cors = corsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
+    return new Response(null, { headers: cors });
   }
 
   // Reservation-cleanup state, hoisted above the main try so the global
@@ -1106,9 +1110,9 @@ serve(async (req) => {
           && storedWelcomeDiscountApplied === requestedWelcomeDiscount;
 
         if (cartUnchanged) {
-          return await handleRetry(supabase, credentials, orderId, earlyPending, orderLang);
+          return await handleRetry(cors, supabase, credentials, orderId, earlyPending, orderLang);
         }
-        return await handleCartMismatch(supabase, credentials, orderId, earlyPending, orderLang);
+        return await handleCartMismatch(cors, supabase, credentials, orderId, earlyPending, orderLang);
       }
     }
 
@@ -1402,7 +1406,7 @@ serve(async (req) => {
       .eq("order_id", orderId)
       .maybeSingle();
     if (existingPending) {
-      return await handleRetry(supabase, credentials, orderId, existingPending, orderLang);
+      return await handleRetry(cors, supabase, credentials, orderId, existingPending, orderLang);
     }
 
     const { error: placeholderError } = await supabase.from("pending_payments").insert({
@@ -1423,7 +1427,7 @@ serve(async (req) => {
           .select("postfinance_transaction_id, payload, created_at, payment_reference")
           .eq("order_id", orderId)
           .maybeSingle();
-        if (raced) return await handleRetry(supabase, credentials, orderId, raced, orderLang);
+        if (raced) return await handleRetry(cors, supabase, credentials, orderId, raced, orderLang);
       }
       throw new Error(`Failed to stage pending payment: ${placeholderError.message}`);
     }
@@ -1882,7 +1886,7 @@ serve(async (req) => {
         amount: 0, lang: order.lang,
       });
 
-      return jsonResponse({
+      return jsonResponse(cors, {
         transactionId: REWARD_ONLY_TRANSACTION_ID,
         paymentPageUrl: `${SITE_BASE_URL}/payment-success?order_id=${orderId}`,
         rewardAmountUsed: reservedReward,
@@ -1996,7 +2000,7 @@ serve(async (req) => {
           `Erreur : ${createErr instanceof Error ? createErr.message : String(createErr)}`,
         ],
       }));
-      return jsonResponse({
+      return jsonResponse(cors, {
         error: orderLang === "en"
           ? "We couldn't start the payment. Your cart has been saved — please try again."
           : "Nous n'avons pas pu démarrer le paiement. Votre panier a été conservé, merci de réessayer.",
@@ -2056,7 +2060,7 @@ serve(async (req) => {
           `Erreur : ${urlErr instanceof Error ? urlErr.message : String(urlErr)}`,
         ],
       }));
-      return jsonResponse({
+      return jsonResponse(cors, {
         error: orderLang === "en"
           ? "Your payment was started but the payment page could not open. Your cart has been saved — please try again."
           : "Le paiement a été initié mais la page de paiement n'a pas pu s'ouvrir. Votre panier a été conservé, merci de réessayer.",
@@ -2070,7 +2074,7 @@ serve(async (req) => {
       amount: order.total_amount, lang: order.lang,
     });
 
-    return jsonResponse({ transactionId: transaction.id, paymentPageUrl }, 200);
+    return jsonResponse(cors, { transactionId: transaction.id, paymentPageUrl }, 200);
   } catch (error) {
     console.error("Error creating PostFinance transaction:", error);
 
@@ -2089,7 +2093,7 @@ serve(async (req) => {
       }
     }
 
-    return jsonResponse({
+    return jsonResponse(cors, {
       error: error instanceof Error ? error.message : "Unknown error",
     }, 500);
   }
