@@ -1671,7 +1671,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Pickup Date Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                   {t("Pickup Date", "Date de retrait")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -1742,7 +1742,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Size Selection with box images */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                   {t("Size", "Taille")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1795,7 +1795,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Shape Selection */}
               {!["rectangle-signature","rectangle-raspberries","rectangle-flowers"].includes(selectedCake?.styleId ?? "") && shapes.filter(s => selections.size in s.extraPrice).length > 0 && <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                   {t("Shape", "Forme")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -1824,7 +1824,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Flavor Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                   {t("Flavour", "Parfum")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -1917,7 +1917,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Shag Cake Design Preference */}
               {selectedCake?.images && selectedCake.images.length > 1 && !["retro-vintage", "shag-cake", "printed-picture", "custom-drawing", "roses-please", "butterfly-garden", "gender-reveal"].includes(selectedCake.styleId) && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">{t("Choose your preferred design", "Choisissez votre design préféré")}</label>
+                  <label className="text-sm font-semibold text-foreground">{t("Choose your preferred design", "Choisissez votre design préféré")}</label>
                   <div className="grid grid-cols-2 gap-3">
                     {selectedCake.images.map((img, i) => (
                       <button
@@ -1940,7 +1940,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Base Colour Selection */}
               {colorCfg.showBase && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                   {t("Base Colour", "Couleur de base")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -1988,7 +1988,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 const maxColors = colorCfg.secondaryMax;
                 return (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                   {t(colorCfg.secondaryLabel, secondaryLabelFr[colorCfg.secondaryLabel] ?? colorCfg.secondaryLabel)} <span className="text-destructive cursor-help">
                     <Tooltip>
                       <TooltipTrigger asChild><span>*</span></TooltipTrigger>
@@ -2062,7 +2062,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Rose Colour, Roses Please only */}
               {colorCfg.roseColor && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                   {t("Roses Colour", "Couleur des roses")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -2095,7 +2095,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     { key: "borderBottomColor", label: t("Bottom Border Colour", "Couleur de la bordure du bas") },
                   ] as const).map(({ key, label }) => (
                     <div key={key} className="space-y-2">
-                      <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                      <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                         {label} <span className="text-destructive">*</span>
                       </label>
                       <Select value={selections[key] ?? ""} onValueChange={(v) => setSelections({ ...selections, [key]: v })}>
@@ -2121,7 +2121,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Text Toggle - hidden for printed-picture */}
               {!selectedCake?.disableText && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                   {t("Add Text", "Ajouter un texte")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -2159,7 +2159,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 <>
                   {/* Text Style Selection */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">{t("Text Style", "Style du texte")}</label>
+                    <label className="text-sm font-semibold text-foreground">{t("Text Style", "Style du texte")}</label>
                     <div className="flex gap-2">
                       {textStyles.map((style) => (
                         <button
@@ -2182,7 +2182,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
                   {/* Text Input */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">{t("Your Message", "Votre message")}</label>
+                    <label className="text-sm font-semibold text-foreground">{t("Your Message", "Votre message")}</label>
                     <input
                       type="text"
                       value={selections.cakeText}
@@ -2211,7 +2211,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
                   {/* Text Colour Selection */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">{t("Text Colour", "Couleur du texte")}</label>
+                    <label className="text-sm font-semibold text-foreground">{t("Text Colour", "Couleur du texte")}</label>
                     <Select value={selections.textColor ?? ""} onValueChange={(v) => setSelections({ ...selections, textColor: v })}>
                       <SelectTrigger>
                         <SelectValue placeholder={t("Select a colour", "Choisir une couleur")} />
@@ -2234,7 +2234,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Extras Section */}
               <div className="space-y-3">
                 {!extrasHiddenForDesign && (
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                   {t("Extra", "Extras")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -2413,7 +2413,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                {/* Printed Picture Upload - for printed-picture style or extra */}
               {(selectedCake?.styleId === "printed-picture" || selections.extras.includes("printed-picture")) && (
                 <div className="space-y-3">
-                  <label className="text-sm font-medium text-foreground">{t("Upload Your Image", "Téléchargez votre image")}</label>
+                  <label className="text-sm font-semibold text-foreground">{t("Upload Your Image", "Téléchargez votre image")}</label>
                   <p className="text-xs text-muted-foreground">
                     {t("Upload the image or logo you want printed on your cake (JPG, PNG, WEBP)", "Téléchargez l'image ou le logo que vous souhaitez faire imprimer sur votre gâteau (JPG, PNG, WEBP)")}
                   </p>
@@ -2453,7 +2453,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Comment & Image Upload Section */}
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1">
                   {t("Comment", "Commentaire")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -2528,7 +2528,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Candles Section - Packs first, then individual */}
               <div className="space-y-3 p-4">
-                <label className="text-sm font-medium text-foreground">{t("Candles (Optional)", "Bougies (optionnel)")}</label>
+                <label className="text-sm font-semibold text-foreground">{t("Candles (Optional)", "Bougies (optionnel)")}</label>
                 
                 {/* All candles in one ordered list */}
                 <div className="space-y-2">
