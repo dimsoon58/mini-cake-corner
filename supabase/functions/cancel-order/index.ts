@@ -2,11 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { getLogoEmailUrl } from "../_shared/site-config.ts";
 
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-<<<<<<< HEAD
 import { corsHeaders } from "../_shared/cors.ts";
-=======
-import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
->>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
 
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) => new Response(JSON.stringify(body), {

@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-<<<<<<< HEAD
 import { corsHeaders } from "../_shared/cors.ts";
-=======
-import { requireAdmin } from "../_shared/admin-auth.ts";
->>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
 
 // Read-only order lookup for the admin "Voir le détail complet de la
 // commande" link (notify-order's reviewUrl, /admin/order/:id?token=...).
@@ -69,7 +65,6 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-<<<<<<< HEAD
     // Token gate — same table manage-order itself checks. `used` deliberately
     // ignored (see header comment); `expires_at` IS enforced.
     const { data: tokenRow, error: tokenErr } = await supabase
@@ -90,41 +85,6 @@ serve(async (req) => {
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         status: 403,
       });
-=======
-    // Real admin session required — see the 2026-09-17 header note.
-    const admin = await requireAdmin(req, supabase);
-    if (!admin) {
-      return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 401,
-      });
-    }
-
-    // Extra layer when a token is present (the notification e-mail link) —
-    // never a bypass for the admin check above, and never required now that
-    // an admin session is mandatory. `used` deliberately ignored (see header
-    // comment); `expires_at` IS enforced.
-    if (token) {
-      const { data: tokenRow, error: tokenErr } = await supabase
-        .from("order_action_tokens")
-        .select("order_id, expires_at")
-        .eq("order_id", orderId)
-        .eq("token", token)
-        .maybeSingle();
-      if (tokenErr) throw new Error(`Token lookup failed: ${tokenErr.message}`);
-      if (!tokenRow) {
-        return new Response(JSON.stringify({ error: "Invalid or unknown action token" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 403,
-        });
-      }
-      if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) {
-        return new Response(JSON.stringify({ error: "This link has expired" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 403,
-        });
-      }
->>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
     }
 
     const { data: order, error: orderErr } = await supabase
@@ -150,42 +110,8 @@ serve(async (req) => {
       .from("order_fulfillments").select("*").eq("order_id", orderId).order("pickup_delivery_date", { ascending: true });
     if (fulfillmentsErr) throw new Error(`Failed to load order fulfillments: ${fulfillmentsErr.message}`);
 
-<<<<<<< HEAD
     return new Response(JSON.stringify({ order, items: items ?? [], fulfillments: fulfillments ?? [] }), {
       headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-=======
-    // Hand back this order's own action token to a verified admin (only —
-    // this whole function already requires one, see above), the same row
-    // notify-order itself creates/reuses per order. Lets the /admin/orders
-    // dashboard flow (no token in the URL at all) still Accept/Refuse from
-    // this page without ever touching manage-order's own token+RPC logic —
-    // the admin already has full access to this order via the session
-    // check above, so returning a token they're already entitled to use is
-    // not a new privilege. Oldest row wins, same "reuse, don't stack"
-    // convention as notify-order/index.ts. Never returned when a caller
-    // supplied their own `token` above (e.g. the e-mail link) — it already
-    // has everything it needs, and always exactly reflects what was in the
-    // URL rather than silently swapping in a different one.
-    let actionToken: string | null = null;
-    if (!token) {
-      const { data: tokenRow } = await supabase
-        .from("order_action_tokens")
-        .select("token")
-        .eq("order_id", orderId)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      actionToken = tokenRow?.token ?? null;
-    }
-
-    return new Response(JSON.stringify({
-      order,
-      items: items ?? [],
-      fulfillments: fulfillments ?? [],
-      actionToken,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
->>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
       status: 200,
     });
   } catch (error) {

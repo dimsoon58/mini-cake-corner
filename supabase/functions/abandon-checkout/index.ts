@@ -5,8 +5,8 @@ import {
   pfFetch,
   type PostFinanceCredentials,
 } from "../_shared/postfinance.ts";
-import {
 import { corsHeaders } from "../_shared/cors.ts";
+import {
   TX_SUCCESS_STATES,
   TX_FAILURE_STATES,
   getTransactionState,

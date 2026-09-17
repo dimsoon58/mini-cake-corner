@@ -187,13 +187,8 @@ serve(async (req) => {
             if (now === entityId || now === "" || now === "CREATING") {
               orderId = resolvedOrderId;
             } else {
-<<<<<<< HEAD
               await reportConflictingTransactions(getPostFinanceCredentials(), merchantRef, now, entityId);
               return txt(cors, "conflicting transaction id — manual review required", 500);
-=======
-              await reportConflictingTransactions(getPostFinanceCredentials(), resolvedOrderId, now, entityId);
-              return txt("conflicting transaction id — manual review required", 500);
->>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
             }
           }
         } else if (current === entityId) {
@@ -201,13 +196,8 @@ serve(async (req) => {
         } else {
           // A DIFFERENT real transaction id is already recorded. NEVER
           // overwrite. Read both real states, alert, keep everything, 5xx.
-<<<<<<< HEAD
           await reportConflictingTransactions(getPostFinanceCredentials(), merchantRef, current, entityId);
           return txt(cors, "conflicting transaction id — manual review required", 500);
-=======
-          await reportConflictingTransactions(getPostFinanceCredentials(), resolvedOrderId, current, entityId);
-          return txt("conflicting transaction id — manual review required", 500);
->>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
         }
       } else {
         let ordByRef = (await supabase

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import {
 import { corsHeaders } from "../_shared/cors.ts";
+import {
   claimAndDispatchWorkshopReservationSync,
   type WorkshopRefundStatus,
 } from "../_shared/workshop-make.ts";

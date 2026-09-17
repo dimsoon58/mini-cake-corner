@@ -1,10 +1,6 @@
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "./workshops.ts";
-<<<<<<< HEAD
 import { getLogoEmailUrl } from "./site-config.ts";
 
-=======
-import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
->>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
 
 // Shared workshop confirmation-email renderer — the exact same visual
 // template and workshop information a website workshop booking gets, at

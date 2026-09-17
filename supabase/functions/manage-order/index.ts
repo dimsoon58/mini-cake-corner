@@ -13,11 +13,7 @@ import {
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
-<<<<<<< HEAD
 import { corsHeaders } from "../_shared/cors.ts";
-=======
-import { requireAdmin } from "../_shared/admin-auth.ts";
->>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
 
 // 2026-09-15: deferred capture restored (pre-04a6199 model, reused almost
 // verbatim — see the PostFinance capture/void block in the handler below).

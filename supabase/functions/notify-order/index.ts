@@ -1,13 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-<<<<<<< HEAD
 import { getSiteBaseUrl, getLogoEmailUrl } from "../_shared/site-config.ts";
 
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
-=======
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { DARKMODE_META_TAGS, adminDarkModeStyle } from "../_shared/email-darkmode.ts";
->>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
 
 
 const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
