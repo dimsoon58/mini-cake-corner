@@ -2291,6 +2291,27 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           );
                         })}
                       </div>
+                      {/* Butterfly colour – inline, directly below the extras grid */}
+                      {visibleExtras.some(e => e.id === "butterfly") && selections.extras.includes("butterfly") && (
+                        <div className="space-y-2 pt-1">
+                          <p className="text-xs font-medium text-foreground">{t("Butterfly Colour", "Couleur du papillon")} <span className="text-destructive">*</span></p>
+                          <div className="flex flex-wrap gap-2">
+                            {butterflyColors.map((color) => (
+                              <button
+                                key={color.id}
+                                onClick={() => setSelections({ ...selections, butterflyColor: color.id })}
+                                className={cn(
+                                  "flex flex-col items-center gap-1 p-1 rounded-lg transition-all",
+                                  selections.butterflyColor === color.id ? "ring-2 ring-primary" : ""
+                                )}
+                              >
+                                <div className="w-6 h-6 rounded-full border border-muted" style={{ backgroundColor: color.color }} />
+                                <span className="text-[10px] text-foreground">{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -2387,8 +2408,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   </div>
                 )}
 
-                {/* Butterfly Colour */}
-                {(selections.extras.includes("butterfly") || selectedCake?.styleId === "butterfly-garden") && (
+                {/* Butterfly Colour – shown here only for butterfly-garden design (extra butterfly shows inline above) */}
+                {selectedCake?.styleId === "butterfly-garden" && (
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-foreground">{t("Butterfly Colour", "Couleur du papillon")} <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
