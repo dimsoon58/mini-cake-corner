@@ -31,8 +31,7 @@ import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorF
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
-import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
-import { expressCalendarProps } from "@/components/ExpressDateNotice";
+import { isOrderDateDisabled } from "@/lib/orderDates";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { flavorDescMap } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
@@ -88,11 +87,11 @@ import designShagCake2 from "@/assets/design-shag-cake-2.jpg";
 import shagCake1 from "@/assets/shag-cake-1.jpg";
 import shagCake2 from "@/assets/shag-cake-2.jpg";
 import shagCake3 from "@/assets/shag-cake-3.jpg";
-import designGoldLeaves from "@/assets/design-gold-leaves-new.webp";
+import designGoldLeaves from "@/assets/design-gold-leaves-new.png";
 import designGoldenCake from "@/assets/design-golden-cake.jpg";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designPearlBorders from "@/assets/design-pearl-borders-new.jpg";
-import designCherries from "@/assets/design-cherries-new.webp";
+import designCherries from "@/assets/design-cherries-new.png";
 import designGlitterCherries from "@/assets/design-glitter-cherries-new.jpg";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 import retroRibbons1 from "@/assets/retro-ribbons-1.jpg";
@@ -126,7 +125,7 @@ import extraSprinkles from "@/assets/extra-sprinkles-new2.jpg";
 import extraCherries from "@/assets/extra-cherries-new.jpg";
 import extraGlitterCherries from "@/assets/extra-glitter-cherries-new.jpg";
 import extraGoldLeaves from "@/assets/extra-gold-leaves.png";
-import extraHeart from "@/assets/extra-heart.webp";
+import extraHeart from "@/assets/extra-heart.png";
 import extraRetro from "@/assets/extra-retro.png";
 import extraDrawing from "@/assets/extra-drawing.png";
 import extraPrintedPicture from "@/assets/extra-printed-picture.png";
@@ -264,10 +263,10 @@ const glutenFreeDeluxeFlavors = flavors.filter((f) => GF_DELUXE_FLAVOR_IDS.inclu
 
 const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
-  { id: "silver-spiral", name: "Silver Spiral", image: candleSilverSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "blue-ombre", name: "Blue Ombré", image: candleBlueOmbre, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
   { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candlePinkGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "silver-spiral", name: "Silver Spiral", image: candleSilverSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "gold-spiral", name: "Gold Spiral", image: candleGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "spiral-champagne", name: "Spiral Champagne", image: candleChampagneSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
@@ -1114,34 +1113,16 @@ const CakeCardImage = ({ images, name, index, onIndexChange }: { images: string[
 const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }: CatalogProps) => {
   const { addItem, cartOrderDate } = useCart();
   const { toast } = useToast();
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const [selectedCake, setSelectedCake] = useState<typeof catalog[0] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [calOpen, setCalOpen] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
   const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
-  // Declared before the effect below, which reads it in both its body and
-  // its dependency array — referencing it while still part of the same
-  // component body BEFORE this line runs is a TDZ ReferenceError ("Cannot
-  // access 'numberCandleDigits' before initialization"), thrown on every
-  // render (crashed this whole page in production).
-  const [numberCandleDigits, setNumberCandleDigits] = useState<string[]>([]);
-  const [numberCandlePreview, setNumberCandlePreview] = useState("0");
-
-  useEffect(() => {
-    setSelections((prev) => {
-      const numberEntry = prev.candles.find((e) => e.id === NUMBER_CANDLE_ID);
-      const otherCandles = prev.candles.filter((e) => e.id !== NUMBER_CANDLE_ID);
-      if (numberCandleDigits.length === 0) return { ...prev, candles: otherCandles };
-      const updated = { id: NUMBER_CANDLE_ID, quantity: numberCandleDigits.length, hasPack: false, ...(numberEntry || {}) };
-      return { ...prev, candles: [...otherCandles, updated] };
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [numberCandleDigits]);
+  const [numberCandleDigit, setNumberCandleDigit] = useState("0");
   const [fullyBookedDates, setFullyBookedDates] = useState<Date[]>([]);
   // Active carousel image per multi-photo design (keyed by cake id). Kept
   // here so it persists across re-renders and is the image passed to
@@ -1334,7 +1315,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     setSelections({ ...selections, commentImages: [...selections.commentImages, ...accepted] });
     if (commentFileInputRef.current) commentFileInputRef.current.value = "";
     toast({
-      title: t(`${accepted.length} image${accepted.length > 1 ? "s" : ""} added`, `${accepted.length} image${accepted.length > 1 ? "s" : ""} ajoutée${accepted.length > 1 ? "s" : ""}`),
+      title: t(`${accepted.length} image${accepted.length > 1 ? "s" : ""} added ✓`, `${accepted.length} image${accepted.length > 1 ? "s" : ""} ajoutée${accepted.length > 1 ? "s" : ""} ✓`),
       description: rejected > 0
         ? t(`${rejected} image(s) ignored (max 5 reached).`, `${rejected} image(s) ignorée(s) (maximum de 5 atteint).`)
         : t(`${selections.commentImages.length + accepted.length}/5 reference images.`, `${selections.commentImages.length + accepted.length}/5 images de référence.`),
@@ -1490,22 +1471,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     const selectedRibbonColor = ribbonColors.find(c => c.id === selections.ribbonColor);
     const selectedButterflyColor = butterflyColors.find(c => c.id === selections.butterflyColor);
     const candlesWithDigit = selections.candles.map((c) =>
-      c.id === NUMBER_CANDLE_ID ? { ...c, digits: numberCandleDigits } : c
+      c.id === NUMBER_CANDLE_ID ? { ...c, digit: numberCandleDigit } : c
     );
 
     // Absolute URL of the catalogue design photo the customer chose. When
     // the design has several option photos, that's the exact one they
     // clicked (selections.shagDesignPreference — the same index behind the
     // "[Preferred design: Option N]" comment); otherwise it's the design's
-    // single photo. For an Inspiration cake, selectedCake.image IS the
-    // inspiration photo itself (the exact design actually chosen, not just
-    // a loose reference) — shown here too now, so the cart/admin/invoice
-    // can display it instead of an unhelpful "Inspiration #N" label. Still
-    // also carried in imageUrls below, unchanged — no second image system.
+    // single photo. null only for an inspiration cake, whose photo is a
+    // client reference already carried in imageUrls, not a catalogue design.
     const chosenDesignImage =
       selectedCake.images && selectedCake.images.length > 1
         ? selectedCake.images[selections.shagDesignPreference] ?? selectedCake.images[0]
-        : selectedCake.image || null;
+        : selectedCake.styleId === "inspiration"
+          ? null
+          : selectedCake.image || null;
     const designImageUrl = chosenDesignImage
       ? new URL(chosenDesignImage, window.location.origin).href
       : null;
@@ -1521,15 +1501,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       shapeName: shapeObj?.name || "",
       flavor: selections.flavor,
       flavorName: flavorObj?.name || "",
-      // An Inspiration cake's styleId is always the generic "inspiration"
-      // (every colour-config/exclusion lookup keyed by styleId elsewhere in
-      // this file relies on that constant string, so it must stay
-      // unchanged) — but the server's design price table can't charge a
-      // single price for ~80 different inspiration photos under one shared
-      // id. selectedCake.id is already the per-photo identifier
-      // ("inspiration-N", set in openInspiration()); send THAT as the
-      // design/style actually priced and stored, only for this one case.
-      style: selectedCake.styleId === "inspiration" ? selectedCake.id : selectedCake.styleId,
+      style: selectedCake.styleId,
       styleName: selectedCake.styleName,
       baseColor: genderWhite ? "white" : selections.baseColor,
       baseColorName: baseColorObj?.name || "",
@@ -1582,17 +1554,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   // Ouvre le panneau pour une photo d'inspiration donnee
   const openInspiration = (index: number) => {
     if (isNaN(index) || index < 0 || index >= inspirationItems.length) return;
-    // inspirationItems[index].id is the stable, image-number-derived
-    // identifier registered explicitly on each entry in
-    // src/data/inspirations.ts (NOT derived from this array position/index
-    // — the array can be reordered, or an entry added/removed, without
-    // ever changing which id refers to which photo). This id is what gets
-    // sent to the server as order_items.design (see addItem() above) and
-    // must match a key in supabase/functions/_shared/pricing.ts's
-    // INSPIRATION_DESIGNS table exactly.
-    const inspirationId = inspirationItems[index].id;
     handleSelectCake({
-      id: inspirationId,
+      id: `inspiration-${index + 1}`,
       name: t(`Inspiration Cake #${index + 1}`, `Gâteau d'inspiration n°${index + 1}`),
       description: t("Based on the inspiration photo you selected", "D'après la photo d'inspiration que vous avez sélectionnée"),
       image: inspirationItems[index].src,
@@ -1675,10 +1638,10 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Pickup Date", "Date de retrait")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 2 days in advance)", "Date de préparation de la commande (minimum 2 jours à l'avance)")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 4 days in advance)", "Date de préparation de la commande (minimum 4 jours à l'avance)")}</p></TooltipContent>
                   </Tooltip>
                 </label>
-                <Popover open={calOpen} onOpenChange={setCalOpen}>
+                <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -1699,14 +1662,13 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
-                      {...expressCalendarProps}
                       mode="single"
                       selected={selections.orderDate || undefined}
-                      onSelect={(date) => { setSelections({ ...selections, orderDate: date || null }); setCalOpen(false); }}
+                      onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
                       disabled={(date) => {
                         // Food-order lead time: J0/J+1 blocked, J+2+
                         // selectable (was wrongly hardcoded to J+4 here,
-                        // which made the J+2/J+3 express-surcharge tier
+                        // which made the J+2/J+3 near-date-surcharge tier
                         // unreachable from this page — see src/lib/orderDates.ts,
                         // the single shared source of truth for this rule).
                         if (isOrderDateDisabled(date)) return true;
@@ -1719,17 +1681,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     />
                   </PopoverContent>
                 </Popover>
-                {/* Outside the Popover on purpose: PopoverContent unmounts
-                    the instant a date is picked (onSelect above closes it),
-                    so a notice placed inside it can never survive past that
-                    same tap/click on mobile OR desktop — it would only ever
-                    flash for an instant. Placed here, keyed off
-                    selections.orderDate directly, it stays visible once a
-                    date is chosen, which is exactly what a touch device (no
-                    hover) needs to actually see it. */}
-                {expressCalendarNotice(selections.orderDate || null, lang) && (
-                  <p className="text-[10px] italic text-muted-foreground">ⓘ {expressCalendarNotice(selections.orderDate || null, lang)}</p>
-                )}
                 {!MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && (
                   <p className="text-xs text-muted-foreground">
                     {t(
@@ -1772,7 +1723,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         itemText={`${t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF ${size.price}`}
                       >
                         <div className="flex items-start gap-2 py-0.5 w-full">
-                          <img src={size.image} alt={size.name} className="w-28 h-28 object-contain flex-shrink-0" />
+                          <img src={size.image} alt={size.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
                           <div className="min-w-0 flex-1">
                             <span className="block">{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
                             {sizeInfo[size.id] && (
@@ -1841,15 +1792,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         value={flavor.id}
                         itemText={`${t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)}${extra > 0 ? ` (+CHF ${extra})` : ""}`}
                       >
-                        <div className="flex items-start gap-2 w-full">
-                          <img src={flavor.image} alt={flavor.name} className="w-20 h-20 object-contain flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <span className="block whitespace-normal leading-snug">{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
-                            {flavorDescMap[flavor.id] && (
-                              <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
-                                {t(flavorDescMap[flavor.id].en, flavorDescMap[flavor.id].fr)}
-                              </div>
-                            )}
+                        <div className="flex items-start gap-2">
+                          <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
+                          <div>
+                          <span>{t(flavor.name, flavorNameFr[flavor.id] ?? flavor.name)} {extra > 0 ? `(+CHF ${extra})` : ""}</span>
+                          {flavorDescMap[flavor.id] && (
+                            <div className="text-[10px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">
+                              {t(flavorDescMap[flavor.id].en, flavorDescMap[flavor.id].fr)}
+                            </div>
+                          )}
+                          {info && (
+                            <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                              {info.warn && <span aria-hidden="true">⚠️ </span>}
+                              <span className="font-medium">{t("Contains:", "Contient :")}</span> {t(info.en, info.fr)}
+                            </div>
+                          )}
                           </div>
                         </div>
                       </SelectItem>
@@ -2532,53 +2489,22 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 
                 {/* All candles in one ordered list */}
                 <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Number Candle — digit picker, no product photo, flat rate */}
-                  <div className={cn("w-full flex flex-col overflow-hidden rounded-none bg-white/60 hover:bg-white/80 transition-all border border-foreground/20", numberCandleDigits.length > 0 && "ring-2 ring-primary")}>
-                  <div className="h-28 flex items-center justify-center bg-secondary/20 p-2">
-                    <img key={numberCandlePreview} src={NUMBER_CANDLE_IMAGES_CATALOG[numberCandlePreview]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandlePreview}`} className="h-24 w-24 object-contain transition-all duration-200" />
-                  </div>
-                  <div className="p-2 text-center">
-                    <p className="text-xs font-medium text-foreground">{t("Number Candle", "Bougie chiffre")}</p>
-                    <p className="text-[10px] text-muted-foreground mb-1.5">CHF {NUMBER_CANDLE_PRICE} {t("each", "/ pièce")}</p>
-                    {numberCandleDigits.length > 0 && (
-                      <div className="space-y-1 text-left mb-1.5">
-                        {numberCandleDigits.map((d, i) => (
-                          <div key={i} className="flex items-center gap-1">
-                            <span className="text-[9px] text-muted-foreground shrink-0 w-12">{t(`Candle ${i+1}`,`Bougie ${i+1}`)}</span>
-                            <Select value={d} onValueChange={(v) => { const next=[...numberCandleDigits]; next[i]=v; setNumberCandleDigits(next); setNumberCandlePreview(v); }}>
-                              <SelectTrigger className="h-5 text-xs flex-1 px-1" aria-label={t("Choose a digit","Choisir un chiffre")}><SelectValue /></SelectTrigger>
-                              <SelectContent>{NUMBER_CANDLE_DIGITS.map((digit) => <SelectItem key={digit} value={digit}>{digit}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <button onClick={() => setNumberCandleDigits(numberCandleDigits.filter((_,idx)=>idx!==i))} className="text-muted-foreground hover:text-foreground text-xs leading-none px-0.5 shrink-0">×</button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <button
-                      onClick={() => { setNumberCandleDigits([...numberCandleDigits,"0"]); setNumberCandlePreview("0"); }}
-                      className="text-[9px] uppercase tracking-wider text-primary hover:underline font-medium"
-                    >+ {t("Add candle","Ajouter")}</button>
-                    {numberCandleDigits.length > 0 && (
-                      <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {numberCandleDigits.length * NUMBER_CANDLE_PRICE}</p>
-                    )}
-                  </div>
-                  </div>
-
+                  <div className="flex flex-wrap justify-center gap-3">
                     {candles.slice(0, showAllCandles ? undefined : 4).map((candle) => {
                       const family = FAMILY_CANDLE_COLORS[candle.id];
                       if (family) {
                         return (
-                          <ColorFamilyCandleCard
-                            key={candle.id}
-                            candle={candle}
-                            colors={family}
-                            existing={selections.candles.find((c) => c.id === candle.id)}
-                            onCommit={(entry) => setSelections((prev) => ({ ...prev, candles: upsertCandleSelection(prev.candles, entry) }))}
-                            onRemove={() => setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, candle.id) }))}
-                            imageClassName="h-24 w-auto"
-                            compact
-                          />
+                          <div key={candle.id} className="w-[calc(50%-6px)] min-w-0">
+                            <ColorFamilyCandleCard
+                              candle={candle}
+                              colors={family}
+                              existing={selections.candles.find((c) => c.id === candle.id)}
+                              onCommit={(entry) => setSelections((prev) => ({ ...prev, candles: upsertCandleSelection(prev.candles, entry) }))}
+                              onRemove={() => setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, candle.id) }))}
+                              imageClassName="h-24 w-auto"
+                              compact
+                            />
+                          </div>
                         );
                       }
 
@@ -2587,7 +2513,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       const isPackApplied = candle.hasPack && unitQty >= (candle.packSize || 6);
 
                       return (
-                        <div key={candle.id} className={cn("flex flex-col overflow-hidden rounded-none bg-white/60 hover:bg-white/80 transition-all border border-foreground/20", unitQty > 0 && "ring-2 ring-primary")}>
+                        <div key={candle.id} className="w-[calc(50%-6px)] min-w-0">
+                          <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all border border-foreground/20", unitQty > 0 && "ring-2 ring-primary")}>
                           <div className="flex items-center justify-center bg-secondary/20 p-2 h-28">
                             <img src={candle.image} alt={candle.name} className="h-24 w-auto object-contain" />
                           </div>
@@ -2622,9 +2549,53 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                               <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {totalPrice}</p>
                             )}
                           </div>
+                          </div>
                         </div>
                       );
                     })}
+
+                    {/* Number Candle — digit picker, no product photo, flat rate */}
+                    <div className="w-[calc(50%-6px)] min-w-0">
+                      <div className={cn("w-full flex flex-col overflow-hidden rounded-lg bg-white/60 hover:bg-white/80 transition-all border border-foreground/20", getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 && "ring-2 ring-primary")}>
+                      <div className="h-28 flex items-center justify-center bg-secondary/20 p-2">
+                        <img key={numberCandleDigit} src={NUMBER_CANDLE_IMAGES_CATALOG[numberCandleDigit]} alt={`${t("Number Candle","Bougie chiffre")} ${numberCandleDigit}`} className="h-24 w-auto object-contain transition-all duration-200" />
+                      </div>
+                      <div className="p-2 text-center">
+                        <p className="text-xs font-medium text-foreground">{t("Number Candle", "Bougie chiffre")}</p>
+                        <p className="text-[10px] text-muted-foreground mb-1">CHF {NUMBER_CANDLE_PRICE} {t("each", "/ pièce")}</p>
+                        <Select value={numberCandleDigit} onValueChange={setNumberCandleDigit}>
+                          <SelectTrigger className="h-7 text-xs mb-1.5" aria-label={t("Choose a digit", "Choisir un chiffre")}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {NUMBER_CANDLE_DIGITS.map((digit) => (
+                              <SelectItem key={digit} value={digit}>{digit}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleCandleQuantityChange(NUMBER_CANDLE_ID, -1)}
+                            disabled={getCandleUnitQuantity(NUMBER_CANDLE_ID) === 0}
+                            className={cn(
+                              "w-6 h-6 rounded-none flex items-center justify-center text-xs font-bold transition-all",
+                              getCandleUnitQuantity(NUMBER_CANDLE_ID) === 0
+                                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}
+                          >−</button>
+                          <span className="w-5 text-center font-medium text-foreground text-sm">{getCandleUnitQuantity(NUMBER_CANDLE_ID)}</span>
+                          <button
+                            onClick={() => handleCandleQuantityChange(NUMBER_CANDLE_ID, 1)}
+                            className="w-6 h-6 rounded-none bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-all"
+                          >+</button>
+                        </div>
+                        {getCandleUnitQuantity(NUMBER_CANDLE_ID) > 0 && (
+                          <p className="text-[10px] text-primary font-medium mt-0.5">+CHF {getCandleTotalPrice(NUMBER_CANDLE_ID)}</p>
+                        )}
+                      </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -2691,9 +2662,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {cakes.map((cake) => (
                     <div
                       key={cake.id}
-                      className="relative rounded-none overflow-hidden border-[3px] border-primary flex flex-col"
+                      className="relative rounded-none overflow-hidden border border-transparent hover:border-foreground/25 transition-colors duration-300 flex flex-col"
                     >
-                      <div className="border border-primary m-1.5 flex flex-col flex-1 overflow-hidden">
 
                       {cake.images && cake.images.length > 1 ? (
                         <CakeCardImage
@@ -2731,7 +2701,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                             {t("CHOOSE THIS STYLE", "CHOISIR CE MODÈLE")}
                           </Button>
                         </div>
-                      </div>
                       </div>
                     </div>
                   ))}
