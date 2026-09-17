@@ -1134,10 +1134,14 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
   useEffect(() => {
     setSelections((prev) => {
-      const numberEntry = prev.candles.find((e) => e.id === NUMBER_CANDLE_ID);
       const otherCandles = prev.candles.filter((e) => e.id !== NUMBER_CANDLE_ID);
       if (numberCandleDigits.length === 0) return { ...prev, candles: otherCandles };
-      const updated = { id: NUMBER_CANDLE_ID, quantity: numberCandleDigits.length, hasPack: false, ...(numberEntry || {}) };
+      // Always a fresh quantity from the current digit count — never spread
+      // the previous entry back in afterwards (that used to let its stale
+      // `quantity` silently overwrite the recomputed one, so the price
+      // never advanced past the first digit added). Same shape DotCakes.tsx
+      // and KitBentoCake.tsx already use correctly.
+      const updated = { id: NUMBER_CANDLE_ID, quantity: numberCandleDigits.length, hasPack: false };
       return { ...prev, candles: [...otherCandles, updated] };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps

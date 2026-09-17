@@ -28,6 +28,12 @@ export interface CandleInput {
   hasPack: boolean;
   colors?: string[];
   digit?: string;
+  // The Number Candle's real, live shape (candleCartHelpers.ts /
+  // CartContext.CandleSelection): several digits in ONE entry, e.g.
+  // { id: "number-candle", quantity: 2, digits: ["1", "8"] }. `digit`
+  // (singular) above is kept for backward compatibility but is not what
+  // the frontend actually ever sends today.
+  digits?: string[];
 }
 
 export interface PricingInput {
@@ -297,10 +303,33 @@ export const FAMILY_CANDLE_COLORS: Record<string, string[]> = {
 };
 
 function priceCandle(entry: CandleInput): PricingResult {
-  if (entry.digit !== undefined) {
+  // Number Candle — CHF 5 per digit. Real shape is `digits` (an array: one
+  // entry can carry several digits at once, e.g. ["1", "8"] for CHF 10);
+  // `digit` (singular) is accepted too for backward compatibility, but the
+  // frontend only ever sends `digits` today (candleCartHelpers.ts /
+  // CartContext.CandleSelection). This branch used to only trigger on
+  // `entry.digit`, so a real `digits`-shaped entry fell through to the
+  // generic CANDLES[entry.id] lookup below and was rejected as "unknown
+  // candle id: number-candle" — number-candle is a flat-rate digit picker,
+  // never a real CANDLES catalogue entry.
+  const hasDigits = entry.digit !== undefined || (Array.isArray(entry.digits) && entry.digits.length > 0);
+  if (hasDigits || entry.id === NUMBER_CANDLE_ID) {
     if (entry.id !== NUMBER_CANDLE_ID) return fail(`unknown candle id for digit entry: ${entry.id}`);
-    if (!NUMBER_CANDLE_DIGITS.includes(entry.digit)) return fail(`invalid digit: ${entry.digit}`);
+    const digits = Array.isArray(entry.digits) && entry.digits.length > 0
+      ? entry.digits
+      : (entry.digit !== undefined ? [entry.digit] : []);
+    if (digits.length === 0) return fail("number candle entry has no digit selected");
+    if (!digits.every((d) => NUMBER_CANDLE_DIGITS.includes(d))) {
+      return fail(`invalid digit in number candle selection: ${digits.join(",")}`);
+    }
     if (!Number.isInteger(entry.quantity) || entry.quantity < 1) return fail("invalid candle quantity");
+    // Defence in depth: quantity must exactly match how many digits were
+    // actually selected — never trust a client-computed quantity that could
+    // drift from the real digit count (exactly the class of bug this fixes
+    // on the frontend side; this is the server-side backstop).
+    if (entry.quantity !== digits.length) {
+      return fail(`number candle quantity (${entry.quantity}) does not match digit count (${digits.length})`);
+    }
     return { ok: true, total: entry.quantity * NUMBER_CANDLE_PRICE };
   }
 

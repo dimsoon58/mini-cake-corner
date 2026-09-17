@@ -437,7 +437,7 @@ interface CanonicalItemSnapshot {
   flavors: string[];
   design: string | null;
   extras: string[];
-  candles: { id: string; quantity: number; colors: string[]; digit: string | null }[];
+  candles: { id: string; quantity: number; colors: string[]; digit: string | null; digits: string[] }[];
   fulfillmentDate: string | null;
   fulfillmentMethod: string | null;
   fulfillmentPlaceId: string | null;
@@ -451,8 +451,19 @@ function canonicalCandles(candles: CandleInput[] | null | undefined): CanonicalI
       quantity: Number(c.quantity ?? 0),
       colors: [...(c.colors ?? [])].map(String).sort(),
       digit: c.digit != null ? String(c.digit) : null,
+      // Number Candle's real shape — several digits in ONE entry. Without
+      // this, two genuinely different digit selections with the same
+      // quantity (e.g. ["1","8"] vs ["2","3"]) canonicalised identically
+      // (digit was always null for both), so a resumed/retried payment
+      // could silently keep charging for the OLD digits after the customer
+      // changed them.
+      digits: Array.isArray(c.digits) ? [...c.digits].map(String).sort() : [],
     }))
-    .sort((a, b) => a.id.localeCompare(b.id) || a.digit?.localeCompare(b.digit ?? "") || 0);
+    .sort((a, b) =>
+      a.id.localeCompare(b.id) ||
+      (a.digit ?? "").localeCompare(b.digit ?? "") ||
+      a.digits.join(",").localeCompare(b.digits.join(","))
+    );
 }
 
 // Per-item fulfillment (date/method/placeId) for the CURRENT request — reads

@@ -473,6 +473,28 @@ const Cart = () => {
     recalcAndUpdate(itemId, { candles: newCandles });
   };
 
+  // Removes ONE digit from the Number Candle entry — several digits live in
+  // ONE CandleSelection (digits: ["1","8"]), never as separate entries with
+  // the same id, so this can't be handleCandleQuantityChange/
+  // removeCandleSelection (both key purely on `id === "number-candle"`,
+  // which would drop every digit at once). Keeps every other digit intact
+  // and shrinks quantity to match; removes the whole entry only once the
+  // last digit is gone.
+  const handleRemoveNumberCandleDigit = (itemId: string, digitIndex: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    const entry = (item.candles || []).find((c: CandleSelection) => c.id === NUMBER_CANDLE_ID);
+    if (!entry) return;
+    const digits: string[] = entry.digits || (entry.digit ? [entry.digit] : []);
+    const newDigits = digits.filter((_, i) => i !== digitIndex);
+    const newCandles = newDigits.length === 0
+      ? (item.candles || []).filter((c: CandleSelection) => c.id !== NUMBER_CANDLE_ID)
+      : (item.candles || []).map((c: CandleSelection) =>
+          c.id === NUMBER_CANDLE_ID ? { ...c, digits: newDigits, digit: undefined, quantity: newDigits.length } : c
+        );
+    recalcAndUpdate(itemId, { candles: newCandles });
+  };
+
   const getCandleUnitQty = (item: typeof items[0], candleId: string) => {
     return (item.candles || []).find(c => c.id === candleId && !c.hasPack)?.quantity || 0;
   };
@@ -785,6 +807,7 @@ const Cart = () => {
                           getCandleUnitQty={(candleId) => getCandleUnitQty(item, candleId)}
                           getCandleItemPrice={(candleId) => getCandleItemPrice(candleId, item.candles || [])}
                           onNumberCandleDigitChange={(digit) => handleNumberCandleDigitChange(item.id, digit)}
+                          onRemoveNumberCandleDigit={(digitIndex) => handleRemoveNumberCandleDigit(item.id, digitIndex)}
                           onCandleSelectionCommit={(entry) => recalcAndUpdate(item.id, { candles: upsertCandleSelection(item.candles || [], entry) })}
                           onCandleSelectionRemove={(candleId) => recalcAndUpdate(item.id, { candles: removeCandleSelection(item.candles || [], candleId) })}
                         />
@@ -1149,6 +1172,7 @@ interface CartItemEditorProps {
   getCandleUnitQty: (candleId: string) => number;
   getCandleItemPrice: (candleId: string) => number;
   onNumberCandleDigitChange: (digit: string) => void;
+  onRemoveNumberCandleDigit: (digitIndex: number) => void;
   onCandleSelectionCommit: (entry: CandleSelection) => void;
   onCandleSelectionRemove: (candleId: string) => void;
 }
@@ -1161,7 +1185,7 @@ const CartItemEditor = ({
   onGlitterColorChange, onGlitterCherriesColorChange,
   onCommentChange, onImageFilesChange,
   onCandleQtyChange, getCandleUnitQty, getCandleItemPrice,
-  onNumberCandleDigitChange,
+  onNumberCandleDigitChange, onRemoveNumberCandleDigit,
   onCandleSelectionCommit, onCandleSelectionRemove,
 }: CartItemEditorProps) => {
   const { t } = useLang();
@@ -1617,7 +1641,12 @@ const CartItemEditor = ({
             );
           })}
 
-          {/* Number Candle — multi-digit display */}
+          {/* Number Candle — multi-digit display, each digit individually
+              removable. Several digits live in ONE CandleSelection
+              (digits: ["1","8"]), never as separate entries — removing one
+              must never take out the others, hence onRemoveNumberCandleDigit
+              keying on the digit's own index, not on id === "number-candle"
+              (which would always remove every digit at once). */}
           {(() => {
             const entry = (item.candles || []).find((c: CandleSelection) => c.id === NUMBER_CANDLE_ID);
             if (!entry) return null;
@@ -1634,7 +1663,29 @@ const CartItemEditor = ({
                 </div>
                 <span className="text-xs font-medium text-foreground text-center">{t("Number Candle", "Bougie chiffre")}</span>
                 <span className="text-[10px] text-muted-foreground mt-0.5">{digits.length} × CHF {formatChf(NUMBER_CANDLE_PRICE)}</span>
-                <span className="text-xs text-primary font-medium mt-1">CHF {formatChf(total)}</span>
+                <span className="text-xs text-primary font-medium mt-1 mb-1.5">CHF {formatChf(total)}</span>
+                <div className="flex flex-wrap justify-center gap-1">
+                  {digits.map((d, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => onRemoveNumberCandleDigit(i)}
+                      className="flex items-center gap-0.5 text-[10px] bg-background border border-border rounded-none px-1.5 py-0.5 text-foreground hover:border-destructive hover:text-destructive transition-colors"
+                      aria-label={t(`Remove digit ${d}`, `Retirer le chiffre ${d}`)}
+                    >
+                      {d}<X className="w-2.5 h-2.5" />
+                    </button>
+                  ))}
+                </div>
+                {digits.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => onCandleSelectionRemove(NUMBER_CANDLE_ID)}
+                    className="text-[10px] text-muted-foreground hover:text-destructive underline mt-1.5"
+                  >
+                    {t("Remove all", "Tout retirer")}
+                  </button>
+                )}
               </div>
             );
           })()}
