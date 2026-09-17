@@ -96,7 +96,7 @@ serve(async (req) => {
 
   // Only Transaction events carry a transaction id in entityId.
   if (technicalName && technicalName !== "Transaction") {
-    return txt(`ok (ignored entity ${technicalName})`, 200);
+    return txt(cors, `ok (ignored entity ${technicalName})`, 200);
   }
   if (!entityId) return txt(cors, "ok (no entityId)", 200);
 
@@ -248,7 +248,7 @@ serve(async (req) => {
     }
     return body
       ? new Response(JSON.stringify(body), { status: 200, headers: { ...cors, "Content-Type": "application/json" } })
-      : txt(note, 200);
+      : txt(cors, note, 200);
   };
 
   // ── 5. Delegate to confirm-postfinance-payment (single source of truth) ──
