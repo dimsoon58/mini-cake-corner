@@ -148,14 +148,16 @@ const AdminOrders = () => {
   return (
     <Layout>
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="flex items-center gap-3 mb-6">
-          <ClipboardList className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-serif text-foreground">{t("All Orders", "Toutes les commandes")}</h1>
-          {/* No grand total shown — computing it would need the same
-              expensive COUNT(*) that was just removed for speed. Just the
-              page number, which costs nothing extra. */}
-          {orders.length > 0 && <span className="ml-auto text-sm text-muted-foreground">{t("Page", "Page")} {page + 1}</span>}
-        </div>
+        <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8 text-center font-semibold flex items-center justify-center gap-3">
+          <ClipboardList className="w-6 h-6 text-primary" strokeWidth={1.5} />
+          {t("All Orders", "Toutes les commandes")}
+        </h1>
+        {/* No grand total shown — computing it would need the same
+            expensive COUNT(*) that was just removed for speed. Just the
+            page number, which costs nothing extra. */}
+        {orders.length > 0 && (
+          <p className="text-xs text-muted-foreground text-right mb-2">{t("Page", "Page")} {page + 1}</p>
+        )}
 
         {loading ? (
           <div className="text-center py-16">
@@ -175,22 +177,22 @@ const AdminOrders = () => {
                   <Link
                     key={o.id}
                     to={`/admin/order/${o.id}`}
-                    className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors"
+                    className="flex items-center gap-3 p-4 border border-border/60 bg-background hover:bg-secondary/30 transition-colors"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground truncate">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground truncate">
                           {o.order_number || `#${o.id.slice(0, 8).toUpperCase()}`}
                         </span>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${badge.className}`}>
+                        <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 shrink-0 ${badge.className}`}>
                           {badge.label}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground truncate">
+                      <p className="text-sm text-muted-foreground truncate mt-0.5">
                         {customerName || o.email} · {formatDateTime(o.created_at)}
                       </p>
                     </div>
-                    <span className="font-semibold text-primary shrink-0">
+                    <span className="font-bold text-foreground shrink-0">
                       CHF {o.total_amount != null ? Number(o.total_amount).toFixed(2) : "—"}
                     </span>
                   </Link>
@@ -201,6 +203,7 @@ const AdminOrders = () => {
             <div className="flex items-center justify-between mt-6">
               <Button
                 variant="outline"
+                className="rounded-none border-primary text-primary hover:bg-primary/5 uppercase tracking-[0.105em] text-[12px] font-medium"
                 disabled={page === 0}
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
               >
@@ -208,6 +211,7 @@ const AdminOrders = () => {
               </Button>
               <Button
                 variant="outline"
+                className="rounded-none border-primary text-primary hover:bg-primary/5 uppercase tracking-[0.105em] text-[12px] font-medium"
                 disabled={!hasMore}
                 onClick={() => setPage((p) => p + 1)}
               >

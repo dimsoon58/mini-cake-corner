@@ -13,25 +13,45 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
+import { itemDisplayImage } from "@/lib/itemDisplayImage";
+import { PRODUCT_LABELS, sizeLabel, shapeLabel, flavorLabel } from "@/lib/orderLabels";
 import { cn } from "@/lib/utils";
 
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
 type DayEntry = {
   type: "cake" | "workshop";
   orderId: string;
+  itemId: string;
   orderNumber: string | null;
   customerName: string;
   status: OrderState;
-  detail: string;
+  product: string;
+  size: string | null;
+  shape: string | null;
+  flavors: string[] | null;
+  designImageUrl: string | null;
+  referenceImages: string[] | null;
+  workshopType: string | null;
+  workshopTime: string | null;
+  workshopParticipants: number | null;
+  pickupDeliverySlot: string | null;
+  deliveryMethod: string | null;
   total: number | null;
 };
 
 const dateKey = (d: Date) => format(d, "yyyy-MM-dd");
 
+const statusBadgeClass = (status: OrderState) =>
+  status === "approved" ? "bg-emerald-100 text-emerald-800" :
+  status === "pending" ? "bg-amber-100 text-amber-800" :
+  status === "refused" ? "bg-red-100 text-red-800" :
+  "bg-muted text-muted-foreground";
+
 const AdminCalendar = () => {
   const { t, lang } = useLang();
   const { user, loading: authLoading } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
+  const dfLocale = lang === "fr" ? { locale: dateFnsFr } : undefined;
 
   const [monthCursor, setMonthCursor] = useState(() => new Date());
   const [days, setDays] = useState<Record<string, DayEntry[]>>({});
@@ -67,6 +87,9 @@ const AdminCalendar = () => {
         setLoadError(t("Could not load the calendar. Please try again.", "Impossible de charger le calendrier. Merci de réessayer."));
       } else {
         setDays(data.days ?? {});
+        // A newly selected date from a previous month wouldn't exist in
+        // this month's data — clear it rather than showing a stale list.
+        setSelectedDate(null);
       }
       setLoading(false);
     };
@@ -133,25 +156,52 @@ const AdminCalendar = () => {
   const gridEnd = endOfWeek(monthEnd);
   const gridDays = eachDayOfInterval({ start: gridStart, end: gridEnd });
   const weekDayLabels = lang === "fr"
-    ? ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"]
-    : ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+    ? ["D", "L", "M", "M", "J", "V", "S"]
+    : ["S", "M", "T", "W", "T", "F", "S"];
 
   const selectedEntries = selectedDate ? (days[selectedDate] ?? []) : [];
 
+  const itemTitle = (e: DayEntry): string => {
+    if (e.type === "workshop") {
+      return e.workshopType === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature");
+    }
+    const label = PRODUCT_LABELS[e.product];
+    return label ? t(label.en, label.fr) : e.product;
+  };
+
+  const itemDetail = (e: DayEntry): string => {
+    if (e.type === "workshop") {
+      return [
+        e.workshopTime,
+        e.workshopParticipants != null ? `×${e.workshopParticipants}` : null,
+      ].filter(Boolean).join(" · ");
+    }
+    const sizePart = e.size && e.product !== "diy_kit" ? sizeLabel(e.size, lang) : "";
+    const shapePart = e.shape && e.shape !== "round" ? ` (${shapeLabel(e.shape, lang)})` : "";
+    const flavorPart = e.flavors?.length ? ` — ${flavorLabel(e.flavors.join(","))}` : "";
+    const slotPart = [e.pickupDeliverySlot, e.deliveryMethod === "delivery" ? t("Delivery", "Livraison") : t("Pickup", "Retrait")].filter(Boolean).join(" · ");
+    return [`${sizePart}${shapePart}${flavorPart}`.trim(), slotPart].filter(Boolean).join(" · ");
+  };
+
   return (
     <Layout>
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="flex items-center gap-3 mb-6">
-          <CalendarDays className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-serif text-foreground">{t("Order Calendar", "Calendrier des commandes")}</h1>
-        </div>
+      <main className="container mx-auto px-4 py-8 max-w-5xl">
+        <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8 text-center font-semibold flex items-center justify-center gap-3">
+          <CalendarDays className="w-6 h-6 text-primary" strokeWidth={1.5} />
+          {t("Order Calendar", "Calendrier des commandes")}
+        </h1>
 
-        <div className="flex items-center justify-between mb-4">
-          <Button variant="outline" size="icon" onClick={() => { setMonthCursor((d) => subMonths(d, 1)); setSelectedDate(null); }}>
+        {/* Month navigation is always available, even after a failed load —
+            a stuck error state with no way to try a different month (or
+            retry the same one) would be a dead end. */}
+        <div className="flex items-center justify-between mb-3 max-w-[300px] mx-auto md:mx-0">
+          <Button variant="outline" size="icon" className="rounded-none h-8 w-8" onClick={() => setMonthCursor((d) => subMonths(d, 1))}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="font-medium text-foreground capitalize">{format(monthCursor, "MMMM yyyy", lang === "fr" ? { locale: dateFnsFr } : undefined)}</span>
-          <Button variant="outline" size="icon" onClick={() => { setMonthCursor((d) => addMonths(d, 1)); setSelectedDate(null); }}>
+          <span className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground">
+            {format(monthCursor, "MMMM yyyy", dfLocale)}
+          </span>
+          <Button variant="outline" size="icon" className="rounded-none h-8 w-8" onClick={() => setMonthCursor((d) => addMonths(d, 1))}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
@@ -159,93 +209,106 @@ const AdminCalendar = () => {
         {loadError ? (
           <p className="text-center text-muted-foreground py-16">{loadError}</p>
         ) : (
-          <>
-            <div className="grid grid-cols-7 gap-1 mb-1">
-              {weekDayLabels.map((d) => (
-                <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-1 relative">
-              {loading && (
-                <div className="absolute inset-0 bg-background/60 flex items-center justify-center z-10">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              )}
-              {gridDays.map((day) => {
-                const key = dateKey(day);
-                const entries = days[key] ?? [];
-                const inMonth = isSameMonth(day, monthCursor);
-                const hasCancelledOnly = entries.length > 0 && entries.every((e) => e.status === "cancelled");
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => entries.length > 0 && setSelectedDate(key)}
-                    disabled={entries.length === 0}
-                    className={cn(
-                      "aspect-square rounded-lg border p-1.5 text-left flex flex-col transition-colors",
-                      inMonth ? "border-border" : "border-transparent opacity-40",
-                      isToday(day) && "ring-1 ring-primary",
-                      selectedDate === key && "bg-primary/10 border-primary",
-                      entries.length > 0 && !hasCancelledOnly && "hover:bg-muted/50 cursor-pointer",
-                      entries.length === 0 && "cursor-default",
-                    )}
-                  >
-                    <span className={cn("text-xs", inMonth ? "text-foreground" : "text-muted-foreground")}>
-                      {format(day, "d")}
-                    </span>
-                    {entries.length > 0 && (
-                      <span
-                        className={cn(
-                          "mt-auto text-[11px] font-medium rounded-full px-1.5 py-0.5 text-center self-start",
-                          hasCancelledOnly ? "bg-muted text-muted-foreground" : "bg-primary/15 text-primary"
-                        )}
-                      >
-                        {entries.length}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {selectedDate && (
-              <div className="mt-6 space-y-2">
-                <h2 className="font-medium text-foreground">
-                  {format(new Date(`${selectedDate}T00:00:00`), "d MMMM yyyy", lang === "fr" ? { locale: dateFnsFr } : undefined)}
-                </h2>
-                {selectedEntries.map((e, i) => (
-                  <Link
-                    key={`${e.orderId}-${i}`}
-                    to={`/admin/order/${e.orderId}`}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground truncate">
-                          {e.orderNumber || `#${e.orderId.slice(0, 8).toUpperCase()}`}
-                        </span>
-                        <span className={cn(
-                          "text-xs font-medium px-2 py-0.5 rounded-full shrink-0",
-                          e.status === "approved" ? "bg-emerald-100 text-emerald-800" :
-                          e.status === "pending" ? "bg-amber-100 text-amber-800" :
-                          "bg-red-100 text-red-800"
-                        )}>
-                          {e.type === "workshop" ? "ATELIER · " : ""}{e.status.toUpperCase()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {e.customerName} · {e.detail}
-                      </p>
-                    </div>
-                    {e.total != null && (
-                      <span className="font-semibold text-primary shrink-0">CHF {e.total.toFixed(2)}</span>
-                    )}
-                  </Link>
+          <div className="flex flex-col md:flex-row gap-6 items-start">
+            {/* Compact calendar — single date selected at a time. */}
+            <div className="w-full md:w-[300px] shrink-0">
+              <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+                {weekDayLabels.map((d, i) => (
+                  <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
                 ))}
               </div>
-            )}
-          </>
+              <div className="grid grid-cols-7 gap-0.5 relative">
+                {loading && (
+                  <div className="absolute inset-0 bg-background/60 flex items-center justify-center z-10">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                {gridDays.map((day) => {
+                  const key = dateKey(day);
+                  const entries = days[key] ?? [];
+                  const inMonth = isSameMonth(day, monthCursor);
+                  const hasCancelledOnly = entries.length > 0 && entries.every((e) => e.status === "cancelled");
+                  const isSelected = selectedDate === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => entries.length > 0 && setSelectedDate(isSelected ? null : key)}
+                      disabled={entries.length === 0}
+                      className={cn(
+                        "h-9 text-xs flex flex-col items-center justify-center relative transition-colors",
+                        inMonth ? "text-foreground" : "text-muted-foreground/40",
+                        entries.length > 0 && !hasCancelledOnly && "cursor-pointer hover:bg-muted/60",
+                        entries.length === 0 && "cursor-default",
+                        isSelected && "bg-primary text-primary-foreground hover:bg-primary",
+                        isToday(day) && !isSelected && "font-bold text-primary",
+                      )}
+                    >
+                      {format(day, "d")}
+                      {entries.length > 0 && (
+                        <span className={cn(
+                          "absolute bottom-0.5 w-1 h-1 rounded-full",
+                          isSelected ? "bg-primary-foreground" : hasCancelledOnly ? "bg-muted-foreground" : "bg-primary"
+                        )} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Day list — compact, scrollable, image-first. */}
+            <div className="flex-1 min-w-0 w-full">
+              {!selectedDate ? (
+                <p className="text-sm text-muted-foreground py-8 text-center md:text-left">
+                  {t("Select a date with a marker to see that day's orders.", "Sélectionnez une date marquée pour voir les commandes de ce jour.")}
+                </p>
+              ) : (
+                <>
+                  <h2 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-3">
+                    {format(new Date(`${selectedDate}T00:00:00`), "d MMMM yyyy", dfLocale)}
+                    <span className="text-muted-foreground font-normal normal-case tracking-normal ml-2">
+                      ({selectedEntries.length})
+                    </span>
+                  </h2>
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                    {selectedEntries.map((e) => (
+                      <Link
+                        key={e.itemId}
+                        to={`/admin/order/${e.orderId}`}
+                        className="flex gap-3 p-2 border border-border/60 bg-background hover:bg-secondary/30 transition-colors"
+                      >
+                        <div className="w-14 h-14 flex-shrink-0 bg-secondary/40 overflow-hidden">
+                          {itemDisplayImage({ product: e.product, designImageUrl: e.designImageUrl, referenceImages: e.referenceImages, workshopType: e.workshopType }) && (
+                            <img
+                              src={itemDisplayImage({ product: e.product, designImageUrl: e.designImageUrl, referenceImages: e.referenceImages, workshopType: e.workshopType })!}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-semibold text-foreground truncate">{itemTitle(e)}</p>
+                            {e.total != null && <span className="text-sm font-bold text-foreground whitespace-nowrap">CHF {e.total.toFixed(2)}</span>}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{e.customerName} · {itemDetail(e)}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] font-sans tracking-[0.105em] font-medium uppercase text-foreground/70">
+                              {e.orderNumber || `#${e.orderId.slice(0, 8).toUpperCase()}`}
+                            </span>
+                            <span className={cn("text-[10px] uppercase tracking-[0.105em] px-1.5 py-0.5", statusBadgeClass(e.status))}>
+                              {e.type === "workshop" ? "ATELIER · " : ""}{e.status}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         )}
       </main>
     </Layout>
