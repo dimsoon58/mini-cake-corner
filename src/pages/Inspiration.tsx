@@ -71,14 +71,7 @@ const Inspiration = () => {
 
   // Keep original index alongside item so Catalog receives the right inspirationIndex
   const filteredItems = INSPIRATIONS
-    .map((item, originalIndex) => ({ item, originalIndex }))
-    .filter(({ item }) => {
-      if (activeFilter === "all") return true;
-      if (activeFilter === "bento") return item.price.bento !== undefined;
-      if (activeFilter === "retro") return item.price.retro !== undefined;
-      if (activeFilter === "round") return item.price.medium !== undefined;
-      return true;
-    });
+    .map((item, originalIndex) => ({ item, originalIndex }));
 
   const visibleItems = filteredItems.slice(0, visibleCount);
   const hasMore = visibleCount < filteredItems.length;
@@ -86,11 +79,6 @@ const Inspiration = () => {
   const loadMore = useCallback(() => {
     setVisibleCount((prev) => Math.min(prev + IMAGES_PER_PAGE, filteredItems.length));
   }, [filteredItems.length]);
-
-  const handleFilterChange = (filter: FilterKey) => {
-    setActiveFilter(filter);
-    setVisibleCount(IMAGES_PER_PAGE);
-  };
 
   return (
     <Layout>
