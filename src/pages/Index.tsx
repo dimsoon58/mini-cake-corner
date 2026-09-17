@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -186,7 +186,16 @@ const PhotoCarousel = ({ photos, altPrefix, contain = false }: { photos: string[
 
 const Index = () => {
   const discoverRef = useRef<HTMLDivElement>(null);
+  const mobileVideoRef = useRef<HTMLVideoElement>(null);
   const { t, lang } = useLang();
+
+  // iOS Safari ignores autoplay HTML attribute — call .play() explicitly after mount
+  useEffect(() => {
+    const v = mobileVideoRef.current;
+    if (!v) return;
+    v.muted = true;
+    v.play().catch(() => {/* autoplay blocked, silent */});
+  }, []);
 
   const scrollDiscover = (dir: "left" | "right") => {
     discoverRef.current?.scrollBy({ left: dir === "left" ? -360 : 360, behavior: "smooth" });
@@ -198,15 +207,17 @@ const Index = () => {
       <section className="relative text-primary-foreground overflow-hidden min-h-[65vh] md:min-h-0 md:aspect-video">
         {/* Mobile video */}
         <video
+          ref={mobileVideoRef}
           className="absolute inset-0 w-full h-full object-cover scale-[1.01] block md:hidden"
-          src={`${import.meta.env.BASE_URL}hero-mobile.mp4`}
           poster={heroPoster}
           autoPlay
           loop
           muted
           playsInline
-          preload="auto"
-        />
+          preload="metadata"
+        >
+          <source src={`${import.meta.env.BASE_URL}hero-mobile.mp4`} type="video/mp4" />
+        </video>
         {/* Desktop video */}
         <video
           className="absolute inset-0 w-full h-full object-cover scale-[1.01] hidden md:block"

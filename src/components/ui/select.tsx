@@ -89,7 +89,7 @@ const SelectContent = React.forwardRef<
           "p-1",
           nativeScroll && "max-h-[300px] overflow-y-auto",
           position === "popper" && !nativeScroll &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
+            "w-full min-w-[var(--radix-select-trigger-width)]",
           position === "popper" && nativeScroll &&
             "w-full min-w-[var(--radix-select-trigger-width)]",
         )}
