@@ -4,6 +4,7 @@ import { getLogoEmailUrl } from "../_shared/site-config.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "../_shared/workshops.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
 
 // Customer email after a partial (or full) workshop-seat cancellation.
 // Read-only on orders / workshop_sessions / workshop_reservations. No emoji.

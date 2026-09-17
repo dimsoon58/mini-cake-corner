@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { DARKMODE_META_TAGS, adminDarkModeStyle } from "../_shared/email-darkmode.ts";
 
 // Shared backend for every commercial/contact enquiry form on the site —
 // replaces the old Web3Forms integration (a placeholder access key,
