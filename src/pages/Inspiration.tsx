@@ -9,7 +9,6 @@ import { INSPIRATIONS } from "@/data/inspirations";
 const PINTEREST_URL = "https://ch.pinterest.com/bentocakestudiosnc/_saved/";
 const IMAGES_PER_PAGE = 12;
 
-type FilterKey = "all" | "bento" | "retro" | "round";
 
 // Chaque inspiration porte son supplement de prix par taille.
 // Une taille absente n'est pas proposee pour cette creation.
@@ -68,7 +67,6 @@ const LazyImage = ({ src, index, onOpen }: { src: string; index: number; onOpen:
 const Inspiration = () => {
   const { t } = useLang();
   const [selected, setSelected] = useState<number | null>(null);
-  const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
   const [visibleCount, setVisibleCount] = useState(IMAGES_PER_PAGE);
 
   // Keep original index alongside item so Catalog receives the right inspirationIndex
@@ -93,13 +91,6 @@ const Inspiration = () => {
     setActiveFilter(filter);
     setVisibleCount(IMAGES_PER_PAGE);
   };
-
-  const filters: { key: FilterKey; labelEn: string; labelFr: string }[] = [
-    { key: "all", labelEn: "All", labelFr: "Tous" },
-    { key: "bento", labelEn: "Bento", labelFr: "Bento" },
-    { key: "retro", labelEn: "Retro", labelFr: "Rétro" },
-    { key: "round", labelEn: "Round", labelFr: "Rond" },
-  ];
 
   return (
     <Layout>
@@ -132,25 +123,7 @@ const Inspiration = () => {
             <ExternalLink className="w-3.5 h-3.5 opacity-80 flex-shrink-0" />
           </a>
         </div>
-
-        {/* Filter Tabs */}
-        <div className="flex justify-center gap-2 mb-10">
-          {filters.map(({ key, labelEn, labelFr }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => handleFilterChange(key)}
-              className={`px-5 py-2 text-sm font-medium tracking-wide transition-colors rounded-none border ${
-                activeFilter === key
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background text-foreground border-border hover:border-primary hover:text-primary"
-              }`}
-            >
-              {t(labelEn, labelFr)}
-            </button>
-          ))}
-        </div>
-
+        
         {/* Gallery Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {visibleItems.map(({ item, originalIndex }) => (
