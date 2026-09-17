@@ -10,9 +10,14 @@ import {
   physicalItemDescription,
   getCustomerLang,
 } from "../_shared/cake-order-confirmation-email.ts";
+import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
+<<<<<<< HEAD
 import { corsHeaders } from "../_shared/cors.ts";
+=======
+import { requireAdmin } from "../_shared/admin-auth.ts";
+>>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
 
 // 2026-09-15: deferred capture restored (pre-04a6199 model, reused almost
 // verbatim — see the PostFinance capture/void block in the handler below).
@@ -57,7 +62,6 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
   const emailPayload: any = {
     from: "contact@bentocakestudio.ch",
     to: [order.email],
-    bcc: ["facturesbentocakestudio@gmail.com"],
     subject,
     html,
   };
@@ -128,16 +132,21 @@ async function sendDeclineEmail(
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;">
-
-    <div style="background:#FDF8E1;margin:0 20px;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${FORCE_LIGHT_META_TAGS}<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+${brandDarkModeStyle()}
+</head>
+<body style="margin:0;padding:0;background-color:#78020C!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+  <tr><td align="center" style="padding:0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
+  <tr><td style="padding:0 20px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
+  <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src=getLogoEmailUrl() alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <div style="padding:0 40px 36px;">
+      <div class="bcs-text" style="padding:0 40px 36px;">
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Hello", "Bonjour")} ${order.first_name || ""},
         </p>
@@ -149,7 +158,7 @@ async function sendDeclineEmail(
           )}
         </p>
 
-        <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:0 0 20px;">
+        <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:14px 18px;margin:0 0 20px;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
             ${workshopOnly
               ? tr(
@@ -179,21 +188,21 @@ async function sendDeclineEmail(
           ${outcomeText}
         </p>
 
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Order details", "Détails de la commande")}
         </p>
         <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;margin:0 0 24px;">
           <tr style="border-bottom:1px solid #D4C89A;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order", "Commande")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
+            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order", "Commande")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
           </tr>
-          <tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Amount", "Montant")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${amountCHF}</td>
+          <tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid #D4C89A;background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
+            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Amount", "Montant")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${amountCHF}</td>
           </tr>
-          <tr style="background:#78020C;">
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Status", "Statut")}</td>
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${rewardOnly
+          <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Status", "Statut")}</td>
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${rewardOnly
               ? tr("Reward balance credited", "Cagnotte recréditée")
               : tr("Authorization cancelled — nothing charged", "Autorisation annulée — aucun montant prélevé")}</td>
           </tr>
@@ -216,10 +225,13 @@ async function sendDeclineEmail(
           <strong>Bento Cake Studio</strong>
         </p>
       </div>
-    </div>
-
-    <div style="height:24px;background:#78020C;"></div>
-  </div>
+  </td></tr>
+  </table>
+  </td></tr>
+  <tr><td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">&nbsp;</td></tr>
+  </table>
+  </td></tr>
+  </table>
 </body>
 </html>`;
 
@@ -268,6 +280,47 @@ function formatInvoicePrice(amount: number | string): string {
 function formatInvoiceDate(dateInput: string): string {
   const d = new Date(dateInput);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+// Generic greedy word-wrap for a table cell — used by the DESCRIPTION column
+// so any label (item description, express surcharge, welcome/partner
+// discount, delivery...) wraps onto as many lines as it needs instead of
+// overflowing into the next column, regardless of how long the text is.
+// Guarantees every returned line's rendered width is <= maxWidth: a single
+// word that alone is still too wide (e.g. a long hyphenated partner name)
+// is hard-broken character by character as a last resort, so a table border
+// is never crossed no matter what text comes in. Kept in sync with the
+// identical copy in _shared/invoice-pdf.ts — update BOTH.
+function wrapText(text: string, font: { widthOfTextAtSize(t: string, s: number): number }, size: number, maxWidth: number): string[] {
+  const words = (text || "").split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [""];
+  const lines: string[] = [];
+  let current = "";
+  const flush = () => { if (current) { lines.push(current); current = ""; } };
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+    flush();
+    if (font.widthOfTextAtSize(word, size) <= maxWidth) {
+      current = word;
+      continue;
+    }
+    let chunk = "";
+    for (const ch of word) {
+      const next = chunk + ch;
+      if (chunk && font.widthOfTextAtSize(next, size) > maxWidth) {
+        lines.push(chunk);
+        chunk = ch;
+      } else {
+        chunk = next;
+      }
+    }
+    current = chunk;
+  }
+  flush();
+  return lines.length ? lines : [""];
 }
 
 async function generateInvoicePdf(
@@ -419,6 +472,11 @@ async function generateInvoicePdf(
   const col4 = tableLeft + tableWidth * 0.82;
   const headerRowH = 30;
   const dataRowH = 32;
+  // Usable width for wrapped DESCRIPTION text: column width minus the left
+  // text padding (8) and a small buffer before the col2 divider line so
+  // wrapped text never touches the border.
+  const descMaxWidth = col2 - col1 - 8 - 6;
+  const descLineHeight = 12;
 
   const drawTableHeader = () => {
     const headerBot = y - headerRowH;
@@ -538,6 +596,24 @@ async function generateInvoicePdf(
       });
     }
 
+    // Authoritative amount/rate/name straight off the order (see
+    // _shared/partner-referral.ts) — never recomputed here. Partner and
+    // welcome discounts are mutually exclusive by construction, so this and
+    // the block above never both fire for the same order.
+    const partnerDiscountInvoice = Number(order.partner_discount_amount) || 0;
+    if (order.partner_name && partnerDiscountInvoice > 0) {
+      const partnerRatePct = Math.round((Number(order.partner_discount_rate) || 0) * 100);
+      itemRows.push({
+        description: tr(
+          `${order.partner_name} partner benefit (-${partnerRatePct}% on the base price)`,
+          `Avantage partenaire ${order.partner_name} (-${partnerRatePct} % sur le prix de base)`,
+        ),
+        quantity: "",
+        unitPrice: "",
+        total: `- ${formatInvoicePrice(partnerDiscountInvoice)}`,
+      });
+    }
+
     const rewardUsedInvoice = Number(order.reward_amount_used) || 0;
     if (rewardUsedInvoice > 0) {
       itemRows.push({
@@ -579,7 +655,14 @@ async function generateInvoicePdf(
 
   const sectionRowH = 24;
   for (const invoiceRow of rows) {
-    const rowH = invoiceRow.section ? sectionRowH : dataRowH;
+    const font = invoiceRow.bold ? fontBold : fontRegular;
+    // DESCRIPTION wrapped to fit the column — a section row spans the full
+    // table width (no columns), so it's never wrapped. Row height grows only
+    // when a description genuinely needs more than one line; a single-line
+    // description keeps the exact same row height as before (no layout
+    // change for any existing short label).
+    const descLines = invoiceRow.section ? [invoiceRow.description] : wrapText(invoiceRow.description, font, 10, descMaxWidth);
+    const rowH = invoiceRow.section ? sectionRowH : dataRowH + (descLines.length - 1) * descLineHeight;
     if (y - rowH < margin) {
       // Row doesn't fit — start a new page and repeat the table header, so
       // a table row is never split across two pages.
@@ -590,7 +673,6 @@ async function generateInvoicePdf(
     const rowTop = y;
     const rowBot = y - rowH;
     const textY = rowBot + rowH / 2 - 4;
-    const font = invoiceRow.bold ? fontBold : fontRegular;
 
     if (invoiceRow.section) {
       // Full-width date/mode header ("07.10.2026 — Retrait") above the group
@@ -616,7 +698,12 @@ async function generateInvoicePdf(
       page.drawLine({ start: { x: cx, y: rowTop }, end: { x: cx, y: rowBot }, thickness: 0.5, color: borderColor });
     }
 
-    page.drawText(invoiceRow.description, { x: col1 + 8, y: textY, size: 10, font, color: textDark });
+    // Stacked, vertically centered on textY — degenerates to exactly the old
+    // single `drawText` at textY when descLines.length === 1.
+    descLines.forEach((line, i) => {
+      const lineY = textY + ((descLines.length - 1) / 2 - i) * descLineHeight;
+      page.drawText(line, { x: col1 + 8, y: lineY, size: 10, font, color: textDark });
+    });
     page.drawText(invoiceRow.quantity, { x: col2 + 8, y: textY, size: 10, font, color: textDark });
     if (invoiceRow.unitPrice) {
       page.drawText(invoiceRow.unitPrice, { x: col3 + 8, y: textY, size: 10, font, color: textDark });
@@ -740,6 +827,14 @@ serve(async (req) => {
     //                paid & confirmed → payment_status STAYS 'paid', only
     //                refund_status flips.
     if (action === "mark_refunded") {
+      // 2026-09-17 (real auth guard): a valid admin session is now required
+      // in addition to the PIN — see _shared/admin-auth.ts.
+      const admin = await requireAdmin(req, supabase);
+      if (!admin) {
+        return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
+        });
+      }
       const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
       if (!adminPin || pin !== adminPin) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {
@@ -799,9 +894,20 @@ serve(async (req) => {
       throw new Error("Missing required field: token");
     }
 
-    // If PIN is provided, verify it (admin page flow).
-    // If no PIN, token-only auth is sufficient (email link flow).
+    // If PIN is provided, verify it (admin page flow) — and, as of 2026-09-17,
+    // also require a real admin session (see _shared/admin-auth.ts), never a
+    // bypass for the PIN, an extra layer alongside it.
+    // If no PIN, token-only auth is sufficient (email link flow) — completely
+    // unchanged, no admin session required, so the one-click Accept/Refuse
+    // links in the notification e-mail keep working exactly as before.
     if (pin) {
+      const admin = await requireAdmin(req, supabase);
+      if (!admin) {
+        return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        });
+      }
       const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
       if (!adminPin || pin !== adminPin) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {

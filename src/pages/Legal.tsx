@@ -254,6 +254,27 @@ const articles: Article[] = [
         p: "This offer is available only for orders placed directly through the website using a customer account and cannot be applied retroactively to an order placed by telephone, email, message or any other channel.",
         pFr: "Cette offre est disponible uniquement pour les commandes passées directement sur le site via un compte client et ne peut pas être appliquée rétroactivement à une commande passée par téléphone, e-mail, message ou tout autre canal.",
       },
+      { h: "Partner Benefit", hFr: "Avantage partenaire" },
+      {
+        p: "Customers accessing the website through a link or QR code associated with an active Bento Cake Studio SNC partner may benefit from a partner discount corresponding to 10% off the base price of eligible cakes.",
+        pFr: "Les Clients accédant au site par l'intermédiaire d'un lien ou d'un QR code associé à un partenaire actif de Bento Cake Studio SNC peuvent bénéficier d'un avantage partenaire correspondant à une remise de 10 % sur le prix de base des gâteaux éligibles.",
+      },
+      {
+        p: "The partner discount is calculated solely on the base price of the cake, before flavour surcharges, extras or decorations, candles and other options, as well as delivery charges.",
+        pFr: "La remise partenaire est calculée uniquement sur le prix de base du gâteau, avant les suppléments de goût, extras ou décorations, bougies et autres options ainsi que les frais de livraison.",
+      },
+      {
+        p: "The discount does not apply to workshops, Bento Kits, Printing products, or any other products expressly excluded from the offer.",
+        pFr: "Elle ne s'applique pas aux ateliers et workshops, aux Kits Bento, aux produits d'impression (« Printing »), ni aux autres produits expressément exclus de l'offre.",
+      },
+      {
+        p: "Any applicable express surcharges remain payable in full.",
+        pFr: "Les éventuels suppléments express restent dus dans leur intégralité.",
+      },
+      {
+        p: "The partner benefit cannot be combined with the 10% welcome offer. Where an order is eligible for more than one of these benefits, only one discount may be applied.",
+        pFr: "L'avantage partenaire n'est pas cumulable avec l'offre de bienvenue de 10 %. Lorsqu'une commande est éligible à plusieurs de ces avantages, une seule remise peut être appliquée.",
+      },
       { h: "Cashback Programme", hFr: "Programme de cashback" },
       {
         p: "Customers with a customer account may benefit from cashback corresponding to 3.5% of the eligible amount of orders placed and paid directly through the website.",
@@ -657,6 +678,10 @@ const articles: Article[] = [
       {
         p: "Data associated with the customer account may also be used to facilitate future orders and improve the user experience on the website.",
         pFr: "Les données liées au compte client peuvent également être utilisées afin de faciliter les prochaines commandes et d'améliorer l'expérience utilisateur sur le site.",
+      },
+      {
+        p: "When the Customer accesses the website through a link or QR code associated with a Bento Cake Studio SNC partner, certain information relating to the origin of the order may also be recorded in order to apply the corresponding commercial benefits and to manage and track the partnership programme.",
+        pFr: "Lorsque le Client accède au site par l'intermédiaire d'un lien ou d'un QR code associé à un partenaire de Bento Cake Studio SNC, certaines informations relatives à l'origine de la commande peuvent également être enregistrées afin d'appliquer les avantages commerciaux correspondants et d'assurer le suivi du programme de partenariat.",
       },
       {
         p: "Data may also be processed where necessary for the administrative and accounting management of the business, the security of the website and compliance with Bento Cake Studio SNC's legal obligations.",

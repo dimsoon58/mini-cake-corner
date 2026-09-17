@@ -144,45 +144,78 @@ serve(async (req) => {
     }
 
     if (merchantRef) {
-      const { data: pendingByRef } = await supabase
+      // 2026-09-16: merchantReference is now payment_reference (PAY-YYMMDDNN)
+      // for transactions created after this date — but every transaction
+      // created BEFORE it permanently kept the old orderId (UUID) as its
+      // merchantReference (PostFinance locks the field for good once a
+      // transaction leaves "Pending" — see create-postfinance-payment's own
+      // comment on transactionCreate.merchantReference). Try the new format
+      // first, then fall back to treating merchantRef as the legacy orderId
+      // — covers both eras, no need to know which one a given transaction
+      // was created under. Once resolved, `resolvedOrderId` (never the raw
+      // merchantRef, which may be either format) is what every subsequent
+      // lookup/update below keys on.
+      let pendingByRef = (await supabase
         .from("pending_payments")
         .select("order_id, postfinance_transaction_id")
-        .eq("order_id", merchantRef)
-        .maybeSingle();
+        .eq("payment_reference", merchantRef)
+        .maybeSingle()).data;
+      if (!pendingByRef) {
+        pendingByRef = (await supabase
+          .from("pending_payments")
+          .select("order_id, postfinance_transaction_id")
+          .eq("order_id", merchantRef)
+          .maybeSingle()).data;
+      }
       if (pendingByRef) {
+        const resolvedOrderId = pendingByRef.order_id;
         const current = String(pendingByRef.postfinance_transaction_id ?? "");
         if (current === "" || current === "CREATING") {
           // Adopt the real id ONLY onto a still-CREATING/empty placeholder.
           const { data: adopted } = await supabase.from("pending_payments")
             .update({ postfinance_transaction_id: entityId })
-            .eq("order_id", merchantRef)
+            .eq("order_id", resolvedOrderId)
             .in("postfinance_transaction_id", ["CREATING", ""])
             .select("order_id");
           if (Array.isArray(adopted) && adopted.length === 1) {
-            orderId = pendingByRef.order_id;
+            orderId = resolvedOrderId;
           } else {
             // Someone wrote a real id between our read and update — re-read.
             const { data: rr } = await supabase.from("pending_payments")
-              .select("postfinance_transaction_id").eq("order_id", merchantRef).maybeSingle();
+              .select("postfinance_transaction_id").eq("order_id", resolvedOrderId).maybeSingle();
             const now = String(rr?.postfinance_transaction_id ?? "");
             if (now === entityId || now === "" || now === "CREATING") {
-              orderId = merchantRef;
+              orderId = resolvedOrderId;
             } else {
+<<<<<<< HEAD
               await reportConflictingTransactions(getPostFinanceCredentials(), merchantRef, now, entityId);
               return txt(cors, "conflicting transaction id — manual review required", 500);
+=======
+              await reportConflictingTransactions(getPostFinanceCredentials(), resolvedOrderId, now, entityId);
+              return txt("conflicting transaction id — manual review required", 500);
+>>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
             }
           }
         } else if (current === entityId) {
-          orderId = pendingByRef.order_id;
+          orderId = resolvedOrderId;
         } else {
           // A DIFFERENT real transaction id is already recorded. NEVER
           // overwrite. Read both real states, alert, keep everything, 5xx.
+<<<<<<< HEAD
           await reportConflictingTransactions(getPostFinanceCredentials(), merchantRef, current, entityId);
           return txt(cors, "conflicting transaction id — manual review required", 500);
+=======
+          await reportConflictingTransactions(getPostFinanceCredentials(), resolvedOrderId, current, entityId);
+          return txt("conflicting transaction id — manual review required", 500);
+>>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
         }
       } else {
-        const { data: ordByRef } = await supabase
-          .from("orders").select("id").eq("id", merchantRef).maybeSingle();
+        let ordByRef = (await supabase
+          .from("orders").select("id").eq("payment_reference", merchantRef).maybeSingle()).data;
+        if (!ordByRef) {
+          ordByRef = (await supabase
+            .from("orders").select("id").eq("id", merchantRef).maybeSingle()).data;
+        }
         if (ordByRef) orderId = ordByRef.id;
       }
     }

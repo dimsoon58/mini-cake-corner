@@ -31,60 +31,73 @@ interface HookPayload {
   };
 }
 
-// 2026-09-14: dark-mode hardening. Gmail mobile applies its own automatic
-// dark-mode re-coloring to any email that doesn't explicitly declare it
-// handles dark mode itself — which was silently turning our cream card
-// (#FDF8E1) near-black/brown and our bordeaux accent (#78020C) pink. Three
-// layers of defense, all purely visual — content, the confirmation link and
-// the send logic below are untouched:
-//   1. `color-scheme`/`supported-color-schemes` meta tags — the primary
-//      signal that tells Gmail/Outlook/Apple Mail "this email already
-//      handles dark mode, don't auto-invert our colors".
+// 2026-09-14: dark-mode hardening, revised 2026-09-16 to be LIGHT-ONLY.
+// Gmail mobile applies its own automatic dark-mode re-coloring to any email
+// that doesn't explicitly declare it handles dark mode itself — which was
+// silently turning our cream card (#FFF9DB) near-black/brown and our
+// bordeaux accent (#78020C) pink. BentoCake Studio emails intentionally have
+// NO dark theme — they must look identical regardless of the recipient's
+// device/client color scheme. Three layers of defense, all purely visual —
+// content, the confirmation link and the send logic below are untouched:
+//   1. `color-scheme`/`supported-color-schemes` meta tags declaring `light`
+//      ONLY (no `dark`) — the primary signal that tells Gmail/Outlook/Apple
+//      Mail "this email has no dark variant, don't auto-invert our colors".
 //   2. A `<style>` block with `@media (prefers-color-scheme: dark)`, keyed
 //      off classes — Gmail's MOBILE apps (unlike Gmail webmail) do honor an
-//      embedded <style> in <head>, including media queries, so this reaches
-//      exactly the client the report was about.
+//      embedded <style> in <head>, including media queries, and can still
+//      auto-invert on the meta tag alone, so this stays in place — but every
+//      rule inside now RE-ASSERTS the exact same light-mode color, never an
+//      alternate dark one.
 //   3. Explicit `bgcolor` attributes + inline `background-color` (not the
 //      `background` shorthand) on every table/cell that carries a brand
 //      color, plus a `[data-ogsc]` fallback (the attribute Gmail itself
 //      stamps on elements it's about to dark-style) — belt-and-suspenders
 //      for any client/situation that still tries to remap regardless.
-// Every dark-mode rule only ever swaps one on-brand color for another
-// (deeper bordeaux / warm dark brown / soft cream) — never Gmail's own
-// guess — and light mode is completely unaffected: same colors, same
-// spacing, same fonts as before, just now expressed as tables/cells with
-// explicit background colors instead of plain divs.
+//   4. 2026-09-16 (Yahoo Mail hardening): a live production test showed
+//      Yahoo's dark-mode engine still force-recolouring #FFF9DB into khaki
+//      despite layers 1-3. Added: `content="light only"` (stronger than
+//      plain `light`), a `:root{color-scheme:light only!important}` rule,
+//      `!important` + a same-colour `background-image:linear-gradient(<c>,<c>)`
+//      on every #FFF9DB/#78020C surface (forces clients that specifically
+//      target flat background-color for inversion to treat the element as
+//      already-imaged), and `-webkit-text-fill-color` alongside every
+//      `color`. Still the exact same light-mode colors — never an alternate
+//      palette.
+// Light mode is completely unaffected: same colors, same spacing, same
+// fonts as before, expressed as tables/cells with explicit background
+// colors instead of plain divs.
 function wrapEmail(bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  :root { color-scheme: light only !important; supported-color-schemes: light !important; }
   @media (prefers-color-scheme: dark) {
-    .bcs-outer, .bcs-spacer { background-color: #3D0208 !important; }
-    .bcs-card { background-color: #241209 !important; }
-    .bcs-text { color: #F3E9D2 !important; }
-    .bcs-btn { background-color: #A3141F !important; color: #FDF8E1 !important; }
+    .bcs-outer, .bcs-spacer { background-color: #78020C !important; }
+    .bcs-card { background-color: #FFF9DB !important; background-image: linear-gradient(#FFF9DB,#FFF9DB) !important; }
+    .bcs-text { color: #351E13 !important; -webkit-text-fill-color: #351E13 !important; }
+    .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; -webkit-text-fill-color: #FFF9DB !important; }
   }
-  [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #3D0208 !important; }
-  [data-ogsc] .bcs-card { background-color: #241209 !important; }
-  [data-ogsc] .bcs-text { color: #F3E9D2 !important; }
-  [data-ogsc] .bcs-btn { background-color: #A3141F !important; color: #FDF8E1 !important; }
+  [data-ogsc] .bcs-outer, [data-ogsc] .bcs-spacer { background-color: #78020C !important; }
+  [data-ogsc] .bcs-card { background-color: #FFF9DB !important; background-image: linear-gradient(#FFF9DB,#FFF9DB) !important; }
+  [data-ogsc] .bcs-text { color: #351E13 !important; -webkit-text-fill-color: #351E13 !important; }
+  [data-ogsc] .bcs-btn { background-color: #78020C !important; color: #FFF9DB !important; -webkit-text-fill-color: #FFF9DB !important; }
 </style>
 </head>
-<body style="margin:0;padding:0;background-color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C;">
+<body style="margin:0;padding:0;background-color:#78020C!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
     <tr>
       <td align="center" style="padding:0;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:520px;margin:0 auto;">
           <tr>
             <td style="padding:0 20px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FDF8E1" class="bcs-card" style="background-color:#FDF8E1;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
                 <tr>
                   <td>
                     <div style="padding:36px 40px 0;text-align:center;">
                       <img src="${LOGO_URL}" alt="Bento Cake Studio" style="height:72px;width:auto;display:block;margin:0 auto 28px;" />
                     </div>
-                    <div class="bcs-text" style="padding:0 40px 36px;color:#351E13;font-size:15px;line-height:1.8;">
+                    <div class="bcs-text" style="padding:0 40px 36px;color:#351E13;-webkit-text-fill-color:#351E13;font-size:15px;line-height:1.8;">
                       ${bodyHtml}
                     </div>
                   </td>
@@ -93,7 +106,7 @@ function wrapEmail(bodyHtml: string): string {
             </td>
           </tr>
           <tr>
-            <td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C;">&nbsp;</td>
+            <td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">&nbsp;</td>
           </tr>
         </table>
       </td>
@@ -109,7 +122,7 @@ function buttonHtml(url: string, label: string): string {
   // link is still present in the plain-text part for any client that needs
   // it. The href itself is unchanged.
   return `<div style="text-align:center;margin:28px 0;">
-    <a href="${url}" class="bcs-btn" style="display:inline-block;background-color:#78020C;color:#FDF8E1;text-decoration:none;padding:14px 32px;font-weight:400;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
+    <a href="${url}" class="bcs-btn" style="display:inline-block;background-color:#78020C!important;color:#FFF9DB!important;-webkit-text-fill-color:#FFF9DB!important;text-decoration:none;padding:14px 32px;font-weight:400;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
   </div>`;
 }
 

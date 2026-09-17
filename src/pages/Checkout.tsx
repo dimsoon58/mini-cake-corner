@@ -7,6 +7,7 @@ import {
   getFlavorCategoryExtra, getExtraPrice, getCandleTotalPrice, candles as customisationCandles,
   flavorCategories, extraGroups,
 } from "@/data/customization";
+import { INSPIRATIONS } from "@/data/inspirations";
 import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, composeCandleName } from "@/lib/candleCartHelpers";
 import { FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
@@ -60,6 +61,7 @@ import { getStoredOrderId, setStoredOrderId, clearStoredOrderId } from "@/lib/ch
 import { onOrderCompleted } from "@/lib/orderCompletionChannel";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { getWelcomeDiscountEligibility, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
+import { computePartnerEligibleBase, computePartnerDiscountAmount } from "@/lib/partnerDiscount";
 import { sumChf, roundChf, formatChf } from "@/lib/money";
 
 // Anti double-payment guard. Set when the customer is handed to PostFinance,
@@ -321,7 +323,7 @@ const uploadImageFilesToStorage = async (
 };
 
 const Checkout = () => {
-  const { items, clearCart, updateItem } = useCart();
+  const { items, clearCart, updateItem, partnerReferral } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -584,8 +586,16 @@ const Checkout = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The in-flight lock never outlives this page.
-  useEffect(() => () => clearCheckoutInFlight(), []);
+  // The in-flight lock never outlives this page. Also cleared on MOUNT: a
+  // freshly loaded page instance can never itself have a submission already
+  // in flight, so a flag found here is stale from before a hard refresh
+  // (which skips the unmount cleanup below entirely) — without this, that
+  // stale flag blocks "Proceed to Payment" for up to CHECKOUT_INFLIGHT_TTL_MS
+  // after the reload, with no way to reach the existing resume logic.
+  useEffect(() => {
+    clearCheckoutInFlight();
+    return () => clearCheckoutInFlight();
+  }, []);
 
   // Reward reservation already outstanding for THIS tab's payment attempt
   // (2026-09-13 payment-resilience fix) — e.g. the customer opened
@@ -837,7 +847,12 @@ const Checkout = () => {
     && !welcomeVoucherEligible
     && (!profile?.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date());
 
-  const canUseWelcomeDiscountNow = welcomeVoucherEligible || justSubscribingNow;
+  // Partner discount and welcome discount must never stack (never -20%). An
+  // active, valid partner referral takes priority for the whole order, so
+  // the welcome-discount checkbox/offer is suppressed entirely here —
+  // matching create-postfinance-payment exactly (it never even claims the
+  // voucher when a partner referral is active, so it stays fully unspent).
+  const canUseWelcomeDiscountNow = !partnerReferral && (welcomeVoucherEligible || justSubscribingNow);
 
   // Display-only, for the newsletter checkbox copy below — never used for
   // pricing/eligibility itself (canUseWelcomeDiscountNow, untouched, still
@@ -849,11 +864,11 @@ const Checkout = () => {
   // (welcomeVoucherEligible) — a customer who used the discount, whose
   // voucher expired, or who is mid-way through a reservation for another
   // order sees the plain newsletter copy instead of a false 10% promise.
-  const newsletterWouldGrantWelcomeDiscount = welcomeVoucherEligible || (
+  const newsletterWouldGrantWelcomeDiscount = !partnerReferral && (welcomeVoucherEligible || (
     baseWelcomeDiscountEligible
     && profile?.newsletter_subscription !== true
     && (!profile?.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date())
-  );
+  ));
 
   // Mirrors, item for item, the selection rule enforced server-side in
   // create-postfinance-payment — see pickWelcomeDiscountItem's own comment.
@@ -863,6 +878,15 @@ const Checkout = () => {
 
   const estimatedWelcomeDiscount = (useWelcomeDiscount && canUseWelcomeDiscountNow && discountedItem)
     ? roundChf(computeWelcomeDiscountAmount(discountedBase))
+    : 0;
+
+  // Partner referral (2026-09-16) — display-only preview, same posture as
+  // estimatedWelcomeDiscount above: the server independently revalidates
+  // the token and recomputes this amount from its own pricing, never from
+  // anything sent here.
+  const partnerEligibleBase = partnerReferral ? computePartnerEligibleBase(items) : 0;
+  const estimatedPartnerDiscount = (partnerReferral && partnerEligibleBase > 0)
+    ? roundChf(computePartnerDiscountAmount(partnerEligibleBase, partnerReferral.discountRate))
     : 0;
 
   // Reward balance ("cagnotte") — display-only. profile.reward_balance is a
@@ -875,7 +899,7 @@ const Checkout = () => {
   // Products only, after the welcome discount, delivery excluded — matches
   // the business rule; still just a display cap, never trusted as the real
   // ceiling.
-  const maxRewardUsable = Math.max(0, sumChf(rewardEligibleItemsTotal, -estimatedWelcomeDiscount));
+  const maxRewardUsable = Math.max(0, sumChf(rewardEligibleItemsTotal, -estimatedWelcomeDiscount, -estimatedPartnerDiscount));
   // A reservation already outstanding for THIS exact orderId (see
   // resumedReservation above) is the AUTHORITATIVE amount — never
   // recomputed from the current (already-reduced-by-the-reservation-itself)
@@ -925,6 +949,7 @@ const Checkout = () => {
   const totalPrice = sumChf(
     itemsTotal,
     -estimatedWelcomeDiscount,
+    -estimatedPartnerDiscount,
     -estimatedRewardUsed,
     expressSurchargeAmount,
     hasPhysical ? deliveryPrice : 0,
@@ -1496,6 +1521,12 @@ const Checkout = () => {
         // Intent only — create-postfinance-payment independently verifies
         // eligibility and computes the real discount server-side.
         useWelcomeDiscount: useWelcomeDiscount && canApplyWelcomeDiscountToThisOrder,
+        // The raw, already-validated token only — NEVER a discount amount,
+        // rate, or partner name (see src/lib/partnerReferral.ts). The
+        // server independently re-resolves it from the `partners` table and
+        // computes the real discount/commission itself; a manipulated or
+        // fabricated value here simply fails to resolve to any partner.
+        partnerReferralToken: partnerReferral?.token ?? null,
         // Intent only — never the amount actually credited/debited. The
         // backend independently verifies the real available balance, caps
         // it, and reserves it. Requires backend support (reserve_reward_credit
@@ -2061,8 +2092,13 @@ const Checkout = () => {
                     const shapeObj = shapes.find(s => s.id === item.shape);
                     const shapeExtra = shapeObj ? (shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0) : 0;
                     const flavorExtra = getFlavorCategoryExtra(item.flavor, item.size);
+                    const isInspiration = item.style?.startsWith("inspiration-");
                     const styleObj = styles.find(s => s.id === item.style);
-                    const styleExtra = styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0;
+                    const inspirationObj = isInspiration ? INSPIRATIONS.find(i => i.id === item.style) : undefined;
+                    const styleExtra = isInspiration
+                      ? (inspirationObj?.price[item.size as keyof typeof inspirationObj.price] || 0)
+                      : (styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0);
+                    const styleDisplayName = isInspiration ? t("Inspiration photo", "Photo d'inspiration") : item.styleName;
                     const extraEntries = (item.extras || []).map((extraId: string) => {
                       const extra = catalogExtrasData.find(e => e.id === extraId);
                       if (!extra) return null;
@@ -2115,8 +2151,8 @@ const Checkout = () => {
                               the card title for no new information. */}
                           {item.styleName && item.product !== "dot_cakes" && item.product !== "diy_kit" && item.product !== "edible_printing" && (
                             <div className="flex justify-between">
-                              <span>{t("Design:", "Design :")} {item.styleName}</span>
-                              <span>{styleExtra > 0 ? `+ CHF ${styleExtra}` : t("included", "inclus")}</span>
+                              <span>{t("Design:", "Design :")} {styleDisplayName}</span>
+                              <span>{styleExtra > 0 ? `+ CHF ${formatChf(styleExtra)}` : t("included", "inclus")}</span>
                             </div>
                           )}
                           {extraEntries.map((e: any, i: number) => (
@@ -2184,6 +2220,18 @@ const Checkout = () => {
                   <Label htmlFor="useWelcomeDiscount" className="text-sm cursor-pointer">
                     {t("Use my welcome offer -10%", "Utiliser mon offre de bienvenue -10%")}
                   </Label>
+                </div>
+              )}
+
+              {estimatedPartnerDiscount > 0 && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">
+                    {t(
+                      `${partnerReferral!.partnerName} partner discount`,
+                      `Réduction partenaire ${partnerReferral!.partnerName}`,
+                    )}
+                  </span>
+                  <span className="font-medium text-primary">- CHF {formatChf(estimatedPartnerDiscount)}</span>
                 </div>
               )}
 

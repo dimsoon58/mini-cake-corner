@@ -2,7 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { getLogoEmailUrl } from "../_shared/site-config.ts";
 
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+<<<<<<< HEAD
 import { corsHeaders } from "../_shared/cors.ts";
+=======
+import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
+>>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
 
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) => new Response(JSON.stringify(body), {
@@ -55,7 +59,7 @@ async function sendCancellationEmail(resendApiKey: string, order: any) {
 
   let paymentParagraph = "";
   if (order.refund_status === "to_refund") {
-    paymentParagraph = `<p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">${tr(
+    paymentParagraph = `<p class="bcs-text" style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">${tr(
       "The refund will be processed within the next few business days.",
       "Le remboursement sera effectué dans les prochains jours ouvrables.",
     )}</p>`;
@@ -72,21 +76,26 @@ async function sendCancellationEmail(resendApiKey: string, order: any) {
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;">
-
-    <div style="background:#FDF8E1;margin:0 20px;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${FORCE_LIGHT_META_TAGS}<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+${brandDarkModeStyle()}
+</head>
+<body style="margin:0;padding:0;background-color:#78020C!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+  <tr><td align="center" style="padding:0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
+  <tr><td style="padding:0 20px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
+  <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <div style="padding:0 40px 36px;">
+      <div class="bcs-text" style="padding:0 40px 36px;">
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Hello", "Bonjour")} ${esc(firstName)},
         </p>
 
-        <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:0 0 20px;">
+        <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:14px 18px;margin:0 0 20px;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
             ${tr(
               `Following your request, we confirm the cancellation of your order <strong>#${esc(orderNumber)}</strong>.`,
@@ -102,10 +111,13 @@ async function sendCancellationEmail(resendApiKey: string, order: any) {
           <strong>${tr("The Bento Cake Studio Team", "L’équipe Bento Cake Studio")}</strong> 🤍
         </p>
       </div>
-    </div>
-
-    <div style="height:24px;background:#78020C;"></div>
-  </div>
+  </td></tr>
+  </table>
+  </td></tr>
+  <tr><td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">&nbsp;</td></tr>
+  </table>
+  </td></tr>
+  </table>
 </body>
 </html>`;
 
@@ -119,7 +131,6 @@ async function sendCancellationEmail(resendApiKey: string, order: any) {
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: [order.email],
-      bcc: ["facturesbentocakestudio@gmail.com"],
       subject: tr(`Order cancellation — #${orderNumber}`, `Annulation de votre commande — n° ${orderNumber}`),
       html,
     }),

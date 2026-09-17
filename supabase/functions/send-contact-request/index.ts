@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+<<<<<<< HEAD
 import { corsHeaders } from "../_shared/cors.ts";
+=======
+import { DARKMODE_META_TAGS, adminDarkModeStyle } from "../_shared/email-darkmode.ts";
+>>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
 
 // Shared backend for every commercial/contact enquiry form on the site —
 // replaces the old Web3Forms integration (a placeholder access key,
@@ -315,14 +319,22 @@ serve(async (req) => {
     // customer-facing branded template. ──
     const rows = spec.fields
       .filter((f) => data[f.key])
-      .map((f) => `<tr><td style="padding:6px 12px;color:#888;font-size:14px;vertical-align:top;white-space:nowrap;">${escapeHtml(f.label)}</td><td style="padding:6px 12px;color:#333;font-size:14px;">${escapeHtml(data[f.key]).replace(/\n/g, "<br>")}</td></tr>`)
+      .map((f) => `<tr><td class="bcs-a-muted" style="padding:6px 12px;color:#888;font-size:14px;vertical-align:top;white-space:nowrap;">${escapeHtml(f.label)}</td><td class="bcs-a-text" style="padding:6px 12px;color:#333;font-size:14px;">${escapeHtml(data[f.key]).replace(/\n/g, "<br>")}</td></tr>`)
       .join("");
-    const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;font-family:Helvetica,Arial,sans-serif;background:#fff;">
-      <div style="max-width:600px;margin:0 auto;padding:24px;">
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${DARKMODE_META_TAGS}
+${adminDarkModeStyle()}
+</head><body style="margin:0;padding:0;font-family:Helvetica,Arial,sans-serif;background-color:#fff;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" class="bcs-a-card" style="background-color:#ffffff;">
+      <tr><td align="center" style="padding:0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
+      <tr><td class="bcs-a-text" style="padding:24px;">
         <h2 style="color:#333;font-size:18px;margin:0 0 16px;">${escapeHtml(spec.subject)}</h2>
         <table style="border-collapse:collapse;width:100%;">${rows}</table>
-        <p style="color:#999;font-size:12px;margin-top:20px;">Bento Cake Studio — formulaire du site (reply-to : ${escapeHtml(replyToEmail)})</p>
-      </div>
+        <p class="bcs-a-muted" style="color:#999;font-size:12px;margin-top:20px;">Bento Cake Studio — formulaire du site (reply-to : ${escapeHtml(replyToEmail)})</p>
+      </td></tr>
+      </table>
+      </td></tr>
+      </table>
     </body></html>`;
 
     const emailBody: Record<string, unknown> = {

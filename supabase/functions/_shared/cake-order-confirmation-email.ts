@@ -1,3 +1,5 @@
+import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
+
 // Shared confirmation-email renderer for a "cake / product" order at its
 import { getLogoEmailUrl } from "./site-config.ts";
 
@@ -257,7 +259,7 @@ export function renderCakeOrderConfirmationEmail(
   }
 
   // Bento identity: bordeaux #78020C (accents, section titles, borders,
-  // banners) + cream #FDF8E1 (main background). Running text uses the SAME
+  // banners) + cream #FFF9DB (main background). Running text uses the SAME
   // browns already used for this in send-order-received-email: #351E13 for
   // body copy / row values / card titles, #7A6540 for the muted label side
   // of a row. Lighter typography pass: labels AND values are normal weight
@@ -265,7 +267,7 @@ export function renderCakeOrderConfirmationEmail(
   // recap's dates, and the total, so those actually stand out instead of
   // every single field competing for attention.
   const row = (label: string, value: string) =>
-    `<tr><td style="padding:6px 8px;color:#7A6540;font-size:14px;width:40%;">${label}</td><td style="padding:6px 8px;color:#351E13;font-size:14px;">${value}</td></tr>`;
+    `<tr><td class="bcs-label" style="padding:6px 8px;color:#7A6540;font-size:14px;width:40%;">${label}</td><td class="bcs-text" style="padding:6px 8px;color:#351E13;font-size:14px;">${value}</td></tr>`;
 
   // Physical items only — workshops render in their own block below.
   const cakeDetailsRows = physicalItems.map((item: any, i: number) => {
@@ -326,20 +328,22 @@ export function renderCakeOrderConfirmationEmail(
       : "";
 
     return `
-      <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${itemLabel(i)}</h3>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;border:1px solid #78020C;border-radius:12px;margin:12px 0;">
+        <tr><td style="padding:20px;">
+        <h3 class="bcs-text" style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${itemLabel(i)}</h3>
         ${designImageBlock}
         <table style="border-collapse:collapse;width:100%;">
           ${rows.join("")}
         </table>
-      </div>`;
+        </td></tr>
+      </table>`;
   }).join("");
 
   // Section label + the cards above — only when the order actually has a
   // physical/cake part.
   const cakeDetailsBlock = physicalItems.length > 0
     ? `
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
+        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
           ${tr("Order details", "Détails de la commande")}
         </p>
         ${cakeDetailsRows}`
@@ -357,25 +361,25 @@ export function renderCakeOrderConfirmationEmail(
     const modeLabel = g.method === "delivery" ? tr("Delivery", "Livraison") : tr("Pickup at store", "Retrait sur place");
     const itemsLine = g.itemIndexes.map(itemLabel).join(", ");
     return `<tr style="border-bottom:1px solid #78020C;">
-      <td style="padding:12px 14px;color:#351E13;font-size:14px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+      <td class="bcs-text" style="padding:12px 14px;color:#351E13;font-size:14px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
         <p style="margin:0 0 4px;">${itemsLine}</p>
         <p style="margin:0;">
           <strong style="font-weight:700;">${g.date ? formatDateCH(g.date) : tr("Date to be confirmed", "Date à confirmer")}</strong>${g.slot ? ` · ${g.slot}` : ""} — ${modeLabel}
         </p>
-        ${g.method === "delivery" && g.address ? `<p style="margin:4px 0 0;color:#7A6540;font-size:13px;">${g.address}</p>` : ""}
+        ${g.method === "delivery" && g.address ? `<p class="bcs-label" style="margin:4px 0 0;color:#7A6540;font-size:13px;">${g.address}</p>` : ""}
       </td>
     </tr>`;
   }).join("");
   const pickupDeliveryBlock = pickupDeliveryGroups.length > 0
     ? `
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Pickup & delivery", "Retrait et livraison")}
         </p>
         <table style="border-collapse:collapse;width:100%;border:1px solid #78020C;margin:0 0 8px;">
           ${pickupDeliveryRowsHtml}
         </table>
         ${hasPickupGroup
-          ? `<p style="color:#7A6540;font-size:12px;margin:0 0 20px;">${tr("Store address for pickups", "Adresse de la boutique pour les retraits")}: ${STORE_ADDRESS}</p>`
+          ? `<p class="bcs-label" style="color:#7A6540;font-size:12px;margin:0 0 20px;">${tr("Store address for pickups", "Adresse de la boutique pour les retraits")}: ${STORE_ADDRESS}</p>`
           : ""}`
     : "";
 
@@ -394,15 +398,17 @@ export function renderCakeOrderConfirmationEmail(
       item.item_comment?.trim() ? row(tr("Notes", "Notes"), item.item_comment.trim()) : "",
     ].join("");
     return `
-      <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${wsName}${workshopItems.length > 1 ? ` ${i + 1}` : ""}</h3>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;border:1px solid #78020C;border-radius:12px;margin:12px 0;">
+        <tr><td style="padding:20px;">
+        <h3 class="bcs-text" style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${wsName}${workshopItems.length > 1 ? ` ${i + 1}` : ""}</h3>
         <table style="border-collapse:collapse;width:100%;">${wsRows}</table>
-      </div>`;
+        </td></tr>
+      </table>`;
   }).join("");
 
   const workshopDetailsBlock = workshopItems.length > 0
     ? `
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
+        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
           ${tr("Workshop details", "Détails du workshop")}
         </p>
         ${workshopDetailsRows}`
@@ -412,14 +418,16 @@ export function renderCakeOrderConfirmationEmail(
   const orderImageUrls = getOrderImageUrls(items);
   const orderImagesBlock = orderImageUrls.length
     ? `
-      <div style="background:#FDF8E1;border:1px solid #78020C;border-radius:12px;padding:20px;margin:12px 0;">
-        <h3 style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${tr("Reference images", "Images de référence")}</h3>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;border:1px solid #78020C;border-radius:12px;margin:12px 0;">
+        <tr><td style="padding:20px;">
+        <h3 class="bcs-text" style="margin:0 0 12px;color:#351E13;font-size:15px;font-weight:600;">${tr("Reference images", "Images de référence")}</h3>
         <table style="border-collapse:collapse;width:100%;">
           ${orderImageUrls.map((url: string, j: number) =>
-            `<tr><td style="padding:8px;color:#7A6540;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" style="color:#78020C;font-size:14px;display:inline-block;margin-bottom:6px;font-weight:600;text-decoration:underline;" target="_blank">${tr("Open image", "Ouvrir l’image")}</a><br/><img src="${url}" alt="${tr("Reference image", "Image de référence")} ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #78020C;display:block;" /></td></tr>`
+            `<tr><td class="bcs-label" style="padding:8px;color:#7A6540;font-size:14px;vertical-align:top;">Image ${j + 1}</td><td style="padding:8px;"><a href="${url}" class="bcs-title" style="color:#78020C;font-size:14px;display:inline-block;margin-bottom:6px;font-weight:600;text-decoration:underline;" target="_blank">${tr("Open image", "Ouvrir l’image")}</a><br/><img src="${url}" alt="${tr("Reference image", "Image de référence")} ${j + 1}" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #78020C;display:block;" /></td></tr>`
           ).join("")}
         </table>
-      </div>`
+        </td></tr>
+      </table>`
     : "";
 
   const itemSummaryRows = items.map((item: any) => {
@@ -431,8 +439,8 @@ export function renderCakeOrderConfirmationEmail(
       : physicalItemDescription(item, lang);
     return `
     <tr>
-      <td style="padding:12px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${label}</td>
-      <td style="padding:12px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
+      <td class="bcs-text" style="padding:12px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${label}</td>
+      <td class="bcs-text" style="padding:12px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
     </tr>`;
   }).join("");
 
@@ -442,24 +450,29 @@ export function renderCakeOrderConfirmationEmail(
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;">
-
-    <div style="background:#FDF8E1;margin:0 20px;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${FORCE_LIGHT_META_TAGS}<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+${brandDarkModeStyle()}
+</head>
+<body bgcolor="#78020C" style="margin:0;padding:0;background-color:#78020C!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+  <tr><td align="center" style="padding:0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
+  <tr><td style="padding:0 20px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
+  <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <div style="padding:0 40px 36px;">
-        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
+      <div class="bcs-text" style="padding:0 40px 36px;">
+        <p class="bcs-text" style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Dear", "Bonjour")} ${customerName(order)},
         </p>
 
-        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
+        <p class="bcs-text" style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Thank you for choosing Bento Cake Studio.", "Merci d'avoir choisi Bento Cake Studio.")}
         </p>
-        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">
+        <p class="bcs-text" style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">
           ${workshopOnly
             ? tr(
                 "Your workshop booking is now confirmed.",
@@ -479,51 +492,51 @@ export function renderCakeOrderConfirmationEmail(
 
         ${orderImagesBlock}
 
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
+        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:24px 0 8px;">
           ${tr("Order summary", "Récapitulatif de la commande")}
         </p>
         <table style="width:100%;border-collapse:collapse;border:1px solid #78020C;margin-bottom:24px;">
           <thead>
-            <tr style="background:#78020C;">
-              <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
-              <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
+            <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+              <th class="bcs-accent-text" style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
+              <th class="bcs-accent-text" style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
             </tr>
           </thead>
           <tbody>
             ${itemSummaryRows}
             ${(Number(order.express_surcharge_amount) || 0) > 0 ? `<tr>
-              <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${tr("Express surcharge", "Supplément express")}</td>
-              <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${Number(order.express_surcharge_amount).toFixed(2)}</td>
+              <td class="bcs-text" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${tr("Express surcharge", "Supplément express")}</td>
+              <td class="bcs-text" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${Number(order.express_surcharge_amount).toFixed(2)}</td>
             </tr>` : ""}
             ${(Number(order.welcome_discount_amount) || 0) > 0 ? `<tr>
-              <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${tr("Welcome discount", "Réduction de bienvenue")}</td>
-              <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">- CHF ${Number(order.welcome_discount_amount).toFixed(2)}</td>
+              <td class="bcs-text" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${tr("Welcome discount", "Réduction de bienvenue")}</td>
+              <td class="bcs-text" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">- CHF ${Number(order.welcome_discount_amount).toFixed(2)}</td>
             </tr>` : ""}
             ${(Number(order.reward_amount_used) || 0) > 0 ? `<tr>
-              <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${tr("Reward used", "Cagnotte utilisée")}</td>
-              <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">- CHF ${Number(order.reward_amount_used).toFixed(2)}</td>
+              <td class="bcs-text" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${tr("Reward used", "Cagnotte utilisée")}</td>
+              <td class="bcs-text" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">- CHF ${Number(order.reward_amount_used).toFixed(2)}</td>
             </tr>` : ""}
             ${(Number(order.delivery_fee) || 0) > 0 ? `<tr>
-              <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${tr("Delivery", "Livraison")}</td>
-              <td style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${Number(order.delivery_fee).toFixed(2)}</td>
+              <td class="bcs-text" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;">${tr("Delivery", "Livraison")}</td>
+              <td class="bcs-text" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:14px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${Number(order.delivery_fee).toFixed(2)}</td>
             </tr>` : ""}
           </tbody>
           <tfoot>
-            <tr style="background:#78020C;">
-              <td style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FDF8E1;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
-              <td style="padding:10px 14px;font-size:15px;font-weight:700;color:#FDF8E1;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+            <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+              <td class="bcs-accent-text" style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
+              <td class="bcs-accent-text" style="padding:10px 14px;font-size:15px;font-weight:700;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
             </tr>
           </tfoot>
         </table>
 
-        <p style="color:#351E13;font-size:13px;line-height:1.7;margin:0 0 20px;border-top:1px solid #78020C;padding-top:20px;">
+        <p class="bcs-text" style="color:#351E13;font-size:13px;line-height:1.7;margin:0 0 20px;border-top:1px solid #78020C;padding-top:20px;">
           ${tr(
             "If any of these details are incorrect or if you need to make a small change, please contact us as soon as possible.",
             "Si l'une de ces informations est incorrecte ou si vous souhaitez apporter une petite modification, merci de nous contacter au plus vite."
           )}
         </p>
 
-        <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0;">
+        <p class="bcs-text" style="color:#351E13;font-size:15px;line-height:1.8;margin:0;">
           ${workshopOnly
             ? `${tr(
                 "Thank you again for your order. We look forward to welcoming you to the workshop!",
@@ -540,10 +553,13 @@ export function renderCakeOrderConfirmationEmail(
                 )}<br><br>${tr("See you soon", "À bientôt")},<br><strong>Bento Cake Studio</strong> 🤍`}
         </p>
       </div>
-    </div>
-
-    <div style="height:24px;background:#78020C;"></div>
-  </div>
+  </td></tr>
+  </table>
+  </td></tr>
+  <tr><td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">&nbsp;</td></tr>
+  </table>
+  </td></tr>
+  </table>
 </body>
 </html>`;
 

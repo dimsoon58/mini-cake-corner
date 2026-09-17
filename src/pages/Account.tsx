@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { CalendarIcon, Package, Gift } from "lucide-react";
+import { CalendarIcon, Package, Gift, ClipboardList, CalendarDays } from "lucide-react";
+import { isAdminEmail } from "@/lib/adminAccess";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -348,6 +349,30 @@ const Account = () => {
             </Link>
           </Button>
         </section>
+
+        {/* Only ever shown to the two admin emails — same list every admin
+            Edge Function enforces server-side (see _shared/admin-auth.ts).
+            Purely a convenience link; hiding it for everyone else is not
+            itself the security boundary. */}
+        {isAdminEmail(user?.email) && (
+          <section className="mt-4 space-y-2">
+            <Button asChild variant="outline" className="w-full rounded-none border-primary text-primary hover:bg-primary/5 uppercase tracking-[0.105em] text-[12px] font-medium">
+              <Link to="/admin/orders">
+                <ClipboardList className="w-4 h-4 mr-2" strokeWidth={1.5} />
+                {t("Admin: All Orders", "Admin : toutes les commandes")}
+              </Link>
+            </Button>
+            {/* Deliberately a separate button, not merged with the one
+                above — the calendar (orders by day) and the flat list
+                answer different questions, kept as distinct pages/links. */}
+            <Button asChild variant="outline" className="w-full rounded-none border-primary text-primary hover:bg-primary/5 uppercase tracking-[0.105em] text-[12px] font-medium">
+              <Link to="/admin/calendar">
+                <CalendarDays className="w-4 h-4 mr-2" strokeWidth={1.5} />
+                {t("Admin: Calendar", "Admin : calendrier")}
+              </Link>
+            </Button>
+          </section>
+        )}
       </main>
     </Layout>
   );

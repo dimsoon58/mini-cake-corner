@@ -16,6 +16,7 @@ import { useCart, CandleSelection, CartItem } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { getStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { isWelcomeDiscountSelectedForAttempt, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
+import { computePartnerEligibleBase, computePartnerDiscountAmount } from "@/lib/partnerDiscount";
 import { sumChf, roundChf, formatChf } from "@/lib/money";
 import { useToast } from "@/hooks/use-toast";
 import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
@@ -53,6 +54,7 @@ import {
   getAvailableSizesForStyle,
   getFlavorCategoryExtra,
 } from "@/data/customization";
+import { INSPIRATIONS } from "@/data/inspirations";
 
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
@@ -77,7 +79,7 @@ const formatDateFromIso = (dateValue: string) => {
 };
 
 const Cart = () => {
-  const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate } = useCart();
+  const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate, partnerReferral } = useCart();
   const { t, lang } = useLang();
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -144,7 +146,20 @@ const Cart = () => {
   // only after a genuinely valid confirmed order) ever change its real
   // state. See isWelcomeDiscountSelectedForAttempt's own comment for why
   // eligibility and selection must never be the same check.
-  const welcomeDiscountSelected = isWelcomeDiscountSelectedForAttempt(profile, getStoredOrderId());
+  // Partner referral (2026-09-16) — display-only preview, exactly like the
+  // welcome discount below. Never applied, reserved, or consumed here; the
+  // server independently revalidates the token and recomputes this amount.
+  // Mutually exclusive with the welcome discount (never -20%): an active
+  // partner referral takes priority and the welcome discount preview is
+  // suppressed below, matching what create-postfinance-payment actually
+  // does (it never even claims the welcome voucher when a partner is
+  // active), so this preview is never misleading.
+  const partnerEligibleBase = partnerReferral ? computePartnerEligibleBase(items) : 0;
+  const partnerDiscountAmount = (partnerReferral && partnerEligibleBase > 0)
+    ? roundChf(computePartnerDiscountAmount(partnerEligibleBase, partnerReferral.discountRate))
+    : 0;
+
+  const welcomeDiscountSelected = !partnerReferral && isWelcomeDiscountSelectedForAttempt(profile, getStoredOrderId());
   const { item: welcomeDiscountItem, base: welcomeDiscountBase } = pickWelcomeDiscountItem(items);
   const welcomeDiscountAmount = (welcomeDiscountSelected && welcomeDiscountItem)
     ? roundChf(computeWelcomeDiscountAmount(welcomeDiscountBase))
@@ -834,6 +849,30 @@ const Cart = () => {
                     <span className="text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
                     <span className="text-foreground">CHF {formatChf(totalPrice)}</span>
                   </div>
+                  {partnerDiscountAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {t(
+                          `${partnerReferral!.partnerName} partner discount`,
+                          `Réduction partenaire ${partnerReferral!.partnerName}`,
+                        )}
+                      </span>
+                      <span className="text-primary">- CHF {formatChf(partnerDiscountAmount)}</span>
+                    </div>
+                  )}
+                  {partnerDiscountAmount > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        `Partner benefit: -${Math.round(partnerReferral!.discountRate * 100)}% on the cake base price`,
+                        `Avantage partenaire : -${Math.round(partnerReferral!.discountRate * 100)} % sur le prix de base du gâteau`,
+                      )}
+                      <br />
+                      {t(
+                        "Excludes extras, options, surcharges and delivery.",
+                        "Hors extras, options, suppléments et livraison.",
+                      )}
+                    </p>
+                  )}
                   {welcomeDiscountAmount > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{t("Welcome discount -10%", "Réduction bienvenue -10%")}</span>
@@ -848,7 +887,7 @@ const Cart = () => {
                   ))}
                   <div className="flex justify-between text-lg font-bold">
                     <span className="text-foreground">{t("Total", "Total")}</span>
-                    <span className="text-primary">CHF {formatChf(sumChf(totalPrice, expressBreakdown.total, -welcomeDiscountAmount))}</span>
+                    <span className="text-primary">CHF {formatChf(sumChf(totalPrice, expressBreakdown.total, -welcomeDiscountAmount, -partnerDiscountAmount))}</span>
                   </div>
                   <ExpressDateNotice date={cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null} />
                   {items.some((i) => i.product === "workshop") &&
@@ -922,8 +961,12 @@ const CartItemSummary = ({ item }: { item: any }) => {
     ? (DIY_KIT_SHAPE_EXTRA[item.shape] ?? 0)
     : (shapeObj ? shapeObj.extraPrice[item.size as keyof typeof shapeObj.extraPrice] || 0 : 0);
   const flavorExtra = getFlavorCategoryExtra(item.flavor, item.size);
+  const isInspiration = item.style?.startsWith("inspiration-");
   const styleObj = styles.find(s => s.id === item.style);
-  const styleExtra = styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0;
+  const inspirationObj = isInspiration ? INSPIRATIONS.find(i => i.id === item.style) : undefined;
+  const styleExtra = isInspiration
+    ? (inspirationObj?.price[item.size as keyof typeof inspirationObj.price] || 0)
+    : (styleObj ? (styleObj.price[item.size as keyof typeof styleObj.price] || 0) : 0);
 
   const candleEntries = (item.candles || [])
     .filter((c: CandleSelection) => c.quantity > 0)

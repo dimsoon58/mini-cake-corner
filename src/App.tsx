@@ -27,6 +27,8 @@ import Inspiration from "./pages/Inspiration";
 import KitBentoCake from "./pages/KitBentoCake";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import AdminOrder from "./pages/AdminOrder";
+import AdminOrders from "./pages/AdminOrders";
+import AdminCalendar from "./pages/AdminCalendar";
 import WorkshopBooking from "./pages/WorkshopBooking";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import OrderAction from "./pages/OrderAction";
@@ -116,6 +118,8 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/calendar" element={<AdminCalendar />} />
             <Route path="/admin/order/:id" element={<AdminOrder />} />
             <Route path="/order-action" element={<OrderAction />} />
             <Route path="/product/:id" element={<ProductDetail />} />

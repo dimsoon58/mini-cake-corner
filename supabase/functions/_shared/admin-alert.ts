@@ -2,6 +2,8 @@
 // (not normal card declines). Sent via Resend to the same admins as
 // notify-order. Best-effort: never throws into the caller.
 
+import { DARKMODE_META_TAGS, adminDarkModeStyle } from "./email-darkmode.ts";
+
 const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
 
 // Shared cooldown keys/duration for claimAndSendTechnicalAlert, below. Kept
@@ -36,13 +38,15 @@ export async function sendTechnicalAlert(input: TechnicalAlertInput): Promise<bo
   }
 
   const body = input.lines
-    .map((l) => `<tr><td style="padding:4px 12px;font-size:14px;color:#333;">${l}</td></tr>`)
+    .map((l) => `<tr><td class="bcs-a-text" style="padding:4px 12px;font-size:14px;color:#333;">${l}</td></tr>`)
     .join("");
 
-  const html = `<!DOCTYPE html><html><body style="font-family:Helvetica,Arial,sans-serif;background:#fff;">
-    <h2 style="color:#b91c1c;font-size:18px;margin:0 0 12px;">⚠️ ${input.subject}</h2>
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${DARKMODE_META_TAGS}
+${adminDarkModeStyle()}
+</head><body class="bcs-a-card" style="font-family:Helvetica,Arial,sans-serif;background-color:#fff;">
+    <h2 class="bcs-a-danger" style="color:#b91c1c;font-size:18px;margin:0 0 12px;">⚠️ ${input.subject}</h2>
     <table style="border-collapse:collapse;width:100%;max-width:560px;">${body}</table>
-    <p style="color:#999;font-size:12px;margin-top:16px;">Bento Cake Studio — alerte technique paiement</p>
+    <p class="bcs-a-muted" style="color:#999;font-size:12px;margin-top:16px;">Bento Cake Studio — alerte technique paiement</p>
   </body></html>`;
 
   try {

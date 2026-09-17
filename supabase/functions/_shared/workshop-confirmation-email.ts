@@ -1,6 +1,10 @@
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "./workshops.ts";
+<<<<<<< HEAD
 import { getLogoEmailUrl } from "./site-config.ts";
 
+=======
+import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
+>>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
 
 // Shared workshop confirmation-email renderer — the exact same visual
 // template and workshop information a website workshop booking gets, at
@@ -117,8 +121,8 @@ export function renderWorkshopConfirmationEmail(
 
   const rowCell = (label: string, value: string) =>
     `<tr style="border-bottom:1px solid #D4C89A;">
-      <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</td>
-      <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${value}</td>
+      <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</td>
+      <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${value}</td>
     </tr>`;
 
   const blocks = workshopItems.map((it, i) => {
@@ -130,7 +134,7 @@ export function renderWorkshopConfirmationEmail(
     const title = workshopTitle((it.workshop_type as WorkshopType) ?? "signature", lang);
 
     return `
-      <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:${i === 0 ? "0" : "24px"} 0 8px;">
+      <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:${i === 0 ? "0" : "24px"} 0 8px;">
         ${heading}
       </p>
       <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;">
@@ -146,15 +150,15 @@ export function renderWorkshopConfirmationEmail(
   }).join("");
 
   // "Before your workshop" — the shared Bento "info callout" style
-  // (left border + #F5EDCC), same as send-order-received-email.
+  // (left border + #FFFFFF), same as send-order-received-email.
   const bw = BEFORE_WORKSHOP[lang];
   const beforeParagraphs = bw.paragraphs.map((p) =>
     `<p style="color:#351E13;font-size:13px;line-height:1.7;margin:0 0 12px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${p}</p>`,
   ).join("");
 
   const beforeWorkshopBlock = `
-      <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:18px 20px;margin:24px 0 0;">
-        <p style="color:#78020C;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 12px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.title}</p>
+      <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:18px 20px;margin:24px 0 0;">
+        <p class="bcs-title" style="color:#78020C;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 12px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.title}</p>
         ${beforeParagraphs}
         <p style="color:#351E13;font-size:14px;line-height:1.7;margin:6px 0 0;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${bw.closing}</p>
       </div>`;
@@ -162,16 +166,21 @@ export function renderWorkshopConfirmationEmail(
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;">
-
-    <div style="background:#FDF8E1;margin:0 20px;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${FORCE_LIGHT_META_TAGS}<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+${brandDarkModeStyle()}
+</head>
+<body style="margin:0;padding:0;background-color:#78020C!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+  <tr><td align="center" style="padding:0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
+  <tr><td style="padding:0 20px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
+  <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <div style="padding:0 40px 36px;">
+      <div class="bcs-text" style="padding:0 40px 36px;">
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Hello", "Bonjour")} ${firstName},
         </p>
@@ -199,13 +208,13 @@ export function renderWorkshopConfirmationEmail(
         ${blocks}
 
         <table style="border-collapse:collapse;width:100%;margin:16px 0 0;">
-          <tr style="background:#78020C;">
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${
+          <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${
               !confirmed ? tr("Workshops total", "Total ateliers")
                 : isMixed ? tr("Workshop amount", "Montant atelier")
                 : tr("Amount paid", "Montant payé")
             }</td>
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${confirmed ? amountPaid : chf(workshopSubtotal)}</td>
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:15px;font-weight:700;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${confirmed ? amountPaid : chf(workshopSubtotal)}</td>
           </tr>
         </table>
 
@@ -216,7 +225,7 @@ export function renderWorkshopConfirmationEmail(
             "Présentez cet email ou votre référence de réservation le jour du workshop.",
           )}
         </p>` : `
-        <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:24px 0 0;">
+        <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:14px 18px;margin:24px 0 0;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0 0 8px;">
             ${tr(
               "Your booking is pending validation by our team. You will receive a confirmation email as soon as it has been accepted.",
@@ -238,10 +247,13 @@ export function renderWorkshopConfirmationEmail(
           <strong>Bento Cake Studio</strong>
         </p>`}
       </div>
-    </div>
-
-    <div style="height:24px;background:#78020C;"></div>
-  </div>
+  </td></tr>
+  </table>
+  </td></tr>
+  <tr><td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">&nbsp;</td></tr>
+  </table>
+  </td></tr>
+  </table>
 </body>
 </html>`;
 

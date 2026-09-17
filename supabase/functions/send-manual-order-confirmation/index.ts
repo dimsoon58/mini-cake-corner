@@ -208,7 +208,6 @@ async function sendConfirmationEmail(resendApiKey: string, order: any, items: an
     body: JSON.stringify({
       from: "contact@bentocakestudio.ch",
       to: [order.email],
-      bcc: ["facturesbentocakestudio@gmail.com"],
       subject,
       html,
       attachments: [{ filename: `Facture_${invoiceNum}.pdf`, content: pdfBase64 }],

@@ -1,8 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+<<<<<<< HEAD
 import { getLogoEmailUrl } from "../_shared/site-config.ts";
 
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
+=======
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
+>>>>>>> 26d867a093cf24749d04e16db978cba86e3ddde6
 
 
 function formatDateCH(dateValue?: string): string {
@@ -112,7 +117,7 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
     : tr("Pickup at store", "Retrait sur place");
 
   const row = (label: string, value: string) =>
-    `<tr><td style="padding:6px 8px;color:#888;font-size:14px;width:45%;">${label}</td><td style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${value}</td></tr>`;
+    `<tr><td class="bcs-label" style="padding:6px 8px;color:#888;font-size:14px;width:45%;">${label}</td><td class="bcs-text" style="padding:6px 8px;color:#333;font-size:14px;font-weight:600;">${value}</td></tr>`;
 
   // Multi-date fulfillment (Sept 2026): while MULTI_DATE_FULFILLMENT_ENABLED
   // is false on the frontend, every physical order has exactly ONE
@@ -146,14 +151,14 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
     const itemsHtml = groupItems.map((it) =>
       `<li style="margin:0 0 3px;">${describeItem(it)}</li>`
     ).join("");
-    return `<tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
+    return `<tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid #D4C89A;background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
       <td colspan="2" style="padding:10px 14px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
         <p style="margin:0 0 4px;color:#351E13;font-size:13px;font-weight:700;">
           ${formatDateCH(f?.pickup_delivery_date)}${f?.pickup_delivery_slot ? ` · ${f.pickup_delivery_slot}` : ""} — ${method}
         </p>
         ${f?.delivery_method === "delivery"
-          ? (f?.delivery_address ? `<p style="margin:0 0 6px;color:#7A6540;font-size:12px;">${f.delivery_address}</p>` : "")
-          : `<p style="margin:0 0 6px;color:#7A6540;font-size:12px;">${tr("Address", "Adresse")}: ${STORE_ADDRESS}</p>`}
+          ? (f?.delivery_address ? `<p class="bcs-label" style="margin:0 0 6px;color:#7A6540;font-size:12px;">${f.delivery_address}</p>` : "")
+          : `<p class="bcs-label" style="margin:0 0 6px;color:#7A6540;font-size:12px;">${tr("Address", "Adresse")}: ${STORE_ADDRESS}</p>`}
         ${itemsHtml ? `<ul style="margin:0;padding-left:18px;color:#351E13;font-size:12px;">${itemsHtml}</ul>` : ""}
       </td>
     </tr>`;
@@ -168,16 +173,21 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
-<body style="margin:0;padding:0;background:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;">
-
-    <div style="background:#FDF8E1;margin:0 20px;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${FORCE_LIGHT_META_TAGS}<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+${brandDarkModeStyle()}
+</head>
+<body style="margin:0;padding:0;background-color:#78020C!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#78020C" class="bcs-outer" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+  <tr><td align="center" style="padding:0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;">
+  <tr><td style="padding:0 20px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
+  <tr><td>
       <div style="padding:36px 40px 0;text-align:center;">
         <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <div style="padding:0 40px 36px;">
+      <div class="bcs-text" style="padding:0 40px 36px;">
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Hello", "Bonjour")} ${firstName},
         </p>
@@ -195,7 +205,7 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
           )}
         </p>
 
-        <div style="border-left:3px solid #78020C;background:#F5EDCC;padding:14px 18px;margin:0 0 20px;">
+        <div class="bcs-callout" style="border-left:3px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:14px 18px;margin:0 0 20px;">
           <p style="color:#351E13;font-size:14px;line-height:1.7;margin:0;">
             ${isMixed
               ? tr(
@@ -216,34 +226,34 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
           )}
         </p>
 
-        <p style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
+        <p class="bcs-title" style="color:#78020C;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;">
           ${tr("Summary", "Récapitulatif")}
         </p>
         <table style="border-collapse:collapse;width:100%;border:1px solid #D4C89A;">
           <tr style="border-bottom:1px solid #D4C89A;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order number", "Numéro de commande")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
+            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;width:48%;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Order number", "Numéro de commande")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${orderNumber}</td>
           </tr>
           ${groupByFulfillment
             ? physicalFulfillmentIds.map(fulfillmentBlockHtml).join("")
             : `
-          ${hasPickupOrDelivery ? `<tr style="border-bottom:1px solid #D4C89A;background:#FDF3D0;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${formatDateCH(order.pickup_delivery_date)}</td>
+          ${hasPickupOrDelivery ? `<tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid #D4C89A;background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
+            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${formatDateCH(order.pickup_delivery_date)}</td>
           </tr>` : ""}
-          ${hasPickupOrDelivery && order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid #D4C89A;"><td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Time slot", "Créneau")}</td><td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${order.pickup_delivery_slot}</td></tr>` : ""}
+          ${hasPickupOrDelivery && order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid #D4C89A;"><td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Time slot", "Créneau")}</td><td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${order.pickup_delivery_slot}</td></tr>` : ""}
           ${hasPickupOrDelivery ? `<tr style="border-bottom:1px solid #D4C89A;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Method", "Mode")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${deliveryInfo}</td>
+            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Method", "Mode")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${deliveryInfo}</td>
           </tr>` : ""}
           ${hasPickupOrDelivery && order.delivery_method !== "delivery" ? `<tr style="border-bottom:1px solid #D4C89A;">
-            <td style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Address", "Adresse")}</td>
-            <td style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${STORE_ADDRESS}</td>
+            <td class="bcs-label" style="padding:10px 14px;color:#7A6540;font-size:13px;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Address", "Adresse")}</td>
+            <td class="bcs-text" style="padding:10px 14px;color:#351E13;font-size:13px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${STORE_ADDRESS}</td>
           </tr>` : ""}
           `}
-          <tr style="background:#78020C;">
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total amount", "Montant total")}</td>
-            <td style="padding:10px 14px;color:#FDF8E1;font-size:15px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+          <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total amount", "Montant total")}</td>
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:15px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
           </tr>
         </table>
 
@@ -260,10 +270,13 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
           <strong>Bento Cake Studio</strong> 🤍
         </p>
       </div>
-    </div>
-
-    <div style="height:24px;background:#78020C;"></div>
-  </div>
+  </td></tr>
+  </table>
+  </td></tr>
+  <tr><td bgcolor="#78020C" class="bcs-spacer" style="height:24px;line-height:24px;font-size:1px;background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">&nbsp;</td></tr>
+  </table>
+  </td></tr>
+  </table>
 </body>
 </html>`;
 

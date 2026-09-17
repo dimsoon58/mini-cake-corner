@@ -108,6 +108,46 @@ function formatInvoiceDate(dateInput: string): string {
   const d = new Date(dateInput);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
+// Generic greedy word-wrap for a table cell — used by the DESCRIPTION column
+// so any label (item description, express surcharge, welcome/partner
+// discount, delivery...) wraps onto as many lines as it needs instead of
+// overflowing into the next column, regardless of how long the text is.
+// Guarantees every returned line's rendered width is <= maxWidth: a single
+// word that alone is still too wide (e.g. a long hyphenated partner name)
+// is hard-broken character by character as a last resort, so a table border
+// is never crossed no matter what text comes in.
+function wrapText(text: string, font: { widthOfTextAtSize(t: string, s: number): number }, size: number, maxWidth: number): string[] {
+  const words = (text || "").split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [""];
+  const lines: string[] = [];
+  let current = "";
+  const flush = () => { if (current) { lines.push(current); current = ""; } };
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+    flush();
+    if (font.widthOfTextAtSize(word, size) <= maxWidth) {
+      current = word;
+      continue;
+    }
+    let chunk = "";
+    for (const ch of word) {
+      const next = chunk + ch;
+      if (chunk && font.widthOfTextAtSize(next, size) > maxWidth) {
+        lines.push(chunk);
+        chunk = ch;
+      } else {
+        chunk = next;
+      }
+    }
+    current = chunk;
+  }
+  flush();
+  return lines.length ? lines : [""];
+}
 
 export async function generateInvoicePdf(
   order: any,
@@ -247,6 +287,11 @@ export async function generateInvoicePdf(
   const col4 = tableLeft + tableWidth * 0.82;
   const headerRowH = 30;
   const dataRowH = 32;
+  // Usable width for wrapped DESCRIPTION text: column width minus the left
+  // text padding (8) and a small buffer before the col2 divider line so
+  // wrapped text never touches the border.
+  const descMaxWidth = col2 - col1 - 8 - 6;
+  const descLineHeight = 12;
 
   const drawTableHeader = () => {
     const headerBot = y - headerRowH;
@@ -356,6 +401,24 @@ export async function generateInvoicePdf(
       });
     }
 
+    // Authoritative amount/rate/name straight off the order (see
+    // _shared/partner-referral.ts) — never recomputed here. Partner and
+    // welcome discounts are mutually exclusive by construction, so this and
+    // the block above never both fire for the same order.
+    const partnerDiscountInvoice = Number(order.partner_discount_amount) || 0;
+    if (order.partner_name && partnerDiscountInvoice > 0) {
+      const partnerRatePct = Math.round((Number(order.partner_discount_rate) || 0) * 100);
+      itemRows.push({
+        description: tr(
+          `${order.partner_name} partner benefit (-${partnerRatePct}% on the base price)`,
+          `Avantage partenaire ${order.partner_name} (-${partnerRatePct} % sur le prix de base)`,
+        ),
+        quantity: "",
+        unitPrice: "",
+        total: `- ${formatInvoicePrice(partnerDiscountInvoice)}`,
+      });
+    }
+
     const rewardUsedInvoice = Number(order.reward_amount_used) || 0;
     if (rewardUsedInvoice > 0) {
       itemRows.push({
@@ -397,7 +460,14 @@ export async function generateInvoicePdf(
 
   const sectionRowH = 24;
   for (const invoiceRow of rows) {
-    const rowH = invoiceRow.section ? sectionRowH : dataRowH;
+    const font = invoiceRow.bold ? fontBold : fontRegular;
+    // DESCRIPTION wrapped to fit the column — a section row spans the full
+    // table width (no columns), so it's never wrapped. Row height grows only
+    // when a description genuinely needs more than one line; a single-line
+    // description keeps the exact same row height as before (no layout
+    // change for any existing short label).
+    const descLines = invoiceRow.section ? [invoiceRow.description] : wrapText(invoiceRow.description, font, 10, descMaxWidth);
+    const rowH = invoiceRow.section ? sectionRowH : dataRowH + (descLines.length - 1) * descLineHeight;
     if (y - rowH < margin) {
       startPage();
       drawTableHeader();
@@ -406,7 +476,6 @@ export async function generateInvoicePdf(
     const rowTop = y;
     const rowBot = y - rowH;
     const textY = rowBot + rowH / 2 - 4;
-    const font = invoiceRow.bold ? fontBold : fontRegular;
 
     if (invoiceRow.section) {
       // Full-width date/mode header ("07.10.2026 — Retrait") above the group
@@ -432,7 +501,12 @@ export async function generateInvoicePdf(
       page.drawLine({ start: { x: cx, y: rowTop }, end: { x: cx, y: rowBot }, thickness: 0.5, color: borderColor });
     }
 
-    page.drawText(invoiceRow.description, { x: col1 + 8, y: textY, size: 10, font, color: textDark });
+    // Stacked, vertically centered on textY — degenerates to exactly the old
+    // single `drawText` at textY when descLines.length === 1.
+    descLines.forEach((line, i) => {
+      const lineY = textY + ((descLines.length - 1) / 2 - i) * descLineHeight;
+      page.drawText(line, { x: col1 + 8, y: lineY, size: 10, font, color: textDark });
+    });
     page.drawText(invoiceRow.quantity, { x: col2 + 8, y: textY, size: 10, font, color: textDark });
     if (invoiceRow.unitPrice) {
       page.drawText(invoiceRow.unitPrice, { x: col3 + 8, y: textY, size: 10, font, color: textDark });

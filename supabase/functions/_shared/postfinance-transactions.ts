@@ -94,6 +94,20 @@ export async function getPaymentPageUrl(
 
 // ── Prove whether a PostFinance transaction exists for a given merchantReference
 //
+// 2026-09-16: merchantReference at creation time switched from the raw
+// orderId (UUID) to the human-readable payment_reference (PAY-YYMMDDNN) — see
+// create-postfinance-payment's transactionCreate. merchantReference can NEVER
+// be changed after PostFinance moves the transaction past its "Pending"
+// state (confirmed against wallee/PostFinance Checkout's own docs — this
+// happens automatically, before the customer even reaches the payment page),
+// so every transaction created before this change permanently keeps the old
+// UUID as its merchantReference, forever. To search correctly across BOTH
+// eras with no cutover risk and no deploy-timing coordination needed, every
+// search here takes a LIST of candidate reference values — typically
+// [payment_reference, orderId] — and matches a transaction whose
+// merchantReference equals ANY one of them. Build that list with
+// referenceCandidates() below.
+//
 // Returns:
 //   { conclusive: true,  transaction: {...} } — found it.
 //   { conclusive: true,  transaction: null }  — PROVEN that none exists.
@@ -107,10 +121,10 @@ export async function getPaymentPageUrl(
 // NOTE (verify before production): the exact filter grammar of the
 // `GET /payment/transactions/search?query=` endpoint of the PostFinance
 // Checkout v2.0 REST API is not documented publicly. POSTFINANCE_SEARCH_QUERY
-// (env) overrides the template below; `{ref}` is replaced with the orderId.
-// If the search call fails or returns an unexpected shape we fall back to a
-// bounded, paginated walk of the recent transaction list, which needs no
-// filter syntax at all.
+// (env) overrides the template below; `{ref}` is replaced with each candidate
+// reference in turn. If the search call fails or returns an unexpected shape
+// we fall back to a bounded, paginated walk of the recent transaction list,
+// which needs no filter syntax at all.
 const DEFAULT_SEARCH_QUERY_TEMPLATE = 'merchantReference:{ref}';
 const LIST_PAGE_SIZE = 100;
 const LIST_MAX_PAGES = 25; // up to 2500 most-recent transactions
@@ -120,6 +134,19 @@ interface FoundTx {
   state: string | null;
   merchantReference: string | null;
   createdOn: string | null;
+}
+
+// The candidate list every search below matches against: the current
+// human-readable payment_reference (when the pending_payments row has one —
+// it may be null only for the rare case reserve_payment_reference() itself
+// failed at creation time) plus the legacy orderId (UUID), which is what
+// every transaction created before 2026-09-16 permanently carries as its
+// merchantReference. Order doesn't matter — every candidate is searched.
+export function referenceCandidates(
+  paymentReference: string | null | undefined,
+  orderId: string,
+): string[] {
+  return [paymentReference, orderId].filter((v): v is string => !!v);
 }
 
 function pickTx(raw: any): FoundTx | null {
@@ -142,33 +169,44 @@ function asArray(payload: any): any[] | null {
   return null;
 }
 
+// Queries the search endpoint once PER candidate reference (never an OR
+// query — that grammar is unverified, see the note above) and merges the
+// results. `ok` is true only if EVERY candidate's query succeeded — a
+// mid-list failure must never let a partial (possibly incomplete) result be
+// trusted as if it were a full search.
 async function trySearchEndpoint(
   credentials: PostFinanceCredentials,
-  orderId: string,
+  references: string[],
 ): Promise<{ ok: boolean; matches: FoundTx[] }> {
   const template = Deno.env.get("POSTFINANCE_SEARCH_QUERY") || DEFAULT_SEARCH_QUERY_TEMPLATE;
-  const query = template.replace("{ref}", orderId);
-  try {
-    const payload = await pfFetch(
-      credentials,
-      `/payment/transactions/search?query=${encodeURIComponent(query)}&limit=50`,
-      "GET",
-    );
-    const arr = asArray(payload);
-    if (!arr) return { ok: false, matches: [] };
-    const matches = arr
-      .map(pickTx)
-      .filter((t): t is FoundTx => !!t && t.merchantReference === orderId);
-    return { ok: true, matches };
-  } catch (e) {
-    console.error("trySearchEndpoint failed (will fall back to list walk):", e);
-    return { ok: false, matches: [] };
+  const byId = new Map<string, FoundTx>();
+  for (const ref of references) {
+    const query = template.replace("{ref}", ref);
+    try {
+      const payload = await pfFetch(
+        credentials,
+        `/payment/transactions/search?query=${encodeURIComponent(query)}&limit=50`,
+        "GET",
+      );
+      const arr = asArray(payload);
+      if (!arr) return { ok: false, matches: [] };
+      for (const raw of arr) {
+        const t = pickTx(raw);
+        if (t && t.merchantReference && references.includes(t.merchantReference)) {
+          byId.set(t.id, t);
+        }
+      }
+    } catch (e) {
+      console.error("trySearchEndpoint failed (will fall back to list walk):", e);
+      return { ok: false, matches: [] };
+    }
   }
+  return { ok: true, matches: [...byId.values()] };
 }
 
 async function walkRecentList(
   credentials: PostFinanceCredentials,
-  orderId: string,
+  references: string[],
   notBeforeISO: string | null,
 ): Promise<{ conclusive: boolean; matches: FoundTx[] }> {
   const matches: FoundTx[] = [];
@@ -200,7 +238,7 @@ async function walkRecentList(
     for (const raw of arr) {
       const t = pickTx(raw);
       if (!t) continue;
-      if (t.merchantReference === orderId) matches.push(t);
+      if (t.merchantReference && references.includes(t.merchantReference)) matches.push(t);
       if (!Number.isNaN(notBefore) && t.createdOn) {
         const ts = Date.parse(t.createdOn);
         if (!Number.isNaN(ts) && ts < notBefore) reachedOldEnough = true;
@@ -224,9 +262,16 @@ async function walkRecentList(
 
 export async function findTransactionByMerchantReference(
   credentials: PostFinanceCredentials,
-  orderId: string,
+  references: string[],
   opts: { pendingCreatedAt?: string | null } = {},
 ): Promise<{ conclusive: boolean; transaction: FoundTx | null }> {
+  if (references.length === 0) {
+    // Nothing to search for — never call PostFinance with an empty filter,
+    // which could match everything. Same "cannot prove it" outcome as an
+    // API error: the caller must never treat this as absence.
+    return { conclusive: false, transaction: null };
+  }
+
   // 1. Preferred: the dedicated search endpoint.
   //    A POSITIVE match is always usable. An EMPTY result only PROVES absence
   //    once the query syntax has been verified against our own PostFinance
@@ -235,9 +280,9 @@ export async function findTransactionByMerchantReference(
   //    walk, and if that is also inconclusive, return conclusive:false
   //    (caller keeps the same orderId / in_progress — never a new transaction).
   const searchVerified = Deno.env.get("POSTFINANCE_SEARCH_QUERY_VERIFIED") === "true";
-  const search = await trySearchEndpoint(credentials, orderId);
+  const search = await trySearchEndpoint(credentials, references);
   if (search.ok && search.matches.length > 0) {
-    return { conclusive: true, transaction: newest(search.matches) };
+    return { conclusive: true, transaction: verifyMatch(newest(search.matches), references) };
   }
   if (search.ok && searchVerified) {
     // Verified endpoint answered with a proper empty result set → trust it.
@@ -248,11 +293,29 @@ export async function findTransactionByMerchantReference(
   const notBefore = opts.pendingCreatedAt
     ? new Date(Date.parse(opts.pendingCreatedAt) - 60 * 60 * 1000).toISOString()
     : null;
-  const walk = await walkRecentList(credentials, orderId, notBefore);
+  const walk = await walkRecentList(credentials, references, notBefore);
   if (walk.matches.length > 0) {
-    return { conclusive: true, transaction: newest(walk.matches) };
+    return { conclusive: true, transaction: verifyMatch(newest(walk.matches), references) };
   }
   return { conclusive: walk.conclusive, transaction: null };
+}
+
+// Explicit final guard, on top of the filtering trySearchEndpoint/
+// walkRecentList already do internally: never return a transaction as "the"
+// match unless its OWN merchantReference genuinely equals one of the exact
+// candidates searched for. Throws rather than silently returning a
+// possibly-wrong transaction — a caller resuming/voiding the wrong
+// transaction is far worse than a hard failure surfaced as conclusive:false
+// would be, and this should be structurally impossible given the two
+// callers already filter on the same condition.
+function verifyMatch(tx: FoundTx, references: string[]): FoundTx {
+  if (!tx.merchantReference || !references.includes(tx.merchantReference)) {
+    throw new Error(
+      `findTransactionByMerchantReference: matched transaction ${tx.id} has merchantReference ` +
+      `"${tx.merchantReference}", which is not in the searched candidate list [${references.join(", ")}] — refusing to use it.`,
+    );
+  }
+  return tx;
 }
 
 function newest(list: FoundTx[]): FoundTx {
