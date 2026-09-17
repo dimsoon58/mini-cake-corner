@@ -54,7 +54,6 @@ const AdminOrders = () => {
 
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [page, setPage] = useState(0);
-  const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -85,7 +84,6 @@ const AdminOrders = () => {
         setLoadError(t("Could not load orders. Please try again.", "Impossible de charger les commandes. Merci de réessayer."));
       } else {
         setOrders(data.orders ?? []);
-        setTotal(data.total ?? 0);
         setHasMore(!!data.hasMore);
       }
       setLoading(false);
@@ -153,7 +151,10 @@ const AdminOrders = () => {
         <div className="flex items-center gap-3 mb-6">
           <ClipboardList className="w-6 h-6 text-primary" />
           <h1 className="text-xl font-serif text-foreground">{t("All Orders", "Toutes les commandes")}</h1>
-          {total > 0 && <span className="ml-auto text-sm text-muted-foreground">{total} {t("total", "au total")}</span>}
+          {/* No grand total shown — computing it would need the same
+              expensive COUNT(*) that was just removed for speed. Just the
+              page number, which costs nothing extra. */}
+          {orders.length > 0 && <span className="ml-auto text-sm text-muted-foreground">{t("Page", "Page")} {page + 1}</span>}
         </div>
 
         {loading ? (
