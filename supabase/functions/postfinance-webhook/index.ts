@@ -214,6 +214,17 @@ serve(async (req) => {
   // ── 1. URL shared secret (mandatory gate) ──
   const expectedSecret = Deno.env.get("POSTFINANCE_WEBHOOK_SECRET");
   if (!verifyWebhookSecret(req.url, expectedSecret)) {
+    // Logged distinctly from the signature-check 403 below (same body and
+    // status, so this log line is the only way to tell them apart) — this
+    // fires before the body is even read, so it can never name an entity or
+    // eventId. It only ever means the request's own `?s=` query param did
+    // not match POSTFINANCE_WEBHOOK_SECRET — e.g. a webhook listener whose
+    // registered URL is missing the `?s=` suffix entirely (a NEW listener
+    // registration doesn't inherit it from an existing one). Never logs the
+    // secret itself.
+    let hasSParam = false;
+    try { hasSParam = new URL(req.url).searchParams.has("s"); } catch { /* malformed URL */ }
+    console.error("postfinance-webhook: rejected at URL-secret gate", { hasSParam });
     return txt(cors, "forbidden", 403);
   }
 
