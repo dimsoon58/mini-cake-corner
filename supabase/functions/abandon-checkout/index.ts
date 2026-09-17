@@ -47,7 +47,7 @@ import {
 // ambiguous branch and releases nothing.
 const TX_VOIDABLE_STATES = new Set(["CREATE", "PENDING", "CONFIRMED", "PROCESSING"]);
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     status,
@@ -92,7 +92,7 @@ serve(async (req) => {
   try {
     const { orderId } = await req.json();
     if (!orderId) {
-      return jsonResponse({ error: "orderId is required" }, 400);
+      return jsonResponse(req, { error: "orderId is required" }, 400);
     }
 
     // ── Auth — a REAL logged-in customer only. A guest checkout can never
@@ -107,7 +107,7 @@ serve(async (req) => {
     );
     const { data: { user: authenticatedUser } } = await authClient.auth.getUser();
     if (!authenticatedUser) {
-      return jsonResponse({ error: "Authentication required" }, 401);
+      return jsonResponse(req, { error: "Authentication required" }, 401);
     }
 
     const supabase = createClient(
@@ -141,7 +141,7 @@ serve(async (req) => {
     // as abandoned again, never as still ambiguous.
     const hasActiveReservation = !!reservation && reservation.status === "reserved";
     if (!pending && !hasActiveReservation) {
-      return jsonResponse({ status: "abandoned" }, 200);
+      return jsonResponse(req, { status: "abandoned" }, 200);
     }
 
     // ── Ownership — the reservation's own customer_id is authoritative
@@ -153,7 +153,7 @@ serve(async (req) => {
     const payloadCustomerId = pending?.payload?.order?.customer_id ?? null;
     const ownerId = reservation?.customer_id ?? payloadCustomerId ?? null;
     if (!ownerId || ownerId !== authenticatedUser.id) {
-      return jsonResponse({ error: "Forbidden — not the owner of this checkout attempt" }, 403);
+      return jsonResponse(req, { error: "Forbidden — not the owner of this checkout attempt" }, 403);
     }
 
     // ── Never abandon a real, already-finalised order.
@@ -161,13 +161,13 @@ serve(async (req) => {
       .from("orders").select("id, order_validation").eq("id", orderId).maybeSingle();
     if (orderErr) throw new Error(`orders lookup failed: ${orderErr.message}`);
     if (order) {
-      return jsonResponse({ status: "already_confirmed", orderId, orderValidation: order.order_validation }, 200);
+      return jsonResponse(req, { status: "already_confirmed", orderId, orderValidation: order.order_validation }, 200);
     }
 
     const lang: string = pending?.payload?.order?.lang ?? "fr";
     const txId = String(pending?.postfinance_transaction_id ?? "");
 
-    const respondInProgress = (message?: string) => jsonResponse({
+    const respondInProgress = (message?: string) => jsonResponse(req, {
       status: "payment_in_progress",
       message: message ?? (lang === "en"
         ? "We can't clear your cart yet — a payment attempt for it is still active. Please try again shortly."
@@ -188,7 +188,7 @@ serve(async (req) => {
     if (TX_SUCCESS_STATES.has(upperState)) {
       // AUTHORIZED / COMPLETED / FULFILL — the payment is real. Never
       // release; the normal confirm-postfinance-payment flow owns this order.
-      return jsonResponse({
+      return jsonResponse(req, {
         status: "payment_in_progress",
         message: lang === "en"
           ? "This payment has already been confirmed or is being finalised — it can't be cancelled."
@@ -202,12 +202,12 @@ serve(async (req) => {
       // atomic RPC itself confirms it actually released everything.
       const finalized = await finalizeAbandonmentAtomic(supabase, orderId, authenticatedUser.id);
       if (finalized.reason === "already_confirmed") {
-        return jsonResponse({ status: "already_confirmed", orderId }, 200);
+        return jsonResponse(req, { status: "already_confirmed", orderId }, 200);
       }
       if (!finalized.released) {
         return respondInProgress();
       }
-      return jsonResponse({ status: "abandoned" }, 200);
+      return jsonResponse(req, { status: "abandoned" }, 200);
     }
 
     if (!TX_VOIDABLE_STATES.has(upperState)) {
@@ -236,15 +236,15 @@ serve(async (req) => {
     // call alone.
     const finalized = await finalizeAbandonmentAtomic(supabase, orderId, authenticatedUser.id);
     if (finalized.reason === "already_confirmed") {
-      return jsonResponse({ status: "already_confirmed", orderId }, 200);
+      return jsonResponse(req, { status: "already_confirmed", orderId }, 200);
     }
     if (!finalized.released) {
       return respondInProgress();
     }
-    return jsonResponse({ status: "abandoned" }, 200);
+    return jsonResponse(req, { status: "abandoned" }, 200);
   } catch (error) {
     console.error("Error in abandon-checkout:", error);
-    return jsonResponse({
+    return jsonResponse(req, {
       error: error instanceof Error ? error.message : "Unknown error",
     }, 500);
   }
