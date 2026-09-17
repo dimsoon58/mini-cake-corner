@@ -314,9 +314,9 @@ const Candles = () => {
               </p>
               <div className="mt-auto space-y-2">
                 {/* Per-candle digit rows */}
-                <div className="space-y-1.5 text-left">
+                <div className="space-y-1.5">
                   {numberCandleDigits.map((d, i) => (
-                    <div key={i} className="flex items-center gap-1.5">
+                    <div key={i} className="flex items-center justify-center gap-1.5">
                       <span className="text-[10px] text-muted-foreground shrink-0 w-14">{t(`Candle ${i+1}`, `Bougie ${i+1}`)}</span>
                       <Select value={d} onValueChange={(v) => { const next=[...numberCandleDigits]; next[i]=v; setNumberCandleDigits(next); setNumberCandlePreview(v); }}>
                         <SelectTrigger className="h-7 text-sm flex-1"><SelectValue /></SelectTrigger>
@@ -380,9 +380,8 @@ const Candles = () => {
                     {candle.name}
                   </h3>
                   {candle.hasPack ? (
-                    <p className="text-[11px] text-muted-foreground mb-4">
-                      CHF {candle.unitPrice}/pièce · Pack {candle.packSize} = CHF{" "}
-                      {candle.packPrice}
+                    <p className="text-[11px] text-muted-foreground mb-4 leading-relaxed">
+                      CHF {candle.unitPrice}/pièce<br />Pack {candle.packSize} = CHF {candle.packPrice}
                     </p>
                   ) : (
                     <p className="text-[11px] text-muted-foreground mb-4">
