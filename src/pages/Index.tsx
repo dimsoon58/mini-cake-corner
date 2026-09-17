@@ -199,7 +199,7 @@ const Index = () => {
         {/* Mobile video */}
         <video
           className="absolute inset-0 w-full h-full object-cover scale-[1.01] block md:hidden"
-          src="/hero-mobile.mp4"
+          src={`${import.meta.env.BASE_URL}hero-mobile.mp4`}
           poster={heroPoster}
           autoPlay
           loop
