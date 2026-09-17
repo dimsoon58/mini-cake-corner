@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { CheckCircle, XCircle, Loader2, ShieldCheck, AlertTriangle, Lock } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
+import { itemDisplayImage } from "@/lib/itemDisplayImage";
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
   if (!value) return null;
@@ -141,9 +142,9 @@ const AdminOrder = () => {
         type: "success",
         message: action === "approve"
           ? (mixed
-              ? t("✅ Order approved. Payment captured — cake and workshop are both confirmed.", "✅ Commande validée. Paiement encaissé — gâteau et atelier sont tous deux confirmés.")
-              : t("✅ Order approved. Payment captured.", "✅ Commande validée. Paiement encaissé."))
-          : t("❌ Order refused. The authorization was voided — nothing was charged, no refund needed.", "❌ Commande refusée. L'autorisation a été annulée — aucun montant prélevé, aucun remboursement nécessaire."),
+              ? t("Order approved. Payment captured — cake and workshop are both confirmed.", "Commande validée. Paiement encaissé — gâteau et atelier sont tous deux confirmés.")
+              : t("Order approved. Payment captured.", "Commande validée. Paiement encaissé."))
+          : t("Order refused. The authorization was voided — nothing was charged, no refund needed.", "Commande refusée. L'autorisation a été annulée — aucun montant prélevé, aucun remboursement nécessaire."),
       });
       setOrder({
         ...order,
@@ -177,7 +178,7 @@ const AdminOrder = () => {
         return;
       }
       if (data?.error) { setResult({ type: "error", message: data.error }); return; }
-      setResult({ type: "success", message: t("✅ Marked as refunded.", "✅ Marqué comme remboursé.") });
+      setResult({ type: "success", message: t("Marked as refunded.", "Marqué comme remboursé.") });
       setOrder({ ...order, refund_status: "refunded" });
     } catch (err) {
       setResult({ type: "error", message: err instanceof Error ? err.message : t("Unknown error", "Erreur inconnue") });
@@ -306,24 +307,28 @@ const AdminOrder = () => {
   return (
     <Layout>
       <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <div className="bg-card rounded-lg shadow-md p-6 space-y-6">
+        <div className="border border-border/60 bg-background p-6 space-y-6">
           {/* Header */}
-          <div className="flex items-center gap-3">
-            <ShieldCheck className="w-6 h-6 text-primary" />
-            <h1 className="text-xl font-serif text-foreground">
-              {order.order_number || `${t("Order", "Commande")} #${order.id.slice(0, 8).toUpperCase()}`}
-            </h1>
-            <span className={`ml-auto text-xs font-medium px-3 py-1 rounded-full ${
-              isCancelled ? "bg-red-100 text-red-800" :
-              decisionState === "approved" ? "bg-emerald-100 text-emerald-800" :
-              decisionState === "pending" ? "bg-amber-100 text-amber-800" :
-              "bg-red-100 text-red-800"
-            }`}>
-              {isCancelled ? "CANCELLED"
-                : isWorkshopOnly ? `WORKSHOP · ${String(decisionState).toUpperCase()}`
-                : isMixed ? `WS+CAKE · ${String(decisionState).toUpperCase()}`
-                : String(decisionState).toUpperCase()}
-            </span>
+          <div className="border-b border-border/60 pb-4">
+            <p className="font-sans text-[11px] tracking-[0.105em] uppercase text-muted-foreground mb-1">
+              {t("Order", "Commande")}
+            </p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="font-sans text-xl md:text-2xl tracking-[0.105em] font-semibold uppercase text-foreground">
+                {order.order_number || `#${order.id.slice(0, 8).toUpperCase()}`}
+              </h1>
+              <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 ${
+                isCancelled ? "bg-red-100 text-red-800" :
+                decisionState === "approved" ? "bg-emerald-100 text-emerald-800" :
+                decisionState === "pending" ? "bg-amber-100 text-amber-800" :
+                "bg-red-100 text-red-800"
+              }`}>
+                {isCancelled ? "CANCELLED"
+                  : isWorkshopOnly ? `WORKSHOP · ${String(decisionState).toUpperCase()}`
+                  : isMixed ? `WS+CAKE · ${String(decisionState).toUpperCase()}`
+                  : String(decisionState).toUpperCase()}
+              </span>
+            </div>
           </div>
 
           {/* Missing token warning — rare: only when this order genuinely has
@@ -331,7 +336,7 @@ const AdminOrder = () => {
               get-order-detail's own lookup found one), so Accept/Refuse has
               nothing to authorise itself with. Viewing is unaffected. */}
           {!effectiveToken && !isResolved && (
-            <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+            <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200">
               <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
               <div className="text-sm text-amber-800">
                 <p className="font-medium">{t("No action token for this order", "Aucun jeton d'action pour cette commande")}</p>
@@ -341,8 +346,11 @@ const AdminOrder = () => {
           )}
 
           {/* Customer Info */}
-          <div className="bg-muted/30 rounded-lg p-4 space-y-1">
-            <h3 className="font-medium text-foreground mb-2">{t("👤 Customer Information", "👤 Informations client")}</h3>
+          <div className="border border-border/60 bg-background p-4 space-y-1">
+            <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground mb-3 flex items-center gap-2">
+              <User className="w-3.5 h-3.5 text-primary" strokeWidth={1.5} />
+              {t("Customer Information", "Informations client")}
+            </h3>
             <DetailRow label={t("Name", "Nom")} value={customerName} />
             <DetailRow label={t("Email", "E-mail")} value={order.email} />
             <DetailRow label={t("Phone", "Téléphone")} value={order.phone} />
@@ -352,9 +360,10 @@ const AdminOrder = () => {
           {isMultiDate ? (
             <div className="space-y-3">
               {fulfillments.map((f, idx) => (
-                <div key={f.id} className="bg-muted/30 rounded-lg p-4 space-y-1">
-                  <h3 className="font-medium text-foreground mb-2">
-                    {t("📦 Pickup / Delivery", "📦 Retrait / Livraison")} — {t("date", "date")} {idx + 1}
+                <div key={f.id} className="border border-border/60 bg-background p-4 space-y-1">
+                  <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground mb-3 flex items-center gap-2">
+                    <Package className="w-3.5 h-3.5 text-primary" strokeWidth={1.5} />
+                    {t("Pickup / Delivery", "Retrait / Livraison")} — {t("date", "date")} {idx + 1}
                   </h3>
                   <DetailRow label={t("Date", "Date")} value={formatDateFromIso(f.pickup_delivery_date)} />
                   <DetailRow label={t("Time", "Heure")} value={f.pickup_delivery_slot} />
@@ -365,14 +374,17 @@ const AdminOrder = () => {
                 </div>
               ))}
               {order.order_comment && (
-                <div className="bg-muted/30 rounded-lg p-4 space-y-1">
+                <div className="border border-border/60 bg-background p-4 space-y-1">
                   <DetailRow label={t("Delivery Notes", "Notes de livraison")} value={order.order_comment} />
                 </div>
               )}
             </div>
           ) : order.delivery_method && (
-          <div className="bg-muted/30 rounded-lg p-4 space-y-1">
-            <h3 className="font-medium text-foreground mb-2">{t("📦 Pickup / Delivery", "📦 Retrait / Livraison")}</h3>
+          <div className="border border-border/60 bg-background p-4 space-y-1">
+            <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground mb-3 flex items-center gap-2">
+              <Package className="w-3.5 h-3.5 text-primary" strokeWidth={1.5} />
+              {t("Pickup / Delivery", "Retrait / Livraison")}
+            </h3>
             <DetailRow label={t("Date", "Date")} value={formatDateFromIso(order.pickup_delivery_date)} />
             <DetailRow label={t("Time", "Heure")} value={order.pickup_delivery_slot} />
             <DetailRow label={t("Option", "Option")} value={order.delivery_method === "delivery" ? t("Delivery", "Livraison") : t("Pickup at store", "Retrait en boutique")} />
@@ -386,7 +398,10 @@ const AdminOrder = () => {
           {/* Cake Items */}
           {items.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-medium text-foreground">{t("🍰 Order Items", "🍰 Articles de la commande")} ({items.length})</h3>
+              <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground flex items-center gap-2">
+                <Cake className="w-3.5 h-3.5 text-primary" strokeWidth={1.5} />
+                {t("Order Items", "Articles de la commande")} ({items.length})
+              </h3>
               {items.map((item: any, i: number) => {
                 const candlesList = item.candle_name
                   ? `${item.candle_name}${item.candle_quantity ? ` ×${item.candle_quantity}` : ""}`
@@ -394,7 +409,7 @@ const AdminOrder = () => {
 
                 if (item.product === "workshop") {
                   return (
-                    <div key={item.id || i} className="rounded-lg border border-border p-4 space-y-1">
+                    <div key={item.id || i} className="border border-border/60 bg-background p-4 space-y-1">
                       <div className="flex justify-between mb-2">
                         <span className="font-medium text-sm">
                           {item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature")}
@@ -418,47 +433,52 @@ const AdminOrder = () => {
                 // comment and folded into the Design line instead).
                 const productLabel = t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product;
                 const { designPhoto, comment } = splitComment(item.item_comment);
-                const referenceImage: string | null = item.design_image_url || (item.reference_images?.[0] ?? null);
+                const displayImage = itemDisplayImage({
+                  product: item.product,
+                  designImageUrl: item.design_image_url,
+                  referenceImages: item.reference_images,
+                });
 
                 return (
-                  <div key={item.id || i} className="rounded-lg border border-border p-4 space-y-1">
-                    <div className="flex justify-between mb-2">
-                      <span className="font-medium text-sm">{productLabel} {i + 1}</span>
-                      <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
-                    </div>
-                    {isMultiDate && (
-                      <DetailRow label={t("Date", "Date")} value={formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date)} />
-                    )}
-                    {item.size && <DetailRow label={t("Size", "Taille")} value={sizeLabel(item.size)} />}
-                    {item.shape && <DetailRow label={t("Shape", "Forme")} value={shapeLabel(item.shape)} />}
-                    <DetailRow label={t("Flavour", "Parfum")} value={(item.flavors || []).join(", ")} />
-                    {item.design && (
-                      <DetailRow
-                        label={t("Design / Style", "Design / Style")}
-                        value={`${designLabel(item.design)}${designPhoto ? ` — ${t("Photo", "Photo")} ${designPhoto}` : ""}`}
-                      />
-                    )}
-                    <DetailRow label={t("Base Colour", "Couleur de base")} value={item.base_color} />
-                    <DetailRow label={t("Decoration Colour", "Couleur de décoration")} value={item.decoration_color} />
-                    {item.cake_text && (
-                      <DetailRow
-                        label={t("Text on Cake", "Texte sur le gâteau")}
-                        value={`"${item.cake_text}" (${item.text_style || "normal"}, ${item.text_color || "default"})`}
-                      />
-                    )}
-                    {item.extra && (
-                      <DetailRow label={t("Extras", "Extras")} value={item.extra} />
-                    )}
-                    {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
-                    {referenceImage && (
-                      <div className="flex gap-2 text-sm">
-                        <span className="text-muted-foreground min-w-[140px]">{t("Reference image", "Image de référence")}:</span>
-                        <a href={referenceImage} target="_blank" rel="noopener noreferrer" className="text-primary underline">
-                          {t("View image", "Voir l'image")} →
-                        </a>
+                  <div key={item.id || i} className="border border-border/60 bg-background p-4">
+                    <div className="flex gap-4">
+                      <div className="w-16 h-16 flex-shrink-0 bg-secondary/40 overflow-hidden">
+                        {displayImage && (
+                          <img src={displayImage} alt={productLabel} className="w-full h-full object-cover" />
+                        )}
                       </div>
-                    )}
-                    <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex justify-between mb-1">
+                          <span className="font-medium text-sm">{productLabel} {i + 1}</span>
+                          <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                        </div>
+                        {isMultiDate && (
+                          <DetailRow label={t("Date", "Date")} value={formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date)} />
+                        )}
+                        {item.size && <DetailRow label={t("Size", "Taille")} value={sizeLabel(item.size)} />}
+                        {item.shape && <DetailRow label={t("Shape", "Forme")} value={shapeLabel(item.shape)} />}
+                        <DetailRow label={t("Flavour", "Parfum")} value={(item.flavors || []).join(", ")} />
+                        {item.design && (
+                          <DetailRow
+                            label={t("Design / Style", "Design / Style")}
+                            value={`${designLabel(item.design)}${designPhoto ? ` — ${t("Photo", "Photo")} ${designPhoto}` : ""}`}
+                          />
+                        )}
+                        <DetailRow label={t("Base Colour", "Couleur de base")} value={item.base_color} />
+                        <DetailRow label={t("Decoration Colour", "Couleur de décoration")} value={item.decoration_color} />
+                        {item.cake_text && (
+                          <DetailRow
+                            label={t("Text on Cake", "Texte sur le gâteau")}
+                            value={`"${item.cake_text}" (${item.text_style || "normal"}, ${item.text_color || "default"})`}
+                          />
+                        )}
+                        {item.extra && (
+                          <DetailRow label={t("Extras", "Extras")} value={item.extra} />
+                        )}
+                        {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
+                        <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -466,22 +486,25 @@ const AdminOrder = () => {
           )}
 
           {/* Payment Summary */}
-          <div className="bg-amber-50 rounded-lg p-4 space-y-1">
-            <h3 className="font-medium text-foreground mb-2">{t("💳 Payment", "💳 Paiement")}</h3>
+          <div className="border border-border/60 bg-background p-4 space-y-1">
+            <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground mb-3 flex items-center gap-2">
+              <CreditCard className="w-3.5 h-3.5 text-primary" strokeWidth={1.5} />
+              {t("Payment", "Paiement")}
+            </h3>
              <DetailRow label={t("Order №", "Commande n°")} value={order.order_number || order.id.slice(0, 8).toUpperCase()} />
              <DetailRow label={t("Invoice №", "Facture n°")} value={order.invoice_number || "—"} />
             <DetailRow label={t("Total", "Total")} value={`CHF ${order.total_amount}`} />
             <DetailRow label={t("Payment", "Paiement")} value={
               order.payment_status === "paid"
-                ? t("✅ Captured", "✅ Encaissé")
+                ? t("Captured", "Encaissé")
                 : order.payment_status === "cancelled"
                   ? t("Authorization voided — nothing charged", "Autorisation annulée — rien prélevé")
-                  : t("⏳ Authorized, not yet captured", "⏳ Autorisé, pas encore encaissé")
+                  : t("Authorized, not yet captured", "Autorisé, pas encore encaissé")
             } />
             <DetailRow label={t("Status", "Statut")} value={
-              decisionState === "pending" ? t("⏳ Pending your decision", "⏳ En attente de votre décision") :
-              decisionState === "approved" ? t("✅ Approved", "✅ Validée") :
-              decisionState === "rejected" ? t("❌ Refused", "❌ Refusée") :
+              decisionState === "pending" ? t("Pending your decision", "En attente de votre décision") :
+              decisionState === "approved" ? t("Approved", "Validée") :
+              decisionState === "rejected" ? t("Refused", "Refusée") :
               decisionState
             } />
           </div>
@@ -492,11 +515,12 @@ const AdminOrder = () => {
               the normal flow (Refuse before any capture), nothing is ever
               flagged here any more. */}
           {refundToDo && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
-              <p className="font-medium text-red-800">
+            <div className="bg-red-50 border border-red-200 p-4 space-y-3">
+              <p className="font-medium text-red-800 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
                 {t(
-                  `⚠️ Manual refund to do: CHF ${Number(order.refund_due_amount || 0).toFixed(2)} in PostFinance`,
-                  `⚠️ Remboursement manuel à faire : CHF ${Number(order.refund_due_amount || 0).toFixed(2)} dans PostFinance`,
+                  `Manual refund to do: CHF ${Number(order.refund_due_amount || 0).toFixed(2)} in PostFinance`,
+                  `Remboursement manuel à faire : CHF ${Number(order.refund_due_amount || 0).toFixed(2)} dans PostFinance`,
                 )}
               </p>
               <p className="text-sm text-red-700">
@@ -516,8 +540,9 @@ const AdminOrder = () => {
             </div>
           )}
           {order.refund_status === "refunded" && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-800">
-              {t("✅ Manual refund recorded.", "✅ Remboursement manuel enregistré.")}
+            <div className="bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 shrink-0" />
+              {t("Manual refund recorded.", "Remboursement manuel enregistré.")}
               {order.refund_reference ? ` (${order.refund_reference})` : ""}
             </div>
           )}
@@ -538,9 +563,9 @@ const AdminOrder = () => {
               </div>
 
               {result && (
-                <div className={`p-3 rounded-lg text-sm ${
-                  result.type === "success" ? "bg-emerald-50 text-emerald-800 border border-emerald-200" :
-                  "bg-destructive/10 text-destructive border border-destructive/20"
+                <div className={`p-3 text-sm border ${
+                  result.type === "success" ? "bg-emerald-50 text-emerald-800 border-emerald-200" :
+                  "bg-destructive/10 text-destructive border-destructive/20"
                 }`}>
                   {result.message}
                 </div>
@@ -564,21 +589,23 @@ const AdminOrder = () => {
               </div>
             </div>
           ) : isCancelled ? (
-            <div className="p-4 rounded-lg text-center bg-red-50 text-red-800">
-              <p className="font-medium">
+            <div className="p-4 text-center bg-red-50 text-red-800 border border-red-200">
+              <p className="font-medium flex items-center justify-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
                 {order.order_failure_reason === "workshop_capacity_unavailable"
-                  ? t("⚠️ Workshop sold out after authorization — the whole order was cancelled and the authorization voided. If it was somehow already captured, refund it by hand.", "⚠️ Atelier complet après autorisation — toute la commande a été annulée et l'autorisation annulée. Si le paiement a malgré tout été encaissé, à rembourser à la main.")
-                  : t("⚠️ This order was cancelled. If a payment was somehow already captured, refund it by hand.", "⚠️ Cette commande a été annulée. Si un paiement a malgré tout été encaissé, à rembourser à la main.")}
+                  ? t("Workshop sold out after authorization — the whole order was cancelled and the authorization voided. If it was somehow already captured, refund it by hand.", "Atelier complet après autorisation — toute la commande a été annulée et l'autorisation annulée. Si le paiement a malgré tout été encaissé, à rembourser à la main.")
+                  : t("This order was cancelled. If a payment was somehow already captured, refund it by hand.", "Cette commande a été annulée. Si un paiement a malgré tout été encaissé, à rembourser à la main.")}
               </p>
             </div>
           ) : (
-            <div className={`p-4 rounded-lg text-center ${
-              decisionState === "approved" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"
+            <div className={`p-4 text-center border ${
+              decisionState === "approved" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-red-50 text-red-800 border-red-200"
             }`}>
-              <p className="font-medium">
+              <p className="font-medium flex items-center justify-center gap-2">
+                {decisionState === "approved" ? <CheckCircle className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
                 {decisionState === "approved"
-                  ? t("✅ This order has been approved and the payment captured.", "✅ Cette commande a été validée et le paiement encaissé.")
-                  : t("❌ This order has been refused. The authorization was voided — nothing was charged.", "❌ Cette commande a été refusée. L'autorisation a été annulée — rien n'a été prélevé.")}
+                  ? t("This order has been approved and the payment captured.", "Cette commande a été validée et le paiement encaissé.")
+                  : t("This order has been refused. The authorization was voided — nothing was charged.", "Cette commande a été refusée. L'autorisation a été annulée — rien n'a été prélevé.")}
               </p>
             </div>
           )}
