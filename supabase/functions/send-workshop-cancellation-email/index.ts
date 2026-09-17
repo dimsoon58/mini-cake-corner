@@ -16,11 +16,6 @@ function getCustomerLang(order: any): "fr" | "en" {
   return order?.lang === "en" ? "en" : "fr";
 }
 
-function chf(value: unknown): string {
-  const n = Number(value);
-  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
-}
-
 async function sendCancellationEmail(
   resendApiKey: string,
   order: any,
@@ -58,21 +53,24 @@ async function sendCancellationEmail(
         "Nous confirmons l'annulation d'une partie de votre réservation.",
       );
 
+  // 2026-09-19: never shows a CHF amount to the customer — not CHF 0, not
+  // the real due amount. The refund figure is an internal admin/finance
+  // detail (workshop_cancellation_log.refund_amount_requested/_completed),
+  // never something the customer needs to see or reconcile by eye; showing
+  // "CHF 0.00" before the manual PostFinance refund was actually done (the
+  // normal state for days/weeks) read as if nothing was owed at all.
+  // opts.refundAmount/nominalRefund are still received (unchanged request
+  // contract with cancel-workshop-seats) but deliberately unused here now.
   let refundLine: string;
   if (opts.refundStatus === "refunded") {
     refundLine = tr(
-      `A refund of CHF ${chf(opts.refundAmount || opts.nominalRefund)} has been issued.`,
-      `Un remboursement de CHF ${chf(opts.refundAmount || opts.nominalRefund)} a été effectué.`,
+      "Your seat has been cancelled. The corresponding refund has been processed to your original payment method.",
+      "Votre place a bien été annulée. Le remboursement correspondant a été traité selon votre moyen de paiement initial.",
     );
-  } else if (opts.refundStatus === "pending") {
+  } else if (opts.refundStatus === "pending" || opts.refundStatus === "failed") {
     refundLine = tr(
-      `Your refund of CHF ${chf(opts.nominalRefund)} is being processed.`,
-      `Votre remboursement de CHF ${chf(opts.nominalRefund)} est en cours de traitement.`,
-    );
-  } else if (opts.refundStatus === "failed") {
-    refundLine = tr(
-      `A refund of CHF ${chf(opts.nominalRefund)} is due for this cancellation. Bento Cake Studio will follow up to make sure it reaches you.`,
-      `Un remboursement de CHF ${chf(opts.nominalRefund)} est dû pour cette annulation. Bento Cake Studio effectuera le suivi pour qu'il vous parvienne.`,
+      "Your seat has been cancelled. The corresponding refund will be processed to your original payment method.",
+      "Votre place a bien été annulée. Le remboursement correspondant sera traité selon votre moyen de paiement initial.",
     );
   } else {
     // outside_window | non_required
