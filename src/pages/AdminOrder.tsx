@@ -9,6 +9,7 @@ import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
@@ -26,6 +27,7 @@ const formatDateFromIso = (dateValue?: string | null) => {
   const [year, month, day] = dateValue.split("-");
   return year && month && day ? `${day}.${month}.${year}` : dateValue;
 };
+
 
 const AdminOrder = () => {
   const { t } = useLang();
@@ -79,8 +81,13 @@ const AdminOrder = () => {
         body: { orderId: id, token },
       });
       if (error) {
-        console.error("get-order-detail invocation failed:", error);
-        setLoadError(t("Could not load this order. Please try the link again.", "Impossible de charger cette commande. Merci de réessayer le lien."));
+        const reason = await extractFunctionErrorMessage(error, "");
+        console.error("get-order-detail invocation failed:", reason || error);
+        setLoadError(
+          reason === "Admin sign-in required"
+            ? t("Your admin session could not be verified. Please sign out and sign in again.", "Votre session administrateur n'a pas pu être vérifiée. Merci de vous déconnecter puis de vous reconnecter.")
+            : t("Could not load this order. Please try the link again.", "Impossible de charger cette commande. Merci de réessayer le lien.")
+        );
       } else if (data?.error) {
         console.error("get-order-detail error:", data.error);
         setLoadError(
@@ -116,7 +123,11 @@ const AdminOrder = () => {
       const { data, error } = await supabase.functions.invoke("manage-order", {
         body: { orderId: id, action, pin, token: effectiveToken },
       });
-      if (error) { setResult({ type: "error", message: error.message }); return; }
+      if (error) {
+        const message = await extractFunctionErrorMessage(error, t("Unknown error", "Erreur inconnue"));
+        setResult({ type: "error", message });
+        return;
+      }
       if (data?.error) { setResult({ type: "error", message: data.error }); return; }
       const mixed = data?.fulfillmentType === "mixed";
       // 2026-09-15 (deferred capture restored): Approve now really captures
@@ -160,7 +171,11 @@ const AdminOrder = () => {
       const { data, error } = await supabase.functions.invoke("manage-order", {
         body: { orderId: id, action: "mark_refunded", pin, refundReference: ref },
       });
-      if (error) { setResult({ type: "error", message: error.message }); return; }
+      if (error) {
+        const message = await extractFunctionErrorMessage(error, t("Unknown error", "Erreur inconnue"));
+        setResult({ type: "error", message });
+        return;
+      }
       if (data?.error) { setResult({ type: "error", message: data.error }); return; }
       setResult({ type: "success", message: t("✅ Marked as refunded.", "✅ Marqué comme remboursé.") });
       setOrder({ ...order, refund_status: "refunded" });

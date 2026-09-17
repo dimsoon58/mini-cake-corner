@@ -7,6 +7,7 @@ import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 
 type OrderSummary = {
   id: string;
@@ -71,8 +72,16 @@ const AdminOrders = () => {
       setLoadError(null);
       const { data, error } = await supabase.functions.invoke("list-orders", { body: { page } });
       if (cancelled) return;
-      if (error || data?.error) {
-        console.error("list-orders failed:", error || data?.error);
+      if (error) {
+        const reason = await extractFunctionErrorMessage(error, "");
+        console.error("list-orders failed:", reason || error);
+        setLoadError(
+          reason === "Admin sign-in required"
+            ? t("Your admin session could not be verified. Please sign out and sign in again.", "Votre session administrateur n'a pas pu être vérifiée. Merci de vous déconnecter puis de vous reconnecter.")
+            : t("Could not load orders. Please try again.", "Impossible de charger les commandes. Merci de réessayer.")
+        );
+      } else if (data?.error) {
+        console.error("list-orders failed:", data.error);
         setLoadError(t("Could not load orders. Please try again.", "Impossible de charger les commandes. Merci de réessayer."));
       } else {
         setOrders(data.orders ?? []);
