@@ -38,7 +38,7 @@ const Stepper = ({ current }: { current: number }) => (
         <div key={s.labelEn} className="flex items-center">
           <div className="flex flex-col items-center">
             <div
-              className={`w-9 h-9 flex items-center justify-center border transition-colors
+              className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border transition-colors
                 ${done ? "bg-primary border-primary text-primary-foreground"
                   : active ? "bg-primary border-primary text-primary-foreground"
                   : "bg-background border-border text-muted-foreground"}`}
@@ -51,7 +51,7 @@ const Stepper = ({ current }: { current: number }) => (
             </span>
           </div>
           {i < STEPS.length - 1 && (
-            <div className={`w-12 md:w-20 h-px mx-1 mt-[-14px] sm:mt-[-24px] transition-colors
+            <div className={`w-6 sm:w-10 md:w-20 h-px mx-0.5 sm:mx-1 mt-[-14px] sm:mt-[-24px] transition-colors
               ${i < current ? "bg-primary" : "bg-border"}`} />
           )}
         </div>
@@ -160,7 +160,7 @@ const WorkshopBooking = () => {
                 key={s.id}
                 disabled={full}
                 onClick={() => setSelectedSession(s)}
-                className={`w-full text-left border p-4 transition-colors flex items-center justify-between gap-4
+                className={`w-full text-left border p-4 transition-colors flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4
                   ${full ? "border-border bg-muted/40 opacity-50 cursor-not-allowed"
                     : selected ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/60 bg-card"}`}
@@ -173,7 +173,7 @@ const WorkshopBooking = () => {
                     {s.time} · {t(info.duration, info.durationFr)}
                   </p>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-left sm:text-right sm:shrink-0">
                   {full ? (
                     <span className="text-xs uppercase tracking-wider text-muted-foreground">
                       {t("Sold out", "Complet")}
@@ -533,7 +533,7 @@ const WorkshopBooking = () => {
   // ── Layout ────────────────────────────────────────────────────────────────
   return (
     <Layout>
-      <div className="min-h-screen bg-background pt-24 pb-20">
+      <div className="min-h-screen bg-background pt-16 md:pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-5xl">
           <Link
             to="/workshop"
