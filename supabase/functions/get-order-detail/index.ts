@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/admin-auth.ts";
 
 // Read-only order lookup for the admin "Voir le détail complet de la
 // commande" link (notify-order's reviewUrl, /admin/order/:id?token=...).
@@ -65,26 +66,46 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    // Token gate — same table manage-order itself checks. `used` deliberately
-    // ignored (see header comment); `expires_at` IS enforced.
-    const { data: tokenRow, error: tokenErr } = await supabase
-      .from("order_action_tokens")
-      .select("order_id, expires_at")
-      .eq("order_id", orderId)
-      .eq("token", token)
-      .maybeSingle();
-    if (tokenErr) throw new Error(`Token lookup failed: ${tokenErr.message}`);
-    if (!tokenRow) {
-      return new Response(JSON.stringify({ error: "Invalid or unknown action token" }), {
+    // 2026-09-19: restores the admin-session requirement this function's own
+    // header comment already documented as required (it had never actually
+    // been wired in — requireAdmin was never imported/called here, so the
+    // token was the ONLY gate; a leaked/guessed order id + token pair could
+    // read a customer's name/e-mail/phone/address with no login at all).
+    // Same pattern as list-orders/list-orders-by-date.
+    const admin = await requireAdmin(req, supabase);
+    if (!admin) {
+      return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-        status: 403,
+        status: 401,
       });
     }
-    if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) {
-      return new Response(JSON.stringify({ error: "This link has expired" }), {
-        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-        status: 403,
-      });
+
+    // Token, when supplied (the notification e-mail's own link), is
+    // validated as an EXTRA layer on top of the admin session above — never
+    // a way around it. When absent (the /admin/orders, /admin/calendar
+    // dashboard flow, which never has one in the URL), the admin session
+    // alone is sufficient to view the order; `used` deliberately ignored
+    // (see header comment), `expires_at` IS enforced.
+    if (token) {
+      const { data: tokenRow, error: tokenErr } = await supabase
+        .from("order_action_tokens")
+        .select("order_id, expires_at")
+        .eq("order_id", orderId)
+        .eq("token", token)
+        .maybeSingle();
+      if (tokenErr) throw new Error(`Token lookup failed: ${tokenErr.message}`);
+      if (!tokenRow) {
+        return new Response(JSON.stringify({ error: "Invalid or unknown action token" }), {
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+          status: 403,
+        });
+      }
+      if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) {
+        return new Response(JSON.stringify({ error: "This link has expired" }), {
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+          status: 403,
+        });
+      }
     }
 
     const { data: order, error: orderErr } = await supabase
@@ -110,7 +131,54 @@ serve(async (req) => {
       .from("order_fulfillments").select("*").eq("order_id", orderId).order("pickup_delivery_date", { ascending: true });
     if (fulfillmentsErr) throw new Error(`Failed to load order fulfillments: ${fulfillmentsErr.message}`);
 
-    return new Response(JSON.stringify({ order, items: items ?? [], fulfillments: fulfillments ?? [] }), {
+    // When the caller didn't already supply their own token (the dashboard
+    // flow), resolve this order's own existing order_action_tokens row (if
+    // any) so Accept/Refuse from AdminOrder.tsx still has one to use —
+    // same tolerant `used`-ignoring lookup as above, just not restricted to
+    // one specific token value. Most recent row wins if more than one exists.
+    let actionToken: string | null = null;
+    if (!token) {
+      const { data: ownToken, error: ownTokenErr } = await supabase
+        .from("order_action_tokens")
+        .select("token")
+        .eq("order_id", orderId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (ownTokenErr) {
+        console.error(`get-order-detail: own-token lookup failed for ${orderId} (non-fatal):`, ownTokenErr);
+      } else {
+        actionToken = ownToken?.token ?? null;
+      }
+    }
+
+    // Admin "Voir/Télécharger la facture" — mints a short-lived signed URL
+    // server-side (service_role, bypasses RLS entirely) instead of the
+    // customer-facing MyOrders.tsx pattern (client-side createSignedUrl,
+    // which depends on a storage RLS policy matching auth.uid() to
+    // orders.customer_id — never true for an admin viewing someone else's
+    // order). `invoiceUrl` stays null whenever invoice_path isn't set yet,
+    // even if invoice_number already is — AdminOrder.tsx uses that gap to
+    // show "facture manquante" instead of a broken link.
+    let invoiceUrl: string | null = null;
+    if (order.invoice_path) {
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("invoice")
+        .createSignedUrl(order.invoice_path, 60 * 10);
+      if (signErr) {
+        console.error(`get-order-detail: invoice signed URL failed for ${orderId} (non-fatal):`, signErr);
+      } else {
+        invoiceUrl = signed?.signedUrl ?? null;
+      }
+    }
+
+    return new Response(JSON.stringify({
+      order,
+      items: items ?? [],
+      fulfillments: fulfillments ?? [],
+      actionToken,
+      invoiceUrl,
+    }), {
       headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
     });

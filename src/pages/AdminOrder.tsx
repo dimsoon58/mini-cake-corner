@@ -49,6 +49,13 @@ const AdminOrder = () => {
   // an e-mail-link visit always uses exactly the token it arrived with.
   const [fetchedToken, setFetchedToken] = useState<string | null>(null);
   const effectiveToken = token || fetchedToken;
+  // Signed download URL for order.invoice_path, minted server-side by
+  // get-order-detail (service_role — see its own comment on why the
+  // customer-facing MyOrders.tsx client-side createSignedUrl pattern can't
+  // be reused for an admin). Stays null when invoice_path isn't set yet,
+  // even if invoice_number already is — used below to show "facture
+  // manquante" instead of a broken link.
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -103,6 +110,7 @@ const AdminOrder = () => {
         setItems(data.items || []);
         setFulfillments(data.fulfillments || []);
         if (data.actionToken) setFetchedToken(data.actionToken);
+        setInvoiceUrl(data.invoiceUrl ?? null);
       }
       setLoading(false);
     };
@@ -318,6 +326,15 @@ const AdminOrder = () => {
                 {order.order_number || `#${order.id.slice(0, 8).toUpperCase()}`}
               </h1>
               <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 ${
+                hasWorkshop ? "bg-purple-100 text-purple-800" :
+                order.order_source && order.order_source !== "website" ? "bg-blue-100 text-blue-800" :
+                "bg-secondary text-secondary-foreground"
+              }`}>
+                {hasWorkshop ? t("Workshop", "Atelier")
+                  : order.order_source && order.order_source !== "website" ? t("Manual", "Manuel")
+                  : t("Website", "Site")}
+              </span>
+              <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 ${
                 isCancelled ? "bg-red-100 text-red-800" :
                 decisionState === "approved" ? "bg-emerald-100 text-emerald-800" :
                 decisionState === "pending" ? "bg-amber-100 text-amber-800" :
@@ -493,6 +510,24 @@ const AdminOrder = () => {
             </h3>
              <DetailRow label={t("Order №", "Commande n°")} value={order.order_number || order.id.slice(0, 8).toUpperCase()} />
              <DetailRow label={t("Invoice №", "Facture n°")} value={order.invoice_number || "—"} />
+            {invoiceUrl ? (
+              <div className="flex gap-2 text-sm">
+                <span className="text-muted-foreground min-w-[140px]">{t("Invoice", "Facture")}:</span>
+                <div className="flex gap-3">
+                  <a href={invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                    {t("View", "Voir")}
+                  </a>
+                  <a href={`${invoiceUrl}${invoiceUrl.includes("?") ? "&" : "?"}download=`} className="text-primary underline">
+                    {t("Download", "Télécharger")}
+                  </a>
+                </div>
+              </div>
+            ) : order.invoice_number ? (
+              <div className="flex gap-2 text-sm">
+                <span className="text-muted-foreground min-w-[140px]">{t("Invoice", "Facture")}:</span>
+                <span className="text-amber-700">{t("Missing — needs to be regenerated", "Manquante — à régénérer")}</span>
+              </div>
+            ) : null}
             <DetailRow label={t("Total", "Total")} value={`CHF ${order.total_amount}`} />
             <DetailRow label={t("Payment", "Paiement")} value={
               order.payment_status === "paid"

@@ -44,6 +44,10 @@ serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const page = Number.isFinite(body?.page) && body.page > 0 ? Math.floor(body.page) : 0;
     const from = page * PAGE_SIZE;
+    // Search by order_number only, as requested — a plain substring match
+    // (ILIKE) already covers both ORD-... (website) and ORDM-... (manual)
+    // numbers with the same single field, no prefix special-casing needed.
+    const search = typeof body?.search === "string" ? body.search.trim() : "";
 
     // Summary columns only — full order detail (items, fulfillments, every
     // column) stays behind get-order-detail, opened per-order from the list.
@@ -56,19 +60,41 @@ serve(async (req) => {
     // page needs — if that extra row comes back, there's a next page; no
     // grand total is computed or shown, this endpoint was never meant to
     // answer "how many orders exist in total", only "what's on this page".
-    const { data, error } = await supabase
+    let query = supabase
       .from("orders")
       .select(
-        "id, order_number, first_name, last_name, email, total_amount, payment_status, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, delivery_method, created_at",
+        "id, order_number, order_source, first_name, last_name, email, total_amount, payment_status, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, delivery_method, created_at",
       )
       .order("created_at", { ascending: false })
       .range(from, from + PAGE_SIZE);
+    if (search) query = query.ilike("order_number", `%${search}%`);
+
+    const { data, error } = await query;
 
     if (error) throw new Error(`Failed to load orders: ${error.message}`);
 
     const rows = data ?? [];
     const hasMore = rows.length > PAGE_SIZE;
-    const orders = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
+    const pageRows = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
+
+    // Workshop badge must reflect a REAL order_item (product = 'workshop'),
+    // not the order-level `fulfillment_type` column — that column is only
+    // ever set by the site checkout (create-postfinance-payment), so it
+    // can't be trusted for a manually-created order, which may never have
+    // had it populated at all. One extra, page-scoped query (never a full
+    // table scan) instead of trusting a column that isn't guaranteed.
+    const orderIds = pageRows.map((o) => o.id);
+    let workshopOrderIds = new Set<string>();
+    if (orderIds.length > 0) {
+      const { data: workshopItems, error: wsErr } = await supabase
+        .from("order_items")
+        .select("order_id")
+        .eq("product", "workshop")
+        .in("order_id", orderIds);
+      if (wsErr) throw new Error(`Failed to check workshop items: ${wsErr.message}`);
+      workshopOrderIds = new Set((workshopItems ?? []).map((it: any) => it.order_id));
+    }
+    const orders = pageRows.map((o) => ({ ...o, hasWorkshopItem: workshopOrderIds.has(o.id) }));
 
     return new Response(JSON.stringify({
       orders,

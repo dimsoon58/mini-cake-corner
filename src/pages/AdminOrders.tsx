@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Lock, ClipboardList } from "lucide-react";
+import { Loader2, Lock, ClipboardList, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
@@ -12,6 +13,7 @@ import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 type OrderSummary = {
   id: string;
   order_number: string | null;
+  order_source: string | null;
   first_name: string | null;
   last_name: string | null;
   email: string | null;
@@ -24,6 +26,25 @@ type OrderSummary = {
   pickup_delivery_date: string | null;
   delivery_method: string | null;
   created_at: string;
+  // Derived server-side from a real order_items row (product = 'workshop'),
+  // never from fulfillment_type — that column isn't reliably set for a
+  // manually-created order. See list-orders/index.ts.
+  hasWorkshopItem: boolean;
+};
+
+// Site / Manual / Workshop badge — independent of decisionBadge (approval
+// status) below. Workshop takes priority (a workshop item can coexist with
+// physical items on a mixed order, but the "what kind of order is this"
+// badge only needs to say ONE thing). order_source is only ever "website"
+// for a site checkout (Checkout.tsx hardcodes it) — anything else (a manual
+// order created directly in Supabase: "manual order", "phone", "instagram",
+// "WhatsApp", or a future value) is a manual order, and a missing/null
+// order_source (an old order from before this column existed) defaults to
+// Site rather than mislabeling real website history as manual.
+const sourceBadge = (o: OrderSummary, t: (en: string, fr: string) => string): { label: string; className: string } => {
+  if (o.hasWorkshopItem) return { label: t("Workshop", "Atelier"), className: "bg-purple-100 text-purple-800" };
+  if (o.order_source && o.order_source !== "website") return { label: t("Manual", "Manuel"), className: "bg-blue-100 text-blue-800" };
+  return { label: t("Website", "Site"), className: "bg-secondary text-secondary-foreground" };
 };
 
 const formatDateTime = (iso: string) => {
@@ -57,6 +78,8 @@ const AdminOrders = () => {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     document.title = "Admin – Orders – Bento Cake Studio";
@@ -69,7 +92,7 @@ const AdminOrders = () => {
     const fetchOrders = async () => {
       setLoading(true);
       setLoadError(null);
-      const { data, error } = await supabase.functions.invoke("list-orders", { body: { page } });
+      const { data, error } = await supabase.functions.invoke("list-orders", { body: { page, search } });
       if (cancelled) return;
       if (error) {
         const reason = await extractFunctionErrorMessage(error, "");
@@ -90,7 +113,19 @@ const AdminOrders = () => {
     };
     fetchOrders();
     return () => { cancelled = true; };
-  }, [page, authLoading, isAdmin, t]);
+  }, [page, search, authLoading, isAdmin, t]);
+
+  const handleSearchSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    setPage(0);
+    setSearch(searchInput.trim());
+  };
+
+  const handleSearchClear = () => {
+    setSearchInput("");
+    setSearch("");
+    setPage(0);
+  };
 
   if (authLoading) {
     return (
@@ -152,6 +187,31 @@ const AdminOrders = () => {
           <ClipboardList className="w-6 h-6 text-primary" strokeWidth={1.5} />
           {t("All Orders", "Toutes les commandes")}
         </h1>
+
+        <form onSubmit={handleSearchSubmit} className="flex gap-2 max-w-md mx-auto mb-6">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder={t("Search by order number (ORD-... / ORDM-...)", "Rechercher par numéro de commande (ORD-... / ORDM-...)")}
+              className="rounded-none pl-9"
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="outline"
+            className="rounded-none border-primary text-primary hover:bg-primary/5 uppercase tracking-[0.105em] text-[12px] font-medium shrink-0"
+          >
+            {t("Search", "Rechercher")}
+          </Button>
+          {search && (
+            <Button type="button" variant="ghost" onClick={handleSearchClear} className="shrink-0" aria-label={t("Clear search", "Effacer la recherche")}>
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </form>
+
         {/* No grand total shown — computing it would need the same
             expensive COUNT(*) that was just removed for speed. Just the
             page number, which costs nothing extra. */}
@@ -166,12 +226,17 @@ const AdminOrders = () => {
         ) : loadError ? (
           <p className="text-center text-muted-foreground py-16">{loadError}</p>
         ) : orders.length === 0 ? (
-          <p className="text-center text-muted-foreground py-16">{t("No orders yet.", "Aucune commande pour le moment.")}</p>
+          <p className="text-center text-muted-foreground py-16">
+            {search
+              ? t("No orders match this search.", "Aucune commande ne correspond à cette recherche.")
+              : t("No orders yet.", "Aucune commande pour le moment.")}
+          </p>
         ) : (
           <>
             <div className="space-y-2">
               {orders.map((o) => {
                 const badge = decisionBadge(o);
+                const source = sourceBadge(o, t);
                 const customerName = `${o.first_name || ""} ${o.last_name || ""}`.trim();
                 return (
                   <Link
@@ -183,6 +248,9 @@ const AdminOrders = () => {
                       <div className="flex items-center gap-3 flex-wrap">
                         <span className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground truncate">
                           {o.order_number || `#${o.id.slice(0, 8).toUpperCase()}`}
+                        </span>
+                        <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 shrink-0 ${source.className}`}>
+                          {source.label}
                         </span>
                         <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 shrink-0 ${badge.className}`}>
                           {badge.label}
