@@ -18,11 +18,17 @@ import { requireAdmin } from "../_shared/admin-auth.ts";
 // functions for this, so formatting stays on the frontend and works in
 // both languages instead of a server-side string baked in one language.
 //
-// Deliberately queries `orders.pickup_delivery_date` directly rather than
-// `order_fulfillments` (the newer multi-date-per-order table) — see the
-// same reasoning as before: MULTI_DATE_FULFILLMENT_ENABLED is still false
-// on the frontend today, so every physical order has exactly one date,
-// always on this column. Revisit if that ever changes.
+// 2026-09-18 (multi-date calendar fix): now resolves each item's own date
+// through `order_fulfillments`/`order_items.fulfillment_id` (the source of
+// truth for a real multi-date order — MULTI_DATE_FULFILLMENT_ENABLED has
+// been live since 2026-09-12), falling back to the legacy order-level
+// `orders.pickup_delivery_date`/`pickup_delivery_slot` only for an order
+// that predates the fulfillments table (which has zero rows there). A
+// genuinely multi-date order's cakes now each show up on their own real
+// day instead of vanishing (orders.pickup_delivery_date is deliberately
+// NULL once an order has 2+ distinct dates — see
+// create-postfinance-payment — so the old order-level-only query could
+// never find those orders at all).
 //
 // Same admin-only gate as list-orders/get-order-detail/manage-order — see
 // _shared/admin-auth.ts.
@@ -102,19 +108,59 @@ serve(async (req) => {
     };
 
     // ── Physical orders (cakes/DIY kits/printing/candles) this month ──
-    const { data: cakeOrders, error: cakeErr } = await supabase
-      .from("orders")
-      .select("id, order_number, first_name, last_name, payment_status, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, pickup_delivery_slot, delivery_method")
+    // order_fulfillments is the source of truth for a physical item's real
+    // date/slot: one row per distinct date on an order, created for EVERY
+    // physical order (single-date included) since fulfillment tracking
+    // landed — see confirm-postfinance-payment's finalizeOrderDb. A
+    // genuinely multi-date order has orders.pickup_delivery_date left NULL
+    // on purpose (create-postfinance-payment — ambiguous once 2+ dates
+    // exist), so querying orders by that column alone (the old approach)
+    // could never find those orders at all; each of their cakes now
+    // resolves its OWN date via order_items.fulfillment_id instead. An
+    // order from before this table existed has zero order_fulfillments rows
+    // and falls back to the legacy order-level columns unchanged — same
+    // behaviour as before for old history.
+    const { data: fulfillmentsInMonth, error: fulfillErr } = await supabase
+      .from("order_fulfillments")
+      .select("id, order_id, pickup_delivery_date, pickup_delivery_slot, delivery_method")
       .gte("pickup_delivery_date", startDate)
       .lte("pickup_delivery_date", endDate);
-    if (cakeErr) throw new Error(`Failed to load cake orders: ${cakeErr.message}`);
+    if (fulfillErr) throw new Error(`Failed to load order fulfillments: ${fulfillErr.message}`);
+    const fulfillmentById = new Map((fulfillmentsInMonth ?? []).map((f) => [f.id, f]));
+    const fulfillmentOrderIds = (fulfillmentsInMonth ?? []).map((f) => f.order_id);
 
-    const cakeOrderIds = (cakeOrders ?? []).map((o) => o.id);
-    let cakeItemsByOrder = new Map<string, Array<{ id: string; product: string; size: string | null; shape: string | null; flavors: string[] | null; design_image_url: string | null; reference_images: string[] | null; total: number | null }>>();
+    // Legacy-date orders in range (pre-fulfillments-table orders; a modern
+    // order's date is also still set here for its single-date case, but
+    // that order is already fully covered above via order_fulfillments —
+    // being in both sets is harmless, cakeOrderIds below is deduplicated
+    // and each item is only ever processed once, resolving its own date).
+    const { data: legacyDateOrders, error: legacyErr } = await supabase
+      .from("orders")
+      .select("id")
+      .gte("pickup_delivery_date", startDate)
+      .lte("pickup_delivery_date", endDate);
+    if (legacyErr) throw new Error(`Failed to load legacy-date orders: ${legacyErr.message}`);
+
+    const cakeOrderIds = Array.from(new Set([
+      ...fulfillmentOrderIds,
+      ...(legacyDateOrders ?? []).map((o) => o.id),
+    ]));
+
+    let cakeOrdersById = new Map<string, any>();
+    if (cakeOrderIds.length > 0) {
+      const { data: cakeOrders, error: cakeErr } = await supabase
+        .from("orders")
+        .select("id, order_number, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, pickup_delivery_slot, delivery_method")
+        .in("id", cakeOrderIds);
+      if (cakeErr) throw new Error(`Failed to load cake orders: ${cakeErr.message}`);
+      cakeOrdersById = new Map((cakeOrders ?? []).map((o) => [o.id, o]));
+    }
+
+    let cakeItemsByOrder = new Map<string, Array<{ id: string; order_id: string; fulfillment_id: string | null; product: string; size: string | null; shape: string | null; flavors: string[] | null; design_image_url: string | null; reference_images: string[] | null; total: number | null }>>();
     if (cakeOrderIds.length > 0) {
       const { data: items, error: itemsErr } = await supabase
         .from("order_items")
-        .select("id, order_id, product, size, shape, flavors, design_image_url, reference_images, total")
+        .select("id, order_id, fulfillment_id, product, size, shape, flavors, design_image_url, reference_images, total")
         .in("order_id", cakeOrderIds)
         .neq("product", "workshop");
       if (itemsErr) throw new Error(`Failed to load order items: ${itemsErr.message}`);
@@ -124,14 +170,27 @@ serve(async (req) => {
       }
     }
 
-    for (const o of cakeOrders ?? []) {
+    for (const [orderId, items] of cakeItemsByOrder) {
+      const o = cakeOrdersById.get(orderId);
+      if (!o) continue;
       const isCancelled = o.order_validation === "cancelled" || !!o.order_failure_reason;
       const isWorkshopOnly = o.fulfillment_type === "workshop_only";
       const status = classifyState(isWorkshopOnly ? o.order_validation : o.physical_validation, isCancelled);
       const customerName = `${o.first_name || ""} ${o.last_name || ""}`.trim();
-      const items = cakeItemsByOrder.get(o.id) ?? [];
+
       for (const it of items) {
-        pushEntry(o.pickup_delivery_date, {
+        const fulfillment = it.fulfillment_id ? fulfillmentById.get(it.fulfillment_id) : null;
+        // Own date first (order_fulfillments); legacy order-level columns
+        // only as a fallback for an order with no fulfillment_id at all.
+        // For a multi-date order, an item whose OWN date falls in a
+        // different month has no in-range fulfillment match AND
+        // orders.pickup_delivery_date is NULL (multi-date, left ambiguous
+        // on purpose) — pushEntry's null guard correctly drops it here; it
+        // shows up in its own month's query instead.
+        const date = fulfillment?.pickup_delivery_date ?? o.pickup_delivery_date ?? null;
+        const slot = fulfillment?.pickup_delivery_slot ?? o.pickup_delivery_slot ?? null;
+        const deliveryMethod = fulfillment?.delivery_method ?? o.delivery_method ?? null;
+        pushEntry(date, {
           type: "cake",
           orderId: o.id,
           itemId: it.id,
@@ -147,8 +206,8 @@ serve(async (req) => {
           workshopType: null,
           workshopTime: null,
           workshopParticipants: null,
-          pickupDeliverySlot: o.pickup_delivery_slot,
-          deliveryMethod: o.delivery_method,
+          pickupDeliverySlot: slot,
+          deliveryMethod,
           total: it.total != null ? Number(it.total) : null,
         });
       }

@@ -339,6 +339,72 @@ async function stampMarker(supabase: any, orderId: string, column: string): Prom
   return Array.isArray(data) && data.length > 0;
 }
 
+function formatDateCH(dateValue?: string | null): string {
+  if (!dateValue) return "—";
+  const [year, month, day] = dateValue.split("-");
+  return year && month && day ? `${day}.${month}.${year}` : dateValue;
+}
+
+// 2026-09-18 (multi-date Notion fix): the payload to Make used to carry only
+// the raw `orders`/`order_items` rows. For a genuinely multi-date order,
+// orders.pickup_delivery_date is deliberately left NULL by
+// create-postfinance-payment (2+ distinct dates make the single column
+// ambiguous — see its own comment) and order_items has no date/slot column
+// of its own, only fulfillment_id — so Make/Notion never received a usable
+// date for that order. This resolves each physical item's real date/slot via
+// fulfillment_id -> order_fulfillments (the same table AdminOrder.tsx/
+// MyOrders.tsx already read) purely for the OUTGOING payload — nothing is
+// written back to the DB, and single-date orders are unaffected (exactly one
+// date in, exactly one date out, same as orders.pickup_delivery_date already
+// gave them). A read failure degrades to sending the unenriched payload
+// (never blocks the sync) so this can never turn a working sync into a
+// broken one.
+async function enrichForMake(
+  supabase: any,
+  orderId: string,
+  order: any,
+  physicalItems: any[],
+): Promise<{ order: any; items: any[] }> {
+  const { data: fulfillments, error } = await supabase
+    .from("order_fulfillments")
+    .select("id, pickup_delivery_date, pickup_delivery_slot")
+    .eq("order_id", orderId);
+  if (error) {
+    console.error(`enrichForMake: order_fulfillments read failed for ${orderId} — sending unenriched:`, error);
+    return { order, items: physicalItems };
+  }
+  const rows: Array<{ id: string; pickup_delivery_date: string | null; pickup_delivery_slot: string | null }> =
+    fulfillments ?? [];
+  const byId = new Map<string, { pickup_delivery_date: string | null; pickup_delivery_slot: string | null }>(
+    rows.map((f) => [f.id, f]),
+  );
+
+  const items = physicalItems.map((item: any) => {
+    const match = item.fulfillment_id ? byId.get(item.fulfillment_id) : undefined;
+    return {
+      ...item,
+      fulfillment_date: match?.pickup_delivery_date ?? order.pickup_delivery_date ?? null,
+      fulfillment_slot: match?.pickup_delivery_slot ?? order.pickup_delivery_slot ?? null,
+    };
+  });
+
+  const distinctDates: string[] = Array.from(
+    new Set(rows.map((f) => f.pickup_delivery_date).filter((d): d is string => !!d)),
+  ).sort();
+  const resolvedDates = distinctDates.length > 0
+    ? distinctDates
+    : (order.pickup_delivery_date ? [order.pickup_delivery_date] : []);
+
+  return {
+    order: {
+      ...order,
+      distinctFulfillmentDates: resolvedDates,
+      fulfillmentDatesSummary: resolvedDates.map((d) => formatDateCH(d)).join(", "),
+    },
+    items,
+  };
+}
+
 // FIRST synchronisation only — the main scenario expects { order, orderItems }.
 // Returns whether the POST was really accepted (HTTP 2xx); the caller only
 // stamps make_webhook_dispatched_at on { ok: true }.
@@ -428,7 +494,8 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
     } else if (!o.make_webhook_dispatched_at) {
       // FIRST synchronisation — full payload to the main scenario. Stamp only
       // if the POST was really accepted.
-      const { ok } = await postMakeMain(o, physical);
+      const { order: enrichedOrder, items: enrichedItems } = await enrichForMake(supabase, orderId, o, physical);
+      const { ok } = await postMakeMain(enrichedOrder, enrichedItems);
       if (ok) await stampMarker(supabase, orderId, "make_webhook_dispatched_at");
     } else if (Date.parse(o.make_webhook_dispatched_at) < Date.now() - MAKE_DISPATCH_GRACE_MS) {
       // Dispatched a while ago, still no synced/error — Make may have died
