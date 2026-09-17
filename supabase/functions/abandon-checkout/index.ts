@@ -6,6 +6,7 @@ import {
   type PostFinanceCredentials,
 } from "../_shared/postfinance.ts";
 import {
+import { corsHeaders } from "../_shared/cors.ts";
   TX_SUCCESS_STATES,
   TX_FAILURE_STATES,
   getTransactionState,
@@ -36,10 +37,6 @@ import {
 // ambiguous outcome (void call itself failing, or the re-read state still
 // not VOIDED) releases nothing at all, ever.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 // The four non-terminal PostFinance states this function is willing to
 // actively void. Deliberately NOT the shared classifyTxState()'s broader
@@ -52,7 +49,7 @@ const TX_VOIDABLE_STATES = new Set(["CREATE", "PENDING", "CONFIRMED", "PROCESSIN
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     status,
   });
 }
@@ -89,7 +86,7 @@ async function finalizeAbandonmentAtomic(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {

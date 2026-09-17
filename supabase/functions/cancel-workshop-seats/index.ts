@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import {
+import { corsHeaders } from "../_shared/cors.ts";
   claimAndDispatchWorkshopReservationSync,
   type WorkshopRefundStatus,
 } from "../_shared/workshop-make.ts";
@@ -75,10 +76,6 @@ import {
 //      separate/fire-and-forget delivery any more.
 //   5. cancellation email.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const REFUND_CUTOFF_DAYS = 7;
 
@@ -98,7 +95,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -115,7 +112,7 @@ serve(async (req) => {
     const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
     if (!adminPin || pin !== adminPin) {
       return new Response(JSON.stringify({ error: "Invalid PIN" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 403,
       });
     }
 
@@ -132,7 +129,7 @@ serve(async (req) => {
     if (!idemKey) {
       return new Response(JSON.stringify({
         error: "idempotency_key is required. Retry the exact same cancellation with the exact same idempotency_key.",
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 });
+      }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 400 });
     }
 
     const supabase = createClient(
@@ -164,7 +161,7 @@ serve(async (req) => {
     if (!["confirmed", "partially_cancelled"].includes(reservationBefore.status)) {
       return new Response(JSON.stringify({
         error: `Reservation ${reservationBefore.workshop_reference} is "${reservationBefore.status}". Partial cancellation needs a confirmed reservation. For a still-pending reservation, reject the whole order instead.`,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 });
+      }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 409 });
     }
     // A workshop reservation is cancellable once the workshop part is really
     // confirmed & paid: for a cake+workshop (mixed) order that happens
@@ -174,7 +171,7 @@ serve(async (req) => {
     if (order.order_validation !== "approved" && !order.workshop_confirmed_at) {
       return new Response(JSON.stringify({
         error: `Order ${order.order_number || order.id} — the workshop part is not confirmed yet; a reservation can only be cancelled once the workshop is confirmed and paid.`,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 });
+      }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 409 });
     }
 
     // The ONLY non-DB-state input to the financial calculation: a pure date
@@ -296,7 +293,7 @@ serve(async (req) => {
       reward_restored: rewardRestored,
       cancellation_log_id: logId,
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
@@ -304,7 +301,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : "Unknown error",
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 500,
     });
   }

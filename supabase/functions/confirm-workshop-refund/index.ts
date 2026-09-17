@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // Records a workshop cash refund that a human has ALREADY done BY HAND in
 // PostFinance. Bento Cake Studio never refunds PostFinance automatically —
@@ -41,16 +42,12 @@ import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-mak
 // cancel-workshop-seats; orders.payment_status keeps its existing meaning
 // ("money was captured for this order") completely untouched by either file.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -66,7 +63,7 @@ serve(async (req) => {
     const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
     if (!adminPin || pin !== adminPin) {
       return new Response(JSON.stringify({ error: "Invalid PIN" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 403,
       });
     }
 
@@ -98,7 +95,7 @@ serve(async (req) => {
         refund_status: "refunded",
         refund_amount_completed: Number(log.refund_amount_completed) || 0,
         postfinance_refund_id: log.postfinance_refund_id ?? null,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 200 });
     }
 
     if (log.refund_status !== "pending" && log.refund_status !== "failed") {
@@ -164,7 +161,7 @@ serve(async (req) => {
       refund_amount_completed: Number(finalized?.refund_amount_completed ?? confirmedAmount),
       postfinance_refund_id: finalized?.postfinance_refund_id ?? postfinance_refund_id,
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
@@ -172,7 +169,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : "Unknown error",
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 500,
     });
   }

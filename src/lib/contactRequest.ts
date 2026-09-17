@@ -16,7 +16,8 @@ export type ContactFormType =
   | "corporate_celebrations"
   | "corporate_events"
   | "hospitality_partners"
-  | "contact";
+  | "contact"
+  | "custom_request";
 
 // Same allow-list as the server (supabase/functions/send-contact-request) —
 // duplicated here ONLY for an immediate client-side error message before

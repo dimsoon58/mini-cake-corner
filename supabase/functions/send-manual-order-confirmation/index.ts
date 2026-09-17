@@ -3,15 +3,12 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import { renderCakeOrderConfirmationEmail } from "../_shared/cake-order-confirmation-email.ts";
 import { renderWorkshopConfirmationEmail, type WorkshopItem } from "../_shared/workshop-confirmation-email.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+const json = (cors: Record<string, string>, body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
-  headers: { ...corsHeaders, "Content-Type": "application/json" },
+  headers: { ...cors, "Content-Type": "application/json" },
 });
 
 // formatDateSlash / money / productLabel / customerName / itemDescription
@@ -224,7 +221,8 @@ async function sendConfirmationEmail(resendApiKey: string, order: any, items: an
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   let supabase: any = null;
   let orderId = "";
@@ -233,7 +231,7 @@ serve(async (req) => {
   try {
     const body = await req.json();
     orderId = body?.orderId || body?.order_id || "";
-    if (!orderId) return json({ error: "orderId is required" }, 400);
+    if (!orderId) return json(cors, { error: "orderId is required" }, 400);
 
     supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -242,18 +240,18 @@ serve(async (req) => {
     );
 
     const { data: order, error: orderError } = await supabase.from("orders").select("*").eq("id", orderId).single();
-    if (orderError || !order) return json({ error: "Order not found" }, 404);
+    if (orderError || !order) return json(cors, { error: "Order not found" }, 404);
 
     if (order.order_source === "website" || order.postfinance_transaction_id) {
-      return json({ error: "This endpoint is only for manual orders" }, 400);
+      return json(cors, { error: "This endpoint is only for manual orders" }, 400);
     }
     if (order.order_validation !== "approved") {
-      return json({ error: "Order must be approved before confirmation", currentValidation: order.order_validation }, 409);
+      return json(cors, { error: "Order must be approved before confirmation", currentValidation: order.order_validation }, 409);
     }
     if (order.payment_status !== "paid") {
-      return json({ error: "Payment must be paid before sending a paid invoice", currentPaymentStatus: order.payment_status }, 409);
+      return json(cors, { error: "Payment must be paid before sending a paid invoice", currentPaymentStatus: order.payment_status }, 409);
     }
-    if (!order.email) return json({ error: "Order has no customer email" }, 400);
+    if (!order.email) return json(cors, { error: "Order has no customer email" }, 400);
 
     if (order.manual_confirmation_status === "sent" || order.manual_confirmation_sent_at) {
       let invoiceUrl: string | null = null;
@@ -261,7 +259,7 @@ serve(async (req) => {
         const { data } = await supabase.storage.from("invoice").createSignedUrl(order.invoice_path, 60 * 60 * 24 * 365 * 10);
         invoiceUrl = data?.signedUrl ?? null;
       }
-      return json({ success: true, alreadySent: true, invoiceNumber: order.invoice_number, invoicePath: order.invoice_path, invoiceUrl, emailId: order.manual_confirmation_email_id });
+      return json(cors, { success: true, alreadySent: true, invoiceNumber: order.invoice_number, invoicePath: order.invoice_path, invoiceUrl, emailId: order.manual_confirmation_email_id });
     }
 
     const { data: lockRows, error: lockError } = await supabase
@@ -271,7 +269,7 @@ serve(async (req) => {
       .or("manual_confirmation_status.is.null,manual_confirmation_status.eq.error")
       .select("id");
     if (lockError) throw lockError;
-    if (!lockRows || lockRows.length === 0) return json({ error: "Confirmation is already being processed" }, 409);
+    if (!lockRows || lockRows.length === 0) return json(cors, { error: "Confirmation is already being processed" }, 409);
     locked = true;
 
     const { data: items, error: itemsError } = await supabase.from("order_items").select("*").eq("order_id", orderId).order("created_at", { ascending: true });
@@ -312,7 +310,7 @@ serve(async (req) => {
 
     const { data: signed } = await supabase.storage.from("invoice").createSignedUrl(storagePath, 60 * 60 * 24 * 365 * 10);
 
-    return json({
+    return json(cors, {
       success: true,
       alreadySent: false,
       invoiceNumber: invoiceNum,
@@ -325,6 +323,6 @@ serve(async (req) => {
     if (locked && supabase && orderId) {
       try { await supabase.from("orders").update({ manual_confirmation_status: "error" }).eq("id", orderId); } catch (_) { /* ignore */ }
     }
-    return json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
+    return json(cors, { error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });

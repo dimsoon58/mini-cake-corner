@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { getLogoEmailUrl } from "../_shared/site-config.ts";
+
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import {
@@ -10,6 +12,7 @@ import {
 } from "../_shared/cake-order-confirmation-email.ts";
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // 2026-09-15: deferred capture restored (pre-04a6199 model, reused almost
 // verbatim — see the PostFinance capture/void block in the handler below).
@@ -27,10 +30,6 @@ import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-mak
 // (mark_refunded / refund_status stay in place only for the rare defensive
 // case below where a transaction is somehow already captured).
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 // formatDateCH / customerName / physicalItemDescription / getCustomerLang
 // are used below by sendDeclineEmail and by this file's own local invoice
@@ -135,7 +134,7 @@ async function sendDeclineEmail(
 
     <div style="background:#FDF8E1;margin:0 20px;">
       <div style="padding:36px 40px 0;text-align:center;">
-        <img src="https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
+        <img src=getLogoEmailUrl() alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
       <div style="padding:0 40px 36px;">
@@ -350,7 +349,7 @@ async function generateInvoicePdf(
   // (network / decode) is non-fatal: the invoice is still generated, just
   // without the logo.
   try {
-    const logoRes = await fetch("https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png");
+    const logoRes = await fetch(getLogoEmailUrl());
     if (!logoRes.ok) throw new Error(`logo fetch failed: ${logoRes.status}`);
     const logoImg = await pdfDoc.embedPng(new Uint8Array(await logoRes.arrayBuffer()));
     const logoDrawW = 150;
@@ -710,7 +709,7 @@ async function generateInvoicePdf(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -744,7 +743,7 @@ serve(async (req) => {
       const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
       if (!adminPin || pin !== adminPin) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403,
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 403,
         });
       }
       const { data: mo } = await supabase
@@ -793,7 +792,7 @@ serve(async (req) => {
         fulfillmentType: mo?.fulfillment_type ?? null,
         paymentStatus: isMixedRefund ? "paid" : "refunded",
         matched: Array.isArray(rows) ? rows.length : 0,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 200 });
     }
 
     if (!token) {
@@ -806,7 +805,7 @@ serve(async (req) => {
       const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
       if (!adminPin || pin !== adminPin) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
           status: 403,
         });
       }
@@ -876,7 +875,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         error: `This order has already been ${preDecisionState}`,
         status: preDecisionState,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 });
+      }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 400 });
     }
 
     const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -991,7 +990,7 @@ serve(async (req) => {
         // invariant, welcome-discount mismatch) -> 500 (technical error).
         const isClientErr = /unknown action token|token already used|already (approved|rejected)|order already/i.test(msg);
         return new Response(JSON.stringify({ error: msg }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
           status: isClientErr ? 409 : 500,
         });
       }
@@ -1038,7 +1037,7 @@ serve(async (req) => {
         refundDueAmount: decidedRefundStatus === "to_refund" ? physicalRefundDue : 0,
         alreadyDecided: true,
         appliedAction: effectiveAction,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 });
+      }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 409 });
     }
     if (!effectiveAction) {
       // Neither approved nor rejected — should be impossible after a
@@ -1046,7 +1045,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         error: `Unexpected decision state (${isWorkshopOnly ? "order_validation" : "physical_validation"}=${decidedStateForAction})`,
         status: decidedStateForAction,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 });
+      }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 409 });
     }
 
     console.log(`Order ${orderId} (${fulfillmentType}) ${decidedStateForAction}` +
@@ -1188,14 +1187,14 @@ serve(async (req) => {
       approvalEmailSent: !!approvalEmailResult,
       declineEmailSent: !!declineEmailResult,
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     console.error("Error managing order:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 500,
     });
   }

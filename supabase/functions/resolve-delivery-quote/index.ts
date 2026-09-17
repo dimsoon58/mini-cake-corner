@@ -1,11 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { resolveDeliveryForPlaceId } from "../_shared/google-maps.ts";
 import { resolveDeliveryFeeByDistance } from "../_shared/delivery-pricing.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 // Checkout-time delivery quote for a selected Google place id.
 //
@@ -19,7 +16,7 @@ const corsHeaders = {
 // that billing session (one session instead of N keystroke requests).
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -27,7 +24,7 @@ serve(async (req) => {
 
     if (typeof placeId !== "string" || !placeId) {
       return new Response(JSON.stringify({ error: "invalid_request" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         status: 400,
       });
     }
@@ -55,7 +52,7 @@ serve(async (req) => {
             lng: resolved.lng,
           },
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+        { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 200 },
       );
     }
 
@@ -76,13 +73,13 @@ serve(async (req) => {
           lng: resolved.lng,
         },
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+      { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 200 },
     );
   } catch (error) {
     console.error("resolve-delivery-quote error:", error);
     // Never invent a price when Google is unreachable or the route fails.
     return new Response(JSON.stringify({ error: "distance_unavailable" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 502,
     });
   }

@@ -1,10 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { getSiteBaseUrl, getLogoEmailUrl } from "../_shared/site-config.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { corsHeaders } from "../_shared/cors.ts";
+
 
 const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
 
@@ -298,7 +297,7 @@ async function sendAdminEmail(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -383,7 +382,7 @@ serve(async (req) => {
       }
     }
 
-    const siteUrl = "https://dimsoon58.github.io/mini-cake-corner";
+    const siteUrl = getSiteBaseUrl();
     const results: { email?: any; errors: string[] } = { errors: [] };
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
@@ -393,14 +392,14 @@ serve(async (req) => {
     } else { results.errors.push("RESEND_API_KEY not configured"); }
 
     return new Response(JSON.stringify({ success: true, ...results }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     console.error("Error in notify-order:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 500,
     });
   }

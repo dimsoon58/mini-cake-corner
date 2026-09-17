@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const BREVO_BASE_URL = "https://api.brevo.com/v3";
 
@@ -16,7 +13,7 @@ interface SubscribeRequest {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -59,7 +56,7 @@ serve(async (req) => {
       if (response.status === 204 || response.status === 404) {
         console.log("Brevo unsubscribe successful:", response.status);
         return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
           status: 200,
         });
       }
@@ -95,7 +92,7 @@ serve(async (req) => {
     if (response.status === 201 || response.status === 204) {
       console.log("Brevo subscription successful:", response.status);
       return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         status: 200,
       });
     }
@@ -106,7 +103,7 @@ serve(async (req) => {
     if (response.status === 400 && errorData.includes("Contact already exist")) {
       console.log("Contact already exists, treating as success");
       return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         status: 200,
       });
     }
@@ -116,7 +113,7 @@ serve(async (req) => {
     console.error("Newsletter subscription error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 500,
     });
   }

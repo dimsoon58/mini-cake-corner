@@ -11,18 +11,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toast } from "sonner";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
+import { HoneypotField } from "@/components/HoneypotField";
+import { submitContactRequest } from "@/lib/contactRequest";
+import { combinePhoneNumber } from "@/lib/identity";
 import { useLang } from "@/context/LanguageContext";
 import { useFieldError } from "@/lib/formErrors";
+
+// Minimum local digits — same constant used across every phone field on the site.
+const MIN_LOCAL_PHONE_DIGITS = 6;
 
 const requestSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
   lastName: z.string().trim().min(1, "Last name is required").max(100),
   email: z.string().trim().email("Please enter a valid email address").max(255),
-  phone: z
-    .string()
-    .trim()
-    .min(1, "Phone number is required")
-    .regex(/^[+\d][\d\s().\-/]{6,}$/, "Please enter a valid phone number"),
   eventDate: z.date({ required_error: "Please select a date" }),
   numberOfGuests: z
     .number({ required_error: "Please enter the number of guests" })
@@ -45,12 +48,21 @@ const CustomRequestForm = () => {
   const [photos, setPhotos] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Phone split — same pattern as PrivateWorkshopDialog, Contact, Checkout
+  const [countryCode, setCountryCode] = useState("+41");
+  const [localPhone, setLocalPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+
+  // Bot honeypot
+  const [honeypot, setHoneypot] = useState("");
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    formState: { errors },
+    reset,
+    formState: { errors, isSubmitting },
   } = useForm<RequestFormData>({
     resolver: zodResolver(requestSchema),
     defaultValues: { numberOfGuests: 1 },
@@ -65,8 +77,37 @@ const CustomRequestForm = () => {
     setValue("numberOfGuests", next, { shouldValidate: true });
   };
 
-  const onSubmit = (_data: RequestFormData) => {
-    setSubmitted(true);
+  const onSubmit = async (data: RequestFormData) => {
+    // Validate phone locally before calling the server
+    if (localPhone.trim().length < MIN_LOCAL_PHONE_DIGITS) {
+      setPhoneError(t("Please enter a valid phone number", "Veuillez entrer un numéro de téléphone valide"));
+      return;
+    }
+    setPhoneError(null);
+
+    try {
+      await submitContactRequest(
+        "custom_request",
+        {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: combinePhoneNumber(countryCode, localPhone),
+          eventDate: format(data.eventDate, "dd.MM.yyyy"),
+          numberOfGuests: String(data.numberOfGuests),
+          description: data.description,
+        },
+        data.email,
+        { files: photos, honeypot },
+      );
+      setSubmitted(true);
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : t("Something went wrong. Please try again.", "Une erreur s'est produite. Veuillez réessayer."),
+      );
+    }
   };
 
   if (submitted) {
@@ -81,7 +122,7 @@ const CustomRequestForm = () => {
         <p className="text-muted-foreground leading-relaxed">
           {t(
             "We've received your request and will get back to you within 24 hours with availability and a personalised quote.",
-            "Nous avons bien reçu votre demande et nous reviendrons vers vous sous 24 heures avec nos disponibilités et un devis personnalisé."
+            "Nous avons bien reçu votre demande et nous reviendrons vers vous sous 24 heures avec nos disponibilités et un devis personnalisé.",
           )}
         </p>
       </div>
@@ -90,6 +131,9 @@ const CustomRequestForm = () => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-2xl mx-auto space-y-5 text-left">
+      {/* Hidden honeypot — never visible to real visitors */}
+      <HoneypotField value={honeypot} onChange={setHoneypot} />
+
       {/* Name row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
@@ -117,13 +161,16 @@ const CustomRequestForm = () => {
           <Input id="cr-email" type="email" {...register("email")} />
           {errors.email && <p className="text-sm text-destructive">{fe(errors.email.message)}</p>}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="cr-phone">
-            {t("Phone Number", "Numéro de téléphone")} <span className="text-destructive">*</span>
-          </Label>
-          <Input id="cr-phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive">{fe(errors.phone.message)}</p>}
-        </div>
+        <PhoneNumberField
+          id="cr-phone"
+          label={t("Phone Number", "Numéro de téléphone")}
+          required
+          countryCode={countryCode}
+          onCountryCodeChange={setCountryCode}
+          localPhone={localPhone}
+          onLocalPhoneChange={setLocalPhone}
+          error={phoneError ?? undefined}
+        />
       </div>
 
       {/* Date */}
@@ -138,7 +185,7 @@ const CustomRequestForm = () => {
               variant="outline"
               className={cn(
                 "w-full justify-start text-left font-normal rounded-none",
-                !eventDate && "text-muted-foreground"
+                !eventDate && "text-muted-foreground",
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -221,7 +268,7 @@ const CustomRequestForm = () => {
           rows={6}
           placeholder={t(
             "Describe your dream cake: design, colours, theme, decorations, message to write on the cake, flavours and any other important details...",
-            "Décrivez le gâteau de vos rêves : design, couleurs, thème, décorations, message à inscrire sur le gâteau, saveurs et tout autre détail important..."
+            "Décrivez le gâteau de vos rêves : design, couleurs, thème, décorations, message à inscrire sur le gâteau, saveurs et tout autre détail important...",
           )}
           {...register("description")}
         />
@@ -275,16 +322,17 @@ const CustomRequestForm = () => {
         <p className="text-xs text-muted-foreground">
           {t(
             "Photos are for inspiration only, the final design may be adapted to the Bento Cake Studio style.",
-            "Les photos sont fournies à titre d'inspiration uniquement ; le design final pourra être adapté au style Bento Cake Studio."
+            "Les photos sont fournies à titre d'inspiration uniquement ; le design final pourra être adapté au style Bento Cake Studio.",
           )}
         </p>
       </div>
 
       <Button
         type="submit"
+        disabled={isSubmitting}
         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
       >
-        {t("SEND MY REQUEST", "ENVOYER MA DEMANDE")}
+        {isSubmitting ? t("Sending…", "Envoi…") : t("SEND MY REQUEST", "ENVOYER MA DEMANDE")}
       </Button>
     </form>
   );

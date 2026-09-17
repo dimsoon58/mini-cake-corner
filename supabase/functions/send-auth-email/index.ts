@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { getSiteBaseUrl, getLogoEmailUrl } from "../_shared/site-config.ts";
+
 import { Webhook } from "npm:standardwebhooks@1.0.0";
 
 // Supabase Auth Send Email Hook → this function → Resend API → customer.
@@ -10,10 +12,10 @@ import { Webhook } from "npm:standardwebhooks@1.0.0";
 
 const RESEND_URL = "https://api.resend.com/emails";
 const FROM = "Bento Cake Studio <contact@bentocakestudio.ch>";
-const LOGO_URL = "https://dimsoon58.github.io/mini-cake-corner/logo-red.png";
+const LOGO_URL = `${getSiteBaseUrl()}/logo-red.png`;
 // Matches AuthConfirm.tsx's route — update this alongside SITE_BASE_URL in
 // the other Edge Functions the day bentocakestudio.ch actually goes live.
-const SITE_URL = "https://dimsoon58.github.io/mini-cake-corner";
+const SITE_URL = getSiteBaseUrl();
 
 interface HookPayload {
   user: { email: string; new_email?: string };

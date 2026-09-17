@@ -21,12 +21,10 @@ import { resolveDeliveryFeeByDistance } from "../_shared/delivery-pricing.ts";
 import { resolveDeliveryForPlaceId } from "../_shared/google-maps.ts";
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "../_shared/workshops.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
-const SITE_BASE_URL = "https://dimsoon58.github.io/mini-cake-corner";
+import { getSiteBaseUrl } from "../_shared/site-config.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+const SITE_BASE_URL = getSiteBaseUrl();
 const WELCOME_DISCOUNT_RATE = 0.10;
 
 // A "CREATING" pending_payments placeholder younger than this is treated as a
@@ -598,7 +596,7 @@ async function releaseRewardReservation(supabase: any, orderId: string): Promise
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     status,
   });
 }
@@ -914,7 +912,7 @@ async function handleCartMismatch(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   // Reservation-cleanup state, hoisted above the main try so the global

@@ -1,14 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { getLogoEmailUrl } from "../_shared/site-config.ts";
+
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-make-secret",
-};
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+const json = (cors: Record<string, string>, body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
-  headers: { ...corsHeaders, "Content-Type": "application/json" },
+  headers: { ...cors, "Content-Type": "application/json" },
 });
 
 function esc(value: unknown): string {
@@ -69,7 +68,7 @@ async function sendCancellationEmail(resendApiKey: string, order: any) {
   // sendDeclineEmail and send-workshop-email). Content below is otherwise
   // unchanged: same wording, same conditional refund paragraph, same esc()
   // escaping on customer-supplied fields.
-  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png";
+  const logoUrl = getLogoEmailUrl();
   const html = `
 <!DOCTYPE html>
 <html>
@@ -132,10 +131,11 @@ async function sendCancellationEmail(resendApiKey: string, order: any) {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!Deno.env.get("MAKE_CANCEL_SECRET")) return json({ error: "Server cancellation secret is not configured" }, 503);
-  if (!isAuthorized(req)) return json({ error: "Unauthorized" }, 401);
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (req.method !== "POST") return json(cors, { error: "Method not allowed" }, 405);
+  if (!Deno.env.get("MAKE_CANCEL_SECRET")) return json(cors, { error: "Server cancellation secret is not configured" }, 503);
+  if (!isAuthorized(req)) return json(cors, { error: "Unauthorized" }, 401);
 
   let supabase: any = null;
   let orderId = "";
@@ -145,7 +145,7 @@ serve(async (req) => {
     const body = await req.json();
     orderId = String(body?.orderId || body?.order_id || "").trim();
     const cancellationReason = String(body?.cancellationReason || body?.cancellation_reason || "").trim();
-    if (!orderId) return json({ error: "orderId is required" }, 400);
+    if (!orderId) return json(cors, { error: "orderId is required" }, 400);
 
     supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -161,7 +161,7 @@ serve(async (req) => {
 
     if (initialError) {
       console.error("cancel-order initial lookup:", initialError);
-      return json({
+      return json(cors, {
         error: "Order lookup failed",
         code: initialError.code,
         message: initialError.message,
@@ -169,11 +169,11 @@ serve(async (req) => {
     }
 
     if (!initialOrder) {
-      return json({ error: "Order not found" }, 404);
+      return json(cors, { error: "Order not found" }, 404);
     }
 
     if (initialOrder.cancellation_status === "sent" || initialOrder.cancellation_email_sent_at) {
-      return json({
+      return json(cors, {
         success: true,
         alreadyCancelled: true,
         orderId: initialOrder.id,
@@ -197,7 +197,7 @@ serve(async (req) => {
     if (!lockRows || lockRows.length === 0) {
       const { data: current } = await supabase.from("orders").select("*").eq("id", orderId).single();
       if (current?.cancellation_status === "sent" || current?.cancellation_email_sent_at) {
-        return json({
+        return json(cors, {
           success: true,
           alreadyCancelled: true,
           orderId: current.id,
@@ -209,7 +209,7 @@ serve(async (req) => {
           cancelledAt: current.cancelled_at,
         });
       }
-      return json({ error: "Cancellation is already being processed" }, 409);
+      return json(cors, { error: "Cancellation is already being processed" }, 409);
     }
 
     locked = true;
@@ -273,7 +273,7 @@ serve(async (req) => {
       .eq("id", orderId);
     if (finalUpdateError) throw finalUpdateError;
 
-    return json({
+    return json(cors, {
       success: true,
       alreadyCancelled: false,
       orderId,
@@ -294,6 +294,6 @@ serve(async (req) => {
         await supabase.from("orders").update({ cancellation_status: "error" }).eq("id", orderId);
       } catch (_) {}
     }
-    return json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
+    return json(cors, { error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });

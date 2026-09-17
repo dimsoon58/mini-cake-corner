@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // READ-ONLY health check — orphaned / stale public.pending_payments rows.
 //
@@ -45,10 +46,6 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 // check.sql for how to schedule it once this function is actually deployed
 // and reviewed.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 const PENDING_PAYMENTS_STALE_HOURS = 48;
 const REPORT_LIMIT = 200; // cap the report size; a huge result itself is worth alerting on separately
@@ -61,13 +58,13 @@ function constantTimeEqual(a: string, b: string): boolean {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders(req) });
 
   const expected = Deno.env.get("HEALTH_CHECK_SECRET");
   let provided: string | null = null;
   try { provided = new URL(req.url).searchParams.get("s"); } catch { /* ignore */ }
   if (!expected || !provided || !constantTimeEqual(provided, expected)) {
-    return new Response("forbidden", { status: 403, headers: corsHeaders });
+    return new Response("forbidden", { status: 403, headers: corsHeaders(req) });
   }
 
   const supabase = createClient(
@@ -89,7 +86,7 @@ serve(async (req) => {
   if (error) {
     console.error("health-check-pending-payments: query failed:", error);
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     });
   }
 
@@ -108,7 +105,7 @@ serve(async (req) => {
     if (ordErr) {
       console.error("health-check-pending-payments: orders lookup failed:", ordErr);
       return new Response(JSON.stringify({ error: ordErr.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       });
     }
     existingOrderIds = new Set((existing ?? []).map((o: any) => o.id));
@@ -133,6 +130,6 @@ serve(async (req) => {
     rows: anomalies,
   }), {
     status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders(req), "Content-Type": "application/json" },
   });
 });

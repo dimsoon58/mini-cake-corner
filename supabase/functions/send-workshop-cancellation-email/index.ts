@@ -1,16 +1,15 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { getLogoEmailUrl } from "../_shared/site-config.ts";
+
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "../_shared/workshops.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // Customer email after a partial (or full) workshop-seat cancellation.
 // Read-only on orders / workshop_sessions / workshop_reservations. No emoji.
 // Same Bento charter as send-workshop-email. Never touches PostFinance / Make /
 // order_validation / cake emails.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 function getCustomerLang(order: any): "fr" | "en" {
   return order?.lang === "en" ? "en" : "fr";
@@ -88,7 +87,7 @@ async function sendCancellationEmail(
   // width:240px/height:auto, same position. This file and send-auth-email
   // were the two left behind on the old logo-red.png at a fixed 72px
   // height; only this one is in scope for this change.
-  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png";
+  const logoUrl = getLogoEmailUrl();
   const subject = tr(
     "Update to your Workshop booking – Bento Cake Studio",
     "Mise à jour de votre réservation Workshop – Bento Cake Studio",
@@ -166,7 +165,7 @@ async function sendCancellationEmail(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -202,7 +201,7 @@ serve(async (req) => {
     });
 
     return new Response(JSON.stringify({ success: true, id: result.id }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
@@ -210,7 +209,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : "Unknown error",
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 500,
     });
   }

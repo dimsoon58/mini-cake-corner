@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
 import { retryPendingWorkshopReservationSync } from "../_shared/workshop-make.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // Independent, periodic recovery sweep for the side-effects (Make webhook +
 // e-mails) of a paid + DB-finalised order.
@@ -26,10 +27,6 @@ import { retryPendingWorkshopReservationSync } from "../_shared/workshop-make.ts
 // retryPendingWorkshopReservationSync) — deliberately one shared, homogeneous
 // mechanism, not a separate cron or a separate marker per event type.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 const BATCH_LIMIT = 50;          // orders processed per invocation
 
@@ -41,13 +38,13 @@ function constantTimeEqual(a: string, b: string): boolean {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders(req) });
 
   const expected = Deno.env.get("RETRY_SWEEP_SECRET");
   let provided: string | null = null;
   try { provided = new URL(req.url).searchParams.get("s"); } catch { /* ignore */ }
   if (!expected || !provided || !constantTimeEqual(provided, expected)) {
-    return new Response("forbidden", { status: 403, headers: corsHeaders });
+    return new Response("forbidden", { status: 403, headers: corsHeaders(req) });
   }
 
   const supabase = createClient(
@@ -72,7 +69,7 @@ serve(async (req) => {
   if (error) {
     console.error("retry-order-side-effects: candidate query failed:", error);
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     });
   }
 
@@ -113,6 +110,6 @@ serve(async (req) => {
       scanned: ids.length, attempted, completed,
       workshopReservationSync: workshopSync,
     }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { status: 200, headers: { ...corsHeaders(req), "Content-Type": "application/json" } },
   );
 });

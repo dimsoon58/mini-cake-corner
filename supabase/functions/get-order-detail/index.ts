@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // Read-only order lookup for the admin "Voir le détail complet de la
 // commande" link (notify-order's reviewUrl, /admin/order/:id?token=...).
@@ -38,14 +39,10 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 // This does NOT touch Accept/Refuse (manage-order, OrderAction.tsx) at all —
 // their own single-use behaviour via `used` is completely unchanged.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -71,13 +68,13 @@ serve(async (req) => {
     if (tokenErr) throw new Error(`Token lookup failed: ${tokenErr.message}`);
     if (!tokenRow) {
       return new Response(JSON.stringify({ error: "Invalid or unknown action token" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         status: 403,
       });
     }
     if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) {
       return new Response(JSON.stringify({ error: "This link has expired" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         status: 403,
       });
     }
@@ -87,7 +84,7 @@ serve(async (req) => {
     if (orderErr) throw new Error(`Failed to load order: ${orderErr.message}`);
     if (!order) {
       return new Response(JSON.stringify({ error: "Order not found" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         status: 404,
       });
     }
@@ -106,7 +103,7 @@ serve(async (req) => {
     if (fulfillmentsErr) throw new Error(`Failed to load order fulfillments: ${fulfillmentsErr.message}`);
 
     return new Response(JSON.stringify({ order, items: items ?? [], fulfillments: fulfillments ?? [] }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
@@ -114,7 +111,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : "Unknown error",
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 500,
     });
   }

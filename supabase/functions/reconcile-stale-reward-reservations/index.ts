@@ -4,6 +4,7 @@ import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "
 import { classifyTxState, findTransactionByMerchantReference, getTransactionState } from "../_shared/postfinance-transactions.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { ALERT_COOLDOWN_SECONDS, claimAndSendTechnicalAlert } from "../_shared/admin-alert.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // Reward-reservation reconciliation sweep — 2026-09-13 payment-resilience
 // follow-up. 2026-09-15: now also actively VOIDS a still-open, unpaid
@@ -96,10 +97,6 @@ import { ALERT_COOLDOWN_SECONDS, claimAndSendTechnicalAlert } from "../_shared/a
 // elsewhere in this codebase) so a human investigates, instead of an
 // unresolved reservation sitting invisibly forever.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 // How long a candidate may stay unresolved before it's worth paging a human.
 // Deliberately much shorter than health-check-pending-payments' 48h window —
@@ -133,9 +130,9 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(cors: Record<string, string>, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...cors, "Content-Type": "application/json" },
     status,
   });
 }
@@ -193,13 +190,14 @@ async function releaseAtomic(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   const expected = Deno.env.get("RECONCILE_REWARD_SWEEP_SECRET");
   let provided: string | null = null;
   try { provided = new URL(req.url).searchParams.get("s"); } catch { /* ignore */ }
   if (!expected || !provided || !constantTimeEqual(provided, expected)) {
-    return new Response("forbidden", { status: 403, headers: corsHeaders });
+    return new Response("forbidden", { status: 403, headers: corsHeaders(req) });
   }
 
   const supabase = createClient(
@@ -217,11 +215,11 @@ serve(async (req) => {
 
   if (candErr) {
     console.error("reconcile-stale-reward-reservations: candidate query failed:", candErr);
-    return jsonResponse({ error: candErr.message }, 500);
+    return jsonResponse(cors, { error: candErr.message }, 500);
   }
 
   if (!candidates?.length) {
-    return jsonResponse({ checked: 0, released: 0, keptPending: 0, pushedToFinalize: 0, alertedStuck: 0 });
+    return jsonResponse(cors, { checked: 0, released: 0, keptPending: 0, pushedToFinalize: 0, alertedStuck: 0 });
   }
 
   const orderIds = candidates.map((c: { order_id: string }) => c.order_id);
@@ -240,7 +238,7 @@ serve(async (req) => {
     .eq("payment_status", "paid");
   if (paidErr) {
     console.error("reconcile-stale-reward-reservations: paid-orders query failed:", paidErr);
-    return jsonResponse({ error: paidErr.message }, 500);
+    return jsonResponse(cors, { error: paidErr.message }, 500);
   }
   const paidSet = new Set((paidOrders ?? []).map((o: { id: string }) => o.id));
   const toCheck = orderIds.filter((id: string) => !paidSet.has(id));
@@ -258,7 +256,7 @@ serve(async (req) => {
         "Aucune réservation n'a pu être vérifiée lors de ce passage.",
       ],
     });
-    return jsonResponse({ error: "postfinance_credentials_unavailable" }, 500);
+    return jsonResponse(cors, { error: "postfinance_credentials_unavailable" }, 500);
   }
 
   let released = 0;
@@ -375,7 +373,7 @@ serve(async (req) => {
     });
   }
 
-  return jsonResponse({
+  return jsonResponse(cors, {
     checked: toCheck.length,
     released,
     keptPending,

@@ -1,10 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { getLogoEmailUrl } from "../_shared/site-config.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { corsHeaders } from "../_shared/cors.ts";
+
 
 function formatDateCH(dateValue?: string): string {
   if (!dateValue) return "—";
@@ -163,7 +162,7 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
   // Same wordmark asset + size as the other Bento Cake Studio decision
   // emails (manage-order's sendApprovalEmail / sendDeclineEmail): 240px,
   // auto height. Was logo-red.png at height:72px here.
-  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png";
+  const logoUrl = getLogoEmailUrl();
   const subject = tr(`We've received your order ${orderNumber} 🎂`, `Nous avons bien reçu votre commande ${orderNumber} 🎂`);
 
   const html = `
@@ -297,7 +296,7 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -334,14 +333,14 @@ serve(async (req) => {
     const result = await sendOrderReceivedEmail(resendKey, order, itemsData || [], fulfillmentsData || []);
 
     return new Response(JSON.stringify({ success: true, id: result.id }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     console.error("Error in send-order-received-email:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 500,
     });
   }

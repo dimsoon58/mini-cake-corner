@@ -1,11 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { renderWorkshopConfirmationEmail, type WorkshopItem } from "../_shared/workshop-confirmation-email.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 async function sendWorkshopEmail(
   resendApiKey: string,
@@ -54,7 +51,7 @@ async function sendWorkshopEmail(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -91,7 +88,7 @@ serve(async (req) => {
     if (workshopItems.length === 0) {
       console.log("send-workshop-email: order has no workshop items, skipping:", orderId);
       return new Response(JSON.stringify({ skipped: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         status: 200,
       });
     }
@@ -131,14 +128,14 @@ serve(async (req) => {
     const result = await sendWorkshopEmail(resendKey, order, workshopItems, invoiceAttachment);
 
     return new Response(JSON.stringify({ success: true, id: result.id }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     console.error("Error in send-workshop-email:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 500,
     });
   }

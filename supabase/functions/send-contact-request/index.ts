@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // Shared backend for every commercial/contact enquiry form on the site —
 // replaces the old Web3Forms integration (a placeholder access key,
@@ -25,21 +26,17 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // which layer produced a failure. A genuinely unexpected crash is the only
 // path that would ever reach the outer catch below.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const CONTACT_RECIPIENT = "contact@bentocakestudio.ch";
 
-function ok(body: Record<string, unknown> = {}): Response {
+function ok(cors: Record<string, string>, body: Record<string, unknown> = {}): Response {
   return new Response(JSON.stringify({ success: true, ...body }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+    headers: { ...cors, "Content-Type": "application/json" }, status: 200,
   });
 }
-function fail(message: string): Response {
+function fail(cors: Record<string, string>, message: string): Response {
   return new Response(JSON.stringify({ success: false, error: message }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+    headers: { ...cors, "Content-Type": "application/json" }, status: 200,
   });
 }
 
@@ -55,7 +52,8 @@ type FormType =
   | "corporate_celebrations"
   | "corporate_events"
   | "hospitality_partners"
-  | "contact";
+  | "contact"
+  | "custom_request";
 
 // One entry per form on the site. Field keys/labels/required-ness mirror
 // each form's existing zod schema exactly — this is the server-side
@@ -121,6 +119,18 @@ const FORM_SPECS: Record<FormType, { subject: string; fields: FieldSpec[] }> = {
       { key: "message", label: "Message", required: true, maxLen: 2000 },
     ],
   },
+  custom_request: {
+    subject: "Custom Cake Request, Bento Cake Studio",
+    fields: [
+      { key: "firstName", label: "First name", required: true, maxLen: 100 },
+      { key: "lastName", label: "Last name", required: true, maxLen: 100 },
+      { key: "email", label: "Email address", required: true, maxLen: 255 },
+      { key: "phone", label: "Phone number", required: true, maxLen: 40 },
+      { key: "eventDate", label: "Event / pick-up date", required: true, maxLen: 20 },
+      { key: "numberOfGuests", label: "Number of guests", required: true, maxLen: 10 },
+      { key: "description", label: "Design description", required: true, maxLen: 3000 },
+    ],
+  },
 };
 
 // Attachments — images/PDF only, reasonable per-file and total size caps.
@@ -174,9 +184,48 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#039;");
 }
 
+
+// ── In-memory rate limiter ─────────────────────────────────────────────────
+// Supabase Edge Functions are Deno isolates: the map is shared within one
+// isolate instance but NOT across instances or restarts. This is therefore a
+// best-effort defence — it stops naive repeat-submitters and simple bots, not
+// a distributed attack. A Redis/KV-backed limiter would be needed for a
+// stronger guarantee, but would add latency and a dependency. Given that the
+// honeypot already catches most bots, this is the right trade-off here.
+//
+// Limit: 5 submissions per IP per 10 minutes.
+const RATE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const RATE_MAX = 5;                     // max submissions per window
+const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now - entry.windowStart > RATE_WINDOW_MS) {
+    rateLimitMap.set(ip, { count: 1, windowStart: now });
+    return false;
+  }
+  entry.count += 1;
+  if (entry.count > RATE_MAX) return true;
+  return false;
+}
+
 serve(async (req) => {
+  const cors = corsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: cors });
+  }
+
+  // ── Rate limiting ── best-effort, per-isolate ──
+  const clientIp =
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+  if (isRateLimited(clientIp)) {
+    return new Response(JSON.stringify({ success: false, error: "Too many requests. Please wait a few minutes and try again." }), {
+      headers: { ...cors, "Content-Type": "application/json" },
+      status: 200, // keep 200 per the deliberate-200 policy of this function
+    });
   }
 
   try {
@@ -186,13 +235,13 @@ serve(async (req) => {
     // does gets a normal-looking success response (never told it was
     // caught), but no email is ever actually sent.
     if (typeof body.botcheck === "string" && body.botcheck.trim().length > 0) {
-      return ok();
+      return ok(cors);
     }
 
     const formType = body.formType as FormType;
     const spec = FORM_SPECS[formType];
     if (!spec) {
-      return fail("Unknown form type.");
+      return fail(cors, "Unknown form type.");
     }
 
     const rawData = (body.data && typeof body.data === "object") ? body.data as Record<string, unknown> : {};
@@ -205,10 +254,10 @@ serve(async (req) => {
       const raw = rawData[field.key];
       const value = typeof raw === "string" ? raw.trim() : "";
       if (field.required && value.length === 0) {
-        return fail(`Missing required field: ${field.label}`);
+        return fail(cors, `Missing required field: ${field.label}`);
       }
       if (value.length > field.maxLen) {
-        return fail(`Field too long: ${field.label}`);
+        return fail(cors, `Field too long: ${field.label}`);
       }
       data[field.key] = value;
     }
@@ -219,18 +268,18 @@ serve(async (req) => {
     // (country code + local number) already happened client-side, using the
     // exact same helper as the checkout page.
     if (data.phone && !looksLikeInternationalPhone(data.phone)) {
-      return fail("Phone number is not a valid international number.");
+      return fail(cors, "Phone number is not a valid international number.");
     }
 
     const replyToEmail = typeof body.replyToEmail === "string" ? body.replyToEmail.trim() : "";
     if (!replyToEmail || !isEmailLike(replyToEmail)) {
-      return fail("A valid email address is required.");
+      return fail(cors, "A valid email address is required.");
     }
 
     // ── Attachments — images/PDF only, size-capped, never trusted blindly ──
     const rawAttachments = Array.isArray(body.attachments) ? body.attachments as AttachmentInput[] : [];
     if (rawAttachments.length > MAX_ATTACHMENTS) {
-      return fail(`Too many attachments (max ${MAX_ATTACHMENTS}).`);
+      return fail(cors, `Too many attachments (max ${MAX_ATTACHMENTS}).`);
     }
     const attachments: { filename: string; content: string }[] = [];
     let totalBytes = 0;
@@ -239,18 +288,18 @@ serve(async (req) => {
       const content = typeof att.content === "string" ? att.content : "";
       const contentType = typeof att.contentType === "string" ? att.contentType.toLowerCase() : "";
       if (!filename || !content) {
-        return fail("Invalid attachment.");
+        return fail(cors, "Invalid attachment.");
       }
       if (!ALLOWED_ATTACHMENT_TYPES.has(contentType)) {
-        return fail(`Attachment type not allowed: ${contentType || "unknown"}. Only images and PDF are accepted.`);
+        return fail(cors, `Attachment type not allowed: ${contentType || "unknown"}. Only images and PDF are accepted.`);
       }
       const bytes = estimateBase64Bytes(content);
       if (bytes > MAX_ATTACHMENT_BYTES) {
-        return fail(`Attachment too large: ${filename} (max ${Math.round(MAX_ATTACHMENT_BYTES / (1024 * 1024))} MB).`);
+        return fail(cors, `Attachment too large: ${filename} (max ${Math.round(MAX_ATTACHMENT_BYTES / (1024 * 1024))} MB).`);
       }
       totalBytes += bytes;
       if (totalBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
-        return fail(`Attachments too large in total (max ${Math.round(MAX_TOTAL_ATTACHMENT_BYTES / (1024 * 1024))} MB).`);
+        return fail(cors, `Attachments too large in total (max ${Math.round(MAX_TOTAL_ATTACHMENT_BYTES / (1024 * 1024))} MB).`);
       }
       attachments.push({ filename, content });
     }
@@ -258,7 +307,7 @@ serve(async (req) => {
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) {
       console.error("send-contact-request: RESEND_API_KEY not configured.");
-      return fail("Email delivery is not configured. Please try again later or contact us directly.");
+      return fail(cors, "Email delivery is not configured. Please try again later or contact us directly.");
     }
 
     // ── Plain, functional HTML body — one row per non-empty field, in the
@@ -301,12 +350,12 @@ serve(async (req) => {
     // (a real 2xx with an id) — never before, and never on a guess.
     if (!resp.ok || !resendData.id) {
       console.error("send-contact-request: Resend error:", resp.status, resendData);
-      return fail("We couldn't send your message right now. Please try again in a moment.");
+      return fail(cors, "We couldn't send your message right now. Please try again in a moment.");
     }
 
-    return ok({ id: resendData.id });
+    return ok(cors, { id: resendData.id });
   } catch (error) {
     console.error("Error in send-contact-request:", error);
-    return fail(error instanceof Error ? error.message : "Unknown error");
+    return fail(cors, error instanceof Error ? error.message : "Unknown error");
   }
 });

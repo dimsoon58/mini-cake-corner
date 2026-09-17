@@ -1,4 +1,6 @@
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "./workshops.ts";
+import { getLogoEmailUrl } from "./site-config.ts";
+
 
 // Shared workshop confirmation-email renderer — the exact same visual
 // template and workshop information a website workshop booking gets, at
@@ -102,7 +104,7 @@ export function renderWorkshopConfirmationEmail(
 
   // Same wordmark asset + size as the other Bento Cake Studio emails: 240px,
   // auto height.
-  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png";
+  const logoUrl = getLogoEmailUrl();
   const subject = confirmed
     ? tr(
         "Your workshop booking is confirmed – Bento Cake Studio",

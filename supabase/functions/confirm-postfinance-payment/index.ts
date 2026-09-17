@@ -7,11 +7,8 @@ import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-ef
 import { ORDER_ITEM_PAYLOAD_FIELDS, ORDER_PAYLOAD_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
 import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 // 2026-09-15: deferred capture restored (pre-04a6199 model). Every
 // transaction is created with completionBehavior COMPLETE_DEFERRED — a
@@ -476,7 +473,7 @@ function finalizationLeaseActive(order: any): boolean {
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     status,
   });
 }
@@ -528,14 +525,14 @@ function capacityResponse(rewardOnly: boolean, refundState: string, detail: stri
     orderValidation: "cancelled",
     detail,
   }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     status: 200,
   });
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders(req) });
   }
 
   try {
@@ -627,7 +624,7 @@ serve(async (req) => {
         confirmed: false,
         error: "not_found",
       }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         status: 404,
       });
     }
@@ -656,7 +653,7 @@ serve(async (req) => {
           failed: true,
           state: transaction.state,
         }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
           status: 200,
         });
       }
@@ -670,7 +667,7 @@ serve(async (req) => {
           failed: false,
           state: transaction.state,
         }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
           status: 200,
         });
       }
@@ -755,7 +752,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : "Unknown error",
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 500,
     });
   }

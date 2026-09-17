@@ -7,6 +7,7 @@ import {
 } from "../_shared/postfinance-webhook-verify.ts";
 import { areSideEffectsComplete } from "../_shared/order-side-effects.ts";
 import { reportConflictingTransactions } from "../_shared/postfinance-transactions.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // PostFinance Checkout → Supabase webhook.
 //
@@ -48,23 +49,20 @@ import { reportConflictingTransactions } from "../_shared/postfinance-transactio
 //   5. one real webhook delivery end-to-end
 //   6. ONLY THEN set POSTFINANCE_WEBHOOK_ENFORCE_SIGNATURE=true (ECDSA)
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-signature",
-};
 
-function txt(body: string, status: number): Response {
-  return new Response(body, { status, headers: corsHeaders });
+function txt(cors: Record<string, string>, body: string, status: number): Response {
+  return new Response(body, { status, headers: cors });
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return txt("method not allowed", 405);
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (req.method !== "POST") return txt(cors, "method not allowed", 405);
 
   // ── 1. URL shared secret (mandatory gate) ──
   const expectedSecret = Deno.env.get("POSTFINANCE_WEBHOOK_SECRET");
   if (!verifyWebhookSecret(req.url, expectedSecret)) {
-    return txt("forbidden", 403);
+    return txt(cors, "forbidden", 403);
   }
 
   const rawBody = await req.text();
@@ -77,11 +75,11 @@ serve(async (req) => {
       );
       if (ok !== true) {
         console.error("postfinance-webhook: signature verification failed", { ok });
-        return txt("forbidden", 403);
+        return txt(cors, "forbidden", 403);
       }
     } catch (e) {
       console.error("postfinance-webhook: signature check threw:", e);
-      return txt("forbidden", 403);
+      return txt(cors, "forbidden", 403);
     }
   }
 
@@ -89,7 +87,7 @@ serve(async (req) => {
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    return txt("bad json", 400);
+    return txt(cors, "bad json", 400);
   }
 
   const entityId = String(payload?.entityId ?? "");
@@ -100,7 +98,7 @@ serve(async (req) => {
   if (technicalName && technicalName !== "Transaction") {
     return txt(`ok (ignored entity ${technicalName})`, 200);
   }
-  if (!entityId) return txt("ok (no entityId)", 200);
+  if (!entityId) return txt(cors, "ok (no entityId)", 200);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -142,7 +140,7 @@ serve(async (req) => {
     } catch (e) {
       console.error(`postfinance-webhook: GET /payment/transactions/${entityId} failed:`, e);
       // Cannot resolve right now — let PostFinance retry this event.
-      return txt("could not resolve transaction — retry", 503);
+      return txt(cors, "could not resolve transaction — retry", 503);
     }
 
     if (merchantRef) {
@@ -171,7 +169,7 @@ serve(async (req) => {
               orderId = merchantRef;
             } else {
               await reportConflictingTransactions(getPostFinanceCredentials(), merchantRef, now, entityId);
-              return txt("conflicting transaction id — manual review required", 500);
+              return txt(cors, "conflicting transaction id — manual review required", 500);
             }
           }
         } else if (current === entityId) {
@@ -180,7 +178,7 @@ serve(async (req) => {
           // A DIFFERENT real transaction id is already recorded. NEVER
           // overwrite. Read both real states, alert, keep everything, 5xx.
           await reportConflictingTransactions(getPostFinanceCredentials(), merchantRef, current, entityId);
-          return txt("conflicting transaction id — manual review required", 500);
+          return txt(cors, "conflicting transaction id — manual review required", 500);
         }
       } else {
         const { data: ordByRef } = await supabase
@@ -192,7 +190,7 @@ serve(async (req) => {
 
   if (!orderId) {
     // Transaction genuinely unknown to our system.
-    return txt("ok (unknown entityId)", 200);
+    return txt(cors, "ok (unknown entityId)", 200);
   }
 
   // ── 4. Event de-duplication (only for events we FINISHED) + bookkeeping ──
@@ -207,7 +205,7 @@ serve(async (req) => {
       .eq("order_id", orderId)
       .maybeSingle();
     if (attempt?.last_webhook_processed_event_id === eventId) {
-      return txt("ok (event already processed)", 200);
+      return txt(cors, "ok (event already processed)", 200);
     }
   }
   await supabase.from("payment_attempts").update({
@@ -226,7 +224,7 @@ serve(async (req) => {
         .eq("order_id", resolvedOrderId);
     }
     return body
-      ? new Response(JSON.stringify(body), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } })
+      ? new Response(JSON.stringify(body), { status: 200, headers: { ...cors, "Content-Type": "application/json" } })
       : txt(note, 200);
   };
 
@@ -250,7 +248,7 @@ serve(async (req) => {
         if (complete) return await done200("nothing to do (finalised)");
       }
       console.error("postfinance-webhook → confirm-postfinance-payment error:", error);
-      return txt("confirm-postfinance-payment failed", 503);
+      return txt(cors, "confirm-postfinance-payment failed", 503);
     }
 
     // Terminal payment failure — cleanup already ran, nothing to retry.
@@ -265,13 +263,13 @@ serve(async (req) => {
     // sideEffectsComplete unknown — retry via PostFinance backoff so Bento
     // always ends up with the order.
     if (data?.confirmed === true || data?.finalizing === true) {
-      return txt("order not fully delivered yet — retry", 503);
+      return txt(cors, "order not fully delivered yet — retry", 503);
     }
     // Non-terminal transaction state (CREATE / PENDING / …) — acknowledge; the
     // AUTHORIZED / FAILED event will follow.
     return await done200("non-terminal state");
   } catch (e) {
     console.error("postfinance-webhook: confirm invocation threw:", e);
-    return txt("internal error", 503);
+    return txt(cors, "internal error", 503);
   }
 });

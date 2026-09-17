@@ -1,4 +1,6 @@
 // Invoice PDF generation.
+import { getLogoEmailUrl } from "./site-config.ts";
+
 //
 // This is a faithful, self-contained copy of manage-order's generateInvoicePdf
 // so that the public-workshop auto-confirmation flow can produce the SAME
@@ -179,7 +181,7 @@ export async function generateInvoicePdf(
   startPage();
 
   try {
-    const logoRes = await fetch("https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png");
+    const logoRes = await fetch(getLogoEmailUrl());
     if (!logoRes.ok) throw new Error(`logo fetch failed: ${logoRes.status}`);
     const logoImg = await pdfDoc.embedPng(new Uint8Array(await logoRes.arrayBuffer()));
     const logoDrawW = 150;

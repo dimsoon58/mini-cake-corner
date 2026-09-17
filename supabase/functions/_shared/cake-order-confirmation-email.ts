@@ -1,4 +1,6 @@
 // Shared confirmation-email renderer for a "cake / product" order at its
+import { getLogoEmailUrl } from "./site-config.ts";
+
 // CONFIRMED stage — the exact same visual template and information a
 // website order gets once the admin accepts it. Handles cake-only AND
 // mixed (workshop + cake) orders exactly as the website always has: a
@@ -436,7 +438,7 @@ export function renderCakeOrderConfirmationEmail(
 
   // Same wordmark asset + size as every other Bento Cake Studio decision
   // email (240px, auto height).
-  const logoUrl = "https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png";
+  const logoUrl = getLogoEmailUrl();
   const html = `
 <!DOCTYPE html>
 <html>
