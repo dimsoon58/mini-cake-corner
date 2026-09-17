@@ -3,7 +3,7 @@ import { useLang } from "@/context/LanguageContext";
 import pressCotemag2022 from "@/assets/press-cote-magazine-2022.png";
 import pressLesVoiles from "@/assets/press-cote-les-voiles.jpeg";
 import pressGaultMillau2 from "@/assets/press-gault-millau-2.png";
-import pressGaultMillau3 from "@/assets/press-gault-millau-3.png";
+import pressGaultMillau3 from "@/assets/press-gault-millau-3.webp";
 import pressGaultMillau4 from "@/assets/press-gault-millau-4.png";
 
 const standaloneArticles = [
