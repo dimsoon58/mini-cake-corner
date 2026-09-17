@@ -302,7 +302,7 @@ const Candles = () => {
                 key={numberCandlePreview}
                 src={NUMBER_CANDLE_IMAGES[numberCandlePreview]}
                 alt={`${t("Number Candle", "Bougie chiffre")} ${numberCandlePreview}`}
-                className="w-full h-full object-contain transition-all duration-200"
+                className="w-full h-full object-contain object-left transition-all duration-200"
               />
             </div>
             <CardContent className="p-4 text-center flex flex-col flex-1">
