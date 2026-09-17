@@ -2275,14 +2275,20 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                                 <div className="flex items-center gap-1">
                                   <p className="text-xs font-medium text-foreground whitespace-normal">{extra.id === "pearl-border" && selectedCake?.styleId === "retro-ribbons-glitter" ? t("Full border of pearls", "Bordure complète de perles") : t(extra.name, extraNameFr[extra.id] ?? extra.name)}</p>
                                   {extraDescriptions[extra.id] && (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Info className="w-3 h-3 text-muted-foreground cursor-help flex-shrink-0" />
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top">
-                                        <p className="text-xs max-w-[200px]">{t(extraDescriptions[extra.id], extraDescFr[extra.id] ?? extraDescriptions[extra.id])}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="flex-shrink-0 focus:outline-none"
+                                        >
+                                          <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent side="top" className="w-auto max-w-[220px] p-2.5">
+                                        <p className="text-xs">{t(extraDescriptions[extra.id], extraDescFr[extra.id] ?? extraDescriptions[extra.id])}</p>
+                                      </PopoverContent>
+                                    </Popover>
                                   )}
                                 </div>
                                 <p className="text-[10px] text-primary">+CHF {price}</p>
