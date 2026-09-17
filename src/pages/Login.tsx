@@ -25,6 +25,16 @@ const Login = () => {
   const navigate = useNavigate();
   const { signIn, user } = useAuth();
   const [searchParams] = useSearchParams();
+  // Optional post-login destination (e.g. the admin pages linking back to
+  // themselves after requiring sign-in) — only ever a same-site relative
+  // path is accepted, never an absolute/external URL, so this can't become
+  // an open redirect. Every other sign-in on the site still lands on
+  // /account exactly as before, since this param is simply absent there.
+  const redirectTarget = (() => {
+    const raw = searchParams.get("redirect");
+    if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/account";
+    return raw;
+  })();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,8 +84,8 @@ const Login = () => {
   }, [searchParams, t, toast]);
 
   useEffect(() => {
-    if (user) navigate("/account");
-  }, [user, navigate]);
+    if (user) navigate(redirectTarget);
+  }, [user, navigate, redirectTarget]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +121,7 @@ const Login = () => {
       return;
     }
 
-    navigate("/account");
+    navigate(redirectTarget);
   };
 
   return (

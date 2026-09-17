@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { requireAdmin } from "../_shared/admin-auth.ts";
 
 // Read-only order lookup for the admin "Voir le détail complet de la
 // commande" link (notify-order's reviewUrl, /admin/order/:id?token=...).
@@ -37,6 +38,14 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 // returning data while a fresh one still works for the customary window.
 // This does NOT touch Accept/Refuse (manage-order, OrderAction.tsx) at all —
 // their own single-use behaviour via `used` is completely unchanged.
+//
+// 2026-09-17 (real auth guard): the token alone used to be sufficient —
+// anyone holding the link could view the order, with no way to know who
+// actually opened it. A verified admin session (see _shared/admin-auth.ts)
+// is now REQUIRED on every call; the token, when present (the notification
+// e-mail's own link still carries one), is validated as an EXTRA layer, not
+// a way around the admin check. The new /admin/orders dashboard calls this
+// with no token at all — an orderId plus a valid admin session is enough.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,8 +59,8 @@ serve(async (req) => {
 
   try {
     const { orderId, token } = await req.json();
-    if (!orderId || !token) {
-      throw new Error("Missing required fields: orderId, token");
+    if (!orderId) {
+      throw new Error("Missing required field: orderId");
     }
 
     const supabase = createClient(
@@ -60,26 +69,39 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    // Token gate — same table manage-order itself checks. `used` deliberately
-    // ignored (see header comment); `expires_at` IS enforced.
-    const { data: tokenRow, error: tokenErr } = await supabase
-      .from("order_action_tokens")
-      .select("order_id, expires_at")
-      .eq("order_id", orderId)
-      .eq("token", token)
-      .maybeSingle();
-    if (tokenErr) throw new Error(`Token lookup failed: ${tokenErr.message}`);
-    if (!tokenRow) {
-      return new Response(JSON.stringify({ error: "Invalid or unknown action token" }), {
+    // Real admin session required — see the 2026-09-17 header note.
+    const admin = await requireAdmin(req, supabase);
+    if (!admin) {
+      return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
+        status: 401,
       });
     }
-    if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) {
-      return new Response(JSON.stringify({ error: "This link has expired" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
+
+    // Extra layer when a token is present (the notification e-mail link) —
+    // never a bypass for the admin check above, and never required now that
+    // an admin session is mandatory. `used` deliberately ignored (see header
+    // comment); `expires_at` IS enforced.
+    if (token) {
+      const { data: tokenRow, error: tokenErr } = await supabase
+        .from("order_action_tokens")
+        .select("order_id, expires_at")
+        .eq("order_id", orderId)
+        .eq("token", token)
+        .maybeSingle();
+      if (tokenErr) throw new Error(`Token lookup failed: ${tokenErr.message}`);
+      if (!tokenRow) {
+        return new Response(JSON.stringify({ error: "Invalid or unknown action token" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403,
+        });
+      }
+      if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) {
+        return new Response(JSON.stringify({ error: "This link has expired" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403,
+        });
+      }
     }
 
     const { data: order, error: orderErr } = await supabase
@@ -105,7 +127,36 @@ serve(async (req) => {
       .from("order_fulfillments").select("*").eq("order_id", orderId).order("pickup_delivery_date", { ascending: true });
     if (fulfillmentsErr) throw new Error(`Failed to load order fulfillments: ${fulfillmentsErr.message}`);
 
-    return new Response(JSON.stringify({ order, items: items ?? [], fulfillments: fulfillments ?? [] }), {
+    // Hand back this order's own action token to a verified admin (only —
+    // this whole function already requires one, see above), the same row
+    // notify-order itself creates/reuses per order. Lets the /admin/orders
+    // dashboard flow (no token in the URL at all) still Accept/Refuse from
+    // this page without ever touching manage-order's own token+RPC logic —
+    // the admin already has full access to this order via the session
+    // check above, so returning a token they're already entitled to use is
+    // not a new privilege. Oldest row wins, same "reuse, don't stack"
+    // convention as notify-order/index.ts. Never returned when a caller
+    // supplied their own `token` above (e.g. the e-mail link) — it already
+    // has everything it needs, and always exactly reflects what was in the
+    // URL rather than silently swapping in a different one.
+    let actionToken: string | null = null;
+    if (!token) {
+      const { data: tokenRow } = await supabase
+        .from("order_action_tokens")
+        .select("token")
+        .eq("order_id", orderId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      actionToken = tokenRow?.token ?? null;
+    }
+
+    return new Response(JSON.stringify({
+      order,
+      items: items ?? [],
+      fulfillments: fulfillments ?? [],
+      actionToken,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

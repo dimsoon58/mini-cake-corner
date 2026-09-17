@@ -11,6 +11,7 @@ import {
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
+import { requireAdmin } from "../_shared/admin-auth.ts";
 
 // 2026-09-15: deferred capture restored (pre-04a6199 model, reused almost
 // verbatim — see the PostFinance capture/void block in the handler below).
@@ -824,6 +825,14 @@ serve(async (req) => {
     //                paid & confirmed → payment_status STAYS 'paid', only
     //                refund_status flips.
     if (action === "mark_refunded") {
+      // 2026-09-17 (real auth guard): a valid admin session is now required
+      // in addition to the PIN — see _shared/admin-auth.ts.
+      const admin = await requireAdmin(req, supabase);
+      if (!admin) {
+        return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
+        });
+      }
       const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
       if (!adminPin || pin !== adminPin) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {
@@ -883,9 +892,20 @@ serve(async (req) => {
       throw new Error("Missing required field: token");
     }
 
-    // If PIN is provided, verify it (admin page flow).
-    // If no PIN, token-only auth is sufficient (email link flow).
+    // If PIN is provided, verify it (admin page flow) — and, as of 2026-09-17,
+    // also require a real admin session (see _shared/admin-auth.ts), never a
+    // bypass for the PIN, an extra layer alongside it.
+    // If no PIN, token-only auth is sufficient (email link flow) — completely
+    // unchanged, no admin session required, so the one-click Accept/Refuse
+    // links in the notification e-mail keep working exactly as before.
     if (pin) {
+      const admin = await requireAdmin(req, supabase);
+      if (!admin) {
+        return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        });
+      }
       const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
       if (!adminPin || pin !== adminPin) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {

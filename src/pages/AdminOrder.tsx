@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import { CheckCircle, XCircle, Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
+import { useParams, useSearchParams, Link } from "react-router-dom";
+import { CheckCircle, XCircle, Loader2, ShieldCheck, AlertTriangle, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
+import { isAdminEmail } from "@/lib/adminAccess";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
@@ -30,12 +32,20 @@ const AdminOrder = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
+  const { user, loading: authLoading } = useAuth();
+  const isAdmin = isAdminEmail(user?.email);
 
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [fulfillments, setFulfillments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Filled from get-order-detail's response when the URL had no token (the
+  // /admin/orders dashboard flow) — see the comment on `actionToken` in
+  // get-order-detail/index.ts. Falls back to the URL token when present so
+  // an e-mail-link visit always uses exactly the token it arrived with.
+  const [fetchedToken, setFetchedToken] = useState<string | null>(null);
+  const effectiveToken = token || fetchedToken;
   const [pin, setPin] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -54,15 +64,17 @@ const AdminOrder = () => {
   // view must stay available after Accept/Refuse has consumed the token,
   // exactly like manage-order's own tolerant re-check of a used token.
   useEffect(() => {
+    // Wait for auth to resolve, and never even attempt the lookup for a
+    // non-admin — the real enforcement is server-side (get-order-detail now
+    // requires a verified admin session), this just avoids a doomed request.
+    if (authLoading || !isAdmin) { setLoading(authLoading); return; }
     const fetchOrder = async () => {
       if (!id) { setLoading(false); return; }
-      if (!token) {
-        // No token at all — never even attempt the lookup (there is nothing
-        // valid to gate it with). The "Secure token missing" banner below
-        // already explains this; loading just stops here.
-        setLoading(false);
-        return;
-      }
+      // A token is no longer required to load — a verified admin session
+      // (already established above) is enough on its own (the new /admin/
+      // orders dashboard opens this page with no token at all). When present
+      // (the notification e-mail's own link), it's still sent and validated
+      // server-side as an extra layer.
       const { data, error } = await supabase.functions.invoke("get-order-detail", {
         body: { orderId: id, token },
       });
@@ -82,26 +94,27 @@ const AdminOrder = () => {
         setOrder(data.order);
         setItems(data.items || []);
         setFulfillments(data.fulfillments || []);
+        if (data.actionToken) setFetchedToken(data.actionToken);
       }
       setLoading(false);
     };
     fetchOrder();
-  }, [id, token, t]);
+  }, [id, token, t, authLoading, isAdmin]);
 
   const handleAction = async (action: "approve" | "reject") => {
     if (!pin.trim()) {
       setResult({ type: "error", message: t("Please enter the admin PIN", "Veuillez saisir le code PIN administrateur") });
       return;
     }
-    if (!token) {
-      setResult({ type: "error", message: t("Missing action token. Please use the link from the notification email.", "Jeton d'action manquant. Veuillez utiliser le lien reçu dans l'e-mail de notification.") });
+    if (!effectiveToken) {
+      setResult({ type: "error", message: t("No action token available for this order yet. Please reload the page.", "Aucun jeton d'action disponible pour cette commande pour le moment. Merci de recharger la page.") });
       return;
     }
     setActionLoading(action);
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("manage-order", {
-        body: { orderId: id, action, pin, token },
+        body: { orderId: id, action, pin, token: effectiveToken },
       });
       if (error) { setResult({ type: "error", message: error.message }); return; }
       if (data?.error) { setResult({ type: "error", message: data.error }); return; }
@@ -158,6 +171,67 @@ const AdminOrder = () => {
     }
   };
 
+  // Real auth guard (2026-09-17): the order-detail lookup itself now
+  // requires a verified admin session server-side (get-order-detail) — this
+  // is the matching frontend gate, so a signed-out visitor or a non-admin
+  // account never even sees the order fetch attempted, just a clear sign-in
+  // prompt or an access-denied message.
+  if (authLoading) {
+    return (
+      <Layout>
+        <main className="container mx-auto px-4 py-16 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
+        </main>
+      </Layout>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Layout>
+        <main className="max-w-md mx-auto px-6 py-24 text-center">
+          <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
+          <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
+            {t("Admin sign-in required", "Connexion administrateur requise")}
+          </h1>
+          <p className="text-sm text-foreground/75 leading-relaxed mb-6">
+            {t(
+              "This page is restricted to Bento Cake Studio administrators. Please sign in to continue.",
+              "Cette page est réservée aux administrateurs de Bento Cake Studio. Merci de vous connecter pour continuer."
+            )}
+          </p>
+          <Button
+            asChild
+            className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] text-[13px] font-medium"
+          >
+            <Link to={`/login?redirect=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`}>
+              {t("Sign in", "Se connecter")}
+            </Link>
+          </Button>
+        </main>
+      </Layout>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Layout>
+        <main className="max-w-md mx-auto px-6 py-24 text-center">
+          <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
+          <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
+            {t("Access denied", "Accès refusé")}
+          </h1>
+          <p className="text-sm text-foreground/75 leading-relaxed">
+            {t(
+              "Your account does not have access to this page.",
+              "Votre compte n'a pas accès à cette page."
+            )}
+          </p>
+        </main>
+      </Layout>
+    );
+  }
+
   if (loading) {
     return (
       <Layout>
@@ -173,12 +247,7 @@ const AdminOrder = () => {
       <Layout>
         <main className="container mx-auto px-4 py-16 text-center">
           <p className="text-muted-foreground">
-            {!token
-              ? t(
-                  "Secure link required. Please use the link from the notification e-mail to view this order.",
-                  "Lien sécurisé requis. Merci d'utiliser le lien reçu dans l'e-mail de notification pour consulter cette commande."
-                )
-              : loadError || t("Order not found.", "Commande introuvable.")}
+            {loadError || t("Order not found.", "Commande introuvable.")}
           </p>
         </main>
       </Layout>
@@ -242,13 +311,16 @@ const AdminOrder = () => {
             </span>
           </div>
 
-          {/* Missing token warning */}
-          {!token && !isResolved && (
+          {/* Missing token warning — rare: only when this order genuinely has
+              no order_action_tokens row at all (neither the URL nor
+              get-order-detail's own lookup found one), so Accept/Refuse has
+              nothing to authorise itself with. Viewing is unaffected. */}
+          {!effectiveToken && !isResolved && (
             <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
               <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
               <div className="text-sm text-amber-800">
-                <p className="font-medium">{t("Secure token missing", "Jeton sécurisé manquant")}</p>
-                <p>{t("Please use the link from the notification email to manage this order. Direct access without a token is not permitted.", "Veuillez utiliser le lien reçu dans l'e-mail de notification pour gérer cette commande. L'accès direct sans jeton n'est pas autorisé.")}</p>
+                <p className="font-medium">{t("No action token for this order", "Aucun jeton d'action pour cette commande")}</p>
+                <p>{t("This order has no available action token, so it cannot be accepted or refused from here.", "Cette commande n'a aucun jeton d'action disponible, elle ne peut donc pas être acceptée ou refusée depuis cette page.")}</p>
               </div>
             </div>
           )}
@@ -466,11 +538,11 @@ const AdminOrder = () => {
                 )}
               </p>
               <div className="flex gap-3">
-                <Button onClick={() => handleAction("approve")} disabled={!!actionLoading || !token} className="flex-1">
+                <Button onClick={() => handleAction("approve")} disabled={!!actionLoading || !effectiveToken} className="flex-1">
                   {actionLoading === "approve" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
                   {t("Approve order", "Valider la commande")}
                 </Button>
-                <Button variant="destructive" onClick={() => handleAction("reject")} disabled={!!actionLoading || !token} className="flex-1">
+                <Button variant="destructive" onClick={() => handleAction("reject")} disabled={!!actionLoading || !effectiveToken} className="flex-1">
                   {actionLoading === "reject" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <XCircle className="w-4 h-4 mr-2" />}
                   {t("Refuse order", "Refuser la commande")}
                 </Button>
