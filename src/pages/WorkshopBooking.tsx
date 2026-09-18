@@ -74,7 +74,7 @@ const WorkshopBooking = () => {
 
   // Server-authoritative availability. Re-read on mount and again right before
   // Add to cart; the payment step revalidates server-side once more.
-  const { bySession, loading: availLoading, refresh: refreshAvailability } = useWorkshopAvailability();
+  const { bySession, loading: availLoading, error: availError, refresh: refreshAvailability } = useWorkshopAvailability();
 
   const [step, setStep] = useState(0);
   const [selectedSession, setSelectedSession] = useState<WorkshopSession | null>(null);
@@ -96,20 +96,27 @@ const WorkshopBooking = () => {
     );
   }, [info, t]);
 
-  // Seats left for a session: live count when we have it, else the static
-  // catalogue capacity as a safe fallback.
-  const remainingFor = (sessionId: string, fallback: number): number => {
+  // Seats left for a session — ONLY the live server count once it has
+  // actually resolved. While the RPC hasn't answered yet, or answered with
+  // an error, there is no real number to show: null means "unknown", never
+  // silently replaced by the static per-booking max (spotsLeft), which
+  // would look exactly like a real, confirmed 10/8 free spots.
+  const remainingFor = (sessionId: string): number | null => {
     const row = bySession[sessionId];
-    if (!row) return fallback;
+    if (!row) return null;
     if (!row.is_open) return 0;
     return row.remaining_seats;
   };
-  const sessionSelectable = (s: WorkshopSession): boolean =>
-    remainingFor(s.id, spotsLeft(s)) > 0;
+  const sessionSelectable = (s: WorkshopSession): boolean => {
+    const left = remainingFor(s.id);
+    return left !== null && left > 0;
+  };
 
-  const selectedRemaining = selectedSession
-    ? remainingFor(selectedSession.id, spotsLeft(selectedSession))
-    : 0;
+  // Reached only once a session has actually been selected, which itself
+  // only ever happens once remainingFor() resolved a real number (see
+  // sessionSelectable) — the ?? 0 here is a defensive fallback, not a path
+  // this bug can reach.
+  const selectedRemaining = selectedSession ? (remainingFor(selectedSession.id) ?? 0) : 0;
   const maxAllowed = Math.max(
     1,
     Math.min(info.maxParticipants, selectedSession ? selectedRemaining : info.maxParticipants),
@@ -152,16 +159,17 @@ const WorkshopBooking = () => {
       ) : (
         <div className="space-y-3">
           {sessions.map((s) => {
-            const left = remainingFor(s.id, spotsLeft(s));
-            const full = left <= 0;
+            const left = remainingFor(s.id);
+            const unknown = left === null; // still loading, or the load failed — no real number yet
+            const full = left !== null && left <= 0;
             const selected = selectedSession?.id === s.id;
             return (
               <button
                 key={s.id}
-                disabled={full}
+                disabled={full || unknown}
                 onClick={() => setSelectedSession(s)}
                 className={`w-full text-left border p-4 transition-colors flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4
-                  ${full ? "border-border bg-muted/40 opacity-50 cursor-not-allowed"
+                  ${full || unknown ? "border-border bg-muted/40 opacity-50 cursor-not-allowed"
                     : selected ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/60 bg-card"}`}
               >
@@ -174,7 +182,7 @@ const WorkshopBooking = () => {
                   </p>
                 </div>
                 <div className="text-left sm:text-right sm:shrink-0">
-                  {full ? (
+                  {unknown ? null : full ? (
                     <span className="text-xs uppercase tracking-wider text-muted-foreground">
                       {t("Sold out", "Complet")}
                     </span>
@@ -194,6 +202,11 @@ const WorkshopBooking = () => {
           })}
           {availLoading && (
             <p className="text-xs text-muted-foreground">{t("Checking availability…", "Vérification des disponibilités…")}</p>
+          )}
+          {!availLoading && availError && (
+            <p className="text-xs text-destructive">
+              {t("Availability temporarily unavailable", "Disponibilité momentanément indisponible")}
+            </p>
           )}
         </div>
       )}
