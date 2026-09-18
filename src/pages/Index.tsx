@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -101,6 +101,40 @@ const customerCommentPhotos: string[] = [
   comment21,
 ];
 
+const testimonials = [
+  { text: "Avec grand plaisir ! on vient de le goûter c'est un délice 🥰", photo: comment26 },
+  { text: "Bonjour c'était seulement pour vous remercier du travail que vous avez fait, le gâteau etait très bon en plus d'être très joli. Je reviendrai sûrement vers vous pour une autre commande prochainement. Merci encore 😌", photo: comment7 },
+  { text: "Merci encore il etait innncroyablement bon", photo: comment27 },
+  { text: "Thank you so much for the cake! It was delicious! The best bento cake I ever had! All my guests liked it so much! 🥰", photo: comment8 },
+  { text: "I got the cake thank youuu it looks super cute", photo: comment28 },
+  { text: "Bonjour, Je tiens à vous remercier pour le gâteau, il était délicieux et visuellement parfait 😊", photo: comment9 },
+  { text: "Il était excellent 🙌🙌", photo: comment29 },
+  { text: "Bonjour, je tenais à vous faire un retour pour vos gâteaux — Ils étaient aussi beaux que bons, vraiment incroyables. Merci d'avoir rendu notre fête encore plus belle grâce à vos talents culinaires. 😄🥰❤️", photo: comment10 },
+  { text: "Merci beaucoup pour le gateau il est magnifique vraiment je m'attendais pas à quelque chose d'aussi beau", photo: comment30 },
+  { text: "Merci beaucoup !! Il est magnifique", photo: comment31 },
+  { text: "Hi! Just wanted to say that we loved the cake!:)) it was so good, we devoured it in 5mins 😊 thanks once again 💜", photo: comment11 },
+  { text: "Merci encore pour le gateau! Il etait trop beau et bonnnn 🥰", photo: comment32 },
+  { text: "Bonsoir ! C'était pour vous dire que le red velvet était délicieux une tuerie 🤭", photo: comment12 },
+  { text: "Merci mille fois! Ils etaient magnifiques et delicieux", photo: comment33 },
+  { text: "Merci! Le gâteau était délicieux! 🙏 🌟", photo: comment13 },
+  { text: "Super merci bcp le gâteau est trop mignon 🥰", photo: comment34 },
+  { text: "j'ai adoré merci beaucoup les filles!!! top ce que vous faites", photo: comment14 },
+  { text: "Bonjour, j'espère que vous allez bien ! Merci encore pour le gâteau, il était délicieux 😍", photo: comment35 },
+  { text: "Merci! Adoré ma surprise! 😍", photo: comment15 },
+  { text: "c'était succulentissime merci beaucoup pour le service, je recommanderai sans hésiter 🥰😘", photo: comment36 },
+  { text: "Merci beaucoup, le gâteau est top au visu déjà je suis super contente !", photo: comment37 },
+  { text: "Il est DÉLICIEUX ! WOW. On est choqué. Genre il est juste délicieux. Beau travail et bon travail !", photo: comment16 },
+  { text: "Bonjour merci pour les gâteaux ils étaient super!", photo: comment38 },
+  { text: "Coucou TROP bien !!! On vient de tout finir ! Ma famille a adoré ! Tu risques de recevoir beaucoup de commandes pour tous les évènements 🤣🤣 joyeux noel ! 🎅🤍✨🎄", photo: comment17 },
+  { text: "Je viens de goûter et puis c'est un vrai délice merci beaucoup. La génoise est juste parfaite", photo: comment39 },
+  { text: "Fantastique vraiment. Aussi bon qu'il est beau. C'était génial. Ma soeur et les invités adorent !!! Merci encore vraiment. J'adore ce que tu fais et j'espère que tu t'amuses à les faire.", photo: comment18 },
+  { text: "C'était délicieux merci beaucoup!!!", photo: comment40 },
+  { text: "Hey thanks sooo much for the lovely cake ! It was just the perfect size and so yummy ! Loved it x", photo: comment19 },
+  { text: "Encore merci pour le gâteau, il était incroyable!!", photo: comment41 },
+  { text: "Merci pour le gateau, mes invitées ont beaucoup aimé! Il y en avait presque plus à la fin", photo: comment42 },
+  { text: "Oh my god. The cake is breathtaking. It's so so so pretty. And the taste — oh my god so so so good. No egg taste. Not too sweet but just the flavor. WOW. Sincèrement merci beaucoup", photo: comment21 },
+];
+
 /* Original hand-drawn brand illustrations, cropped from the Canva design */
 const features = [
   {
@@ -189,22 +223,52 @@ const Index = () => {
   const mobileVideoRef = useRef<HTMLVideoElement>(null);
   const { t, lang } = useLang();
 
-  // iOS Safari ignores autoplay HTML attribute — call .play() explicitly after mount
+  // iOS Safari ignores the `autoplay` HTML attribute unless we also call
+  // .play() programmatically after mount with muted=true already set.
   useEffect(() => {
     const v = mobileVideoRef.current;
     if (!v) return;
     v.muted = true;
-    v.play().catch(() => {/* autoplay blocked, silent */});
+    v.play().catch(() => {/* autoplay blocked by browser/device policy, silent */});
   }, []);
 
   const scrollDiscover = (dir: "left" | "right") => {
     discoverRef.current?.scrollBy({ left: dir === "left" ? -360 : 360, behavior: "smooth" });
   };
 
+  // Testimonials state
+  const [testimonialPage, setTestimonialPage] = useState(0);
+  const [modalPhoto, setModalPhoto] = useState<string | null>(null);
+  const [cardsPerPage, setCardsPerPage] = useState(() => {
+    if (typeof window === "undefined") return 3;
+    if (window.innerWidth >= 1024) return 3;
+    if (window.innerWidth >= 640) return 2;
+    return 1;
+  });
+
+  useEffect(() => {
+    const update = () => {
+      const cpp = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
+      setCardsPerPage(cpp);
+      setTestimonialPage(0);
+    };
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  useEffect(() => {
+    if (!modalPhoto) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setModalPhoto(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modalPhoto]);
+
+  const totalTestimonialPages = Math.ceil(testimonials.length / cardsPerPage);
+
   return (
     <Layout overlayHero>
       {/* Hero Section */}
-      <section className="relative text-primary-foreground overflow-hidden min-h-[65vh] md:min-h-0 md:aspect-video">
+      <section className="relative text-primary-foreground overflow-hidden min-h-[65vh] md:min-h-0 md:aspect-video flex items-center justify-center">
         {/* Mobile video */}
         <video
           ref={mobileVideoRef}
@@ -230,20 +294,20 @@ const Index = () => {
           preload="auto"
         />
         <div className="absolute inset-0 bg-foreground/15" />
-        <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
+        <div className="relative container mx-auto px-4 py-20 md:py-0 text-center text-cream">
           {/* Brand spec: Agrandir Bold 50px, Montserrat stands in until the Agrandir font file is provided */}
-          <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
+          <h1 className="font-sans font-bold text-[40px] md:text-[72px] leading-tight mb-6 max-w-4xl mx-auto">
             {t("LET THEM EAT CAKES", "LET THEM EAT CAKES")}
           </h1>
-          <p className="text-sm md:text-base max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
+          <p className="text-sm md:text-xl max-w-2xl mx-auto opacity-95 mb-10 font-light tracking-wide">
             {t("Signature whipped cream cakes, delicately crafted, beautifully designed, and irresistibly light.", "Des gâteaux signature à la crème fouettée, décorés avec finesse et incroyablement légers.")}
           </p>
           <Button
             size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-2.5 text-[14px] font-medium tracking-[0.105em] rounded-none"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-2.5 text-[14px] md:px-20 md:py-3.5 md:text-[22px] font-medium tracking-[0.105em] rounded-none"
             asChild
           >
-            <Link to="/catalog">{t("SHOP NOW", "COMMANDER")}</Link>
+            <Link to="/catalog">{t("ORDER NOW", "COMMANDER")}</Link>
           </Button>
         </div>
       </section>
@@ -345,15 +409,109 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Customer Comments Section */}
-      <section className="pt-2 pb-2 bg-background">
+      {/* Testimonials Section — LOVED BY YOU */}
+      <section className="pt-12 pb-12 bg-background">
         <div className="container mx-auto px-4">
           <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-2">
-            {t("CUSTOMER COMMENTS", "AVIS CLIENTS")}
+            {t("LOVED BY YOU", "VOS PETITS MOTS")}
           </h2>
-          <PhotoCarousel photos={customerCommentPhotos} altPrefix="Customer comment" contain />
+          <p className="text-center text-sm text-foreground/55 mb-6 tracking-wide">
+            {t("Sweet words from our customers", "Les doux mots de nos clients")}
+          </p>
+
+          {/* Cards grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {testimonials
+              .slice(testimonialPage * cardsPerPage, (testimonialPage + 1) * cardsPerPage)
+              .map((testimonial, i) => (
+                <div
+                  key={`${testimonialPage}-${i}`}
+                  className="border border-foreground/12 bg-background p-5 flex flex-col gap-2"
+                >
+                  <div className="text-foreground/70 text-sm tracking-widest">★★★★★</div>
+                  <p className="text-foreground/75 text-[13px] leading-snug flex-1 italic">
+                    "{testimonial.text}"
+                  </p>
+                </div>
+              ))}
+          </div>
+
+          {/* Dot navigation — 3 indicators */}
+          <div className="flex items-center justify-center gap-3 mt-7">
+            <button
+              onClick={() => setTestimonialPage(p => Math.max(0, p - 1))}
+              disabled={testimonialPage === 0}
+              className="p-1 text-foreground/40 hover:text-foreground disabled:opacity-20 transition-colors"
+              aria-label="Previous"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={() => setTestimonialPage(0)}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  testimonialPage === 0 ? "bg-foreground scale-125" : "bg-foreground/25 hover:bg-foreground/50"
+                }`}
+                aria-label="First page"
+              />
+              {totalTestimonialPages > 2 && (
+                <button
+                  onClick={() => setTestimonialPage(Math.floor(totalTestimonialPages / 2))}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    testimonialPage > 0 && testimonialPage < totalTestimonialPages - 1
+                      ? "bg-foreground scale-125"
+                      : "bg-foreground/25 hover:bg-foreground/50"
+                  }`}
+                  aria-label="Middle page"
+                />
+              )}
+              <button
+                onClick={() => setTestimonialPage(totalTestimonialPages - 1)}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  testimonialPage === totalTestimonialPages - 1 ? "bg-foreground scale-125" : "bg-foreground/25 hover:bg-foreground/50"
+                }`}
+                aria-label="Last page"
+              />
+            </div>
+
+            <button
+              onClick={() => setTestimonialPage(p => Math.min(totalTestimonialPages - 1, p + 1))}
+              disabled={testimonialPage === totalTestimonialPages - 1}
+              className="p-1 text-foreground/40 hover:text-foreground disabled:opacity-20 transition-colors"
+              aria-label="Next"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </section>
+
+      {/* Screenshot modal/lightbox */}
+      {modalPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setModalPhoto(null)}
+        >
+          <div
+            className="relative max-w-sm w-full max-h-[85vh] overflow-auto bg-white"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setModalPhoto(null)}
+              className="absolute top-2 right-3 text-black/50 hover:text-black text-2xl font-light z-10 leading-none"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <img
+              src={modalPhoto}
+              alt="Original customer message"
+              className="w-full h-auto block"
+            />
+          </div>
+        </div>
+      )}
 
       {/* CTA Section, lace doily style */}
       <section className="pt-4 pb-16 bg-background">

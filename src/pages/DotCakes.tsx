@@ -57,8 +57,8 @@ const tierNoteFr: Record<string, string> = {
 const INITIAL_CANDLES_SHOWN = 4;
 
 const dotGallery = [
-  dotGallery1, dotGallery2, dotGallery3, dotGallery4, dotGallery5,
-  dotGallery6, dotGallery7, dotGallery8, dotGallery9,
+  dotGallery1, dotGallery2, dotGallery3, dotGallery4,
+  dotGallery6, dotGallery7, dotGallery8, dotGallery9, dotGallery5,
 ];
 
 const DotGallery = () => {
@@ -73,9 +73,9 @@ const DotGallery = () => {
       <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em] text-foreground">
         {t("Dot Cake Moments", "Dot Cake Moments")}
       </h2>
-      <div className="relative">
+      <div className="relative overflow-hidden">
         <button onClick={() => scroll("left")} aria-label={t("Previous", "Precedent")}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md -ml-3">
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
           <ChevronLeft className="h-5 w-5 text-foreground" />
         </button>
         <div ref={scrollRef} className="flex gap-4 overflow-x-auto scroll-smooth px-3" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
@@ -86,7 +86,7 @@ const DotGallery = () => {
           ))}
         </div>
         <button onClick={() => scroll("right")} aria-label={t("Next", "Suivant")}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md -mr-3">
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
           <ChevronRight className="h-5 w-5 text-foreground" />
         </button>
       </div>
@@ -262,7 +262,7 @@ const DotCakes = () => {
         {/* SIDEBAR */}
 
         {/* MAIN */}
-        <main className="w-full max-w-2xl mx-auto py-12 px-4">
+        <main className="w-full max-w-2xl mx-auto pt-12 pb-2 px-4">
           <h1 className="font-sans text-4xl md:text-5xl tracking-[0.105em] uppercase text-foreground mb-6 font-semibold text-center">
             {t("Dot Cakes", "Dot Cakes")}
           </h1>
@@ -277,7 +277,7 @@ const DotCakes = () => {
 
           {/* CTA — visible only before configurator opens */}
           {!configuratorVisible && (
-            <div className="flex flex-col items-center gap-8 mb-12">
+            <div className="flex flex-col items-center gap-8 mb-2">
               <button
                 onClick={() => {
                   setConfiguratorVisible(true);
@@ -286,8 +286,6 @@ const DotCakes = () => {
               >
                 {t("Build your box →", "Composez votre box →")}
               </button>
-              {/* Dot Gallery image – shown on landing screen */}
-              <DotGallery />
             </div>
           )}
 
@@ -454,7 +452,7 @@ const DotCakes = () => {
                   return (
                     <SelectItem key={flavor.id} value={flavor.id} itemText={label}>
                       <div className="flex items-start gap-2">
-                        <img src={flavor.image} alt={flavor.name} className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
+                        <img src={flavor.image} alt={flavor.name} className="w-12 h-12 object-contain flex-shrink-0" />
                         <div>
                           <span>{t(flavor.name, (flavor as { nameFr?: string }).nameFr ?? flavor.name)}</span>
                           {(flavor.description || flavor.descriptionFr) && (
@@ -715,9 +713,9 @@ const DotCakes = () => {
       </div>
       </div>
 
-      {/* Gallery — always shown outside the configurator wrapper */}
+      {/* Gallery — always shown */}
       <div className="container mx-auto px-6 py-8 md:py-16">
-        {configuratorVisible && <DotGallery />}
+        <DotGallery />
       </div>
     </Layout>
   );

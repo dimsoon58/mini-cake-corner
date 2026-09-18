@@ -165,7 +165,7 @@ const Contact = () => {
                 </svg>
                 <div className="min-w-0">
                   <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-semibold">Email</p>
-                  <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors break-all">contact@bentocakestudio.ch</p>
+                  <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors break-words">contact@bentocakestudio.ch</p>
                 </div>
               </a>
               {/* WhatsApp */}

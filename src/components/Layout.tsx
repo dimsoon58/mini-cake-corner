@@ -43,9 +43,9 @@ const navLinks: NavItem[] = [
     { to: "/kit-bento-cake", label: "Bento Kit" },
     { to: "/candles", label: "Candles" },
   ] },
-  { to: "/printing", label: "Printing" },
   { to: "/inspiration", label: "Inspirations" },
   { to: "/workshop", label: "Workshop" },
+  { to: "/printing", label: "Printing" },
   { label: "Partnerships & Press", children: [
     { to: "/business", label: "Partnerships" },
     { to: "/community-press", label: "Press" },

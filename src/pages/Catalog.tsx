@@ -2850,7 +2850,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
             <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-10">
               {t("CUSTOM REQUEST", "CRÉATION SUR MESURE")}
             </div>
-            <div className="text-center max-w-2xl mx-auto py-6">
+            <div className="border-2 border-primary p-2 max-w-2xl mx-auto mt-2">
+            <div className="border border-primary text-center py-10 px-8">
               <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-4">
                 {t("CAN'T FIND WHAT YOU'RE LOOKING FOR?", "VOUS NE TROUVEZ PAS CE QUE VOUS CHERCHEZ ?")}
               </h3>
@@ -2872,6 +2873,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   <CustomRequestForm />
                 </div>
               )}
+            </div>
             </div>
           </section>
         </div>

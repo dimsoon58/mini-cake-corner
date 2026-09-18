@@ -523,8 +523,8 @@ const cards: {
 }[] = [
   {
     id: "celebrations",
-    title: "Corporate Celebrations",
-    titleFr: "Célébrations d'entreprise",
+    title: "Corporate Subscriptions",
+    titleFr: "Abonnements Entreprises",
     subtitle: "Make every employee birthday one to remember.",
     subtitleFr: "Faites de chaque anniversaire de vos employés un moment mémorable.",
     checks: [
@@ -689,13 +689,13 @@ const Business = () => {
           {cards.map((card) => (
             <div
               key={card.id}
-              className="flex flex-col h-full border border-border/60 bg-card overflow-hidden hover:border-foreground/25 transition-colors duration-300"
+              className="flex flex-col h-full border border-transparent bg-card overflow-hidden hover:border-foreground/25 transition-colors duration-300"
             >
               <div className="aspect-[4/3] overflow-hidden bg-muted/30">
                 <img
                   src={card.image}
                   alt={t(card.title, card.titleFr)}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover scale-[1.03] hover:scale-[1.08] transition-transform duration-300"
                 />
               </div>
               <div className="flex flex-col flex-1 p-6">
@@ -736,7 +736,7 @@ const Business = () => {
             <>
               <DialogHeader>
                 <DialogTitle className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">
-                  {t("Corporate Celebrations", "Célébrations d'entreprise")}
+                  {t("Corporate Subscriptions", "Abonnements Entreprises")}
                 </DialogTitle>
               </DialogHeader>
               <CelebrationsForm onSuccess={() => setView("done")} />
@@ -745,7 +745,7 @@ const Business = () => {
             <>
               <DialogHeader>
                 <DialogTitle className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">
-                  {t("Corporate Celebrations", "Célébrations d'entreprise")}
+                  {t("Corporate Subscriptions", "Abonnements Entreprises")}
                 </DialogTitle>
                 <DialogDescription className="text-muted-foreground leading-relaxed pt-1">
                   {t("Share your team's birthday calendar once, and we take care of the rest.", "Partagez une seule fois le calendrier des anniversaires de votre équipe, nous nous occupons du reste.")}
