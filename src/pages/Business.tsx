@@ -695,7 +695,7 @@ const Business = () => {
                 <img
                   src={card.image}
                   alt={t(card.title, card.titleFr)}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover scale-[1.03] hover:scale-[1.08] transition-transform duration-300"
                 />
               </div>
               <div className="flex flex-col flex-1 p-6">
