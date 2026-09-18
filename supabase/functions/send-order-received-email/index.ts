@@ -98,6 +98,18 @@ function getCustomerLang(order: any): "fr" | "en" {
   return order?.lang === "en" ? "en" : "fr";
 }
 
+// Natural, comma-joined list of the order's actual product/workshop names —
+// e.g. "Atelier Peinture et Bento Cake" — used only where the mixed-order
+// text needs to name what's really in the cart instead of a generic
+// "workshop and cake/products together" category label.
+function joinNaturally(names: string[], lang: "en" | "fr"): string {
+  const unique = Array.from(new Set(names));
+  if (unique.length <= 1) return unique[0] ?? "";
+  const last = unique[unique.length - 1];
+  const rest = unique.slice(0, -1).join(", ");
+  return `${rest} ${lang === "fr" ? "et" : "and"} ${last}`;
+}
+
 // Fixed pickup address — shown systematically whenever a date/method row
 // says "Pickup at store", never left implicit. Same address as elsewhere
 // (Footer.tsx, _shared/delivery-pricing.ts's DELIVERY_ORIGIN).
@@ -116,6 +128,17 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
   // part is pending. send-order-received-email is only invoked for orders with
   // a physical part, so this is 'mixed' vs 'cake_only'.
   const isMixed = order.fulfillment_type === "mixed";
+  // Real product/workshop names actually in this order — never a static
+  // "workshop and cake/products together" category label. Only needed (and
+  // only computed) for the mixed-order pending-validation text below.
+  const orderedProductNames = isMixed
+    ? joinNaturally(
+        items.map((it) => it.product === "workshop"
+          ? (it.workshop_type === "paint" ? tr("Paint Workshop", "Atelier Peinture") : tr("Signature Workshop", "Atelier Signature"))
+          : productLabel(it.product, lang)),
+        lang,
+      )
+    : "";
   const deliveryInfo = order.delivery_method === "delivery"
     ? tr("Delivery", "Livraison")
     : tr("Pickup at store", "Retrait sur place");
@@ -187,11 +210,11 @@ ${brandDarkModeStyle()}
   <tr><td style="padding:0 20px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
   <tr><td>
-      <div style="padding:36px 40px 0;text-align:center;">
-        <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
+      <div class="bcs-content-pad" style="padding:36px 40px 0;text-align:center;">
+        <img class="bcs-logo" src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <div class="bcs-text" style="padding:0 40px 36px;">
+      <div class="bcs-text bcs-content-pad" style="padding:0 40px 36px;">
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Hello", "Bonjour")} ${firstName},
         </p>
@@ -204,8 +227,8 @@ ${brandDarkModeStyle()}
 
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 20px;">
           ${tr(
-            `We have successfully received your order <strong>#${orderNumber}</strong>. Nothing has been charged yet — only your payment method has been authorized.`,
-            `Nous avons bien reçu votre commande <strong>n° ${orderNumber}</strong>. Aucun montant n'a encore été prélevé — seul votre moyen de paiement a été autorisé.`
+            `We have successfully received your order <strong>#${orderNumber}</strong>. Nothing has been charged yet, only your payment method has been authorized.`,
+            `Nous avons bien reçu votre commande <strong>n° ${orderNumber}</strong>. Aucun montant n'a encore été prélevé, seul votre moyen de paiement a été autorisé.`
           )}
         </p>
 
@@ -213,8 +236,8 @@ ${brandDarkModeStyle()}
           <p style="color:#351E13;font-size:15px;line-height:1.7;margin:0;">
             ${isMixed
               ? tr(
-                  "Your order — workshop and cake / products together — is currently pending validation by our team. We will review it and confirm as soon as possible whether we can fulfil it. Your payment will only be taken once confirmed.",
-                  "Votre commande — atelier et gâteau / produits ensemble — est actuellement en attente de validation par notre équipe. Nous allons l'examiner et vous confirmer dans les plus brefs délais si nous pouvons la réaliser. Votre paiement ne sera prélevé qu'une fois la commande confirmée.",
+                  `Your order, ${orderedProductNames}, is currently pending validation by our team. We will review it and confirm as soon as possible whether we can fulfil it. Your payment will only be taken once confirmed.`,
+                  `Votre commande, ${orderedProductNames}, est actuellement en attente de validation par notre équipe. Nous allons l'examiner et vous confirmer dans les plus brefs délais si nous pouvons la réaliser. Votre paiement ne sera prélevé qu'une fois la commande confirmée.`,
                 )
               : tr(
                   "Your order is currently pending validation by our team. We will review the details of your order and confirm as soon as possible whether we can fulfil it. Your payment will only be taken once confirmed.",
@@ -235,24 +258,24 @@ ${brandDarkModeStyle()}
         </p>
         <table style="border-collapse:collapse;width:100%;border:1px solid ${EMAIL_ACCENT_COLOR};">
           <tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
-            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};width:48%;font-family:${EMAIL_FONT_STACK};">${tr("Order number", "Numéro de commande")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${orderNumber}</td>
+            <td class="bcs-label bcs-row-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};width:48%;font-family:${EMAIL_FONT_STACK};">${tr("Order number", "Numéro de commande")}</td>
+            <td class="bcs-text bcs-row-value" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${orderNumber}</td>
           </tr>
           ${groupByFulfillment
             ? physicalFulfillmentIds.map(fulfillmentBlockHtml).join("")
             : `
           ${hasPickupOrDelivery ? `<tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
-            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${formatDateCH(order.pickup_delivery_date)}</td>
+            <td class="bcs-label bcs-row-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Pickup/delivery date", "Date de retrait/livraison")}</td>
+            <td class="bcs-text bcs-row-value" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${formatDateCH(order.pickup_delivery_date)}</td>
           </tr>` : ""}
-          ${hasPickupOrDelivery && order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};"><td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Time slot", "Créneau")}</td><td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${order.pickup_delivery_slot}</td></tr>` : ""}
+          ${hasPickupOrDelivery && order.pickup_delivery_slot ? `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};"><td class="bcs-label bcs-row-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Time slot", "Créneau")}</td><td class="bcs-text bcs-row-value" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${order.pickup_delivery_slot}</td></tr>` : ""}
           ${hasPickupOrDelivery ? `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
-            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Method", "Mode")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${deliveryInfo}</td>
+            <td class="bcs-label bcs-row-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Method", "Mode")}</td>
+            <td class="bcs-text bcs-row-value" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${deliveryInfo}</td>
           </tr>` : ""}
           ${hasPickupOrDelivery && order.delivery_method !== "delivery" ? `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
-            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Address", "Adresse")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${STORE_ADDRESS}</td>
+            <td class="bcs-label bcs-row-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Address", "Adresse")}</td>
+            <td class="bcs-text bcs-row-value" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${STORE_ADDRESS}</td>
           </tr>` : ""}
           `}
           <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
@@ -264,8 +287,8 @@ ${brandDarkModeStyle()}
         <p style="color:#351E13;font-size:13px;line-height:1.7;margin:24px 0 0;border-top:1px solid ${EMAIL_ACCENT_COLOR};padding-top:20px;">
           <strong>${tr("Important:", "Important :")}</strong><br/>
           ${tr(
-              "Your order is not yet definitively confirmed until you receive our acceptance email. If it is declined, nothing will be charged — the authorization on your payment method will simply be released.",
-              "Votre commande n'est pas encore définitivement confirmée tant que vous n'avez pas reçu notre email d'acceptation. En cas de refus, aucun montant ne sera prélevé — l'autorisation sur votre moyen de paiement sera simplement annulée."
+              "Your order is not yet definitively confirmed until you receive our acceptance email. If it is declined, nothing will be charged, the authorization on your payment method will simply be released.",
+              "Votre commande n'est pas encore définitivement confirmée tant que vous n'avez pas reçu notre email d'acceptation. En cas de refus, aucun montant ne sera prélevé, l'autorisation sur votre moyen de paiement sera simplement annulée."
             )}
         </p>
 

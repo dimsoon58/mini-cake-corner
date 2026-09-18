@@ -56,9 +56,39 @@ export const FORCE_LIGHT_META_TAGS =
 // as a style block (not removed) only because Gmail's mobile apps need one
 // present to fully suppress their own auto-invert; there is no alternate
 // dark palette.
+// Mobile-only layout tightening (2026-09-19) — additive, class-hooked exactly
+// like the dark-mode overrides above, and touches NOTHING on desktop: these
+// rules only ever apply under the 480px breakpoint, so every existing inline
+// style (which has no !important) keeps winning above it. Three hooks:
+//   .bcs-logo         the 240px wordmark — too wide relative to a ~255px-net
+//                      content column on a 375px phone (40px card padding on
+//                      each side); shrunk to 160px.
+//   .bcs-content-pad   the card's own 40px side padding — reduced so more of
+//                      a narrow screen's width is usable content, not margin.
+//   .bcs-row-label /
+//   .bcs-row-value     the two <td>s of every label/value or item/price
+//                      table row across every template — stacked (block,
+//                      full width) instead of squeezed side-by-side, so long
+//                      labels/descriptions never get crushed into a sliver
+//                      next to a nowrap price/value column.
+export const MOBILE_LAYOUT_STYLE = `
+  @media (max-width: 480px) {
+    .bcs-logo { width: 160px !important; }
+    .bcs-content-pad { padding-left: 20px !important; padding-right: 20px !important; }
+    .bcs-row-label, .bcs-row-value {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+      white-space: normal !important;
+    }
+    .bcs-row-value { padding-top: 2px !important; }
+  }`;
+
 export function brandDarkModeStyle(): string {
   return `<style>
   :root { color-scheme: light only !important; supported-color-schemes: light !important; }
+  ${MOBILE_LAYOUT_STYLE}
   @media (prefers-color-scheme: dark) {
     .bcs-outer, .bcs-spacer { background-color: #78020C !important; }
     .bcs-card { background-color: #FFF9DB !important; background-image: linear-gradient(#FFF9DB,#FFF9DB) !important; }

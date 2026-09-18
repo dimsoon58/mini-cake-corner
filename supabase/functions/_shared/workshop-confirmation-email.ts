@@ -126,8 +126,8 @@ export function renderWorkshopConfirmationEmail(
 
   const rowCell = (label: string, value: string, uppercase = false) =>
     `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
-      <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};width:48%;font-family:${EMAIL_FONT_STACK};">${label}</td>
-      <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};${uppercase ? "text-transform:uppercase;" : ""}">${value}</td>
+      <td class="bcs-label bcs-row-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};width:48%;font-family:${EMAIL_FONT_STACK};">${label}</td>
+      <td class="bcs-text bcs-row-value" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};${uppercase ? "text-transform:uppercase;" : ""}">${value}</td>
     </tr>`;
 
   const blocks = workshopItems.map((it, i) => {
@@ -181,11 +181,11 @@ ${brandDarkModeStyle()}
   <tr><td style="padding:0 20px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
   <tr><td>
-      <div style="padding:36px 40px 0;text-align:center;">
-        <img src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
+      <div class="bcs-content-pad" style="padding:36px 40px 0;text-align:center;">
+        <img class="bcs-logo" src="${logoUrl}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <div class="bcs-text" style="padding:0 40px 36px;">
+      <div class="bcs-text bcs-content-pad" style="padding:0 40px 36px;">
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Hello", "Bonjour")} ${firstName},
         </p>

@@ -9,7 +9,9 @@ import {
   customerName,
   physicalItemDescription,
   getCustomerLang,
+  productLabel,
 } from "../_shared/cake-order-confirmation-email.ts";
+import { workshopTitle } from "../_shared/workshops.ts";
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
 import {
   EMAIL_ACCENT_COLOR,
@@ -100,6 +102,18 @@ async function sendApprovalEmail(resendApiKey: string, order: any, items: any[],
 
 // ── Decline customer email ──────────────────────────────────────────
 
+// Natural, comma-joined list of the order's actual product/workshop names —
+// e.g. "Atelier Peinture et Bento Cake" — used only where the mixed-order
+// text needs to name what's really in the cart instead of a generic
+// "cake/products and workshop together" category label.
+function joinNaturally(names: string[], lang: "en" | "fr"): string {
+  const unique = Array.from(new Set(names));
+  if (unique.length <= 1) return unique[0] ?? "";
+  const last = unique[unique.length - 1];
+  const rest = unique.slice(0, -1).join(", ");
+  return `${rest} ${lang === "fr" ? "et" : "and"} ${last}`;
+}
+
 async function sendDeclineEmail(
   resendApiKey: string,
   order: any,
@@ -117,6 +131,17 @@ async function sendDeclineEmail(
     || (declineWorkshopItems.length > 0 && declinePhysicalItems.length === 0);
   const mixed = opts?.fulfillmentType === "mixed"
     || (declineWorkshopItems.length > 0 && declinePhysicalItems.length > 0);
+  // Real product/workshop names actually in this order — never a static
+  // "cake/products and workshop together" category label.
+  const declinedProductNames = mixed
+    ? joinNaturally(
+        [
+          ...declineWorkshopItems.map((it: any) => workshopTitle(it.workshop_type ?? "signature", lang)),
+          ...declinePhysicalItems.map((it: any) => productLabel(it.product, lang)),
+        ],
+        lang,
+      )
+    : "";
 
   // 2026-09-15 (deferred capture restored): Refuse now voids the WHOLE
   // order's authorization before this email is even sent (manage-order/
@@ -132,8 +157,8 @@ async function sendDeclineEmail(
         "Votre commande a donc été annulée. Le montant utilisé depuis votre cagnotte a été recrédité sur votre compte."
       )
     : tr(
-        "Your order has therefore been cancelled. Nothing was charged — the authorization on your payment method has been released, and no further action is needed on your end.",
-        "Votre commande a donc été annulée. Aucun montant n'a été prélevé — l'autorisation sur votre moyen de paiement a été annulée, et vous n'avez rien d'autre à faire de votre côté."
+        "Your order has therefore been cancelled. Nothing was charged, the authorization on your payment method has been released, and no further action is needed on your end.",
+        "Votre commande a donc été annulée. Aucun montant n'a été prélevé, l'autorisation sur votre moyen de paiement a été annulée, et vous n'avez rien d'autre à faire de votre côté."
       );
 
   const html = `
@@ -149,11 +174,11 @@ ${brandDarkModeStyle()}
   <tr><td style="padding:0 20px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
   <tr><td>
-      <div style="padding:36px 40px 0;text-align:center;">
-        <img src="${getLogoEmailUrl()}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
+      <div class="bcs-content-pad" style="padding:36px 40px 0;text-align:center;">
+        <img class="bcs-logo" src="${getLogoEmailUrl()}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
 
-      <div class="bcs-text" style="padding:0 40px 36px;">
+      <div class="bcs-text bcs-content-pad" style="padding:0 40px 36px;">
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">
           ${tr("Hello", "Bonjour")} ${order.first_name || ""},
         </p>
@@ -174,8 +199,8 @@ ${brandDarkModeStyle()}
                 )
               : mixed
                 ? tr(
-                    `We regret to inform you that your order <strong>${orderNumber}</strong> — cake / products and workshop together — cannot be confirmed.`,
-                    `Nous sommes au regret de vous informer que votre commande <strong>n° ${orderNumber}</strong> — gâteau / produits et atelier ensemble — ne peut pas être confirmée.`
+                    `We regret to inform you that your order <strong>${orderNumber}</strong>, ${declinedProductNames}, cannot be confirmed.`,
+                    `Nous sommes au regret de vous informer que votre commande <strong>n° ${orderNumber}</strong>, ${declinedProductNames}, ne peut pas être confirmée.`
                   )
                 : tr(
                     `We regret to inform you that your order <strong>${orderNumber}</strong>, scheduled for <strong>${formatDateCH(order.pickup_delivery_date)}</strong>, cannot be fulfilled.`,
@@ -200,18 +225,18 @@ ${brandDarkModeStyle()}
         </p>
         <table style="border-collapse:collapse;width:100%;border:1px solid ${EMAIL_ACCENT_COLOR};margin:0 0 24px;">
           <tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
-            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};width:48%;font-family:${EMAIL_FONT_STACK};">${tr("Order", "Commande")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${orderNumber}</td>
+            <td class="bcs-label bcs-row-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};width:48%;font-family:${EMAIL_FONT_STACK};">${tr("Order", "Commande")}</td>
+            <td class="bcs-text bcs-row-value" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${orderNumber}</td>
           </tr>
           <tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
-            <td class="bcs-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Amount", "Montant")}</td>
-            <td class="bcs-text" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">CHF ${amountCHF}</td>
+            <td class="bcs-label bcs-row-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Amount", "Montant")}</td>
+            <td class="bcs-text bcs-row-value" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">CHF ${amountCHF}</td>
           </tr>
           <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
-            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:${EMAIL_FONT_STACK};">${tr("Status", "Statut")}</td>
-            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${rewardOnly
+            <td class="bcs-accent-text bcs-row-label" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:${EMAIL_FONT_STACK};">${tr("Status", "Statut")}</td>
+            <td class="bcs-accent-text bcs-row-value" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${rewardOnly
               ? tr("Reward balance credited", "Cagnotte recréditée")
-              : tr("Authorization cancelled — nothing charged", "Autorisation annulée — aucun montant prélevé")}</td>
+              : tr("Authorization cancelled, nothing charged", "Autorisation annulée, aucun montant prélevé")}</td>
           </tr>
         </table>
 

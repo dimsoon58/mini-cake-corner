@@ -3,6 +3,7 @@ import { getSiteBaseUrl, getLogoEmailUrl } from "../_shared/site-config.ts";
 
 import { Webhook } from "npm:standardwebhooks@1.0.0";
 import { EMAIL_LABEL_COLOR, EMAIL_SMALL_SIZE } from "../_shared/email-styles.ts";
+import { MOBILE_LAYOUT_STYLE } from "../_shared/email-darkmode.ts";
 
 // Supabase Auth Send Email Hook → this function → Resend API → customer.
 // Called server-to-server by Supabase itself (signature-verified via
@@ -81,6 +82,7 @@ function wrapEmail(bodyHtml: string): string {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root { color-scheme: light only !important; supported-color-schemes: light !important; }
+  ${MOBILE_LAYOUT_STYLE}
   @media (prefers-color-scheme: dark) {
     .bcs-outer, .bcs-spacer { background-color: #78020C !important; }
     .bcs-card { background-color: #FFF9DB !important; background-image: linear-gradient(#FFF9DB,#FFF9DB) !important; }
@@ -103,10 +105,10 @@ function wrapEmail(bodyHtml: string): string {
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFF9DB" class="bcs-card" style="background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
                 <tr>
                   <td>
-                    <div style="padding:36px 40px 0;text-align:center;">
-                      <img src="${LOGO_URL}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
+                    <div class="bcs-content-pad" style="padding:36px 40px 0;text-align:center;">
+                      <img class="bcs-logo" src="${LOGO_URL}" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
                     </div>
-                    <div class="bcs-text" style="padding:0 40px 36px;color:#351E13;-webkit-text-fill-color:#351E13;font-size:15px;line-height:1.8;">
+                    <div class="bcs-text bcs-content-pad" style="padding:0 40px 36px;color:#351E13;-webkit-text-fill-color:#351E13;font-size:15px;line-height:1.8;">
                       ${bodyHtml}
                     </div>
                   </td>
