@@ -689,7 +689,7 @@ const Business = () => {
           {cards.map((card) => (
             <div
               key={card.id}
-              className="flex flex-col h-full border border-border/60 bg-card overflow-hidden hover:border-foreground/25 transition-colors duration-300"
+              className="flex flex-col h-full border border-transparent bg-card overflow-hidden hover:border-foreground/25 transition-colors duration-300"
             >
               <div className="aspect-[4/3] overflow-hidden bg-muted/30">
                 <img
