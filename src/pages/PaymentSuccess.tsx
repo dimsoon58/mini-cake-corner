@@ -149,9 +149,23 @@ const PaymentSuccess = () => {
 
     confirm();
     intervalId = setInterval(confirm, 4000);
+
+    // Mobile browsers throttle setInterval heavily in a backgrounded tab
+    // (e.g. the customer switching away to check the "order received"
+    // e-mail that just arrived) — the poll can then lag far behind wall-
+    // clock time even though the server finished in seconds. Firing an
+    // immediate check the moment the tab becomes visible again means the
+    // page catches up instantly instead of waiting for the throttled timer
+    // to resume on its own.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") confirm();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
       mounted = false;
       stop();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [orderId, phase, capacity]);
 
