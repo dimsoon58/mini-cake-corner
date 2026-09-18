@@ -225,7 +225,16 @@ const Candles = () => {
     if (numberCandleDigits.length === 0) return;
     const qty = numberCandleDigits.length;
     const price = qty * NUMBER_CANDLE_PRICE;
-    const label = composeCandleName({ digits: numberCandleDigits }, t("Number Candle", "Bougie chiffre"));
+    // English literal, never t(...) — every other candle model persists (and
+    // displays in the cart) its plain English .name, never .nameFr (see
+    // handleAddToCart above: `${qty}× ${candle.name}`); Checkout.tsx reads
+    // candleProductName verbatim into order_items.candle_name for a
+    // standalone candle purchase, so a localized label here would both show
+    // inconsistently (this one candle in French, every other in English) AND
+    // break candleImageFromName's "Number Candle" match in
+    // src/lib/itemDisplayImage.ts (admin/MyOrders order photo resolution),
+    // which is exactly what was showing the wrong candle photo.
+    const label = composeCandleName({ digits: numberCandleDigits }, "Number Candle");
 
     addItem({
       id: "",
@@ -233,7 +242,7 @@ const Candles = () => {
       orderDate: "",
       orderTime: "",
       size: "candles",
-      sizeName: `${qty}× ${t("Number Candle", "Bougie chiffre")}`,
+      sizeName: `${qty}× Number Candle`,
       shape: "",
       shapeName: "",
       flavor: "",
@@ -262,6 +271,7 @@ const Candles = () => {
       isCandleProduct: true,
       candleProductId: NUMBER_CANDLE_ID,
       candleProductName: label,
+      candleProductImage: NUMBER_CANDLE_IMAGES[numberCandleDigits[0]],
       candleProductVariant: numberCandleDigits.join(", "),
       candleProductQty: qty,
       candleProductHasPack: false,

@@ -96,10 +96,17 @@ const NUMBER_CANDLE_IMAGE: Record<string, string> = {
 // src/lib/candleCartHelpers.ts). Only the base name identifies which model's
 // photo to show; a multi-digit Number Candle line ("Number Candle – 1, 8")
 // shows its first digit as the one representative thumbnail.
+//
+// "Bougie chiffre" (French) is also accepted here — Candles.tsx's standalone
+// Number Candle purchase used to persist the UI's localized label instead of
+// the English name every other candle model persists, so an order placed
+// before that fix has this French string sitting in the database forever.
+// Recognising it here means those existing orders show the right photo too,
+// not just orders placed after the fix.
 export function candleImageFromName(candleName: string | null | undefined): string | null {
   if (!candleName) return null;
   const baseName = candleName.split(" – ")[0].trim();
-  if (baseName === "Number Candle") {
+  if (baseName === "Number Candle" || baseName === "Bougie chiffre") {
     const digit = candleName.match(/\d/)?.[0];
     return digit ? NUMBER_CANDLE_IMAGE[digit] ?? null : null;
   }
