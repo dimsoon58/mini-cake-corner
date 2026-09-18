@@ -76,16 +76,20 @@ export const FORCE_LIGHT_META_TAGS =
 //                      smaller so short values are never squeezed.
 //   .bcs-row-price-label /
 //   .bcs-row-price-value  the two <td>s of an Item/Price, surcharge/discount
-//                      or Total row (cake-order-confirmation-email.ts) —
-//                      these pair a nowrap CHF amount with a variable-length
-//                      label; at phone width the row can't fit both, and
-//                      nowrap used to clip the amount ("CHF 143.10" ->
-//                      "CHF 143") instead of wrapping it. Still stacked
-//                      (block, full width) so the amount always gets the
-//                      whole row to itself — the one case that genuinely
-//                      needs it. Added as separate classes (2026-09-20)
-//                      instead of the generic bcs-row-label/value above, so
-//                      only these specific rows keep the old behaviour.
+//                      or Total row (cake-order-confirmation-email.ts) — a
+//                      nowrap CHF amount next to a label. 2026-09-20: was
+//                      stacked full-width here (the original fix for a real
+//                      truncation bug — a squeezed nowrap amount clipping to
+//                      "CHF 143" with a phantom border) — reverted per
+//                      customer feedback: on mobile these still read as 2
+//                      lines even though the actual content (short labels
+//                      like "TOTAL", "Retro Box — Vanilla") always fits on
+//                      one, unlike on desktop. Given the SAME side-by-side +
+//                      smaller-font treatment as the generic row classes
+//                      above (white-space stays "normal", never "nowrap", so
+//                      a value that genuinely doesn't fit wraps instead of
+//                      clipping — it just no longer forces every row to
+//                      stack regardless of whether it needs to).
 //   .bcs-mobile-br     an inline `<br class="bcs-mobile-br" style="display:
 //                      none;">` planted at ONE deliberate spot inside a run
 //                      of free paragraph text that's too long to fit one
@@ -103,18 +107,11 @@ export const MOBILE_LAYOUT_STYLE = `
     .bcs-logo { width: 160px !important; }
     .bcs-content-pad { padding-left: 20px !important; padding-right: 20px !important; }
     .bcs-mobile-br { display: block !important; }
-    .bcs-row-label, .bcs-row-value {
+    .bcs-row-label, .bcs-row-value,
+    .bcs-row-price-label, .bcs-row-price-value {
       font-size: 12px !important;
       white-space: normal !important;
     }
-    .bcs-row-price-label, .bcs-row-price-value {
-      display: block !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      box-sizing: border-box !important;
-      white-space: normal !important;
-    }
-    .bcs-row-price-value { padding-top: 2px !important; }
   }`;
 
 export function brandDarkModeStyle(): string {
