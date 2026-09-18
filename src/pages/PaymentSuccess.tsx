@@ -11,9 +11,25 @@ import { clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { broadcastOrderCompleted } from "@/lib/orderCompletionChannel";
 
 // Poll confirm-postfinance-payment until it reaches an authoritative outcome.
-// ~4s interval; after this many attempts (~2 min) we stop and show a neutral
-// "still verifying" screen — the webhook will finish the order server-side.
+// ~4s interval; after this many attempts we stop and show a neutral "still
+// verifying" screen — the webhook will finish the order server-side.
 const MAX_POLLS = 30;
+// Per-attempt cap, passed straight to supabase-js's own `timeout` option.
+// @supabase/functions-js's FunctionsClient.invoke() builds a REAL
+// AbortController for this internally and passes its signal into the
+// underlying fetch() call — the network request itself is genuinely
+// aborted when this fires, not merely raced against and left running in
+// the background. invoke() also catches that abort itself and resolves
+// (never rejects) with { data: null, error }, so this alone already turns
+// a hang into a normal, countable failure.
+const CONFIRM_TIMEOUT_MS = 10000;
+// Unconditional backstop, independent of any network response ever
+// arriving at all: a single setTimeout started once when this page's
+// polling begins. It does not depend on invoke()'s own abort working, on
+// pollsRef, on the interval, or on anything else — even in a hypothetical
+// case where every other safeguard somehow fails, this alone guarantees
+// the spinner cannot outlive it.
+const GLOBAL_WATCHDOG_MS = 2 * 60 * 1000;
 
 type Phase = "verifying" | "confirmed" | "failed" | "timeout";
 
@@ -88,63 +104,152 @@ const PaymentSuccess = () => {
     const id = orderId;
     let mounted = true;
     let intervalId: ReturnType<typeof setInterval> | undefined;
-    const stop = () => { if (intervalId !== undefined) clearInterval(intervalId); };
+    // Declared before stop() so stop() can clear it too — assigned just
+    // below; nothing calls stop() before that assignment runs (confirm()
+    // is only ever invoked asynchronously), so there's no ordering hazard.
+    let watchdogId: ReturnType<typeof setTimeout> | undefined;
+    // Stops EVERYTHING: the polling interval AND the global watchdog. Once
+    // stopped, neither can ever fire again for this effect run — no stale
+    // watchdog can survive past whatever outcome (confirmed/failed/capacity/
+    // timeout) called this.
+    const stop = () => {
+      if (intervalId !== undefined) clearInterval(intervalId);
+      if (watchdogId !== undefined) clearTimeout(watchdogId);
+    };
+    // Guards against two attempts running at once — a slow/hung attempt
+    // must never let a second, overlapping one start on top of it (the
+    // 4s tick keeps firing regardless of how long the previous call takes).
+    let inFlight = false;
+
+    // Unconditional global watchdog (see GLOBAL_WATCHDOG_MS above). Set up
+    // exactly once when this effect starts (i.e. once when the page begins
+    // polling — while genuinely stuck in "verifying", none of [orderId,
+    // phase, capacity] ever change, so this effect never re-runs and this
+    // timer is never re-armed). Fires purely from wall-clock time; it does
+    // not read pollsRef, does not know about inFlight, and does not care
+    // whether any invoke() call ever settles — it is the one guarantee that
+    // cannot be defeated by network behaviour.
+    //
+    // Stale-closure safety: `phase` here is the value captured when THIS
+    // effect run started — but that's exactly right, not a bug: the only
+    // way this effect run's `phase` closure could be outdated is if `phase`
+    // state actually changed, and `phase` is a dependency of this effect,
+    // so a real change already re-ran this effect's cleanup (stop(), via
+    // the return function below) and cancelled THIS watchdog before a new
+    // one was created for the new phase. On top of that, every place that
+    // reaches a real outcome (confirmed/failed/capacity) cancels the
+    // watchdog immediately and explicitly too (see below) — it is never
+    // left to this closure check alone.
+    watchdogId = setTimeout(() => {
+      if (!mounted) return;
+      // "failed"/"timeout" already returned before this effect ever set up
+      // this timer (see the early-returns above) — "confirmed" is the only
+      // other outcome worth checking for here.
+      if (phase !== "confirmed") {
+        setPhase("timeout");
+      }
+      stop();
+    }, GLOBAL_WATCHDOG_MS);
+
+    // Every failure path (returned error, thrown exception) converges here:
+    // count it, and once MAX_POLLS is reached, stop for good and hand off
+    // to the calmer "still verifying" screen — never spin past that
+    // ceiling, never re-attempt in a tight loop. The watchdog above is the
+    // backstop for this same outcome independent of pollsRef altogether.
+    const giveUpIfExhausted = () => {
+      if (phase !== "confirmed" && pollsRef.current >= MAX_POLLS) {
+        setPhase("timeout");
+        stop();
+      }
+    };
 
     const confirm = async () => {
-      if (phase === "confirmed") {
-        nudgeRef.current += 1;
-        if (sideEffectsDoneRef.current || nudgeRef.current > MAX_NUDGES) { stop(); return; }
-      } else {
-        pollsRef.current += 1;
-      }
-
-      const { data, error } = await supabase.functions.invoke("confirm-postfinance-payment", {
-        body: { orderId: id },
-      });
-
-      if (!mounted) return;
-
-      if (error) {
-        console.error("Error confirming payment:", error);
-        if (phase !== "confirmed" && pollsRef.current >= MAX_POLLS) setPhase("timeout");
-        return;
-      }
-
-      if (data?.reason === "workshop_capacity_unavailable") {
-        const rewardOnly = !!data.rewardOnly;
-        const refundState: string = data.refundState
-          ?? (data.refundResolved || data.financiallyResolved ? "refunded" : "to_refund");
-        setCapacity({ rewardOnly, refundState });
-        stop();
-        return;
-      }
-
-      if (data?.confirmed === true) {
-        firePurchaseOnce(id);
-        setInfo({
-          fulfillmentType: data.fulfillmentType ?? null,
-          workshopConfirmed: !!data.workshopConfirmed,
-          physicalValidation: data.physicalValidation ?? null,
-          orderValidation: data.orderValidation ?? "pending",
-          orderFailureReason: data.orderFailureReason ?? null,
-        });
-        if (data.sideEffectsComplete !== false) {
-          sideEffectsDoneRef.current = true;
-          stop();
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        if (phase === "confirmed") {
+          nudgeRef.current += 1;
+          if (sideEffectsDoneRef.current || nudgeRef.current > MAX_NUDGES) { stop(); return; }
+        } else {
+          pollsRef.current += 1;
         }
-        setPhase("confirmed");
-        return;
-      }
 
-      if (data?.failed === true) {
-        setPhase("failed");
-        stop();
-        return;
-      }
+        // `timeout` genuinely aborts the underlying fetch after
+        // CONFIRM_TIMEOUT_MS (see the constant's own comment above) —
+        // invoke() itself catches that abort and resolves normally with
+        // { data: null, error }, so a hang becomes an ordinary, countable
+        // failure below, exactly like any other error response.
+        const { data, error } = await supabase.functions.invoke("confirm-postfinance-payment", {
+          body: { orderId: id },
+          timeout: CONFIRM_TIMEOUT_MS,
+        });
 
-      // Not confirmed (still finalising / non-terminal state), not failed —
-      // keep polling until the cap, then hand off to the server-side webhook.
-      if (pollsRef.current >= MAX_POLLS) { setPhase("timeout"); stop(); }
+        if (!mounted) return;
+
+        if (error) {
+          console.error("Error confirming payment:", error);
+          giveUpIfExhausted();
+          return;
+        }
+
+        if (data?.reason === "workshop_capacity_unavailable") {
+          const rewardOnly = !!data.rewardOnly;
+          const refundState: string = data.refundState
+            ?? (data.refundResolved || data.financiallyResolved ? "refunded" : "to_refund");
+          setCapacity({ rewardOnly, refundState });
+          stop();
+          return;
+        }
+
+        if (data?.confirmed === true) {
+          firePurchaseOnce(id);
+          setInfo({
+            fulfillmentType: data.fulfillmentType ?? null,
+            workshopConfirmed: !!data.workshopConfirmed,
+            physicalValidation: data.physicalValidation ?? null,
+            orderValidation: data.orderValidation ?? "pending",
+            orderFailureReason: data.orderFailureReason ?? null,
+          });
+          if (data.sideEffectsComplete !== false) {
+            sideEffectsDoneRef.current = true;
+            stop();
+          } else if (watchdogId !== undefined) {
+            // Still nudging for a few more cycles below (see MAX_NUDGES) —
+            // the interval must keep running for that, but the watchdog's
+            // only job (bounding the "verifying" spinner) is already done
+            // the instant we know the order is confirmed, regardless of
+            // whether side-effect nudging continues. Cancelled on its own,
+            // without touching the interval stop() would also clear.
+            clearTimeout(watchdogId);
+            watchdogId = undefined;
+          }
+          setPhase("confirmed");
+          return;
+        }
+
+        if (data?.failed === true) {
+          setPhase("failed");
+          stop();
+          return;
+        }
+
+        // Not confirmed (still finalising / non-terminal state), not failed —
+        // keep polling until the cap, then hand off to the server-side webhook.
+        giveUpIfExhausted();
+      } catch (e) {
+        // invoke() itself never throws (it catches its own abort/network
+        // failures and resolves with { error } instead — see above), but
+        // anything else unexpected in this block still lands here: treated
+        // exactly like a returned `error`, counted, never silently
+        // swallowed, and capped by the same MAX_POLLS ceiling — on top of
+        // the unconditional watchdog above, which doesn't even need this
+        // catch to run at all.
+        if (!mounted) return;
+        console.error("confirm-postfinance-payment threw:", e);
+        giveUpIfExhausted();
+      } finally {
+        inFlight = false;
+      }
     };
 
     confirm();
@@ -164,7 +269,7 @@ const PaymentSuccess = () => {
 
     return () => {
       mounted = false;
-      stop();
+      stop(); // clears both intervalId and watchdogId
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [orderId, phase, capacity]);
