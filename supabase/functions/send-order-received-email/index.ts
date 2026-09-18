@@ -114,6 +114,11 @@ function joinNaturally(names: string[], lang: "en" | "fr"): string {
 // says "Pickup at store", never left implicit. Same address as elsewhere
 // (Footer.tsx, _shared/delivery-pricing.ts's DELIVERY_ORIGIN).
 const STORE_ADDRESS = "Rue Prévost-Martin 8, 1205 Genève";
+// Split at the one comma so fulfillmentBlockHtml's mobile line-break can
+// land there deliberately (street+number / postcode+city) instead of the
+// browser wrapping this ~34-character line wherever it runs out of room.
+const STORE_ADDRESS_LINE1 = "Rue Prévost-Martin 8,";
+const STORE_ADDRESS_LINE2 = "1205 Genève";
 
 async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: any[] = [], fulfillments: any[] = []) {
   const lang = getCustomerLang(order);
@@ -181,11 +186,11 @@ async function sendOrderReceivedEmail(resendApiKey: string, order: any, items: a
     return `<tr bgcolor="#FFF9DB" class="bcs-row-alt" style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};background-color:#FFF9DB!important;background-image:linear-gradient(#FFF9DB,#FFF9DB)!important;">
       <td colspan="2" style="padding:10px 14px;font-family:${EMAIL_FONT_STACK};">
         <p style="margin:0 0 4px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;">
-          ${formatDateCH(f?.pickup_delivery_date)}${f?.pickup_delivery_slot ? ` · ${f.pickup_delivery_slot}` : ""} — ${method}
+          ${formatDateCH(f?.pickup_delivery_date)}${f?.pickup_delivery_slot ? ` · ${f.pickup_delivery_slot}` : ""}<br class="bcs-mobile-br" style="display:none;" /> — ${method}
         </p>
         ${f?.delivery_method === "delivery"
           ? (f?.delivery_address ? `<p class="bcs-label" style="margin:0 0 6px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};">${f.delivery_address}</p>` : "")
-          : `<p class="bcs-label" style="margin:0 0 6px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};">${tr("Address", "Adresse")}: ${STORE_ADDRESS}</p>`}
+          : `<p class="bcs-label" style="margin:0 0 6px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};">${tr("Address", "Adresse")}: ${STORE_ADDRESS_LINE1}<br class="bcs-mobile-br" style="display:none;" /> ${STORE_ADDRESS_LINE2}</p>`}
         ${itemsHtml ? `<ul style="margin:0;padding-left:18px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};">${itemsHtml}</ul>` : ""}
       </td>
     </tr>`;

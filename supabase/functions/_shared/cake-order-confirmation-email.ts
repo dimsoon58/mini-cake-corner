@@ -448,8 +448,8 @@ export function renderCakeOrderConfirmationEmail(
       : physicalItemDescription(item, lang);
     return `
     <tr>
-      <td class="bcs-text bcs-row-label" style="padding:12px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${label}</td>
-      <td class="bcs-text bcs-row-value" style="padding:12px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
+      <td class="bcs-text bcs-row-label bcs-row-price-label" style="padding:12px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${label}</td>
+      <td class="bcs-text bcs-row-value bcs-row-price-value" style="padding:12px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${item.total}</td>
     </tr>`;
   }).join("");
 
@@ -507,33 +507,33 @@ ${brandDarkModeStyle()}
         <table style="width:100%;border-collapse:collapse;border:1px solid #78020C;margin-bottom:24px;">
           <thead>
             <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
-              <th class="bcs-accent-text bcs-row-label" style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
-              <th class="bcs-accent-text bcs-row-value" style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
+              <th class="bcs-accent-text bcs-row-label bcs-row-price-label" style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Item", "Article")}</th>
+              <th class="bcs-accent-text bcs-row-value bcs-row-price-value" style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Price", "Prix")}</th>
             </tr>
           </thead>
           <tbody>
             ${itemSummaryRows}
             ${(Number(order.express_surcharge_amount) || 0) > 0 ? `<tr>
-              <td class="bcs-text bcs-row-label" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${tr("Express surcharge", "Supplément express")}</td>
-              <td class="bcs-text bcs-row-value" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${Number(order.express_surcharge_amount).toFixed(2)}</td>
+              <td class="bcs-text bcs-row-label bcs-row-price-label" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${tr("Express surcharge", "Supplément express")}</td>
+              <td class="bcs-text bcs-row-value bcs-row-price-value" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${Number(order.express_surcharge_amount).toFixed(2)}</td>
             </tr>` : ""}
             ${(Number(order.welcome_discount_amount) || 0) > 0 ? `<tr>
-              <td class="bcs-text bcs-row-label" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${tr("Welcome discount", "Réduction de bienvenue")}</td>
-              <td class="bcs-text bcs-row-value" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">- CHF ${Number(order.welcome_discount_amount).toFixed(2)}</td>
+              <td class="bcs-text bcs-row-label bcs-row-price-label" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${tr("Welcome discount", "Réduction de bienvenue")}</td>
+              <td class="bcs-text bcs-row-value bcs-row-price-value" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">- CHF ${Number(order.welcome_discount_amount).toFixed(2)}</td>
             </tr>` : ""}
             ${(Number(order.reward_amount_used) || 0) > 0 ? `<tr>
-              <td class="bcs-text bcs-row-label" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${tr("Reward used", "Cagnotte utilisée")}</td>
-              <td class="bcs-text bcs-row-value" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">- CHF ${Number(order.reward_amount_used).toFixed(2)}</td>
+              <td class="bcs-text bcs-row-label bcs-row-price-label" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${tr("Reward used", "Cagnotte utilisée")}</td>
+              <td class="bcs-text bcs-row-value bcs-row-price-value" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">- CHF ${Number(order.reward_amount_used).toFixed(2)}</td>
             </tr>` : ""}
             ${(Number(order.delivery_fee) || 0) > 0 ? `<tr>
-              <td class="bcs-text bcs-row-label" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${tr("Delivery", "Livraison")}</td>
-              <td class="bcs-text bcs-row-value" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${Number(order.delivery_fee).toFixed(2)}</td>
+              <td class="bcs-text bcs-row-label bcs-row-price-label" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${tr("Delivery", "Livraison")}</td>
+              <td class="bcs-text bcs-row-value bcs-row-price-value" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">CHF ${Number(order.delivery_fee).toFixed(2)}</td>
             </tr>` : ""}
           </tbody>
           <tfoot>
             <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
-              <td class="bcs-accent-text bcs-row-label" style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
-              <td class="bcs-accent-text bcs-row-value" style="padding:10px 14px;font-size:15px;font-weight:700;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+              <td class="bcs-accent-text bcs-row-label bcs-row-price-label" style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
+              <td class="bcs-accent-text bcs-row-value bcs-row-price-value" style="padding:10px 14px;font-size:15px;font-weight:700;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
             </tr>
           </tfoot>
         </table>

@@ -66,23 +66,55 @@ export const FORCE_LIGHT_META_TAGS =
 //   .bcs-content-pad   the card's own 40px side padding — reduced so more of
 //                      a narrow screen's width is usable content, not margin.
 //   .bcs-row-label /
-//   .bcs-row-value     the two <td>s of every label/value or item/price
-//                      table row across every template — stacked (block,
-//                      full width) instead of squeezed side-by-side, so long
-//                      labels/descriptions never get crushed into a sliver
-//                      next to a nowrap price/value column.
+//   .bcs-row-value     the two <td>s of a plain label/value row (size,
+//                      flavour, shape, design, order number, status, ...).
+//                      2026-09-20: used to stack full-width like the price
+//                      rows below — reverted, since none of these ever had
+//                      a truncation risk (no nowrap value) and stacking just
+//                      turned every short row into 2 lines for no reason.
+//                      Kept side by side like on desktop, just a touch
+//                      smaller so short values are never squeezed.
+//   .bcs-row-price-label /
+//   .bcs-row-price-value  the two <td>s of an Item/Price, surcharge/discount
+//                      or Total row (cake-order-confirmation-email.ts) —
+//                      these pair a nowrap CHF amount with a variable-length
+//                      label; at phone width the row can't fit both, and
+//                      nowrap used to clip the amount ("CHF 143.10" ->
+//                      "CHF 143") instead of wrapping it. Still stacked
+//                      (block, full width) so the amount always gets the
+//                      whole row to itself — the one case that genuinely
+//                      needs it. Added as separate classes (2026-09-20)
+//                      instead of the generic bcs-row-label/value above, so
+//                      only these specific rows keep the old behaviour.
+//   .bcs-mobile-br     an inline `<br class="bcs-mobile-br" style="display:
+//                      none;">` planted at ONE deliberate spot inside a run
+//                      of free paragraph text that's too long to fit one
+//                      line on a phone (send-order-received-email.ts's
+//                      per-date pickup/delivery summary: date+slot / method,
+//                      and the store address before its postcode+city) —
+//                      hidden by the inline style everywhere by default, so
+//                      on desktop (or any client that ignores this media
+//                      query) the text reads exactly as one unbroken line,
+//                      unchanged. Only re-enabled here, under 480px, so the
+//                      line breaks at that ONE chosen point instead of
+//                      wherever the browser happens to run out of room.
 export const MOBILE_LAYOUT_STYLE = `
   @media (max-width: 480px) {
     .bcs-logo { width: 160px !important; }
     .bcs-content-pad { padding-left: 20px !important; padding-right: 20px !important; }
+    .bcs-mobile-br { display: block !important; }
     .bcs-row-label, .bcs-row-value {
+      font-size: 12px !important;
+      white-space: normal !important;
+    }
+    .bcs-row-price-label, .bcs-row-price-value {
       display: block !important;
       width: 100% !important;
       max-width: 100% !important;
       box-sizing: border-box !important;
       white-space: normal !important;
     }
-    .bcs-row-value { padding-top: 2px !important; }
+    .bcs-row-price-value { padding-top: 2px !important; }
   }`;
 
 export function brandDarkModeStyle(): string {
