@@ -70,7 +70,7 @@ type SizeKey = "bento" | "retro" | "medium" | "large" | "rectangle";
 type SizePriceMap = Partial<Record<SizeKey, number>>;
 
 export const CAKE_SIZES: Record<SizeKey, number> = {
-  bento: 40, retro: 45, medium: 85, large: 165, rectangle: 450,
+  bento: 40, retro: 40, medium: 85, large: 165, rectangle: 450,
 };
 
 export const CAKE_SHAPES: Record<string, SizePriceMap> = {

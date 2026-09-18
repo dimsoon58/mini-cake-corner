@@ -207,7 +207,7 @@ const DARK_COLOR_IDS = new Set([
 
 const sizes = [
   { id: "bento", name: "Bento Box", price: 40, image: boxBento },
-  { id: "retro", name: "Retro Box", price: 45, image: boxRetro },
+  { id: "retro", name: "Retro Box", price: 40, image: boxRetro },
   { id: "medium", name: "Medium", price: 85, image: boxMedium },
   { id: "large", name: "Large", price: 165, image: boxLarge },
   { id: "rectangle", name: "Rectangle", price: 450, image: rectangleCake },
@@ -1379,6 +1379,14 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     const extrasTotal = getTotalExtrasPrice();
     
     return basePrice + shapeExtra + flavorExtra + styleExtra + candlesTotal + extrasTotal;
+  };
+
+  // Design supplement alone, so it can be called out next to the size's
+  // base price instead of only ever appearing folded into the grand total
+  // (the customer picks the size before knowing the design adds anything).
+  const getDesignSurcharge = () => {
+    if (!selectedCake) return 0;
+    return selectedCake.stylePrice[selections.size as keyof typeof selectedCake.stylePrice] || 0;
   };
 
   const handleAddToCart = () => {
@@ -2732,6 +2740,16 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   )}
                 </button>
               </div>
+
+              {/* Design supplement — shown explicitly so the jump from the
+                  size's base price (selected above) to the final total is
+                  never a mystery. */}
+              {getDesignSurcharge() > 0 && (
+                <div className="flex justify-between items-center px-4 text-sm">
+                  <span className="text-muted-foreground">{t("Design supplement", "Supplément design")}</span>
+                  <span className="text-primary font-medium">+CHF {getDesignSurcharge()}</span>
+                </div>
+              )}
 
               {/* Price */}
               <div className="flex justify-between items-center py-4 bg-secondary/50 rounded-lg px-4">

@@ -13,7 +13,7 @@
 // duplicated here only because this Vite frontend can't import a Deno
 // function's module; keep both in sync if either ever changes.
 const PARTNER_BASE_CAKE_PRICE: Record<string, Record<string, number>> = {
-  bento_cake: { bento: 40, retro: 45, medium: 85, large: 165 },
+  bento_cake: { bento: 40, retro: 40, medium: 85, large: 165 },
   rectangle_cake: { rectangle: 450 },
   dot_cakes: {
     "dot-cakes-4": 35,

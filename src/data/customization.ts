@@ -117,7 +117,7 @@ export const textColors = baseColors;
 
 export const sizes = [
   { id: "bento", name: "Bento", description: "Perfect for up to 4 people", price: 40, image: boxBento },
-  { id: "retro", name: "Retro Box", description: "Perfect for up to 4 people", price: 45, image: boxRetro },
+  { id: "retro", name: "Retro Box", description: "Perfect for up to 4 people", price: 40, image: boxRetro },
   { id: "medium", name: "Medium", description: "Great for up to 8 people", price: 85, image: boxMedium },
   { id: "large", name: "Large", description: "Ideal for up to 16 people", price: 165, image: boxLarge },
   { id: "rectangle", name: "Rectangle", description: "Perfect for larger gatherings", price: 450, image: boxRectangle },
