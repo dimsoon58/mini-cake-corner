@@ -523,8 +523,8 @@ const cards: {
 }[] = [
   {
     id: "celebrations",
-    title: "Corporate Celebrations",
-    titleFr: "Célébrations d'entreprise",
+    title: "Corporate Subscriptions",
+    titleFr: "Abonnements Entreprises",
     subtitle: "Make every employee birthday one to remember.",
     subtitleFr: "Faites de chaque anniversaire de vos employés un moment mémorable.",
     checks: [
@@ -736,7 +736,7 @@ const Business = () => {
             <>
               <DialogHeader>
                 <DialogTitle className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">
-                  {t("Corporate Celebrations", "Célébrations d'entreprise")}
+                  {t("Corporate Subscriptions", "Abonnements Entreprises")}
                 </DialogTitle>
               </DialogHeader>
               <CelebrationsForm onSuccess={() => setView("done")} />
@@ -745,7 +745,7 @@ const Business = () => {
             <>
               <DialogHeader>
                 <DialogTitle className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">
-                  {t("Corporate Celebrations", "Célébrations d'entreprise")}
+                  {t("Corporate Subscriptions", "Abonnements Entreprises")}
                 </DialogTitle>
                 <DialogDescription className="text-muted-foreground leading-relaxed pt-1">
                   {t("Share your team's birthday calendar once, and we take care of the rest.", "Partagez une seule fois le calendrier des anniversaires de votre équipe, nous nous occupons du reste.")}
