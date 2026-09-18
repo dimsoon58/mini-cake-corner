@@ -286,10 +286,8 @@ const DotCakes = () => {
               >
                 {t("Build your box →", "Composez votre box →")}
               </button>
-              {/* Dot Gallery image – shown on landing screen, full-bleed */}
-              <div className="w-screen relative left-1/2 -translate-x-1/2">
-                <DotGallery />
-              </div>
+              {/* Dot Gallery image – shown on landing screen */}
+              <DotGallery />
             </div>
           )}
 
