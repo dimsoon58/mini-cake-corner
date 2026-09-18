@@ -73,9 +73,9 @@ const DotGallery = () => {
       <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em] text-foreground">
         {t("Dot Cake Moments", "Dot Cake Moments")}
       </h2>
-      <div className="relative">
+      <div className="relative overflow-hidden">
         <button onClick={() => scroll("left")} aria-label={t("Previous", "Precedent")}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md -ml-3">
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
           <ChevronLeft className="h-5 w-5 text-foreground" />
         </button>
         <div ref={scrollRef} className="flex gap-4 overflow-x-auto scroll-smooth px-3" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
@@ -86,7 +86,7 @@ const DotGallery = () => {
           ))}
         </div>
         <button onClick={() => scroll("right")} aria-label={t("Next", "Suivant")}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md -mr-3">
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
           <ChevronRight className="h-5 w-5 text-foreground" />
         </button>
       </div>
