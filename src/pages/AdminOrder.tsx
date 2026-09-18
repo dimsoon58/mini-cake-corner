@@ -56,6 +56,11 @@ const AdminOrder = () => {
   // even if invoice_number already is — used below to show "facture
   // manquante" instead of a broken link.
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
+  // Diagnostic only (2026-09-20) — the exact createSignedUrl error when
+  // invoice_path is set but minting the link still failed, so the reason is
+  // visible on this page instead of only in Edge Function logs. Null in
+  // every other case (invoiceUrl present, or invoice_path never set at all).
+  const [invoiceUrlError, setInvoiceUrlError] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -111,6 +116,7 @@ const AdminOrder = () => {
         setFulfillments(data.fulfillments || []);
         if (data.actionToken) setFetchedToken(data.actionToken);
         setInvoiceUrl(data.invoiceUrl ?? null);
+        setInvoiceUrlError(data.invoiceUrlError ?? null);
       }
       setLoading(false);
     };
@@ -526,7 +532,12 @@ const AdminOrder = () => {
             ) : order.invoice_number ? (
               <div className="flex gap-2 text-sm">
                 <span className="text-muted-foreground min-w-[140px]">{t("Invoice", "Facture")}:</span>
-                <span className="text-amber-700">{t("Missing — needs to be regenerated", "Manquante — à régénérer")}</span>
+                <div>
+                  <span className="text-amber-700">{t("Missing — needs to be regenerated", "Manquante — à régénérer")}</span>
+                  {invoiceUrlError && (
+                    <p className="text-xs text-destructive mt-1 break-all">{invoiceUrlError}</p>
+                  )}
+                </div>
               </div>
             ) : null}
             <DetailRow label={t("Total", "Total")} value={`CHF ${order.total_amount}`} />

@@ -161,12 +161,24 @@ serve(async (req) => {
     // even if invoice_number already is — AdminOrder.tsx uses that gap to
     // show "facture manquante" instead of a broken link.
     let invoiceUrl: string | null = null;
+    // 2026-09-20: surfaced alongside invoiceUrl (diagnostic only — AdminOrder.tsx
+    // shows it next to "missing" so the real reason is visible from the page
+    // itself instead of only ever reaching Edge Function logs nobody here has
+    // access to). Never affects anything else: invoiceUrl/order/items/
+    // fulfillments/actionToken are all completely unchanged either way.
+    let invoiceUrlError: string | null = null;
     if (order.invoice_path) {
       const { data: signed, error: signErr } = await supabase.storage
         .from("invoice")
         .createSignedUrl(order.invoice_path, 60 * 10);
       if (signErr) {
         console.error(`get-order-detail: invoice signed URL failed for ${orderId} (non-fatal):`, signErr);
+        // Only ever signErr.message (a short, storage-API-generated string
+        // like "Object not found") — never the raw error object, which
+        // could carry more than intended. A hardcoded, static fallback
+        // string when message is somehow empty, never anything derived
+        // from signErr itself.
+        invoiceUrlError = signErr.message || "Unknown storage error";
       } else {
         invoiceUrl = signed?.signedUrl ?? null;
       }
@@ -178,6 +190,7 @@ serve(async (req) => {
       fulfillments: fulfillments ?? [],
       actionToken,
       invoiceUrl,
+      invoiceUrlError,
     }), {
       headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
