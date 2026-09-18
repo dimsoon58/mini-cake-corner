@@ -286,8 +286,6 @@ const DotCakes = () => {
               >
                 {t("Build your box →", "Composez votre box →")}
               </button>
-              {/* Dot Gallery image – shown on landing screen */}
-              <DotGallery />
             </div>
           )}
 
@@ -715,9 +713,9 @@ const DotCakes = () => {
       </div>
       </div>
 
-      {/* Gallery — always shown outside the configurator wrapper */}
+      {/* Gallery — always shown */}
       <div className="container mx-auto px-6 py-8 md:py-16">
-        {configuratorVisible && <DotGallery />}
+        <DotGallery />
       </div>
     </Layout>
   );
