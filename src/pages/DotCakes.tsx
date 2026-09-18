@@ -57,8 +57,8 @@ const tierNoteFr: Record<string, string> = {
 const INITIAL_CANDLES_SHOWN = 4;
 
 const dotGallery = [
-  dotGallery1, dotGallery2, dotGallery3, dotGallery4, dotGallery5,
-  dotGallery6, dotGallery7, dotGallery8, dotGallery9,
+  dotGallery1, dotGallery2, dotGallery3, dotGallery4,
+  dotGallery6, dotGallery7, dotGallery8, dotGallery9, dotGallery5,
 ];
 
 const DotGallery = () => {
