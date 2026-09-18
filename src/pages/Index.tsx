@@ -204,7 +204,7 @@ const Index = () => {
   return (
     <Layout overlayHero>
       {/* Hero Section */}
-      <section className="relative text-primary-foreground overflow-hidden min-h-[65vh] md:min-h-0 md:aspect-video">
+      <section className="relative text-primary-foreground overflow-hidden min-h-[65vh] md:min-h-0 md:aspect-video flex items-center justify-center">
         {/* Mobile video */}
         <video
           ref={mobileVideoRef}
@@ -230,7 +230,7 @@ const Index = () => {
           preload="auto"
         />
         <div className="absolute inset-0 bg-foreground/15" />
-        <div className="relative container mx-auto px-4 py-24 md:py-32 text-center text-cream">
+        <div className="relative container mx-auto px-4 py-20 md:py-0 text-center text-cream">
           {/* Brand spec: Agrandir Bold 50px, Montserrat stands in until the Agrandir font file is provided */}
           <h1 className="font-sans font-bold text-[36px] md:text-[50px] leading-tight mb-6 max-w-4xl mx-auto">
             {t("LET THEM EAT CAKES", "LET THEM EAT CAKES")}
@@ -240,10 +240,10 @@ const Index = () => {
           </p>
           <Button
             size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-2.5 text-[14px] font-medium tracking-[0.105em] rounded-none"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-2.5 text-[14px] md:px-20 md:py-6 md:text-[22px] font-medium tracking-[0.105em] rounded-none"
             asChild
           >
-            <Link to="/catalog">{t("SHOP NOW", "COMMANDER")}</Link>
+            <Link to="/catalog">{t("ORDER NOW", "COMMANDER")}</Link>
           </Button>
         </div>
       </section>
