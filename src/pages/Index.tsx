@@ -432,12 +432,6 @@ const Index = () => {
                   <p className="text-foreground/75 text-[13px] leading-snug flex-1 italic">
                     "{testimonial.text}"
                   </p>
-                  <button
-                    onClick={() => setModalPhoto(testimonial.photo)}
-                    className="self-start text-[11px] text-foreground/40 hover:text-foreground underline underline-offset-2 transition-colors mt-1"
-                  >
-                    {t("View original message ↗", "Voir le message original ↗")}
-                  </button>
                 </div>
               ))}
           </div>
