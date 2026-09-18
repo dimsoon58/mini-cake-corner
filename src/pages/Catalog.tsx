@@ -353,7 +353,7 @@ const catalog = [
     images: [styleNormalWithoutBorder, styleNormalWithoutBorder2],
     styleId: "normal-without-border",
     styleName: "Normal without border",
-    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 2, medium: 0, large: 0 },
     disableText: false,
   },
   {
@@ -365,7 +365,7 @@ const catalog = [
     images: [styleNormalWithBorder, styleNormalWithBorder2],
     styleId: "normal-with-border",
     styleName: "Normal with border",
-    stylePrice: { bento: 0, retro: 0, medium: 0, large: 0 },
+    stylePrice: { bento: 0, retro: 3, medium: 0, large: 0 },
     disableText: false,
   },
   {
@@ -434,7 +434,7 @@ const catalog = [
     styleId: "roses-please",
     styleName: "Roses Please",
     priceRange: "CHF 46 – 190",
-    stylePrice: { bento: 6, retro: 8, medium: 15, large: 20 },
+    stylePrice: { bento: 3, retro: 8, medium: 15, large: 20 },
     disableText: false,
   },
   {
@@ -491,7 +491,7 @@ const catalog = [
     styleId: "custom-drawing",
     styleName: "Custom Drawing",
     priceRange: "CHF 48 – 185",
-    stylePrice: { bento: 8, retro: 8, medium: 10, large: 15 },
+    stylePrice: { bento: 8, retro: 10, medium: 10, large: 15 },
     disableText: false,
   },
   {
@@ -621,7 +621,7 @@ const catalog = [
     styleId: "gender-reveal",
     styleName: "Gender Reveal",
     priceRange: "CHF 45 – 185",
-    stylePrice: { bento: 5, retro: 5, medium: 10, large: 15 },
+    stylePrice: { bento: 5, retro: 7, medium: 10, large: 15 },
     disableText: false,
   },
   {
