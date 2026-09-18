@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PRODUCT_LABELS, formatDateCH, sizeLabel, shapeLabel, designLabel, flavorLabel, splitComment } from "@/lib/orderLabels";
 import { formatChf } from "@/lib/money";
+import { candleImageFromName, candlesFallback } from "@/lib/itemDisplayImage";
 // Real product-line photos for the "no exact design captured" fallback
 // below — never the generic cake emoji. Same source photos already used as
 // each product's own hero/representative image on its page (DotCakes.tsx,
@@ -16,7 +17,6 @@ import { formatChf } from "@/lib/money";
 // reused here rather than inventing new imagery.
 import dotCakesFallback from "@/assets/dot-gallery-1.jpg";
 import diyKitFallback from "@/assets/diy-kit-box.jpg";
-import candlesFallback from "@/assets/candle-heart-new.png";
 import bentoCakeFallback from "@/assets/bento-gallery-1.jpg";
 import rectangleCakeFallback from "@/assets/rectangle-signature.jpg";
 import workshopSignatureFallback from "@/assets/workshop-signature.jpg";
@@ -408,7 +408,7 @@ const MyOrders = () => {
     switch (item.product) {
       case "dot_cakes": return dotCakesFallback;
       case "diy_kit": return diyKitFallback;
-      case "candles": return candlesFallback;
+      case "candles": return candleImageFromName(item.candle_name) ?? candlesFallback;
       case "bento_cake": return bentoCakeFallback;
       case "rectangle_cake": return rectangleCakeFallback;
       case "edible_printing": return printingFallback;

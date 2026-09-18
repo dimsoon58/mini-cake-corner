@@ -454,6 +454,7 @@ const AdminOrder = () => {
                   product: item.product,
                   designImageUrl: item.design_image_url,
                   referenceImages: item.reference_images,
+                  candleName: item.candle_name,
                 });
 
                 return (
