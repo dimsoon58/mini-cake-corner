@@ -262,7 +262,7 @@ const DotCakes = () => {
         {/* SIDEBAR */}
 
         {/* MAIN */}
-        <main className="w-full max-w-2xl mx-auto py-12 px-4">
+        <main className="w-full max-w-2xl mx-auto pt-12 pb-2 px-4">
           <h1 className="font-sans text-4xl md:text-5xl tracking-[0.105em] uppercase text-foreground mb-6 font-semibold text-center">
             {t("Dot Cakes", "Dot Cakes")}
           </h1>
@@ -277,7 +277,7 @@ const DotCakes = () => {
 
           {/* CTA — visible only before configurator opens */}
           {!configuratorVisible && (
-            <div className="flex flex-col items-center gap-8 mb-12">
+            <div className="flex flex-col items-center gap-8 mb-2">
               <button
                 onClick={() => {
                   setConfiguratorVisible(true);
