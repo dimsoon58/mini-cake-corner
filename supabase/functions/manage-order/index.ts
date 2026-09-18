@@ -20,6 +20,7 @@ import {
   EMAIL_SMALL_SIZE,
 } from "../_shared/email-styles.ts";
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
+import { claimAndSendTechnicalAlert, ALERT_COOLDOWN_SECONDS } from "../_shared/admin-alert.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/admin-auth.ts";
@@ -1152,9 +1153,27 @@ serve(async (req) => {
       // ONE invoice: the full order (workshop + cake for a mixed order, or
       // workshop-only) — generateInvoicePdf is generic across item types,
       // unchanged.
+      // On any failure below, orders.invoice_path is simply left null — never
+      // silently forgotten: retry-order-side-effects' ensurePhysicalOrderInvoice
+      // (_shared/order-side-effects.ts) retries this exact same generation on
+      // its periodic sweep until it succeeds, and both this immediate alert and
+      // that retry's own alert share one per-order cooldown key, so a failure
+      // is reported once promptly, never once per retry.
+      const invoiceAlertKey = `invoice-generation-failed-${orderId}`;
       let invoicePdfBase64: string | null = null;
       try { invoicePdfBase64 = await generateInvoicePdf(order, orderItems, { fulfillments: orderFulfillments }); }
-      catch (e) { console.error("Invoice PDF generation error:", e); }
+      catch (e) {
+        console.error("Invoice PDF generation error:", e);
+        await claimAndSendTechnicalAlert(supabase, invoiceAlertKey, ALERT_COOLDOWN_SECONDS, {
+          subject: `Facture non générée — commande ${order.order_number || orderId}`,
+          lines: [
+            `Order ID : ${orderId}`,
+            `Numéro de commande : ${order.order_number || "—"}`,
+            `La génération du PDF de facture a échoué à l'acceptation de la commande.`,
+            `Erreur : ${e instanceof Error ? e.message : String(e)}`,
+          ],
+        });
+      }
 
       if (invoicePdfBase64) {
         try {
@@ -1163,8 +1182,18 @@ serve(async (req) => {
           const storagePath = `${invoiceNum}.pdf`;
           const { error: upErr } = await supabase.storage.from("invoice")
             .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
-          if (upErr) { console.error("Invoice storage upload error:", upErr); }
-          else {
+          if (upErr) {
+            console.error("Invoice storage upload error:", upErr);
+            await claimAndSendTechnicalAlert(supabase, invoiceAlertKey, ALERT_COOLDOWN_SECONDS, {
+              subject: `Facture non générée — commande ${order.order_number || orderId}`,
+              lines: [
+                `Order ID : ${orderId}`,
+                `Numéro de commande : ${order.order_number || "—"}`,
+                `Le PDF a été généré mais l'upload vers le stockage "invoice" a échoué à l'acceptation de la commande.`,
+                `Erreur : ${upErr.message || JSON.stringify(upErr)}`,
+              ],
+            });
+          } else {
             await supabase.from("orders").update({ invoice_path: storagePath }).eq("id", orderId);
             invoiceNumberForWebhook = invoiceNum;
             const { data: signed } = await supabase.storage.from("invoice")

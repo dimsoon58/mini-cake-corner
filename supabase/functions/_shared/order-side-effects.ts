@@ -280,6 +280,99 @@ export async function ensureWorkshopInvoice(supabase: any, orderId: string): Pro
   return { done: true };
 }
 
+// ── Cake/mixed order: invoice PDF retry (2026-09-18) ───────────────────
+// manage-order's Accept path already tries to generate + store the invoice
+// synchronously (its own generateInvoicePdf call) — but that attempt is
+// best-effort: on failure it only logs and moves on, so a transient PDF/
+// storage error left the order permanently stuck on "invoice missing" with
+// no way to recover, unlike a workshop-only order (ensureWorkshopInvoice,
+// above, already retries those). This is the same retry-until-stored
+// contract, scoped to every order with at least one PHYSICAL item
+// (cake-only or mixed) — workshop-only stays owned by ensureWorkshopInvoice.
+// Only ever acts once the admin has actually approved the order
+// (order_validation = 'approved') — never guesses an invoice for a still-
+// pending or declined order, and a decline never gets an invoice at all
+// (unchanged — see manage-order's own comment on that).
+export async function ensurePhysicalOrderInvoice(supabase: any, orderId: string): Promise<{ done: boolean }> {
+  const { data: o, error } = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
+  if (error) {
+    console.error(`ensurePhysicalOrderInvoice: orders read failed for ${orderId}:`, error);
+    return { done: false };
+  }
+  if (!o) return { done: true };
+  if (o.invoice_path) return { done: true };                     // already generated + stored
+  if (o.order_validation !== "approved") return { done: true };  // not (yet) approved — nothing to do
+
+  const { data: items, error: itemsErr } = await supabase
+    .from("order_items").select("*").eq("order_id", orderId);
+  if (itemsErr) {
+    console.error(`ensurePhysicalOrderInvoice: order_items read failed for ${orderId}:`, itemsErr);
+    return { done: false };
+  }
+  const rows = items ?? [];
+  if (rows.length === 0) return { done: true };
+  if (!rows.some((it: any) => it.product !== "workshop")) return { done: true }; // workshop-only → ensureWorkshopInvoice owns it
+
+  const { data: fulfillments } = await supabase
+    .from("order_fulfillments").select("*").eq("order_id", orderId);
+
+  const invoiceNum = o.invoice_number || o.order_number || `invoice-${String(orderId).slice(0, 8)}`;
+  const storagePath = `${invoiceNum}.pdf`;
+  const alertKey = `invoice-generation-failed-${orderId}`;
+
+  let pdfBase64: string;
+  try {
+    pdfBase64 = await generateInvoicePdf(o, rows, { fulfillments: fulfillments ?? [] });
+  } catch (e) {
+    console.error(`ensurePhysicalOrderInvoice: PDF generation failed for ${orderId} — will retry:`, e);
+    await claimAndSendTechnicalAlert(supabase, alertKey, ALERT_COOLDOWN_SECONDS, {
+      subject: `Facture non générée — commande ${o.order_number || orderId}`,
+      lines: [
+        `Order ID : ${orderId}`,
+        `Numéro de commande : ${o.order_number || "—"}`,
+        `La génération du PDF de facture a échoué et continue d'échouer au retry automatique (toutes les 15 min).`,
+        `Erreur : ${e instanceof Error ? e.message : String(e)}`,
+      ],
+    });
+    return { done: false };
+  }
+
+  try {
+    const pdfBytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
+    const { error: upErr } = await supabase.storage
+      .from("invoice")
+      .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
+    if (upErr) {
+      console.error(`ensurePhysicalOrderInvoice: storage upload failed for ${orderId} — will retry:`, upErr);
+      await claimAndSendTechnicalAlert(supabase, alertKey, ALERT_COOLDOWN_SECONDS, {
+        subject: `Facture non générée — commande ${o.order_number || orderId}`,
+        lines: [
+          `Order ID : ${orderId}`,
+          `Numéro de commande : ${o.order_number || "—"}`,
+          `Le PDF a été généré mais l'upload vers le stockage "invoice" a échoué et continue d'échouer.`,
+          `Erreur : ${upErr.message || JSON.stringify(upErr)}`,
+        ],
+      });
+      return { done: false };
+    }
+  } catch (e) {
+    console.error(`ensurePhysicalOrderInvoice: storage upload threw for ${orderId} — will retry:`, e);
+    return { done: false };
+  }
+
+  const { error: pathErr } = await supabase
+    .from("orders")
+    .update({ invoice_path: storagePath })
+    .eq("id", orderId)
+    .is("invoice_path", null)
+    .select("id");
+  if (pathErr) {
+    console.error(`ensurePhysicalOrderInvoice: invoice_path write failed for ${orderId} — will retry:`, pathErr);
+    return { done: false };
+  }
+  return { done: true };
+}
+
 // order_items — throws on a read error or (defensively) on an order with no
 // items, so it can never be mistaken for "no physical / no workshop".
 async function orderItemKinds(
@@ -474,6 +567,18 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
   //     never here, so there is only ever one invoice per order.
   if (hasWorkshop && !hasPhysical && o.workshop_confirmed_at && !o.invoice_path) {
     const { done } = await ensureWorkshopInvoice(supabase, orderId);
+    if (done) {
+      const reread = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
+      if (reread.data) o = reread.data;
+    }
+  }
+
+  // 0c. Cake/mixed order (admin already approved it) → generate + store the
+  //     invoice PDF now. Same retry-until-stored contract as 0b above; see
+  //     ensurePhysicalOrderInvoice's own header comment. No-ops (done: true)
+  //     for a still-pending/declined order or a workshop-only one.
+  if (hasPhysical && o.order_validation === "approved" && !o.invoice_path) {
+    const { done } = await ensurePhysicalOrderInvoice(supabase, orderId);
     if (done) {
       const reread = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
       if (reread.data) o = reread.data;
