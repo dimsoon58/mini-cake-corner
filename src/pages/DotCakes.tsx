@@ -78,9 +78,9 @@ const DotGallery = () => {
           className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
           <ChevronLeft className="h-5 w-5 text-foreground" />
         </button>
-        <div ref={scrollRef} className="flex gap-0 overflow-x-auto scroll-smooth" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+        <div ref={scrollRef} className="flex gap-4 overflow-x-auto scroll-smooth px-3" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
           {dotGallery.map((photo, index) => (
-            <div key={index} className="flex-shrink-0 w-72 h-80 overflow-hidden">
+            <div key={index} className="flex-shrink-0 w-64 h-64 overflow-hidden">
               <img src={photo} alt={`Dot Cake ${index + 1}`} loading="lazy" className="w-full h-full object-cover" />
             </div>
           ))}
@@ -286,8 +286,10 @@ const DotCakes = () => {
               >
                 {t("Build your box →", "Composez votre box →")}
               </button>
-              {/* Dot Gallery image – shown on landing screen */}
-              <DotGallery />
+              {/* Dot Gallery image – shown on landing screen, full-bleed */}
+              <div className="w-screen relative left-1/2 -translate-x-1/2">
+                <DotGallery />
+              </div>
             </div>
           )}
 
