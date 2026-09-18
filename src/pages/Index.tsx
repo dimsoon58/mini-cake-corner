@@ -415,7 +415,7 @@ const Index = () => {
           <h2 className="font-sans text-2xl md:text-3xl text-center uppercase tracking-[0.105em] text-foreground mb-2">
             {t("LOVED BY YOU", "VOS PETITS MOTS")}
           </h2>
-          <p className="text-center text-sm text-foreground/55 mb-10 tracking-wide">
+          <p className="text-center text-sm text-foreground/55 mb-6 tracking-wide">
             {t("Sweet words from our customers", "Les doux mots de nos clients")}
           </p>
 
@@ -426,29 +426,24 @@ const Index = () => {
               .map((testimonial, i) => (
                 <div
                   key={`${testimonialPage}-${i}`}
-                  className="border border-foreground/12 bg-background p-6 flex flex-col gap-3 min-h-[180px]"
+                  className="border border-foreground/12 bg-background p-5 flex flex-col gap-2"
                 >
-                  <div className="text-amber-400 text-base tracking-widest">★★★★★</div>
-                  <p className="text-foreground/75 text-sm leading-relaxed flex-1 italic">
+                  <div className="text-foreground/70 text-sm tracking-widest">★★★★★</div>
+                  <p className="text-foreground/75 text-[13px] leading-snug flex-1 italic">
                     "{testimonial.text}"
                   </p>
-                  <div className="pt-3 border-t border-foreground/10">
-                    <p className="text-[11px] text-foreground/45 uppercase tracking-[0.12em] mb-1.5">
-                      {t("Bento Cake Studio customer", "Client Bento Cake Studio")}
-                    </p>
-                    <button
-                      onClick={() => setModalPhoto(testimonial.photo)}
-                      className="text-[11px] text-foreground/50 hover:text-foreground underline underline-offset-2 transition-colors"
-                    >
-                      {t("View original message ↗", "Voir le message original ↗")}
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setModalPhoto(testimonial.photo)}
+                    className="self-start text-[11px] text-foreground/40 hover:text-foreground underline underline-offset-2 transition-colors mt-1"
+                  >
+                    {t("View original message ↗", "Voir le message original ↗")}
+                  </button>
                 </div>
               ))}
           </div>
 
-          {/* Dot navigation */}
-          <div className="flex items-center justify-center gap-3 mt-8">
+          {/* Dot navigation — 3 indicators */}
+          <div className="flex items-center justify-center gap-3 mt-7">
             <button
               onClick={() => setTestimonialPage(p => Math.max(0, p - 1))}
               disabled={testimonialPage === 0}
@@ -458,19 +453,32 @@ const Index = () => {
               <ChevronLeft className="h-5 w-5" />
             </button>
 
-            <div className="flex gap-1.5 flex-wrap justify-center max-w-xs">
-              {Array.from({ length: totalTestimonialPages }, (_, i) => (
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={() => setTestimonialPage(0)}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  testimonialPage === 0 ? "bg-foreground scale-125" : "bg-foreground/25 hover:bg-foreground/50"
+                }`}
+                aria-label="First page"
+              />
+              {totalTestimonialPages > 2 && (
                 <button
-                  key={i}
-                  onClick={() => setTestimonialPage(i)}
+                  onClick={() => setTestimonialPage(Math.floor(totalTestimonialPages / 2))}
                   className={`w-2 h-2 rounded-full transition-all ${
-                    i === testimonialPage
+                    testimonialPage > 0 && testimonialPage < totalTestimonialPages - 1
                       ? "bg-foreground scale-125"
-                      : "bg-foreground/20 hover:bg-foreground/40"
+                      : "bg-foreground/25 hover:bg-foreground/50"
                   }`}
-                  aria-label={`Page ${i + 1}`}
+                  aria-label="Middle page"
                 />
-              ))}
+              )}
+              <button
+                onClick={() => setTestimonialPage(totalTestimonialPages - 1)}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  testimonialPage === totalTestimonialPages - 1 ? "bg-foreground scale-125" : "bg-foreground/25 hover:bg-foreground/50"
+                }`}
+                aria-label="Last page"
+              />
             </div>
 
             <button
