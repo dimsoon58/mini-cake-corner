@@ -22,7 +22,19 @@ const MAX_POLLS = 30;
 // the background. invoke() also catches that abort itself and resolves
 // (never rejects) with { data: null, error }, so this alone already turns
 // a hang into a normal, countable failure.
-const CONFIRM_TIMEOUT_MS = 10000;
+//
+// 2026-09-19: was 10000 — too tight. confirm-postfinance-payment can
+// legitimately take longer than that on a genuinely healthy call (a cold
+// Edge Function start, a PostFinance round trip, retryMissingSideEffects
+// sending an e-mail inline) — a call that would have succeeded in, say,
+// 12s was instead being aborted at 10s and retried from scratch, turning a
+// normal few-second confirmation into repeated abort-and-retry cycles that
+// took minutes. This is purely a ceiling, never a floor: a call that
+// resolves in 3s still resolves in 3s exactly as before — widening it only
+// gives a genuinely slow-but-healthy call more room to finish naturally
+// instead of being cut off and restarted. The 2-minute GLOBAL_WATCHDOG_MS
+// below remains the real, unconditional ceiling on the whole flow.
+const CONFIRM_TIMEOUT_MS = 25000;
 // Unconditional backstop, independent of any network response ever
 // arriving at all: a single setTimeout started once when this page's
 // polling begins. It does not depend on invoke()'s own abort working, on
