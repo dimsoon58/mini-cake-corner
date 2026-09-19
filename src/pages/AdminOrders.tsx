@@ -32,19 +32,39 @@ type OrderSummary = {
   hasWorkshopItem: boolean;
 };
 
+// 2026-09-19: order_number's "ORDM-" prefix (vs "ORD-" for a real website
+// order) is the PRIMARY, unambiguous signal for a manual order — the Make
+// scenario "Bento — Commandes manuelles instantanées" (7425367) mints it at
+// creation and it never changes. order_source is checked as a fallback only
+// (that same Make scenario does send a real source value — "Instagram",
+// "WhatsApp", "manual order", etc. — but relying on it alone would mean any
+// future gap in that flow silently mislabels a manual order as a website
+// one). A missing/null order_source AND a non-"ORDM-" order_number (an old
+// order from before order_source existed) still correctly defaults to Site
+// rather than mislabeling real website history as manual.
+const isManualOrder = (o: Pick<OrderSummary, "order_source" | "order_number">): boolean =>
+  !!o.order_number?.startsWith("ORDM-") || (!!o.order_source && o.order_source !== "website");
+
 // Site / Manual / Workshop badge — independent of decisionBadge (approval
 // status) below. Workshop takes priority (a workshop item can coexist with
 // physical items on a mixed order, but the "what kind of order is this"
-// badge only needs to say ONE thing). order_source is only ever "website"
-// for a site checkout (Checkout.tsx hardcodes it) — anything else (a manual
-// order created directly in Supabase: "manual order", "phone", "instagram",
-// "WhatsApp", or a future value) is a manual order, and a missing/null
-// order_source (an old order from before this column existed) defaults to
-// Site rather than mislabeling real website history as manual.
+// badge only needs to say ONE thing).
 const sourceBadge = (o: OrderSummary, t: (en: string, fr: string) => string): { label: string; className: string } => {
   if (o.hasWorkshopItem) return { label: t("Workshop", "Atelier"), className: "bg-purple-100 text-purple-800" };
-  if (o.order_source && o.order_source !== "website") return { label: t("Manual", "Manuel"), className: "bg-blue-100 text-blue-800" };
+  if (isManualOrder(o)) return { label: t("Manual", "Manuel"), className: "bg-blue-100 text-blue-800" };
   return { label: t("Website", "Site"), className: "bg-secondary text-secondary-foreground" };
+};
+
+// PAYÉE / PAIEMENT EN ATTENTE — kept entirely separate from decisionBadge
+// (order-acceptance status) below, never conflated: an order can be
+// approved with payment still pending, or paid while still awaiting an
+// admin decision. Any value other than "pending"/"paid"/"cancelled" is
+// shown as-is (uppercased) rather than guessed at.
+const paymentBadge = (o: OrderSummary, t: (en: string, fr: string) => string): { label: string; className: string } => {
+  if (o.payment_status === "paid") return { label: t("Paid", "Payée"), className: "bg-emerald-100 text-emerald-800" };
+  if (o.payment_status === "pending") return { label: t("Payment pending", "Paiement en attente"), className: "bg-amber-100 text-amber-800" };
+  if (o.payment_status === "cancelled") return { label: t("Payment cancelled", "Paiement annulé"), className: "bg-red-100 text-red-800" };
+  return { label: (o.payment_status ?? "—").toUpperCase(), className: "bg-secondary text-secondary-foreground" };
 };
 
 const formatDateTime = (iso: string) => {
@@ -52,20 +72,43 @@ const formatDateTime = (iso: string) => {
   return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
+// pending/approved/rejected/cancelled -> the French/English label actually
+// shown. Kept as its own lookup (not a raw .toUpperCase() of the DB value)
+// so the badge can read ACCEPTÉE/REFUSÉE/ANNULÉE in French instead of the
+// English DB value.
+const DECISION_STATE_LABEL: Record<string, [string, string]> = {
+  pending: ["PENDING", "EN ATTENTE"],
+  approved: ["APPROVED", "ACCEPTÉE"],
+  rejected: ["REJECTED", "REFUSÉE"],
+  cancelled: ["CANCELLED", "ANNULÉE"],
+};
+const decisionStateLabel = (state: string, t: (en: string, fr: string) => string): string => {
+  const pair = DECISION_STATE_LABEL[state];
+  return pair ? t(pair[0], pair[1]) : state.toUpperCase();
+};
+
 // Same decision-state logic as AdminOrder.tsx (kept as its own copy — a
 // summary row here doesn't have the full item list to derive isWorkshopOnly
 // from, so it reads fulfillment_type/order_failure_reason directly instead).
-const decisionBadge = (o: OrderSummary): { label: string; className: string } => {
+const decisionBadge = (o: OrderSummary, t: (en: string, fr: string) => string): { label: string; className: string } => {
   const isCancelled = o.order_validation === "cancelled" || !!o.order_failure_reason;
-  if (isCancelled) return { label: "CANCELLED", className: "bg-red-100 text-red-800" };
+  if (isCancelled) return { label: decisionStateLabel("cancelled", t), className: "bg-red-100 text-red-800" };
   const isWorkshopOnly = o.fulfillment_type === "workshop_only";
-  const state = (isWorkshopOnly ? o.order_validation : o.physical_validation) ?? "pending";
+  // A manual order is considered accepted the moment it's created (there is
+  // no separate Accept/Refuse review step for it) — its acceptance lives on
+  // order_validation, exactly like a workshop_only order's. physical_validation
+  // is only ever written by the decide_order_physical RPC (manage-order's
+  // Accept/Refuse flow), which a manually-inserted order never goes through —
+  // plenty of older manual orders sit at order_validation='approved' with
+  // physical_validation still stuck at its column default 'pending', which
+  // would otherwise show as an incorrect, permanently-pending badge.
+  const state = ((isWorkshopOnly || isManualOrder(o)) ? o.order_validation : o.physical_validation) ?? "pending";
   const className =
     state === "approved" ? "bg-emerald-100 text-emerald-800" :
     state === "pending" ? "bg-amber-100 text-amber-800" :
     "bg-red-100 text-red-800";
   const prefix = o.fulfillment_type === "mixed" ? "WS+CAKE · " : isWorkshopOnly ? "WORKSHOP · " : "";
-  return { label: `${prefix}${state.toUpperCase()}`, className };
+  return { label: `${prefix}${decisionStateLabel(state, t)}`, className };
 };
 
 const AdminOrders = () => {
@@ -235,8 +278,9 @@ const AdminOrders = () => {
           <>
             <div className="space-y-2">
               {orders.map((o) => {
-                const badge = decisionBadge(o);
+                const badge = decisionBadge(o, t);
                 const source = sourceBadge(o, t);
+                const payment = paymentBadge(o, t);
                 const customerName = `${o.first_name || ""} ${o.last_name || ""}`.trim();
                 return (
                   <Link
@@ -254,6 +298,13 @@ const AdminOrders = () => {
                         </span>
                         <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 shrink-0 ${badge.className}`}>
                           {badge.label}
+                        </span>
+                        {/* Payment status — deliberately separate from the
+                            decision badge above, never conflated: an order
+                            can be approved with payment still pending, or
+                            paid while still awaiting a decision. */}
+                        <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 shrink-0 ${payment.className}`}>
+                          {payment.label}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground truncate mt-0.5">

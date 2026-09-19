@@ -13,6 +13,21 @@ import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 
+// pending/approved/rejected/cancelled -> the French/English label actually
+// shown for the header decision badge. Same lookup as AdminOrders.tsx's own
+// copy (kept separate — see that file's comment on why decision-state logic
+// itself is duplicated rather than shared).
+const DECISION_STATE_LABEL: Record<string, [string, string]> = {
+  pending: ["PENDING", "EN ATTENTE"],
+  approved: ["APPROVED", "ACCEPTÉE"],
+  rejected: ["REJECTED", "REFUSÉE"],
+  cancelled: ["CANCELLED", "ANNULÉE"],
+};
+const decisionStateLabel = (state: string, t: (en: string, fr: string) => string): string => {
+  const pair = DECISION_STATE_LABEL[state];
+  return pair ? t(pair[0], pair[1]) : state.toUpperCase();
+};
+
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
   if (!value) return null;
   return (
@@ -290,6 +305,14 @@ const AdminOrder = () => {
     (hasWorkshop ? (hasPhysical ? "mixed" : "workshop_only") : "cake_only");
   const isMixed = fulfillmentType === "mixed";
   const isWorkshopOnly = fulfillmentType === "workshop_only";
+  // order_number's "ORDM-" prefix (vs "ORD-") is the PRIMARY, unambiguous
+  // signal for a manual order — minted at creation by the Make scenario
+  // "Bento — Commandes manuelles instantanées" (7425367) and never changed
+  // afterward. order_source (the real "Instagram"/"WhatsApp"/"manual order"
+  // value that same Make scenario also sends) is checked as a fallback only,
+  // and shown as-is in Customer Information below when present — the coarse
+  // MANUEL badge never depends on which specific channel it came from.
+  const isManual = !!order.order_number?.startsWith("ORDM-") || (!!order.order_source && order.order_source !== "website");
   // Terminal / abnormal: a capacity abort persisted order_validation='cancelled'
   // + order_failure_reason. Handle it before any decision UI.
   const isCancelled = order.order_validation === "cancelled" || !!order.order_failure_reason;
@@ -299,7 +322,17 @@ const AdminOrder = () => {
   // only for workshop_only, which never changes); workshop_only's own
   // decision lives on order_validation directly instead (mirrors
   // decide_order_physical / manage-order/index.ts exactly).
-  const decisionState: string = isWorkshopOnly
+  // 2026-09-19: a manual order is considered accepted the moment it's
+  // created — there is no separate Accept/Refuse review step for it — so
+  // its status is read from order_validation too, never physical_validation.
+  // physical_validation is only ever written by the decide_order_physical
+  // RPC (manage-order's Accept/Refuse flow), which a manually-inserted order
+  // never goes through, so plenty of older manual orders sit at
+  // order_validation='approved' with physical_validation still stuck at its
+  // column default 'pending' — reading physical_validation for them would
+  // incorrectly re-offer the Accept/Refuse decision UI on an already-decided
+  // order (see isResolved below).
+  const decisionState: string = (isWorkshopOnly || isManual)
     ? (order.order_validation ?? "pending")
     : (order.physical_validation ?? "pending");
   // Decision UI shows for any order that is not cancelled and still pending
@@ -337,11 +370,11 @@ const AdminOrder = () => {
               </h1>
               <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 ${
                 hasWorkshop ? "bg-purple-100 text-purple-800" :
-                order.order_source && order.order_source !== "website" ? "bg-blue-100 text-blue-800" :
+                isManual ? "bg-blue-100 text-blue-800" :
                 "bg-secondary text-secondary-foreground"
               }`}>
                 {hasWorkshop ? t("Workshop", "Atelier")
-                  : order.order_source && order.order_source !== "website" ? t("Manual", "Manuel")
+                  : isManual ? t("Manual", "Manuel")
                   : t("Website", "Site")}
               </span>
               <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 ${
@@ -350,10 +383,10 @@ const AdminOrder = () => {
                 decisionState === "pending" ? "bg-amber-100 text-amber-800" :
                 "bg-red-100 text-red-800"
               }`}>
-                {isCancelled ? "CANCELLED"
-                  : isWorkshopOnly ? `WORKSHOP · ${String(decisionState).toUpperCase()}`
-                  : isMixed ? `WS+CAKE · ${String(decisionState).toUpperCase()}`
-                  : String(decisionState).toUpperCase()}
+                {isCancelled ? decisionStateLabel("cancelled", t)
+                  : isWorkshopOnly ? `WORKSHOP · ${decisionStateLabel(decisionState, t)}`
+                  : isMixed ? `WS+CAKE · ${decisionStateLabel(decisionState, t)}`
+                  : decisionStateLabel(decisionState, t)}
               </span>
             </div>
           </div>
@@ -381,6 +414,13 @@ const AdminOrder = () => {
             <DetailRow label={t("Name", "Nom")} value={customerName} />
             <DetailRow label={t("Email", "E-mail")} value={order.email} />
             <DetailRow label={t("Phone", "Téléphone")} value={order.phone} />
+            {/* The real channel (Instagram, WhatsApp, "manual order", ...)
+                behind the coarse MANUEL badge above — shown only when it's
+                actually set and isn't just the generic "website" value.
+                DetailRow itself already hides when value is falsy. */}
+            {order.order_source && order.order_source !== "website" && (
+              <DetailRow label={t("Source", "Source")} value={order.order_source} />
+            )}
           </div>
 
           {/* Pickup / Delivery — physical products only */}
