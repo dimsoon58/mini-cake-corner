@@ -54,7 +54,7 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isOrderDateDisabled, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
-import { cartItemTitle, flavorLabel } from "@/lib/orderLabels";
+import { cartItemTitle, flavorLabel, shapeLabel } from "@/lib/orderLabels";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 import { getStoredOrderId, setStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
@@ -2135,7 +2135,17 @@ const Checkout = () => {
                           {item.product !== "dot_cakes" && item.product !== "diy_kit" && item.product !== "edible_printing" && (
                             <div className="flex justify-between">
                               <span>{t("Base", "Base")} ({item.sizeName})</span>
-                              <span>CHF {formatChf(sizePrice)}{shapeExtra > 0 ? ` + ${formatChf(shapeExtra)}` : ""}</span>
+                              <span>CHF {formatChf(sizePrice)}</span>
+                            </div>
+                          )}
+                          {/* Shape surcharge on its own row, same convention
+                              as Flavour/Design below — never appended to the
+                              Base row above as "CHF 40 + 3", which read as a
+                              single confusing price instead of two amounts. */}
+                          {item.shapeName && item.product !== "dot_cakes" && item.product !== "diy_kit" && item.product !== "edible_printing" && (
+                            <div className="flex justify-between">
+                              <span>{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang)}</span>
+                              <span>{shapeExtra > 0 ? `+ CHF ${formatChf(shapeExtra)}` : t("included", "inclus")}</span>
                             </div>
                           )}
                           {item.flavorName && (

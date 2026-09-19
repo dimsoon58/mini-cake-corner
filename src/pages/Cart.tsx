@@ -32,7 +32,7 @@ import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
-import { splitComment, flavorLabel, cartItemTitle } from "@/lib/orderLabels";
+import { splitComment, flavorLabel, shapeLabel, cartItemTitle } from "@/lib/orderLabels";
 import {
   sizes,
   shapes,
@@ -971,7 +971,7 @@ const ItemDesignImage = ({ item, alt }: { item: CartItem; alt: string }) => {
 
 /* ---------- Summary (read-only view) ---------- */
 const CartItemSummary = ({ item }: { item: any }) => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const isDiyKit = item.product === "diy_kit";
   // Dot Cakes/DIY Kit/Printing/Candles: "design"/styleName is a fixed
   // internal product name, never a real customer choice — showing it as a
@@ -1030,8 +1030,24 @@ const CartItemSummary = ({ item }: { item: any }) => {
             purely informational row is skipped for those two only. */}
         {item.product !== "dot_cakes" && item.product !== "edible_printing" && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">{item.sizeName}{item.shapeName ? ` (${item.shapeName})` : ""}</span>
-            <span className="text-foreground">CHF {formatChf(sizePrice)}{shapeExtra > 0 ? ` + ${formatChf(shapeExtra)}` : ""}</span>
+            <span className="text-muted-foreground">{item.sizeName}</span>
+            <span className="text-foreground">CHF {formatChf(sizePrice)}</span>
+          </div>
+        )}
+        {/* Shape surcharge shown on its own row, same convention as Flavour/
+            Design below (+CHF X when it costs extra, "included" when it
+            doesn't) — never appended to the size row above as "CHF 40 + 3",
+            which read as a single confusing price rather than two amounts. */}
+        {item.shapeName && shapeExtra > 0 && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang)}</span>
+            <span className="text-foreground">+ CHF {formatChf(shapeExtra)}</span>
+          </div>
+        )}
+        {item.shapeName && shapeExtra === 0 && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang)}</span>
+            <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
           </div>
         )}
         {item.flavorName && flavorExtra > 0 && (
