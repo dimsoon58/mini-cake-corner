@@ -832,7 +832,7 @@ serve(async (req) => {
   }
 
   try {
-    const { orderId, action: rawAction, pin, token, refundReference } = await req.json();
+    const { orderId, action: rawAction, pin, token, refundReference, refundAmount, refundNote } = await req.json();
 
     if (!orderId || !rawAction) {
       throw new Error("Missing required fields: orderId, action");
@@ -841,8 +841,8 @@ serve(async (req) => {
     // Normalize: accept both "decline" and "reject"
     const action = rawAction === "decline" ? "reject" : rawAction;
 
-    if (action !== "approve" && action !== "reject" && action !== "mark_refunded") {
-      throw new Error("Action must be 'approve', 'reject', 'decline', or 'mark_refunded'");
+    if (action !== "approve" && action !== "reject" && action !== "mark_refunded" && action !== "record_manual_refund") {
+      throw new Error("Action must be 'approve', 'reject', 'decline', 'mark_refunded', or 'record_manual_refund'");
     }
 
     const supabase = createClient(
@@ -896,6 +896,48 @@ serve(async (req) => {
         fulfillmentType,
         paymentStatus: isMixedRefund ? "paid" : "refunded",
         matched,
+      }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 200 });
+    }
+
+    // ── record_manual_refund: log an ad-hoc refund the admin did by hand,
+    //    for ANY reason, on an order in ANY state — completely independent
+    //    of refund_status/refund_due_amount/payment_status (mark_refunded
+    //    above), which only ever cover the one automated "refused after
+    //    unexpected capture" scenario. Never touches those columns. See the
+    //    order_manual_refunds migration's own header for why this is an
+    //    append-only log rather than a single running-total column.
+    if (action === "record_manual_refund") {
+      const admin = await requireAdmin(req, supabase);
+      if (!admin) {
+        return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
+        });
+      }
+      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
+      if (!adminPin || pin !== adminPin) {
+        return new Response(JSON.stringify({ error: "Invalid PIN" }), {
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 403,
+        });
+      }
+      const amount = Math.round(Number(refundAmount) * 100) / 100;
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return new Response(JSON.stringify({ error: "refundAmount must be a positive number" }), {
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 400,
+        });
+      }
+      const note = typeof refundNote === "string" && refundNote.trim() ? refundNote.trim() : null;
+
+      const { data: inserted, error: insertErr } = await supabase
+        .from("order_manual_refunds")
+        .insert({ order_id: orderId, amount, note, created_by: admin.email })
+        .select("id, amount, note, created_at")
+        .single();
+      if (insertErr) throw new Error(`Failed to record manual refund: ${insertErr.message}`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        status: "manual_refund_recorded",
+        refund: inserted,
       }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 200 });
     }
 

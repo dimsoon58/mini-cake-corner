@@ -99,6 +99,28 @@ serve(async (req) => {
       pickupDeliverySlot: string | null;
       deliveryMethod: string | null;
       total: number | null;
+      // Added for /admin/dashboard's revenue total — kept separate from
+      // `status` (order_validation/physical_validation) on purpose, exactly
+      // like the admin orders list now shows them as two different badges:
+      // an order can be approved with payment still pending, or paid while
+      // still awaiting a decision.
+      paymentStatus: string | null;
+      // A cancelled/refused ALREADY-PAID order keeps payment_status='paid'
+      // (cancel-order only flips refund_status, never payment_status, for
+      // the ordinary case — see its own resultingPaymentStatus comment) —
+      // so paymentStatus==='paid' alone is NOT proof the money is still
+      // kept. refundStatus is 'none'/null normally, 'to_refund' once
+      // cancellation flags it, 'refunded' once an admin confirms the actual
+      // refund was done. The dashboard must exclude both from revenue.
+      refundStatus: string | null;
+      // Sum of order_manual_refunds for this ORDER (same value repeated on
+      // every entry of a multi-item order — the dashboard dedupes by
+      // orderId before subtracting, exactly like it already does for
+      // status counts). See that table's own migration header for why this
+      // now covers ad-hoc refunds the whole-order refund_status above
+      // never did. Still doesn't cover a PARTIAL workshop-seat refund
+      // (workshop_cancellation_log, separate table) — known gap.
+      manualRefundTotal: number;
     };
     const byDate = new Map<string, DayEntry[]>();
     const pushEntry = (date: string | null | undefined, entry: DayEntry) => {
@@ -150,7 +172,7 @@ serve(async (req) => {
     if (cakeOrderIds.length > 0) {
       const { data: cakeOrders, error: cakeErr } = await supabase
         .from("orders")
-        .select("id, order_number, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, pickup_delivery_slot, delivery_method")
+        .select("id, order_number, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, pickup_delivery_slot, delivery_method, payment_status, refund_status")
         .in("id", cakeOrderIds);
       if (cakeErr) throw new Error(`Failed to load cake orders: ${cakeErr.message}`);
       cakeOrdersById = new Map((cakeOrders ?? []).map((o) => [o.id, o]));
@@ -209,6 +231,9 @@ serve(async (req) => {
           pickupDeliverySlot: slot,
           deliveryMethod,
           total: it.total != null ? Number(it.total) : null,
+          paymentStatus: o.payment_status ?? null,
+          refundStatus: o.refund_status ?? null,
+          manualRefundTotal: 0, // filled in below, once, after all entries exist
         });
       }
     }
@@ -223,11 +248,11 @@ serve(async (req) => {
     if (wsErr) throw new Error(`Failed to load workshop bookings: ${wsErr.message}`);
 
     const workshopOrderIds = Array.from(new Set((workshopItems ?? []).map((it) => it.order_id).filter(Boolean)));
-    let workshopOrdersById = new Map<string, { first_name: string | null; last_name: string | null; order_number: string | null; order_validation: string | null; order_failure_reason: string | null }>();
+    let workshopOrdersById = new Map<string, { first_name: string | null; last_name: string | null; order_number: string | null; order_validation: string | null; order_failure_reason: string | null; payment_status: string | null; refund_status: string | null }>();
     if (workshopOrderIds.length > 0) {
       const { data: wsOrders, error: wsOrdersErr } = await supabase
         .from("orders")
-        .select("id, order_number, first_name, last_name, order_validation, order_failure_reason")
+        .select("id, order_number, first_name, last_name, order_validation, order_failure_reason, payment_status, refund_status")
         .in("id", workshopOrderIds);
       if (wsOrdersErr) throw new Error(`Failed to load workshop orders: ${wsOrdersErr.message}`);
       workshopOrdersById = new Map((wsOrders ?? []).map((o) => [o.id, o]));
@@ -255,7 +280,39 @@ serve(async (req) => {
         pickupDeliverySlot: null,
         deliveryMethod: null,
         total: it.total != null ? Number(it.total) : null,
+        paymentStatus: parent?.payment_status ?? null,
+        // Whole-order cancellation refunds only (orders.refund_status) — a
+        // PARTIAL workshop seat cancellation's refund is tracked separately
+        // in workshop_cancellation_log, not reflected here. Known gap, not
+        // relevant to the current dashboard revenue total (which excludes
+        // whole orders, not partial seats).
+        refundStatus: parent?.refund_status ?? null,
+        manualRefundTotal: 0, // filled in below, once, after all entries exist
       });
+    }
+
+    // ── Ad-hoc manual refunds (order_manual_refunds) for every order that
+    // has at least one entry this month — summed per order, then applied to
+    // EVERY entry of that order (a multi-item order repeats the same total;
+    // the dashboard dedupes by orderId before subtracting, same as it
+    // already does for status counts). One extra query, done once, after
+    // both the cake and workshop passes above so it covers every order
+    // regardless of which loop it came from.
+    const allEntries = Array.from(byDate.values()).flat();
+    const allOrderIds = Array.from(new Set(allEntries.map((e) => e.orderId)));
+    if (allOrderIds.length > 0) {
+      const { data: refunds, error: refundsErr } = await supabase
+        .from("order_manual_refunds")
+        .select("order_id, amount")
+        .in("order_id", allOrderIds);
+      if (refundsErr) throw new Error(`Failed to load manual refunds: ${refundsErr.message}`);
+      const refundTotalByOrder = new Map<string, number>();
+      for (const r of refunds ?? []) {
+        refundTotalByOrder.set(r.order_id, (refundTotalByOrder.get(r.order_id) ?? 0) + Number(r.amount));
+      }
+      for (const e of allEntries) {
+        e.manualRefundTotal = refundTotalByOrder.get(e.orderId) ?? 0;
+      }
     }
 
     const days: Record<string, DayEntry[]> = {};

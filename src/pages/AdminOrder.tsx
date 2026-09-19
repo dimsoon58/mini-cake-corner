@@ -46,7 +46,7 @@ const formatDateFromIso = (dateValue?: string | null) => {
 
 
 const AdminOrder = () => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
@@ -56,6 +56,9 @@ const AdminOrder = () => {
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [fulfillments, setFulfillments] = useState<any[]>([]);
+  const [manualRefunds, setManualRefunds] = useState<any[]>([]);
+  const [refundAmountInput, setRefundAmountInput] = useState("");
+  const [refundNoteInput, setRefundNoteInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Filled from get-order-detail's response when the URL had no token (the
@@ -129,6 +132,7 @@ const AdminOrder = () => {
         setOrder(data.order);
         setItems(data.items || []);
         setFulfillments(data.fulfillments || []);
+        setManualRefunds(data.manualRefunds || []);
         if (data.actionToken) setFetchedToken(data.actionToken);
         setInvoiceUrl(data.invoiceUrl ?? null);
         setInvoiceUrlError(data.invoiceUrlError ?? null);
@@ -209,6 +213,50 @@ const AdminOrder = () => {
       if (data?.error) { setResult({ type: "error", message: data.error }); return; }
       setResult({ type: "success", message: t("Marked as refunded.", "Marqué comme remboursé.") });
       setOrder({ ...order, refund_status: "refunded" });
+    } catch (err) {
+      setResult({ type: "error", message: err instanceof Error ? err.message : t("Unknown error", "Erreur inconnue") });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Records an ad-hoc manual refund (ANY reason, ANY order state) into
+  // order_manual_refunds — completely independent of refund_status/
+  // refund_due_amount above (that flow only ever covers the one automated
+  // "refused after unexpected capture" case). Never changes order.* fields;
+  // only appends to the history list and its total shown below.
+  const handleRecordManualRefund = async () => {
+    if (!pin.trim()) {
+      setResult({ type: "error", message: t("Please enter the admin PIN", "Veuillez saisir le code PIN administrateur") });
+      return;
+    }
+    const amount = Number(refundAmountInput.replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setResult({ type: "error", message: t("Enter a valid refund amount.", "Saisissez un montant de remboursement valide.") });
+      return;
+    }
+    setActionLoading("record_manual_refund");
+    setResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-order", {
+        body: {
+          orderId: id,
+          action: "record_manual_refund",
+          pin,
+          refundAmount: amount,
+          refundNote: refundNoteInput.trim() || undefined,
+        },
+      });
+      if (error) {
+        const message = await extractFunctionErrorMessage(error, t("Unknown error", "Erreur inconnue"));
+        setResult({ type: "error", message });
+        return;
+      }
+      if (data?.error) { setResult({ type: "error", message: data.error }); return; }
+      setResult({ type: "success", message: t("Refund recorded.", "Remboursement enregistré.") });
+      setManualRefunds((prev) => [data.refund, ...prev]);
+      setRefundAmountInput("");
+      setRefundNoteInput("");
     } catch (err) {
       setResult({ type: "error", message: err instanceof Error ? err.message : t("Unknown error", "Erreur inconnue") });
     } finally {
@@ -637,6 +685,53 @@ const AdminOrder = () => {
               {order.refund_reference ? ` (${order.refund_reference})` : ""}
             </div>
           )}
+
+          {/* Ad-hoc manual refunds — independent of refund_status above
+              (which only ever covers the one automated "refused after
+              unexpected capture" case). Any reason, any order state, can be
+              recorded more than once — a log, not a single field, so the
+              /admin/dashboard revenue total can subtract exactly what was
+              actually refunded instead of assuming a whole-order amount. */}
+          <div className="border border-border/60 bg-background p-4 space-y-3">
+            <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground">
+              {t("Manual Refunds", "Remboursements manuels")}
+            </h3>
+            {manualRefunds.length > 0 && (
+              <div className="space-y-1">
+                {manualRefunds.map((r: any) => (
+                  <div key={r.id} className="flex justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground truncate">
+                      {new Date(r.created_at).toLocaleDateString(lang === "fr" ? "fr-CH" : "en-CH")}
+                      {r.note ? ` — ${r.note}` : ""}
+                    </span>
+                    <span className="text-foreground font-medium shrink-0">CHF {Number(r.amount).toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-sm font-semibold pt-1.5 border-t border-border/60">
+                  <span>{t("Total refunded", "Total remboursé")}</span>
+                  <span>CHF {manualRefunds.reduce((sum: number, r: any) => sum + Number(r.amount), 0).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 items-end pt-1">
+              <div className="space-y-1">
+                <Label htmlFor="refund-amount" className="text-xs text-muted-foreground">{t("Amount (CHF)", "Montant (CHF)")}</Label>
+                <Input id="refund-amount" type="number" step="0.01" min="0" value={refundAmountInput} onChange={(e) => setRefundAmountInput(e.target.value)} className="w-28" />
+              </div>
+              <div className="space-y-1 flex-1 min-w-[140px]">
+                <Label htmlFor="refund-note" className="text-xs text-muted-foreground">{t("Note (optional)", "Note (facultatif)")}</Label>
+                <Input id="refund-note" value={refundNoteInput} onChange={(e) => setRefundNoteInput(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="refund-pin" className="text-xs text-muted-foreground">{t("Admin PIN", "Code PIN administrateur")}</Label>
+                <Input id="refund-pin" type="password" value={pin} onChange={(e) => setPin(e.target.value)} className="w-28" />
+              </div>
+              <Button variant="outline" onClick={handleRecordManualRefund} disabled={!!actionLoading}>
+                {actionLoading === "record_manual_refund" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                {t("Record refund", "Enregistrer")}
+              </Button>
+            </div>
+          </div>
 
           {/* Admin Actions */}
           {!isResolved ? (

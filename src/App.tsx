@@ -29,6 +29,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import AdminOrder from "./pages/AdminOrder";
 import AdminOrders from "./pages/AdminOrders";
 import AdminCalendar from "./pages/AdminCalendar";
+import AdminDashboard from "./pages/AdminDashboard";
 import WorkshopBooking from "./pages/WorkshopBooking";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import OrderAction from "./pages/OrderAction";
@@ -120,6 +121,7 @@ const App = () => (
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/calendar" element={<AdminCalendar />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/order/:id" element={<AdminOrder />} />
             <Route path="/order-action" element={<OrderAction />} />
             <Route path="/product/:id" element={<ProductDetail />} />

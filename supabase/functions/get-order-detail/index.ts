@@ -131,6 +131,13 @@ serve(async (req) => {
       .from("order_fulfillments").select("*").eq("order_id", orderId).order("pickup_delivery_date", { ascending: true });
     if (fulfillmentsErr) throw new Error(`Failed to load order fulfillments: ${fulfillmentsErr.message}`);
 
+    // Ad-hoc manual refunds the admin recorded by hand (see the
+    // order_manual_refunds migration's own header) — independent of
+    // orders.refund_status, shown as its own history list on AdminOrder.tsx.
+    const { data: manualRefunds, error: manualRefundsErr } = await supabase
+      .from("order_manual_refunds").select("*").eq("order_id", orderId).order("created_at", { ascending: false });
+    if (manualRefundsErr) throw new Error(`Failed to load manual refunds: ${manualRefundsErr.message}`);
+
     // When the caller didn't already supply their own token (the dashboard
     // flow), resolve this order's own existing order_action_tokens row (if
     // any) so Accept/Refuse from AdminOrder.tsx still has one to use —
@@ -188,6 +195,7 @@ serve(async (req) => {
       order,
       items: items ?? [],
       fulfillments: fulfillments ?? [],
+      manualRefunds: manualRefunds ?? [],
       actionToken,
       invoiceUrl,
       invoiceUrlError,

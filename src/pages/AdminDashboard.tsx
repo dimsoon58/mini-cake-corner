@@ -1,0 +1,265 @@
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { format, addMonths, subMonths } from "date-fns";
+import { fr as dateFnsFr } from "date-fns/locale";
+import { Loader2, Lock, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import Layout from "@/components/Layout";
+import { useLang } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
+import { isAdminEmail } from "@/lib/adminAccess";
+import { extractFunctionErrorMessage } from "@/lib/functionErrors";
+
+type OrderState = "approved" | "pending" | "refused" | "cancelled";
+type DayEntry = {
+  orderId: string;
+  status: OrderState;
+  total: number | null;
+  paymentStatus: string | null;
+  refundStatus: string | null;
+  // Sum of order_manual_refunds for this order (repeated on every entry of
+  // a multi-item order — see list-orders-by-date's own comment). Ad-hoc
+  // refunds the admin records by hand, on top of refundStatus above.
+  manualRefundTotal: number;
+};
+
+const formatChf = (n: number) => n.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const statusBadgeClass = (status: OrderState) =>
+  status === "approved" ? "bg-emerald-100 text-emerald-800" :
+  status === "pending" ? "bg-amber-100 text-amber-800" :
+  status === "refused" ? "bg-red-100 text-red-800" :
+  "bg-muted text-muted-foreground";
+
+const AdminDashboard = () => {
+  const { t, lang } = useLang();
+  const { user, loading: authLoading } = useAuth();
+  const isAdmin = isAdminEmail(user?.email);
+  const dfLocale = lang === "fr" ? { locale: dateFnsFr } : undefined;
+
+  const [monthCursor, setMonthCursor] = useState(() => new Date());
+  const [days, setDays] = useState<Record<string, DayEntry[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    document.title = "Admin – Dashboard – Bento Cake Studio";
+    return () => { document.title = "Bento Cake Studio Geneva"; };
+  }, []);
+
+  useEffect(() => {
+    if (authLoading || !isAdmin) { setLoading(authLoading); return; }
+    let cancelled = false;
+    const fetchMonth = async () => {
+      setLoading(true);
+      setLoadError(null);
+      // Reuses list-orders-by-date (already resolves each item's own
+      // pickup/delivery date correctly for a multi-date order, and the
+      // customer explicitly wants this dashboard scoped by pickup/delivery
+      // date, not order-creation date) — no separate backend endpoint.
+      const { data, error } = await supabase.functions.invoke("list-orders-by-date", {
+        body: { year: monthCursor.getFullYear(), month: monthCursor.getMonth() + 1 },
+      });
+      if (cancelled) return;
+      if (error) {
+        const reason = await extractFunctionErrorMessage(error, "");
+        console.error("list-orders-by-date failed:", reason || error);
+        setLoadError(
+          reason === "Admin sign-in required"
+            ? t("Your admin session could not be verified. Please sign out and sign in again.", "Votre session administrateur n'a pas pu être vérifiée. Merci de vous déconnecter puis de vous reconnecter.")
+            : t("Could not load the dashboard. Please try again.", "Impossible de charger le tableau de bord. Merci de réessayer.")
+        );
+      } else if (data?.error) {
+        console.error("list-orders-by-date failed:", data.error);
+        setLoadError(t("Could not load the dashboard. Please try again.", "Impossible de charger le tableau de bord. Merci de réessayer."));
+      } else {
+        setDays(data.days ?? {});
+      }
+      setLoading(false);
+    };
+    fetchMonth();
+    return () => { cancelled = true; };
+  }, [monthCursor, authLoading, isAdmin, t]);
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <main className="container mx-auto px-4 py-16 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
+        </main>
+      </Layout>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Layout>
+        <main className="max-w-md mx-auto px-6 py-24 text-center">
+          <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
+          <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
+            {t("Admin sign-in required", "Connexion administrateur requise")}
+          </h1>
+          <p className="text-sm text-foreground/75 leading-relaxed mb-6">
+            {t(
+              "This page is restricted to Bento Cake Studio administrators. Please sign in to continue.",
+              "Cette page est réservée aux administrateurs de Bento Cake Studio. Merci de vous connecter pour continuer."
+            )}
+          </p>
+          <Button
+            asChild
+            className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground uppercase tracking-[0.105em] text-[13px] font-medium"
+          >
+            <Link to={`/login?redirect=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`}>
+              {t("Sign in", "Se connecter")}
+            </Link>
+          </Button>
+        </main>
+      </Layout>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Layout>
+        <main className="max-w-md mx-auto px-6 py-24 text-center">
+          <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
+          <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
+            {t("Access denied", "Accès refusé")}
+          </h1>
+          <p className="text-sm text-foreground/75 leading-relaxed">
+            {t("Your account does not have access to this page.", "Votre compte n'a pas accès à cette page.")}
+          </p>
+        </main>
+      </Layout>
+    );
+  }
+
+  // Flatten to one row per ORDER (not per item) for counts/status — an
+  // order with several items must only count once. Revenue itself sums
+  // per-item (below), which is correct: each item's own value contributes
+  // to whichever month its own pickup/delivery date falls in.
+  const allEntries = Object.values(days).flat();
+  const orderById = new Map<string, DayEntry>();
+  for (const e of allEntries) orderById.set(e.orderId, e);
+  const orders = Array.from(orderById.values());
+
+  // "Real" revenue: money actually kept. paymentStatus==='paid' alone is
+  // NOT enough — an already-paid order that was later cancelled keeps
+  // payment_status='paid' (cancel-order only flips refund_status, never
+  // payment_status, for the ordinary case), so refundStatus must also be
+  // excluded whenever it's 'to_refund' or 'refunded'. On top of that, an
+  // order can be ad-hoc manually refunded (in full or in part, for any
+  // reason) without ever going through cancel-order at all — order_manual_
+  // refunds (recorded on AdminOrder.tsx) tracks the REAL amount for that
+  // case, subtracted here once per order (not per item — manualRefundTotal
+  // is the same value on every entry of a multi-item order). Known
+  // limitation: a PARTIAL workshop-seat refund is tracked in
+  // workshop_cancellation_log, not order_manual_refunds, so it isn't
+  // subtracted here yet.
+  const grossPaidRevenue = allEntries
+    .filter((e) => e.paymentStatus === "paid" && e.refundStatus !== "to_refund" && e.refundStatus !== "refunded")
+    .reduce((sum, e) => sum + (e.total ?? 0), 0);
+  const manualRefundTotal = orders.reduce((sum, o) => sum + (o.manualRefundTotal || 0), 0);
+  const revenue = grossPaidRevenue - manualRefundTotal;
+  const refundedAmount = allEntries
+    .filter((e) => e.refundStatus === "to_refund" || e.refundStatus === "refunded")
+    .reduce((sum, e) => sum + (e.total ?? 0), 0) + manualRefundTotal;
+  const pendingPaymentAmount = allEntries
+    .filter((e) => e.paymentStatus === "pending")
+    .reduce((sum, e) => sum + (e.total ?? 0), 0);
+
+  const statusCounts: Record<OrderState, number> = { approved: 0, pending: 0, refused: 0, cancelled: 0 };
+  for (const o of orders) statusCounts[o.status] = (statusCounts[o.status] ?? 0) + 1;
+
+  const statusLabel = (s: OrderState) =>
+    s === "approved" ? t("Approved", "Acceptées") :
+    s === "pending" ? t("Pending", "En attente") :
+    s === "refused" ? t("Refused", "Refusées") :
+    t("Cancelled", "Annulées");
+
+  return (
+    <Layout>
+      <main className="container mx-auto px-4 py-8 max-w-3xl">
+        <div className="flex items-center justify-center gap-4 mb-4 text-[11px] uppercase tracking-[0.105em]">
+          <Link to="/admin/orders" className="text-muted-foreground hover:text-foreground">{t("Orders", "Commandes")}</Link>
+          <Link to="/admin/calendar" className="text-muted-foreground hover:text-foreground">{t("Calendar", "Calendrier")}</Link>
+          <span className="text-foreground font-semibold">{t("Dashboard", "Tableau de bord")}</span>
+        </div>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-primary" strokeWidth={1.5} />
+            {t("Dashboard", "Tableau de bord")}
+          </h1>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" className="rounded-none h-8 w-8" onClick={() => setMonthCursor((d) => subMonths(d, 1))}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="font-sans text-sm uppercase tracking-[0.105em] text-foreground min-w-[120px] text-center">
+              {format(monthCursor, "MMMM yyyy", dfLocale)}
+            </span>
+            <Button variant="outline" size="icon" className="rounded-none h-8 w-8" onClick={() => setMonthCursor((d) => addMonths(d, 1))}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-16">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
+          </div>
+        ) : loadError ? (
+          <p className="text-center text-muted-foreground py-16">{loadError}</p>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "Scoped by pickup/delivery date — an order counts in the month its cake or workshop actually happens, not the month it was placed.",
+                "Basé sur la date de retrait/livraison — une commande compte dans le mois où le gâteau ou l'atelier a vraiment lieu, pas dans le mois où elle a été passée."
+              )}
+            </p>
+
+            {/* Revenue card */}
+            <div className="border border-border/60 bg-background p-6">
+              <p className="font-sans text-[11px] tracking-[0.105em] uppercase text-muted-foreground mb-1">
+                {t("Revenue this month", "Chiffre d'affaires du mois")}
+              </p>
+              <p className="font-sans text-3xl font-bold text-foreground">CHF {formatChf(revenue)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t(
+                  "Paid orders only, minus anything refunded, to be refunded, or manually recorded as refunded. Doesn't yet subtract a partial workshop seat refund.",
+                  "Commandes payées uniquement, hors remboursées, à rembourser, ou remboursées manuellement. Ne déduit pas encore un remboursement partiel de place d'atelier."
+                )}
+              </p>
+              {(pendingPaymentAmount > 0 || refundedAmount > 0) && (
+                <div className="flex gap-4 mt-3 pt-3 border-t border-border/60 text-xs text-muted-foreground">
+                  {pendingPaymentAmount > 0 && <span>{t("Payment pending:", "Paiement en attente :")} CHF {formatChf(pendingPaymentAmount)}</span>}
+                  {refundedAmount > 0 && <span>{t("Refunded / to refund:", "Remboursé / à rembourser :")} CHF {formatChf(refundedAmount)}</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Status breakdown card */}
+            <div className="border border-border/60 bg-background p-6">
+              <p className="font-sans text-[11px] tracking-[0.105em] uppercase text-muted-foreground mb-3">
+                {t("Orders by status", "Commandes par statut")} ({orders.length})
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {(Object.keys(statusCounts) as OrderState[]).map((s) => (
+                  <div key={s} className="flex items-center justify-between px-3 py-2 bg-muted/30">
+                    <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 shrink-0 ${statusBadgeClass(s)}`}>
+                      {statusLabel(s)}
+                    </span>
+                    <span className="font-bold text-foreground">{statusCounts[s]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </Layout>
+  );
+};
+
+export default AdminDashboard;
