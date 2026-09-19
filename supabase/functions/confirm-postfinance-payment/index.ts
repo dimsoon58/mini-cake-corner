@@ -440,8 +440,24 @@ async function finalizeClaimed(
     throw e;
   }
 
-  // DB order is complete → fire side-effects, then report the REAL marker state.
-  return { outcome: "finalized", sideEffectsComplete: await retryMissingSideEffects(supabase, orderRecord.id) };
+  // DB order is complete → the customer must see success now; side-effects
+  // (e-mails, invoice, Make, workshop e-mail) never block that response.
+  // Fire them in the background — EdgeRuntime.waitUntil keeps the isolate
+  // alive after the response is sent, same pattern as sendTechnicalAlert /
+  // send-workshop-cancellation-email elsewhere in this codebase — and
+  // report false: accurate, since finalizeOrderDb just completed this
+  // instant, side-effects cannot have run yet. PaymentSuccess.tsx's own
+  // nudge polling (see its MAX_NUDGES) picks up the real completion a few
+  // seconds later without ever blocking the success screen.
+  // retryMissingSideEffects already catches everything internally and
+  // resolves (never rejects) — the .catch() here is defence in depth so a
+  // background task can never surface an unhandled rejection regardless.
+  EdgeRuntime.waitUntil(
+    retryMissingSideEffects(supabase, orderRecord.id).catch((e) => {
+      console.error(`retryMissingSideEffects (background, just-finalized) failed for ${orderRecord.id}:`, e);
+    }),
+  );
+  return { outcome: "finalized", sideEffectsComplete: false };
 }
 
 // Re-fire only the still-missing side-effects for an order that is already
@@ -571,12 +587,25 @@ serve(async (req) => {
         );
       }
 
-      // ── Already DB-complete → only retry the missing side-effects ──
+      // ── Already DB-complete → report status now, retry in the background ──
       if (existingOrder.finalized_at) {
         // Idempotent cleanup of a pending_payments row left behind by a crash
         // between mark_order_finalized and the delete inside finalizeOrderDb.
         await supabase.from("pending_payments").delete().eq("order_id", orderId);
-        const sideEffectsComplete = await retryMissingSideEffects(supabase, orderId);
+        // Fast, read-only check — the same fallback retryMissingSideEffects
+        // itself uses when it can't get the retry lease (see its own body
+        // below). Only actually re-fire the side-effects (in the background,
+        // never blocking this response) when they are genuinely still
+        // missing — a caller landing here after they already completed must
+        // never trigger a useless duplicate retry attempt.
+        const sideEffectsComplete = await areSideEffectsComplete(supabase, orderId);
+        if (!sideEffectsComplete) {
+          EdgeRuntime.waitUntil(
+            retryMissingSideEffects(supabase, orderId).catch((e) => {
+              console.error(`retryMissingSideEffects (background, already-finalized) failed for ${orderId}:`, e);
+            }),
+          );
+        }
         return await confirmedResponse(supabase, orderId, false, sideEffectsComplete);
       }
 
@@ -727,8 +756,18 @@ serve(async (req) => {
     }
 
     // The 23505 re-select may already be fully finalised (webhook beat us).
+    // Same non-blocking treatment as the existing-order branch above: report
+    // the real, already-known status now, only re-fire in the background
+    // (and only) when side-effects are genuinely still missing.
     if (orderRecord.finalized_at) {
-      const sideEffectsComplete = await retryMissingSideEffects(supabase, orderId);
+      const sideEffectsComplete = await areSideEffectsComplete(supabase, orderId);
+      if (!sideEffectsComplete) {
+        EdgeRuntime.waitUntil(
+          retryMissingSideEffects(supabase, orderId).catch((e) => {
+            console.error(`retryMissingSideEffects (background, race-select) failed for ${orderId}:`, e);
+          }),
+        );
+      }
       return await confirmedResponse(supabase, orderId, false, sideEffectsComplete);
     }
     if (finalizationLeaseActive(orderRecord)) {
