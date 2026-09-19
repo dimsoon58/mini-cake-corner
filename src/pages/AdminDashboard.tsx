@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, designLabel } from "@/lib/orderLabels";
+import { workshopSessions } from "@/data/workshopSessions";
 
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
 type DayEntry = {
@@ -29,6 +30,9 @@ type DayEntry = {
   product: string;
   design: string | null;
   workshopType: string | null;
+  // Added for the workshop fill-rate card below.
+  workshopSessionId: string | null;
+  workshopParticipants: number | null;
 };
 
 const formatChf = (n: number) => n.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -227,6 +231,27 @@ const AdminDashboard = () => {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
 
+  // Workshop fill rate — sessions scheduled in the selected month, reserved
+  // seats vs capacity (src/data/workshopSessions.ts — the same catalogue
+  // the live booking flow uses). A cancelled/refused booking frees its
+  // seat, so it's excluded from "reserved" here — this reads the session
+  // catalogue's fixed capacity, not the live get_workshop_availability()
+  // seat count a customer sees while booking (a separate, real-time RPC
+  // this dashboard doesn't call).
+  const reservedBySession = new Map<string, number>();
+  for (const e of allEntries) {
+    if (!e.workshopSessionId || e.status === "cancelled" || e.status === "refused") continue;
+    reservedBySession.set(e.workshopSessionId, (reservedBySession.get(e.workshopSessionId) ?? 0) + (e.workshopParticipants ?? 0));
+  }
+  const cursorYear = monthCursor.getFullYear();
+  const cursorMonth = monthCursor.getMonth() + 1;
+  const sessionsThisMonth = workshopSessions
+    .filter((s) => {
+      const [y, m] = s.date.split("-").map(Number);
+      return y === cursorYear && m === cursorMonth;
+    })
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+
   const statusLabel = (s: OrderState) =>
     s === "approved" ? t("Approved", "Acceptées") :
     s === "pending" ? t("Pending", "En attente") :
@@ -351,6 +376,35 @@ const AdminDashboard = () => {
                       <span className="font-bold text-foreground shrink-0 ml-3">{count}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Workshop fill-rate card */}
+            {sessionsThisMonth.length > 0 && (
+              <div className="border border-border/60 bg-background p-6">
+                <p className="font-sans text-[11px] tracking-[0.105em] uppercase text-muted-foreground mb-3">
+                  {t("Workshop fill rate", "Taux de remplissage des ateliers")}
+                </p>
+                <div className="space-y-3">
+                  {sessionsThisMonth.map((s) => {
+                    const reserved = reservedBySession.get(s.id) ?? 0;
+                    const pct = Math.min(100, Math.round((reserved / s.capacity) * 100));
+                    const sessionLabel = s.workshopType === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature");
+                    return (
+                      <div key={s.id} className="text-sm">
+                        <div className="flex items-center justify-between mb-1 gap-3">
+                          <span className="text-foreground truncate">
+                            {sessionLabel} — {new Date(`${s.date}T00:00:00`).toLocaleDateString(lang === "fr" ? "fr-CH" : "en-CH")} {s.time}
+                          </span>
+                          <span className="font-bold text-foreground shrink-0">{reserved}/{s.capacity}</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

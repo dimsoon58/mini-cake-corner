@@ -102,6 +102,10 @@ serve(async (req) => {
       designImageUrl: string | null;
       referenceImages: string[] | null;
       workshopType: string | null;
+      // Added for /admin/dashboard's workshop fill-rate card — matches
+      // against src/data/workshopSessions.ts's session catalogue (id/date/
+      // time/type/capacity) to compute reserved-vs-capacity per session.
+      workshopSessionId: string | null;
       workshopTime: string | null;
       workshopParticipants: number | null;
       pickupDeliverySlot: string | null;
@@ -236,6 +240,7 @@ serve(async (req) => {
           designImageUrl: it.design_image_url,
           referenceImages: it.reference_images,
           workshopType: null,
+          workshopSessionId: null,
           workshopTime: null,
           workshopParticipants: null,
           pickupDeliverySlot: slot,
@@ -252,7 +257,7 @@ serve(async (req) => {
     // order_items, never on orders itself. No design photo of its own. ──
     const { data: workshopItems, error: wsErr } = await supabase
       .from("order_items")
-      .select("id, order_id, workshop_type, workshop_date, workshop_time, workshop_participants, total")
+      .select("id, order_id, workshop_session_id, workshop_type, workshop_date, workshop_time, workshop_participants, total")
       .gte("workshop_date", startDate)
       .lte("workshop_date", endDate);
     if (wsErr) throw new Error(`Failed to load workshop bookings: ${wsErr.message}`);
@@ -287,6 +292,7 @@ serve(async (req) => {
         designImageUrl: null,
         referenceImages: null,
         workshopType: it.workshop_type,
+        workshopSessionId: it.workshop_session_id,
         workshopTime: it.workshop_time,
         workshopParticipants: it.workshop_participants,
         pickupDeliverySlot: null,
