@@ -487,7 +487,12 @@ function finalizationLeaseActive(order: any): boolean {
   return Number.isFinite(claimedAt) && (Date.now() - claimedAt) < FINALIZE_LEASE_MS;
 }
 
-function json(body: unknown, status = 200): Response {
+// `req` is threaded through explicitly (never a module-level/global
+// variable) — every one of these helpers is declared outside
+// serve(async (req) => ...) below, so `req` is only ever available to them
+// as a parameter, passed by each call site (all of which are themselves
+// inside that same serve() callback, where the real `req` is in scope).
+function json(req: Request, body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     status,
@@ -500,6 +505,7 @@ function json(body: unknown, status = 200): Response {
 // pre-side-effects snapshot would show a confirmed workshop as still "pending"
 // on the PaymentSuccess page.
 async function confirmedResponse(
+  req: Request,
   supabase: any,
   orderId: string,
   justCreated: boolean,
@@ -510,7 +516,7 @@ async function confirmedResponse(
     .select("order_validation, physical_validation, workshop_confirmed_at, fulfillment_type, order_failure_reason, refund_status")
     .eq("id", orderId)
     .maybeSingle();
-  return json({
+  return json(req, {
     confirmed: true,
     justCreated,
     orderValidation: o?.order_validation ?? "pending",
@@ -528,7 +534,7 @@ async function confirmedResponse(
 //   rewardOnly = true                  -> no money was ever taken
 //   refundState = 'to_refund'          -> money received, refund still to be done
 //   refundState = 'refunded'           -> money received, refund already done
-function capacityResponse(rewardOnly: boolean, refundState: string, detail: string) {
+function capacityResponse(req: Request, rewardOnly: boolean, refundState: string, detail: string) {
   return new Response(JSON.stringify({
     confirmed: false,
     failed: true,
@@ -577,10 +583,11 @@ serve(async (req) => {
         const persisted = existingOrder.order_validation === "cancelled";
         if (!persisted) {
           const abort = await abortOrderAfterCapture(supabase, existingOrder, "retry");
-          return capacityResponse(abort.financiallyResolved, abort.refundState, abort.message);
+          return capacityResponse(req, abort.financiallyResolved, abort.refundState, abort.message);
         }
         const wasRewardOnly = existingOrder.postfinance_transaction_id === REWARD_ONLY_TRANSACTION_ID;
         return capacityResponse(
+          req,
           wasRewardOnly,
           wasRewardOnly ? "none" : (existingOrder.refund_status ?? "to_refund"),
           "workshop capacity unavailable — refund state tracked on the order",
@@ -606,14 +613,14 @@ serve(async (req) => {
             }),
           );
         }
-        return await confirmedResponse(supabase, orderId, false, sideEffectsComplete);
+        return await confirmedResponse(req, supabase, orderId, false, sideEffectsComplete);
       }
 
       // ── Order row exists but finalisation is not done ──
       // Someone holds a live lease → they are finalising right now. Never
       // report confirmed while finalized_at is NULL.
       if (finalizationLeaseActive(existingOrder)) {
-        return json({ confirmed: false, finalizing: true });
+        return json(req, { confirmed: false, finalizing: true });
       }
 
       // No lease / stale lease → try to take it and finish the DB order.
@@ -628,16 +635,16 @@ serve(async (req) => {
           supabase, existingOrder, pendingForRetry.payload.orderItems, pendingForRetry.payload.fulfillments,
         );
         if (result.outcome === "finalized") {
-          return await confirmedResponse(supabase, orderId, true, result.sideEffectsComplete);
+          return await confirmedResponse(req, supabase, orderId, true, result.sideEffectsComplete);
         }
-        return json({ confirmed: false, finalizing: true });
+        return json(req, { confirmed: false, finalizing: true });
       }
 
       // Order exists, not finalised, no lease, no payload to finalise from —
       // a stale partial state. Keep the customer polling; the webhook (5xx →
       // PostFinance retry) is the recovery channel.
       console.error(`Order ${orderId} exists but is not finalised and has no pending_payments payload.`);
-      return json({ confirmed: false, finalizing: true });
+      return json(req, { confirmed: false, finalizing: true });
     }
 
     const { data: pending, error: pendingError } = await supabase
@@ -768,22 +775,22 @@ serve(async (req) => {
           }),
         );
       }
-      return await confirmedResponse(supabase, orderId, false, sideEffectsComplete);
+      return await confirmedResponse(req, supabase, orderId, false, sideEffectsComplete);
     }
     if (finalizationLeaseActive(orderRecord)) {
-      return json({ confirmed: false, finalizing: true });
+      return json(req, { confirmed: false, finalizing: true });
     }
 
     const result = await finalizeClaimed(supabase, orderRecord, orderItems, fulfillments);
     if (result.outcome === "finalized") {
-      return await confirmedResponse(supabase, orderId, true, result.sideEffectsComplete);
+      return await confirmedResponse(req, supabase, orderId, true, result.sideEffectsComplete);
     }
     // Lost the lease race to a concurrent finaliser (webhook vs poll). The
     // order exists; it is being finalised elsewhere. Keep polling.
-    return json({ confirmed: false, finalizing: true });
+    return json(req, { confirmed: false, finalizing: true });
   } catch (error) {
     if (error instanceof WorkshopCapacityAbort) {
-      return capacityResponse(error.financiallyResolved, error.refundState, error.message);
+      return capacityResponse(req, error.financiallyResolved, error.refundState, error.message);
     }
 
     console.error("Error confirming PostFinance payment:", error);
