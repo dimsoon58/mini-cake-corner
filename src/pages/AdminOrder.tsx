@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -321,6 +321,10 @@ const AdminOrder = () => {
   return (
     <Layout>
       <main className="container mx-auto px-4 py-8 max-w-2xl">
+        <Link to="/admin/orders" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-4">
+          <ArrowLeft className="h-3 w-3 mr-1" />
+          {t("Back to all orders", "Retour à toutes les commandes")}
+        </Link>
         <div className="border border-border/60 bg-background p-6 space-y-6">
           {/* Header */}
           <div className="border-b border-border/60 pb-4">
