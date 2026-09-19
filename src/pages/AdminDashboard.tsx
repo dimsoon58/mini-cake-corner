@@ -250,6 +250,10 @@ const AdminDashboard = () => {
   }
   const cursorYear = monthCursor.getFullYear();
   const cursorMonth = monthCursor.getMonth() + 1;
+  // Real wall-clock "today" (not monthCursor) — used to tag each session as
+  // Past/Upcoming below, independent of which month is currently browsed.
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const sessionsThisMonth = workshopSessions
     .filter((s) => {
       const [y, m] = s.date.split("-").map(Number);
@@ -394,19 +398,33 @@ const AdminDashboard = () => {
                 <div className="space-y-3">
                   {sessionsThisMonth.map((s) => {
                     const reserved = reservedBySession.get(s.id) ?? 0;
+                    const available = Math.max(0, s.capacity - reserved);
                     const pct = Math.min(100, Math.round((reserved / s.capacity) * 100));
                     const sessionLabel = s.workshopType === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature");
+                    // Compared against TODAY (real wall-clock date, not
+                    // monthCursor) — a session earlier in the currently
+                    // viewed month can still be in the future, and vice
+                    // versa, so this is checked per-session, not per-month.
+                    const isPast = s.date < todayIso;
                     return (
                       <div key={s.id} className="text-sm">
                         <div className="flex items-center justify-between mb-1 gap-3">
-                          <span className="text-foreground truncate">
-                            {sessionLabel} — {new Date(`${s.date}T00:00:00`).toLocaleDateString(lang === "fr" ? "fr-CH" : "en-CH")} {s.time}
+                          <span className="text-foreground truncate flex items-center gap-2">
+                            <span className={`text-[10px] uppercase tracking-[0.1em] px-1.5 py-0.5 shrink-0 ${isPast ? "bg-muted text-muted-foreground" : "bg-emerald-100 text-emerald-800"}`}>
+                              {isPast ? t("Past", "Passé") : t("Upcoming", "À venir")}
+                            </span>
+                            <span className="truncate">
+                              {sessionLabel} — {new Date(`${s.date}T00:00:00`).toLocaleDateString(lang === "fr" ? "fr-CH" : "en-CH")} {s.time}
+                            </span>
                           </span>
                           <span className="font-bold text-foreground shrink-0">{reserved}/{s.capacity}</span>
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
                         </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t(`${reserved} taken, ${available} available`, `${reserved} prises, ${available} disponibles`)}
+                        </p>
                       </div>
                     );
                   })}
