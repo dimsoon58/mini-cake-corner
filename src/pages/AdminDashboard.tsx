@@ -10,6 +10,7 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
+import { PRODUCT_LABELS, designLabel } from "@/lib/orderLabels";
 
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
 type DayEntry = {
@@ -24,6 +25,10 @@ type DayEntry = {
   // a multi-item order — see list-orders-by-date's own comment). Ad-hoc
   // refunds the admin records by hand, on top of refundStatus above.
   manualRefundTotal: number;
+  // Added for the top-products list below.
+  product: string;
+  design: string | null;
+  workshopType: string | null;
 };
 
 const formatChf = (n: number) => n.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -34,6 +39,19 @@ const formatChf = (n: number) => n.toLocaleString("fr-CH", { minimumFractionDigi
 // changed afterward); order_source is checked as a fallback only.
 const isManualOrder = (e: Pick<DayEntry, "orderNumber" | "orderSource">): boolean =>
   !!e.orderNumber?.startsWith("ORDM-") || (!!e.orderSource && e.orderSource !== "website");
+
+// Same "no meaningful design" set as AdminOrder.tsx/cartItemTitle — these
+// products have no real design/style choice, so appending one would just
+// repeat the product name (or show a raw internal id) for no new info.
+const HAS_NO_MEANINGFUL_DESIGN = new Set(["diy_kit", "dot_cakes", "edible_printing", "candles"]);
+const productLabel = (e: Pick<DayEntry, "product" | "design" | "workshopType">, t: (en: string, fr: string) => string): string => {
+  if (e.product === "workshop") {
+    return e.workshopType === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature");
+  }
+  const base = PRODUCT_LABELS[e.product] ? t(PRODUCT_LABELS[e.product].en, PRODUCT_LABELS[e.product].fr) : e.product;
+  if (HAS_NO_MEANINGFUL_DESIGN.has(e.product) || !e.design) return base;
+  return `${base} — ${designLabel(e.design)}`;
+};
 
 const statusBadgeClass = (status: OrderState) =>
   status === "approved" ? "bg-emerald-100 text-emerald-800" :
@@ -195,6 +213,20 @@ const AdminDashboard = () => {
   const manualRevenue = revenueBySource(manualOrders);
   const websiteRevenue = revenueBySource(websiteOrders);
 
+  // Top products — counted per ITEM (not deduped by order): each cake or
+  // workshop booking sold is one unit, so a 2-cake order counts as 2 here,
+  // unlike the order-level counts above. Cancelled/refused items still
+  // count as "sold" (this answers "what did we make", not "what stuck") —
+  // matches how the revenue/status cards already separate those concerns.
+  const productCounts = new Map<string, number>();
+  for (const e of allEntries) {
+    const label = productLabel(e, t);
+    productCounts.set(label, (productCounts.get(label) ?? 0) + 1);
+  }
+  const topProducts = Array.from(productCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
+
   const statusLabel = (s: OrderState) =>
     s === "approved" ? t("Approved", "Acceptées") :
     s === "pending" ? t("Pending", "En attente") :
@@ -305,6 +337,23 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
+
+            {/* Top products card */}
+            {topProducts.length > 0 && (
+              <div className="border border-border/60 bg-background p-6">
+                <p className="font-sans text-[11px] tracking-[0.105em] uppercase text-muted-foreground mb-3">
+                  {t("Top products", "Produits les plus vendus")}
+                </p>
+                <div className="space-y-1.5">
+                  {topProducts.map(([label, count]) => (
+                    <div key={label} className="flex items-center justify-between text-sm px-3 py-1.5 bg-muted/30">
+                      <span className="text-foreground truncate">{label}</span>
+                      <span className="font-bold text-foreground shrink-0 ml-3">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

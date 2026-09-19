@@ -94,6 +94,10 @@ serve(async (req) => {
       product: string;
       size: string | null;
       shape: string | null;
+      // Added for /admin/dashboard's top-products list — the design/style
+      // choice id (bento_cake/rectangle_cake only; null for everything else,
+      // same "no meaningful design" set as AdminOrder.tsx/cartItemTitle).
+      design: string | null;
       flavors: string[] | null;
       designImageUrl: string | null;
       referenceImages: string[] | null;
@@ -182,11 +186,11 @@ serve(async (req) => {
       cakeOrdersById = new Map((cakeOrders ?? []).map((o) => [o.id, o]));
     }
 
-    let cakeItemsByOrder = new Map<string, Array<{ id: string; order_id: string; fulfillment_id: string | null; product: string; size: string | null; shape: string | null; flavors: string[] | null; design_image_url: string | null; reference_images: string[] | null; total: number | null }>>();
+    let cakeItemsByOrder = new Map<string, Array<{ id: string; order_id: string; fulfillment_id: string | null; product: string; size: string | null; shape: string | null; design: string | null; flavors: string[] | null; design_image_url: string | null; reference_images: string[] | null; total: number | null }>>();
     if (cakeOrderIds.length > 0) {
       const { data: items, error: itemsErr } = await supabase
         .from("order_items")
-        .select("id, order_id, fulfillment_id, product, size, shape, flavors, design_image_url, reference_images, total")
+        .select("id, order_id, fulfillment_id, product, size, shape, design, flavors, design_image_url, reference_images, total")
         .in("order_id", cakeOrderIds)
         .neq("product", "workshop");
       if (itemsErr) throw new Error(`Failed to load order items: ${itemsErr.message}`);
@@ -227,6 +231,7 @@ serve(async (req) => {
           product: it.product,
           size: it.size,
           shape: it.shape,
+          design: it.design,
           flavors: it.flavors,
           designImageUrl: it.design_image_url,
           referenceImages: it.reference_images,
@@ -277,6 +282,7 @@ serve(async (req) => {
         product: "workshop",
         size: null,
         shape: null,
+        design: null,
         flavors: null,
         designImageUrl: null,
         referenceImages: null,
