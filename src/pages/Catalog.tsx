@@ -343,6 +343,21 @@ const glitterCherriesColors = [
   { id: "blue", name: "Blue", color: "#3B82F6" },
 ];
 
+// These designs' own reference photos (catalog + product detail) are all
+// heart-shaped cakes — leaving the generic "round" default selected would
+// show a customer a heart photo while quietly pricing/ordering a round
+// cake. handleSelectCake below defaults the shape to "heart" for exactly
+// these ids only; every other design keeps the normal "round" default.
+// Still just a default — the shape step remains a normal selectable field,
+// so a customer can still switch back to round if they want.
+const HEART_PHOTO_DESIGN_IDS = new Set([
+  "roses-please",
+  "pearl-border-retro",
+  "normal-with-border",
+  "normal-without-border",
+  "rainbow-cake",
+]);
+
 const catalog = [
   {
     id: "normal-without-border",
@@ -1209,7 +1224,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       orderDate: MULTI_DATE_FULFILLMENT_ENABLED ? null : (cartOrderDate ? new Date(cartOrderDate) : null),
       orderTime: "",
       size: defaultSize,
-      shape: "round",
+      shape: HEART_PHOTO_DESIGN_IDS.has(cake.id) ? "heart" : "round",
       flavor: "vanilla",
       baseColor: "",
       decorationColors: [],
