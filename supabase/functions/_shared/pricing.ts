@@ -398,9 +398,10 @@ export const DIY_KIT_FLAVORS: Record<string, number> = {
 };
 
 // ── Dot Cakes ───────────────────────────────────────────────────────────
-// Same flavour-tier restriction as DIY Kit above, minus the Gluten-Free
-// Premium/Deluxe tiers — DotCakes.tsx never imports those, so they are not
-// currently purchasable there either.
+// Same flavour-tier restriction as DIY Kit above. DotCakes.tsx imports the
+// full Gluten-Free Premium/Deluxe categories too (behind its "See
+// gluten-free flavours" toggle), so every tier below must stay in sync with
+// every flavour selectable there.
 
 export const DOT_CAKES_PACKS: Record<string, { size: number; flavours: number; price: number }> = {
   "dot-cakes-4": { size: 4, flavours: 2, price: 35 },
@@ -415,6 +416,8 @@ export const DOT_CAKES_FLAVOR_TIER: Record<string, number> = {
   "chocolate-lovers": 1.5, "dark-berrylicious": 1.5, "white-berrylicious": 1.5, "salted-caramel": 1.5, "lemon-curd": 1.5,
   "chocolate-lover-berrylicious": 2.5, tiramisu: 2.5, praline: 2.5, "passion-fruit": 2.5,
   "vanilla-gf": 2.5, "red-velvet-gf": 2.5, "chocolate-gf": 2.5,
+  "chocolate-gf-berrylicious": 3.5, "vanilla-gf-berrylicious": 3.5, "lemon-curd-gf": 3.5, "chocolate-lovers-gf": 3.5,
+  "orange-blossom-gf": 5, "tiramisu-gf": 5, "passion-fruit-gf": 5, "praline-gf": 5,
 };
 
 // ── Edible Printing ─────────────────────────────────────────────────────

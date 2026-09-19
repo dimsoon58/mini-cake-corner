@@ -40,8 +40,9 @@ const packs = [
 
 const tierByCategory: Record<string, { label: string; surcharge: number; note: string }> = {
   "Standard Flavors": { label: "Standard Flavours", surcharge: 0, note: "included" },
-  "Special Flavors": { label: "Premium Flavours", surcharge: 1.5, note: "+CHF 1.50 per Dot Cake" },
+  "Premium Flavors": { label: "Premium Flavours", surcharge: 1.5, note: "+CHF 1.50 per Dot Cake" },
   "Deluxe Flavors": { label: "Deluxe Flavours", surcharge: 2.5, note: "+CHF 2.50 per Dot Cake" },
+  "Gluten-Free Standard": { label: "Gluten-Free Standard", surcharge: 2.5, note: "+CHF 2.50 per Dot Cake" },
   "Gluten-Free Premium": { label: "Gluten-Free Premium", surcharge: 3.5, note: "+CHF 3.50 per Dot Cake" },
   "Gluten-Free Deluxe": { label: "Gluten-Free Deluxe", surcharge: 5, note: "+CHF 5.00 per Dot Cake" },
 };
