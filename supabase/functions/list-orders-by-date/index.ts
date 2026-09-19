@@ -138,6 +138,12 @@ serve(async (req) => {
       // refunded_amount, so a mixed order's cake item always carries 0
       // here regardless of what its sibling workshop item refunded.
       workshopRefundedAmount: number;
+      // The REAL current seat count still reserved for this workshop
+      // booking (workshop_reservations.active_seats, occupying statuses
+      // only) — use this for the fill-rate card, never workshopParticipants
+      // (the original purchased count, never decremented by a partial seat
+      // cancellation). 0 for a cake item.
+      workshopActiveSeats: number;
     };
     const byDate = new Map<string, DayEntry[]>();
     const pushEntry = (date: string | null | undefined, entry: DayEntry) => {
@@ -255,6 +261,7 @@ serve(async (req) => {
           refundStatus: o.refund_status ?? null,
           manualRefundTotal: 0, // filled in below, once, after all entries exist
           workshopRefundedAmount: 0, // cake items never have a workshop reservation
+          workshopActiveSeats: 0,
         });
       }
     }
@@ -274,15 +281,36 @@ serve(async (req) => {
     // workshop order_item (order_item_id is unique on that table), so a
     // direct map lookup is enough — no need to sum workshop_cancellation_log
     // rows ourselves.
+    //
+    // Also the source of truth for how many seats are ACTUALLY still
+    // reserved right now (2026-09-19 fix): order_items.workshop_participants
+    // (used below for total/display) is the ORIGINAL purchased count,
+    // NEVER decremented by a partial seat cancellation — cancel-workshop-
+    // seats only ever updates workshop_reservations (purchased_seats fixed
+    // forever, cancelled_seats grows, active_seats = purchased_seats -
+    // cancelled_seats, generated). Summing workshop_participants for every
+    // non-cancelled ORDER (the old approach) silently ignored partial
+    // cancellations within an otherwise-still-approved order, which could
+    // show more seats reserved than a session's actual capacity on the
+    // dashboard fill-rate card. "Occupying" vs "freeing" status per this
+    // table's own migration header: pending/confirmed/partially_cancelled
+    // occupy a seat, cancelled/rejected free it — active_seats is zeroed
+    // out here for the freeing statuses too, defensively, even though it
+    // should already be 0 in practice for those.
     const workshopItemIds = (workshopItems ?? []).map((it) => it.id);
     let workshopRefundedByItem = new Map<string, number>();
+    let workshopActiveSeatsByItem = new Map<string, number>();
     if (workshopItemIds.length > 0) {
       const { data: reservations, error: reservationsErr } = await supabase
         .from("workshop_reservations")
-        .select("order_item_id, refunded_amount")
+        .select("order_item_id, refunded_amount, active_seats, status")
         .in("order_item_id", workshopItemIds);
       if (reservationsErr) throw new Error(`Failed to load workshop reservations: ${reservationsErr.message}`);
       workshopRefundedByItem = new Map((reservations ?? []).map((r) => [r.order_item_id, Number(r.refunded_amount) || 0]));
+      const OCCUPYING_STATUSES = new Set(["pending", "confirmed", "partially_cancelled"]);
+      workshopActiveSeatsByItem = new Map(
+        (reservations ?? []).map((r) => [r.order_item_id, OCCUPYING_STATUSES.has(r.status) ? (Number(r.active_seats) || 0) : 0]),
+      );
     }
 
     const workshopOrderIds = Array.from(new Set((workshopItems ?? []).map((it) => it.order_id).filter(Boolean)));
@@ -329,6 +357,7 @@ serve(async (req) => {
         // (orders.refund_status), which only ever reflects a WHOLE-order
         // refund and is never touched by a partial seat cancellation.
         workshopRefundedAmount: workshopRefundedByItem.get(it.id) ?? 0,
+        workshopActiveSeats: workshopActiveSeatsByItem.get(it.id) ?? 0,
       });
     }
 

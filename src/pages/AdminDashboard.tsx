@@ -36,6 +36,12 @@ type DayEntry = {
   // Added for the workshop fill-rate card below.
   workshopSessionId: string | null;
   workshopParticipants: number | null;
+  // The REAL current seat count still reserved (workshop_reservations.
+  // active_seats, occupying statuses only) — use this, never
+  // workshopParticipants (original purchased count, never decremented by a
+  // partial seat cancellation — using it could show more seats reserved
+  // than a session's capacity).
+  workshopActiveSeats: number;
 };
 
 const formatChf = (n: number) => n.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -238,15 +244,22 @@ const AdminDashboard = () => {
 
   // Workshop fill rate — sessions scheduled in the selected month, reserved
   // seats vs capacity (src/data/workshopSessions.ts — the same catalogue
-  // the live booking flow uses). A cancelled/refused booking frees its
-  // seat, so it's excluded from "reserved" here — this reads the session
-  // catalogue's fixed capacity, not the live get_workshop_availability()
-  // seat count a customer sees while booking (a separate, real-time RPC
-  // this dashboard doesn't call).
+  // the live booking flow uses). Sums workshopActiveSeats — the REAL
+  // current seat count (workshop_reservations.active_seats), not
+  // workshopParticipants (the item's original purchased count, never
+  // decremented by a partial seat cancellation). 2026-09-19 fix: summing
+  // workshopParticipants for every non-cancelled/refused ORDER used to
+  // silently ignore a partial cancellation within an otherwise-still-
+  // approved order, which could show more seats reserved than a session's
+  // actual capacity (e.g. "13/8"). workshopActiveSeats is already 0 for a
+  // fully cancelled/rejected reservation, so no extra status filter is
+  // needed here — this reads the session catalogue's fixed capacity, not
+  // the live get_workshop_availability() seat count a customer sees while
+  // booking (a separate, real-time RPC this dashboard doesn't call).
   const reservedBySession = new Map<string, number>();
   for (const e of allEntries) {
-    if (!e.workshopSessionId || e.status === "cancelled" || e.status === "refused") continue;
-    reservedBySession.set(e.workshopSessionId, (reservedBySession.get(e.workshopSessionId) ?? 0) + (e.workshopParticipants ?? 0));
+    if (!e.workshopSessionId) continue;
+    reservedBySession.set(e.workshopSessionId, (reservedBySession.get(e.workshopSessionId) ?? 0) + e.workshopActiveSeats);
   }
   const cursorYear = monthCursor.getFullYear();
   const cursorMonth = monthCursor.getMonth() + 1;
