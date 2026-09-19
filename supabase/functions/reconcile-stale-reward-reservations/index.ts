@@ -58,17 +58,25 @@ import { corsHeaders } from "../_shared/cors.ts";
 // FOR EACH CANDIDATE (status='reserved', expires_at already passed, no
 // orders row with payment_status='paid' for that order_id — checked LIVE
 // here, not merely assumed from upstream filtering):
-//   0. An orders row already exists with a known postfinance_transaction_id
-//      -> read that transaction DIRECTLY by id (no search needed).
-//      Otherwise (no order yet, or an order with no transaction id
-//      recorded) -> REWARD_ONLY pending_payments (paid entirely from the
-//      reward balance, no real PostFinance transaction ever existed) is
-//      handled the same way regardless of which of the two above it's read
-//      from; otherwise findTransactionByMerchantReference(
-//      referenceCandidates(pending?.payment_reference ?? order?.payment_reference
-//      ?? null, orderId), { pendingCreatedAt }) — the EXACT same, already-
-//      trusted search create-postfinance-payment's own handleRetry relies
-//      on, falling back to the order's own payment_reference once
+//   0. A known transaction id -> read that transaction DIRECTLY by id (no
+//      search needed): order?.postfinance_transaction_id when an orders row
+//      already exists, otherwise pending?.postfinance_transaction_id (an
+//      abandoned checkout that never reached finalizeOrderDb still has this,
+//      recorded by create-postfinance-payment the moment the PostFinance
+//      transaction was created — 2026-09-19 fix: this direct id was already
+//      being fetched here but only ever compared against the REWARD_ONLY
+//      sentinel, never used for a real transaction, so a plain abandoned
+//      checkout with no orders row fell through to the merchant-reference
+//      search below and could come back inconclusive for no reason).
+//      REWARD_ONLY pending_payments (paid entirely from the reward balance,
+//      no real PostFinance transaction ever existed) is handled the same way
+//      regardless of which of the two sources it's read from. Only once
+//      NEITHER source has a transaction id at all ->
+//      findTransactionByMerchantReference(referenceCandidates(
+//      pending?.payment_reference ?? order?.payment_reference ?? null,
+//      orderId), { pendingCreatedAt }) — the EXACT same, already-trusted
+//      search create-postfinance-payment's own handleRetry relies on,
+//      falling back to the order's own payment_reference once
 //      pending_payments is already gone (finalizeOrderDb drops it once an
 //      order exists).
 //   For the REWARD_ONLY sentinel (from either source): if an orders row
@@ -334,30 +342,46 @@ serve(async (req) => {
           continue;
         }
 
-        const searchRef = pending?.payment_reference ?? order?.payment_reference ?? null;
-        const found = await findTransactionByMerchantReference(
-          credentials, referenceCandidates(searchRef, orderId), {
-            pendingCreatedAt: pending?.created_at ?? null,
-          },
-        );
+        const pendingTxId: string | null = pending?.postfinance_transaction_id ?? null;
+        if (pendingTxId) {
+          // ── pending_payments already has a real transaction id — read it
+          // DIRECTLY by id, exactly like the orders-row fast path above. An
+          // abandoned checkout that never reached finalizeOrderDb (no orders
+          // row was ever created here) still has this id, recorded by
+          // create-postfinance-payment the moment the PostFinance transaction
+          // itself was created — no search needed. The merchant-reference
+          // search below is now only a fallback for when even this is
+          // missing (effectively: order?.postfinance_transaction_id ??
+          // pending?.postfinance_transaction_id, read directly whenever
+          // either exists).
+          txId = pendingTxId;
+          txState = await getTransactionState(credentials, pendingTxId);
+        } else {
+          const searchRef = pending?.payment_reference ?? order?.payment_reference ?? null;
+          const found = await findTransactionByMerchantReference(
+            credentials, referenceCandidates(searchRef, orderId), {
+              pendingCreatedAt: pending?.created_at ?? null,
+            },
+          );
 
-        if (!found.conclusive) {
-          // Could not prove it either way — the state cannot be determined
-          // safely. Never release on an unproven state.
-          keptPending++;
-          anomalies.push(`Order ${orderId}: état PostFinance impossible à déterminer de façon sûre.`);
-          continue;
+          if (!found.conclusive) {
+            // Could not prove it either way — the state cannot be determined
+            // safely. Never release on an unproven state.
+            keptPending++;
+            anomalies.push(`Order ${orderId}: état PostFinance impossible à déterminer de façon sûre.`);
+            continue;
+          }
+
+          if (!found.transaction) {
+            // PROVEN: no PostFinance transaction was ever created for this order.
+            const ok = await releaseAtomic(supabase, orderId, customerId, "no_transaction_found");
+            if (ok) released++; else keptPending++;
+            continue;
+          }
+
+          txId = found.transaction.id;
+          txState = found.transaction.state;
         }
-
-        if (!found.transaction) {
-          // PROVEN: no PostFinance transaction was ever created for this order.
-          const ok = await releaseAtomic(supabase, orderId, customerId, "no_transaction_found");
-          if (ok) released++; else keptPending++;
-          continue;
-        }
-
-        txId = found.transaction.id;
-        txState = found.transaction.state;
       }
 
       if (txState === null) {
