@@ -1,6 +1,7 @@
 -- Structural protection against two 'earned' reward_transactions on one order
 --
--- NOT YET APPLIED.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 --
 -- Confirmed against production on 2026-09-12: zero existing duplicates
 -- today, so creating this unique index will not fail or need any cleanup

@@ -1,6 +1,7 @@
 -- Atomic admin decision on the physical part of an order
 --
--- NOT YET APPLIED. Run AFTER 20260911120100 + 20260911120200.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Originally meant to run AFTER 20260911120100 + 20260911120200.
 --
 -- Two simultaneous Accept/Reject requests could both pass the JS token check
 -- and both read physical_validation='pending' before either consumed the token.

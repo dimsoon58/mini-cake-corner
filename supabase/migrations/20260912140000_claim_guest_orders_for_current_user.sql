@@ -9,8 +9,8 @@
 -- on customer_id = auth.uid()) even though the order genuinely belongs to
 -- that person.
 --
--- NOT YET APPLIED — run manually on Supabase after review, same as every
--- other migration file in this repo.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 --
 -- Fix: a narrow, self-service claim RPC, called from MyOrders.tsx right
 -- before it loads the order list. Deliberately minimal and safe:

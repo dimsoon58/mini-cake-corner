@@ -1,7 +1,8 @@
 -- get_reward_reservation_for_order(p_order_id uuid): read-only lookup of the
 -- CALLING customer's own reward reservation for ONE specific order.
 --
--- NOT YET APPLIED.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 --
 -- Display-only helper for Checkout.tsx's "resume this exact payment attempt"
 -- flow. Deliberately narrow: takes the order_id the customer's own browser

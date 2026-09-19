@@ -1,8 +1,10 @@
 -- reserve_reward(): remove the unsafe local-only stale-reservation cleanup
 --
--- NOT YET APPLIED. Verified against production by the user (2026-09-13) — the
--- body below is the CURRENT deployed definition, reproduced verbatim, with
--- EXACTLY ONE block removed and nothing else touched:
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Originally verified against production by the user
+-- (2026-09-13) — the body below was the CURRENT deployed definition at that
+-- time, reproduced verbatim, with EXACTLY ONE block removed and nothing else
+-- touched:
 --
 --   for v_stale in
 --     select rr.order_id

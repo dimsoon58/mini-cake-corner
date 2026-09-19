@@ -1,6 +1,8 @@
 -- Reward trigger — physical-validation aware
 --
--- NOT YET APPLIED. Run AFTER 20260911120000_mixed_orders_immediate_capture.sql.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Originally meant to run AFTER
+-- 20260911120000_mixed_orders_immediate_capture.sql.
 --
 -- Verified LIVE state (2026-09-11):
 --   trigger  trg_order_reward_status_change  AFTER UPDATE OF order_validation, payment_status

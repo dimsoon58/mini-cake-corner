@@ -3,8 +3,10 @@
 -- under the SAME reservation row lock as the seat-count bump, instead of
 -- computing it in the calling Edge Function beforehand.
 --
--- NOT YET APPLIED. Run AFTER 20260912100000_workshop_reward_columns.sql
--- (needs workshop_cancellation_log.reward_amount_due) and
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Originally meant to run AFTER
+-- 20260912100000_workshop_reward_columns.sql (needs
+-- workshop_cancellation_log.reward_amount_due) and
 -- 20260912100100_claim_workshop_reservations_reward.sql.
 --
 -- *** BACKWARD-COMPATIBLE ROLLOUT — READ BEFORE APPLYING ***

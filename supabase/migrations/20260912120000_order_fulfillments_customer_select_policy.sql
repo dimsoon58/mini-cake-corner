@@ -3,8 +3,8 @@
 -- to show each product's own pickup/delivery date once an order genuinely
 -- spans more than one.
 --
--- NOT YET APPLIED — run manually on Supabase after review, same as every
--- other migration file in this repo.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 --
 -- SAME GAP CLASS as order_items (20260912110000_order_items_customer_
 -- select_policy.sql): order_fulfillments has no RLS policy documented

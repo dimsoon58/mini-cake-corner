@@ -1,6 +1,7 @@
 -- Schedule the reward-reservation reconciliation sweep
 --
--- NOT YET APPLIED. Same pattern as 20260909140400_schedule_side_effect_retry.sql
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Same pattern as 20260909140400_schedule_side_effect_retry.sql
 -- (pg_cron + pg_net + a Vault-stored secret, POSTing to an Edge Function on a
 -- timer) — reused deliberately rather than inventing a new scheduling
 -- mechanism.

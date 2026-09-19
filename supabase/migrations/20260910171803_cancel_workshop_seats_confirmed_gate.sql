@@ -1,7 +1,9 @@
 -- cancel_workshop_seats — accept a mixed order whose physical part is still
 -- pending
 --
--- NOT YET APPLIED. Run AFTER 20260911120000_mixed_orders_immediate_capture.sql.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Originally meant to run AFTER
+-- 20260911120000_mixed_orders_immediate_capture.sql.
 -- Pure CREATE OR REPLACE — reproduces 20260909120300's cancel_workshop_seats
 -- verbatim, changing ONLY the order gate.
 --

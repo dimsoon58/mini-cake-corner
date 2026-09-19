@@ -1,7 +1,8 @@
 -- Mixed carts (workshop + physical) + immediate capture
 --
--- NOT YET APPLIED — run manually on Supabase after review. Additive only.
--- Run AFTER 20260910120000_workshop_auto_confirm.sql.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Additive only. Originally meant to run AFTER
+-- 20260910120000_workshop_auto_confirm.sql.
 --
 -- New model (source of truth):
 --   * EVERY payment is captured immediately at checkout

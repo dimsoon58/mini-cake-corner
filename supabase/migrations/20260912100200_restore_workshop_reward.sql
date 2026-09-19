@@ -1,8 +1,9 @@
 -- Reward/workshop bugfix, step 3/3: restore_workshop_reward — credits back
 -- the reward-balance portion of a cancelled workshop booking.
 --
--- NOT YET APPLIED. Run AFTER 20260912100100_claim_workshop_reservations_
--- reward.sql.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Originally meant to run AFTER
+-- 20260912100100_claim_workshop_reservations_reward.sql.
 --
 -- CORRECTED 2026-09-12 (production verification): reward_transactions.type
 -- CHECK constraint only allows 'earned' | 'spent' | 'expired' | 'adjustment'

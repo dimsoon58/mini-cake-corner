@@ -1,6 +1,7 @@
 -- Workshop architecture — Migration 5/5: orders.order_failure_reason
 --
--- NOT YET APPLIED — run manually on Supabase after review, AFTER migrations
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Originally meant to run AFTER migrations
 -- 20260909120000..20260909120300. Additive only.
 --
 -- A dedicated, persistent marker for a checkout that authorised (or captured)

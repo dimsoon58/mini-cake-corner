@@ -1,6 +1,7 @@
 -- Physical-product order calendar: express surcharge column.
 --
--- NOT YET APPLIED — run manually on Supabase after review. Additive only.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Additive only.
 --
 -- A pickup/delivery date 3 calendar days or less after the order date
 -- (Europe/Zurich) is an EXPRESS order: +10% of the physical-product amount

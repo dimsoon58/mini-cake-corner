@@ -5,8 +5,8 @@
 -- partial, several successive partials, or the full amount) without any of
 -- them colliding or blocking the next one.
 --
--- NOT YET APPLIED — run manually on Supabase after review, same as every
--- other migration file in this repo. Purely additive: a new table only,
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Purely additive: a new table only,
 -- nothing existing is touched, zero behaviour change until the webhook code
 -- that writes to it is deployed.
 --

@@ -1,6 +1,7 @@
 -- Public workshop auto-confirmation
 --
--- NOT YET APPLIED — run manually on Supabase after review. Additive only.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Additive only.
 --
 -- A "public workshop" order = a checkout order whose ONLY items are
 -- product = 'workshop' (a published session from public.workshop_sessions with

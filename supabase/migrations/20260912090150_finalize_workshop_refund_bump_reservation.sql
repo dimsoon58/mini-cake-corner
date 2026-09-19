@@ -1,9 +1,10 @@
 -- finalize_workshop_refund(): bump workshop_reservations.updated_at on
 -- EVERY refund-related change, not only the transition into 'refunded'
 --
--- NOT YET APPLIED. Depends on 20260912090100_workshop_reservation_make_
--- sync.sql (must be applied first — this migration only matters because
--- that one introduced the single "needs Make sync" signal below).
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Depends on 20260912090100_workshop_reservation_make_
+-- sync.sql (needed to be applied first — that one introduced the single
+-- "needs Make sync" signal below).
 --
 -- FOUND IN PRODUCTION (2026-09-12, correction round 4): the original
 -- finalize_workshop_refund() (20260909120300_workshop_rpcs.sql) only bumps

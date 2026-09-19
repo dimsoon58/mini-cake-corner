@@ -3,8 +3,8 @@
 -- against (confirmed directly in Supabase by the user: zero SELECT policy
 -- exists today on storage.objects for bucket_id = 'invoice').
 --
--- NOT YET APPLIED — run manually on Supabase after review, same as every
--- other migration file in this repo.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 --
 -- Scope, deliberately narrow and strictly versioned (never a manual
 -- dashboard policy):

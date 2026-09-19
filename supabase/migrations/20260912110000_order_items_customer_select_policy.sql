@@ -3,8 +3,8 @@
 -- (confirmed directly in Supabase by the user for ORD-26082602: exactly 1
 -- order_items row exists, yet the customer-facing query returns none).
 --
--- NOT YET APPLIED — run manually on Supabase after review, same as every
--- other migration file in this repo.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 --
 -- ROOT CAUSE: MyOrders.tsx reads via PostgREST's embedded-resource syntax —
 --   supabase.from("orders").select("..., order_items(...)").eq("customer_id", user.id)

@@ -1,6 +1,7 @@
 -- Lock down public.get_order_validation(uuid) — unused, possibly public RPC
 --
--- NOT YET APPLIED.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 --
 -- Found during the 2026-09-11 consolidation audit: get_order_validation
 -- exists in production (confirmed via the generated

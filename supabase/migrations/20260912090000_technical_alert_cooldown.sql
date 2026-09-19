@@ -1,6 +1,7 @@
 -- Durable, DB-backed cooldown for technical/configuration alerts
 --
--- NOT YET APPLIED — created to support the fix for the 2026-09-11 incident
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Created to support the fix for the 2026-09-11 incident
 -- (~42 "MAKE_WORKSHOP_WEBHOOK_URL manquant" e-mails in one night). Root
 -- cause: the old de-duplication was a plain in-memory boolean
 -- (`let alertSent = false`) at the top of an Edge Function module — commented

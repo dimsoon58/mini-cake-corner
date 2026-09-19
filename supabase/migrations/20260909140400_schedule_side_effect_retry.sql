@@ -1,6 +1,7 @@
 -- Payment resilience — Migration 6/6: schedule the side-effect recovery sweep
 --
--- NOT YET APPLIED. Sets up pg_cron + pg_net to POST the retry-order-side-
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Sets up pg_cron + pg_net to POST the retry-order-side-
 -- effects Edge Function every 15 minutes. This is the independent channel that
 -- guarantees a paid + finalised order always reaches Bento even if Make is
 -- down for hours and the customer + the PostFinance webhook have both stopped.

@@ -1,6 +1,7 @@
 -- Payment resilience — Migration 4/6: LEGACY backfill
 --
--- NOT YET APPLIED — run manually on Supabase, AFTER 20260909140100 +
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Originally meant to run AFTER 20260909140100 +
 -- 20260909140200 and BEFORE deploying the new Edge Functions.
 --
 -- PRODUCTION IS PARTIALLY MIGRATED. Observed state (77 orders):

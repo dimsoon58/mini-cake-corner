@@ -7,8 +7,8 @@
 -- never reach Make/Notion either, however "couleur de décoration" is
 -- mapped there today.
 --
--- NOT YET APPLIED — run manually on Supabase after review, same as every
--- other migration file in this repo.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 --
 -- Deliberately a separate column from decoration_color, per explicit
 -- instruction: the two are genuinely different pieces of information, and

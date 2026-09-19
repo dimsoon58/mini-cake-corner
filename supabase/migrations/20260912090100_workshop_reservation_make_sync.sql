@@ -1,7 +1,8 @@
 -- Durable delivery marker + atomic claim/lease + FENCED, VERSIONED ACK for
 -- Workshop -> Make sync
 --
--- NOT YET APPLIED.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 --
 -- v5 of this migration — FENCING TOKEN (BLOCKER fix, 2026-09-12): v4 let a
 -- late ACK clear whichever claim happened to be on the row at the time it

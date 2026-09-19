@@ -1,7 +1,7 @@
 -- Reward/workshop bugfix, step 1/3: additive columns only.
 --
--- NOT YET APPLIED — run manually on Supabase after review, same as every
--- other migration file in this repo. Purely additive, zero behaviour change
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Purely additive, zero behaviour change
 -- by itself (every new column defaults to 0 and nothing reads it yet).
 --
 -- Context: today, reward can never be spent on a workshop-only order (both

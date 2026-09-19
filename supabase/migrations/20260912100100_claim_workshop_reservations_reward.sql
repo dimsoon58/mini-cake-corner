@@ -1,7 +1,9 @@
 -- Reward/workshop bugfix, step 2/3: claim_workshop_reservations_batch also
 -- copies order_items.reward_amount_used onto the new reservation.
 --
--- NOT YET APPLIED. Run AFTER 20260912100000_workshop_reward_columns.sql.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED). Originally meant to run AFTER
+-- 20260912100000_workshop_reward_columns.sql.
 --
 -- Pure CREATE OR REPLACE — reproduces the CURRENT deployed body of
 -- claim_workshop_reservations_batch (20260909120300_workshop_rpcs.sql)

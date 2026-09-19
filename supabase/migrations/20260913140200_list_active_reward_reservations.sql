@@ -2,7 +2,8 @@
 -- reward reservations, for the loyalty/account page's "available vs reserved"
 -- display.
 --
--- NOT YET APPLIED.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 --
 -- Unlike get_reward_reservation_for_order (one exact order, for Checkout's
 -- "resume this payment" flow), this is the AGGREGATE view: a customer can

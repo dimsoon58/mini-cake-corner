@@ -1,6 +1,7 @@
 -- Workshop architecture — Migration 3/4: extra workshop columns on order_items
 --
--- NOT YET APPLIED — run manually on Supabase after review.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- NOT YET APPLIED).
 -- Additive only. Existing rows get the defaults; no cake column is touched or
 -- overloaded. Nothing outside the Workshop perimeter changes.
 --
