@@ -691,11 +691,42 @@ const AdminOrder = () => {
               unexpected capture" case). Any reason, any order state, can be
               recorded more than once — a log, not a single field, so the
               /admin/dashboard revenue total can subtract exactly what was
-              actually refunded instead of assuming a whole-order amount. */}
+              actually refunded instead of assuming a whole-order amount.
+              2026-09-19: a workshop seat's refund is ALREADY tracked exactly
+              (workshop_reservations.refunded_amount, kept up to date by the
+              existing cancel-workshop-seats/confirm-workshop-refund flow —
+              untouched here) and the dashboard already subtracts it
+              separately. Recording the SAME refund again here through this
+              generic, order-level form would double-count it. Simplest safe
+              fix: this form is for cake-item refunds only —
+              hidden entirely for a workshop_only order (nothing else CAN be
+              refunded there), and flagged with a warning on a mixed order
+              (where a legitimate cake-only refund still belongs here). */}
+          {isWorkshopOnly ? (
+            <div className="border border-border/60 bg-background p-4 space-y-2">
+              <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground">
+                {t("Manual Refunds", "Remboursements manuels")}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "This is a workshop-only order — any seat refund is already tracked automatically by the workshop cancellation process, not recorded here.",
+                  "Cette commande est un atelier seul — tout remboursement de place est déjà suivi automatiquement par le processus d'annulation d'atelier, pas enregistré ici."
+                )}
+              </p>
+            </div>
+          ) : (
           <div className="border border-border/60 bg-background p-4 space-y-3">
             <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground">
               {t("Manual Refunds", "Remboursements manuels")}
             </h3>
+            {isMixed && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">
+                {t(
+                  "This order also has a workshop seat — its refund is already tracked automatically. Only use this form for the cake part, never to re-enter a workshop refund.",
+                  "Cette commande a aussi une place d'atelier — son remboursement est déjà suivi automatiquement. N'utilisez ce formulaire que pour la partie gâteau, jamais pour ressaisir un remboursement d'atelier."
+                )}
+              </p>
+            )}
             {manualRefunds.length > 0 && (
               <div className="space-y-1">
                 {manualRefunds.map((r: any) => (
@@ -732,6 +763,7 @@ const AdminOrder = () => {
               </Button>
             </div>
           </div>
+          )}
 
           {/* Admin Actions */}
           {!isResolved ? (

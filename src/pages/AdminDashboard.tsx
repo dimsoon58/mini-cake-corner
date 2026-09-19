@@ -26,6 +26,9 @@ type DayEntry = {
   // a multi-item order — see list-orders-by-date's own comment). Ad-hoc
   // refunds the admin records by hand, on top of refundStatus above.
   manualRefundTotal: number;
+  // A partial workshop-seat refund (workshop_reservations.refunded_amount)
+  // — per ITEM, never repeated across a multi-item order's other entries.
+  workshopRefundedAmount: number;
   // Added for the top-products list below.
   product: string;
   design: string | null;
@@ -184,18 +187,20 @@ const AdminDashboard = () => {
   // reason) without ever going through cancel-order at all — order_manual_
   // refunds (recorded on AdminOrder.tsx) tracks the REAL amount for that
   // case, subtracted here once per order (not per item — manualRefundTotal
-  // is the same value on every entry of a multi-item order). Known
-  // limitation: a PARTIAL workshop-seat refund is tracked in
-  // workshop_cancellation_log, not order_manual_refunds, so it isn't
-  // subtracted here yet.
+  // is the same value on every entry of a multi-item order). A PARTIAL
+  // workshop-seat refund is subtracted separately (workshopRefundedAmount,
+  // workshop_reservations.refunded_amount) — per ITEM, not deduped by order,
+  // since each workshop booking has its own reservation and its own
+  // refunded amount, independent of any sibling cake item on the same order.
   const grossPaidRevenue = allEntries
     .filter((e) => e.paymentStatus === "paid" && e.refundStatus !== "to_refund" && e.refundStatus !== "refunded")
     .reduce((sum, e) => sum + (e.total ?? 0), 0);
   const manualRefundTotal = orders.reduce((sum, o) => sum + (o.manualRefundTotal || 0), 0);
-  const revenue = grossPaidRevenue - manualRefundTotal;
+  const workshopRefundedTotal = allEntries.reduce((sum, e) => sum + (e.workshopRefundedAmount || 0), 0);
+  const revenue = grossPaidRevenue - manualRefundTotal - workshopRefundedTotal;
   const refundedAmount = allEntries
     .filter((e) => e.refundStatus === "to_refund" || e.refundStatus === "refunded")
-    .reduce((sum, e) => sum + (e.total ?? 0), 0) + manualRefundTotal;
+    .reduce((sum, e) => sum + (e.total ?? 0), 0) + manualRefundTotal + workshopRefundedTotal;
   const pendingPaymentAmount = allEntries
     .filter((e) => e.paymentStatus === "pending")
     .reduce((sum, e) => sum + (e.total ?? 0), 0);
@@ -307,8 +312,8 @@ const AdminDashboard = () => {
               <p className="font-sans text-3xl font-bold text-foreground">CHF {formatChf(revenue)}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {t(
-                  "Paid orders only, minus anything refunded, to be refunded, or manually recorded as refunded. Doesn't yet subtract a partial workshop seat refund.",
-                  "Commandes payées uniquement, hors remboursées, à rembourser, ou remboursées manuellement. Ne déduit pas encore un remboursement partiel de place d'atelier."
+                  "Paid orders only, minus anything refunded, to be refunded, manually recorded as refunded, or partially refunded on a workshop seat.",
+                  "Commandes payées uniquement, hors remboursées, à rembourser, remboursées manuellement, ou partiellement remboursées sur une place d'atelier."
                 )}
               </p>
               {(pendingPaymentAmount > 0 || refundedAmount > 0) && (

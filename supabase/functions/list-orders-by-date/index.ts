@@ -130,9 +130,14 @@ serve(async (req) => {
       // orderId before subtracting, exactly like it already does for
       // status counts). See that table's own migration header for why this
       // now covers ad-hoc refunds the whole-order refund_status above
-      // never did. Still doesn't cover a PARTIAL workshop-seat refund
-      // (workshop_cancellation_log, separate table) — known gap.
+      // never did.
       manualRefundTotal: number;
+      // A PARTIAL workshop seat cancellation's refund — per ITEM, not
+      // deduped by order (unlike manualRefundTotal above): each workshop
+      // order_item has its own workshop_reservations row and its own
+      // refunded_amount, so a mixed order's cake item always carries 0
+      // here regardless of what its sibling workshop item refunded.
+      workshopRefundedAmount: number;
     };
     const byDate = new Map<string, DayEntry[]>();
     const pushEntry = (date: string | null | undefined, entry: DayEntry) => {
@@ -249,6 +254,7 @@ serve(async (req) => {
           paymentStatus: o.payment_status ?? null,
           refundStatus: o.refund_status ?? null,
           manualRefundTotal: 0, // filled in below, once, after all entries exist
+          workshopRefundedAmount: 0, // cake items never have a workshop reservation
         });
       }
     }
@@ -261,6 +267,23 @@ serve(async (req) => {
       .gte("workshop_date", startDate)
       .lte("workshop_date", endDate);
     if (wsErr) throw new Error(`Failed to load workshop bookings: ${wsErr.message}`);
+
+    // Partial workshop-seat refunds — workshop_reservations.refunded_amount
+    // is the authoritative running total per booking (order_item), kept up
+    // to date by cancel-workshop-seats/confirm-workshop-refund. One row per
+    // workshop order_item (order_item_id is unique on that table), so a
+    // direct map lookup is enough — no need to sum workshop_cancellation_log
+    // rows ourselves.
+    const workshopItemIds = (workshopItems ?? []).map((it) => it.id);
+    let workshopRefundedByItem = new Map<string, number>();
+    if (workshopItemIds.length > 0) {
+      const { data: reservations, error: reservationsErr } = await supabase
+        .from("workshop_reservations")
+        .select("order_item_id, refunded_amount")
+        .in("order_item_id", workshopItemIds);
+      if (reservationsErr) throw new Error(`Failed to load workshop reservations: ${reservationsErr.message}`);
+      workshopRefundedByItem = new Map((reservations ?? []).map((r) => [r.order_item_id, Number(r.refunded_amount) || 0]));
+    }
 
     const workshopOrderIds = Array.from(new Set((workshopItems ?? []).map((it) => it.order_id).filter(Boolean)));
     let workshopOrdersById = new Map<string, { first_name: string | null; last_name: string | null; order_number: string | null; order_source: string | null; order_validation: string | null; order_failure_reason: string | null; payment_status: string | null; refund_status: string | null }>();
@@ -299,13 +322,13 @@ serve(async (req) => {
         deliveryMethod: null,
         total: it.total != null ? Number(it.total) : null,
         paymentStatus: parent?.payment_status ?? null,
-        // Whole-order cancellation refunds only (orders.refund_status) — a
-        // PARTIAL workshop seat cancellation's refund is tracked separately
-        // in workshop_cancellation_log, not reflected here. Known gap, not
-        // relevant to the current dashboard revenue total (which excludes
-        // whole orders, not partial seats).
         refundStatus: parent?.refund_status ?? null,
         manualRefundTotal: 0, // filled in below, once, after all entries exist
+        // 2026-09-19: a PARTIAL workshop seat cancellation's refund — see
+        // workshop_reservations query above. Independent of refundStatus
+        // (orders.refund_status), which only ever reflects a WHOLE-order
+        // refund and is never touched by a partial seat cancellation.
+        workshopRefundedAmount: workshopRefundedByItem.get(it.id) ?? 0,
       });
     }
 

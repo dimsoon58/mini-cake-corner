@@ -1,6 +1,8 @@
 -- Workshop architecture — Migration 1/4: workshop_sessions (session catalogue)
 --
--- NOT YET APPLIED — run manually on Supabase after review.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- "NOT YET APPLIED", which was stale). Fully re-runnable (if not exists /
+-- on conflict do nothing throughout).
 -- Additive only. Touches nothing outside the Workshop perimeter: no change to
 -- orders, order_items (see migration 3/4), products, pricing, PostFinance,
 -- welcome discount, reward, Make/Notion triggers.

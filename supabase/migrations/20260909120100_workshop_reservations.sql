@@ -1,7 +1,8 @@
 -- Workshop architecture — Migration 2/4: workshop_reservations + cancellation log
 --
--- NOT YET APPLIED — run manually on Supabase after review, AFTER
--- 20260909120000_workshop_sessions.sql.
+-- APPLIED IN PRODUCTION (confirmed 2026-09-19 — this comment previously said
+-- "NOT YET APPLIED", which was stale — 27 rows in workshop_reservations, 10
+-- in workshop_cancellation_log). Fully re-runnable (if not exists throughout).
 --
 -- Additive only. One workshop order_item == one reservation == one booking
 -- reference (never one per seat). Nothing outside the Workshop perimeter is

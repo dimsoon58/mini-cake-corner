@@ -47,12 +47,18 @@ import { corsHeaders } from "../_shared/cors.ts";
 //
 // AUTH: shared-secret-in-query-string, same pattern as retry-order-side-
 // effects / health-check-pending-payments (RECONCILE_REWARD_SWEEP_SECRET,
-// constant-time compare). Deploy with verify_jwt = false (see
-// supabase/config.toml) — the secret check below is the ONLY gate; a
-// request without it is refused before touching anything. This function is
-// NEVER exposed as a callable RPC/endpoint for the frontend — it is the
-// sole entry point capable of releasing a reward reservation on nothing
-// more than elapsed time, so it must never be triggerable by a customer,
+// constant-time compare) — the ONLY real gate; a request without the
+// correct ?s= secret is refused before touching anything, regardless of
+// verify_jwt. 2026-09-19 (corrected — this comment previously said
+// verify_jwt = false, which was never true in production): this function is
+// actually deployed with verify_jwt = true, and pg_cron/pg_net's sweep call
+// sends both a valid Authorization: Bearer <anon JWT> header AND the ?s=
+// secret — so verify_jwt = true has always been compatible with this cron
+// trigger here, it just isn't what actually protects the function; the
+// secret check below is. This function is NEVER exposed as a callable RPC/
+// endpoint for the frontend — it is the sole entry point capable of
+// releasing a reward reservation on nothing more than elapsed time, so it
+// must never be triggerable by a customer,
 // directly or indirectly.
 //
 // FOR EACH CANDIDATE (status='reserved', expires_at already passed, no
