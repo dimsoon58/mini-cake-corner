@@ -14,6 +14,8 @@ import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
 type DayEntry = {
   orderId: string;
+  orderNumber: string | null;
+  orderSource: string | null;
   status: OrderState;
   total: number | null;
   paymentStatus: string | null;
@@ -25,6 +27,13 @@ type DayEntry = {
 };
 
 const formatChf = (n: number) => n.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Same detection convention as AdminOrders.tsx's isManualOrder — order_number's
+// "ORDM-" prefix is the PRIMARY, unambiguous signal (minted at creation by
+// the Make scenario "Bento — Commandes manuelles instantanées" and never
+// changed afterward); order_source is checked as a fallback only.
+const isManualOrder = (e: Pick<DayEntry, "orderNumber" | "orderSource">): boolean =>
+  !!e.orderNumber?.startsWith("ORDM-") || (!!e.orderSource && e.orderSource !== "website");
 
 const statusBadgeClass = (status: OrderState) =>
   status === "approved" ? "bg-emerald-100 text-emerald-800" :
@@ -172,6 +181,20 @@ const AdminDashboard = () => {
   const statusCounts: Record<OrderState, number> = { approved: 0, pending: 0, refused: 0, cancelled: 0 };
   for (const o of orders) statusCounts[o.status] = (statusCounts[o.status] ?? 0) + 1;
 
+  // Manual vs website split — counts (deduped by order, same as statusCounts
+  // above) and each side's share of gross paid revenue (before the manual-
+  // refund deduction above, kept simple/consistent with how the split is
+  // normally read: "how much did each channel bring in", not net of a later
+  // refund that isn't tied to one channel more than the other).
+  const manualOrders = orders.filter(isManualOrder);
+  const websiteOrders = orders.filter((o) => !isManualOrder(o));
+  const revenueBySource = (list: DayEntry[]) =>
+    allEntries
+      .filter((e) => list.some((o) => o.orderId === e.orderId) && e.paymentStatus === "paid" && e.refundStatus !== "to_refund" && e.refundStatus !== "refunded")
+      .reduce((sum, e) => sum + (e.total ?? 0), 0);
+  const manualRevenue = revenueBySource(manualOrders);
+  const websiteRevenue = revenueBySource(websiteOrders);
+
   const statusLabel = (s: OrderState) =>
     s === "approved" ? t("Approved", "Acceptées") :
     s === "pending" ? t("Pending", "En attente") :
@@ -253,6 +276,33 @@ const AdminDashboard = () => {
                     <span className="font-bold text-foreground">{statusCounts[s]}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Manual vs website split card */}
+            <div className="border border-border/60 bg-background p-6">
+              <p className="font-sans text-[11px] tracking-[0.105em] uppercase text-muted-foreground mb-3">
+                {t("Manual vs website", "Manuel vs site")}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center justify-between px-3 py-2 bg-muted/30">
+                  <div>
+                    <span className="text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 shrink-0 bg-secondary text-secondary-foreground">
+                      {t("Website", "Site")}
+                    </span>
+                    <p className="text-xs text-muted-foreground mt-1">CHF {formatChf(websiteRevenue)}</p>
+                  </div>
+                  <span className="font-bold text-foreground">{websiteOrders.length}</span>
+                </div>
+                <div className="flex items-center justify-between px-3 py-2 bg-muted/30">
+                  <div>
+                    <span className="text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 shrink-0 bg-blue-100 text-blue-800">
+                      {t("Manual", "Manuel")}
+                    </span>
+                    <p className="text-xs text-muted-foreground mt-1">CHF {formatChf(manualRevenue)}</p>
+                  </div>
+                  <span className="font-bold text-foreground">{manualOrders.length}</span>
+                </div>
               </div>
             </div>
           </div>

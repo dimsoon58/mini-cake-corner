@@ -85,6 +85,10 @@ serve(async (req) => {
       orderId: string;
       itemId: string;
       orderNumber: string | null;
+      // Added for /admin/dashboard's manual-vs-website split — same
+      // detection convention as AdminOrders.tsx's isManualOrder (order_number
+      // "ORDM-" prefix primary, order_source as a fallback signal).
+      orderSource: string | null;
       customerName: string;
       status: OrderState;
       product: string;
@@ -172,7 +176,7 @@ serve(async (req) => {
     if (cakeOrderIds.length > 0) {
       const { data: cakeOrders, error: cakeErr } = await supabase
         .from("orders")
-        .select("id, order_number, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, pickup_delivery_slot, delivery_method, payment_status, refund_status")
+        .select("id, order_number, order_source, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, pickup_delivery_slot, delivery_method, payment_status, refund_status")
         .in("id", cakeOrderIds);
       if (cakeErr) throw new Error(`Failed to load cake orders: ${cakeErr.message}`);
       cakeOrdersById = new Map((cakeOrders ?? []).map((o) => [o.id, o]));
@@ -217,6 +221,7 @@ serve(async (req) => {
           orderId: o.id,
           itemId: it.id,
           orderNumber: o.order_number,
+          orderSource: o.order_source ?? null,
           customerName,
           status,
           product: it.product,
@@ -248,11 +253,11 @@ serve(async (req) => {
     if (wsErr) throw new Error(`Failed to load workshop bookings: ${wsErr.message}`);
 
     const workshopOrderIds = Array.from(new Set((workshopItems ?? []).map((it) => it.order_id).filter(Boolean)));
-    let workshopOrdersById = new Map<string, { first_name: string | null; last_name: string | null; order_number: string | null; order_validation: string | null; order_failure_reason: string | null; payment_status: string | null; refund_status: string | null }>();
+    let workshopOrdersById = new Map<string, { first_name: string | null; last_name: string | null; order_number: string | null; order_source: string | null; order_validation: string | null; order_failure_reason: string | null; payment_status: string | null; refund_status: string | null }>();
     if (workshopOrderIds.length > 0) {
       const { data: wsOrders, error: wsOrdersErr } = await supabase
         .from("orders")
-        .select("id, order_number, first_name, last_name, order_validation, order_failure_reason, payment_status, refund_status")
+        .select("id, order_number, order_source, first_name, last_name, order_validation, order_failure_reason, payment_status, refund_status")
         .in("id", workshopOrderIds);
       if (wsOrdersErr) throw new Error(`Failed to load workshop orders: ${wsOrdersErr.message}`);
       workshopOrdersById = new Map((wsOrders ?? []).map((o) => [o.id, o]));
@@ -266,6 +271,7 @@ serve(async (req) => {
         orderId: it.order_id,
         itemId: it.id,
         orderNumber: parent?.order_number ?? null,
+        orderSource: parent?.order_source ?? null,
         customerName: parent ? `${parent.first_name || ""} ${parent.last_name || ""}`.trim() : "",
         status: classifyState(parent?.order_validation, isCancelled),
         product: "workshop",
