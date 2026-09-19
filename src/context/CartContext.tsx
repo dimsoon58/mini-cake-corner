@@ -414,7 +414,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (getStoredOrderId() === orderId) {
         clearCart();
         clearStoredOrderId();
+        // Reports the match back to onOrderCompleted — only on a real match
+        // is its persisted localStorage marker safe to consume (see that
+        // function's own comment for why: a mismatch might still be meant
+        // for a different tab).
+        return true;
       }
+      return false;
     });
     return unsubscribe;
   }, []);
