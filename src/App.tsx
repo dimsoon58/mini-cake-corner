@@ -44,6 +44,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AuthConfirm from "./pages/AuthConfirm";
 import Account from "./pages/Account";
+import Customize from "./pages/Customize";
 
 const queryClient = new QueryClient();
 
@@ -105,6 +106,7 @@ const App = () => (
             <Route path="/business" element={<Business />} />
             <Route path="/corporate-event" element={<Business />} />
             <Route path="/catalog" element={<Catalog />} />
+            <Route path="/customize" element={<Customize />} />
             <Route path="/dot-cakes" element={<DotCakes />} />
             <Route path="/candles" element={<Candles />} />
             <Route path="/printing" element={<Printing />} />
