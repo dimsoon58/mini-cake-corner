@@ -1,6 +1,17 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import imgFirstYears from "@/assets/story-first-years.jpeg";
 import img2021 from "@/assets/story-2021.jpg";
+import archive1 from "@/assets/archive-1.jpg";
+import archive2 from "@/assets/archive-2.jpg";
+import archive3 from "@/assets/archive-3.jpg";
+import archive4 from "@/assets/archive-4.jpg";
+import archive5 from "@/assets/archive-5.jpg";
+import archive6 from "@/assets/archive-6.jpg";
+import archive7 from "@/assets/archive-7.jpg";
+import archive8 from "@/assets/archive-8.jpg";
+import archive9 from "@/assets/archive-9.jpg";
+import archive10 from "@/assets/archive-10.jpg";
+import archive11 from "@/assets/archive-11.jpg";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
@@ -34,9 +45,15 @@ const PhotoSlot = ({
   </div>
 );
 
+const archivePhotos = [
+  archive1, archive2, archive3, archive4, archive5, archive6,
+  archive7, archive8, archive9, archive10, archive11,
+];
+
 const ArchivesSlider = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { t } = useLang();
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   const scroll = (direction: "left" | "right") => {
     if (!scrollRef.current) return;
@@ -70,9 +87,15 @@ const ArchivesSlider = () => {
           ref={scrollRef}
           className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {["2021", "2022", "2023", "2024", "2025", "2026"].map((year) => (
-            <div key={year} className="snap-start flex-shrink-0 w-[52%] sm:w-[30%] lg:w-[17%]">
-              <PhotoSlot className="aspect-square" label={year} />
+          {archivePhotos.map((photo, i) => (
+            <div key={i} className="snap-start flex-shrink-0 w-[52%] sm:w-[30%] lg:w-[17%]">
+              <div className="aspect-square overflow-hidden cursor-pointer" onClick={() => setLightbox(photo)}>
+                <img
+                  src={photo}
+                  alt={`Archive ${i + 1}`}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -85,6 +108,22 @@ const ArchivesSlider = () => {
           <ChevronRight className="h-6 w-6 text-foreground" />
         </button>
       </div>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <div className="relative max-w-lg w-full max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setLightbox(null)}
+              className="absolute top-2 right-3 text-white/70 hover:text-white text-2xl font-light z-10 leading-none"
+            >✕</button>
+            <img src={lightbox} alt="Archive" className="w-full h-auto max-h-[85vh] object-contain" />
+          </div>
+        </div>
+      )}
     </section>
   );
 };
