@@ -350,12 +350,29 @@ const glitterCherriesColors = [
 // these ids only; every other design keeps the normal "round" default.
 // Still just a default — the shape step remains a normal selectable field,
 // so a customer can still switch back to round if they want.
+// 2026-09-20: same reasoning extended to Inspiration Cakes — openInspiration()
+// below builds its cake object with id: inspirationItems[index].id (the
+// stable "inspiration-N" id, NOT the array position) and calls this exact
+// same handleSelectCake, so listing those ids here is the whole fix — no
+// separate mechanism. IDs picked by the id's own "inspiration-N" suffix
+// (stable regardless of gallery reordering), never the customer-facing
+// "#N" position label.
 const HEART_PHOTO_DESIGN_IDS = new Set([
   "roses-please",
   "pearl-border-retro",
   "normal-with-border",
   "normal-without-border",
   "rainbow-cake",
+  "inspiration-1", "inspiration-3", "inspiration-4", "inspiration-8",
+  "inspiration-11", "inspiration-12", "inspiration-20", "inspiration-22",
+  "inspiration-23", "inspiration-24", "inspiration-25", "inspiration-30",
+  "inspiration-32", "inspiration-33", "inspiration-34", "inspiration-40",
+  "inspiration-41", "inspiration-45", "inspiration-48", "inspiration-49",
+  "inspiration-51", "inspiration-52", "inspiration-53", "inspiration-54",
+  "inspiration-55", "inspiration-60", "inspiration-61", "inspiration-64",
+  "inspiration-67", "inspiration-72", "inspiration-73", "inspiration-74",
+  "inspiration-76", "inspiration-78", "inspiration-79", "inspiration-80",
+  "inspiration-82",
 ]);
 
 const catalog = [
