@@ -208,11 +208,15 @@ serve(async (req) => {
   const payloadText = await req.text();
   const headers = Object.fromEntries(req.headers);
 
-  const hookSecret = Deno.env.get("SEND_EMAIL_HOOK_SECRET");
-  if (!hookSecret) {
+  const rawHookSecret = Deno.env.get("SEND_EMAIL_HOOK_SECRET");
+  if (!rawHookSecret) {
     console.error("SEND_EMAIL_HOOK_SECRET not configured");
     return new Response(JSON.stringify({ error: "Hook not configured" }), { status: 500 });
   }
+  // Supabase stores/displays the hook secret with a "v1,whsec_" prefix, but
+  // the standardwebhooks Webhook() constructor expects just the raw
+  // whsec_-less value — per Supabase's own Send Email Hook example.
+  const hookSecret = rawHookSecret.replace("v1,whsec_", "");
 
   let payload: HookPayload;
   try {
