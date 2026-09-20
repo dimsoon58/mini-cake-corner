@@ -686,6 +686,21 @@ const Customize = () => {
                   </Card>
                 ))}
               </div>
+              {(() => {
+                if (!selections.style || !selections.size) return null;
+                const selectedStyle = styles.find(s => s.id === selections.style);
+                if (!selectedStyle) return null;
+                const stylePrice = getStylePrice(selectedStyle);
+                return (
+                  <div className="mt-4 max-w-3xl mx-auto px-3 py-2.5 bg-primary/5 border border-primary/15 flex items-center justify-center gap-2">
+                    <p className="text-sm text-primary font-medium">
+                      {t("Design supplement", "Supplément design")}
+                      <span className="text-foreground/55 font-normal"> — {selectedStyle.name}</span>
+                      <span className="ml-2">{stylePrice > 0 ? `+CHF ${stylePrice}` : t("Included", "Inclus")}</span>
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -808,11 +823,6 @@ const Customize = () => {
                       )}
                       <CardContent className={cn("p-4 text-center", !style.image && "py-8")}>
                         <h3 className="font-medium text-foreground">{style.name}</h3>
-                        {selections.size && (
-                          <p className="text-sm text-primary font-medium mt-1">
-                            +CHF {stylePrice}
-                          </p>
-                        )}
                       </CardContent>
                     </Card>
                   );
