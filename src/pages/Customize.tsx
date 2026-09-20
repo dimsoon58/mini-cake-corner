@@ -687,6 +687,22 @@ const Customize = () => {
                 ))}
               </div>
 
+              {(() => {
+                if (!selections.style) return null;
+                const selectedStyle = styles.find(s => s.id === selections.style);
+                if (!selectedStyle) return null;
+                const stylePrice = selections.size ? getStylePrice(selectedStyle) : null;
+                return (
+                  <div className="mt-4 max-w-3xl mx-auto py-3 px-4 bg-primary/5 border border-primary/20 text-center">
+                    <span className="text-sm font-semibold text-primary">
+                      Design supplement — {selectedStyle.name}
+                      {stylePrice !== null && (
+                        <span className="ml-1">{stylePrice > 0 ? ` : +CHF ${stylePrice}` : " : Included"}</span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -815,19 +831,6 @@ const Customize = () => {
                 })}
               </div>
 
-              {selections.style && selections.size && (() => {
-                const selectedStyle = styles.find(s => s.id === selections.style);
-                if (!selectedStyle) return null;
-                const stylePrice = getStylePrice(selectedStyle);
-                return (
-                  <div className="mt-2 px-3 py-2.5 bg-primary/5 border border-primary/15 flex items-center justify-center">
-                    <p className="text-sm text-primary font-medium">
-                      Design supplement — {selectedStyle.name}
-                      <span className="ml-2 font-semibold">{stylePrice > 0 ? `+CHF ${stylePrice}` : "Included"}</span>
-                    </p>
-                  </div>
-                );
-              })()}
 
               {/* Base Color Selection */}
               <div className="space-y-4 pt-6 border-t border-border">
