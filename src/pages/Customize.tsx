@@ -686,21 +686,7 @@ const Customize = () => {
                   </Card>
                 ))}
               </div>
-              {(() => {
-                if (!selections.style || !selections.size) return null;
-                const selectedStyle = styles.find(s => s.id === selections.style);
-                if (!selectedStyle) return null;
-                const stylePrice = getStylePrice(selectedStyle);
-                return (
-                  <div className="mt-4 max-w-3xl mx-auto px-3 py-2.5 bg-primary/5 border border-primary/15 flex items-center justify-center gap-2">
-                    <p className="text-sm text-primary font-medium">
-                      Design supplement
-                      <span className="text-foreground/55 font-normal"> — {selectedStyle.name}</span>
-                      <span className="ml-2">{stylePrice > 0 ? `+CHF ${stylePrice}` : "Included"}</span>
-                    </p>
-                  </div>
-                );
-              })()}
+
             </div>
           )}
 
@@ -828,6 +814,20 @@ const Customize = () => {
                   );
                 })}
               </div>
+
+              {selections.style && selections.size && (() => {
+                const selectedStyle = styles.find(s => s.id === selections.style);
+                if (!selectedStyle) return null;
+                const stylePrice = getStylePrice(selectedStyle);
+                return (
+                  <div className="mt-2 px-3 py-2.5 bg-primary/5 border border-primary/15 flex items-center justify-center">
+                    <p className="text-sm text-primary font-medium">
+                      Design supplement — {selectedStyle.name}
+                      <span className="ml-2 font-semibold">{stylePrice > 0 ? `+CHF ${stylePrice}` : "Included"}</span>
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Base Color Selection */}
               <div className="space-y-4 pt-6 border-t border-border">
