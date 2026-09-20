@@ -20,9 +20,9 @@ import flavorChocolateLovers from "@/assets/flavor-chocolate-lovers.png";
 import flavorChocolateLoverBerrylicious from "@/assets/flavor-chocolate-lover-berrylicious.png";
 import flavorDarkBerrylicious from "@/assets/flavor-dark-berrylicious.png";
 import flavorWhiteBerrylicious from "@/assets/flavor-white-berrylicious.png";
-import flavorSaltedCaramel from "@/assets/flavor-salted-caramel-new.webp";
+import flavorSaltedCaramel from "@/assets/flavor-salted-caramel-new.png";
 import flavorLemonCurd from "@/assets/flavor-lemon-curd.png";
-import flavorTiramisu from "@/assets/flavor-tiramisu-new.webp";
+import flavorTiramisu from "@/assets/flavor-tiramisu-new.png";
 import flavorPraline from "@/assets/flavor-praline.png";
 import flavorPassionFruit from "@/assets/flavor-passion-fruit.png";
 // Gluten-free flavors use the same images as regular ones
@@ -68,11 +68,11 @@ import designRetroCake from "@/assets/design-retro-cake-new.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
 import designDrawing from "@/assets/design-drawing-new.jpg";
 import designPrintedPicture from "@/assets/design-printed-picture-new.jpg";
-import designGoldLeaves from "@/assets/design-gold-leaves-new.webp";
+import designGoldLeaves from "@/assets/design-gold-leaves-new.png";
 import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designGenderReveal from "@/assets/design-gender-reveal-new.jpg";
-import designCherries from "@/assets/design-cherries-new.webp";
+import designCherries from "@/assets/design-cherries-new.png";
 import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 import designGlitterCherries from "@/assets/design-glitter-cherries-new.jpg";
@@ -223,10 +223,10 @@ const candles = [
   { id: "spiral-pastel", name: "Pastel Spiral", image: candleSpiralPastel, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "shiny-spiral", name: "Shiny Spiral", image: candleShinySpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
   { id: "thick-spiral", name: "Thick Spiral", image: candleThickSpiral, unitPrice: 2, hasPack: true, packSize: 6, packPrice: 10 },
-  { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candlePinkGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "silver-spiral", name: "Silver Spiral", image: candleSilverSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "gold-spiral", name: "Gold Spiral", image: candleGoldSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
-  { id: "spiral-champagne", name: "Spiral Champagne", image: candleChampagneSpiral, imageClassName: "h-40 w-40 scale-[1.6]", unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "pink-gold-spiral", name: "Pink Gold Spiral", image: candlePinkGoldSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "silver-spiral", name: "Silver Spiral", image: candleSilverSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "gold-spiral", name: "Gold Spiral", image: candleGoldSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
+  { id: "spiral-champagne", name: "Spiral Champagne", image: candleChampagneSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
 ];
 
 const ribbonColors = [
@@ -1303,7 +1303,7 @@ const Customize = () => {
                         <img
                           src={candle.image}
                           alt={candle.name}
-                          className={cn(candle.imageClassName ?? "h-40 w-40", "object-contain mb-2")}
+                          className="h-40 w-40 object-contain mb-2"
                         />
                         <Card
                           className={cn(
@@ -1362,7 +1362,7 @@ const Customize = () => {
                         <img
                           src={candle.image}
                           alt={candle.name}
-                          className={cn(candle.imageClassName ?? "h-40 w-40", "object-contain mb-2")}
+                          className="h-40 w-40 object-contain mb-2"
                         />
                         <Card
                           className={cn(
