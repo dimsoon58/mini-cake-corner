@@ -694,9 +694,9 @@ const Customize = () => {
                 return (
                   <div className="mt-4 max-w-3xl mx-auto px-3 py-2.5 bg-primary/5 border border-primary/15 flex items-center justify-center gap-2">
                     <p className="text-sm text-primary font-medium">
-                      {t("Design supplement", "Supplément design")}
+                      Design supplement
                       <span className="text-foreground/55 font-normal"> — {selectedStyle.name}</span>
-                      <span className="ml-2">{stylePrice > 0 ? `+CHF ${stylePrice}` : t("Included", "Inclus")}</span>
+                      <span className="ml-2">{stylePrice > 0 ? `+CHF ${stylePrice}` : "Included"}</span>
                     </p>
                   </div>
                 );
