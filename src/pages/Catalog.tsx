@@ -1818,6 +1818,22 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Design supplement — shown right after size is chosen */}
+                {(() => {
+                  const surcharge = getDesignSurcharge();
+                  if (!surcharge && surcharge !== 0) return null;
+                  return (
+                    <div className="mt-2 py-2 px-3 bg-primary/5 border border-primary/20 text-center">
+                      <span className="text-sm font-semibold text-primary">
+                        {t("Design supplement", "Supplément design")} — {selectedCake?.name}
+                        <span className="ml-1">
+                          {surcharge > 0 ? ` : +CHF ${surcharge}` : ` : ${t("Included", "Inclus")}`}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Shape Selection */}
