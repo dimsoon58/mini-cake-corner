@@ -132,6 +132,14 @@ serve(async (req) => {
       // now covers ad-hoc refunds the whole-order refund_status above
       // never did.
       manualRefundTotal: number;
+      // A manual refund tied to THIS specific order_item (order_manual_
+      // refunds.order_item_id set) — unlike manualRefundTotal above, never
+      // repeated/deduped across an order's other entries: each order_item
+      // appears exactly once in allEntries, so this is simply added once,
+      // attributed to this item's own pickup/delivery date. Lets a refund
+      // for one cancelled cake on a multi-date order land on the right
+      // month instead of manualRefundTotal's whole-order fallback.
+      itemManualRefundTotal: number;
       // A PARTIAL workshop seat cancellation's refund — per ITEM, not
       // deduped by order (unlike manualRefundTotal above): each workshop
       // order_item has its own workshop_reservations row and its own
@@ -271,7 +279,7 @@ serve(async (req) => {
           total: it.total != null ? Number(it.total) : null,
           paymentStatus: o.payment_status ?? null,
           refundStatus: o.refund_status ?? null,
-          manualRefundTotal: 0, // filled in below, once, after all entries exist
+          manualRefundTotal: 0, itemManualRefundTotal: 0, // both filled in below, once, after all entries exist
           workshopRefundedAmount: 0, // cake items never have a workshop reservation
           workshopActiveSeats: 0,
           orderExtras,
@@ -365,7 +373,7 @@ serve(async (req) => {
         total: it.total != null ? Number(it.total) : null,
         paymentStatus: parent?.payment_status ?? null,
         refundStatus: parent?.refund_status ?? null,
-        manualRefundTotal: 0, // filled in below, once, after all entries exist
+        manualRefundTotal: 0, itemManualRefundTotal: 0, // both filled in below, once, after all entries exist
         // 2026-09-19: a PARTIAL workshop seat cancellation's refund — see
         // workshop_reservations query above. Independent of refundStatus
         // (orders.refund_status), which only ever reflects a WHOLE-order
@@ -378,10 +386,14 @@ serve(async (req) => {
     }
 
     // ── Ad-hoc manual refunds (order_manual_refunds) for every order that
-    // has at least one entry this month — summed per order, then applied to
-    // EVERY entry of that order (a multi-item order repeats the same total;
-    // the dashboard dedupes by orderId before subtracting, same as it
-    // already does for status counts). One extra query, done once, after
+    // has at least one entry this month. Split by order_item_id (2026-09-20):
+    // a refund tied to one specific item is attributed directly to that
+    // item's own entry (itemManualRefundTotal) — correct even on a multi-
+    // date order, since each order_item shows up in exactly one entry. A
+    // refund with no item_id (order-wide, e.g. a genuine whole-order
+    // goodwill gesture) keeps the original behaviour: summed per order,
+    // repeated on every entry, the dashboard dedupes by orderId before
+    // subtracting (manualRefundTotal). One extra query, done once, after
     // both the cake and workshop passes above so it covers every order
     // regardless of which loop it came from.
     const allEntries = Array.from(byDate.values()).flat();
@@ -389,15 +401,21 @@ serve(async (req) => {
     if (allOrderIds.length > 0) {
       const { data: refunds, error: refundsErr } = await supabase
         .from("order_manual_refunds")
-        .select("order_id, amount")
+        .select("order_id, order_item_id, amount")
         .in("order_id", allOrderIds);
       if (refundsErr) throw new Error(`Failed to load manual refunds: ${refundsErr.message}`);
-      const refundTotalByOrder = new Map<string, number>();
+      const orderWideTotalByOrder = new Map<string, number>();
+      const itemTotalByItem = new Map<string, number>();
       for (const r of refunds ?? []) {
-        refundTotalByOrder.set(r.order_id, (refundTotalByOrder.get(r.order_id) ?? 0) + Number(r.amount));
+        if (r.order_item_id) {
+          itemTotalByItem.set(r.order_item_id, (itemTotalByItem.get(r.order_item_id) ?? 0) + Number(r.amount));
+        } else {
+          orderWideTotalByOrder.set(r.order_id, (orderWideTotalByOrder.get(r.order_id) ?? 0) + Number(r.amount));
+        }
       }
       for (const e of allEntries) {
-        e.manualRefundTotal = refundTotalByOrder.get(e.orderId) ?? 0;
+        e.manualRefundTotal = orderWideTotalByOrder.get(e.orderId) ?? 0;
+        e.itemManualRefundTotal = itemTotalByItem.get(e.itemId) ?? 0;
       }
     }
 

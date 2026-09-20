@@ -832,7 +832,7 @@ serve(async (req) => {
   }
 
   try {
-    const { orderId, action: rawAction, pin, token, refundReference, refundAmount, refundNote } = await req.json();
+    const { orderId, action: rawAction, pin, token, refundReference, refundAmount, refundNote, refundOrderItemId } = await req.json();
 
     if (!orderId || !rawAction) {
       throw new Error("Missing required fields: orderId, action");
@@ -927,10 +927,31 @@ serve(async (req) => {
       }
       const note = typeof refundNote === "string" && refundNote.trim() ? refundNote.trim() : null;
 
+      // Optional: tie this refund to one specific cake instead of the whole
+      // order (see the order_manual_refunds_item_id migration). Verified
+      // against orderId here — never trusted from the client alone — so a
+      // refund can never be silently attributed to another order's item.
+      let orderItemId: string | null = null;
+      if (typeof refundOrderItemId === "string" && refundOrderItemId) {
+        const { data: matchedItem, error: itemErr } = await supabase
+          .from("order_items")
+          .select("id")
+          .eq("id", refundOrderItemId)
+          .eq("order_id", orderId)
+          .maybeSingle();
+        if (itemErr) throw new Error(`Failed to verify refund item: ${itemErr.message}`);
+        if (!matchedItem) {
+          return new Response(JSON.stringify({ error: "refundOrderItemId does not belong to this order" }), {
+            headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 400,
+          });
+        }
+        orderItemId = matchedItem.id;
+      }
+
       const { data: inserted, error: insertErr } = await supabase
         .from("order_manual_refunds")
-        .insert({ order_id: orderId, amount, note, created_by: admin.email })
-        .select("id, amount, note, created_at")
+        .insert({ order_id: orderId, amount, note, created_by: admin.email, order_item_id: orderItemId })
+        .select("id, amount, note, created_at, order_item_id")
         .single();
       if (insertErr) throw new Error(`Failed to record manual refund: ${insertErr.message}`);
 

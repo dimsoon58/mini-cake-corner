@@ -4,6 +4,7 @@ import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
@@ -59,6 +60,12 @@ const AdminOrder = () => {
   const [manualRefunds, setManualRefunds] = useState<any[]>([]);
   const [refundAmountInput, setRefundAmountInput] = useState("");
   const [refundNoteInput, setRefundNoteInput] = useState("");
+  // "" = order-wide (no specific item — order_manual_refunds.order_item_id
+  // stays null, same as before this selector existed). Only meaningful to
+  // set when the order has more than one cake item, so a refund for one
+  // cancelled cake on a multi-date order lands on that cake's own date
+  // instead of the whole order (see list-orders-by-date's own comment).
+  const [refundItemId, setRefundItemId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Filled from get-order-detail's response when the URL had no token (the
@@ -245,6 +252,7 @@ const AdminOrder = () => {
           pin,
           refundAmount: amount,
           refundNote: refundNoteInput.trim() || undefined,
+          refundOrderItemId: refundItemId || undefined,
         },
       });
       if (error) {
@@ -257,6 +265,7 @@ const AdminOrder = () => {
       setManualRefunds((prev) => [data.refund, ...prev]);
       setRefundAmountInput("");
       setRefundNoteInput("");
+      setRefundItemId("");
     } catch (err) {
       setResult({ type: "error", message: err instanceof Error ? err.message : t("Unknown error", "Erreur inconnue") });
     } finally {
@@ -701,8 +710,26 @@ const AdminOrder = () => {
               fix: this form is for cake-item refunds only —
               hidden entirely for a workshop_only order (nothing else CAN be
               refunded there), and flagged with a warning on a mixed order
-              (where a legitimate cake-only refund still belongs here). */}
-          {isWorkshopOnly ? (
+              (where a legitimate cake-only refund still belongs here).
+              2026-09-20: a refund can also be tied to ONE specific cake
+              (order_manual_refunds.order_item_id) instead of always the
+              whole order — matters for a multi-date order, where the
+              dashboard would otherwise attribute the refund to the wrong
+              month. The selector below only appears once there's more than
+              one cake to choose between; a single-cake order keeps working
+              exactly as before (order_item_id stays null). */}
+          {(() => {
+            const refundableItems = items.filter((it: any) => it.product !== "workshop");
+            const refundItemLabel = (item: any, idx: number) => {
+              const productName = t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product;
+              const date = isMultiDate ? formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date) : null;
+              return date ? `${productName} ${idx + 1} — ${date}` : `${productName} ${idx + 1}`;
+            };
+            const refundItemLabelById = (itemId: string) => {
+              const idx = refundableItems.findIndex((it: any) => it.id === itemId);
+              return idx >= 0 ? refundItemLabel(refundableItems[idx], idx) : null;
+            };
+            return isWorkshopOnly ? (
             <div className="border border-border/60 bg-background p-4 space-y-2">
               <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground">
                 {t("Manual Refunds", "Remboursements manuels")}
@@ -733,6 +760,7 @@ const AdminOrder = () => {
                   <div key={r.id} className="flex justify-between gap-3 text-sm">
                     <span className="text-muted-foreground truncate">
                       {new Date(r.created_at).toLocaleDateString(lang === "fr" ? "fr-CH" : "en-CH")}
+                      {r.order_item_id ? ` — ${refundItemLabelById(r.order_item_id) ?? t("one cake", "un gâteau")}` : ""}
                       {r.note ? ` — ${r.note}` : ""}
                     </span>
                     <span className="text-foreground font-medium shrink-0">CHF {Number(r.amount).toFixed(2)}</span>
@@ -745,6 +773,20 @@ const AdminOrder = () => {
               </div>
             )}
             <div className="flex flex-wrap gap-2 items-end pt-1">
+              {refundableItems.length > 1 && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">{t("Applies to", "Concerne")}</Label>
+                  <Select value={refundItemId || "__order__"} onValueChange={(v) => setRefundItemId(v === "__order__" ? "" : v)}>
+                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__order__">{t("Whole order", "Toute la commande")}</SelectItem>
+                      {refundableItems.map((item: any, idx: number) => (
+                        <SelectItem key={item.id} value={item.id}>{refundItemLabel(item, idx)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1">
                 <Label htmlFor="refund-amount" className="text-xs text-muted-foreground">{t("Amount (CHF)", "Montant (CHF)")}</Label>
                 <Input id="refund-amount" type="number" step="0.01" min="0" value={refundAmountInput} onChange={(e) => setRefundAmountInput(e.target.value)} className="w-28" />
@@ -763,7 +805,8 @@ const AdminOrder = () => {
               </Button>
             </div>
           </div>
-          )}
+            );
+          })()}
 
           {/* Admin Actions */}
           {!isResolved ? (

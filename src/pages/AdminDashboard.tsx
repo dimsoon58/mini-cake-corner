@@ -26,6 +26,10 @@ type DayEntry = {
   // a multi-item order — see list-orders-by-date's own comment). Ad-hoc
   // refunds the admin records by hand, on top of refundStatus above.
   manualRefundTotal: number;
+  // A manual refund tied to one specific order_item (order_manual_refunds.
+  // order_item_id set) — never repeated/deduped, unlike manualRefundTotal
+  // above: each item appears once, so this is simply summed directly.
+  itemManualRefundTotal: number;
   // A partial workshop-seat refund (workshop_reservations.refunded_amount)
   // — per ITEM, never repeated across a multi-item order's other entries.
   workshopRefundedAmount: number;
@@ -228,7 +232,12 @@ const AdminDashboard = () => {
     return itemsTotal + extras - discount;
   };
   const grossPaidRevenue = netRevenueFor(orders);
-  const manualRefundTotal = orders.reduce((sum, o) => sum + (o.manualRefundTotal || 0), 0);
+  // Order-wide refunds (no specific item — deduped by order) plus per-item
+  // refunds (order_item_id set, one entry each — see itemManualRefundTotal's
+  // own comment above). Together they're the full manually-refunded total,
+  // correctly attributed even when an order spans several pickup dates.
+  const manualRefundTotal = orders.reduce((sum, o) => sum + (o.manualRefundTotal || 0), 0)
+    + allEntries.reduce((sum, e) => sum + (e.itemManualRefundTotal || 0), 0);
   const workshopRefundedTotal = allEntries.reduce((sum, e) => sum + (e.workshopRefundedAmount || 0), 0);
   const revenue = grossPaidRevenue - manualRefundTotal - workshopRefundedTotal;
   const refundedAmount = allEntries
