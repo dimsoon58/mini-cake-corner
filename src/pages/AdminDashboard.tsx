@@ -42,6 +42,13 @@ type DayEntry = {
   // partial seat cancellation — using it could show more seats reserved
   // than a session's capacity).
   workshopActiveSeats: number;
+  // Order-level amounts `total` never includes — delivery fee, express
+  // surcharge, and welcome/partner/reward discounts all apply once per
+  // ORDER, never per line. Repeated on every entry of a multi-item order
+  // (same convention as manualRefundTotal) — dedupe by orderId before
+  // adding/subtracting. Matches how orders.total_amount is actually built.
+  orderExtras: number;
+  orderDiscount: number;
 };
 
 const formatChf = (n: number) => n.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -198,9 +205,29 @@ const AdminDashboard = () => {
   // workshop_reservations.refunded_amount) — per ITEM, not deduped by order,
   // since each workshop booking has its own reservation and its own
   // refunded amount, independent of any sibling cake item on the same order.
-  const grossPaidRevenue = allEntries
-    .filter((e) => e.paymentStatus === "paid" && e.refundStatus !== "to_refund" && e.refundStatus !== "refunded")
-    .reduce((sum, e) => sum + (e.total ?? 0), 0);
+  // Item totals alone leave out delivery fee, express surcharge and
+  // welcome/partner/reward discounts — all order-level amounts, charged/
+  // deducted once per order, never per line (see orderExtras/orderDiscount
+  // above). Summed per item like before, then orderExtras/orderDiscount are
+  // added/subtracted once per order (deduped by orderId, same pattern as
+  // manualRefundTotal below) so a multi-item order never double-counts them.
+  const netRevenueFor = (list: DayEntry[]) => {
+    const entries = allEntries.filter(
+      (e) => list.some((o) => o.orderId === e.orderId) && e.paymentStatus === "paid" && e.refundStatus !== "to_refund" && e.refundStatus !== "refunded",
+    );
+    const itemsTotal = entries.reduce((sum, e) => sum + (e.total ?? 0), 0);
+    const seenOrderIds = new Set<string>();
+    let extras = 0;
+    let discount = 0;
+    for (const e of entries) {
+      if (seenOrderIds.has(e.orderId)) continue;
+      seenOrderIds.add(e.orderId);
+      extras += e.orderExtras || 0;
+      discount += e.orderDiscount || 0;
+    }
+    return itemsTotal + extras - discount;
+  };
+  const grossPaidRevenue = netRevenueFor(orders);
   const manualRefundTotal = orders.reduce((sum, o) => sum + (o.manualRefundTotal || 0), 0);
   const workshopRefundedTotal = allEntries.reduce((sum, e) => sum + (e.workshopRefundedAmount || 0), 0);
   const revenue = grossPaidRevenue - manualRefundTotal - workshopRefundedTotal;
@@ -221,12 +248,8 @@ const AdminDashboard = () => {
   // refund that isn't tied to one channel more than the other).
   const manualOrders = orders.filter(isManualOrder);
   const websiteOrders = orders.filter((o) => !isManualOrder(o));
-  const revenueBySource = (list: DayEntry[]) =>
-    allEntries
-      .filter((e) => list.some((o) => o.orderId === e.orderId) && e.paymentStatus === "paid" && e.refundStatus !== "to_refund" && e.refundStatus !== "refunded")
-      .reduce((sum, e) => sum + (e.total ?? 0), 0);
-  const manualRevenue = revenueBySource(manualOrders);
-  const websiteRevenue = revenueBySource(websiteOrders);
+  const manualRevenue = netRevenueFor(manualOrders);
+  const websiteRevenue = netRevenueFor(websiteOrders);
 
   // Top products — counted per ITEM (not deduped by order): each cake or
   // workshop booking sold is one unit, so a 2-cake order counts as 2 here,

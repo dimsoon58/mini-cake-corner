@@ -144,6 +144,16 @@ serve(async (req) => {
       // (the original purchased count, never decremented by a partial seat
       // cancellation). 0 for a cake item.
       workshopActiveSeats: number;
+      // Order-level amounts `total` above never includes — delivery_fee and
+      // express_surcharge_amount are charged once per ORDER, not per item,
+      // and welcome/partner/reward discounts likewise apply to the whole
+      // order, never to one line. Repeated on every entry of a multi-item
+      // order (same convention as manualRefundTotal) — the dashboard dedupes
+      // by orderId before adding/subtracting, so it's still only counted
+      // once per order. Matches exactly how orders.total_amount itself is
+      // built (see invoice-pdf.ts) — items + orderExtras - orderDiscount.
+      orderExtras: number;
+      orderDiscount: number;
     };
     const byDate = new Map<string, DayEntry[]>();
     const pushEntry = (date: string | null | undefined, entry: DayEntry) => {
@@ -195,7 +205,7 @@ serve(async (req) => {
     if (cakeOrderIds.length > 0) {
       const { data: cakeOrders, error: cakeErr } = await supabase
         .from("orders")
-        .select("id, order_number, order_source, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, pickup_delivery_slot, delivery_method, payment_status, refund_status")
+        .select("id, order_number, order_source, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, pickup_delivery_slot, delivery_method, payment_status, refund_status, delivery_fee, express_surcharge_amount, welcome_discount_amount, partner_discount_amount, reward_amount_used")
         .in("id", cakeOrderIds);
       if (cakeErr) throw new Error(`Failed to load cake orders: ${cakeErr.message}`);
       cakeOrdersById = new Map((cakeOrders ?? []).map((o) => [o.id, o]));
@@ -222,6 +232,8 @@ serve(async (req) => {
       const isWorkshopOnly = o.fulfillment_type === "workshop_only";
       const status = classifyState(isWorkshopOnly ? o.order_validation : o.physical_validation, isCancelled);
       const customerName = `${o.first_name || ""} ${o.last_name || ""}`.trim();
+      const orderExtras = (Number(o.delivery_fee) || 0) + (Number(o.express_surcharge_amount) || 0);
+      const orderDiscount = (Number(o.welcome_discount_amount) || 0) + (Number(o.partner_discount_amount) || 0) + (Number(o.reward_amount_used) || 0);
 
       for (const it of items) {
         const fulfillment = it.fulfillment_id ? fulfillmentById.get(it.fulfillment_id) : null;
@@ -262,6 +274,8 @@ serve(async (req) => {
           manualRefundTotal: 0, // filled in below, once, after all entries exist
           workshopRefundedAmount: 0, // cake items never have a workshop reservation
           workshopActiveSeats: 0,
+          orderExtras,
+          orderDiscount,
         });
       }
     }
@@ -314,11 +328,11 @@ serve(async (req) => {
     }
 
     const workshopOrderIds = Array.from(new Set((workshopItems ?? []).map((it) => it.order_id).filter(Boolean)));
-    let workshopOrdersById = new Map<string, { first_name: string | null; last_name: string | null; order_number: string | null; order_source: string | null; order_validation: string | null; order_failure_reason: string | null; payment_status: string | null; refund_status: string | null }>();
+    let workshopOrdersById = new Map<string, { first_name: string | null; last_name: string | null; order_number: string | null; order_source: string | null; order_validation: string | null; order_failure_reason: string | null; payment_status: string | null; refund_status: string | null; delivery_fee: number | null; express_surcharge_amount: number | null; welcome_discount_amount: number | null; partner_discount_amount: number | null; reward_amount_used: number | null }>();
     if (workshopOrderIds.length > 0) {
       const { data: wsOrders, error: wsOrdersErr } = await supabase
         .from("orders")
-        .select("id, order_number, order_source, first_name, last_name, order_validation, order_failure_reason, payment_status, refund_status")
+        .select("id, order_number, order_source, first_name, last_name, order_validation, order_failure_reason, payment_status, refund_status, delivery_fee, express_surcharge_amount, welcome_discount_amount, partner_discount_amount, reward_amount_used")
         .in("id", workshopOrderIds);
       if (wsOrdersErr) throw new Error(`Failed to load workshop orders: ${wsOrdersErr.message}`);
       workshopOrdersById = new Map((wsOrders ?? []).map((o) => [o.id, o]));
@@ -358,6 +372,8 @@ serve(async (req) => {
         // refund and is never touched by a partial seat cancellation.
         workshopRefundedAmount: workshopRefundedByItem.get(it.id) ?? 0,
         workshopActiveSeats: workshopActiveSeatsByItem.get(it.id) ?? 0,
+        orderExtras: (Number(parent?.delivery_fee) || 0) + (Number(parent?.express_surcharge_amount) || 0),
+        orderDiscount: (Number(parent?.welcome_discount_amount) || 0) + (Number(parent?.partner_discount_amount) || 0) + (Number(parent?.reward_amount_used) || 0),
       });
     }
 
