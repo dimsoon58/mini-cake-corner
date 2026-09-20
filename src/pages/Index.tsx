@@ -280,7 +280,7 @@ const Index = () => {
           playsInline
           preload="metadata"
         >
-          <source src={`${import.meta.env.BASE_URL}hero-mobile.mp4`} type="video/mp4" />
+          <source src={heroVideo} type="video/mp4" />
         </video>
         {/* Desktop video */}
         <video
