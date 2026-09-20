@@ -1824,14 +1824,12 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   const surcharge = getDesignSurcharge();
                   if (!surcharge && surcharge !== 0) return null;
                   return (
-                    <div className="mt-2 py-2 px-3 bg-primary/5 border border-primary/20 text-center">
-                      <span className="text-sm font-semibold text-primary">
-                        {t("Design supplement", "Supplément design")} — {selectedCake?.name}
-                        <span className="ml-1">
-                          {surcharge > 0 ? ` : +CHF ${surcharge}` : ` : ${t("Included", "Inclus")}`}
-                        </span>
-                      </span>
-                    </div>
+                    <p className="mt-2 mb-1 text-[13px] text-foreground/50">
+                      {t("Design", "Design")} : {selectedCake?.name}
+                      {surcharge > 0 && (
+                        <span className="ml-1 font-semibold text-foreground/70">&middot; +CHF {surcharge}</span>
+                      )}
+                    </p>
                   );
                 })()}
               </div>
