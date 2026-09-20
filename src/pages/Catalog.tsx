@@ -351,28 +351,37 @@ const glitterCherriesColors = [
 // Still just a default — the shape step remains a normal selectable field,
 // so a customer can still switch back to round if they want.
 // 2026-09-20: same reasoning extended to Inspiration Cakes — openInspiration()
-// below builds its cake object with id: inspirationItems[index].id (the
-// stable "inspiration-N" id, NOT the array position) and calls this exact
-// same handleSelectCake, so listing those ids here is the whole fix — no
-// separate mechanism. IDs picked by the id's own "inspiration-N" suffix
-// (stable regardless of gallery reordering), never the customer-facing
-// "#N" position label.
+// below builds its cake object with id: inspirationItems[index].id and calls
+// this exact same handleSelectCake, so listing the right ids here is the
+// whole fix — no separate mechanism.
+//
+// IMPORTANT: INSPIRATIONS (src/data/inspirations.ts) is NOT ordered by its
+// own "inspiration-N" id — e.g. array position 3 (the "#3" the customer/admin
+// sees in the gallery and in "Inspiration Cake #3") holds id "inspiration-22",
+// not "inspiration-3". The 37 ids below were picked by CATALOGUE POSITION
+// (matching the "#N" numbers Bento Cake Studio actually uses to refer to
+// these designs), each resolved to that position's real id — never assumed
+// from the number inside the id string itself.
 const HEART_PHOTO_DESIGN_IDS = new Set([
   "roses-please",
   "pearl-border-retro",
   "normal-with-border",
   "normal-without-border",
   "rainbow-cake",
-  "inspiration-1", "inspiration-3", "inspiration-4", "inspiration-8",
-  "inspiration-11", "inspiration-12", "inspiration-20", "inspiration-22",
-  "inspiration-23", "inspiration-24", "inspiration-25", "inspiration-30",
-  "inspiration-32", "inspiration-33", "inspiration-34", "inspiration-40",
-  "inspiration-41", "inspiration-45", "inspiration-48", "inspiration-49",
-  "inspiration-51", "inspiration-52", "inspiration-53", "inspiration-54",
-  "inspiration-55", "inspiration-60", "inspiration-61", "inspiration-64",
-  "inspiration-67", "inspiration-72", "inspiration-73", "inspiration-74",
+  // Inspiration Cakes #1, #3, #4, #8, #11, #12, #20, #22, #23, #24, #25,
+  // #30, #32, #33, #34, #40, #41, #45, #48, #49, #51, #52, #53, #54, #55,
+  // #60, #61, #64, #67, #72, #73, #74, #76, #78, #79, #80, #82 — resolved
+  // via each position's actual id, not the id's own number.
+  "inspiration-14", "inspiration-22", "inspiration-19", "inspiration-13",
+  "inspiration-4", "inspiration-6", "inspiration-16", "inspiration-20",
+  "inspiration-21", "inspiration-23", "inspiration-24", "inspiration-29",
+  "inspiration-31", "inspiration-32", "inspiration-33", "inspiration-39",
+  "inspiration-40", "inspiration-44", "inspiration-47", "inspiration-48",
+  "inspiration-50", "inspiration-51", "inspiration-52", "inspiration-53",
+  "inspiration-54", "inspiration-59", "inspiration-60", "inspiration-63",
+  "inspiration-66", "inspiration-72", "inspiration-73", "inspiration-74",
   "inspiration-76", "inspiration-78", "inspiration-79", "inspiration-80",
-  "inspiration-82",
+  "inspiration-83",
 ]);
 
 const catalog = [
