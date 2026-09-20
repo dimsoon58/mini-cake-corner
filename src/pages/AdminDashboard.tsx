@@ -195,30 +195,19 @@ const AdminDashboard = () => {
   for (const e of allEntries) orderById.set(e.orderId, e);
   const orders = Array.from(orderById.values());
 
-  // "Real" revenue: money actually kept. paymentStatus==='paid' alone is
-  // NOT enough — an already-paid order that was later cancelled keeps
-  // payment_status='paid' (cancel-order only flips refund_status, never
-  // payment_status, for the ordinary case), so refundStatus must also be
-  // excluded whenever it's 'to_refund' or 'refunded'. On top of that, an
-  // order can be ad-hoc manually refunded (in full or in part, for any
-  // reason) without ever going through cancel-order at all — order_manual_
-  // refunds (recorded on AdminOrder.tsx) tracks the REAL amount for that
-  // case, subtracted here once per order (not per item — manualRefundTotal
-  // is the same value on every entry of a multi-item order). A PARTIAL
-  // workshop-seat refund is subtracted separately (workshopRefundedAmount,
-  // workshop_reservations.refunded_amount) — per ITEM, not deduped by order,
-  // since each workshop booking has its own reservation and its own
-  // refunded amount, independent of any sibling cake item on the same order.
-  // Item totals alone leave out delivery fee, express surcharge and
-  // welcome/partner/reward discounts — all order-level amounts, charged/
-  // deducted once per order, never per line (see orderExtras/orderDiscount
-  // above). Summed per item like before, then orderExtras/orderDiscount are
-  // added/subtracted once per order (deduped by orderId, same pattern as
-  // manualRefundTotal below) so a multi-item order never double-counts them.
-  const netRevenueFor = (list: DayEntry[]) => {
-    const entries = allEntries.filter(
-      (e) => list.some((o) => o.orderId === e.orderId) && e.paymentStatus === "paid" && e.refundStatus !== "to_refund" && e.refundStatus !== "refunded",
-    );
+  // "Brut" / encaissé: every paid order's full captured amount, regardless
+  // of what later happened to it — a pending-refund or already-refunded
+  // order still HAD its money captured, so it belongs in brut. Only
+  // paymentStatus==='paid' gates this (money genuinely came in); refundStatus
+  // is deliberately NOT filtered here any more (2026-09-20) — a mere
+  // cancellation or a refund still "to do" must not shrink brut OR net, only
+  // a REALLY completed refund should (see totalRefunded below). Item totals
+  // alone leave out delivery fee, express surcharge and welcome/partner/
+  // reward discounts — all order-level amounts, charged/deducted once per
+  // order, never per line (orderExtras/orderDiscount) — summed per item,
+  // then extras/discount added/subtracted once per order (deduped by
+  // orderId) so a multi-item order never double-counts them.
+  const sumEntries = (entries: DayEntry[]) => {
     const itemsTotal = entries.reduce((sum, e) => sum + (e.total ?? 0), 0);
     const seenOrderIds = new Set<string>();
     let extras = 0;
@@ -231,18 +220,49 @@ const AdminDashboard = () => {
     }
     return itemsTotal + extras - discount;
   };
-  const grossPaidRevenue = netRevenueFor(orders);
-  // Order-wide refunds (no specific item — deduped by order) plus per-item
-  // refunds (order_item_id set, one entry each — see itemManualRefundTotal's
-  // own comment above). Together they're the full manually-refunded total,
-  // correctly attributed even when an order spans several pickup dates.
+  const grossRevenueFor = (list: DayEntry[]) =>
+    sumEntries(allEntries.filter((e) => list.some((o) => o.orderId === e.orderId) && e.paymentStatus === "paid"));
+  const grossPaidRevenue = grossRevenueFor(orders);
+
+  // "Remboursé" / réellement remboursé — every REAL, already-completed
+  // refund, from every source that tracks one, added together (never
+  // double-counted: each source below covers orders/items no other source
+  // touches — see AdminOrder.tsx's own hide/warn logic for the workshop vs
+  // manual-refund-form split, and order_manual_refunds.order_item_id for
+  // the per-item vs whole-order split):
+  //   - manualRefundTotal: order-wide ad-hoc refunds (order_manual_refunds,
+  //     order_item_id NULL) — deduped by order, same value on every entry.
+  //   - itemManualRefundTotal: ad-hoc refunds tied to ONE order_item
+  //     (order_item_id set) — summed directly, no dedup needed (one entry
+  //     per item), attributed to that item's own pickup/delivery date.
+  //   - workshopRefundedTotal: workshop_reservations.refunded_amount, per
+  //     ITEM, kept live by cancel-workshop-seats/confirm-workshop-refund —
+  //     completely independent of orders.refund_status, which those never
+  //     touch (a partial seat refund is never a whole-order event).
+  //   - wholeOrderRefundTotal: orders.refund_status==='refunded' — set by
+  //     cancel-order (an approved+paid order cancelled after the fact — the
+  //     WHOLE order, always) or the rare mark_refunded "unexpectedly
+  //     captured on Refuse" case. Neither writes a separate tracked amount
+  //     (order_refunds' own automatic-sync writer was abandoned 2026-09-20
+  //     per postfinance-webhook/index.ts — that table has no active writer
+  //     any more, so it is deliberately not read here), so the order's own
+  //     captured total is used — exact for cancel-order's whole-order case,
+  //     an approximation only for the rare mixed-order partial mark_refunded
+  //     edge case (no test data for that one; flagged, not guessed further).
+  // A 'to_refund' order (refund decided but not yet actually done) is
+  // deliberately EXCLUDED from all of the above — pendingRefundTotal below
+  // tracks it separately, informational only, never subtracted from net.
   const manualRefundTotal = orders.reduce((sum, o) => sum + (o.manualRefundTotal || 0), 0)
     + allEntries.reduce((sum, e) => sum + (e.itemManualRefundTotal || 0), 0);
   const workshopRefundedTotal = allEntries.reduce((sum, e) => sum + (e.workshopRefundedAmount || 0), 0);
-  const revenue = grossPaidRevenue - manualRefundTotal - workshopRefundedTotal;
-  const refundedAmount = allEntries
-    .filter((e) => e.refundStatus === "to_refund" || e.refundStatus === "refunded")
-    .reduce((sum, e) => sum + (e.total ?? 0), 0) + manualRefundTotal + workshopRefundedTotal;
+  const wholeOrderRefundTotal = sumEntries(allEntries.filter((e) => e.paymentStatus === "paid" && e.refundStatus === "refunded"));
+  const totalRefunded = manualRefundTotal + workshopRefundedTotal + wholeOrderRefundTotal;
+
+  // "Net" — the number that answers "what did we actually keep".
+  const revenue = grossPaidRevenue - totalRefunded;
+
+  // Informational only, never subtracted from brut or net above.
+  const pendingRefundTotal = sumEntries(allEntries.filter((e) => e.paymentStatus === "paid" && e.refundStatus === "to_refund"));
   const pendingPaymentAmount = allEntries
     .filter((e) => e.paymentStatus === "pending")
     .reduce((sum, e) => sum + (e.total ?? 0), 0);
@@ -257,8 +277,8 @@ const AdminDashboard = () => {
   // refund that isn't tied to one channel more than the other).
   const manualOrders = orders.filter(isManualOrder);
   const websiteOrders = orders.filter((o) => !isManualOrder(o));
-  const manualRevenue = netRevenueFor(manualOrders);
-  const websiteRevenue = netRevenueFor(websiteOrders);
+  const manualRevenue = grossRevenueFor(manualOrders);
+  const websiteRevenue = grossRevenueFor(websiteOrders);
 
   // Top products — counted per ITEM (not deduped by order): each cake or
   // workshop booking sold is one unit, so a 2-cake order counts as 2 here,
@@ -353,24 +373,28 @@ const AdminDashboard = () => {
               )}
             </p>
 
-            {/* Revenue card */}
+            {/* Revenue card — net is the headline (what we actually kept);
+                gross and refunded are shown alongside so the two components
+                of that number are never hidden. A pending ("to_refund", not
+                yet actually done) refund is shown separately below and never
+                subtracted from either brut or net. */}
             <div className="border border-border/60 bg-background p-6">
               <p className="font-sans text-[11px] tracking-[0.105em] uppercase text-muted-foreground mb-1">
-                {t("Revenue this month", "Chiffre d'affaires du mois")}
+                {t("Net revenue this month", "Chiffre d'affaires net du mois")}
               </p>
               <p className="font-sans text-3xl font-bold text-foreground">CHF {formatChf(revenue)}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {t(
-                  "Paid orders only, minus anything refunded, to be refunded, manually recorded as refunded, or partially refunded on a workshop seat.",
-                  "Commandes payées uniquement, hors remboursées, à rembourser, remboursées manuellement, ou partiellement remboursées sur une place d'atelier."
+                  "Paid orders, minus refunds actually completed. A cancellation or refund still pending does not reduce this.",
+                  "Commandes payées, moins les remboursements réellement effectués. Une annulation ou un remboursement encore en attente ne réduit pas ce montant."
                 )}
               </p>
-              {(pendingPaymentAmount > 0 || refundedAmount > 0) && (
-                <div className="flex gap-4 mt-3 pt-3 border-t border-border/60 text-xs text-muted-foreground">
-                  {pendingPaymentAmount > 0 && <span>{t("Payment pending:", "Paiement en attente :")} CHF {formatChf(pendingPaymentAmount)}</span>}
-                  {refundedAmount > 0 && <span>{t("Refunded / to refund:", "Remboursé / à rembourser :")} CHF {formatChf(refundedAmount)}</span>}
-                </div>
-              )}
+              <div className="flex gap-4 mt-3 pt-3 border-t border-border/60 text-xs text-muted-foreground flex-wrap">
+                <span>{t("Gross:", "Brut :")} CHF {formatChf(grossPaidRevenue)}</span>
+                <span>{t("Refunded:", "Remboursé :")} CHF {formatChf(totalRefunded)}</span>
+                {pendingPaymentAmount > 0 && <span>{t("Payment pending:", "Paiement en attente :")} CHF {formatChf(pendingPaymentAmount)}</span>}
+                {pendingRefundTotal > 0 && <span>{t("Refund pending:", "Remboursement en attente :")} CHF {formatChf(pendingRefundTotal)}</span>}
+              </div>
             </div>
 
             {/* Status breakdown card */}
