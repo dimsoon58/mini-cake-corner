@@ -2809,7 +2809,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
             if (cakes.length === 0) return null;
             return (
               <section key={collection.title} id={collection.anchor}>
-                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-10">
+                <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-10 text-center">
                   {t(collection.title, collectionTitleFr[collection.title] ?? collection.title)}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -2862,7 +2862,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
           {/* Custom Request */}
           <section>
-            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-10">
+            <div className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-10 text-center">
               {t("CUSTOM REQUEST", "CRÉATION SUR MESURE")}
             </div>
             <div className="border-2 border-primary p-2 max-w-2xl mx-auto mt-2">
