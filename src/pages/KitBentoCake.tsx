@@ -16,6 +16,7 @@ import { useCart } from "@/context/CartContext";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
+import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
 import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { useNavigate } from "react-router-dom";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
@@ -669,13 +670,24 @@ const KitBentoCake = () => {
                     </SelectItem>
                   );
                 };
+                const visibleCategories = showGlutenFreeFlavors ? glutenFreeFlavorCategories : flavorCategories;
                 return (
+                  <>
+                  <GlutenFreeToggle
+                    value={showGlutenFreeFlavors}
+                    onChange={(gf) => {
+                      setShowGlutenFreeFlavors(gf);
+                      // A flavour from the other family no longer fits: fall back
+                      // to the new family's base flavour (none if none was chosen).
+                      if (selectedFlavor) setSelectedFlavor((gf ? glutenFreeFlavorCategories : flavorCategories)[0].flavors[0].id);
+                    }}
+                  />
                   <Select value={selectedFlavor} onValueChange={setSelectedFlavor}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder={t("Select a flavour", "Choisir un parfum")} />
                     </SelectTrigger>
                     <SelectContent nativeScroll className="w-[min(90vw,420px)]">
-                      {flavorCategories.map((cat) => (
+                      {visibleCategories.map((cat) => (
                         <SelectGroup key={cat.name}>
                           <SelectLabel>
                             {t(cat.name.replace("Flavors", "Flavours"), cat.nameFr)}
@@ -684,30 +696,9 @@ const KitBentoCake = () => {
                           {cat.flavors.map((fl) => renderFlavorOption(fl, cat.extraPrice))}
                         </SelectGroup>
                       ))}
-                      <div className="px-2 py-1">
-                        <button
-                          type="button"
-                          onPointerDown={e => e.preventDefault()}
-                          onClick={() => setShowGlutenFreeFlavors(v => !v)}
-                          className="flex w-full items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1.5 px-1 hover:underline rounded"
-                        >
-                          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform flex-shrink-0", showGlutenFreeFlavors && "rotate-180")} />
-                          {showGlutenFreeFlavors
-                            ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
-                            : t("See gluten-free flavours", "Voir les parfums sans gluten")}
-                        </button>
-                      </div>
-                      {showGlutenFreeFlavors && glutenFreeFlavorCategories.map((cat) => (
-                        <SelectGroup key={cat.name}>
-                          <SelectLabel>
-                            {t(cat.nameFr, cat.nameFr)}
-                            {cat.extraPrice > 0 ? ` (+CHF ${cat.extraPrice})` : ""}
-                          </SelectLabel>
-                          {cat.flavors.map((fl) => renderFlavorOption(fl, cat.extraPrice))}
-                        </SelectGroup>
-                      ))}
                     </SelectContent>
                   </Select>
+                  </>
                 );
               })()}
 

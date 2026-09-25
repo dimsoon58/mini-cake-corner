@@ -20,6 +20,7 @@ import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandl
 import type { CandleSelection } from "@/context/CartContext";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
+import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
 import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import dotGallery1 from "@/assets/dot-gallery-1.jpg";
 import dotGallery2 from "@/assets/dot-gallery-2.jpg";
@@ -506,8 +507,18 @@ const DotCakes = () => {
               <h2 className="font-sans text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
                 {t("Choose " + pack.flavours + " Flavours", "Choisissez " + pack.flavours + " parfums")}<span className="text-destructive ml-1">*</span>
               </h2>
+              {/* Applies to the whole box: switching family drops the flavours
+                  picked from the other one, so their slots must be refilled. */}
+              <GlutenFreeToggle
+                value={showGlutenFree}
+                onChange={(gf) => {
+                  setShowGlutenFree(gf);
+                  const keep = new Set((gf ? glutenFreeFlavorCategories : flavorCategories).flatMap((c) => c.flavors.map((f) => f.id)));
+                  setSelectedFlavours((prev) => prev.filter((id) => keep.has(id)));
+                }}
+              />
               {(() => {
-                const allFlavourOptions = [...flavorCategories, ...(showGlutenFree ? glutenFreeFlavorCategories : [])];
+                const visibleCategories = showGlutenFree ? glutenFreeFlavorCategories : flavorCategories;
                 const renderFlavorOption = (flavor: { id: string; name: string; nameFr?: string; description?: string; descriptionFr?: string; image: string }, surcharge: number) => {
                   const info = allergenMap[flavor.id];
                   const label = `${t(flavor.name, (flavor as { nameFr?: string }).nameFr ?? flavor.name)}`;
@@ -551,38 +562,12 @@ const DotCakes = () => {
                               <SelectValue placeholder={t("Select a flavour", "Choisir un parfum")} />
                             </SelectTrigger>
                             <SelectContent nativeScroll className="w-[min(90vw,420px)]">
-                
-                              {flavorCategories.map((cat) => {
+                              {visibleCategories.map((cat) => {
                                 const tier = tierByCategory[cat.name];
                                 return (
                                   <SelectGroup key={cat.name}>
                                     <SelectLabel>
                                       {t(tier?.label ?? cat.name, cat.nameFr)}
-                                      {tier?.surcharge > 0 ? ` (${t(tier.note, tierNoteFr[tier.note] ?? tier.note)})` : ""}
-                                    </SelectLabel>
-                                    {cat.flavors.map((fl) => renderFlavorOption(fl, tier?.surcharge ?? 0))}
-                                  </SelectGroup>
-                                );
-                              })}
-                              <div className="px-2 py-1">
-                                <button
-                                  type="button"
-                                  onPointerDown={e => e.preventDefault()}
-                                  onClick={() => setShowGlutenFree(v => !v)}
-                                  className="flex w-full items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1.5 px-1 hover:underline rounded"
-                                >
-                                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform flex-shrink-0", showGlutenFree && "rotate-180")} />
-                                  {showGlutenFree
-                                    ? t("Hide gluten-free", "Masquer sans gluten")
-                                    : t("See gluten-free flavours", "Voir les parfums sans gluten")}
-                                </button>
-                              </div>
-                              {showGlutenFree && glutenFreeFlavorCategories.map((cat) => {
-                                const tier = tierByCategory[cat.name];
-                                return (
-                                  <SelectGroup key={cat.name}>
-                                    <SelectLabel>
-                                      {t(cat.name, cat.nameFr)}
                                       {tier?.surcharge > 0 ? ` (${t(tier.note, tierNoteFr[tier.note] ?? tier.note)})` : ""}
                                     </SelectLabel>
                                     {cat.flavors.map((fl) => renderFlavorOption(fl, tier?.surcharge ?? 0))}

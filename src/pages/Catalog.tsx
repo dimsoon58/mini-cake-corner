@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
 import ExtraImageLightbox from "@/components/ExtraImageLightbox";
+import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
 import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
@@ -262,6 +263,7 @@ const deluxeFlavors = flavors.filter((f) => DELUXE_FLAVOR_IDS.includes(f.id));
 const glutenFreeStandardFlavors = flavors.filter((f) => GF_STANDARD_FLAVOR_IDS.includes(f.id));
 const glutenFreePremiumFlavors = flavors.filter((f) => GF_PREMIUM_FLAVOR_IDS.includes(f.id));
 const glutenFreeDeluxeFlavors = flavors.filter((f) => GF_DELUXE_FLAVOR_IDS.includes(f.id));
+const GLUTEN_FREE_FLAVOR_IDS = [...GF_STANDARD_FLAVOR_IDS, ...GF_PREMIUM_FLAVOR_IDS, ...GF_DELUXE_FLAVOR_IDS];
 
 const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
@@ -1169,7 +1171,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
-  const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
   // Declared before the effect below, which reads it in both its body and
   // its dependency array — referencing it while still part of the same
   // component body BEFORE this line runs is a TDZ ReferenceError ("Cannot
@@ -1464,7 +1465,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       lines.push({ key: "shape", label: `${t("Shape", "Forme")} : ${t(shapeObj.name, shapeNameFr[shapeObj.id] ?? shapeObj.name)}`, price: shapeExtra });
     }
     if (flavorObj && flavorExtra > 0) {
-      lines.push({ key: "flavor", label: `${t("Flavour", "Saveur")} : ${t(flavorObj.name, flavorNameFr[flavorObj.id] ?? flavorObj.name)}`, price: flavorExtra });
+      lines.push({ key: "flavor", label: `${t("Flavour", "Parfum")} : ${t(flavorObj.name, flavorNameFr[flavorObj.id] ?? flavorObj.name)}`, price: flavorExtra });
     }
     selections.extras.forEach((extraId) => {
       const extra = catalogExtras.find((e) => e.id === extraId);
@@ -2088,7 +2089,27 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       </SelectItem>
                     );
                   };
+                  // No separate state: the gluten-free switch reflects the
+                  // selected flavour, and flipping it swaps to that family's
+                  // base flavour (Vanilla / Vanilla Gluten-Free).
+                  const glutenFree = GLUTEN_FREE_FLAVOR_IDS.includes(selections.flavor);
+                  const groups = glutenFree
+                    ? [
+                        { label: t("Gluten-Free — Standard", "Sans Gluten — Standard"), items: glutenFreeStandardFlavors },
+                        { label: t("Gluten-Free — Premium", "Sans Gluten — Premium"), items: glutenFreePremiumFlavors },
+                        { label: t("Gluten-Free — Deluxe", "Sans Gluten — Deluxe"), items: glutenFreeDeluxeFlavors },
+                      ]
+                    : [
+                        { label: t("Standard", "Standard"), items: standardFlavors },
+                        { label: t("Premium", "Premium"), items: premiumFlavors },
+                        { label: t("Deluxe", "Deluxe"), items: deluxeFlavors },
+                      ];
                   return (
+                    <>
+                    <GlutenFreeToggle
+                      value={glutenFree}
+                      onChange={(gf) => setSelections({ ...selections, flavor: gf ? GF_STANDARD_FLAVOR_IDS[0] : STANDARD_FLAVOR_IDS[0] })}
+                    />
                     <Select
                       value={selections.flavor}
                       onValueChange={(value) => setSelections({ ...selections, flavor: value })}
@@ -2097,49 +2118,15 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         <SelectValue placeholder={t("Select flavour", "Choisir un parfum")} />
                       </SelectTrigger>
                       <SelectContent nativeScroll className="w-[min(90vw,420px)]">
-                        <SelectGroup>
-                          <SelectLabel>{t("Standard", "Standard")}</SelectLabel>
-                          {standardFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>{t("Premium", "Premium")}</SelectLabel>
-                          {premiumFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>{t("Deluxe", "Deluxe")}</SelectLabel>
-                          {deluxeFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
-                        <div className="px-2 py-1">
-                          <button
-                            type="button"
-                            onPointerDown={e => e.preventDefault()}
-                            onClick={() => setShowGlutenFreeFlavors(v => !v)}
-                            className="flex w-full items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1.5 px-1 hover:underline rounded"
-                          >
-                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform flex-shrink-0", showGlutenFreeFlavors && "rotate-180")} />
-                            {showGlutenFreeFlavors
-                              ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
-                              : t("See gluten-free flavours", "Voir les parfums sans gluten")}
-                          </button>
-                        </div>
-                        {showGlutenFreeFlavors && (
-                          <>
-                            <SelectGroup>
-                              <SelectLabel>{t("Gluten-Free — Standard", "Sans Gluten — Standard")}</SelectLabel>
-                              {glutenFreeStandardFlavors.map(renderFlavorOption)}
-                            </SelectGroup>
-                            <SelectGroup>
-                              <SelectLabel>{t("Gluten-Free — Premium", "Sans Gluten — Premium")}</SelectLabel>
-                              {glutenFreePremiumFlavors.map(renderFlavorOption)}
-                            </SelectGroup>
-                            <SelectGroup>
-                              <SelectLabel>{t("Gluten-Free — Deluxe", "Sans Gluten — Deluxe")}</SelectLabel>
-                              {glutenFreeDeluxeFlavors.map(renderFlavorOption)}
-                            </SelectGroup>
-                          </>
-                        )}
+                        {groups.map((group) => (
+                          <SelectGroup key={group.label}>
+                            <SelectLabel>{group.label}</SelectLabel>
+                            {group.items.map(renderFlavorOption)}
+                          </SelectGroup>
+                        ))}
                       </SelectContent>
                     </Select>
+                    </>
                   );
                 })()}
                 <AllergenNotice className="pt-1" />
