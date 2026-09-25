@@ -20,6 +20,7 @@ import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandl
 import type { CandleSelection } from "@/context/CartContext";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
+import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import dotGallery1 from "@/assets/dot-gallery-1.jpg";
 import dotGallery2 from "@/assets/dot-gallery-2.jpg";
 import dotGallery3 from "@/assets/dot-gallery-3.jpg";
@@ -123,6 +124,9 @@ const DotCakes = () => {
   const [numberCandleDigits, setNumberCandleDigits] = useState<string[]>([]);
   const [numberCandlePreview, setNumberCandlePreview] = useState("0");
   const [showAllCandles, setShowAllCandles] = useState(false);
+  // Bumped when a candle is removed from the price recap, to remount the
+  // colour-family candle cards (they keep their own pack/piece counters).
+  const [candleCardResetKey, setCandleCardResetKey] = useState(0);
 
   useEffect(() => {
     setCandleSelections((prev) => {
@@ -177,10 +181,12 @@ const DotCakes = () => {
   const total = useMemo(() => {
     if (!pack) return 0;
     let sum = pack.price;
-    if (selectedFlavours.length > 0) {
-      const dotsPerFlavour = pack.size / selectedFlavours.length;
-      selectedFlavours.forEach((id) => { sum += dotsPerFlavour * surchargeFor(id); });
-    }
+    // Each flavour always covers its final share of the pack (e.g. 6 dots /
+    // 3 flavours = 2), even while some slots are still empty — dividing by
+    // the number picked so far made the live total overshoot, then drop back
+    // as the remaining flavours were chosen. Identical once all are picked.
+    const dotsPerFlavour = pack.size / pack.flavours;
+    selectedFlavours.forEach((id) => { sum += dotsPerFlavour * surchargeFor(id); });
     return Math.round((sum + candlesTotal) * 100) / 100;
   }, [pack, selectedFlavours, candlesTotal]);
 
@@ -207,6 +213,13 @@ const DotCakes = () => {
 
   const handleOrder = () => {
     if (!orderDate || !pack || selectedFlavours.length === 0) return;
+    // A flavour can be removed from the price recap at any step, including
+    // this last one — send the customer back to fill the empty slot.
+    if (selectedFlavours.length < pack.flavours) {
+      toast.error(t("Please choose all " + pack.flavours + " flavours.", "Veuillez choisir les " + pack.flavours + " parfums."));
+      setStep(3);
+      return;
+    }
     const flavourNames = selectedFlavours.map((id) => {
       const fl = allFlavours.find((f) => f.id === id)!;
       return `${fl.name} (${tierByCategory[fl.category]?.label ?? fl.category})`;
@@ -256,10 +269,58 @@ const DotCakes = () => {
 
   const flavourNames = selectedFlavours.map((id) => allFlavours.find((f) => f.id === id)?.name ?? id);
 
+  // Every line making up `total`, for the live price recap. Paid flavours and
+  // candles can be dropped from the recap itself.
+  const priceLines: PriceLine[] = [];
+  if (pack) {
+    priceLines.push({ key: "pack", label: t(`Pack of ${pack.size}`, `Pack de ${pack.size}`), price: pack.price, isBase: true });
+    const dotsPerFlavour = pack.size / pack.flavours;
+    // By slot position, not id: the same flavour may fill two slots.
+    selectedFlavours.forEach((id, idx) => {
+      const price = Math.round(dotsPerFlavour * surchargeFor(id) * 100) / 100;
+      if (price <= 0) return;
+      const fl = allFlavours.find((f) => f.id === id);
+      priceLines.push({
+        key: `flavour-${idx}`,
+        label: `${fl?.name ?? id} ×${dotsPerFlavour}`,
+        price,
+        onRemove: () => setSelectedFlavours((prev) => prev.filter((_, j) => j !== idx)),
+      });
+    });
+    candleSelections.forEach((entry) => {
+      const price = getCandlePrice(entry.id);
+      if (price <= 0) return;
+      if (entry.id === NUMBER_CANDLE_ID) {
+        priceLines.push({
+          key: "candle-number",
+          label: `${t("Number Candle", "Bougie chiffre")} (${numberCandleDigits.join(", ")})`,
+          price,
+          // The digit list is the source of truth — the effect above drops
+          // the candle entry once it's empty.
+          onRemove: () => setNumberCandleDigits([]),
+        });
+        return;
+      }
+      const candle = kitCandles.find((c) => c.id === entry.id);
+      if (!candle) return;
+      const name = t(candle.name, candle.nameFr ?? candle.name);
+      priceLines.push({
+        key: `candle-${entry.id}`,
+        label: entry.quantity > 1 ? `${name} ×${entry.quantity}` : name,
+        price,
+        onRemove: () => {
+          setCandleSelections((prev) => removeCandleSelection(prev, entry.id));
+          setCandleCardResetKey((k) => k + 1);
+        },
+      });
+    });
+  }
+  const showPriceSummary = configuratorVisible && !!pack;
+
   return (
     <Layout>
       <div className="container mx-auto px-4">
-      <div className="flex justify-center">
+      <div className="flex justify-center lg:gap-10">
         {/* SIDEBAR */}
 
         {/* MAIN */}
@@ -596,7 +657,7 @@ const DotCakes = () => {
                   const family = FAMILY_CANDLE_COLORS[candle.id];
                   if (family) {
                     return (
-                      <ColorFamilyCandleCard key={candle.id} candle={candle} colors={family}
+                      <ColorFamilyCandleCard key={`${candle.id}-${candleCardResetKey}`} candle={candle} colors={family}
                         existing={candleSelections.find((c) => c.id === candle.id)}
                         onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
                         onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
@@ -711,8 +772,25 @@ const DotCakes = () => {
           )}
           </div> {/* end configurator */}
         </main>
+
+        {/* Desktop: live price recap beside the steps, follows the scroll */}
+        {showPriceSummary && (
+          <aside className="hidden lg:block w-[300px] shrink-0 self-start sticky top-28 mt-12">
+            <PriceSummaryPanel lines={priceLines} total={total} />
+          </aside>
+        )}
       </div>
       </div>
+
+      {/* Mobile / tablet: live total pinned to the bottom of the screen,
+          detail expands upwards. The spacer keeps the end of the page
+          reachable above the bar. */}
+      {showPriceSummary && (
+        <>
+          <div className="h-20 lg:hidden" aria-hidden />
+          <PriceSummaryBar className="lg:hidden fixed inset-x-0 bottom-0 z-40" lines={priceLines} total={total} />
+        </>
+      )}
 
       {/* Gallery — always shown */}
       <div className="container mx-auto px-6 py-8 md:py-16">

@@ -907,6 +907,10 @@ const styleNameFr: Record<string, string> = {
   "gender-reveal": "Gender Reveal",
   "sprinkles-with-border": "Sprinkles with Border",
 };
+// The two presentations of the Small size — see the size menu in the sheet.
+const SMALL_BOX_IDS = ["bento", "retro"];
+const SMALL_SIZE_VALUE = "small";
+
 const sizeNameFr: Record<string, string> = {
   bento: "Bento Box", retro: "Retro Box", medium: "Moyen", large: "Large", rectangle: "Rectangle",
 };
@@ -1409,20 +1413,25 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     }
   };
 
-  const calculatePrice = () => {
+  // `sizeId` defaults to the current size; passing another one prices the
+  // same selections in that size (used to show the Bento/Retro box difference).
+  const calculatePrice = (sizeId: string = selections.size) => {
     if (!selectedCake) return 0;
-    
-    const sizeObj = sizes.find(s => s.id === selections.size);
+
+    const sizeObj = sizes.find(s => s.id === sizeId);
     const shapeObj = shapes.find(s => s.id === selections.shape);
     const flavorObj = flavors.find(f => f.id === selections.flavor);
-    
+
     const basePrice = sizeObj?.price || 40;
-    const shapeExtra = shapeObj?.extraPrice[selections.size as keyof typeof shapeObj.extraPrice] || 0;
-    const flavorExtra = flavorObj?.extraPrice[selections.size as keyof typeof flavorObj.extraPrice] || 0;
-    const styleExtra = selectedCake.stylePrice[selections.size as keyof typeof selectedCake.stylePrice] || 0;
+    const shapeExtra = shapeObj?.extraPrice[sizeId as keyof typeof shapeObj.extraPrice] || 0;
+    const flavorExtra = flavorObj?.extraPrice[sizeId as keyof typeof flavorObj.extraPrice] || 0;
+    const styleExtra = selectedCake.stylePrice[sizeId as keyof typeof selectedCake.stylePrice] || 0;
     const candlesTotal = getTotalCandlesPrice();
-    const extrasTotal = getTotalExtrasPrice();
-    
+    const extrasTotal = selections.extras.reduce((acc, extraId) => {
+      const extra = catalogExtras.find(e => e.id === extraId);
+      return acc + (extra?.price[sizeId as keyof typeof extra.price] || 0);
+    }, 0);
+
     return basePrice + shapeExtra + flavorExtra + styleExtra + candlesTotal + extrasTotal;
   };
 
@@ -1891,40 +1900,116 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     </TooltipContent>
                   </Tooltip>
                 </label>
-                <Select
-                  value={selections.size}
-                  onValueChange={(value) => setSelections({ ...selections, size: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("Select size", "Choisir une taille")} />
-                  </SelectTrigger>
-                  <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[95vw]">
-                    {sizes.filter((size) => selectedCake && size.id in selectedCake.stylePrice).map((size) => (
-                      <SelectItem
-                        key={size.id}
-                        value={size.id}
-                        itemText={`${t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF ${size.price}`}
+                {(() => {
+                  // Bento Box and Retro Box are the same size (Small) in two
+                  // presentations, so the size menu offers "Small" once and a
+                  // separate box menu appears when the design allows both.
+                  // selections.size still stores the box id ("bento"/"retro"),
+                  // so cart, order and pricing data are unchanged.
+                  const available = sizes.filter((size) => selectedCake && size.id in selectedCake.stylePrice);
+                  const smallBoxes = available.filter((size) => SMALL_BOX_IDS.includes(size.id));
+                  const isSmall = SMALL_BOX_IDS.includes(selections.size);
+                  const sizeOptions = [
+                    ...(smallBoxes.length > 0
+                      ? [{ id: SMALL_SIZE_VALUE, label: t("Small", "Petit"), price: smallBoxes[0].price, image: smallBoxes[0].image, info: sizeInfo[smallBoxes[0].id] }]
+                      : []),
+                    ...available
+                      .filter((size) => !SMALL_BOX_IDS.includes(size.id))
+                      .map((size) => ({ id: size.id, label: t(size.name, sizeNameFr[size.id] ?? size.name), price: size.price, image: size.image, info: sizeInfo[size.id] })),
+                  ];
+                  const boxPrices = smallBoxes.map((box) => calculatePrice(box.id));
+                  const cheapestBox = Math.min(...boxPrices);
+                  return (
+                    <>
+                      <Select
+                        value={isSmall ? SMALL_SIZE_VALUE : selections.size}
+                        onValueChange={(value) => {
+                          if (value === SMALL_SIZE_VALUE) {
+                            if (!isSmall) setSelections({ ...selections, size: smallBoxes[0].id });
+                          } else {
+                            setSelections({ ...selections, size: value });
+                          }
+                        }}
                       >
-                        <div className="flex items-start gap-2 py-0.5 w-full">
-                          <img src={size.image} alt={size.name} className="w-28 h-28 object-contain flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <span className="block">{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
-                            {sizeInfo[size.id] && (
-                              <span className="block text-xs text-primary/80 whitespace-normal leading-snug mt-0.5">
-                                {t(sizeInfo[size.id].en, sizeInfo[size.id].fr)}
-                              </span>
-                            )}
-                            {sizeDesc[size.id] && (
-                              <span className="block text-xs text-muted-foreground whitespace-normal leading-snug mt-0.5">
-                                {t(sizeDesc[size.id].en, sizeDesc[size.id].fr)}
-                              </span>
-                            )}
-                          </div>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("Select size", "Choisir une taille")} />
+                        </SelectTrigger>
+                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[95vw]">
+                          {sizeOptions.map((option) => (
+                            <SelectItem
+                              key={option.id}
+                              value={option.id}
+                              itemText={`${option.label} - CHF ${option.price}`}
+                            >
+                              <div className="flex items-start gap-2 py-0.5 w-full">
+                                <img src={option.image} alt={option.label} className="w-28 h-28 object-contain flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <span className="block">{option.label} - CHF {option.price}</span>
+                                  {option.info && (
+                                    <span className="block text-xs text-primary/80 whitespace-normal leading-snug mt-0.5">
+                                      {t(option.info.en, option.info.fr)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {/* Box choice — only for Small, and only when the design
+                          comes in both boxes; otherwise just name the box. */}
+                      {isSmall && smallBoxes.length > 1 && (
+                        <div className="space-y-2 pt-2">
+                          <label className="text-sm font-bold text-foreground flex items-center gap-1">
+                            {t("Box choice", "Choix de la boîte")} <span className="text-destructive">*</span>
+                          </label>
+                          <Select
+                            value={selections.size}
+                            onValueChange={(value) => setSelections({ ...selections, size: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[95vw]">
+                              {smallBoxes.map((box, i) => {
+                                const delta = boxPrices[i] - cheapestBox;
+                                const name = t(box.name, sizeNameFr[box.id] ?? box.name);
+                                return (
+                                  <SelectItem
+                                    key={box.id}
+                                    value={box.id}
+                                    itemText={delta > 0 ? `${name} · +CHF ${delta}` : name}
+                                  >
+                                    <div className="flex items-start gap-2 py-0.5 w-full">
+                                      <img src={box.image} alt={name} className="w-28 h-28 object-contain flex-shrink-0" />
+                                      <div className="min-w-0 flex-1">
+                                        <span className="block">
+                                          {name}
+                                          {delta > 0 && <span className="ml-1 text-primary font-medium">· +CHF {delta}</span>}
+                                        </span>
+                                        {sizeDesc[box.id] && (
+                                          <span className="block text-xs text-muted-foreground whitespace-normal leading-snug mt-0.5">
+                                            {t(sizeDesc[box.id].en, sizeDesc[box.id].fr)}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      )}
+                      {isSmall && smallBoxes.length === 1 && (
+                        <p className="mt-2 text-[13px] text-foreground/50">
+                          {t("Box", "Boîte")} : {t(smallBoxes[0].name, sizeNameFr[smallBoxes[0].id] ?? smallBoxes[0].name)}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {/* Design supplement — shown right after size is chosen */}
                 {(() => {
