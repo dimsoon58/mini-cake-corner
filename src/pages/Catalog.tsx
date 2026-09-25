@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
 import ExtraImageLightbox from "@/components/ExtraImageLightbox";
+import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
 import { useCart } from "@/context/CartContext";
@@ -1172,6 +1173,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   // render (crashed this whole page in production).
   const [numberCandleDigits, setNumberCandleDigits] = useState<string[]>([]);
   const [numberCandlePreview, setNumberCandlePreview] = useState("0");
+  // Bumped when a candle is removed from the price breakdown, to remount the
+  // colour-family candle cards (they keep their own pack/piece counters).
+  const [candleCardResetKey, setCandleCardResetKey] = useState(0);
 
   useEffect(() => {
     setSelections((prev) => {
@@ -1428,6 +1432,71 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const getDesignSurcharge = () => {
     if (!selectedCake) return 0;
     return selectedCake.stylePrice[selections.size as keyof typeof selectedCake.stylePrice] || 0;
+  };
+
+  // Every line making up calculatePrice(), for the live price recap. Extras
+  // and candles can be removed from the recap itself; size, design, shape
+  // and flavour are choices, changed in their own fields above.
+  const getPriceLines = (): PriceLine[] => {
+    if (!selectedCake) return [];
+    const sizeObj = sizes.find((s) => s.id === selections.size);
+    const shapeObj = shapes.find((s) => s.id === selections.shape);
+    const flavorObj = flavors.find((f) => f.id === selections.flavor);
+    const shapeExtra = shapeObj?.extraPrice[selections.size as keyof typeof shapeObj.extraPrice] || 0;
+    const flavorExtra = flavorObj?.extraPrice[selections.size as keyof typeof flavorObj.extraPrice] || 0;
+    const lines: PriceLine[] = [];
+    if (sizeObj) {
+      lines.push({ key: "size", label: t(sizeObj.name, sizeNameFr[sizeObj.id] ?? sizeObj.name), price: sizeObj.price, isBase: true });
+    }
+    if (getDesignSurcharge() > 0) {
+      lines.push({ key: "design", label: t("Design supplement", "Supplément design"), price: getDesignSurcharge() });
+    }
+    if (shapeObj && shapeExtra > 0) {
+      lines.push({ key: "shape", label: `${t("Shape", "Forme")} : ${t(shapeObj.name, shapeNameFr[shapeObj.id] ?? shapeObj.name)}`, price: shapeExtra });
+    }
+    if (flavorObj && flavorExtra > 0) {
+      lines.push({ key: "flavor", label: `${t("Flavour", "Saveur")} : ${t(flavorObj.name, flavorNameFr[flavorObj.id] ?? flavorObj.name)}`, price: flavorExtra });
+    }
+    selections.extras.forEach((extraId) => {
+      const extra = catalogExtras.find((e) => e.id === extraId);
+      if (!extra) return;
+      const price = getExtraPriceForSize(extra);
+      if (price <= 0) return;
+      const label = extra.id === "pearl-border" && selectedCake.styleId === "retro-ribbons-glitter"
+        ? t("Full border of pearls", "Bordure complète de perles")
+        : t(extra.name, extraNameFr[extra.id] ?? extra.name);
+      lines.push({ key: `extra-${extra.id}`, label, price, onRemove: () => handleToggleExtra(extra.id) });
+    });
+    selections.candles.forEach((entry) => {
+      const price = getCandleTotalPrice(entry.id);
+      if (price <= 0) return;
+      if (entry.id === NUMBER_CANDLE_ID) {
+        lines.push({
+          key: "candle-number",
+          label: `${t("Number Candle", "Bougie chiffre")} (${numberCandleDigits.join(", ")})`,
+          price,
+          // The digit list is the source of truth — the effect above drops
+          // the candle entry once it's empty.
+          onRemove: () => setNumberCandleDigits([]),
+        });
+        return;
+      }
+      const candle = candles.find((c) => c.id === entry.id);
+      if (!candle) return;
+      const name = t(candle.name, candleNameFr[candle.id] ?? candle.name);
+      lines.push({
+        key: `candle-${entry.id}`,
+        label: entry.quantity > 1 ? `${name} ×${entry.quantity}` : name,
+        price,
+        onRemove: () => {
+          setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, entry.id) }));
+          // Remount the colour-family cards so their local pack / piece
+          // counters reset along with the removed selection.
+          setCandleCardResetKey((k) => k + 1);
+        },
+      });
+    });
+    return lines;
   };
 
   const handleAddToCart = () => {
@@ -1693,12 +1762,22 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const addToCartButton = (
+    <Button
+      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-lg lg:text-base whitespace-nowrap rounded-none"
+      onClick={handleAddToCart}
+    >
+      <ShoppingBag className="w-5 h-5 mr-2" />
+      {t("Add to Cart", "Ajouter au panier")}
+    </Button>
+  );
+
   const sheetBlock = (
     <>
       {/* Catalog Sheet */}
       <TooltipProvider delayDuration={200}>
       <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open && embedded) onEmbeddedClose?.(); }}>
-        <SheetContent className="w-[95vw] max-w-3xl max-h-[88vh] overflow-y-auto rounded-none p-6 md:p-10">
+        <SheetContent className="w-[95vw] max-w-3xl lg:max-w-5xl max-h-[88vh] overflow-y-auto rounded-none p-6 md:p-10">
           <SheetHeader>
             <SheetTitle className="font-sans uppercase tracking-[0.105em] text-lg font-semibold">
               {selectedCake ? t(selectedCake.name, cakeNameFr[selectedCake.id] ?? selectedCake.name) : ""}
@@ -1709,6 +1788,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
           </SheetHeader>
           
           {selectedCake && (
+            <>
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8 lg:items-start">
             <div className="mt-1 space-y-3">
               <div className="aspect-square w-full max-w-[280px] mx-auto rounded-none overflow-hidden bg-muted/30">
                 <img
@@ -2725,7 +2806,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       if (family) {
                         return (
                           <ColorFamilyCandleCard
-                            key={candle.id}
+                            key={`${candle.id}-${candleCardResetKey}`}
                             candle={candle}
                             colors={family}
                             existing={selections.candles.find((c) => c.id === candle.id)}
@@ -2796,32 +2877,26 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 </button>
               </div>
 
-              {/* Design supplement — shown explicitly so the jump from the
-                  size's base price (selected above) to the final total is
-                  never a mystery. */}
-              {getDesignSurcharge() > 0 && (
-                <div className="flex justify-between items-center px-4 text-sm">
-                  <span className="text-muted-foreground">{t("Design supplement", "Supplément design")}</span>
-                  <span className="text-primary font-medium">+CHF {getDesignSurcharge()}</span>
-                </div>
-              )}
-
-              {/* Price */}
-              <div className="flex justify-between items-center py-4 bg-secondary/50 rounded-lg px-4">
-                <span className="font-medium text-foreground">{t("Total", "Total")}</span>
-                <span className="text-xl font-bold text-primary">
-                  CHF {calculatePrice()}
-                </span>
-              </div>
-
-              <Button
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-lg rounded-none"
-                onClick={handleAddToCart}
-              >
-                <ShoppingBag className="w-5 h-5 mr-2" />
-                {t("Add to Cart", "Ajouter au panier")}
-              </Button>
             </div>
+
+            {/* Desktop: live recap beside the options, follows the scroll */}
+            <aside className="hidden lg:block lg:sticky lg:top-0">
+              <PriceSummaryPanel lines={getPriceLines()} total={calculatePrice()} action={addToCartButton} />
+            </aside>
+            </div>
+
+            {/* Mobile / tablet: live total pinned to the bottom of the sheet,
+                detail expands upwards. Negative margins cancel the sheet's
+                padding so the bar spans its full width, and the negative
+                bottom offset does the same for the sticky position (a sticky
+                box otherwise stops at the container's padding edge). */}
+            <PriceSummaryBar
+              className="lg:hidden sticky -bottom-6 md:-bottom-10 z-10 mt-6 -mx-6 -mb-6 md:-mx-10 md:-mb-10"
+              lines={getPriceLines()}
+              total={calculatePrice()}
+              action={addToCartButton}
+            />
+            </>
           )}
         </SheetContent>
       </Sheet>
