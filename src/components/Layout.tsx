@@ -26,7 +26,6 @@ const navFr: Record<string, string> = {
   "Bento Kit": "Bento Kit",
   "Candles": "Bougies",
   "Workshop": "Atelier",
-  "Partnerships & Press": "Partenariats & Presse",
   "Partnerships": "Partenariats",
   "Inspirations": "Inspirations",
   "Printing": "Impression",
@@ -37,21 +36,19 @@ const navFr: Record<string, string> = {
 
 const navLinks: NavItem[] = [
   { to: "/", label: "Home" },
+  { to: "/catalog", label: "Bento Cakes" },
   { label: "Cakes", children: [
-    { to: "/catalog", label: "Bento Cakes" },
     { to: "/dot-cakes", label: "Dot Cakes" },
     { to: "/kit-bento-cake", label: "Bento Kit" },
     { to: "/candles", label: "Candles" },
+    { to: "/printing", label: "Printing" },
   ] },
   { to: "/inspiration", label: "Inspirations" },
   { to: "/workshop", label: "Workshop" },
-  { to: "/printing", label: "Printing" },
-  { label: "Partnerships & Press", children: [
-    { to: "/business", label: "Partnerships" },
-    { to: "/community-press", label: "Press" },
-  ] },
+  { to: "/business", label: "Partnerships" },
   { label: "About Us", children: [
     { to: "/about", label: "About Us" },
+    { to: "/community-press", label: "Press" },
     { to: "/faq", label: "FAQ" },
     { to: "/contact", label: "Contact" },
   ] },
