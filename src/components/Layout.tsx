@@ -56,7 +56,7 @@ const navLinks: NavItem[] = [
 
 const navLinkClass = (light: boolean) =>
   cn(
-    "uppercase tracking-[0.18em] text-xs font-medium transition-colors",
+    "uppercase tracking-[0.18em] text-xs font-medium transition-colors whitespace-nowrap",
     light ? "text-cream" : "text-foreground"
   );
 
@@ -149,13 +149,16 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
             : "bg-background border-b border-border/40 shadow-sm"
         )}
       >
-        <div className="container mx-auto px-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-3 md:flex md:items-center md:justify-between md:gap-0">
+        {/* Full one-line nav from xl (1280px): below that the seven items
+            can't fit on one line next to the logo without wrapping, so the
+            menu button (same panel as on mobile) is used instead. */}
+        <div className="container mx-auto px-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-3 xl:flex xl:items-center xl:justify-between xl:gap-0">
           {/* Mobile: hamburger left */}
-          <div className="flex items-center justify-start min-w-0 md:contents">
+          <div className="flex items-center justify-start min-w-0 xl:contents">
             {!hideNav && (
               <button
                 onClick={() => setMenuOpen(true)}
-                className="md:hidden p-2 -ml-2"
+                className="xl:hidden p-2 -ml-2"
                 aria-label="Open menu"
               >
                 <Menu className={cn("w-6 h-6", light ? "text-cream" : "text-foreground")} strokeWidth={1.5} />
@@ -166,7 +169,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
           {/* Logo: centred on mobile, left on desktop */}
           <Link
             to="/"
-            className="justify-self-center min-w-0 md:flex-shrink-0 md:justify-self-auto"
+            className="justify-self-center min-w-0 xl:flex-shrink-0 xl:justify-self-auto"
           >
             <img
               src={light ? logoCream : logoBrown}
@@ -177,7 +180,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
 
           {/* Desktop nav */}
           {!hideNav && (
-            <nav className="hidden md:flex items-center gap-7">
+            <nav className="hidden xl:flex items-center gap-6">
               {navLinks.map((link) => renderNavItem(link))}
             </nav>
           )}
@@ -209,7 +212,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
 
       {/* Mobile menu, full-screen brand-yellow panel */}
       {menuOpen && (
-        <div className="fixed inset-0 z-[70] bg-background flex flex-col md:hidden animate-in fade-in slide-in-from-left-4 duration-300">
+        <div className="fixed inset-0 z-[70] bg-background flex flex-col xl:hidden animate-in fade-in slide-in-from-left-4 duration-300">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
             <button
               onClick={() => setMenuOpen(false)}
