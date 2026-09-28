@@ -152,6 +152,9 @@ interface OrderItemRow {
   workshop_time?: string | null;
   workshop_participants?: number | null;
   workshop_unit_price?: number | null;
+  // Sponge per participant ('vanilla'/'chocolate'), set in the workshop
+  // branch below (2026-09-28) — read by Admin > Production.
+  workshop_sponge_choices?: string[] | null;
   // Reward/workshop bugfix (Sept 2026): set below, in the reward-allocation
   // loop, alongside (never instead of) the PostFinance line-item discount —
   // `total` above is NEVER touched by this. 0 for every line the loop
@@ -1199,6 +1202,17 @@ serve(async (req) => {
         orderItems[i].workshop_participants = participants;
         orderItems[i].workshop_unit_price = unitPrice;
         orderItems[i].total = roundToCents(unitPrice * participants);
+        // Sponge chosen by each participant (Vanille / Chocolat), for the
+        // Admin Production tab. Kept only if it is exactly one valid choice
+        // per participant; anything else is stored as NULL — never guessed,
+        // and never blocks the payment.
+        const rawChoices = p.workshop_sponge_choices ?? p.workshopSpongeChoices ?? null;
+        orderItems[i].workshop_sponge_choices =
+          Array.isArray(rawChoices) &&
+          rawChoices.length === participants &&
+          rawChoices.every((c: unknown) => c === "vanilla" || c === "chocolate")
+            ? rawChoices
+            : null;
         applyPartnerLineFields(i, orderItems[i].product, undefined); // workshop — never eligible
 
         // Non-locking pre-check: if the session is already full, don't send
