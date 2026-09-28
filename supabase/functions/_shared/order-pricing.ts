@@ -107,10 +107,17 @@ export function expressSurchargeRate(pickupDeliveryDate: string | null | undefin
 // order. Throws on any violation — same defensive posture as everywhere
 // else in this function; one bad fulfillment aborts the whole order (never
 // silently drops or downgrades one date while charging for the others).
+// options.minLeadDays: the Admin manual-order flow passes 0 so an order
+// taken by phone can be for today or tomorrow (website checkout never passes
+// it and keeps ORDER_LEAD_DAYS). The express rate is unaffected: below
+// ORDER_LEAD_DAYS, expressSurchargeRate() already returns 0 — an urgent
+// supplement is then added by hand through the Admin price adjustment.
 export async function resolveOneFulfillment(
   input: FulfillmentInput,
   expressEligibleTotal: number,
+  options: { minLeadDays?: number } = {},
 ): Promise<ResolvedFulfillment> {
+  const minLeadDays = options.minLeadDays ?? ORDER_LEAD_DAYS;
   const date = String(input.date ?? "").slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     throw new Error(`Fulfillment date "${input.date}" is not a valid YYYY-MM-DD date.`);
@@ -123,10 +130,10 @@ export async function resolveOneFulfillment(
   }
 
   const daysOut = daysUntilPickup(date);
-  if (daysOut === null || daysOut < ORDER_LEAD_DAYS) {
+  if (daysOut === null || daysOut < minLeadDays) {
     throw new Error(
       `PICKUP_DATE_TOO_SOON: fulfillment ${date} — the earliest available pickup/delivery date is ` +
-      `${ORDER_LEAD_DAYS} calendar days from today (Europe/Zurich). ` +
+      `${minLeadDays} calendar days from today (Europe/Zurich). ` +
       (daysOut === null ? "No valid date given." :
         daysOut < 0 ? "The requested date is in the past." : `The requested date is only ${daysOut} day(s) away.`),
     );
