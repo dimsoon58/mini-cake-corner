@@ -50,7 +50,7 @@ const isManualOrder = (o: Pick<OrderSummary, "order_source" | "order_number">): 
 // physical items on a mixed order, but the "what kind of order is this"
 // badge only needs to say ONE thing).
 const sourceBadge = (o: OrderSummary, t: (en: string, fr: string) => string): { label: string; className: string } => {
-  if (o.hasWorkshopItem) return { label: t("Workshop", "Atelier"), className: "bg-purple-100 text-purple-800" };
+  if (o.hasWorkshopItem) return { label: t("Workshop", "Workshop"), className: "bg-purple-100 text-purple-800" };
   if (isManualOrder(o)) return { label: t("Manual", "Manuel"), className: "bg-blue-100 text-blue-800" };
   return { label: t("Website", "Site"), className: "bg-secondary text-secondary-foreground" };
 };

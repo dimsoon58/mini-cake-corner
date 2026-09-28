@@ -319,19 +319,19 @@ const PaymentSuccess = () => {
     bodyText = nothingPending
       ? t(
           "Your payment has been received and your workshop booking is confirmed.",
-          "Votre paiement a bien été reçu et votre réservation d'atelier est confirmée.",
+          "Votre paiement a bien été reçu et votre réservation de workshop est confirmée.",
         )
       : t(
           "Your workshop booking request has been received. Your seat is being held while we confirm it — nothing has been charged yet.",
-          "Votre demande de réservation d'atelier a bien été reçue. Votre place est retenue pendant que nous confirmons votre réservation — aucun montant n'a encore été prélevé.",
+          "Votre demande de réservation de workshop a bien été reçue. Votre place est retenue pendant que nous confirmons votre réservation — aucun montant n'a encore été prélevé.",
         );
     panelTitle = nothingPending
-      ? t("Workshop confirmed", "Atelier confirmé")
-      : t("Workshop booking pending confirmation", "Réservation d'atelier en attente de confirmation");
+      ? t("Workshop confirmed", "Workshop confirmé")
+      : t("Workshop booking pending confirmation", "Réservation de workshop en attente de confirmation");
     panelText = nothingPending
       ? t(
           "You will receive a confirmation e-mail with the date, time and practical details of your workshop.",
-          "Vous recevrez un e-mail de confirmation avec la date, l'heure et les informations pratiques de votre atelier.",
+          "Vous recevrez un e-mail de confirmation avec la date, l'heure et les informations pratiques de votre workshop.",
         )
       : t(
           "We will confirm your booking within the next 24 hours. Only once confirmed will your payment be taken and you will receive a confirmation e-mail.",
@@ -341,7 +341,7 @@ const PaymentSuccess = () => {
     bodyText = nothingPending
       ? t(
           "Your payment has been received. Your order — workshop and cake / products — is now confirmed.",
-          "Votre paiement a bien été reçu. Votre commande — atelier et gâteau / produits — est maintenant confirmée.",
+          "Votre paiement a bien été reçu. Votre commande — workshop et gâteau / produits — est maintenant confirmée.",
         )
       : t(
           "Your order request has been received. It is now awaiting validation by Bento Cake Studio — nothing has been charged yet.",
@@ -354,7 +354,7 @@ const PaymentSuccess = () => {
       ? t("We're excited to create something special for you!", "Nous avons hâte de créer quelque chose de spécial rien que pour vous !")
       : t(
           "We will review your whole order — workshop and cake / products together — and send you a confirmation within the next 24 hours. Only once confirmed will your payment be taken.",
-          "Nous examinons votre commande dans son ensemble — atelier et gâteau / produits — et vous enverrons une confirmation dans les 24 heures. Ce n'est qu'une fois confirmée que votre paiement sera prélevé.",
+          "Nous examinons votre commande dans son ensemble — workshop et gâteau / produits — et vous enverrons une confirmation dans les 24 heures. Ce n'est qu'une fois confirmée que votre paiement sera prélevé.",
         );
   } else {
     // cake_only
@@ -386,13 +386,13 @@ const PaymentSuccess = () => {
             <>
               <XCircle className="w-16 h-16 text-destructive mx-auto mb-6" />
               <h1 className="text-sm font-sans font-medium uppercase tracking-widest text-foreground mb-4">
-                {t("Workshop No Longer Available", "Atelier plus disponible")}
+                {t("Workshop No Longer Available", "Workshop plus disponible")}
               </h1>
               <p className="text-muted-foreground mb-8">
                 {capacity.rewardOnly
                   ? t(
                       "The remaining seats for this workshop were booked while your payment was being processed. No order was placed and nothing was charged (your reward balance has been released). Please choose another session.",
-                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement. Aucune commande n'a été enregistrée et aucun montant n'a été prélevé (votre cagnotte a été libérée). Merci de choisir une autre session."
+                      "Les dernières places de ce workshop ont été réservées pendant le traitement de votre paiement. Aucune commande n'a été enregistrée et aucun montant n'a été prélevé (votre cagnotte a été libérée). Merci de choisir une autre session."
                     )
                   // 2026-09-15 (deferred capture): the normal case now — nothing
                   // was ever captured, so nothing is ever "refunded"/"pending
@@ -404,16 +404,16 @@ const PaymentSuccess = () => {
                   : capacity.refundState === "refunded"
                   ? t(
                       "The remaining seats for this workshop were booked while your payment was being processed, so your order could not be fulfilled. Your payment was received and has already been refunded. Please contact us if you have any question.",
-                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Votre paiement a bien été reçu et a déjà été remboursé. Contactez-nous pour toute question."
+                      "Les dernières places de ce workshop ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Votre paiement a bien été reçu et a déjà été remboursé. Contactez-nous pour toute question."
                     )
                   : capacity.refundState === "to_refund"
                   ? t(
                       "The remaining seats for this workshop were booked while your payment was being processed, so your order could not be fulfilled. Your payment has been received and a refund is being processed by our team — you do not need to do anything. Please contact us if you have any question.",
-                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Votre paiement a bien été reçu et un remboursement est en cours de traitement par notre équipe — vous n'avez rien à faire. Contactez-nous pour toute question."
+                      "Les dernières places de ce workshop ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Votre paiement a bien été reçu et un remboursement est en cours de traitement par notre équipe — vous n'avez rien à faire. Contactez-nous pour toute question."
                     )
                   : t(
                       "The remaining seats for this workshop were booked while your payment was being processed, so your order could not be fulfilled. Nothing was charged — the authorization on your payment method has been released. Please contact us if you have any question.",
-                      "Les dernières places de cet atelier ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Aucun montant n'a été prélevé — l'autorisation sur votre moyen de paiement a été annulée. Contactez-nous pour toute question."
+                      "Les dernières places de ce workshop ont été réservées pendant le traitement de votre paiement ; votre commande n'a donc pas pu aboutir. Aucun montant n'a été prélevé — l'autorisation sur votre moyen de paiement a été annulée. Contactez-nous pour toute question."
                     )}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-2">

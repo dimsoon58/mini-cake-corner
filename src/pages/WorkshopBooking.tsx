@@ -457,7 +457,7 @@ const WorkshopBooking = () => {
       toast.error(t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."));
       return;
     }
-    toast.success(t("Workshop added to your cart.", "Atelier ajouté à votre panier."));
+    toast.success(t("Workshop added to your cart.", "Workshop ajouté à votre panier."));
     navigate("/cart");
   };
 
@@ -468,7 +468,7 @@ const WorkshopBooking = () => {
       </h2>
       <div className="space-y-4">
         <div className="border border-border p-5 space-y-3 bg-card">
-          <Row label={t("Workshop", "Atelier")} value={t(info.title, info.titleFr)} />
+          <Row label={t("Workshop", "Workshop")} value={t(info.title, info.titleFr)} />
           <Row
             label={t("Date", "Date")}
             value={selectedSession
@@ -553,7 +553,7 @@ const WorkshopBooking = () => {
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8 uppercase tracking-wider"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
-            {t("Back to Workshops", "Retour aux Ateliers")}
+            {t("Back to Workshops", "Retour aux Workshops")}
           </Link>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">

@@ -608,14 +608,14 @@ const Cart = () => {
                 const isEditing = editingItemId === item.id;
                 if (item.product === "workshop") {
                   const workshopName = item.styleName
-                    || (item.workshopType === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature"));
+                    || (item.workshopType === "paint" ? t("Paint Workshop", "Workshop Peinture") : t("Signature Workshop", "Workshop Signature"));
                   return (
                     <Card key={item.id} className="overflow-hidden rounded-none">
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between gap-4 mb-3">
                           <div className="min-w-0">
                             <h3 className="font-sans uppercase tracking-[0.105em] text-sm font-semibold text-foreground">{workshopName}</h3>
-                            <p className="text-xs text-muted-foreground mt-0.5">{t("Workshop", "Atelier")}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{t("Workshop", "Workshop")}</p>
                           </div>
                           <span className="font-semibold text-primary whitespace-nowrap text-base">CHF {formatChf(item.total)}</span>
                         </div>
@@ -859,7 +859,7 @@ const Cart = () => {
                       <div key={item.id} className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{
                           item.product === "workshop"
-                            ? `${item.styleName || t("Workshop", "Atelier")}${item.workshopParticipants ? ` ×${item.workshopParticipants}` : ""}`
+                            ? `${item.styleName || t("Workshop", "Workshop")}${item.workshopParticipants ? ` ×${item.workshopParticipants}` : ""}`
                             : item.isCandleProduct
                               ? item.candleProductName
                               : cartItemTitle(item, lang, t)

@@ -2057,7 +2057,7 @@ const Checkout = () => {
                         <div key={item.id} className="rounded-lg border border-border bg-muted/20 p-3">
                           <div className="flex justify-between items-start gap-3">
                             <span className="font-medium text-sm text-foreground">
-                              {item.styleName || t("Workshop", "Atelier")}
+                              {item.styleName || t("Workshop", "Workshop")}
                               {" — "}
                               {item.workshopDate ? formatWorkshopDateCheckout(item.workshopDate) : ""}
                               {item.workshopTime ? ` ${item.workshopTime}` : ""}
@@ -2218,7 +2218,7 @@ const Checkout = () => {
                         toast({
                           title: t(
                             "The -10% welcome offer does not apply to workshops.",
-                            "L'offre de bienvenue -10% ne s'applique pas aux ateliers.",
+                            "L'offre de bienvenue -10% ne s'applique pas aux workshops.",
                           ),
                           variant: "destructive",
                         });

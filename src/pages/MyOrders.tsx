@@ -173,7 +173,7 @@ function itemsSummary(items: CustomerOrder["order_items"], lang: "en" | "fr"): s
   return items
     .map((item) =>
       item.product === "workshop"
-        ? `${item.workshop_type === "paint" ? (lang === "fr" ? "Atelier Peinture" : "Paint Workshop") : (lang === "fr" ? "Atelier Signature" : "Signature Workshop")}${item.workshop_date ? ` (${formatDateCH(item.workshop_date)})` : ""}`
+        ? `${item.workshop_type === "paint" ? (lang === "fr" ? "Workshop Peinture" : "Paint Workshop") : (lang === "fr" ? "Workshop Signature" : "Signature Workshop")}${item.workshop_date ? ` (${formatDateCH(item.workshop_date)})` : ""}`
         : item.size
           ? `${sizeLabel(item.size, lang)}${item.flavors?.length ? ` — ${flavorLabel(item.flavors.join(","))}` : ""}`
           : (item.design ? designLabel(item.design) : ""))
@@ -256,7 +256,7 @@ const MyOrders = () => {
 
     if (ft === "workshop_only") {
       return workshopConfirmed
-        ? t("Workshop confirmed", "Atelier confirmé")
+        ? t("Workshop confirmed", "Workshop confirmé")
         : t("Confirming your workshop…", "Confirmation de votre atelier…");
     }
 
@@ -266,10 +266,10 @@ const MyOrders = () => {
       if (phys === "approved") return t("Confirmed", "Confirmée");
       if (phys === "rejected") {
         return order.refund_status === "refunded"
-          ? t("Workshop confirmed · cake refunded", "Atelier confirmé · gâteau remboursé")
-          : t("Workshop confirmed · cake refund being processed", "Atelier confirmé · remboursement gâteau en cours");
+          ? t("Workshop confirmed · cake refunded", "Workshop confirmé · gâteau remboursé")
+          : t("Workshop confirmed · cake refund being processed", "Workshop confirmé · remboursement gâteau en cours");
       }
-      return t("Workshop confirmed · cake pending", "Atelier confirmé · gâteau en attente");
+      return t("Workshop confirmed · cake pending", "Workshop confirmé · gâteau en attente");
     }
 
     // cake_only
@@ -425,7 +425,7 @@ const MyOrders = () => {
     const { designPhoto, comment } = splitComment(item.item_comment);
     const displayImage = itemDisplayImage(item);
     const title = item.product === "workshop"
-      ? (item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature"))
+      ? (item.workshop_type === "paint" ? t("Paint Workshop", "Workshop Peinture") : t("Signature Workshop", "Workshop Signature"))
       : (t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product);
     // diy_kit's size is always the same fixed "kit-bento" id — never a real
     // choice, and resolving it here would just repeat the product name

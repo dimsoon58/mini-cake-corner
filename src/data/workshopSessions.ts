@@ -46,9 +46,9 @@ export const workshopInfo: Record<
 > = {
   signature: {
     title: "Signature Workshop",
-    titleFr: "Atelier Signature",
+    titleFr: "Workshop Signature",
     description: "Learn the basics of Bento Cake decorating in this hands-on 2-hour workshop.",
-    descriptionFr: "Découvrez les bases de la décoration du Bento Cake lors de cet atelier pratique de 2 heures.",
+    descriptionFr: "Découvrez les bases de la décoration du Bento Cake lors de ce workshop pratique de 2 heures.",
     duration: "2 hours",
     durationFr: "2 heures",
     maxParticipants: WORKSHOP_MAX_PARTICIPANTS.signature,
@@ -73,9 +73,9 @@ export const workshopInfo: Record<
   },
   paint: {
     title: "Paint Workshop",
-    titleFr: "Atelier Peinture",
+    titleFr: "Workshop Peinture",
     description: "Turn your cake into edible art with our creative painting workshop.",
-    descriptionFr: "Transformez votre gâteau en œuvre d'art comestible lors de notre atelier de peinture.",
+    descriptionFr: "Transformez votre gâteau en œuvre d'art comestible lors de notre workshop de peinture.",
     duration: "1h30",
     durationFr: "1h30",
     maxParticipants: WORKSHOP_MAX_PARTICIPANTS.paint,

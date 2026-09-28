@@ -163,7 +163,7 @@ const AdminCalendar = () => {
 
   const itemTitle = (e: DayEntry): string => {
     if (e.type === "workshop") {
-      return e.workshopType === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature");
+      return e.workshopType === "paint" ? t("Paint Workshop", "Workshop Peinture") : t("Signature Workshop", "Workshop Signature");
     }
     const label = PRODUCT_LABELS[e.product];
     return label ? t(label.en, label.fr) : e.product;
@@ -304,7 +304,7 @@ const AdminCalendar = () => {
                               {e.orderNumber || `#${e.orderId.slice(0, 8).toUpperCase()}`}
                             </span>
                             <span className={cn("text-[10px] uppercase tracking-[0.105em] px-1.5 py-0.5", statusBadgeClass(e.status))}>
-                              {e.type === "workshop" ? "ATELIER · " : ""}{e.status}
+                              {e.type === "workshop" ? "WORKSHOP · " : ""}{e.status}
                             </span>
                           </div>
                         </div>

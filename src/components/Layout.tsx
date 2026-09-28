@@ -25,7 +25,7 @@ const navFr: Record<string, string> = {
   "Cakes": "Gâteaux",
   "Bento Kit": "Bento Kit",
   "Candles": "Bougies",
-  "Workshop": "Atelier",
+  "Workshop": "Workshop",
   "Partnerships": "Partenariats",
   "Inspirations": "Inspirations",
   "Printing": "Impression",
