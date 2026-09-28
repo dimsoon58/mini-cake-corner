@@ -339,6 +339,7 @@ const AdminDashboard = () => {
           <Link to="/admin/orders" className="text-muted-foreground hover:text-foreground">{t("Orders", "Commandes")}</Link>
           <Link to="/admin/calendar" className="text-muted-foreground hover:text-foreground">{t("Calendar", "Calendrier")}</Link>
           <span className="text-foreground font-semibold">{t("Dashboard", "Tableau de bord")}</span>
+          <Link to="/admin/production" className="text-muted-foreground hover:text-foreground">{t("Production", "Production")}</Link>
         </div>
         <div className="flex items-center justify-between mb-6">
           <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground flex items-center gap-2">
