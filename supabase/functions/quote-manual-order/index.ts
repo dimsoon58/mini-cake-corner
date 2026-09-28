@@ -3,11 +3,13 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { quoteManualOrder, type QuoteInput } from "../_shared/manual-order-quote.ts";
+import { buildManualOrderCatalog } from "../_shared/manual-order-catalog.ts";
 
 // Admin manual orders — live price while the admin fills the form. Read-only:
 // never writes anything, never reserves a workshop seat (availability is only
-// shown). Every amount comes from the website checkout's own pricing engine —
-// see _shared/manual-order-quote.ts. Admin session required.
+// shown). Also serves the form's option catalogue ({ catalog: true }). Every
+// amount comes from the website checkout's own pricing engine — see
+// _shared/manual-order-quote.ts. Admin session required.
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -26,7 +28,12 @@ serve(async (req) => {
     const admin = await requireAdmin(req, supabase);
     if (!admin) return json(cors, { error: "Admin sign-in required" }, 401);
 
-    const body = (await req.json().catch(() => null)) as QuoteInput | null;
+    const raw = await req.json().catch(() => null);
+    // { catalog: true } → the options the form may offer, straight from the
+    // pricing engine's tables (see _shared/manual-order-catalog.ts).
+    if (raw?.catalog === true) return json(cors, await buildManualOrderCatalog(supabase));
+
+    const body = raw as QuoteInput | null;
     if (!body || !Array.isArray(body.items) || !Array.isArray(body.fulfillments)) {
       return json(cors, { error: "items and fulfillments are required" }, 400);
     }

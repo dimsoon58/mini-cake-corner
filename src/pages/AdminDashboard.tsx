@@ -337,6 +337,7 @@ const AdminDashboard = () => {
       <main className="container mx-auto px-4 py-8 max-w-3xl">
         <div className="flex items-center justify-center gap-4 mb-4 text-[11px] uppercase tracking-[0.105em]">
           <Link to="/admin/orders" className="text-muted-foreground hover:text-foreground">{t("Orders", "Commandes")}</Link>
+          <Link to="/admin/manual-orders" className="text-muted-foreground hover:text-foreground">{t("Manual orders", "Commandes manuelles")}</Link>
           <Link to="/admin/calendar" className="text-muted-foreground hover:text-foreground">{t("Calendar", "Calendrier")}</Link>
           <span className="text-foreground font-semibold">{t("Dashboard", "Tableau de bord")}</span>
           <Link to="/admin/production" className="text-muted-foreground hover:text-foreground">{t("Production", "Production")}</Link>

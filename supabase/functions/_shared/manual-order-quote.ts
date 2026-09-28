@@ -76,6 +76,12 @@ export interface QuoteFulfillmentResult {
   deliveryZone: string | null;
   deliveryAddress: string | null;
   deliveryDistanceKm: number | null;
+  // Full resolution, stored on save exactly like the checkout does.
+  deliveryPlaceId: string | null;
+  deliveryPostalCode: string | null;
+  deliveryCity: string | null;
+  deliveryLatitude: number | null;
+  deliveryLongitude: number | null;
   expressRate: number | null;
   expressSurcharge: number | null;
   error: string | null;
@@ -221,6 +227,13 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
   for (const idx of physicalIndexes) {
     if (!covered.has(idx)) errors.push(`Item ${idx + 1} has no date`);
   }
+  // One group per day (order_fulfillments allows a single row per date).
+  const seenDates = new Set<string>();
+  for (const f of fulfillmentsIn) {
+    const d = String(f?.date ?? "").slice(0, 10);
+    if (seenDates.has(d)) errors.push(`The date ${d} is used twice — put those items in the same date group`);
+    seenDates.add(d);
+  }
 
   // ── Delivery + express per date (shared checkout engine) ──────────────
   const fulfillmentResults: QuoteFulfillmentResult[] = [];
@@ -258,6 +271,11 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
         deliveryZone: resolved.deliveryZone,
         deliveryAddress: resolved.deliveryAddress,
         deliveryDistanceKm: resolved.deliveryDistanceKm,
+        deliveryPlaceId: resolved.deliveryPlaceId,
+        deliveryPostalCode: resolved.deliveryPostalCode,
+        deliveryCity: resolved.deliveryCity,
+        deliveryLatitude: resolved.deliveryLatitude,
+        deliveryLongitude: resolved.deliveryLongitude,
         expressRate: expressSurchargeRate(resolved.date),
         // Only meaningful once every item of this date is priced.
         expressSurcharge: itemsPriced ? resolved.expressSurcharge : null,
@@ -270,6 +288,11 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
         deliveryZone: null,
         deliveryAddress: null,
         deliveryDistanceKm: null,
+        deliveryPlaceId: null,
+        deliveryPostalCode: null,
+        deliveryCity: null,
+        deliveryLatitude: null,
+        deliveryLongitude: null,
         expressRate: null,
         expressSurcharge: null,
         error: e instanceof Error ? e.message.replace(/^PICKUP_DATE_TOO_SOON:\s*/, "") : "Invalid date",
