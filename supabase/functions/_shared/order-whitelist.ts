@@ -119,6 +119,9 @@ export const ORDER_ITEM_SERVER_FIELDS = [
   "workshop_time",
   "workshop_participants",
   "workshop_unit_price",
+  // Sponge per workshop participant (2026-09-28) — validated and set by
+  // create-postfinance-payment, never taken from the client as-is.
+  "workshop_sponge_choices",
   // Multi-date fulfillment (Sept 2026): links a PHYSICAL order_item to the
   // order_fulfillments row (one per distinct pickup/delivery date) it
   // belongs to. Set only by confirm-postfinance-payment, after creating that

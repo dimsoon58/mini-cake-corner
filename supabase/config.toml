@@ -39,3 +39,9 @@ verify_jwt = false
 # 20260913140300_schedule_reward_reservation_reconciliation.sql.
 [functions.reconcile-stale-reward-reservations]
 verify_jwt = false
+
+# Public partner-link lookup used on site load. JWT verification intentionally
+# disabled to match the deployed function. The function validates the
+# referral token and only returns limited partner information.
+[functions.resolve-partner-ref]
+verify_jwt = false

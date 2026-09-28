@@ -16,6 +16,9 @@ import { useCart } from "@/context/CartContext";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
+import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
+import { RequiredFieldsLegend } from "@/components/RequiredFieldsLegend";
+import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { useNavigate } from "react-router-dom";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { toast } from "sonner";
@@ -214,18 +217,18 @@ export const candles = [
 ];
 
 const tooltipTexts: Record<string, string> = {
-  date: "Date required to schedule the preparation of your order (minimum 2 days in advance).",
+  date: "Choose your pick-up date (minimum 2 days in advance).",
   shape: "Choose the shape of your cake.",
-  flavor: "Please select the flavour of your cake.",
-  baseColor: "The base colour is essential to personalise your cake.",
+  flavor: "Choose the flavour of your cake.",
+  baseColor: "Choose the main colour of your cake.",
   piping: "Choose the number of piping bags you would like with your cake.",
 };
 
 const tooltipTextsFr: Record<string, string> = {
-  date: "Date requise pour planifier la préparation de votre commande (minimum 2 jours à l'avance).",
+  date: "Choisissez votre date de retrait (minimum 2 jours à l'avance).",
   shape: "Choisissez la forme de votre gâteau.",
-  flavor: "Veuillez sélectionner le parfum de votre gâteau.",
-  baseColor: "La couleur de base est essentielle pour personnaliser votre gâteau.",
+  flavor: "Choisissez le parfum de votre gâteau.",
+  baseColor: "Choisissez la couleur principale de votre gâteau.",
   piping: "Choisissez le nombre de poches à douille que vous souhaitez avec votre gâteau.",
 };
 
@@ -251,6 +254,9 @@ const KitBentoCake = () => {
   const [numberCandlePreview, setNumberCandlePreview] = useState("0");
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [showAllCandles, setShowAllCandles] = useState(false);
+  // Bumped when a candle is removed from the price recap, to remount the
+  // colour-family candle cards (they keep their own pack/piece counters).
+  const [candleCardResetKey, setCandleCardResetKey] = useState(0);
 
   // Sync candleSelections quantity for number candle with numberCandleDigits array
   useEffect(() => {
@@ -455,6 +461,49 @@ const KitBentoCake = () => {
     if (configuratorVisible) window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, [step, configuratorVisible]);
 
+  // Every line making up totalPrice, for the live price recap. Candles can be
+  // dropped from the recap itself; shape, flavour and piping are choices,
+  // changed in their own step.
+  const priceLines: PriceLine[] = [{ key: "base", label: t("Bento Kit", "Bento Kit"), price: BASE_PRICE, isBase: true }];
+  const shapeObj = shapes.find((s) => s.id === selectedShape);
+  if (shapeObj && shapeObj.extraPrice > 0) {
+    priceLines.push({ key: "shape", label: `${t("Shape", "Forme")} : ${t(shapeObj.name, shapeObj.nameFr)}`, price: shapeObj.extraPrice });
+  }
+  if (getFlavorCategoryPrice() > 0) {
+    priceLines.push({ key: "flavor", label: `${t("Flavour", "Parfum")} : ${t(getFlavorName(), getFlavorNameFr())}`, price: getFlavorCategoryPrice() });
+  }
+  const pipingObj = pipingBagOptions.find((p) => p.id === selectedPipingOption);
+  if (pipingObj && pipingObj.price > 0) {
+    priceLines.push({ key: "piping", label: t(pipingObj.name, pipingObj.nameFr), price: pipingObj.price });
+  }
+  candleSelections.forEach((entry) => {
+    const price = getCandlePrice(entry.id);
+    if (price <= 0) return;
+    if (entry.id === NUMBER_CANDLE_ID) {
+      priceLines.push({
+        key: "candle-number",
+        label: `${t("Number Candle", "Bougie chiffre")} (${numberCandleDigits.join(", ")})`,
+        price,
+        // The digit list is the source of truth — the effect above drops the
+        // candle entry once it's empty.
+        onRemove: () => setNumberCandleDigits([]),
+      });
+      return;
+    }
+    const candle = candles.find((c) => c.id === entry.id);
+    if (!candle) return;
+    const name = t(candle.name, candle.nameFr);
+    priceLines.push({
+      key: `candle-${entry.id}`,
+      label: entry.quantity > 1 ? `${name} ×${entry.quantity}` : name,
+      price,
+      onRemove: () => {
+        setCandleSelections((prev) => removeCandleSelection(prev, entry.id));
+        setCandleCardResetKey((k) => k + 1);
+      },
+    });
+  });
+
   const stepLabels = [t("Date","Date"), t("Shape","Forme"), t("Flavour","Parfum"), t("Piping","Poches"), t("Candles","Bougies"), t("Confirm","Confirmer")];
 
   return (
@@ -488,10 +537,11 @@ const KitBentoCake = () => {
           </div>
         )}
 
+        <div className="flex justify-center lg:gap-10">
         {/* Configurator – hidden until CTA is clicked */}
         <div
           ref={configuratorRef}
-          className={configuratorVisible ? "max-w-2xl mx-auto py-4 px-4 transition-all duration-500 ease-out opacity-100 translate-y-0" : "max-w-2xl mx-auto py-4 px-4 pointer-events-none select-none opacity-0 translate-y-4 h-0 overflow-hidden"}
+          className={configuratorVisible ? "w-full max-w-2xl mx-auto py-4 px-4 transition-all duration-500 ease-out opacity-100 translate-y-0" : "max-w-2xl mx-auto py-4 px-4 pointer-events-none select-none opacity-0 translate-y-4 h-0 overflow-hidden"}
           aria-hidden={!configuratorVisible}
         >
           {/* Stepper */}
@@ -520,6 +570,7 @@ const KitBentoCake = () => {
               );
             })}
           </div>
+          <RequiredFieldsLegend className="max-w-2xl mx-auto -mt-6 mb-8" />
 
           {/* STEP 1: DATE */}
           {step === 1 && (
@@ -621,13 +672,24 @@ const KitBentoCake = () => {
                     </SelectItem>
                   );
                 };
+                const visibleCategories = showGlutenFreeFlavors ? glutenFreeFlavorCategories : flavorCategories;
                 return (
+                  <>
+                  <GlutenFreeToggle
+                    value={showGlutenFreeFlavors}
+                    onChange={(gf) => {
+                      setShowGlutenFreeFlavors(gf);
+                      // A flavour from the other family no longer fits: fall back
+                      // to the new family's base flavour (none if none was chosen).
+                      if (selectedFlavor) setSelectedFlavor((gf ? glutenFreeFlavorCategories : flavorCategories)[0].flavors[0].id);
+                    }}
+                  />
                   <Select value={selectedFlavor} onValueChange={setSelectedFlavor}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder={t("Select a flavour", "Choisir un parfum")} />
                     </SelectTrigger>
                     <SelectContent nativeScroll className="w-[min(90vw,420px)]">
-                      {flavorCategories.map((cat) => (
+                      {visibleCategories.map((cat) => (
                         <SelectGroup key={cat.name}>
                           <SelectLabel>
                             {t(cat.name.replace("Flavors", "Flavours"), cat.nameFr)}
@@ -636,30 +698,9 @@ const KitBentoCake = () => {
                           {cat.flavors.map((fl) => renderFlavorOption(fl, cat.extraPrice))}
                         </SelectGroup>
                       ))}
-                      <div className="px-2 py-1">
-                        <button
-                          type="button"
-                          onPointerDown={e => e.preventDefault()}
-                          onClick={() => setShowGlutenFreeFlavors(v => !v)}
-                          className="flex w-full items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1.5 px-1 hover:underline rounded"
-                        >
-                          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform flex-shrink-0", showGlutenFreeFlavors && "rotate-180")} />
-                          {showGlutenFreeFlavors
-                            ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
-                            : t("See gluten-free flavours", "Voir les parfums sans gluten")}
-                        </button>
-                      </div>
-                      {showGlutenFreeFlavors && glutenFreeFlavorCategories.map((cat) => (
-                        <SelectGroup key={cat.name}>
-                          <SelectLabel>
-                            {t(cat.nameFr, cat.nameFr)}
-                            {cat.extraPrice > 0 ? ` (+CHF ${cat.extraPrice})` : ""}
-                          </SelectLabel>
-                          {cat.flavors.map((fl) => renderFlavorOption(fl, cat.extraPrice))}
-                        </SelectGroup>
-                      ))}
                     </SelectContent>
                   </Select>
+                  </>
                 );
               })()}
 
@@ -765,7 +806,7 @@ const KitBentoCake = () => {
                   const family = FAMILY_CANDLE_COLORS[candle.id];
                   if (family) {
                     return (
-                      <ColorFamilyCandleCard key={candle.id} candle={candle} colors={family}
+                      <ColorFamilyCandleCard key={`${candle.id}-${candleCardResetKey}`} candle={candle} colors={family}
                         existing={candleSelections.find((c) => c.id === candle.id)}
                         onCommit={(entry) => setCandleSelections((prev) => upsertCandleSelection(prev, entry))}
                         onRemove={() => setCandleSelections((prev) => removeCandleSelection(prev, candle.id))}
@@ -863,7 +904,25 @@ const KitBentoCake = () => {
             <img src={diyKitBox} alt={t("Bento Cake Studio DIY kit","Kit DIY Bento Cake Studio")} loading="lazy" className="w-full max-w-md mx-auto" />
           </div>
         </div> {/* end configurator div */}
+
+        {/* Desktop: live price recap beside the steps, follows the scroll */}
+        {configuratorVisible && (
+          <aside className="hidden lg:block w-[300px] shrink-0 self-start sticky top-28 mt-4">
+            <PriceSummaryPanel lines={priceLines} total={totalPrice} />
+          </aside>
+        )}
+        </div>
       </div>
+
+      {/* Mobile / tablet: live total pinned to the bottom of the screen,
+          detail expands upwards. The spacer keeps the end of the page
+          reachable above the bar. */}
+      {configuratorVisible && (
+        <>
+          <div className="h-20 lg:hidden" aria-hidden />
+          <PriceSummaryBar className="lg:hidden fixed inset-x-0 bottom-0 z-40" lines={priceLines} total={totalPrice} />
+        </>
+      )}
 
       {/* Cart Confirmation Sheet */}
       <Sheet open={showCartSheet} onOpenChange={setShowCartSheet}>

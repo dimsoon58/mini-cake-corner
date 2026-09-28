@@ -22,6 +22,9 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
 import ExtraImageLightbox from "@/components/ExtraImageLightbox";
+import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
+import { RequiredFieldsLegend } from "@/components/RequiredFieldsLegend";
+import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
 import { useCart } from "@/context/CartContext";
@@ -261,6 +264,7 @@ const deluxeFlavors = flavors.filter((f) => DELUXE_FLAVOR_IDS.includes(f.id));
 const glutenFreeStandardFlavors = flavors.filter((f) => GF_STANDARD_FLAVOR_IDS.includes(f.id));
 const glutenFreePremiumFlavors = flavors.filter((f) => GF_PREMIUM_FLAVOR_IDS.includes(f.id));
 const glutenFreeDeluxeFlavors = flavors.filter((f) => GF_DELUXE_FLAVOR_IDS.includes(f.id));
+const GLUTEN_FREE_FLAVOR_IDS = [...GF_STANDARD_FLAVOR_IDS, ...GF_PREMIUM_FLAVOR_IDS, ...GF_DELUXE_FLAVOR_IDS];
 
 const candles = [
   // Single ordered list (Blue Ombré, Thick Spiral, Shiny Spiral, Pastel Spiral, Rainbow, Pink Ombré, Daisy, Red Heart, then the rest)
@@ -350,12 +354,38 @@ const glitterCherriesColors = [
 // these ids only; every other design keeps the normal "round" default.
 // Still just a default — the shape step remains a normal selectable field,
 // so a customer can still switch back to round if they want.
+// 2026-09-20: same reasoning extended to Inspiration Cakes — openInspiration()
+// below builds its cake object with id: inspirationItems[index].id and calls
+// this exact same handleSelectCake, so listing the right ids here is the
+// whole fix — no separate mechanism.
+//
+// IMPORTANT: INSPIRATIONS (src/data/inspirations.ts) is NOT ordered by its
+// own "inspiration-N" id — e.g. array position 3 (the "#3" the customer/admin
+// sees in the gallery and in "Inspiration Cake #3") holds id "inspiration-22",
+// not "inspiration-3". The 37 ids below were picked by CATALOGUE POSITION
+// (matching the "#N" numbers Bento Cake Studio actually uses to refer to
+// these designs), each resolved to that position's real id — never assumed
+// from the number inside the id string itself.
 const HEART_PHOTO_DESIGN_IDS = new Set([
   "roses-please",
   "pearl-border-retro",
   "normal-with-border",
   "normal-without-border",
   "rainbow-cake",
+  // Inspiration Cakes #1, #3, #4, #8, #11, #12, #20, #22, #23, #24, #25,
+  // #30, #32, #33, #34, #40, #41, #45, #48, #49, #51, #52, #53, #54, #55,
+  // #60, #61, #64, #67, #72, #73, #74, #76, #78, #79, #80, #82 — resolved
+  // via each position's actual id, not the id's own number.
+  "inspiration-14", "inspiration-22", "inspiration-19", "inspiration-13",
+  "inspiration-4", "inspiration-6", "inspiration-16", "inspiration-20",
+  "inspiration-21", "inspiration-23", "inspiration-24", "inspiration-29",
+  "inspiration-31", "inspiration-32", "inspiration-33", "inspiration-39",
+  "inspiration-40", "inspiration-44", "inspiration-47", "inspiration-48",
+  "inspiration-50", "inspiration-51", "inspiration-52", "inspiration-53",
+  "inspiration-54", "inspiration-59", "inspiration-60", "inspiration-63",
+  "inspiration-66", "inspiration-72", "inspiration-73", "inspiration-74",
+  "inspiration-76", "inspiration-78", "inspiration-79", "inspiration-80",
+  "inspiration-83",
 ]);
 
 const catalog = [
@@ -880,6 +910,10 @@ const styleNameFr: Record<string, string> = {
   "gender-reveal": "Gender Reveal",
   "sprinkles-with-border": "Sprinkles with Border",
 };
+// The two presentations of the Small size — see the size menu in the sheet.
+const SMALL_BOX_IDS = ["bento", "retro"];
+const SMALL_SIZE_VALUE = "small";
+
 const sizeNameFr: Record<string, string> = {
   bento: "Bento Box", retro: "Retro Box", medium: "Moyen", large: "Large", rectangle: "Rectangle",
 };
@@ -1138,7 +1172,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
-  const [showGlutenFreeFlavors, setShowGlutenFreeFlavors] = useState(false);
   // Declared before the effect below, which reads it in both its body and
   // its dependency array — referencing it while still part of the same
   // component body BEFORE this line runs is a TDZ ReferenceError ("Cannot
@@ -1146,6 +1179,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   // render (crashed this whole page in production).
   const [numberCandleDigits, setNumberCandleDigits] = useState<string[]>([]);
   const [numberCandlePreview, setNumberCandlePreview] = useState("0");
+  // Bumped when a candle is removed from the price breakdown, to remount the
+  // colour-family candle cards (they keep their own pack/piece counters).
+  const [candleCardResetKey, setCandleCardResetKey] = useState(0);
 
   useEffect(() => {
     setSelections((prev) => {
@@ -1379,20 +1415,25 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     }
   };
 
-  const calculatePrice = () => {
+  // `sizeId` defaults to the current size; passing another one prices the
+  // same selections in that size (used to show the Bento/Retro box difference).
+  const calculatePrice = (sizeId: string = selections.size) => {
     if (!selectedCake) return 0;
-    
-    const sizeObj = sizes.find(s => s.id === selections.size);
+
+    const sizeObj = sizes.find(s => s.id === sizeId);
     const shapeObj = shapes.find(s => s.id === selections.shape);
     const flavorObj = flavors.find(f => f.id === selections.flavor);
-    
+
     const basePrice = sizeObj?.price || 40;
-    const shapeExtra = shapeObj?.extraPrice[selections.size as keyof typeof shapeObj.extraPrice] || 0;
-    const flavorExtra = flavorObj?.extraPrice[selections.size as keyof typeof flavorObj.extraPrice] || 0;
-    const styleExtra = selectedCake.stylePrice[selections.size as keyof typeof selectedCake.stylePrice] || 0;
+    const shapeExtra = shapeObj?.extraPrice[sizeId as keyof typeof shapeObj.extraPrice] || 0;
+    const flavorExtra = flavorObj?.extraPrice[sizeId as keyof typeof flavorObj.extraPrice] || 0;
+    const styleExtra = selectedCake.stylePrice[sizeId as keyof typeof selectedCake.stylePrice] || 0;
     const candlesTotal = getTotalCandlesPrice();
-    const extrasTotal = getTotalExtrasPrice();
-    
+    const extrasTotal = selections.extras.reduce((acc, extraId) => {
+      const extra = catalogExtras.find(e => e.id === extraId);
+      return acc + (extra?.price[sizeId as keyof typeof extra.price] || 0);
+    }, 0);
+
     return basePrice + shapeExtra + flavorExtra + styleExtra + candlesTotal + extrasTotal;
   };
 
@@ -1402,6 +1443,71 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const getDesignSurcharge = () => {
     if (!selectedCake) return 0;
     return selectedCake.stylePrice[selections.size as keyof typeof selectedCake.stylePrice] || 0;
+  };
+
+  // Every line making up calculatePrice(), for the live price recap. Extras
+  // and candles can be removed from the recap itself; size, design, shape
+  // and flavour are choices, changed in their own fields above.
+  const getPriceLines = (): PriceLine[] => {
+    if (!selectedCake) return [];
+    const sizeObj = sizes.find((s) => s.id === selections.size);
+    const shapeObj = shapes.find((s) => s.id === selections.shape);
+    const flavorObj = flavors.find((f) => f.id === selections.flavor);
+    const shapeExtra = shapeObj?.extraPrice[selections.size as keyof typeof shapeObj.extraPrice] || 0;
+    const flavorExtra = flavorObj?.extraPrice[selections.size as keyof typeof flavorObj.extraPrice] || 0;
+    const lines: PriceLine[] = [];
+    if (sizeObj) {
+      lines.push({ key: "size", label: t(sizeObj.name, sizeNameFr[sizeObj.id] ?? sizeObj.name), price: sizeObj.price, isBase: true });
+    }
+    if (getDesignSurcharge() > 0) {
+      lines.push({ key: "design", label: t("Design supplement", "Supplément design"), price: getDesignSurcharge() });
+    }
+    if (shapeObj && shapeExtra > 0) {
+      lines.push({ key: "shape", label: `${t("Shape", "Forme")} : ${t(shapeObj.name, shapeNameFr[shapeObj.id] ?? shapeObj.name)}`, price: shapeExtra });
+    }
+    if (flavorObj && flavorExtra > 0) {
+      lines.push({ key: "flavor", label: `${t("Flavour", "Parfum")} : ${t(flavorObj.name, flavorNameFr[flavorObj.id] ?? flavorObj.name)}`, price: flavorExtra });
+    }
+    selections.extras.forEach((extraId) => {
+      const extra = catalogExtras.find((e) => e.id === extraId);
+      if (!extra) return;
+      const price = getExtraPriceForSize(extra);
+      if (price <= 0) return;
+      const label = extra.id === "pearl-border" && selectedCake.styleId === "retro-ribbons-glitter"
+        ? t("Full border of pearls", "Bordure complète de perles")
+        : t(extra.name, extraNameFr[extra.id] ?? extra.name);
+      lines.push({ key: `extra-${extra.id}`, label, price, onRemove: () => handleToggleExtra(extra.id) });
+    });
+    selections.candles.forEach((entry) => {
+      const price = getCandleTotalPrice(entry.id);
+      if (price <= 0) return;
+      if (entry.id === NUMBER_CANDLE_ID) {
+        lines.push({
+          key: "candle-number",
+          label: `${t("Number Candle", "Bougie chiffre")} (${numberCandleDigits.join(", ")})`,
+          price,
+          // The digit list is the source of truth — the effect above drops
+          // the candle entry once it's empty.
+          onRemove: () => setNumberCandleDigits([]),
+        });
+        return;
+      }
+      const candle = candles.find((c) => c.id === entry.id);
+      if (!candle) return;
+      const name = t(candle.name, candleNameFr[candle.id] ?? candle.name);
+      lines.push({
+        key: `candle-${entry.id}`,
+        label: entry.quantity > 1 ? `${name} ×${entry.quantity}` : name,
+        price,
+        onRemove: () => {
+          setSelections((prev) => ({ ...prev, candles: removeCandleSelection(prev.candles, entry.id) }));
+          // Remount the colour-family cards so their local pack / piece
+          // counters reset along with the removed selection.
+          setCandleCardResetKey((k) => k + 1);
+        },
+      });
+    });
+    return lines;
   };
 
   const handleAddToCart = () => {
@@ -1667,12 +1773,22 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const addToCartButton = (
+    <Button
+      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-lg lg:text-base whitespace-nowrap rounded-none"
+      onClick={handleAddToCart}
+    >
+      <ShoppingBag className="w-5 h-5 mr-2" />
+      {t("Add to Cart", "Ajouter au panier")}
+    </Button>
+  );
+
   const sheetBlock = (
     <>
       {/* Catalog Sheet */}
       <TooltipProvider delayDuration={200}>
       <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open && embedded) onEmbeddedClose?.(); }}>
-        <SheetContent className="w-[95vw] max-w-3xl max-h-[88vh] overflow-y-auto rounded-none p-6 md:p-10">
+        <SheetContent className="w-[95vw] max-w-3xl lg:max-w-5xl max-h-[88vh] overflow-y-auto rounded-none p-6 md:p-10">
           <SheetHeader>
             <SheetTitle className="font-sans uppercase tracking-[0.105em] text-lg font-semibold">
               {selectedCake ? t(selectedCake.name, cakeNameFr[selectedCake.id] ?? selectedCake.name) : ""}
@@ -1680,9 +1796,12 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
             <SheetDescription>
               {t("Customise your cake options", "Personnalisez les options de votre gâteau")}
             </SheetDescription>
+            <RequiredFieldsLegend />
           </SheetHeader>
           
           {selectedCake && (
+            <>
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8 lg:items-start">
             <div className="mt-1 space-y-3">
               <div className="aspect-square w-full max-w-[280px] mx-auto rounded-none overflow-hidden bg-muted/30">
                 <img
@@ -1702,7 +1821,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Pickup Date", "Date de retrait")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 2 days in advance)", "Date de préparation de la commande (minimum 2 jours à l'avance)")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose your pick-up date (minimum 2 days in advance).", "Choisissez votre date de retrait (minimum 2 jours à l'avance).")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Popover open={calOpen} onOpenChange={setCalOpen}>
@@ -1784,40 +1903,116 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     </TooltipContent>
                   </Tooltip>
                 </label>
-                <Select
-                  value={selections.size}
-                  onValueChange={(value) => setSelections({ ...selections, size: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("Select size", "Choisir une taille")} />
-                  </SelectTrigger>
-                  <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[95vw]">
-                    {sizes.filter((size) => selectedCake && size.id in selectedCake.stylePrice).map((size) => (
-                      <SelectItem
-                        key={size.id}
-                        value={size.id}
-                        itemText={`${t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF ${size.price}`}
+                {(() => {
+                  // Bento Box and Retro Box are the same size (Small) in two
+                  // presentations, so the size menu offers "Small" once and a
+                  // separate box menu appears when the design allows both.
+                  // selections.size still stores the box id ("bento"/"retro"),
+                  // so cart, order and pricing data are unchanged.
+                  const available = sizes.filter((size) => selectedCake && size.id in selectedCake.stylePrice);
+                  const smallBoxes = available.filter((size) => SMALL_BOX_IDS.includes(size.id));
+                  const isSmall = SMALL_BOX_IDS.includes(selections.size);
+                  const sizeOptions = [
+                    ...(smallBoxes.length > 0
+                      ? [{ id: SMALL_SIZE_VALUE, label: t("Small", "Petit"), price: smallBoxes[0].price, image: smallBoxes[0].image, info: sizeInfo[smallBoxes[0].id] }]
+                      : []),
+                    ...available
+                      .filter((size) => !SMALL_BOX_IDS.includes(size.id))
+                      .map((size) => ({ id: size.id, label: t(size.name, sizeNameFr[size.id] ?? size.name), price: size.price, image: size.image, info: sizeInfo[size.id] })),
+                  ];
+                  const boxPrices = smallBoxes.map((box) => calculatePrice(box.id));
+                  const cheapestBox = Math.min(...boxPrices);
+                  return (
+                    <>
+                      <Select
+                        value={isSmall ? SMALL_SIZE_VALUE : selections.size}
+                        onValueChange={(value) => {
+                          if (value === SMALL_SIZE_VALUE) {
+                            if (!isSmall) setSelections({ ...selections, size: smallBoxes[0].id });
+                          } else {
+                            setSelections({ ...selections, size: value });
+                          }
+                        }}
                       >
-                        <div className="flex items-start gap-2 py-0.5 w-full">
-                          <img src={size.image} alt={size.name} className="w-28 h-28 object-contain flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <span className="block">{t(size.name, sizeNameFr[size.id] ?? size.name)} - CHF {size.price}</span>
-                            {sizeInfo[size.id] && (
-                              <span className="block text-xs text-primary/80 whitespace-normal leading-snug mt-0.5">
-                                {t(sizeInfo[size.id].en, sizeInfo[size.id].fr)}
-                              </span>
-                            )}
-                            {sizeDesc[size.id] && (
-                              <span className="block text-xs text-muted-foreground whitespace-normal leading-snug mt-0.5">
-                                {t(sizeDesc[size.id].en, sizeDesc[size.id].fr)}
-                              </span>
-                            )}
-                          </div>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("Select size", "Choisir une taille")} />
+                        </SelectTrigger>
+                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[95vw]">
+                          {sizeOptions.map((option) => (
+                            <SelectItem
+                              key={option.id}
+                              value={option.id}
+                              itemText={`${option.label} - CHF ${option.price}`}
+                            >
+                              <div className="flex items-start gap-2 py-0.5 w-full">
+                                <img src={option.image} alt={option.label} className="w-28 h-28 object-contain flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <span className="block">{option.label} - CHF {option.price}</span>
+                                  {option.info && (
+                                    <span className="block text-xs text-primary/80 whitespace-normal leading-snug mt-0.5">
+                                      {t(option.info.en, option.info.fr)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {/* Box choice — only for Small, and only when the design
+                          comes in both boxes; otherwise just name the box. */}
+                      {isSmall && smallBoxes.length > 1 && (
+                        <div className="space-y-2 pt-2">
+                          <label className="text-sm font-bold text-foreground flex items-center gap-1">
+                            {t("Box choice", "Choix de la boîte")} <span className="text-destructive">*</span>
+                          </label>
+                          <Select
+                            value={selections.size}
+                            onValueChange={(value) => setSelections({ ...selections, size: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[95vw]">
+                              {smallBoxes.map((box, i) => {
+                                const delta = boxPrices[i] - cheapestBox;
+                                const name = t(box.name, sizeNameFr[box.id] ?? box.name);
+                                return (
+                                  <SelectItem
+                                    key={box.id}
+                                    value={box.id}
+                                    itemText={delta > 0 ? `${name} · +CHF ${delta}` : name}
+                                  >
+                                    <div className="flex items-start gap-2 py-0.5 w-full">
+                                      <img src={box.image} alt={name} className="w-28 h-28 object-contain flex-shrink-0" />
+                                      <div className="min-w-0 flex-1">
+                                        <span className="block">
+                                          {name}
+                                          {delta > 0 && <span className="ml-1 text-primary font-medium">· +CHF {delta}</span>}
+                                        </span>
+                                        {sizeDesc[box.id] && (
+                                          <span className="block text-xs text-muted-foreground whitespace-normal leading-snug mt-0.5">
+                                            {t(sizeDesc[box.id].en, sizeDesc[box.id].fr)}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      )}
+                      {isSmall && smallBoxes.length === 1 && (
+                        <p className="mt-2 text-[13px] text-foreground/50">
+                          {t("Box", "Boîte")} : {t(smallBoxes[0].name, sizeNameFr[smallBoxes[0].id] ?? smallBoxes[0].name)}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {/* Design supplement — shown right after size is chosen */}
                 {(() => {
@@ -1869,7 +2064,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Flavour", "Parfum")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Please select the flavour of your cake.", "Veuillez sélectionner le parfum de votre gâteau.")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose the flavour of your cake.", "Choisissez le parfum de votre gâteau.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 {(() => {
@@ -1896,7 +2091,27 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       </SelectItem>
                     );
                   };
+                  // No separate state: the gluten-free switch reflects the
+                  // selected flavour, and flipping it swaps to that family's
+                  // base flavour (Vanilla / Vanilla Gluten-Free).
+                  const glutenFree = GLUTEN_FREE_FLAVOR_IDS.includes(selections.flavor);
+                  const groups = glutenFree
+                    ? [
+                        { label: t("Gluten-Free — Standard", "Sans Gluten — Standard"), items: glutenFreeStandardFlavors },
+                        { label: t("Gluten-Free — Premium", "Sans Gluten — Premium"), items: glutenFreePremiumFlavors },
+                        { label: t("Gluten-Free — Deluxe", "Sans Gluten — Deluxe"), items: glutenFreeDeluxeFlavors },
+                      ]
+                    : [
+                        { label: t("Standard", "Standard"), items: standardFlavors },
+                        { label: t("Premium", "Premium"), items: premiumFlavors },
+                        { label: t("Deluxe", "Deluxe"), items: deluxeFlavors },
+                      ];
                   return (
+                    <>
+                    <GlutenFreeToggle
+                      value={glutenFree}
+                      onChange={(gf) => setSelections({ ...selections, flavor: gf ? GF_STANDARD_FLAVOR_IDS[0] : STANDARD_FLAVOR_IDS[0] })}
+                    />
                     <Select
                       value={selections.flavor}
                       onValueChange={(value) => setSelections({ ...selections, flavor: value })}
@@ -1905,49 +2120,15 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         <SelectValue placeholder={t("Select flavour", "Choisir un parfum")} />
                       </SelectTrigger>
                       <SelectContent nativeScroll className="w-[min(90vw,420px)]">
-                        <SelectGroup>
-                          <SelectLabel>{t("Standard", "Standard")}</SelectLabel>
-                          {standardFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>{t("Premium", "Premium")}</SelectLabel>
-                          {premiumFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>{t("Deluxe", "Deluxe")}</SelectLabel>
-                          {deluxeFlavors.map(renderFlavorOption)}
-                        </SelectGroup>
-                        <div className="px-2 py-1">
-                          <button
-                            type="button"
-                            onPointerDown={e => e.preventDefault()}
-                            onClick={() => setShowGlutenFreeFlavors(v => !v)}
-                            className="flex w-full items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-[0.08em] py-1.5 px-1 hover:underline rounded"
-                          >
-                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform flex-shrink-0", showGlutenFreeFlavors && "rotate-180")} />
-                            {showGlutenFreeFlavors
-                              ? t("Hide gluten-free flavours", "Masquer les parfums sans gluten")
-                              : t("See gluten-free flavours", "Voir les parfums sans gluten")}
-                          </button>
-                        </div>
-                        {showGlutenFreeFlavors && (
-                          <>
-                            <SelectGroup>
-                              <SelectLabel>{t("Gluten-Free — Standard", "Sans Gluten — Standard")}</SelectLabel>
-                              {glutenFreeStandardFlavors.map(renderFlavorOption)}
-                            </SelectGroup>
-                            <SelectGroup>
-                              <SelectLabel>{t("Gluten-Free — Premium", "Sans Gluten — Premium")}</SelectLabel>
-                              {glutenFreePremiumFlavors.map(renderFlavorOption)}
-                            </SelectGroup>
-                            <SelectGroup>
-                              <SelectLabel>{t("Gluten-Free — Deluxe", "Sans Gluten — Deluxe")}</SelectLabel>
-                              {glutenFreeDeluxeFlavors.map(renderFlavorOption)}
-                            </SelectGroup>
-                          </>
-                        )}
+                        {groups.map((group) => (
+                          <SelectGroup key={group.label}>
+                            <SelectLabel>{group.label}</SelectLabel>
+                            {group.items.map(renderFlavorOption)}
+                          </SelectGroup>
+                        ))}
                       </SelectContent>
                     </Select>
+                    </>
                   );
                 })()}
                 <AllergenNotice className="pt-1" />
@@ -1985,7 +2166,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Base Colour", "Couleur de base")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{t("The base colour is essential to personalise your cake.", "La couleur de base est essentielle pour personnaliser votre gâteau.")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose the main colour of your cake.", "Choisissez la couleur principale de votre gâteau.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 {colorCfg.baseNote && (
@@ -2033,7 +2214,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t(colorCfg.secondaryLabel, secondaryLabelFr[colorCfg.secondaryLabel] ?? colorCfg.secondaryLabel)} <span className="text-destructive cursor-help">
                     <Tooltip>
                       <TooltipTrigger asChild><span>*</span></TooltipTrigger>
-                      <TooltipContent><p className="text-xs max-w-[200px]">{t(`Select up to ${maxColors} ${maxColors === 1 ? "colour" : "colours"} for your design.`, `Sélectionnez jusqu'à ${maxColors} ${maxColors === 1 ? "couleur" : "couleurs"} pour votre design.`)}</p></TooltipContent>
+                      <TooltipContent><p className="text-xs max-w-[200px]">{t(`Choose up to ${maxColors} ${maxColors === 1 ? "colour" : "colours"} for your design.`, `Choisissez jusqu'à ${maxColors} ${maxColors === 1 ? "couleur" : "couleurs"} pour votre design.`)}</p></TooltipContent>
                     </Tooltip>
                   </span>
                   <Tooltip>
@@ -2166,7 +2347,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Add Text", "Ajouter un texte")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">{t("If you would like to add text, you can choose the typography.", "Si vous souhaitez ajouter un texte, vous pouvez choisir la typographie.")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">{t("Add a text and choose its typography (optional).", "Ajoutez un texte et choisissez sa typographie (optionnel).")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <div className="flex gap-2">
@@ -2279,7 +2460,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Extra", "Extras")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">{t("You can add any additional elements to personalise your design.", "Vous pouvez ajouter tous les éléments supplémentaires que vous souhaitez pour personnaliser votre design.")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">{t("Add decorations to personalise your design (optional).", "Ajoutez des décorations pour personnaliser votre design (optionnel).")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 )}
@@ -2586,7 +2767,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Comment", "Commentaire")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[240px]">{t("Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.", "Notez toutes les précisions que vous souhaitez apporter. Veuillez noter que si vous demandez des décorations ou des extras qui n'ont pas été sélectionnés, le prix peut changer.")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[240px]">{t("Add any details (optional). Decorations that were not selected may change the price.", "Ajoutez vos précisions (optionnel). Des décorations non sélectionnées peuvent modifier le prix.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Textarea
@@ -2601,7 +2782,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     {t("Upload", "Télécharger")}
                     <Tooltip>
                       <TooltipTrigger asChild><Info className="w-3 h-3 text-muted-foreground cursor-help" /></TooltipTrigger>
-                      <TooltipContent><p className="text-xs max-w-[200px]">{t("Upload an inspiration picture if you would like.", "Téléchargez une photo d'inspiration si vous le souhaitez.")}</p></TooltipContent>
+                      <TooltipContent><p className="text-xs max-w-[200px]">{t("Add an inspiration picture (optional).", "Ajoutez une photo d'inspiration (optionnel).")}</p></TooltipContent>
                     </Tooltip>
                   </label>
                   <p className="text-xs text-muted-foreground mb-2">
@@ -2699,7 +2880,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       if (family) {
                         return (
                           <ColorFamilyCandleCard
-                            key={candle.id}
+                            key={`${candle.id}-${candleCardResetKey}`}
                             candle={candle}
                             colors={family}
                             existing={selections.candles.find((c) => c.id === candle.id)}
@@ -2770,32 +2951,26 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 </button>
               </div>
 
-              {/* Design supplement — shown explicitly so the jump from the
-                  size's base price (selected above) to the final total is
-                  never a mystery. */}
-              {getDesignSurcharge() > 0 && (
-                <div className="flex justify-between items-center px-4 text-sm">
-                  <span className="text-muted-foreground">{t("Design supplement", "Supplément design")}</span>
-                  <span className="text-primary font-medium">+CHF {getDesignSurcharge()}</span>
-                </div>
-              )}
-
-              {/* Price */}
-              <div className="flex justify-between items-center py-4 bg-secondary/50 rounded-lg px-4">
-                <span className="font-medium text-foreground">{t("Total", "Total")}</span>
-                <span className="text-xl font-bold text-primary">
-                  CHF {calculatePrice()}
-                </span>
-              </div>
-
-              <Button
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-lg rounded-none"
-                onClick={handleAddToCart}
-              >
-                <ShoppingBag className="w-5 h-5 mr-2" />
-                {t("Add to Cart", "Ajouter au panier")}
-              </Button>
             </div>
+
+            {/* Desktop: live recap beside the options, follows the scroll */}
+            <aside className="hidden lg:block lg:sticky lg:top-0">
+              <PriceSummaryPanel lines={getPriceLines()} total={calculatePrice()} action={addToCartButton} />
+            </aside>
+            </div>
+
+            {/* Mobile / tablet: live total pinned to the bottom of the sheet,
+                detail expands upwards. Negative margins cancel the sheet's
+                padding so the bar spans its full width, and the negative
+                bottom offset does the same for the sticky position (a sticky
+                box otherwise stops at the container's padding edge). */}
+            <PriceSummaryBar
+              className="lg:hidden sticky -bottom-6 md:-bottom-10 z-10 mt-6 -mx-6 -mb-6 md:-mx-10 md:-mb-10"
+              lines={getPriceLines()}
+              total={calculatePrice()}
+              action={addToCartButton}
+            />
+            </>
           )}
         </SheetContent>
       </Sheet>

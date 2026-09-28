@@ -15,6 +15,6 @@ export const sizeInfo: Record<string, SizeInfo> = {
 
 /* Recapitulatif complet, pour les infobulles */
 export const sizeInfoSummary = {
-  en: "Bento: 2–4 servings, 10 cm · Retro Box: 2–4 servings, 10 cm · Medium: 8–10 servings, 15 cm · Large: 18–22 servings, 20 cm",
-  fr: "Bento : 2 à 4 personnes, 10 cm · Retro Box : 2 à 4 personnes, 10 cm · Medium : 8 à 10 personnes, 15 cm · Large : 18 à 22 personnes, 20 cm",
+  en: "Small (Bento Box or Retro Box): 2–4 servings, 10 cm · Medium: 8–10 servings, 15 cm · Large: 18–22 servings, 20 cm",
+  fr: "Petit (Bento Box ou Retro Box) : 2 à 4 personnes, 10 cm · Moyen : 8 à 10 personnes, 15 cm · Large : 18 à 22 personnes, 20 cm",
 };

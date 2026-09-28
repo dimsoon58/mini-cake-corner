@@ -233,7 +233,13 @@ const Index = () => {
   }, []);
 
   const scrollDiscover = (dir: "left" | "right") => {
-    discoverRef.current?.scrollBy({ left: dir === "left" ? -360 : 360, behavior: "smooth" });
+    const el = discoverRef.current;
+    if (!el) return;
+    // Scroll by exactly one card (width + gap) so each image lands aligned, never half-cut
+    const card = el.firstElementChild as HTMLElement | null;
+    const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+    const step = card ? card.offsetWidth + gap : el.clientWidth;
+    el.scrollBy({ left: dir === "left" ? -step : step, behavior: "smooth" });
   };
 
   // Testimonials state
@@ -355,7 +361,7 @@ const Index = () => {
               <Link
                 key={category.label}
                 to={category.to}
-                className="relative snap-start flex-shrink-0 w-[80%] sm:w-[46%] lg:w-[calc((100%-3rem)/3)] aspect-square overflow-hidden group"
+                className="relative snap-start flex-shrink-0 w-full sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)] aspect-square overflow-hidden group"
               >
                 <img
                   src={category.image}

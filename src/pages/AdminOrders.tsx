@@ -230,6 +230,7 @@ const AdminOrders = () => {
           <span className="text-foreground font-semibold">{t("Orders", "Commandes")}</span>
           <Link to="/admin/calendar" className="text-muted-foreground hover:text-foreground">{t("Calendar", "Calendrier")}</Link>
           <Link to="/admin/dashboard" className="text-muted-foreground hover:text-foreground">{t("Dashboard", "Tableau de bord")}</Link>
+          <Link to="/admin/production" className="text-muted-foreground hover:text-foreground">{t("Production", "Production")}</Link>
         </div>
         <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8 text-center font-semibold flex items-center justify-center gap-3">
           <ClipboardList className="w-6 h-6 text-primary" strokeWidth={1.5} />
