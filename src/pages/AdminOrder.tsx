@@ -182,7 +182,7 @@ const AdminOrder = () => {
         type: "success",
         message: action === "approve"
           ? (mixed
-              ? t("Order approved. Payment captured — cake and workshop are both confirmed.", "Commande validée. Paiement encaissé — gâteau et atelier sont tous deux confirmés.")
+              ? t("Order approved. Payment captured — cake and workshop are both confirmed.", "Commande validée. Paiement encaissé — gâteau et workshop sont tous deux confirmés.")
               : t("Order approved. Payment captured.", "Commande validée. Paiement encaissé."))
           : t("Order refused. The authorization was voided — nothing was charged, no refund needed.", "Commande refusée. L'autorisation a été annulée — aucun montant prélevé, aucun remboursement nécessaire."),
       });
@@ -430,7 +430,7 @@ const AdminOrder = () => {
                 isManual ? "bg-blue-100 text-blue-800" :
                 "bg-secondary text-secondary-foreground"
               }`}>
-                {hasWorkshop ? t("Workshop", "Atelier")
+                {hasWorkshop ? t("Workshop", "Workshop")
                   : isManual ? t("Manual", "Manuel")
                   : t("Website", "Site")}
               </span>
@@ -536,7 +536,7 @@ const AdminOrder = () => {
                     <div key={item.id || i} className="border border-border/60 bg-background p-4 space-y-1">
                       <div className="flex justify-between mb-2">
                         <span className="font-medium text-sm">
-                          {item.workshop_type === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature")}
+                          {item.workshop_type === "paint" ? t("Paint Workshop", "Workshop Peinture") : t("Signature Workshop", "Workshop Signature")}
                         </span>
                         <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
                       </div>
@@ -737,7 +737,7 @@ const AdminOrder = () => {
               <p className="text-sm text-muted-foreground">
                 {t(
                   "This is a workshop-only order — any seat refund is already tracked automatically by the workshop cancellation process, not recorded here.",
-                  "Cette commande est un atelier seul — tout remboursement de place est déjà suivi automatiquement par le processus d'annulation d'atelier, pas enregistré ici."
+                  "Cette commande est un workshop seul — tout remboursement de place est déjà suivi automatiquement par le processus d'annulation de workshop, pas enregistré ici."
                 )}
               </p>
             </div>
@@ -750,7 +750,7 @@ const AdminOrder = () => {
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">
                 {t(
                   "This order also has a workshop seat — its refund is already tracked automatically. Only use this form for the cake part, never to re-enter a workshop refund.",
-                  "Cette commande a aussi une place d'atelier — son remboursement est déjà suivi automatiquement. N'utilisez ce formulaire que pour la partie gâteau, jamais pour ressaisir un remboursement d'atelier."
+                  "Cette commande a aussi une place de workshop — son remboursement est déjà suivi automatiquement. N'utilisez ce formulaire que pour la partie gâteau, jamais pour ressaisir un remboursement de workshop."
                 )}
               </p>
             )}
@@ -835,7 +835,7 @@ const AdminOrder = () => {
               <p className="text-sm text-muted-foreground">
                 {t(
                   "The payment is only authorized, not yet captured. Approve captures it and confirms the order (cake and workshop together, if both are present). Refuse voids the authorization instead — nothing is charged, and any workshop seat is released immediately.",
-                  "Le paiement n'est qu'autorisé, pas encore encaissé. Valider encaisse le paiement et confirme la commande (gâteau et atelier ensemble, le cas échéant). Refuser annule l'autorisation à la place — rien n'est prélevé, et toute place d'atelier est libérée immédiatement.",
+                  "Le paiement n'est qu'autorisé, pas encore encaissé. Valider encaisse le paiement et confirme la commande (gâteau et workshop ensemble, le cas échéant). Refuser annule l'autorisation à la place — rien n'est prélevé, et toute place de workshop est libérée immédiatement.",
                 )}
               </p>
               <div className="flex gap-3">
@@ -854,7 +854,7 @@ const AdminOrder = () => {
               <p className="font-medium flex items-center justify-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 {order.order_failure_reason === "workshop_capacity_unavailable"
-                  ? t("Workshop sold out after authorization — the whole order was cancelled and the authorization voided. If it was somehow already captured, refund it by hand.", "Atelier complet après autorisation — toute la commande a été annulée et l'autorisation annulée. Si le paiement a malgré tout été encaissé, à rembourser à la main.")
+                  ? t("Workshop sold out after authorization — the whole order was cancelled and the authorization voided. If it was somehow already captured, refund it by hand.", "Workshop complet après autorisation — toute la commande a été annulée et l'autorisation annulée. Si le paiement a malgré tout été encaissé, à rembourser à la main.")
                   : t("This order was cancelled. If a payment was somehow already captured, refund it by hand.", "Cette commande a été annulée. Si un paiement a malgré tout été encaissé, à rembourser à la main.")}
               </p>
             </div>

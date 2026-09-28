@@ -70,7 +70,7 @@ const isManualOrder = (e: Pick<DayEntry, "orderNumber" | "orderSource">): boolea
 const HAS_NO_MEANINGFUL_DESIGN = new Set(["diy_kit", "dot_cakes", "edible_printing", "candles"]);
 const productLabel = (e: Pick<DayEntry, "product" | "design" | "workshopType">, t: (en: string, fr: string) => string): string => {
   if (e.product === "workshop") {
-    return e.workshopType === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature");
+    return e.workshopType === "paint" ? t("Paint Workshop", "Workshop Peinture") : t("Signature Workshop", "Workshop Signature");
   }
   const base = PRODUCT_LABELS[e.product] ? t(PRODUCT_LABELS[e.product].en, PRODUCT_LABELS[e.product].fr) : e.product;
   if (HAS_NO_MEANINGFUL_DESIGN.has(e.product) || !e.design) return base;
@@ -470,7 +470,7 @@ const AdminDashboard = () => {
                     const reserved = reservedBySession.get(s.id) ?? 0;
                     const available = Math.max(0, s.capacity - reserved);
                     const pct = Math.min(100, Math.round((reserved / s.capacity) * 100));
-                    const sessionLabel = s.workshopType === "paint" ? t("Paint Workshop", "Atelier Peinture") : t("Signature Workshop", "Atelier Signature");
+                    const sessionLabel = s.workshopType === "paint" ? t("Paint Workshop", "Workshop Peinture") : t("Signature Workshop", "Workshop Signature");
                     // Compared against TODAY (real wall-clock date, not
                     // monthCursor) — a session earlier in the currently
                     // viewed month can still be in the future, and vice

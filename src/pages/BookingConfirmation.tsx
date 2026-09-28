@@ -56,7 +56,7 @@ const BookingConfirmation = () => {
               {t("Your booking details", "Votre réservation")}
             </h2>
             <div className="space-y-3">
-              <Row label={t("Workshop", "Atelier")} value={t(info.title, info.titleFr)} />
+              <Row label={t("Workshop", "Workshop")} value={t(info.title, info.titleFr)} />
               {session && (
                 <Row
                   label={t("Date", "Date")}
@@ -98,7 +98,7 @@ const BookingConfirmation = () => {
                 title={t("See you there!", "À bientôt !")}
                 desc={t(
                   "We will send you a reminder with all the details before your workshop day.",
-                  "Nous vous enverrons un rappel avec tous les détails avant le jour de l'atelier."
+                  "Nous vous enverrons un rappel avec tous les détails avant le jour du workshop."
                 )}
               />
             </div>
@@ -108,7 +108,7 @@ const BookingConfirmation = () => {
           <div className="flex flex-col sm:flex-row gap-3">
             <Button asChild className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-none uppercase tracking-[0.08em] text-xs">
               <Link to="/workshop">
-                {t("Back to Workshops", "Retour aux Ateliers")}
+                {t("Back to Workshops", "Retour aux Workshops")}
               </Link>
             </Button>
             <Button asChild variant="outline" className="flex-1 rounded-none uppercase tracking-[0.08em] text-xs">

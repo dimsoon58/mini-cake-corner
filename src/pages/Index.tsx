@@ -397,7 +397,7 @@ const Index = () => {
           {/* Title button — bottom center */}
           <div className="absolute inset-x-0 bottom-6 md:bottom-10 flex justify-center">
             <span className="inline-block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-12 py-2.5 transition-colors">
-              {t("WORKSHOPS", "ATELIERS")}
+              {t("WORKSHOPS", "WORKSHOPS")}
             </span>
           </div>
         </Link>

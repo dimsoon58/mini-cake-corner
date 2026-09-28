@@ -120,14 +120,14 @@ export const PrivateWorkshopDialog = ({ open, onOpenChange }: { open: boolean; o
             </div>
             <h3 className="font-sans uppercase tracking-[0.105em] text-xl font-semibold text-foreground mb-3">{t("Thank you", "Merci")}</h3>
             <p className="text-muted-foreground leading-relaxed max-w-md mx-auto">
-              {t("Thank you for your enquiry. We will get back to you shortly with a personalised proposal for your private workshop.", "Merci pour votre demande. Nous reviendrons vers vous très prochainement avec une proposition personnalisée pour votre atelier privé.")}
+              {t("Thank you for your enquiry. We will get back to you shortly with a personalised proposal for your private workshop.", "Merci pour votre demande. Nous reviendrons vers vous très prochainement avec une proposition personnalisée pour votre workshop privé.")}
             </p>
           </div>
         ) : (
           <>
             <DialogHeader>
               <DialogTitle className="font-sans uppercase tracking-[0.105em] text-xl text-foreground">
-                {t("Private & Custom Workshops", "Ateliers privés et sur mesure")}
+                {t("Private & Custom Workshops", "Workshops privés et sur mesure")}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground leading-relaxed pt-1">
                 {t("Tell us about your event and we will get back to you with a personalised proposal.", "Parlez-nous de votre événement et nous reviendrons vers vous avec une proposition personnalisée.")}

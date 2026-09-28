@@ -15,7 +15,7 @@ export const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
   diy_kit: { en: "Bento Kit", fr: "Bento Kit" },
   candles: { en: "Candles", fr: "Bougies" },
   edible_printing: { en: "Printing", fr: "Impression" },
-  workshop: { en: "Workshop", fr: "Atelier" },
+  workshop: { en: "Workshop", fr: "Workshop" },
 };
 
 export function formatDateCH(dateValue?: string | null): string {
