@@ -169,7 +169,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
           {/* Logo: centred on mobile, left on desktop */}
           <Link
             to="/"
-            className="justify-self-center min-w-0 xl:flex-shrink-0 xl:justify-self-auto"
+            className="justify-self-center min-w-0 xl:flex-shrink-0 xl:justify-self-auto xl:mr-4"
           >
             <img
               src={light ? logoCream : logoBrown}
@@ -180,12 +180,12 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
 
           {/* Desktop nav */}
           {!hideNav && (
-            <nav className="hidden xl:flex items-center gap-6">
+            <nav className="hidden xl:flex items-center gap-5">
               {navLinks.map((link) => renderNavItem(link))}
             </nav>
           )}
 
-          <div className="flex items-center justify-end gap-1.5 md:gap-4 justify-self-end">
+          <div className="flex items-center justify-end gap-1.5 md:gap-4 justify-self-end xl:pl-4">
             {/* Desktop: show both EN | FR */}
             <div className={cn("hidden md:flex items-center gap-1.5 text-xs font-medium tracking-[0.1em] uppercase", light ? "text-cream" : "text-foreground")}>
               <button onClick={() => setLang("en")} className={lang === "en" ? "font-bold" : "opacity-50 hover:opacity-80 transition-opacity"} aria-label="English">EN</button>

@@ -121,11 +121,11 @@ const Printing = () => {
             )}
           </p>
           <p className="text-muted-foreground">
-            {t("You can order ", "Vous pouvez commander ")}
-            <strong className="font-semibold text-foreground">{t("the print on its own, without a cake", "l'impression seule, sans gâteau")}</strong>
+            {t("You can order ", "Commandez ")}
+            <strong className="font-semibold text-foreground">{t("the print on its own, without a cake", "l'impression seule")}</strong>
             {t(
               ": upload your image, choose your pick-up date and collect your print, ready to place on your own cake.",
-              " : envoyez votre image, choisissez votre date et récupérez-la, prête à poser sur votre gâteau."
+              ", prête à poser sur votre propre gâteau."
             )}
           </p>
           <p className="text-sm text-muted-foreground">
@@ -168,10 +168,10 @@ const Printing = () => {
           </h2>
           <ol className="grid grid-cols-1 md:grid-cols-4 gap-5 md:gap-6">
             {[
-              t("Upload your image.", "Envoyez votre image."),
-              t("Choose your pick-up date.", "Choisissez votre date."),
-              t("We print it on an edible sugar sheet.", "Nous l'imprimons sur sucre."),
-              t("Collect it and place it on your own cake.", "Récupérez-la et posez-la sur votre gâteau."),
+              t("Upload your image.", "Envoyez votre image"),
+              t("Choose your pick-up date.", "Choisissez la date"),
+              t("We print it on an edible sugar sheet.", "Nous l'imprimons"),
+              t("Collect it and place it on your own cake.", "Récupérez-la"),
             ].map((step, i) => (
               <li key={i} className="flex md:flex-col items-center md:text-center gap-3 md:gap-2">
                 <span className="shrink-0 w-7 h-7 flex items-center justify-center border border-primary text-primary text-xs font-semibold">
