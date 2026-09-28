@@ -23,7 +23,12 @@ import { FLAVOUR_BY_ID, resolveFlavour } from "../_shared/production-catalog.ts"
 //                 reserved, no email is sent, nothing goes to Make.
 //   - upload_url: signed upload URL for a reference image (order-images
 //                 bucket, same bucket as the checkout).
-// Mark-as-paid, cancellation and the confirmation email are later actions.
+//   - mark_paid:  admin session + ADMIN_ORDER_PIN. Atomic
+//                 mark_manual_order_paid (workshop seats + paid), then the
+//                 confirmation email if requested.
+//   - send_confirmation: (re)send the confirmation + invoice of a paid
+//                 Admin order through send-manual-order-confirmation.
+// Cancellation and editing a paid order are later actions.
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -61,6 +66,29 @@ interface SaveBody {
   items: EditorItem[];
   fulfillments: QuoteFulfillmentInput[];
   adjustment?: { type: AdjustmentType; value: number; reason?: string | null; note?: string | null } | null;
+}
+
+// Sends the customer confirmation + PDF invoice through the EXISTING
+// send-manual-order-confirmation function — same templates (workshop-only →
+// workshop email; any cake → cake email), same invoice generator, same
+// duplicate protection (manual_confirmation_status lock, "already sent"
+// short-circuit, Resend idempotency key). Server-to-server, service role.
+// deno-lint-ignore no-explicit-any
+async function sendManualConfirmation(supabase: any, orderId: string): Promise<{ sent: boolean; alreadySent?: boolean; error?: string | null }> {
+  try {
+    const { data, error } = await supabase.functions.invoke("send-manual-order-confirmation", { body: { orderId } });
+    if (error) {
+      let detail: string | null = null;
+      try { detail = (await (error as { context?: Response }).context?.json())?.error ?? null; } catch { /* ignore */ }
+      console.error(`send-manual-order-confirmation failed for ${orderId}:`, detail ?? error);
+      return { sent: false, error: detail ?? (error instanceof Error ? error.message : "Email could not be sent") };
+    }
+    if (data?.error) return { sent: false, error: String(data.error) };
+    return { sent: true, alreadySent: !!data?.alreadySent, error: null };
+  } catch (e) {
+    console.error(`send-manual-order-confirmation threw for ${orderId}:`, e);
+    return { sent: false, error: e instanceof Error ? e.message : "Email could not be sent" };
+  }
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
@@ -437,6 +465,62 @@ serve(async (req) => {
 
       const { data: saved } = await supabase.from("orders").select("id, order_number, is_draft, total_amount, calculated_amount").eq("id", orderId).single();
       return json(cors, { success: true, orderId, orderNumber: saved?.order_number ?? null, isDraft: saved?.is_draft ?? (mode === "draft"), quote });
+    }
+
+    // ── mark_paid ──────────────────────────────────────────────────────
+    // One atomic database call (mark_manual_order_paid, migration MO2):
+    // workshop seats are claimed and confirmed through the live
+    // finalize_manual_workshop_order mechanism, THEN the order becomes paid.
+    // A full or closed session raises inside that transaction, so nothing
+    // changes. Only after the payment is committed is the confirmation
+    // email sent (if requested) — an email failure never undoes a payment.
+    if (action === "mark_paid") {
+      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
+      if (!adminPin || String(body?.pin ?? "") !== adminPin) return json(cors, { error: "Invalid PIN" }, 403);
+
+      const orderId = String(body?.orderId ?? "");
+      const method = String(body?.paymentMethod ?? "");
+      const paidOn = ISO_DATE.test(String(body?.paidOn ?? "")) ? String(body.paidOn) : null;
+      // Noon Zurich-ish on the chosen day, so the date never shifts in UTC.
+      const paidAt = paidOn ? `${paidOn}T12:00:00+02:00` : new Date().toISOString();
+
+      const { data: paid, error: payErr } = await supabase.rpc("mark_manual_order_paid", {
+        p_order_id: orderId,
+        p_payment_method: method,
+        p_payment_note: strOrNull(body?.paymentNote),
+        p_paid_at: paidAt,
+      });
+      if (payErr) {
+        const code = (payErr as { code?: string }).code ?? "";
+        const reason =
+          code === "P0004" ? "session_full" :
+          code === "P0003" ? "session_closed" :
+          code === "P0007" ? "minor_consent_missing" :
+          code === "P0011" ? "still_draft" :
+          code === "P0012" ? "cancelled" :
+          code === "P0013" ? "not_awaiting_payment" :
+          code === "22023" ? "invalid_payment_method" : "payment_failed";
+        console.error(`mark_manual_order_paid failed for ${orderId} (${code}):`, payErr.message);
+        // Nothing was changed: the whole transaction was rolled back.
+        return json(cors, { error: payErr.message, reason, paid: false }, 409);
+      }
+
+      let email: { requested: boolean; sent: boolean; alreadySent?: boolean; error?: string | null } = { requested: false, sent: false };
+      if (body?.sendConfirmation === true) {
+        email = { requested: true, ...(await sendManualConfirmation(supabase, orderId)) };
+      }
+      return json(cors, { success: true, paid: true, order: paid, email });
+    }
+
+    // ── send_confirmation (manual, e.g. after an email failure) ────────
+    if (action === "send_confirmation") {
+      const orderId = String(body?.orderId ?? "");
+      const { data: o } = await supabase.from("orders").select("created_via, payment_status").eq("id", orderId).maybeSingle();
+      if (!o) return json(cors, { error: "Order not found" }, 404);
+      if (o.created_via !== "admin") return json(cors, { error: "Only orders created from the Admin are handled here" }, 409);
+      if (o.payment_status !== "paid") return json(cors, { error: "The order must be paid before the confirmation is sent" }, 409);
+      const result = await sendManualConfirmation(supabase, orderId);
+      return json(cors, { success: result.sent, email: { requested: true, ...result } }, result.sent ? 200 : 502);
     }
 
     return json(cors, { error: `Unknown action: ${action}` }, 400);

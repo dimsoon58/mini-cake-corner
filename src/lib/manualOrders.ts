@@ -218,3 +218,22 @@ export function friendlyMessage(msg: string, lang: "en" | "fr"): string {
   }
   return msg;
 }
+
+// Same rule as list-manual-orders (server) — for an order row as returned by
+// get-order-detail.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function manualStatusOf(o: Record<string, any>): ManualStatus {
+  if (o.order_validation === "cancelled" || o.order_validation === "rejected" || o.order_failure_reason) return "cancelled";
+  if (o.payment_status === "refunded" || o.payment_status === "cancelled" || o.payment_status === "failed") return "cancelled";
+  if (o.is_draft) return "draft";
+  if (o.payment_status === "paid") return "paid";
+  return "awaiting_payment";
+}
+
+export const PAYMENT_METHODS: { id: string; en: string; fr: string }[] = [
+  { id: "cash", en: "Cash", fr: "Cash" },
+  { id: "twint", en: "TWINT", fr: "TWINT" },
+  { id: "bank_transfer", en: "Bank transfer", fr: "Virement bancaire" },
+  { id: "card", en: "Card", fr: "Carte" },
+  { id: "other", en: "Other", fr: "Autre" },
+];

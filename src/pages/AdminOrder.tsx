@@ -13,6 +13,8 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
+import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPanel";
+import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 
 // pending/approved/rejected/cancelled -> the French/English label actually
 // shown for the header decision badge. Same lookup as AdminOrders.tsx's own
@@ -87,6 +89,8 @@ const AdminOrder = () => {
   // every other case (invoiceUrl present, or invoice_path never set at all).
   const [invoiceUrlError, setInvoiceUrlError] = useState<string | null>(null);
   const [pin, setPin] = useState("");
+  // Bumped after a manual-order action (mark as paid, send confirmation) to reload the order.
+  const [reloadKey, setReloadKey] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -147,7 +151,7 @@ const AdminOrder = () => {
       setLoading(false);
     };
     fetchOrder();
-  }, [id, token, t, authLoading, isAdmin]);
+  }, [id, token, t, authLoading, isAdmin, reloadKey]);
 
   const handleAction = async (action: "approve" | "reject") => {
     if (!pin.trim()) {
@@ -398,6 +402,10 @@ const AdminOrder = () => {
   // decided (Accept/Refuse decides everything together now).
   const isResolved = isCancelled || decisionState !== "pending";
   const refundToDo = order.refund_status === "to_refund";
+  // Admin-created manual order: payment is recorded by hand (ManualOrderPanel),
+  // never "authorized then captured" like a website order.
+  const isAdminManual = order.created_via === "admin";
+  const adminUnpaid = isAdminManual && order.payment_status !== "paid";
   const customerName = `${order.first_name || ""} ${order.last_name || ""}`.trim();
   // Multi-date fulfillment: order_fulfillments has one row per distinct
   // pickup/delivery date (get-order-detail now returns it, service_role,
@@ -434,6 +442,14 @@ const AdminOrder = () => {
                   : isManual ? t("Manual", "Manuel")
                   : t("Website", "Site")}
               </span>
+              {order.created_via === "admin" ? (
+                // Admin-created manual order: draft / awaiting payment / paid /
+                // cancelled (its order_validation is 'approved' from creation,
+                // so the Accept/Refuse badge below would read "accepted").
+                <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 ${MANUAL_STATUS_LABELS[manualStatusOf(order)].className}`}>
+                  {t(MANUAL_STATUS_LABELS[manualStatusOf(order)].en, MANUAL_STATUS_LABELS[manualStatusOf(order)].fr)}
+                </span>
+              ) : (
               <span className={`text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 ${
                 isCancelled ? "bg-red-100 text-red-800" :
                 decisionState === "approved" ? "bg-emerald-100 text-emerald-800" :
@@ -445,8 +461,13 @@ const AdminOrder = () => {
                   : isMixed ? `WS+CAKE · ${decisionStateLabel(decisionState, t)}`
                   : decisionStateLabel(decisionState, t)}
               </span>
+              )}
             </div>
           </div>
+
+          {order.created_via === "admin" && (
+            <ManualOrderPanel order={order} items={items} invoiceUrl={invoiceUrl} onChanged={() => setReloadKey((k) => k + 1)} />
+          )}
 
           {/* Missing token warning — rare: only when this order genuinely has
               no order_action_tokens row at all (neither the URL nor
@@ -630,6 +651,8 @@ const AdminOrder = () => {
                   </a>
                 </div>
               </div>
+            ) : isAdminManual ? (
+              <DetailRow label={t("Invoice", "Facture")} value={t("Created when the confirmation is sent", "Créée à l'envoi de la confirmation")} />
             ) : order.invoice_number ? (
               <div className="flex gap-2 text-sm">
                 <span className="text-muted-foreground min-w-[140px]">{t("Invoice", "Facture")}:</span>
@@ -645,11 +668,14 @@ const AdminOrder = () => {
             <DetailRow label={t("Payment", "Paiement")} value={
               order.payment_status === "paid"
                 ? t("Captured", "Encaissé")
+                : adminUnpaid
+                  ? t("Awaiting payment", "En attente de paiement")
                 : order.payment_status === "cancelled"
                   ? t("Authorization voided — nothing charged", "Autorisation annulée — rien prélevé")
                   : t("Authorized, not yet captured", "Autorisé, pas encore encaissé")
             } />
             <DetailRow label={t("Status", "Statut")} value={
+              isAdminManual ? t(MANUAL_STATUS_LABELS[manualStatusOf(order)].en, MANUAL_STATUS_LABELS[manualStatusOf(order)].fr) :
               decisionState === "pending" ? t("Pending your decision", "En attente de votre décision") :
               decisionState === "approved" ? t("Approved", "Validée") :
               decisionState === "rejected" ? t("Refused", "Refusée") :
@@ -718,7 +744,7 @@ const AdminOrder = () => {
               month. The selector below only appears once there's more than
               one cake to choose between; a single-cake order keeps working
               exactly as before (order_item_id stays null). */}
-          {(() => {
+          {!adminUnpaid && (() => {
             const refundableItems = items.filter((it: any) => it.product !== "workshop");
             const refundItemLabel = (item: any, idx: number) => {
               const productName = t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product;
@@ -858,7 +884,7 @@ const AdminOrder = () => {
                   : t("This order was cancelled. If a payment was somehow already captured, refund it by hand.", "Cette commande a été annulée. Si un paiement a malgré tout été encaissé, à rembourser à la main.")}
               </p>
             </div>
-          ) : (
+          ) : isAdminManual ? null : (
             <div className={`p-4 text-center border ${
               decisionState === "approved" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-red-50 text-red-800 border-red-200"
             }`}>
