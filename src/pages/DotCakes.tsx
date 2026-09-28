@@ -21,6 +21,7 @@ import type { CandleSelection } from "@/context/CartContext";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
+import { RequiredFieldsLegend } from "@/components/RequiredFieldsLegend";
 import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import dotGallery1 from "@/assets/dot-gallery-1.jpg";
 import dotGallery2 from "@/assets/dot-gallery-2.jpg";
@@ -391,6 +392,7 @@ const DotCakes = () => {
               );
             })}
           </div>
+          <RequiredFieldsLegend className="max-w-2xl mx-auto -mt-6 mb-8" />
 
           {/* STEP 1: DATE */}
           {step === 1 && (

@@ -23,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import Layout from "@/components/Layout";
 import ExtraImageLightbox from "@/components/ExtraImageLightbox";
 import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
+import { RequiredFieldsLegend } from "@/components/RequiredFieldsLegend";
 import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
@@ -1795,6 +1796,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
             <SheetDescription>
               {t("Customise your cake options", "Personnalisez les options de votre gâteau")}
             </SheetDescription>
+            <RequiredFieldsLegend />
           </SheetHeader>
           
           {selectedCake && (
@@ -1819,7 +1821,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Pickup Date", "Date de retrait")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Order preparation date (minimum 2 days in advance)", "Date de préparation de la commande (minimum 2 jours à l'avance)")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose your pick-up date (minimum 2 days in advance).", "Choisissez votre date de retrait (minimum 2 jours à l'avance).")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Popover open={calOpen} onOpenChange={setCalOpen}>
@@ -2062,7 +2064,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Flavour", "Parfum")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Please select the flavour of your cake.", "Veuillez sélectionner le parfum de votre gâteau.")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose the flavour of your cake.", "Choisissez le parfum de votre gâteau.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 {(() => {
@@ -2164,7 +2166,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Base Colour", "Couleur de base")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">{t("The base colour is essential to personalise your cake.", "La couleur de base est essentielle pour personnaliser votre gâteau.")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose the main colour of your cake.", "Choisissez la couleur principale de votre gâteau.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 {colorCfg.baseNote && (
@@ -2212,7 +2214,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t(colorCfg.secondaryLabel, secondaryLabelFr[colorCfg.secondaryLabel] ?? colorCfg.secondaryLabel)} <span className="text-destructive cursor-help">
                     <Tooltip>
                       <TooltipTrigger asChild><span>*</span></TooltipTrigger>
-                      <TooltipContent><p className="text-xs max-w-[200px]">{t(`Select up to ${maxColors} ${maxColors === 1 ? "colour" : "colours"} for your design.`, `Sélectionnez jusqu'à ${maxColors} ${maxColors === 1 ? "couleur" : "couleurs"} pour votre design.`)}</p></TooltipContent>
+                      <TooltipContent><p className="text-xs max-w-[200px]">{t(`Choose up to ${maxColors} ${maxColors === 1 ? "colour" : "colours"} for your design.`, `Choisissez jusqu'à ${maxColors} ${maxColors === 1 ? "couleur" : "couleurs"} pour votre design.`)}</p></TooltipContent>
                     </Tooltip>
                   </span>
                   <Tooltip>
@@ -2345,7 +2347,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Add Text", "Ajouter un texte")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">{t("If you would like to add text, you can choose the typography.", "Si vous souhaitez ajouter un texte, vous pouvez choisir la typographie.")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">{t("Add a text and choose its typography (optional).", "Ajoutez un texte et choisissez sa typographie (optionnel).")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <div className="flex gap-2">
@@ -2458,7 +2460,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Extra", "Extras")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">{t("You can add any additional elements to personalise your design.", "Vous pouvez ajouter tous les éléments supplémentaires que vous souhaitez pour personnaliser votre design.")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">{t("Add decorations to personalise your design (optional).", "Ajoutez des décorations pour personnaliser votre design (optionnel).")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 )}
@@ -2765,7 +2767,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                   {t("Comment", "Commentaire")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[240px]">{t("Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.", "Notez toutes les précisions que vous souhaitez apporter. Veuillez noter que si vous demandez des décorations ou des extras qui n'ont pas été sélectionnés, le prix peut changer.")}</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[240px]">{t("Add any details (optional). Decorations that were not selected may change the price.", "Ajoutez vos précisions (optionnel). Des décorations non sélectionnées peuvent modifier le prix.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
                 <Textarea
@@ -2780,7 +2782,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     {t("Upload", "Télécharger")}
                     <Tooltip>
                       <TooltipTrigger asChild><Info className="w-3 h-3 text-muted-foreground cursor-help" /></TooltipTrigger>
-                      <TooltipContent><p className="text-xs max-w-[200px]">{t("Upload an inspiration picture if you would like.", "Téléchargez une photo d'inspiration si vous le souhaitez.")}</p></TooltipContent>
+                      <TooltipContent><p className="text-xs max-w-[200px]">{t("Add an inspiration picture (optional).", "Ajoutez une photo d'inspiration (optionnel).")}</p></TooltipContent>
                     </Tooltip>
                   </label>
                   <p className="text-xs text-muted-foreground mb-2">

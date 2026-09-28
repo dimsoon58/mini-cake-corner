@@ -17,6 +17,7 @@ import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandl
 import type { CandleSelection } from "@/context/CartContext";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
+import { RequiredFieldsLegend } from "@/components/RequiredFieldsLegend";
 import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { useNavigate } from "react-router-dom";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
@@ -216,18 +217,18 @@ export const candles = [
 ];
 
 const tooltipTexts: Record<string, string> = {
-  date: "Date required to schedule the preparation of your order (minimum 2 days in advance).",
+  date: "Choose your pick-up date (minimum 2 days in advance).",
   shape: "Choose the shape of your cake.",
-  flavor: "Please select the flavour of your cake.",
-  baseColor: "The base colour is essential to personalise your cake.",
+  flavor: "Choose the flavour of your cake.",
+  baseColor: "Choose the main colour of your cake.",
   piping: "Choose the number of piping bags you would like with your cake.",
 };
 
 const tooltipTextsFr: Record<string, string> = {
-  date: "Date requise pour planifier la préparation de votre commande (minimum 2 jours à l'avance).",
+  date: "Choisissez votre date de retrait (minimum 2 jours à l'avance).",
   shape: "Choisissez la forme de votre gâteau.",
-  flavor: "Veuillez sélectionner le parfum de votre gâteau.",
-  baseColor: "La couleur de base est essentielle pour personnaliser votre gâteau.",
+  flavor: "Choisissez le parfum de votre gâteau.",
+  baseColor: "Choisissez la couleur principale de votre gâteau.",
   piping: "Choisissez le nombre de poches à douille que vous souhaitez avec votre gâteau.",
 };
 
@@ -569,6 +570,7 @@ const KitBentoCake = () => {
               );
             })}
           </div>
+          <RequiredFieldsLegend className="max-w-2xl mx-auto -mt-6 mb-8" />
 
           {/* STEP 1: DATE */}
           {step === 1 && (
