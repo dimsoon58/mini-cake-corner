@@ -1789,7 +1789,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       <TooltipProvider delayDuration={200}>
       <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open && embedded) onEmbeddedClose?.(); }}>
         <SheetContent className="w-[95vw] max-w-3xl lg:max-w-5xl max-h-[88vh] overflow-y-auto rounded-none p-6 md:p-10">
-          <SheetHeader className="text-center">
+          <SheetHeader className="text-center sm:text-center">
             <SheetTitle className="font-sans uppercase tracking-[0.105em] text-lg font-semibold">
               {selectedCake ? t(selectedCake.name, cakeNameFr[selectedCake.id] ?? selectedCake.name) : ""}
             </SheetTitle>
