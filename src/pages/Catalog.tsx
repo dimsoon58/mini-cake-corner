@@ -2107,10 +2107,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       ];
                   return (
                     <>
-                    <GlutenFreeToggle
-                      value={glutenFree}
-                      onChange={(gf) => setSelections({ ...selections, flavor: gf ? GF_STANDARD_FLAVOR_IDS[0] : STANDARD_FLAVOR_IDS[0] })}
-                    />
                     <Select
                       value={selections.flavor}
                       onValueChange={(value) => setSelections({ ...selections, flavor: value })}
@@ -2127,6 +2123,10 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         ))}
                       </SelectContent>
                     </Select>
+                    <GlutenFreeToggle
+                      value={glutenFree}
+                      onChange={(gf) => setSelections({ ...selections, flavor: gf ? GF_STANDARD_FLAVOR_IDS[0] : STANDARD_FLAVOR_IDS[0] })}
+                    />
                     </>
                   );
                 })()}
