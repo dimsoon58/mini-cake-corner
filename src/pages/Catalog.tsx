@@ -1796,7 +1796,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
             <SheetDescription>
               {t("Customise your cake options", "Personnalisez les options de votre gâteau")}
             </SheetDescription>
-            <RequiredFieldsLegend className="text-center" />
+
           </SheetHeader>
           
           {selectedCake && (
@@ -1816,6 +1816,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               </div>
 
               {/* Pickup Date Selection */}
+              <RequiredFieldsLegend className="text-left italic text-[11px]" />
               <div className="space-y-2">
                 <label className="text-sm font-bold text-foreground flex items-center gap-1">
                   {t("Pickup Date", "Date de retrait")} <span className="text-destructive">*</span>
