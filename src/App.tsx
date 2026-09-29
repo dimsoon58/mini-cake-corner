@@ -31,6 +31,8 @@ import AdminOrders from "./pages/AdminOrders";
 import AdminCalendar from "./pages/AdminCalendar";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProduction from "./pages/AdminProduction";
+import AdminManualOrders from "./pages/AdminManualOrders";
+import AdminManualOrderEditor from "./pages/AdminManualOrderEditor";
 import WorkshopBooking from "./pages/WorkshopBooking";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import OrderAction from "./pages/OrderAction";
@@ -126,6 +128,9 @@ const App = () => (
             <Route path="/admin/calendar" element={<AdminCalendar />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/production" element={<AdminProduction />} />
+            <Route path="/admin/manual-orders" element={<AdminManualOrders />} />
+            <Route path="/admin/manual-orders/new" element={<AdminManualOrderEditor />} />
+            <Route path="/admin/manual-orders/:id/edit" element={<AdminManualOrderEditor />} />
             <Route path="/admin/order/:id" element={<AdminOrder />} />
             <Route path="/order-action" element={<OrderAction />} />
             <Route path="/product/:id" element={<ProductDetail />} />

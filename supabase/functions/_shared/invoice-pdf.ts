@@ -438,6 +438,20 @@ export async function generateInvoicePdf(
         total: formatInvoicePrice(deliveryFee),
       });
     }
+
+    // Admin manual order price adjustment (orders.price_adjustment_amount,
+    // signed): total_amount = calculated price + adjustment, so this line
+    // keeps the invoice lines adding up to the final price. The internal
+    // reason/note is never printed. 0 for every other order.
+    const priceAdjustment = Number(order.price_adjustment_amount) || 0;
+    if (priceAdjustment !== 0) {
+      itemRows.push({
+        description: priceAdjustment < 0 ? tr("Discount", "Remise") : tr("Supplement", "Supplément"),
+        quantity: "",
+        unitPrice: "",
+        total: priceAdjustment < 0 ? `- ${formatInvoicePrice(-priceAdjustment)}` : formatInvoicePrice(priceAdjustment),
+      });
+    }
   }
 
   const billableRows = itemRows.length > 0 ? itemRows : [{

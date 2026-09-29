@@ -105,7 +105,10 @@ const Printing = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12 max-w-3xl">
-        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
+        {/* Same title style as the other product pages. md:-mx-16 lets it use a
+            little more than this page's narrow (max-w-3xl) column on desktop,
+            so "IMPRESSION COMESTIBLE" fits on one line like the English title. */}
+        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold md:-mx-16">
           {t("Edible Printing", "Impression Comestible")}
         </h1>
         {/* Intro — makes clear up front that the print can be ordered on its
@@ -114,23 +117,23 @@ const Printing = () => {
           <p className="text-foreground font-medium">
             {t(
               "Have your photo, logo or drawing printed on an edible sugar sheet.",
-              "Faites imprimer votre photo, logo ou dessin sur une feuille comestible en sucre."
+              "Votre photo, logo ou dessin imprimé sur une feuille de sucre comestible."
             )}
           </p>
           <p className="text-muted-foreground">
-            {t("You can order ", "Vous pouvez commander ")}
-            <strong className="font-semibold text-foreground">{t("the print on its own, without a cake", "l'impression seule, sans gâteau")}</strong>
+            {t("You can order ", "Commandez ")}
+            <strong className="font-semibold text-foreground">{t("the print on its own, without a cake", "l'impression seule")}</strong>
             {t(
               ": upload your image, choose your pick-up date and collect your print, ready to place on your own cake.",
-              " : téléchargez votre image, choisissez votre date de retrait et venez récupérer votre impression, prête à être déposée sur votre propre gâteau."
+              ", prête à poser sur votre propre gâteau."
             )}
           </p>
           <p className="text-sm text-muted-foreground">
-            <strong className="font-semibold text-foreground">{t("Already ordering a Bento Cake Studio cake?", "Vous commandez déjà un gâteau Bento Cake Studio ?")}</strong>
+            <strong className="font-semibold text-foreground">{t("Already ordering a Bento Cake Studio cake?", "Vous commandez déjà un gâteau chez nous ?")}</strong>
             <br />
-            {t("Add the edible print directly in the options when ", "Ajoutez l'impression directement parmi les options lors de ")}
+            {t("Add the edible print directly in the options when ", "Ajoutez l'impression dans les options de ")}
             <Link to="/catalog" className="text-primary underline underline-offset-4 hover:text-primary/80">
-              {t("ordering your cake", "votre commande de gâteau")}
+              {t("ordering your cake", "votre gâteau")}
             </Link>
             .
           </p>
@@ -147,13 +150,13 @@ const Printing = () => {
           <p className="text-sm text-muted-foreground">
             {t(
               "Send us your image, we print it on an edible sheet, then you come and collect it.",
-              "Vous nous envoyez votre image, nous l'imprimons sur feuille comestible, puis vous venez la récupérer."
+              "Envoyez-nous votre image, nous l'imprimons, vous venez la chercher."
             )}
           </p>
           <p className="text-sm font-semibold text-foreground">
             {t(
               "This order includes the edible print only. The cake is not included.",
-              "Cette commande comprend uniquement l'impression comestible. Le gâteau n'est pas inclus."
+              "Seule l'impression est incluse, pas le gâteau."
             )}
           </p>
         </div>
@@ -165,10 +168,10 @@ const Printing = () => {
           </h2>
           <ol className="grid grid-cols-1 md:grid-cols-4 gap-5 md:gap-6">
             {[
-              t("Upload your image.", "Téléchargez votre image."),
-              t("Choose your pick-up date.", "Choisissez votre date de retrait."),
-              t("We print it on an edible sugar sheet.", "Nous l'imprimons sur une feuille comestible en sucre."),
-              t("Collect it and place it on your own cake.", "Récupérez-la et déposez-la sur votre propre gâteau."),
+              t("Upload your image.", "Envoyez votre image"),
+              t("Choose your pick-up date.", "Choisissez la date"),
+              t("We print it on an edible sugar sheet.", "Nous l'imprimons"),
+              t("Collect it and place it on your own cake.", "Récupérez-la"),
             ].map((step, i) => (
               <li key={i} className="flex md:flex-col items-center md:text-center gap-3 md:gap-2">
                 <span className="shrink-0 w-7 h-7 flex items-center justify-center border border-primary text-primary text-xs font-semibold">
@@ -224,7 +227,7 @@ const Printing = () => {
             <p className="text-xs text-muted-foreground">
               {t(
                 "Upload the photo, logo or drawing you would like printed on an edible sheet (JPG, PNG, WEBP).",
-                "Téléchargez la photo, le logo ou le dessin que vous souhaitez recevoir imprimé sur feuille comestible (JPG, PNG, WEBP)."
+                "La photo, le logo ou le dessin à imprimer (JPG, PNG, WEBP)."
               )}
             </p>
             <input

@@ -1920,8 +1920,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       .filter((size) => !SMALL_BOX_IDS.includes(size.id))
                       .map((size) => ({ id: size.id, label: t(size.name, sizeNameFr[size.id] ?? size.name), price: size.price, image: size.image, info: sizeInfo[size.id] })),
                   ];
-                  const boxPrices = smallBoxes.map((box) => calculatePrice(box.id));
-                  const cheapestBox = Math.min(...boxPrices);
+                  // No price next to the boxes: the design supplement differs
+                  // per box and is already shown just below ("Design : … ·
+                  // +CHF N"), so a price here only read like an extra charge.
                   return (
                     <>
                       <Select
@@ -1976,20 +1977,18 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                             </SelectTrigger>
                             <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[95vw]">
                               {smallBoxes.map((box, i) => {
-                                const delta = boxPrices[i] - cheapestBox;
                                 const name = t(box.name, sizeNameFr[box.id] ?? box.name);
                                 return (
                                   <SelectItem
                                     key={box.id}
                                     value={box.id}
-                                    itemText={delta > 0 ? `${name} · +CHF ${delta}` : name}
+                                    itemText={name}
                                   >
                                     <div className="flex items-start gap-2 py-0.5 w-full">
                                       <img src={box.image} alt={name} className="w-28 h-28 object-contain flex-shrink-0" />
                                       <div className="min-w-0 flex-1">
                                         <span className="block">
                                           {name}
-                                          {delta > 0 && <span className="ml-1 text-primary font-medium">· +CHF {delta}</span>}
                                         </span>
                                         {sizeDesc[box.id] && (
                                           <span className="block text-xs text-muted-foreground whitespace-normal leading-snug mt-0.5">
