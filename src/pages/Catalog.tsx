@@ -1778,7 +1778,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-lg lg:text-base whitespace-nowrap rounded-none"
       onClick={handleAddToCart}
     >
-      <ShoppingBag className="w-5 h-5 mr-2" />
       {t("Add to Cart", "Ajouter au panier")}
     </Button>
   );
