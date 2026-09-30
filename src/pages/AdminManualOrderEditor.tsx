@@ -22,6 +22,7 @@ import {
   type DateGroup,
   type EditorItem,
   emptyItem,
+  extraFields,
   friendlyMessage,
   type ManualOrderCatalog,
   newKey,
@@ -211,6 +212,7 @@ const AdminManualOrderEditor = () => {
       workshop_minor_consent_confirmed: it.workshop_minor_consent_confirmed,
       item_comment: it.item_comment, internal_notes: it.internal_notes, reference_images: it.reference_images,
       base_color: it.base_color, decoration_color: it.decoration_color, cake_text: it.cake_text, text_color: it.text_color, text_style: it.text_style,
+      ...extraFields(it),
     }));
     const fulfillments = groups
       .map((g) => ({

@@ -17,9 +17,11 @@ import {
   labelShape,
   labelSize,
   type ManualOrderCatalog,
+  MAX_EXTRA_QUANTITY,
   parseColours,
   PRODUCT_OPTIONS,
   type ProductId,
+  QUANTITY_EXTRAS,
   type QuoteResult,
 } from "@/lib/manualOrders";
 
@@ -267,16 +269,36 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
           <div className="md:col-span-2">
             <label className={label}>{t("Extras", "Extras")}</label>
             <div className="flex flex-wrap gap-x-4 gap-y-1">
-              {extras.map((e) => (
-                <label key={e} className="inline-flex items-center gap-1.5 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={item.extras.includes(e)}
-                    onChange={(ev) => set({ extras: ev.target.checked ? [...item.extras, e] : item.extras.filter((x) => x !== e) })}
-                  />
-                  {labelExtra(e)}
-                </label>
-              ))}
+              {extras.map((e) => {
+                const count = item.extras.filter((x) => x === e).length;
+                return (
+                  <span key={e} className="inline-flex items-center gap-1.5 text-sm">
+                    <label className="inline-flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={count > 0}
+                        onChange={(ev) => set({ extras: ev.target.checked ? [...item.extras, e] : item.extras.filter((x) => x !== e) })}
+                      />
+                      {labelExtra(e)}
+                    </label>
+                    {/* Scattered Pearls can be taken several times: the id is repeated, each one is charged. */}
+                    {count > 0 && QUANTITY_EXTRAS.includes(e) && (
+                      <input
+                        type="number"
+                        min={1}
+                        max={MAX_EXTRA_QUANTITY}
+                        value={count}
+                        onChange={(ev) => {
+                          const n = Math.max(1, Math.min(MAX_EXTRA_QUANTITY, Math.floor(Number(ev.target.value)) || 1));
+                          set({ extras: [...item.extras.filter((x) => x !== e), ...Array.from({ length: n }, () => e)] });
+                        }}
+                        className={cn(field, "w-14 py-0.5")}
+                        aria-label={`${labelExtra(e)} — ${t("quantity", "quantité")}`}
+                      />
+                    )}
+                  </span>
+                );
+              })}
             </div>
           </div>
         )}

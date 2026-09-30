@@ -180,7 +180,12 @@ function breakdownItem(it: QuoteItemInput, product: string, total: number): Quot
     lines.push({ kind: "shape", id: shape, amount: CAKE_SHAPES[shape]?.[size] ?? NaN });
     lines.push({ kind: "flavour", id: flavors[0], amount: CAKE_FLAVORS[flavors[0]]?.[size] ?? NaN });
     lines.push({ kind: "design", id: design, amount: (CAKE_DESIGNS[design] ?? INSPIRATION_DESIGNS[design])?.[size] ?? NaN });
-    for (const e of extras) lines.push({ kind: "extra", id: e, amount: CAKE_EXTRAS[e]?.[size] ?? NaN });
+    // A repeated extra (Scattered Pearls × 3) is one line with its quantity.
+    for (const e of Array.from(new Set(extras))) {
+      const n = extras.filter((x) => x === e).length;
+      const unit = CAKE_EXTRAS[e]?.[size];
+      lines.push({ kind: "extra", id: e, amount: unit === undefined ? NaN : roundToCents(unit * n), ...(n > 1 ? { quantity: n } : {}) });
+    }
   } else if (product === "diy_kit") {
     const shape = it.shape || "round";
     lines.push({ kind: "size", id: "kit-bento", amount: DIY_KIT_BASE_PRICE });
