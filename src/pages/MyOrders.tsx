@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronUp, FileText, Loader2 } from "lucide-react";
 import Layout from "@/components/Layout";
+import { ReferencePhotos } from "@/components/ReferencePhotos";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -471,6 +472,7 @@ const MyOrders = () => {
             )}
             {comment && <p><strong className="font-semibold text-foreground/80">{t("Comment:", "Commentaire :")}</strong> {comment}</p>}
           </div>
+          <ReferencePhotos urls={item.reference_images} />
         </div>
       </div>
     );

@@ -14,6 +14,7 @@ import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPanel";
+import { ReferencePhotos } from "@/components/ReferencePhotos";
 import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 
 // pending/approved/rejected/cancelled -> the French/English label actually
@@ -623,6 +624,7 @@ const AdminOrder = () => {
                         )}
                         {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
                         <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
+                        <ReferencePhotos urls={item.reference_images} />
                       </div>
                     </div>
                   </div>
