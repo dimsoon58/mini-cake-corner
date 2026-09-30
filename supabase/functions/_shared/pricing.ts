@@ -302,7 +302,7 @@ export const FAMILY_CANDLE_COLORS: Record<string, string[]> = {
   rainbow: ["turquoise", "dark-blue", "blue", "green", "purple", "light-pink", "dark-pink", "yellow", "orange"],
 };
 
-function priceCandle(entry: CandleInput): PricingResult {
+export function priceCandle(entry: CandleInput): PricingResult {
   // Number Candle — CHF 5 per digit. Real shape is `digits` (an array: one
   // entry can carry several digits at once, e.g. ["1", "8"] for CHF 10);
   // `digit` (singular) is accepted too for backward compatibility, but the

@@ -17,7 +17,25 @@
 //                       calculated_amount) | final (price typed by hand)
 //   final_amount      = calculated_amount + adjustment_amount (never < 0)
 
-import { DOT_CAKES_PACKS, priceOrderItem, roundToCents, type CandleInput } from "./pricing.ts";
+import {
+  CAKE_DESIGNS,
+  CAKE_EXTRAS,
+  CAKE_FLAVORS,
+  CAKE_SHAPES,
+  CAKE_SIZES,
+  DIY_KIT_BASE_PRICE,
+  DIY_KIT_FLAVORS,
+  DIY_KIT_PIPING,
+  DIY_KIT_SHAPES,
+  DOT_CAKES_FLAVOR_TIER,
+  DOT_CAKES_PACKS,
+  EDIBLE_PRINTING_PRICE,
+  INSPIRATION_DESIGNS,
+  priceCandle,
+  priceOrderItem,
+  roundToCents,
+  type CandleInput,
+} from "./pricing.ts";
 import { expressSurchargeRate, resolveOneFulfillment } from "./order-pricing.ts";
 
 export interface QuoteItemInput {
@@ -48,11 +66,24 @@ export interface QuoteInput {
   adjustment?: { type: AdjustmentType; value: number } | null;
 }
 
+// One line of an item's price detail. `id` is the option id (size, flavour,
+// extra, candle…); the Admin screen turns it into a display name.
+export interface QuoteBreakdownLine {
+  kind: "size" | "shape" | "flavour" | "design" | "extra" | "piping" | "pack" | "candle" | "printing" | "workshop";
+  id: string;
+  amount: number;
+  quantity?: number;
+}
+
 export interface QuoteItemResult {
   index: number;
   product: string;
   total: number | null;          // null when this item is incomplete/invalid
   error: string | null;
+  // Price detail for the Admin screen only — read from the same tables
+  // priceOrderItem() uses, and dropped (null) unless it adds up exactly to
+  // `total`, so it can never show a figure the engine didn't charge.
+  breakdown?: QuoteBreakdownLine[] | null;
   workshop?: {
     sessionId: string;
     type: string;
@@ -132,6 +163,56 @@ export function applyPriceAdjustment(
   return { amount, final, error: null };
 }
 
+// Price detail of an item already priced by priceOrderItem(). Display only:
+// returns null when a line can't be resolved or the lines don't add up to
+// the engine's total.
+function breakdownItem(it: QuoteItemInput, product: string, total: number): QuoteBreakdownLine[] | null {
+  const lines: QuoteBreakdownLine[] = [];
+  const flavors = Array.isArray(it.flavors) ? it.flavors : [];
+  const extras = Array.isArray(it.extras) ? it.extras : [];
+  const candles = Array.isArray(it.candles) ? it.candles : [];
+
+  if (product === "bento_cake" || product === "rectangle_cake") {
+    const size = String(it.size) as keyof typeof CAKE_SIZES;
+    const shape = it.shape || "round";
+    const design = String(it.design ?? "");
+    lines.push({ kind: "size", id: size, amount: CAKE_SIZES[size] });
+    lines.push({ kind: "shape", id: shape, amount: CAKE_SHAPES[shape]?.[size] ?? NaN });
+    lines.push({ kind: "flavour", id: flavors[0], amount: CAKE_FLAVORS[flavors[0]]?.[size] ?? NaN });
+    lines.push({ kind: "design", id: design, amount: (CAKE_DESIGNS[design] ?? INSPIRATION_DESIGNS[design])?.[size] ?? NaN });
+    for (const e of extras) lines.push({ kind: "extra", id: e, amount: CAKE_EXTRAS[e]?.[size] ?? NaN });
+  } else if (product === "diy_kit") {
+    const shape = it.shape || "round";
+    lines.push({ kind: "size", id: "kit-bento", amount: DIY_KIT_BASE_PRICE });
+    lines.push({ kind: "shape", id: shape, amount: DIY_KIT_SHAPES[shape] ?? NaN });
+    lines.push({ kind: "flavour", id: flavors[0], amount: DIY_KIT_FLAVORS[flavors[0]] ?? NaN });
+    for (const e of extras) lines.push({ kind: "piping", id: e, amount: DIY_KIT_PIPING[e] ?? NaN });
+  } else if (product === "dot_cakes") {
+    const pack = it.size ? DOT_CAKES_PACKS[it.size] : undefined;
+    if (!pack || flavors.length === 0) return null;
+    lines.push({ kind: "pack", id: String(it.size), amount: pack.price });
+    const dotsPerFlavour = pack.size / flavors.length;
+    for (const f of flavors) {
+      const tier = DOT_CAKES_FLAVOR_TIER[f];
+      lines.push({ kind: "flavour", id: f, amount: tier === undefined ? NaN : roundToCents(dotsPerFlavour * tier), quantity: dotsPerFlavour });
+    }
+  } else if (product === "edible_printing") {
+    lines.push({ kind: "printing", id: "printing", amount: EDIBLE_PRINTING_PRICE });
+  } else if (product !== "candles") {
+    return null;
+  }
+
+  for (const c of candles) {
+    const r = priceCandle(c);
+    if (!r.ok) return null;
+    lines.push({ kind: "candle", id: c.id, amount: r.total, quantity: c.quantity });
+  }
+
+  const sum = lines.reduce((s, l) => s + l.amount, 0);
+  if (!lines.every((l) => Number.isFinite(l.amount)) || roundToCents(sum) !== roundToCents(total)) return null;
+  return lines;
+}
+
 // deno-lint-ignore no-explicit-any
 export async function quoteManualOrder(supabase: any, input: QuoteInput): Promise<QuoteResult> {
   const items = Array.isArray(input.items) ? input.items : [];
@@ -175,6 +256,7 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
         product,
         total: roundToCents(unitPrice * participants),
         error: null,
+        breakdown: [{ kind: "workshop", id: sess.workshop_type, amount: roundToCents(unitPrice * participants), quantity: participants }],
         workshop: {
           sessionId: sess.id,
           type: sess.workshop_type,
@@ -210,7 +292,7 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
       candles: Array.isArray(it.candles) ? it.candles : [],
     });
     return priced.ok
-      ? { index, product, total: priced.total, error: null }
+      ? { index, product, total: priced.total, error: null, breakdown: breakdownItem(it, product, priced.total) }
       : { index, product, total: null, error: priced.reason };
   });
 

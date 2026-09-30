@@ -67,9 +67,16 @@ export interface ManualOrderCatalog {
   workshops: { id: string; type: string; date: string; time: string | null; unitPrice: number; maxCapacity: number; isOpen: boolean; remainingSeats: number }[];
 }
 
+export interface QuoteBreakdownLine {
+  kind: "size" | "shape" | "flavour" | "design" | "extra" | "piping" | "pack" | "candle" | "printing" | "workshop";
+  id: string;
+  amount: number;
+  quantity?: number;
+}
+
 export interface QuoteResult {
   ok: boolean;
-  items: { index: number; product: string; total: number | null; error: string | null;
+  items: { index: number; product: string; total: number | null; error: string | null; breakdown?: QuoteBreakdownLine[] | null;
     workshop?: { remainingSeats: number | null; nearlyFull: boolean; isOpen: boolean; unitPrice: number } }[];
   fulfillments: { index: number; date: string; deliveryMethod: string; deliveryFee: number | null; deliveryZone: string | null;
     expressRate: number | null; expressSurcharge: number | null; error: string | null }[];
@@ -137,6 +144,47 @@ export const labelCandle = (id: string, lang: "en" | "fr") =>
 export const labelPiping = (id: string, lang: "en" | "fr") =>
   id === "piping-3-bags" ? (lang === "fr" ? "3 poches à douille" : "3 piping bags") : (lang === "fr" ? "2 poches à douille" : "2 piping bags");
 export const COLOURS = baseColors.map((c) => ({ id: c.id, name: c.name, color: c.color }));
+
+// Several decoration colours are kept in the single order_items.decoration_color
+// text column as "pink, gold" (a lone id, as the checkout stores it, reads
+// back as a one-colour list).
+export const parseColours = (value: string): string[] => value.split(",").map((c) => c.trim()).filter(Boolean);
+export const joinColours = (ids: string[]): string => ids.join(", ");
+
+// Same time slots as the website checkout (Checkout.tsx).
+export const PICKUP_TIME_SLOTS = [
+  "10:00 – 11:00", "11:00 – 12:00", "12:00 – 13:00", "13:00 – 14:00",
+  "14:00 – 15:00", "15:00 – 16:00", "16:00 – 17:00", "17:00 – 18:00",
+];
+export const DELIVERY_TIME_SLOTS = [
+  "08:00 – 09:00", "09:00 – 10:00", "10:00 – 11:00", "11:00 – 12:00",
+  "12:00 – 13:00", "13:00 – 14:00", "14:00 – 15:00", "15:00 – 16:00",
+  "16:00 – 17:00", "17:00 – 18:00", "18:00 – 19:00", "19:00 – 20:00",
+];
+export const slotsFor = (method: "pickup" | "delivery") => (method === "delivery" ? DELIVERY_TIME_SLOTS : PICKUP_TIME_SLOTS);
+
+// Display name of one line of the server's price detail.
+export function labelBreakdownLine(line: QuoteBreakdownLine, catalog: ManualOrderCatalog | null, lang: "en" | "fr"): string {
+  const fr = lang === "fr";
+  const qty = line.quantity && line.quantity > 1 ? ` × ${line.quantity}` : "";
+  switch (line.kind) {
+    case "size": return `${fr ? "Taille" : "Size"} ${labelSize(line.id, lang)}`;
+    case "shape": return `${fr ? "Forme" : "Shape"} ${labelShape(line.id, lang)}`;
+    case "flavour": {
+      const all = catalog ? [...Object.values(catalog.cake.flavours).flat(), ...catalog.kit.flavours, ...catalog.dotCakes.flavours] : [];
+      const name = all.find((f) => f.id === line.id)?.name ?? line.id;
+      return `${fr ? "Parfum" : "Flavour"} ${name}${qty ? ` (${line.quantity} dots)` : ""}`;
+    }
+    case "design": return `Design ${labelDesign(line.id)}`;
+    case "extra": return labelExtra(line.id);
+    case "piping": return labelPiping(line.id, lang);
+    case "pack": return `Pack ${labelSize(line.id, lang)}`;
+    case "candle": return `${labelCandle(line.id, lang)}${qty}`;
+    case "printing": return fr ? "Impression comestible" : "Edible printing";
+    case "workshop": return `Workshop ${line.id === "paint" ? (fr ? "Peinture" : "Paint") : "Signature"}${qty}`;
+    default: return line.id;
+  }
+}
 
 // ── Statuses, channels, amounts (list + editor) ──────────────────────────
 export type ManualStatus = "draft" | "awaiting_payment" | "paid" | "cancelled";
