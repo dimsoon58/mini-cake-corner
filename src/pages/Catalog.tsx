@@ -1828,7 +1828,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       variant="outline"
                       disabled={!MULTI_DATE_FULFILLMENT_ENABLED && !!cartOrderDate}
                       className={cn(
-                        "w-full justify-start text-left font-normal",
+                        "w-full justify-start text-left font-normal normal-case",
                         !selections.orderDate && "text-muted-foreground",
                         !MULTI_DATE_FULFILLMENT_ENABLED && cartOrderDate && "opacity-60 cursor-not-allowed"
                       )}

@@ -92,7 +92,7 @@ export const AllergenDisplay = ({ flavorId }: { flavorId: string }) => {
 export const AllergenNotice = ({ className = "" }: { className?: string }) => {
   const { t } = useLang();
   return (
-    <div className={`flex justify-center ${className}`}>
+    <div className={`flex justify-start ${className}`}>
       <Popover>
         <PopoverTrigger asChild>
           <button
