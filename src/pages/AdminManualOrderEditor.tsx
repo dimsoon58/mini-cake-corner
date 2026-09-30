@@ -83,6 +83,15 @@ const DayPicker = ({ value, onChange, lang }: { value: string; onChange: (v: str
   );
 };
 
+// A server call never leaves a button spinning: after this delay the
+// editor stops waiting and says so.
+const SERVER_TIMEOUT_MS = 30_000;
+const TIMEOUT = Symbol("timeout");
+function withTimeout<T>(p: Promise<T>): Promise<T | typeof TIMEOUT> {
+  return Promise.race([p, new Promise<typeof TIMEOUT>((resolve) => setTimeout(() => resolve(TIMEOUT), SERVER_TIMEOUT_MS))]);
+}
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const emptyGroup = (): DateGroup => ({ key: newKey(), date: "", deliveryMethod: "pickup", slot: "", placeId: null, addressLabel: null });
 
 const AdminManualOrderEditor = () => {
@@ -115,6 +124,7 @@ const AdminManualOrderEditor = () => {
 
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [quoting, setQuoting] = useState(false);
+  const [quoteFailed, setQuoteFailed] = useState(false);
   const [saving, setSaving] = useState<"draft" | "confirm" | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
 
@@ -233,17 +243,49 @@ const AdminManualOrderEditor = () => {
     const seq = ++quoteSeq.current;
     const handle = setTimeout(async () => {
       setQuoting(true);
-      const { data, error } = await supabase.functions.invoke("quote-manual-order", { body: { ...payload, adjustment } });
-      if (seq !== quoteSeq.current) return;
-      setQuoting(false);
-      if (error || data?.error) { console.error("quote failed:", error || data?.error); return; }
-      setQuote(data as QuoteResult);
+      setQuoteFailed(false);
+      try {
+        const res = await withTimeout(supabase.functions.invoke("quote-manual-order", { body: { ...payload, adjustment } }));
+        if (seq !== quoteSeq.current) return;
+        if (res === TIMEOUT || res.error || res.data?.error) {
+          console.error("quote failed:", res === TIMEOUT ? "timeout" : res.error || res.data?.error);
+          setQuoteFailed(true);
+          return;
+        }
+        setQuote(res.data as QuoteResult);
+      } catch (e) {
+        if (seq === quoteSeq.current) { console.error("quote failed:", e); setQuoteFailed(true); }
+      } finally {
+        if (seq === quoteSeq.current) setQuoting(false);
+      }
     }, 400);
     return () => clearTimeout(handle);
   }, [catalog, payload, adjustment, items.length]);
 
+  // ── What is still missing to confirm (shown live, checked on confirm) ──
+  // Same rules as the server's confirm check; the server re-checks anyway.
+  const missing = useMemo(() => {
+    const l = lang === "en" ? "en" : "fr";
+    const out: string[] = [];
+    if (!customer.first_name.trim()) out.push(t("First name", "Prénom"));
+    if (!customer.last_name.trim()) out.push(t("Last name", "Nom"));
+    if (!customer.phone.trim()) out.push(t("Phone", "Téléphone"));
+    if (!EMAIL_RE.test(customer.email.trim())) out.push(t("A valid email", "Un email valide"));
+    if (items.length === 0) out.push(t("At least one product", "Au moins un produit"));
+    const physical = items.some((it) => it.product !== "workshop");
+    if (physical && groups.some((g) => !g.date)) out.push(t("The date (section 3)", "La date (section 3)"));
+    quote?.items.forEach((r, i) => { if (r.error) out.push(`${t("Product", "Produit")} ${i + 1} : ${friendlyMessage(r.error, l)}`); });
+    quote?.errors.forEach((e) => out.push(friendlyMessage(e, l)));
+    return Array.from(new Set(out));
+  }, [customer, items, groups, quote, lang, t]);
+
   // ── Save ──────────────────────────────────────────────────────────────
   const save = async (mode: "draft" | "confirm") => {
+    if (mode === "confirm" && missing.length > 0) {
+      setProblems(missing);
+      toast.error(t("Some information is missing", "Des informations manquent"));
+      return;
+    }
     setSaving(mode);
     setProblems([]);
     const body = {
@@ -256,8 +298,28 @@ const AdminManualOrderEditor = () => {
       ...payload,
       adjustment: adjustment ? { ...adjustment, reason: adjReason || null, note: adjNote || null } : null,
     };
-    const { data, error } = await supabase.functions.invoke("manage-manual-order", { body });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let res: { data: any; error: unknown } | typeof TIMEOUT;
+    try {
+      res = await withTimeout(supabase.functions.invoke("manage-manual-order", { body }));
+    } catch (e) {
+      console.error("save failed:", e);
+      setSaving(null);
+      setProblems([t("The server could not be reached. Check your connection and try again.", "Le serveur n'a pas pu être joint. Vérifiez votre connexion et réessayez.")]);
+      toast.error(t("Not saved", "Non enregistrée"));
+      return;
+    }
     setSaving(null);
+    if (res === TIMEOUT) {
+      // The order may still have been created: never invite a blind retry.
+      setProblems([t(
+        "The server did not answer within 30 seconds. The order may have been saved anyway — check the manual orders list before trying again.",
+        "Le serveur n'a pas répondu en 30 secondes. La commande a peut-être quand même été enregistrée — vérifiez la liste des commandes manuelles avant de réessayer.",
+      )]);
+      toast.error(t("No answer from the server", "Pas de réponse du serveur"));
+      return;
+    }
+    const { data, error } = res;
     if (error || data?.error) {
       let detail: { error?: string; problems?: string[] } | null = data ?? null;
       if (error) {
@@ -599,10 +661,19 @@ const AdminManualOrderEditor = () => {
                 <span>{q?.final != null ? formatChf(q.final) : "—"}</span>
               </div>
 
-              {q && !q.ok && (q.errors.length > 0 || q.items.some((r) => r.error)) && (
-                <ul className="text-xs text-amber-800 space-y-0.5">
-                  {q.errors.map((e) => <li key={e}>• {friendlyMessage(e, lang === "en" ? "en" : "fr")}</li>)}
-                </ul>
+              {quoteFailed && (
+                <p className="text-xs text-destructive">
+                  {t("The price could not be calculated (server error). Change a field to try again.", "Le prix n'a pas pu être calculé (erreur serveur). Modifiez un champ pour réessayer.")}
+                </p>
+              )}
+              {!readOnly && missing.length > 0 && (
+                <div className="border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  <p className="font-semibold mb-1">{t("Missing before confirming:", "Il manque pour confirmer :")}</p>
+                  <ul className="space-y-0.5">
+                    {missing.map((m) => <li key={m}>• {m}</li>)}
+                  </ul>
+                  <p className="mt-1 text-amber-800/80">{t("You can still save a draft.", "Vous pouvez quand même enregistrer un brouillon.")}</p>
+                </div>
               )}
               {problems.length > 0 && (
                 <ul className="text-xs text-destructive space-y-0.5 border-t border-border pt-2">
