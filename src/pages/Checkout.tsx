@@ -53,7 +53,7 @@ import DeliveryAddressAutocomplete, { type AddressSelection } from "@/components
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { isOrderDateDisabled, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
+import { isOrderDateDisabled, isClosedDay, CLOSED_DAY_COPY, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
 import { cartItemTitle, flavorLabel, shapeLabel } from "@/lib/orderLabels";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
@@ -991,6 +991,22 @@ const Checkout = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // Closed on Sundays: a cart may still hold a Sunday picked before that
+    // rule. Say so clearly instead of letting the payment server refuse it.
+    if (hasPhysical) {
+      const chosenDates = isMultiDateActive
+        ? physicalDateGroups.map((g) => new Date(g.date + "T00:00:00"))
+        : deliveryDate ? [deliveryDate] : [];
+      if (chosenDates.some(isClosedDay)) {
+        toast({
+          title: t("This date is a Sunday", "Cette date est un dimanche"),
+          description: `${CLOSED_DAY_COPY[lang === "fr" ? "fr" : "en"]} ${t("Please choose another date.", "Merci de choisir une autre date.")}`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     if (!isMultiDateActive) {

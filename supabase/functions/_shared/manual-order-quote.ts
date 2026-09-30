@@ -8,8 +8,8 @@
 //     participants, exactly like create-postfinance-payment;
 //   - delivery + express, per date: resolveOneFulfillment()
 //     (_shared/order-pricing.ts), with minLeadDays = 0 so an Admin order can
-//     be for today or tomorrow (express stays 0 below J+2 — urgent
-//     supplements go through the manual adjustment).
+//     be for today or tomorrow (+20% express, Admin only), and a Sunday is
+//     allowed as an exception (the website refuses it).
 //
 // Totals, as validated with the owner (2026-09-28):
 //   calculated_amount = Σ items + Σ delivery fees + Σ express surcharges
@@ -350,7 +350,7 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
           itemIndexes: idxs,
         },
         expressEligibleTotal,
-        { minLeadDays: 0 },
+        { minLeadDays: 0, allowClosedDays: true, shortNoticeExpress: true },
       );
       fulfillmentResults.push({
         ...base,
@@ -363,7 +363,7 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
         deliveryCity: resolved.deliveryCity,
         deliveryLatitude: resolved.deliveryLatitude,
         deliveryLongitude: resolved.deliveryLongitude,
-        expressRate: expressSurchargeRate(resolved.date),
+        expressRate: expressSurchargeRate(resolved.date, { shortNotice: true }),
         // Only meaningful once every item of this date is priced.
         expressSurcharge: itemsPriced ? resolved.expressSurcharge : null,
         error: null,
