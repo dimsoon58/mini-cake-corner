@@ -357,9 +357,9 @@ const Account = () => {
         {isAdminEmail(user?.email) && (
           <section className="mt-4 space-y-2">
             <Button asChild variant="outline" className="w-full rounded-none border-primary text-primary hover:bg-primary/5 uppercase tracking-[0.105em] text-[12px] font-medium">
-              <Link to="/admin/orders">
+              <Link to="/admin">
                 <ClipboardList className="w-4 h-4 mr-2" strokeWidth={1.5} />
-                {t("Admin: All Orders", "Admin : toutes les commandes")}
+                {t("Admin", "Admin")}
               </Link>
             </Button>
             {/* Deliberately a separate button, not merged with the one

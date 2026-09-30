@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
-import Layout from "@/components/Layout";
+import AdminLayout from "@/components/admin/AdminLayout";
 import { DeliveryAddressAutocomplete } from "@/components/DeliveryAddressAutocomplete";
 import { ItemEditor } from "@/components/admin/manual-order/ItemEditor";
 import { useLang } from "@/context/LanguageContext";
@@ -343,30 +343,30 @@ const AdminManualOrderEditor = () => {
   // ── Guards ────────────────────────────────────────────────────────────
   if (authLoading || (loading && !loadError)) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
   if (!user || !isAdmin) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="max-w-md mx-auto px-6 py-24 text-center">
           <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
           <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
             {!user ? t("Admin sign-in required", "Connexion administrateur requise") : t("Access denied", "Accès refusé")}
           </h1>
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
   if (loadError || !catalog) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center text-muted-foreground">{loadError}</main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
@@ -376,7 +376,7 @@ const AdminManualOrderEditor = () => {
   const adjAmount = q?.adjustment.amount ?? 0;
 
   return (
-    <Layout>
+    <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         <Link to="/admin/manual-orders" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-4">
           <ChevronLeft className="w-3.5 h-3.5 mr-1" /> {t("Manual orders", "Commandes manuelles")}
@@ -700,7 +700,7 @@ const AdminManualOrderEditor = () => {
           </aside>
         </div>
       </main>
-    </Layout>
+    </AdminLayout>
   );
 };
 

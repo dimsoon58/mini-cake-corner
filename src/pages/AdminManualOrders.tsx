@@ -4,7 +4,7 @@ import { format, parseISO } from "date-fns";
 import { ClipboardList, Loader2, Lock, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import Layout from "@/components/Layout";
+import AdminLayout from "@/components/admin/AdminLayout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -96,17 +96,17 @@ const AdminManualOrders = () => {
 
   if (authLoading) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
   if (!user || !isAdmin) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="max-w-md mx-auto px-6 py-24 text-center">
           <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
           <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
@@ -118,22 +118,15 @@ const AdminManualOrders = () => {
             </Button>
           )}
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
   const fmtDate = (d: string) => { try { return format(parseISO(d), "dd.MM.yy"); } catch { return d; } };
 
   return (
-    <Layout>
+    <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="flex items-center justify-center gap-4 mb-4 text-[11px] uppercase tracking-[0.105em] flex-wrap">
-          <Link to="/admin/orders" className="text-muted-foreground hover:text-foreground">{t("Orders", "Commandes")}</Link>
-          <span className="text-foreground font-semibold">{t("Manual orders", "Commandes manuelles")}</span>
-          <Link to="/admin/calendar" className="text-muted-foreground hover:text-foreground">{t("Calendar", "Calendrier")}</Link>
-          <Link to="/admin/dashboard" className="text-muted-foreground hover:text-foreground">{t("Dashboard", "Tableau de bord")}</Link>
-          <Link to="/admin/production" className="text-muted-foreground hover:text-foreground">{t("Production", "Production")}</Link>
-        </div>
 
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground flex items-center gap-2">
@@ -255,7 +248,7 @@ const AdminManualOrders = () => {
           </div>
         )}
       </main>
-    </Layout>
+    </AdminLayout>
   );
 };
 

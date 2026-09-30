@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import Layout from "@/components/Layout";
+import AdminLayout from "@/components/admin/AdminLayout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -285,17 +285,17 @@ const AdminOrder = () => {
   // prompt or an access-denied message.
   if (authLoading) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
   if (!user) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="max-w-md mx-auto px-6 py-24 text-center">
           <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
           <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
@@ -316,13 +316,13 @@ const AdminOrder = () => {
             </Link>
           </Button>
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
   if (!isAdmin) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="max-w-md mx-auto px-6 py-24 text-center">
           <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
           <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
@@ -335,29 +335,29 @@ const AdminOrder = () => {
             )}
           </p>
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
   if (loading) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
   if (!order) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
           <p className="text-muted-foreground">
             {loadError || t("Order not found.", "Commande introuvable.")}
           </p>
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
@@ -418,7 +418,7 @@ const AdminOrder = () => {
     fulfillmentId ? fulfillments.find((f) => f.id === fulfillmentId) : null;
 
   return (
-    <Layout>
+    <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <Link to="/admin/orders" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft className="h-3 w-3 mr-1" />
@@ -900,7 +900,7 @@ const AdminOrder = () => {
           )}
         </div>
       </main>
-    </Layout>
+    </AdminLayout>
   );
 };
 
