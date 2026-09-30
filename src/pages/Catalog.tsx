@@ -23,7 +23,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import Layout from "@/components/Layout";
 import ExtraImageLightbox from "@/components/ExtraImageLightbox";
 import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
-import { RequiredFieldsLegend } from "@/components/RequiredFieldsLegend";
 import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
@@ -292,20 +291,20 @@ const candles = [
 ];
 
 const catalogExtras = [
-  { id: "gold-leaves", name: "Gold Leaves", price: { bento: 3, retro: 4, medium: 5, large: 8, rectangle: 12 }, image: extraGoldLeaves },
+  { id: "gold-leaves", name: "Gold leaves", price: { bento: 3, retro: 4, medium: 5, large: 8, rectangle: 12 }, image: extraGoldLeaves },
   { id: "cherries", name: "Cherries", price: { retro: 4, medium: 8, large: 12, rectangle: 20 }, image: extraCherries },
-  { id: "glitter-cherries", name: "Glitter Cherries", price: { retro: 7, medium: 10, large: 15, rectangle: 25 }, image: extraGlitterCherries },
-  { id: "scattered-pearl", name: "Scattered Pearls", price: { bento: 2, retro: 4, medium: 6, large: 8, rectangle: 15 }, image: designScatteredPearls },
+  { id: "glitter-cherries", name: "Glitter cherries", price: { retro: 7, medium: 10, large: 15, rectangle: 25 }, image: extraGlitterCherries },
+  { id: "scattered-pearl", name: "Scattered pearls", price: { bento: 2, retro: 4, medium: 6, large: 8, rectangle: 15 }, image: designScatteredPearls },
   { id: "glitter", name: "Glitter", price: { bento: 5, retro: 5, medium: 10, large: 12, rectangle: 25 }, image: extraGlitter },
-  { id: "glitter-base", name: "Glitter Base", price: { bento: 8, retro: 8, medium: 10, large: 12, rectangle: 25 }, image: designGlitterCake },
-  { id: "glitter-in-the-air", name: "Glitter in the Air", price: { bento: 10, retro: 10, medium: 15, large: 20 }, image: designGlitterInAir },
-  { id: "pearl-border", name: "Pearl Border (each)", price: { retro: 10, medium: 17, large: 25, rectangle: 60 }, image: designPearlBorders },
+  { id: "glitter-base", name: "Glitter base", price: { bento: 8, retro: 8, medium: 10, large: 12, rectangle: 25 }, image: designGlitterCake },
+  { id: "glitter-in-the-air", name: "Glitter in the air", price: { bento: 10, retro: 10, medium: 15, large: 20 }, image: designGlitterInAir },
+  { id: "pearl-border", name: "Pearl border (each)", price: { retro: 10, medium: 17, large: 25, rectangle: 60 }, image: designPearlBorders },
   { id: "retro", name: "Retro", price: { retro: 6, medium: 10, large: 15, rectangle: 30 }, image: extraRetro },
   { id: "ribbons", name: "Ribbons", price: { retro: 5, medium: 8, large: 10, rectangle: 20 }, image: extraRibbons },
-  { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6, rectangle: 10 }, image: designPearlNumber },
+  { id: "pearl-number", name: "Pearl number", price: { bento: 6, retro: 6, medium: 6, large: 6, rectangle: 10 }, image: designPearlNumber },
   { id: "butterfly", name: "Butterfly", price: { retro: 6, medium: 8, large: 10, rectangle: 20 }, image: extraButterfly },
   { id: "sprinkles", name: "Sprinkles", price: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 }, image: extraSprinkles },
-  { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 }, image: extraPrintedPicture },
+  { id: "printed-picture", name: "Printed picture", price: { bento: 15, retro: 15, medium: 15, large: 15 }, image: extraPrintedPicture },
 ];
 
 const ribbonColors = [
@@ -562,7 +561,7 @@ const catalog = [
   },
   {
     id: "gold-leaves",
-    name: "Gold Leaves",
+    name: "Gold leaves",
     description: "Elegant cake with gold leaf border",
     image: designGoldLeaves,
     styleId: "gold-leaves-style",
@@ -583,7 +582,7 @@ const catalog = [
   },
   {
     id: "pearl-number",
-    name: "Pearl Number",
+    name: "Pearl number",
     description: "Customise with a pearl number",
     image: designPearlNumber,
     styleId: "pearl-number",
@@ -649,7 +648,7 @@ const catalog = [
   },
   {
     id: "glitter-base",
-    name: "Glitter Base",
+    name: "Glitter base",
     description: "Sparkly glitter base surrounded by gold leaf",
     image: designGlitterCake,
     styleId: "glitter-base",
@@ -682,7 +681,7 @@ const catalog = [
 ];
 
 // Per-design colour section configuration. Designs not listed use the default
-// (base colour + "Decoration Colour" with up to 3 picks).
+// (base colour + "Decoration colour" with up to 3 picks).
 interface ColorSectionConfig {
   showBase: boolean;
   baseNote?: string;
@@ -694,32 +693,32 @@ interface ColorSectionConfig {
 }
 
 const colorSectionOverrides: Record<string, Partial<ColorSectionConfig>> = {
-  "normal-with-border": { secondaryLabel: "Border Colour", secondaryMax: 1 },
+  "normal-with-border": { secondaryLabel: "Border colour", secondaryMax: 1 },
   "normal-without-border": { secondaryLabel: null },
   "golden-cake": { showBase: false, secondaryLabel: null },
-  "roses-please": { secondaryLabel: "Border Colour", secondaryMax: 1, roseColor: true }, // rose section labelled "Roses Colour"
+  "roses-please": { secondaryLabel: "Border colour", secondaryMax: 1, roseColor: true }, // rose section labelled "Roses Colour"
   "butterfly-garden": {
-    secondaryLabel: "Second Colour (optional)",
+    secondaryLabel: "Second colour (optional)",
     secondaryMax: 1,
     secondaryOptional: true,
   },
   "custom-drawing": {
-    secondaryLabel: "Second Colour (optional)",
+    secondaryLabel: "Second colour (optional)",
     secondaryMax: 1,
     secondaryOptional: true,
   },
   "gender-reveal": { showBase: false, secondaryLabel: null, hideExtras: true },
-  "heart-bomb": { secondaryLabel: "Heart Colour", secondaryMax: 1, hideExtras: true },
-  "shag-cake": { showBase: false, secondaryLabel: "Choose Your Colours", secondaryMax: 6 },
+  "heart-bomb": { secondaryLabel: "Heart colour", secondaryMax: 1, hideExtras: true },
+  "shag-cake": { showBase: false, secondaryLabel: "Choose your colours", secondaryMax: 6 },
   "rainbow-cake": { secondaryLabel: null },
-  "printed-picture": { secondaryLabel: "Border Colour", secondaryMax: 1 },
+  "printed-picture": { secondaryLabel: "Border colour", secondaryMax: 1 },
   // Inspiration orders: shape, flavour, text and candles only
   inspiration: { showBase: false, secondaryLabel: null, hideExtras: true },
 };
 
 const getColorConfig = (styleId?: string): ColorSectionConfig => ({
   showBase: true,
-  secondaryLabel: "Decoration Colour",
+  secondaryLabel: "Decoration colour",
   secondaryMax: 3,
   roseColor: false,
   secondaryOptional: false,
@@ -981,11 +980,11 @@ const groupLabelFr: Record<string, string> = {
   "Printed Picture": "Photo imprimée",
 };
 const secondaryLabelFr: Record<string, string> = {
-  "Decoration Colour": "Couleur de décoration",
-  "Border Colour": "Couleur de bordure",
-  "Second Colour (optional)": "Deuxième couleur (optionnel)",
-  "Choose Your Colours": "Choisissez vos couleurs",
-  "Heart Colour": "Couleur du cœur",
+  "Decoration colour": "Couleur de décoration",
+  "Border colour": "Couleur de bordure",
+  "Second colour (optional)": "Deuxième couleur (optionnel)",
+  "Choose your colours": "Choisissez vos couleurs",
+  "Heart colour": "Couleur du cœur",
 };
 const textStyleFr: Record<string, string> = {
   "Normal": "Normal", "UPPERCASE": "MAJUSCULES", "Cursive": "Cursive",
@@ -1521,7 +1520,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     }
 
     if (cfg.showBase && !selections.baseColor) {
-      toast({ title: t("Base Colour required", "Couleur de base requise"), description: t("Please select a base colour for your cake.", "Veuillez sélectionner une couleur de base pour votre gâteau."), variant: "destructive" });
+      toast({ title: t("Base colour required", "Couleur de base requise"), description: t("Please select a base colour for your cake.", "Veuillez sélectionner une couleur de base pour votre gâteau."), variant: "destructive" });
       return;
     }
 
@@ -1815,10 +1814,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               </div>
 
               {/* Pickup Date Selection */}
-              <RequiredFieldsLegend className="text-left italic text-[11px]" />
               <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground flex items-center gap-1">
-                  {t("Pickup Date", "Date de retrait")} <span className="text-destructive">*</span>
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
+                  {t("Pickup date", "Date de retrait")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
                     <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose your pick-up date (minimum 2 days in advance).", "Choisissez votre date de retrait (minimum 2 jours à l'avance).")}</p></TooltipContent>
@@ -1888,7 +1886,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Size Selection with box images */}
               <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground flex items-center gap-1">
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
                   {t("Size", "Taille")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1965,7 +1963,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           comes in both boxes; otherwise just name the box. */}
                       {isSmall && smallBoxes.length > 1 && (
                         <div className="space-y-2 pt-2">
-                          <label className="text-sm font-bold text-foreground flex items-center gap-1">
+                          <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
                             {t("Box choice", "Choix de la boîte")} <span className="text-destructive">*</span>
                           </label>
                           <Select
@@ -2026,7 +2024,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Shape Selection */}
               {!["rectangle-signature","rectangle-raspberries","rectangle-flowers"].includes(selectedCake?.styleId ?? "") && shapes.filter(s => selections.size in s.extraPrice).length > 0 && <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground flex items-center gap-1">
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
                   {t("Shape", "Forme")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -2055,7 +2053,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Flavor Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground flex items-center gap-1">
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
                   {t("Flavour", "Parfum")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -2134,7 +2132,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Shag Cake Design Preference */}
               {selectedCake?.images && selectedCake.images.length > 1 && !["retro-vintage", "shag-cake", "printed-picture", "custom-drawing", "roses-please", "butterfly-garden", "gender-reveal"].includes(selectedCake.styleId) && (
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-foreground">{t("Choose your preferred design", "Choisissez votre design préféré")}</label>
+                  <label className="text-[14px] font-semibold text-foreground">{t("Choose your preferred design", "Choisissez votre design préféré")}</label>
                   <div className="grid grid-cols-2 gap-3">
                     {selectedCake.images.map((img, i) => (
                       <button
@@ -2157,8 +2155,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Base Colour Selection */}
               {colorCfg.showBase && (
               <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground flex items-center gap-1">
-                  {t("Base Colour", "Couleur de base")} <span className="text-destructive">*</span>
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
+                  {t("Base colour", "Couleur de base")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
                     <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose the main colour of your cake.", "Choisissez la couleur principale de votre gâteau.")}</p></TooltipContent>
@@ -2205,7 +2203,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 const maxColors = colorCfg.secondaryMax;
                 return (
               <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground flex items-center gap-1">
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
                   {t(colorCfg.secondaryLabel, secondaryLabelFr[colorCfg.secondaryLabel] ?? colorCfg.secondaryLabel)} <span className="text-destructive cursor-help">
                     <Tooltip>
                       <TooltipTrigger asChild><span>*</span></TooltipTrigger>
@@ -2279,8 +2277,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Rose Colour, Roses Please only */}
               {colorCfg.roseColor && (
               <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground flex items-center gap-1">
-                  {t("Roses Colour", "Couleur des roses")} <span className="text-destructive">*</span>
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
+                  {t("Roses colour", "Couleur des roses")} <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
                     <TooltipContent><p className="text-xs max-w-[200px]">{t("Choose one colour for the piped roses.", "Choisissez une couleur pour les roses pochées.")}</p></TooltipContent>
@@ -2308,11 +2306,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {selectedCake?.styleId === "rainbow-cake" && (
                 <div className="space-y-4">
                   {([
-                    { key: "borderTopColor", label: t("Top Border Colour", "Couleur de la bordure du haut") },
-                    { key: "borderBottomColor", label: t("Bottom Border Colour", "Couleur de la bordure du bas") },
+                    { key: "borderTopColor", label: t("Top border colour", "Couleur de la bordure du haut") },
+                    { key: "borderBottomColor", label: t("Bottom border colour", "Couleur de la bordure du bas") },
                   ] as const).map(({ key, label }) => (
                     <div key={key} className="space-y-2">
-                      <label className="text-sm font-bold text-foreground flex items-center gap-1">
+                      <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
                         {label} <span className="text-destructive">*</span>
                       </label>
                       <Select value={selections[key] ?? ""} onValueChange={(v) => setSelections({ ...selections, [key]: v })}>
@@ -2338,8 +2336,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Text Toggle - hidden for printed-picture */}
               {!selectedCake?.disableText && (
               <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground flex items-center gap-1">
-                  {t("Add Text", "Ajouter un texte")}
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
+                  {t("Add text", "Ajouter un texte")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
                     <TooltipContent><p className="text-xs max-w-[220px]">{t("Add a text and choose its typography (optional).", "Ajoutez un texte et choisissez sa typographie (optionnel).")}</p></TooltipContent>
@@ -2355,7 +2353,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         : "bg-muted text-muted-foreground hover:bg-muted/80"
                     )}
                   >
-                    {t("No Text", "Sans texte")}
+                    {t("No text", "Sans texte")}
                   </button>
                   <button
                     onClick={() => setSelections({ ...selections, wantsText: true })}
@@ -2366,7 +2364,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         : "bg-muted text-muted-foreground hover:bg-muted/80"
                     )}
                   >
-                    {t("Add Text", "Ajouter un texte")}
+                    {t("Add text", "Ajouter un texte")}
                   </button>
                 </div>
               </div>
@@ -2376,7 +2374,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                 <>
                   {/* Text Style Selection */}
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground">{t("Text Style", "Style du texte")}</label>
+                    <label className="text-[14px] font-semibold text-foreground">{t("Text style", "Style du texte")}</label>
                     <div className="flex gap-2">
                       {textStyles.map((style) => (
                         <button
@@ -2399,7 +2397,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
                   {/* Text Input */}
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground">{t("Your Message", "Votre message")}</label>
+                    <label className="text-[14px] font-semibold text-foreground">{t("Your message", "Votre message")}</label>
                     <input
                       type="text"
                       value={selections.cakeText}
@@ -2428,7 +2426,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
                   {/* Text Colour Selection */}
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground">{t("Text Colour", "Couleur du texte")}</label>
+                    <label className="text-[14px] font-semibold text-foreground">{t("Text colour", "Couleur du texte")}</label>
                     <Select value={selections.textColor ?? ""} onValueChange={(v) => setSelections({ ...selections, textColor: v })}>
                       <SelectTrigger>
                         <SelectValue placeholder={t("Select a colour", "Choisir une couleur")} />
@@ -2451,8 +2449,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
               {/* Extras Section */}
               <div className="space-y-3">
                 {!extrasHiddenForDesign && (
-                <label className="text-sm font-bold text-foreground flex items-center gap-1">
-                  {t("Extra", "Extras")}
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
+                  {t("Extras", "Extras")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
                     <TooltipContent><p className="text-xs max-w-[220px]">{t("Add decorations to personalise your design (optional).", "Ajoutez des décorations pour personnaliser votre design (optionnel).")}</p></TooltipContent>
@@ -2718,7 +2716,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                {/* Printed Picture Upload - for printed-picture style or extra */}
               {(selectedCake?.styleId === "printed-picture" || selections.extras.includes("printed-picture")) && (
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-foreground">{t("Upload Your Image", "Téléchargez votre image")}</label>
+                  <label className="text-[14px] font-semibold text-foreground">{t("Upload your image", "Téléchargez votre image")}</label>
                   <p className="text-xs text-muted-foreground">
                     {t("Upload the image or logo you want printed on your cake (JPG, PNG, WEBP)", "Téléchargez l'image ou le logo que vous souhaitez faire imprimer sur votre gâteau (JPG, PNG, WEBP)")}
                   </p>
@@ -2758,7 +2756,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Comment & Image Upload Section */}
               <div className="space-y-3">
-                <label className="text-sm font-bold text-foreground flex items-center gap-1">
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
                   {t("Comment", "Commentaire")}
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
@@ -2833,7 +2831,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Candles Section - Packs first, then individual */}
               <div className="space-y-3 p-4">
-                <label className="text-sm font-bold text-foreground">{t("Candles (Optional)", "Bougies (optionnel)")}</label>
+                <label className="text-[14px] font-semibold text-foreground">{t("Candles (optional)", "Bougies (optionnel)")}</label>
                 
                 {/* All candles in one ordered list */}
                 <div className="space-y-2">

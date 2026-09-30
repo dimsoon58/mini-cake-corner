@@ -15,7 +15,7 @@ export const GlutenFreeToggle = ({ value, onChange, className }: {
   ];
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <span className="text-sm text-foreground">{t("Gluten-free?", "Sans gluten ?")}</span>
+      <span className="text-[13px] text-foreground/60">{t("Gluten-free?", "Sans gluten ?")}</span>
       <div role="radiogroup" aria-label={t("Gluten-free", "Sans gluten")} className="flex">
         {options.map((o) => (
           <button
