@@ -177,7 +177,7 @@ export const flavorCategories = [
     name: "Gluten-Free Deluxe",
     extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 },
     flavors: [
-      { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", image: flavorVanilla /* TODO: no equivalent photo exists — needs a real one */ },
+      // { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", image: flavorVanilla /* TODO: no equivalent photo exists — needs a real one */ }, // hidden: not available
       { id: "pistachio-gf", name: "Pistachio Gluten-free", image: flavorPistachio /* TODO: real product photo */ },
       { id: "tiramisu-gf", name: "Tiramisu Gluten-free", image: flavorTiramisu /* TODO: real product photo */ },
       { id: "passion-fruit-gf", name: "Passion Fruit Gluten-free", image: flavorPassionFruit /* TODO: real product photo */ },
