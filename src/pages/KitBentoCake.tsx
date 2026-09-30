@@ -152,7 +152,7 @@ export const glutenFreeFlavorCategories = [
     nameFr: "Sans Gluten Deluxe",
     extraPrice: 8,
     flavors: [
-      { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", nameFr: "Orange Blossom Gluten-free", image: flavorVanilla },
+      // { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", nameFr: "Orange Blossom Gluten-free", image: flavorVanilla }, // hidden
       { id: "tiramisu-gf", name: "Tiramisu Gluten-free", nameFr: "Tiramisu Gluten-free", image: flavorTiramisu },
       { id: "passion-fruit-gf", name: "Passion Fruit Gluten-free", nameFr: "Passion Fruit Gluten-free", image: flavorPassionFruit },
       { id: "praline-gf", name: "Praline Gluten-free", nameFr: "Praline Gluten-free", image: flavorPraline },

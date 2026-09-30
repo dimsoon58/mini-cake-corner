@@ -241,7 +241,7 @@ const flavors = [
   { id: "vanilla-gf-berrylicious", name: "Vanilla GF × Berrylicious", image: flavorWhiteBerrylicious, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
   { id: "lemon-curd-gf", name: "Lemon Curd Gluten-free", image: flavorLemonCurd, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
   { id: "chocolate-lovers-gf", name: "Chocolate Lovers Gluten-free", image: flavorChocolateLovers, extraPrice: { bento: 6, retro: 6, medium: 15, large: 25, rectangle: 50 } },
-  { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", image: flavorVanilla, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
+  // { id: "orange-blossom-gf", name: "Orange Blossom Gluten-free", image: flavorVanilla, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } }, // hidden
   { id: "pistachio-gf", name: "Pistachio Gluten-free", image: flavorPistachio, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
   { id: "tiramisu-gf", name: "Tiramisu Gluten-free", image: flavorTiramisu, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
   { id: "passion-fruit-gf", name: "Passion Fruit Gluten-free", image: flavorPassionFruit, extraPrice: { bento: 8, retro: 8, medium: 20, large: 30, rectangle: 60 } },
@@ -255,7 +255,7 @@ const PREMIUM_FLAVOR_IDS = ["chocolate-lovers", "dark-berrylicious", "white-berr
 const DELUXE_FLAVOR_IDS = ["chocolate-lover-berrylicious", "tiramisu", "praline", "passion-fruit"];
 const GF_STANDARD_FLAVOR_IDS = ["vanilla-gf", "red-velvet-gf", "chocolate-gf"];
 const GF_PREMIUM_FLAVOR_IDS = ["chocolate-gf-berrylicious", "vanilla-gf-berrylicious", "lemon-curd-gf", "chocolate-lovers-gf"];
-const GF_DELUXE_FLAVOR_IDS = ["orange-blossom-gf", "tiramisu-gf", "passion-fruit-gf", "praline-gf"];
+const GF_DELUXE_FLAVOR_IDS = ["tiramisu-gf", "passion-fruit-gf", "praline-gf"]; // orange-blossom-gf hidden
 
 const standardFlavors = flavors.filter((f) => STANDARD_FLAVOR_IDS.includes(f.id));
 const premiumFlavors = flavors.filter((f) => PREMIUM_FLAVOR_IDS.includes(f.id));
