@@ -9,6 +9,7 @@ import {
   type QuoteItemInput,
 } from "../_shared/manual-order-quote.ts";
 import { FLAVOUR_BY_ID, resolveFlavour } from "../_shared/production-catalog.ts";
+import { CAKE_EXTRAS, DIY_KIT_PIPING, roundToCents } from "../_shared/pricing.ts";
 
 // Admin manual orders — writes. Same core tables as website orders (orders,
 // order_items, order_fulfillments); no second order system.
@@ -33,6 +34,18 @@ import { FLAVOUR_BY_ID, resolveFlavour } from "../_shared/production-catalog.ts"
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
+// Price of an item's extras (a repeated id, e.g. Scattered Pearls × 3, counts
+// each time, exactly like priceOrderItem()).
+function extrasPrice(it: EditorItem): number {
+  const extras = Array.isArray(it.extras) ? it.extras : [];
+  if (it.product === "bento_cake" || it.product === "rectangle_cake") {
+    const size = String(it.size ?? "") as keyof (typeof CAKE_EXTRAS)[string];
+    return roundToCents(extras.reduce((sum, e) => sum + (CAKE_EXTRAS[e]?.[size] ?? 0), 0));
+  }
+  if (it.product === "diy_kit") return roundToCents(extras.reduce((sum, e) => sum + (DIY_KIT_PIPING[e] ?? 0), 0));
+  return 0;
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CHANNELS = ["phone", "instagram", "whatsapp", "email", "in_person", "other"];
@@ -49,6 +62,8 @@ interface EditorItem extends QuoteItemInput {
   text_style?: string | null;
   ribbon_color?: string | null;
   butterfly_color?: string | null;
+  extra?: string | null;              // readable extras, e.g. "Gold Leaves, Scattered Pearls × 3"
+  extra_type?: string | null;         // their catalogue groups, e.g. "Toppings, Pearls"
   workshop_sponge_choices?: string[] | null;
   workshop_has_minor?: boolean;
   workshop_minor_consent_confirmed?: boolean;
@@ -415,6 +430,12 @@ serve(async (req) => {
             text_color: strOrNull(it.text_color),
             text_style: strOrNull(it.text_style),
             ribbon_color: strOrNull(it.ribbon_color),
+            // Readable extras for the emails / invoice / Admin detail (the
+            // checkout fills the same columns). Display text only — the
+            // price below comes from the engine's own tables.
+            extra: isWorkshop ? null : strOrNull(it.extra),
+            extra_type: isWorkshop ? null : strOrNull(it.extra_type),
+            extras_price: isWorkshop ? 0 : extrasPrice(it),
             butterfly_color: strOrNull(it.butterfly_color),
             workshop_type: ws?.type ?? null,
             workshop_session_id: isWorkshop ? (it.workshop_session_id ?? null) : null,

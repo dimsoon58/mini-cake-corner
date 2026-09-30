@@ -80,7 +80,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       if (newSession?.user) {
-        fetchProfile(newSession.user.id);
+        // Deferred out of the callback, as Supabase recommends: a query made
+        // while the auth client is still dispatching this event waits on its
+        // internal session lock, which delayed the profile (and the Account
+        // page's "Loading...").
+        const userId = newSession.user.id;
+        setTimeout(() => { if (mounted) fetchProfile(userId); }, 0);
       } else {
         setProfile(null);
       }

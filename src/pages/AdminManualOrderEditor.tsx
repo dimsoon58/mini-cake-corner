@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
-import { AlertTriangle, ChevronLeft, Loader2, Lock, Plus, Trash2 } from "lucide-react";
+import { fr as frLocale } from "date-fns/locale";
+import { AlertTriangle, CalendarIcon, ChevronLeft, Loader2, Lock, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { DeliveryAddressAutocomplete } from "@/components/DeliveryAddressAutocomplete";
@@ -19,13 +22,16 @@ import {
   type DateGroup,
   type EditorItem,
   emptyItem,
+  extraFields,
   friendlyMessage,
   type ManualOrderCatalog,
   newKey,
   type QuoteResult,
   CHANNEL_LABELS,
   formatChf,
+  labelBreakdownLine,
   MANUAL_STATUS_LABELS,
+  slotsFor,
 } from "@/lib/manualOrders";
 
 // Admin > Manual orders — create / edit (draft or awaiting payment). Prices
@@ -34,8 +40,57 @@ import {
 // again on the server (manage-manual-order).
 
 const field = "w-full border border-input bg-background px-2 py-1.5 text-sm rounded-none";
-const label = "block text-xs font-medium text-foreground mb-1";
-const sectionTitle = "px-4 py-2.5 border-b border-border/60 text-sm font-semibold uppercase tracking-[0.12em] text-foreground";
+const label = "block text-xs font-bold uppercase tracking-[0.08em] text-foreground mb-1.5";
+const sectionTitle = "px-4 py-3 border-b border-border/60 text-base font-bold uppercase tracking-[0.12em] text-foreground";
+
+// "YYYY-MM-DD" <-> local Date (never through UTC, so the day never shifts).
+const parseDay = (s: string) => {
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : undefined;
+};
+
+// Same calendar as the checkout. Past days are blocked; today and tomorrow
+// stay possible for an Admin order.
+const DayPicker = ({ value, onChange, lang }: { value: string; onChange: (v: string) => void; lang: "en" | "fr" }) => {
+  const [open, setOpen] = useState(false);
+  const selected = parseDay(value);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" className={cn(field, "flex items-center gap-2 text-left", !selected && "text-muted-foreground")}>
+          <CalendarIcon className="w-4 h-4 shrink-0" />
+          {selected
+            ? format(selected, lang === "fr" ? "EEEE d MMMM yyyy" : "EEEE, MMMM d, yyyy", lang === "fr" ? { locale: frLocale } : undefined)
+            : lang === "fr" ? "Choisir une date" : "Pick a date"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={selected}
+          defaultMonth={selected}
+          onSelect={(d) => { if (d) { onChange(format(d, "yyyy-MM-dd")); setOpen(false); } }}
+          disabled={(d) => d < today}
+          locale={lang === "fr" ? frLocale : undefined}
+          weekStartsOn={1}
+          initialFocus
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// A server call never leaves a button spinning: after this delay the
+// editor stops waiting and says so.
+const SERVER_TIMEOUT_MS = 30_000;
+const TIMEOUT = Symbol("timeout");
+function withTimeout<T>(p: Promise<T>): Promise<T | typeof TIMEOUT> {
+  return Promise.race([p, new Promise<typeof TIMEOUT>((resolve) => setTimeout(() => resolve(TIMEOUT), SERVER_TIMEOUT_MS))]);
+}
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const emptyGroup = (): DateGroup => ({ key: newKey(), date: "", deliveryMethod: "pickup", slot: "", placeId: null, addressLabel: null });
 
@@ -69,6 +124,7 @@ const AdminManualOrderEditor = () => {
 
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [quoting, setQuoting] = useState(false);
+  const [quoteFailed, setQuoteFailed] = useState(false);
   const [saving, setSaving] = useState<"draft" | "confirm" | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
 
@@ -151,6 +207,13 @@ const AdminManualOrderEditor = () => {
     return { type: adjMode, value };
   }, [adjMode, adjValue, adjDirection]);
 
+  // With a single date every product belongs to it; the per-product date
+  // choice only exists when the order has several dates.
+  const dateKeyOf = useCallback(
+    (it: EditorItem) => (groups.length === 1 ? groups[0].key : it.dateKey),
+    [groups],
+  );
+
   const payload = useMemo(() => {
     const itemsPayload = items.map((it) => ({
       product: it.product, size: it.size, shape: it.shape, flavors: it.flavors, design: it.design, extras: it.extras, candles: it.candles,
@@ -159,6 +222,7 @@ const AdminManualOrderEditor = () => {
       workshop_minor_consent_confirmed: it.workshop_minor_consent_confirmed,
       item_comment: it.item_comment, internal_notes: it.internal_notes, reference_images: it.reference_images,
       base_color: it.base_color, decoration_color: it.decoration_color, cake_text: it.cake_text, text_color: it.text_color, text_style: it.text_style,
+      ...extraFields(it),
     }));
     const fulfillments = groups
       .map((g) => ({
@@ -166,11 +230,11 @@ const AdminManualOrderEditor = () => {
         deliveryMethod: g.deliveryMethod,
         deliveryPlaceId: g.deliveryMethod === "delivery" ? g.placeId : null,
         slot: g.slot || null,
-        itemIndexes: items.map((it, i) => (it.product !== "workshop" && it.dateKey === g.key ? i : -1)).filter((i) => i >= 0),
+        itemIndexes: items.map((it, i) => (it.product !== "workshop" && dateKeyOf(it) === g.key ? i : -1)).filter((i) => i >= 0),
       }))
       .filter((f) => f.itemIndexes.length > 0);
     return { items: itemsPayload, fulfillments };
-  }, [items, groups]);
+  }, [items, groups, dateKeyOf]);
 
   // ── Live quote (debounced) ────────────────────────────────────────────
   const quoteSeq = useRef(0);
@@ -179,17 +243,49 @@ const AdminManualOrderEditor = () => {
     const seq = ++quoteSeq.current;
     const handle = setTimeout(async () => {
       setQuoting(true);
-      const { data, error } = await supabase.functions.invoke("quote-manual-order", { body: { ...payload, adjustment } });
-      if (seq !== quoteSeq.current) return;
-      setQuoting(false);
-      if (error || data?.error) { console.error("quote failed:", error || data?.error); return; }
-      setQuote(data as QuoteResult);
+      setQuoteFailed(false);
+      try {
+        const res = await withTimeout(supabase.functions.invoke("quote-manual-order", { body: { ...payload, adjustment } }));
+        if (seq !== quoteSeq.current) return;
+        if (res === TIMEOUT || res.error || res.data?.error) {
+          console.error("quote failed:", res === TIMEOUT ? "timeout" : res.error || res.data?.error);
+          setQuoteFailed(true);
+          return;
+        }
+        setQuote(res.data as QuoteResult);
+      } catch (e) {
+        if (seq === quoteSeq.current) { console.error("quote failed:", e); setQuoteFailed(true); }
+      } finally {
+        if (seq === quoteSeq.current) setQuoting(false);
+      }
     }, 400);
     return () => clearTimeout(handle);
   }, [catalog, payload, adjustment, items.length]);
 
+  // ── What is still missing to confirm (shown live, checked on confirm) ──
+  // Same rules as the server's confirm check; the server re-checks anyway.
+  const missing = useMemo(() => {
+    const l = lang === "en" ? "en" : "fr";
+    const out: string[] = [];
+    if (!customer.first_name.trim()) out.push(t("First name", "Prénom"));
+    if (!customer.last_name.trim()) out.push(t("Last name", "Nom"));
+    if (!customer.phone.trim()) out.push(t("Phone", "Téléphone"));
+    if (!EMAIL_RE.test(customer.email.trim())) out.push(t("A valid email", "Un email valide"));
+    if (items.length === 0) out.push(t("At least one product", "Au moins un produit"));
+    const physical = items.some((it) => it.product !== "workshop");
+    if (physical && groups.some((g) => !g.date)) out.push(t("The date (section 3)", "La date (section 3)"));
+    quote?.items.forEach((r, i) => { if (r.error) out.push(`${t("Product", "Produit")} ${i + 1} : ${friendlyMessage(r.error, l)}`); });
+    quote?.errors.forEach((e) => out.push(friendlyMessage(e, l)));
+    return Array.from(new Set(out));
+  }, [customer, items, groups, quote, lang, t]);
+
   // ── Save ──────────────────────────────────────────────────────────────
   const save = async (mode: "draft" | "confirm") => {
+    if (mode === "confirm" && missing.length > 0) {
+      setProblems(missing);
+      toast.error(t("Some information is missing", "Des informations manquent"));
+      return;
+    }
     setSaving(mode);
     setProblems([]);
     const body = {
@@ -202,8 +298,28 @@ const AdminManualOrderEditor = () => {
       ...payload,
       adjustment: adjustment ? { ...adjustment, reason: adjReason || null, note: adjNote || null } : null,
     };
-    const { data, error } = await supabase.functions.invoke("manage-manual-order", { body });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let res: { data: any; error: unknown } | typeof TIMEOUT;
+    try {
+      res = await withTimeout(supabase.functions.invoke("manage-manual-order", { body }));
+    } catch (e) {
+      console.error("save failed:", e);
+      setSaving(null);
+      setProblems([t("The server could not be reached. Check your connection and try again.", "Le serveur n'a pas pu être joint. Vérifiez votre connexion et réessayez.")]);
+      toast.error(t("Not saved", "Non enregistrée"));
+      return;
+    }
     setSaving(null);
+    if (res === TIMEOUT) {
+      // The order may still have been created: never invite a blind retry.
+      setProblems([t(
+        "The server did not answer within 30 seconds. The order may have been saved anyway — check the manual orders list before trying again.",
+        "Le serveur n'a pas répondu en 30 secondes. La commande a peut-être quand même été enregistrée — vérifiez la liste des commandes manuelles avant de réessayer.",
+      )]);
+      toast.error(t("No answer from the server", "Pas de réponse du serveur"));
+      return;
+    }
+    const { data, error } = res;
     if (error || data?.error) {
       let detail: { error?: string; problems?: string[] } | null = data ?? null;
       if (error) {
@@ -256,7 +372,6 @@ const AdminManualOrderEditor = () => {
 
   const status = !orderId ? null : isDraft ? "draft" : "awaiting_payment";
   const readOnly = !!notEditable;
-  const today = format(new Date(), "yyyy-MM-dd");
   const q = quote;
   const adjAmount = q?.adjustment.amount ?? 0;
 
@@ -327,7 +442,7 @@ const AdminManualOrderEditor = () => {
 
             {/* 2. Products */}
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-foreground">2. {t("Products", "Produits")}</h2>
+              <h2 className="text-base font-bold uppercase tracking-[0.12em] text-foreground">2. {t("Products", "Produits")}</h2>
               {items.map((it, i) => (
                 <ItemEditor
                   key={it.key}
@@ -359,11 +474,11 @@ const AdminManualOrderEditor = () => {
                 </p>
                 {groups.map((g, gi) => {
                   const fq = q?.fulfillments.find((f) => f.date === g.date);
-                  const used = items.some((it) => it.dateKey === g.key && it.product !== "workshop");
+                  const used = items.some((it) => dateKeyOf(it) === g.key && it.product !== "workshop");
                   return (
                     <div key={g.key} className="border border-border/50 p-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold uppercase tracking-[0.1em]">{t("Date", "Date")} {gi + 1}</span>
+                        <span className="text-sm font-bold uppercase tracking-[0.1em]">{t("Date", "Date")} {gi + 1}</span>
                         {groups.length > 1 && (
                           <button type="button" onClick={() => {
                             setGroups((prev) => prev.filter((x) => x.key !== g.key));
@@ -376,18 +491,31 @@ const AdminManualOrderEditor = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
                           <label className={label}>{t("Date", "Date")}</label>
-                          <input type="date" min={today} value={g.date} onChange={(e) => setGroups((prev) => prev.map((x) => (x.key === g.key ? { ...x, date: e.target.value } : x)))} className={field} />
+                          <DayPicker value={g.date} lang={lang === "en" ? "en" : "fr"} onChange={(v) => setGroups((prev) => prev.map((x) => (x.key === g.key ? { ...x, date: v } : x)))} />
                         </div>
                         <div>
                           <label className={label}>{t("Method", "Mode")}</label>
-                          <select value={g.deliveryMethod} onChange={(e) => setGroups((prev) => prev.map((x) => (x.key === g.key ? { ...x, deliveryMethod: e.target.value === "delivery" ? "delivery" : "pickup" } : x)))} className={field}>
+                          <select
+                            value={g.deliveryMethod}
+                            onChange={(e) => {
+                              const method = e.target.value === "delivery" ? "delivery" : "pickup";
+                              // Keep the slot only if the other list has it too.
+                              setGroups((prev) => prev.map((x) => (x.key === g.key ? { ...x, deliveryMethod: method, slot: slotsFor(method).includes(x.slot) ? x.slot : "" } : x)));
+                            }}
+                            className={field}
+                          >
                             <option value="pickup">{t("Pickup", "Retrait")}</option>
                             <option value="delivery">{t("Delivery", "Livraison")}</option>
                           </select>
                         </div>
                         <div>
                           <label className={label}>{t("Time slot", "Créneau")}</label>
-                          <input value={g.slot} placeholder="10:00-12:00" onChange={(e) => setGroups((prev) => prev.map((x) => (x.key === g.key ? { ...x, slot: e.target.value } : x)))} className={field} />
+                          <select value={g.slot} onChange={(e) => setGroups((prev) => prev.map((x) => (x.key === g.key ? { ...x, slot: e.target.value } : x)))} className={field}>
+                            <option value="">{t("Choose a time slot…", "Choisir un créneau…")}</option>
+                            {/* An older free-text slot stays visible until it is replaced. */}
+                            {g.slot && !slotsFor(g.deliveryMethod).includes(g.slot) && <option value={g.slot}>{g.slot}</option>}
+                            {slotsFor(g.deliveryMethod).map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
                         </div>
                       </div>
                       {g.deliveryMethod === "delivery" && (
@@ -418,7 +546,17 @@ const AdminManualOrderEditor = () => {
                     </div>
                   );
                 })}
-                <button type="button" onClick={() => setGroups((prev) => [...prev, emptyGroup()])} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const first = groups[0]?.key ?? null;
+                    const known = new Set(groups.map((g) => g.key));
+                    // Products that were implicitly on the single date stay on it.
+                    setItems((prev) => prev.map((it) => (it.product !== "workshop" && (!it.dateKey || !known.has(it.dateKey)) ? { ...it, dateKey: first } : it)));
+                    setGroups((prev) => [...prev, emptyGroup()]);
+                  }}
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                >
                   <Plus className="w-4 h-4" /> {t("Add a date", "Ajouter une date")}
                 </button>
               </div>
@@ -447,12 +585,27 @@ const AdminManualOrderEditor = () => {
                 {t("Price", "Prix")} {quoting && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
               </p>
               <ul className="space-y-1">
-                {items.map((it, i) => (
-                  <li key={it.key} className="flex justify-between gap-2">
-                    <span className="text-muted-foreground">{t("Product", "Produit")} {i + 1}</span>
-                    <span>{q?.items[i]?.total != null ? formatChf(q.items[i].total) : <span className="text-amber-800">—</span>}</span>
-                  </li>
-                ))}
+                {items.map((it, i) => {
+                  const qi = q?.items[i];
+                  return (
+                    <li key={it.key}>
+                      <div className="flex justify-between gap-2 font-semibold">
+                        <span>{t("Product", "Produit")} {i + 1}</span>
+                        <span>{qi?.total != null ? formatChf(qi.total) : <span className="text-amber-800">—</span>}</span>
+                      </div>
+                      {qi?.total != null && qi.breakdown && qi.breakdown.length > 0 && (
+                        <ul className="mt-0.5 mb-1.5 pl-3 border-l border-border space-y-0.5 text-xs">
+                          {qi.breakdown.map((line, li) => (
+                            <li key={li} className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">{labelBreakdownLine(line, catalog, lang === "en" ? "en" : "fr")}</span>
+                              <span className={line.amount === 0 ? "text-muted-foreground" : ""}>{line.amount === 0 ? t("incl.", "inclus") : `+${line.amount.toFixed(2)}`}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
                 <li className="flex justify-between"><span className="text-muted-foreground">{t("Delivery", "Livraison")}</span><span>{formatChf(q?.totals.delivery ?? 0)}</span></li>
                 <li className="flex justify-between"><span className="text-muted-foreground">{t("Express", "Express")}</span><span>{formatChf(q?.totals.express ?? 0)}</span></li>
               </ul>
@@ -508,10 +661,19 @@ const AdminManualOrderEditor = () => {
                 <span>{q?.final != null ? formatChf(q.final) : "—"}</span>
               </div>
 
-              {q && !q.ok && (q.errors.length > 0 || q.items.some((r) => r.error)) && (
-                <ul className="text-xs text-amber-800 space-y-0.5">
-                  {q.errors.map((e) => <li key={e}>• {friendlyMessage(e, lang === "en" ? "en" : "fr")}</li>)}
-                </ul>
+              {quoteFailed && (
+                <p className="text-xs text-destructive">
+                  {t("The price could not be calculated (server error). Change a field to try again.", "Le prix n'a pas pu être calculé (erreur serveur). Modifiez un champ pour réessayer.")}
+                </p>
+              )}
+              {!readOnly && missing.length > 0 && (
+                <div className="border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  <p className="font-semibold mb-1">{t("Missing before confirming:", "Il manque pour confirmer :")}</p>
+                  <ul className="space-y-0.5">
+                    {missing.map((m) => <li key={m}>• {m}</li>)}
+                  </ul>
+                  <p className="mt-1 text-amber-800/80">{t("You can still save a draft.", "Vous pouvez quand même enregistrer un brouillon.")}</p>
+                </div>
               )}
               {problems.length > 0 && (
                 <ul className="text-xs text-destructive space-y-0.5 border-t border-border pt-2">

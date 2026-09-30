@@ -60,6 +60,16 @@ export const TIER1_MAX_DAYS = 3;   // J+2 / J+3
 export const TIER1_RATE = 0.20;
 export const TIER2_MAX_DAYS = 5;   // J+4 / J+5
 export const TIER2_RATE = 0.15;
+// Admin manual orders only: today / tomorrow (J+0 / J+1), which the website
+// never offers, carry the same 20% as J+2 / J+3.
+export const SHORT_NOTICE_RATE = 0.20;
+
+// The shop is closed on Sundays: the website can't order for a Sunday
+// (the Admin manual-order flow may, as an exception).
+export function isClosedDayISO(dateISO: string): boolean {
+  const d = new Date(Date.UTC(+dateISO.slice(0, 4), +dateISO.slice(5, 7) - 1, +dateISO.slice(8, 10)));
+  return d.getUTCDay() === 0;
+}
 
 // Today's calendar date in Europe/Zurich as "YYYY-MM-DD" — avoids the UTC
 // off-by-one when deciding whether an order is "express" / too soon.
@@ -92,9 +102,14 @@ export function daysUntilPickup(pickupDeliveryDate: string | null | undefined): 
 // ORDER_LEAD_DAYS floor itself is still enforced separately wherever a date
 // is first accepted (resolveOneFulfillment / the legacy single-date check
 // below) — this only picks the rate once a date is already known valid.
-export function expressSurchargeRate(pickupDeliveryDate: string | null | undefined): number {
+// options.shortNotice (Admin manual orders only): J+0 / J+1 -> SHORT_NOTICE_RATE.
+export function expressSurchargeRate(
+  pickupDeliveryDate: string | null | undefined,
+  options: { shortNotice?: boolean } = {},
+): number {
   const d = daysUntilPickup(pickupDeliveryDate);
-  if (d === null || d < ORDER_LEAD_DAYS) return 0;
+  if (d === null || d < 0) return 0;
+  if (d < ORDER_LEAD_DAYS) return options.shortNotice ? SHORT_NOTICE_RATE : 0;
   if (d <= TIER1_MAX_DAYS) return TIER1_RATE;
   if (d <= TIER2_MAX_DAYS) return TIER2_RATE;
   return 0;
@@ -107,15 +122,16 @@ export function expressSurchargeRate(pickupDeliveryDate: string | null | undefin
 // order. Throws on any violation — same defensive posture as everywhere
 // else in this function; one bad fulfillment aborts the whole order (never
 // silently drops or downgrades one date while charging for the others).
-// options.minLeadDays: the Admin manual-order flow passes 0 so an order
-// taken by phone can be for today or tomorrow (website checkout never passes
-// it and keeps ORDER_LEAD_DAYS). The express rate is unaffected: below
-// ORDER_LEAD_DAYS, expressSurchargeRate() already returns 0 — an urgent
-// supplement is then added by hand through the Admin price adjustment.
+// Options — only the Admin manual-order flow passes them; the website
+// checkout never does and keeps every default:
+//   minLeadDays: 0 so an order taken by phone can be for today or tomorrow
+//                (default ORDER_LEAD_DAYS);
+//   allowClosedDays: a Sunday is accepted as an exception (default: refused);
+//   shortNoticeExpress: J+0 / J+1 carry SHORT_NOTICE_RATE (default: 0).
 export async function resolveOneFulfillment(
   input: FulfillmentInput,
   expressEligibleTotal: number,
-  options: { minLeadDays?: number } = {},
+  options: { minLeadDays?: number; allowClosedDays?: boolean; shortNoticeExpress?: boolean } = {},
 ): Promise<ResolvedFulfillment> {
   const minLeadDays = options.minLeadDays ?? ORDER_LEAD_DAYS;
   const date = String(input.date ?? "").slice(0, 10);
@@ -139,6 +155,10 @@ export async function resolveOneFulfillment(
     );
   }
 
+  if (!options.allowClosedDays && isClosedDayISO(date)) {
+    throw new Error(`CLOSED_DAY: fulfillment ${date} — we are closed on Sundays. Please choose another date (for example the Saturday before).`);
+  }
+
   const resolved: ResolvedFulfillment = {
     date,
     deliveryMethod: input.deliveryMethod,
@@ -152,7 +172,7 @@ export async function resolveOneFulfillment(
     deliveryDistanceKm: null,
     deliveryZone: null,
     deliveryFee: 0,
-    expressSurcharge: roundToCents(expressEligibleTotal * expressSurchargeRate(date)),
+    expressSurcharge: roundToCents(expressEligibleTotal * expressSurchargeRate(date, { shortNotice: options.shortNoticeExpress })),
     itemIndexes: input.itemIndexes,
   };
 

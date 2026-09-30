@@ -6,7 +6,8 @@
 // authoritative; these helpers only drive the calendar UI and the checkout
 // preview.
 //
-//   * No daily order cap. Every calendar day is available.
+//   * No daily order cap. Closed on Sundays (never selectable); every other
+//     day is available.
 //   * Lead time: the customer can never order for today or tomorrow. First
 //     selectable date = today + 2 calendar days (Europe/Zurich).
 //   * Express surcharge, tiered (replaces the old flat +10%):
@@ -49,9 +50,19 @@ export function minSelectableOrderDate(): Date {
   return t;
 }
 
-// Calendar `disabled` predicate: everything before J+2 is off. No other rule.
+// The shop is closed on Sundays (server: isClosedDayISO in order-pricing.ts).
+export function isClosedDay(date: Date): boolean {
+  return date.getDay() === 0;
+}
+
+export const CLOSED_DAY_COPY = {
+  en: "We are closed on Sundays. You can order for Saturday.",
+  fr: "Nous sommes fermés le dimanche. Vous pouvez commander pour le samedi.",
+} as const;
+
+// Calendar `disabled` predicate: everything before J+2 is off, and Sundays.
 export function isOrderDateDisabled(date: Date): boolean {
-  return calendarDaysUntil(date) < LEAD_DAYS;
+  return calendarDaysUntil(date) < LEAD_DAYS || isClosedDay(date);
 }
 
 // The express surcharge RATE for a given date: 0.20 (J+2/J+3), 0.15

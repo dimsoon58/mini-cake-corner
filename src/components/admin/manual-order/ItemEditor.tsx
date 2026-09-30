@@ -9,6 +9,7 @@ import {
   type EditorItem,
   emptyItem,
   friendlyMessage,
+  joinColours,
   labelCandle,
   labelDesign,
   labelExtra,
@@ -16,8 +17,11 @@ import {
   labelShape,
   labelSize,
   type ManualOrderCatalog,
+  MAX_EXTRA_QUANTITY,
+  parseColours,
   PRODUCT_OPTIONS,
   type ProductId,
+  QUANTITY_EXTRAS,
   type QuoteResult,
 } from "@/lib/manualOrders";
 
@@ -27,7 +31,7 @@ import {
 // refuse.
 
 const field = "w-full border border-input bg-background px-2 py-1.5 text-sm rounded-none";
-const label = "block text-xs font-medium text-foreground mb-1";
+const label = "block text-xs font-bold uppercase tracking-[0.08em] text-foreground mb-1.5";
 
 type Props = {
   index: number;
@@ -161,6 +165,33 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
     </div>
   );
 
+  // Decoration: several colours can be ticked (stored as "pink, gold").
+  const renderColourChips = () => {
+    const picked = parseColours(item.decoration_color);
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {COLOURS.map((c) => {
+          const on = picked.includes(c.id);
+          return (
+            <button
+              key={c.id}
+              type="button"
+              aria-pressed={on}
+              onClick={() => set({ decoration_color: joinColours(on ? picked.filter((x) => x !== c.id) : [...picked, c.id]) })}
+              className={cn(
+                "inline-flex items-center gap-1.5 border px-2 py-1 text-xs",
+                on ? "border-primary bg-primary/10 font-semibold" : "border-input bg-background hover:border-primary/50",
+              )}
+            >
+              <span className="w-3.5 h-3.5 rounded-full border border-border/70 shrink-0" style={{ backgroundColor: c.color }} />
+              {c.name}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderColourSelect = (id: string, value: string, onPick: (v: string) => void) => (
     <select id={id} value={value} onChange={(e) => onPick(e.target.value)} className={field}>
       <option value="">{t("—", "—")}</option>
@@ -171,7 +202,7 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
   return (
     <div className="border border-border/60 bg-background">
       <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-border/60 bg-secondary/30">
-        <span className="text-xs font-semibold uppercase tracking-[0.1em]">{t("Product", "Produit")} {index + 1}</span>
+        <span className="text-sm font-bold uppercase tracking-[0.1em]">{t("Product", "Produit")} {index + 1}</span>
         <span className="flex items-center gap-3 text-sm">
           {quote?.error ? (
             <span className="inline-flex items-center gap-1 text-xs text-amber-800"><AlertTriangle className="w-3.5 h-3.5" />{friendlyMessage(quote.error, l)}</span>
@@ -238,16 +269,36 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
           <div className="md:col-span-2">
             <label className={label}>{t("Extras", "Extras")}</label>
             <div className="flex flex-wrap gap-x-4 gap-y-1">
-              {extras.map((e) => (
-                <label key={e} className="inline-flex items-center gap-1.5 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={item.extras.includes(e)}
-                    onChange={(ev) => set({ extras: ev.target.checked ? [...item.extras, e] : item.extras.filter((x) => x !== e) })}
-                  />
-                  {labelExtra(e)}
-                </label>
-              ))}
+              {extras.map((e) => {
+                const count = item.extras.filter((x) => x === e).length;
+                return (
+                  <span key={e} className="inline-flex items-center gap-1.5 text-sm">
+                    <label className="inline-flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={count > 0}
+                        onChange={(ev) => set({ extras: ev.target.checked ? [...item.extras, e] : item.extras.filter((x) => x !== e) })}
+                      />
+                      {labelExtra(e)}
+                    </label>
+                    {/* Scattered Pearls can be taken several times: the id is repeated, each one is charged. */}
+                    {count > 0 && QUANTITY_EXTRAS.includes(e) && (
+                      <input
+                        type="number"
+                        min={1}
+                        max={MAX_EXTRA_QUANTITY}
+                        value={count}
+                        onChange={(ev) => {
+                          const n = Math.max(1, Math.min(MAX_EXTRA_QUANTITY, Math.floor(Number(ev.target.value)) || 1));
+                          set({ extras: [...item.extras.filter((x) => x !== e), ...Array.from({ length: n }, () => e)] });
+                        }}
+                        className={cn(field, "w-14 py-0.5")}
+                        aria-label={`${labelExtra(e)} — ${t("quantity", "quantité")}`}
+                      />
+                    )}
+                  </span>
+                );
+              })}
             </div>
           </div>
         )}
@@ -257,9 +308,9 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
               <label className={label} htmlFor={`${item.key}-base`}>{t("Base colour", "Couleur de base")}</label>
               {renderColourSelect(`${item.key}-base`, item.base_color, (v) => set({ base_color: v }))}
             </div>
-            <div>
-              <label className={label} htmlFor={`${item.key}-deco`}>{t("Decoration colour", "Couleur de décoration")}</label>
-              {renderColourSelect(`${item.key}-deco`, item.decoration_color, (v) => set({ decoration_color: v }))}
+            <div className="md:col-span-2">
+              <label className={label}>{t("Decoration colours (several possible)", "Couleurs de décoration (plusieurs possibles)")}</label>
+              {renderColourChips()}
             </div>
             <div>
               <label className={label}>{t("Text on the cake", "Texte sur le gâteau")}</label>
@@ -402,15 +453,16 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
           </div>
         )}
 
-        {/* Date group */}
-        {item.product !== "workshop" && (
+        {/* Date group — only needed when the order has several dates; with a
+            single date every product is attached to it automatically. */}
+        {item.product !== "workshop" && dateGroups.length > 1 && (
           <div className="md:col-span-2">
-            <label className={label}>{t("Date", "Date")}</label>
+            <label className={label}>{t("Picked up / delivered on", "Livré / retiré le")}</label>
             <select value={item.dateKey ?? ""} onChange={(e) => set({ dateKey: e.target.value || null })} className={field}>
-              <option value="">{t("Choose a date group…", "Choisir une date…")}</option>
+              <option value="">{t("Choose one of the dates (section 3)…", "Choisir une des dates (section 3)…")}</option>
               {dateGroups.map((g, gi) => (
                 <option key={g.key} value={g.key}>
-                  {t("Date", "Date")} {gi + 1} — {g.date ? g.date.split("-").reverse().join(".") : "?"} · {g.deliveryMethod === "delivery" ? t("delivery", "livraison") : t("pickup", "retrait")}{g.slot ? ` · ${g.slot}` : ""}
+                  {g.date ? g.date.split("-").reverse().join(".") : `${t("Date", "Date")} ${gi + 1} (${t("no day chosen yet", "jour pas encore choisi")})`} · {g.deliveryMethod === "delivery" ? t("Delivery", "Livraison") : t("Pickup", "Retrait")}{g.slot ? ` · ${g.slot}` : ""}
                 </option>
               ))}
             </select>

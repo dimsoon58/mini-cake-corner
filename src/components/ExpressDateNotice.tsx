@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { DayContentProps } from "react-day-picker";
 import { useLang } from "@/context/LanguageContext";
-import { isExpressDate, expressSelectedCopy, expressTooltipCopy, EXPRESS_COPY } from "@/lib/orderDates";
+import { isExpressDate, expressSelectedCopy, expressTooltipCopy, EXPRESS_COPY, CLOSED_DAY_COPY } from "@/lib/orderDates";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Day number with a small tooltip on an express-surcharge day, stating
@@ -41,14 +41,26 @@ function ExpressDayContent(props: DayContentProps) {
   );
 }
 
+// Line at the bottom of every order calendar: why Sundays are greyed out.
+function ClosedDayFooter() {
+  const { lang } = useLang();
+  return (
+    <p className="mt-2 max-w-[252px] text-xs leading-snug text-muted-foreground">
+      {CLOSED_DAY_COPY[lang === "fr" ? "fr" : "en"]}
+    </p>
+  );
+}
+
 // Spread onto the shadcn <Calendar> so express-surcharge days (J+2..J+5)
-// get a discreet marker + a hover tooltip. No emoji, no icons.
+// get a discreet marker + a hover tooltip, and the closed-on-Sunday line
+// shows under the month. No emoji, no icons.
 export const expressCalendarProps = {
   modifiers: { express: (date: Date) => isExpressDate(date) },
   modifiersClassNames: {
     express: "",
   },
   components: { DayContent: ExpressDayContent },
+  footer: <ClosedDayFooter />,
 };
 
 // Legend shown under any order calendar.
