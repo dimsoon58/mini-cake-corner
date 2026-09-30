@@ -78,8 +78,8 @@ export const PriceSummaryPanel = ({ lines, total, action, className }: PriceSumm
       </p>
       <Lines lines={lines} />
       <div className="flex justify-between items-center border-t border-border pt-4">
-        <span className="font-medium text-foreground">{t("Total", "Total")}</span>
-        <Total total={total} className="text-xl" />
+        <span className="text-xs font-semibold uppercase tracking-[0.105em] text-foreground">{t("Total", "Total")}</span>
+        <Total total={total} className="text-sm font-bold" />
       </div>
       {action}
     </div>
@@ -104,8 +104,8 @@ export const PriceSummaryBar = ({ lines, total, action, className }: PriceSummar
           className="w-full flex justify-between items-center"
         >
           <span className="flex items-baseline gap-3">
-            <span className="font-medium text-foreground">{t("Total", "Total")}</span>
-            <Total total={total} className="text-xl" />
+            <span className="text-xs font-semibold uppercase tracking-[0.105em] text-foreground">{t("Total", "Total")}</span>
+            <Total total={total} className="text-sm font-bold" />
           </span>
           <span className="flex items-center gap-1 text-xs text-primary font-medium">
             {open ? t("Hide details", "Masquer le détail") : t("See details", "Voir le détail")}
