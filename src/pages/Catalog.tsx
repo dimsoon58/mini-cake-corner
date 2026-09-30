@@ -2004,11 +2004,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           </Select>
                         </div>
                       )}
-                      {isSmall && smallBoxes.length === 1 && (
-                        <p className="mt-2 text-[13px] text-foreground/50">
-                          {t("Box", "Boîte")} : {t(smallBoxes[0].name, sizeNameFr[smallBoxes[0].id] ?? smallBoxes[0].name)}
-                        </p>
-                      )}
+
                     </>
                   );
                 })()}
