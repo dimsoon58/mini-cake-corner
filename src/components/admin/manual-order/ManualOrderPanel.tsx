@@ -69,7 +69,7 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
     setBusy("pay");
     setMessage(null);
     const { data, error } = await supabase.functions.invoke("manage-manual-order", {
-      body: { action: "mark_paid", orderId: order.id, paymentMethod: method, paymentNote: method === "other" ? paymentNote : null, paidOn, pin, sendConfirmation },
+      body: { action: "mark_paid", orderId: order.id, paymentMethod: method, paymentNote: paymentNote.trim() || null, paidOn, pin, sendConfirmation },
     });
     setBusy(null);
     if (error || data?.error) {
@@ -167,7 +167,7 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
         <div className="border-t border-border/60 my-1" />
         <Row label={t("Amount paid", "Montant payé")} value={order.paid_amount != null ? formatChf(Number(order.paid_amount)) : "—"} />
         <Row label={t("Payment method", "Moyen de paiement")} value={methodLabel ? tr(methodLabel) : (order.payment_method ?? "—")} />
-        {order.payment_note && <Row label={t("Payment note", "Note de paiement")} value={order.payment_note} />}
+        {order.payment_note && <Row label={t("Payment note", "Note de paiement")} value={<span className="whitespace-pre-line">{order.payment_note}</span>} />}
         <Row label={t("Paid on", "Payée le")} value={order.paid_at ? format(new Date(order.paid_at), "dd.MM.yyyy") : "—"} />
         <Row label={t("Source", "Canal")} value={order.order_channel && CHANNEL_LABELS[order.order_channel] ? tr(CHANNEL_LABELS[order.order_channel]) : "—"} />
         <div className="border-t border-border/60 my-1" />
@@ -239,12 +239,17 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
               <label className="block text-xs mb-1">{t("Payment date", "Date du paiement")}</label>
               <input type="date" value={paidOn} max={format(new Date(), "yyyy-MM-dd")} onChange={(e) => setPaidOn(e.target.value)} className={field} />
             </div>
-            {method === "other" && (
-              <div className="sm:col-span-2">
-                <label className="block text-xs mb-1">{t("Note (e.g. how it was paid)", "Note (ex. comment le paiement a été fait)")}</label>
-                <input value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} className={field} />
-              </div>
-            )}
+            {/* Optional note for any payment method (e.g. "TWINT from her mother"). */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs mb-1">{t("Payment note (optional)", "Note sur le paiement (optionnel)")}</label>
+              <textarea
+                value={paymentNote}
+                onChange={(e) => setPaymentNote(e.target.value)}
+                rows={2}
+                placeholder={t("e.g. TWINT received from her mother, deposit of CHF 50…", "ex. TWINT reçu de sa maman, acompte de 50 CHF…")}
+                className={field}
+              />
+            </div>
             <div>
               <label className="block text-xs mb-1">{t("Admin PIN", "Code PIN administrateur")}</label>
               <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} className={field} autoComplete="off" />
