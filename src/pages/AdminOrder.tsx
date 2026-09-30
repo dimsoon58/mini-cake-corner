@@ -15,6 +15,7 @@ import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment } from
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPanel";
 import { ReferencePhotos } from "@/components/ReferencePhotos";
+import { ProductionCheck } from "@/components/admin/ProductionCheck";
 import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 
 // pending/approved/rejected/cancelled -> the French/English label actually
@@ -408,6 +409,18 @@ const AdminOrder = () => {
   const isAdminManual = order.created_via === "admin";
   const adminUnpaid = isAdminManual && order.payment_status !== "paid";
   const customerName = `${order.first_name || ""} ${order.last_name || ""}`.trim();
+  // "À préparer / Fait" box on each cake: shown, but not tickable, while the
+  // order can't be produced (same rules as update-production-status).
+  const productionBlockedReason: string | null =
+    isCancelled || decisionState === "rejected" || decisionState === "cancelled"
+      ? t("This order is cancelled or refused.", "Cette commande est annulée ou refusée.")
+      : order.is_draft
+        ? t("Draft: confirm the order first.", "Brouillon : confirmez d'abord la commande.")
+        : !isManual && decisionState === "pending"
+          ? t("Accept the order first.", "Acceptez d'abord la commande.")
+          : !isManual && order.payment_status !== "paid"
+            ? t("This order is not paid.", "Cette commande n'est pas payée.")
+            : null;
   // Multi-date fulfillment: order_fulfillments has one row per distinct
   // pickup/delivery date (get-order-detail now returns it, service_role,
   // no RLS concern). ≤1 row is today's ordinary case — same single block
@@ -595,8 +608,20 @@ const AdminOrder = () => {
                         )}
                       </div>
                       <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex justify-between mb-1">
-                          <span className="font-medium text-sm">{productLabel} {i + 1}</span>
+                        <div className="flex justify-between items-center gap-3 mb-1">
+                          <span className="flex items-center gap-2.5">
+                            {item.production_status === "cancelled" ? (
+                              <span className="px-2 py-0.5 text-[11px] bg-red-100 text-red-800">{t("Cancelled", "Annulé")}</span>
+                            ) : (
+                              <ProductionCheck
+                                itemId={item.id}
+                                status={item.production_status}
+                                disabledReason={productionBlockedReason}
+                                onChange={(next) => setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, production_status: next } : x)))}
+                              />
+                            )}
+                            <span className="font-medium text-sm">{productLabel} {i + 1}</span>
+                          </span>
                           <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
                         </div>
                         {isMultiDate && (

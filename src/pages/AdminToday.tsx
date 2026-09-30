@@ -6,6 +6,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Lock, Plus, RefreshC
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { ProductionCheck, isProductionDone } from "@/components/admin/ProductionCheck";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -41,15 +42,6 @@ type DayItem = {
 type Alert = { orderId: string; orderNumber: string | null; issueType: string; detail: string | null; createdAt: string };
 type TodayData = { today: string; tomorrow: string; toDecide: ListedOrder[]; toCollect: ListedOrder[]; days: Record<string, DayItem[]>; alerts: Alert[] };
 
-const PROD_STATUS: Record<string, { en: string; fr: string; className: string }> = {
-  to_assign: { en: "To assign", fr: "À attribuer", className: "bg-secondary text-muted-foreground" },
-  to_prepare: { en: "To prepare", fr: "À préparer", className: "bg-secondary text-foreground/80" },
-  in_progress: { en: "In progress", fr: "En cours", className: "bg-sky-100 text-sky-900" },
-  completed: { en: "Done", fr: "Terminé", className: "bg-emerald-100 text-emerald-800" },
-  ready_for_pickup: { en: "Ready", fr: "Prêt", className: "bg-emerald-100 text-emerald-800" },
-  delivered: { en: "Delivered", fr: "Livré", className: "bg-emerald-100 text-emerald-800" },
-  picked_up: { en: "Picked up", fr: "Retiré", className: "bg-emerald-100 text-emerald-800" },
-};
 
 const ALERT_LABELS: Record<string, { en: string; fr: string }> = {
   PAIEMENT_SANS_REFERENCE: { en: "Paid without a PostFinance reference", fr: "Payée sans référence PostFinance" },
@@ -70,6 +62,15 @@ const AdminToday = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showTomorrow, setShowTomorrow] = useState(false);
+
+  // Local update after a tick (ProductionCheck saves it on the server).
+  const setItemStatus = (itemId: string, status: string) =>
+    setData((d) => d && ({
+      ...d,
+      days: Object.fromEntries(Object.entries(d.days).map(([day, items]) => [
+        day, items.map((it) => (it.itemId === itemId ? { ...it, productionStatus: status } : it)),
+      ])),
+    }));
 
   useEffect(() => {
     document.title = "Admin – Aujourd'hui – Bento Cake Studio";
@@ -163,19 +164,37 @@ const AdminToday = () => {
   const todayItems = today ? data?.days[today] ?? [] : [];
   const tomorrowItems = data?.tomorrow ? data.days[data.tomorrow] ?? [] : [];
 
+  // Cakes still to prepare first, done ones greyed at the bottom (slot order kept).
+  const sortForKitchen = (items: DayItem[]) =>
+    [...items].sort((a, b) => Number(isProductionDone(a.productionStatus)) - Number(isProductionDone(b.productionStatus)));
+  const progress = (items: DayItem[]) => {
+    const cakes = items.filter((i) => i.type === "cake");
+    return { done: cakes.filter((i) => isProductionDone(i.productionStatus)).length, total: cakes.length };
+  };
+
   const renderItems = (items: DayItem[]) =>
     items.length === 0 ? (
       <p className="px-4 py-5 text-sm text-muted-foreground">{t("Nothing scheduled.", "Rien de prévu.")}</p>
     ) : (
       <ul className="divide-y divide-border/60">
-        {items.map((it) => {
-          const ps = it.productionStatus ? PROD_STATUS[it.productionStatus] : null;
+        {sortForKitchen(items).map((it) => {
+          const done = it.type === "cake" && isProductionDone(it.productionStatus);
           return (
-            <li key={it.itemId}>
-              <Link to={`/admin/order/${it.orderId}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-secondary/40">
+            <li key={it.itemId} className={cn("flex items-center gap-3 pl-4", done && "bg-secondary/30")}>
+              {it.type === "cake" ? (
+                <ProductionCheck
+                  itemId={it.itemId}
+                  status={it.productionStatus}
+                  disabledReason={it.badge === "to_accept" ? t("Accept the order first.", "Acceptez d'abord la commande.") : null}
+                  onChange={(next) => setItemStatus(it.itemId, next)}
+                />
+              ) : (
+                <span className="w-7 shrink-0" aria-hidden="true" />
+              )}
+              <Link to={`/admin/order/${it.orderId}`} className={cn("flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 pr-4 py-3 hover:bg-secondary/40", done && "opacity-60")}>
                 <span className="w-28 shrink-0 text-sm tabular-nums text-muted-foreground">{it.slot || t("No time slot", "Sans créneau")}</span>
                 <span className="flex-1 min-w-[180px]">
-                  <span className="block text-sm font-medium text-foreground">{itemTitle(it)}</span>
+                  <span className={cn("block text-sm font-medium text-foreground", done && "line-through")}>{itemTitle(it)}</span>
                   <span className="block text-xs text-muted-foreground">
                     {it.orderNumber} · {it.customerName} · {methodLabel(it)}
                   </span>
@@ -183,7 +202,7 @@ const AdminToday = () => {
                 <span className="flex flex-wrap gap-1.5">
                   {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To accept", "À accepter")}</span>}
                   {it.badge === "awaiting_payment" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("Awaiting payment", "Paiement en attente")}</span>}
-                  {ps && <span className={cn("px-2 py-0.5 text-[11px]", ps.className)}>{t(ps.en, ps.fr)}</span>}
+                  {done && <span className="px-2 py-0.5 text-[11px] bg-emerald-100 text-emerald-800">{t("Done", "Fait")}</span>}
                 </span>
               </Link>
             </li>
@@ -284,7 +303,14 @@ const AdminToday = () => {
 
             {/* Today */}
             <section id="aujourdhui">
-              <h2 className={sectionTitle}>{t("Going out today", "Sort aujourd'hui")} ({todayItems.length})</h2>
+              <h2 className={sectionTitle}>
+                {t("Going out today", "Sort aujourd'hui")} ({todayItems.length})
+                {progress(todayItems).total > 0 && (
+                  <span className="ml-2 normal-case tracking-normal font-semibold text-emerald-700">
+                    · {progress(todayItems).done} / {progress(todayItems).total} {t("done", "faits")}
+                  </span>
+                )}
+              </h2>
               <div className={box}>{renderItems(todayItems)}</div>
             </section>
 
@@ -298,7 +324,7 @@ const AdminToday = () => {
               >
                 <span>
                   <span className="font-semibold">{t("Tomorrow", "Demain")}</span>
-                  <span className="text-muted-foreground first-letter:uppercase"> · {dayLabel(data.tomorrow)} · {tomorrowItems.length} {t("item(s)", "article(s)")}</span>
+                  <span className="text-muted-foreground first-letter:uppercase"> · {dayLabel(data.tomorrow)} · {tomorrowItems.length} {t("item(s)", "article(s)")}{progress(tomorrowItems).done > 0 ? ` · ${progress(tomorrowItems).done} ${t("done", "faits")}` : ""}</span>
                 </span>
                 {showTomorrow ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
               </button>
