@@ -29,6 +29,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import AdminOrder from "./pages/AdminOrder";
 import AdminOrders from "./pages/AdminOrders";
 import AdminToday from "./pages/AdminToday";
+import AdminRefunds from "./pages/AdminRefunds";
 import AdminCalendar from "./pages/AdminCalendar";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProduction from "./pages/AdminProduction";
@@ -134,6 +135,7 @@ const App = () => (
             <Route path="/admin/manual-orders/new" element={<AdminManualOrderEditor />} />
             <Route path="/admin/manual-orders/:id/edit" element={<AdminManualOrderEditor />} />
             <Route path="/admin/order/:id" element={<AdminOrder />} />
+            <Route path="/admin/refunds" element={<AdminRefunds />} />
             <Route path="/order-action" element={<OrderAction />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/legal" element={<Legal />} />

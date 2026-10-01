@@ -4,7 +4,6 @@ import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useLang } from "@/context/LanguageContext";
@@ -16,6 +15,7 @@ import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPanel";
 import { ReferencePhotos } from "@/components/ReferencePhotos";
 import { ProductionCheck } from "@/components/admin/ProductionCheck";
+import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
 import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 
 // pending/approved/rejected/cancelled -> the French/English label actually
@@ -37,8 +37,8 @@ const DetailRow = ({ label, value }: { label: string; value?: string | null }) =
   if (!value) return null;
   return (
     <div className="flex gap-2 text-sm">
-      <span className="text-muted-foreground min-w-[140px]">{label}:</span>
-      <span className="text-foreground">{value}</span>
+      <span className="text-muted-foreground min-w-[96px] sm:min-w-[140px] shrink-0">{label}:</span>
+      <span className="text-foreground min-w-0 break-words">{value}</span>
     </div>
   );
 };
@@ -61,15 +61,6 @@ const AdminOrder = () => {
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [fulfillments, setFulfillments] = useState<any[]>([]);
-  const [manualRefunds, setManualRefunds] = useState<any[]>([]);
-  const [refundAmountInput, setRefundAmountInput] = useState("");
-  const [refundNoteInput, setRefundNoteInput] = useState("");
-  // "" = order-wide (no specific item — order_manual_refunds.order_item_id
-  // stays null, same as before this selector existed). Only meaningful to
-  // set when the order has more than one cake item, so a refund for one
-  // cancelled cake on a multi-date order lands on that cake's own date
-  // instead of the whole order (see list-orders-by-date's own comment).
-  const [refundItemId, setRefundItemId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Filled from get-order-detail's response when the URL had no token (the
@@ -145,7 +136,6 @@ const AdminOrder = () => {
         setOrder(data.order);
         setItems(data.items || []);
         setFulfillments(data.fulfillments || []);
-        setManualRefunds(data.manualRefunds || []);
         if (data.actionToken) setFetchedToken(data.actionToken);
         setInvoiceUrl(data.invoiceUrl ?? null);
         setInvoiceUrlError(data.invoiceUrlError ?? null);
@@ -199,79 +189,6 @@ const AdminOrder = () => {
         refund_status: data?.refundStatus ?? order.refund_status,
         refund_due_amount: data?.refundDueAmount ?? order.refund_due_amount,
       });
-    } catch (err) {
-      setResult({ type: "error", message: err instanceof Error ? err.message : t("Unknown error", "Erreur inconnue") });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleMarkRefunded = async () => {
-    if (!pin.trim()) {
-      setResult({ type: "error", message: t("Please enter the admin PIN", "Veuillez saisir le code PIN administrateur") });
-      return;
-    }
-    setActionLoading("mark_refunded");
-    setResult(null);
-    try {
-      const ref = window.prompt(t("PostFinance refund reference (optional):", "Référence du remboursement PostFinance (facultatif) :")) || "";
-      const { data, error } = await supabase.functions.invoke("manage-order", {
-        body: { orderId: id, action: "mark_refunded", pin, refundReference: ref },
-      });
-      if (error) {
-        const message = await extractFunctionErrorMessage(error, t("Unknown error", "Erreur inconnue"));
-        setResult({ type: "error", message });
-        return;
-      }
-      if (data?.error) { setResult({ type: "error", message: data.error }); return; }
-      setResult({ type: "success", message: t("Marked as refunded.", "Marqué comme remboursé.") });
-      setOrder({ ...order, refund_status: "refunded" });
-    } catch (err) {
-      setResult({ type: "error", message: err instanceof Error ? err.message : t("Unknown error", "Erreur inconnue") });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Records an ad-hoc manual refund (ANY reason, ANY order state) into
-  // order_manual_refunds — completely independent of refund_status/
-  // refund_due_amount above (that flow only ever covers the one automated
-  // "refused after unexpected capture" case). Never changes order.* fields;
-  // only appends to the history list and its total shown below.
-  const handleRecordManualRefund = async () => {
-    if (!pin.trim()) {
-      setResult({ type: "error", message: t("Please enter the admin PIN", "Veuillez saisir le code PIN administrateur") });
-      return;
-    }
-    const amount = Number(refundAmountInput.replace(",", "."));
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setResult({ type: "error", message: t("Enter a valid refund amount.", "Saisissez un montant de remboursement valide.") });
-      return;
-    }
-    setActionLoading("record_manual_refund");
-    setResult(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("manage-order", {
-        body: {
-          orderId: id,
-          action: "record_manual_refund",
-          pin,
-          refundAmount: amount,
-          refundNote: refundNoteInput.trim() || undefined,
-          refundOrderItemId: refundItemId || undefined,
-        },
-      });
-      if (error) {
-        const message = await extractFunctionErrorMessage(error, t("Unknown error", "Erreur inconnue"));
-        setResult({ type: "error", message });
-        return;
-      }
-      if (data?.error) { setResult({ type: "error", message: data.error }); return; }
-      setResult({ type: "success", message: t("Refund recorded.", "Remboursement enregistré.") });
-      setManualRefunds((prev) => [data.refund, ...prev]);
-      setRefundAmountInput("");
-      setRefundNoteInput("");
-      setRefundItemId("");
     } catch (err) {
       setResult({ type: "error", message: err instanceof Error ? err.message : t("Unknown error", "Erreur inconnue") });
     } finally {
@@ -403,7 +320,6 @@ const AdminOrder = () => {
   // for an independent workshop confirmation before a mixed order can be
   // decided (Accept/Refuse decides everything together now).
   const isResolved = isCancelled || decisionState !== "pending";
-  const refundToDo = order.refund_status === "to_refund";
   // Admin-created manual order: payment is recorded by hand (ManualOrderPanel),
   // never "authorized then captured" like a website order.
   const isAdminManual = order.created_via === "admin";
@@ -710,156 +626,21 @@ const AdminOrder = () => {
             } />
           </div>
 
-          {/* refundToDo / mark_refunded below only ever applies to the rare
-              defensive case where a transaction was somehow already captured
-              before a Refuse reached it — see manage-order/index.ts. Under
-              the normal flow (Refuse before any capture), nothing is ever
-              flagged here any more. */}
-          {refundToDo && (
-            <div className="bg-red-50 border border-red-200 p-4 space-y-3">
-              <p className="font-medium text-red-800 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                {t(
-                  `Manual refund to do: CHF ${Number(order.refund_due_amount || 0).toFixed(2)} in PostFinance`,
-                  `Remboursement manuel à faire : CHF ${Number(order.refund_due_amount || 0).toFixed(2)} dans PostFinance`,
-                )}
-              </p>
-              <p className="text-sm text-red-700">
-                {t(
-                  "This order's payment was unexpectedly already captured before it was refused. Refund the full amount in the PostFinance back office, then mark it done below.",
-                  "Le paiement de cette commande avait été encaissé de façon inattendue avant son refus. Remboursez le montant total dans le back-office PostFinance, puis marquez-le comme fait ci-dessous.",
-                )}
-              </p>
-              <div className="space-y-2">
-                <Label htmlFor="pin-refund" className="text-red-800">{t("Admin PIN", "Code PIN administrateur")}</Label>
-                <Input id="pin-refund" type="password" value={pin} onChange={(e) => setPin(e.target.value)} className="max-w-xs" />
-              </div>
-              <Button variant="destructive" onClick={handleMarkRefunded} disabled={!!actionLoading}>
-                {actionLoading === "mark_refunded" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                {t("I have refunded it — mark as done", "Je l'ai remboursé — marquer comme fait")}
-              </Button>
-            </div>
-          )}
-          {order.refund_status === "refunded" && (
-            <div className="bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 shrink-0" />
-              {t("Manual refund recorded.", "Remboursement manuel enregistré.")}
-              {order.refund_reference ? ` (${order.refund_reference})` : ""}
-            </div>
-          )}
-
-          {/* Ad-hoc manual refunds — independent of refund_status above
-              (which only ever covers the one automated "refused after
-              unexpected capture" case). Any reason, any order state, can be
-              recorded more than once — a log, not a single field, so the
-              /admin/dashboard revenue total can subtract exactly what was
-              actually refunded instead of assuming a whole-order amount.
-              2026-09-19: a workshop seat's refund is ALREADY tracked exactly
-              (workshop_reservations.refunded_amount, kept up to date by the
-              existing cancel-workshop-seats/confirm-workshop-refund flow —
-              untouched here) and the dashboard already subtracts it
-              separately. Recording the SAME refund again here through this
-              generic, order-level form would double-count it. Simplest safe
-              fix: this form is for cake-item refunds only —
-              hidden entirely for a workshop_only order (nothing else CAN be
-              refunded there), and flagged with a warning on a mixed order
-              (where a legitimate cake-only refund still belongs here).
-              2026-09-20: a refund can also be tied to ONE specific cake
-              (order_manual_refunds.order_item_id) instead of always the
-              whole order — matters for a multi-date order, where the
-              dashboard would otherwise attribute the refund to the wrong
-              month. The selector below only appears once there's more than
-              one cake to choose between; a single-cake order keeps working
-              exactly as before (order_item_id stays null). */}
-          {!adminUnpaid && (() => {
-            const refundableItems = items.filter((it: any) => it.product !== "workshop");
-            const refundItemLabel = (item: any, idx: number) => {
+          {/* Refunds (lot 2): collected / decided / refunded / left to refund,
+              recording of refunds made by hand, decisions, correction and
+              dating — every rule enforced server-side (manage-refunds). The
+              former « manual refund » form and the « mark as refunded »
+              button are replaced by this block. */}
+          <OrderRefundsPanel
+            orderId={order.id}
+            items={items.map((item: any, idx: number) => {
               const productName = t(PRODUCT_LABELS[item.product]?.en, PRODUCT_LABELS[item.product]?.fr) || item.product;
-              const date = isMultiDate ? formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date) : null;
-              return date ? `${productName} ${idx + 1} — ${date}` : `${productName} ${idx + 1}`;
-            };
-            const refundItemLabelById = (itemId: string) => {
-              const idx = refundableItems.findIndex((it: any) => it.id === itemId);
-              return idx >= 0 ? refundItemLabel(refundableItems[idx], idx) : null;
-            };
-            return isWorkshopOnly ? (
-            <div className="border border-border/60 bg-background p-4 space-y-2">
-              <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground">
-                {t("Manual Refunds", "Remboursements manuels")}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  "This is a workshop-only order — any seat refund is already tracked automatically by the workshop cancellation process, not recorded here.",
-                  "Cette commande est un workshop seul — tout remboursement de place est déjà suivi automatiquement par le processus d'annulation de workshop, pas enregistré ici."
-                )}
-              </p>
-            </div>
-          ) : (
-          <div className="border border-border/60 bg-background p-4 space-y-3">
-            <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground">
-              {t("Manual Refunds", "Remboursements manuels")}
-            </h3>
-            {isMixed && (
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">
-                {t(
-                  "This order also has a workshop seat — its refund is already tracked automatically. Only use this form for the cake part, never to re-enter a workshop refund.",
-                  "Cette commande a aussi une place de workshop — son remboursement est déjà suivi automatiquement. N'utilisez ce formulaire que pour la partie gâteau, jamais pour ressaisir un remboursement de workshop."
-                )}
-              </p>
-            )}
-            {manualRefunds.length > 0 && (
-              <div className="space-y-1">
-                {manualRefunds.map((r: any) => (
-                  <div key={r.id} className="flex justify-between gap-3 text-sm">
-                    <span className="text-muted-foreground truncate">
-                      {new Date(r.created_at).toLocaleDateString(lang === "fr" ? "fr-CH" : "en-CH")}
-                      {r.order_item_id ? ` — ${refundItemLabelById(r.order_item_id) ?? t("one cake", "un gâteau")}` : ""}
-                      {r.note ? ` — ${r.note}` : ""}
-                    </span>
-                    <span className="text-foreground font-medium shrink-0">CHF {Number(r.amount).toFixed(2)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between text-sm font-semibold pt-1.5 border-t border-border/60">
-                  <span>{t("Total refunded", "Total remboursé")}</span>
-                  <span>CHF {manualRefunds.reduce((sum: number, r: any) => sum + Number(r.amount), 0).toFixed(2)}</span>
-                </div>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2 items-end pt-1">
-              {refundableItems.length > 1 && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">{t("Applies to", "Concerne")}</Label>
-                  <Select value={refundItemId || "__order__"} onValueChange={(v) => setRefundItemId(v === "__order__" ? "" : v)}>
-                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__order__">{t("Whole order", "Toute la commande")}</SelectItem>
-                      {refundableItems.map((item: any, idx: number) => (
-                        <SelectItem key={item.id} value={item.id}>{refundItemLabel(item, idx)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <div className="space-y-1">
-                <Label htmlFor="refund-amount" className="text-xs text-muted-foreground">{t("Amount (CHF)", "Montant (CHF)")}</Label>
-                <Input id="refund-amount" type="number" step="0.01" min="0" value={refundAmountInput} onChange={(e) => setRefundAmountInput(e.target.value)} className="w-28" />
-              </div>
-              <div className="space-y-1 flex-1 min-w-[140px]">
-                <Label htmlFor="refund-note" className="text-xs text-muted-foreground">{t("Note (optional)", "Note (facultatif)")}</Label>
-                <Input id="refund-note" value={refundNoteInput} onChange={(e) => setRefundNoteInput(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="refund-pin" className="text-xs text-muted-foreground">{t("Admin PIN", "Code PIN administrateur")}</Label>
-                <Input id="refund-pin" type="password" value={pin} onChange={(e) => setPin(e.target.value)} className="w-28" />
-              </div>
-              <Button variant="outline" onClick={handleRecordManualRefund} disabled={!!actionLoading}>
-                {actionLoading === "record_manual_refund" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                {t("Record refund", "Enregistrer")}
-              </Button>
-            </div>
-          </div>
-            );
-          })()}
+              const date = item.product === "workshop"
+                ? formatDateFromIso(item.workshop_date)
+                : isMultiDate ? formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date) : null;
+              return { id: item.id, label: date ? `${productName} ${idx + 1} — ${date}` : `${productName} ${idx + 1}` };
+            })}
+          />
 
           {/* Admin Actions */}
           {!isResolved ? (
@@ -891,12 +672,12 @@ const AdminOrder = () => {
                   "Le paiement n'est qu'autorisé, pas encore encaissé. Valider encaisse le paiement et confirme la commande (gâteau et workshop ensemble, le cas échéant). Refuser annule l'autorisation à la place — rien n'est prélevé, et toute place de workshop est libérée immédiatement.",
                 )}
               </p>
-              <div className="flex gap-3">
-                <Button onClick={() => handleAction("approve")} disabled={!!actionLoading || !effectiveToken} className="flex-1">
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={() => handleAction("approve")} disabled={!!actionLoading || !effectiveToken} className="flex-1 min-w-[150px]">
                   {actionLoading === "approve" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
                   {t("Approve order", "Valider la commande")}
                 </Button>
-                <Button variant="destructive" onClick={() => handleAction("reject")} disabled={!!actionLoading || !effectiveToken} className="flex-1">
+                <Button variant="destructive" onClick={() => handleAction("reject")} disabled={!!actionLoading || !effectiveToken} className="flex-1 min-w-[150px]">
                   {actionLoading === "reject" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <XCircle className="w-4 h-4 mr-2" />}
                   {t("Refuse order", "Refuser la commande")}
                 </Button>

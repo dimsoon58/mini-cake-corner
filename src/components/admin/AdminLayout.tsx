@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BarChart3, CakeSlice, CalendarDays, ClipboardList, PencilLine, Sun } from "lucide-react";
+import { BarChart3, CakeSlice, CalendarDays, ClipboardList, PencilLine, RotateCcw, Sun } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -14,11 +14,12 @@ import { cn } from "@/lib/utils";
 // plain Layout look).
 
 const ITEMS = [
-  { to: "/admin", en: "Today", fr: "Aujourd'hui", short: { en: "Today", fr: "Aujourd'hui" }, icon: Sun, exact: true },
-  { to: "/admin/orders", en: "Orders", fr: "Commandes", short: { en: "Orders", fr: "Commandes" }, icon: ClipboardList, also: ["/admin/order/"] },
-  { to: "/admin/manual-orders", en: "Manual orders", fr: "Commandes manuelles", short: { en: "Manual", fr: "Manuelles" }, icon: PencilLine },
-  { to: "/admin/calendar", en: "Planning", fr: "Planning", short: { en: "Planning", fr: "Planning" }, icon: CalendarDays },
-  { to: "/admin/production", en: "Production", fr: "Production", short: { en: "Production", fr: "Production" }, icon: CakeSlice },
+  { to: "/admin", en: "Today", fr: "Aujourd'hui", short: { en: "Today", fr: "Auj." }, icon: Sun, exact: true },
+  { to: "/admin/orders", en: "Orders", fr: "Commandes", short: { en: "Orders", fr: "Cmdes" }, icon: ClipboardList, also: ["/admin/order/"] },
+  { to: "/admin/manual-orders", en: "Manual orders", fr: "Commandes manuelles", short: { en: "Manual", fr: "Manu." }, icon: PencilLine },
+  { to: "/admin/calendar", en: "Planning", fr: "Planning", short: { en: "Plan.", fr: "Plan." }, icon: CalendarDays },
+  { to: "/admin/production", en: "Production", fr: "Production", short: { en: "Prod.", fr: "Prod." }, icon: CakeSlice },
+  { to: "/admin/refunds", en: "Refunds", fr: "Remboursements", short: { en: "Refunds", fr: "Remb." }, icon: RotateCcw },
   { to: "/admin/dashboard", en: "Dashboard", fr: "Tableau de bord", short: { en: "Figures", fr: "Chiffres" }, icon: BarChart3 },
 ];
 
@@ -71,7 +72,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
         className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
-        <div className="grid grid-cols-6">
+        <div className="grid grid-cols-7">
           {ITEMS.map((it) => {
             const Icon = it.icon;
             const active = isActive(it);
@@ -79,14 +80,15 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
               <Link
                 key={it.to}
                 to={it.to}
+                aria-label={t(it.en, it.fr)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] leading-tight",
+                  "min-w-0 flex flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-[10px] leading-tight",
                   active ? "text-primary font-semibold" : "text-muted-foreground",
                 )}
               >
-                <Icon className="w-5 h-5" strokeWidth={1.75} />
-                {t(it.short.en, it.short.fr)}
+                <Icon className="w-5 h-5 shrink-0" strokeWidth={1.75} />
+                <span className="block max-w-full truncate" title={t(it.en, it.fr)}>{t(it.short.en, it.short.fr)}</span>
               </Link>
             );
           })}
