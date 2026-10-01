@@ -613,6 +613,12 @@ const AdminOrder = () => {
                 </div>
               </div>
             ) : null}
+            {order.customer_ref_id && (
+              <div className="flex gap-2 text-sm">
+                <span className="text-muted-foreground min-w-[96px] sm:min-w-[140px] shrink-0">{t("Customer", "Client")}:</span>
+                <Link to={`/admin/customers/${order.customer_ref_id}`} className="underline underline-offset-2">{t("Open the customer record", "Ouvrir la fiche client")}</Link>
+              </div>
+            )}
             <DetailRow label={t("Total", "Total")} value={`CHF ${order.total_amount}`} />
             <DetailRow label={t("Payment", "Paiement")} value={
               order.payment_status === "paid"

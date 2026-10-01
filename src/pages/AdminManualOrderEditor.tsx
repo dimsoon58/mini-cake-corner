@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
 import { AlertTriangle, CalendarIcon, ChevronLeft, Loader2, Lock, Plus, Trash2 } from "lucide-react";
@@ -15,6 +15,7 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
+import { customersApi, type CustomerDetail } from "@/lib/customers";
 import { cn } from "@/lib/utils";
 import {
   ADJUSTMENT_REASONS,
@@ -96,6 +97,11 @@ const emptyGroup = (): DateGroup => ({ key: newKey(), date: "", deliveryMethod: 
 
 const AdminManualOrderEditor = () => {
   const { id } = useParams<{ id: string }>();
+  // « Nouvelle commande manuelle » from a customer page: prefill the contact
+  // (new order only). The order is then linked to that customer by the
+  // database (same email), never by name.
+  const [searchParams] = useSearchParams();
+  const prefillCustomerId = !id ? searchParams.get("customer") : null;
   const navigate = useNavigate();
   const { t, lang } = useLang();
   const { user, loading: authLoading } = useAuth();
@@ -149,6 +155,21 @@ const AdminManualOrderEditor = () => {
         return;
       }
       setCatalog(cat as ManualOrderCatalog);
+
+      if (!id && prefillCustomerId) {
+        try {
+          const d = await customersApi<CustomerDetail>({ action: "get", customerId: prefillCustomerId });
+          if (!cancelled && d?.customer) {
+            setCustomer((prev) => ({
+              ...prev,
+              first_name: d.customer.firstName ?? "", last_name: d.customer.lastName ?? "",
+              phone: d.customer.phone ?? "", email: d.customer.email ?? "", company: d.customer.company ?? "",
+            }));
+          }
+        } catch (e) {
+          console.error("customer prefill failed:", e);
+        }
+      }
 
       if (id) {
         const { data: o, error } = await supabase.functions.invoke("manage-manual-order", { body: { action: "get", orderId: id } });

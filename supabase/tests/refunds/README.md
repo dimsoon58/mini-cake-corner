@@ -51,3 +51,22 @@ Résultat attendu : `36 PASS, 0 FAIL` (dates réelles d'encaissement et de rembo
 mois Europe/Zurich, commande multi-dates encaissée une fois, commande manuelle avec ajustement,
 « à dater » et « à vérifier » à part, à encaisser, reste à rembourser, tests exclus ; Excel : 4
 onglets, formules SUM, contrôles « OK », un gâteau par ligne, somme des lignes = encaissé).
+
+## Lot C — Clients (F8, `manage-customers`)
+
+`test_lot_c.mjs` applique F1–F7, crée un historique (compte + commandes invitées, panier
+abandonné, commande manuelle), applique **F8** (reprise), puis exécute la vraie fonction
+`manage-customers`.
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save @electric-sql/pglite esbuild
+node test_lot_c.mjs
+```
+
+Résultat attendu : `57 PASS, 0 FAIL` (reprise, nouveau client, client qui recommande, commande
+manuelle pour un client existant, plusieurs gâteaux et dates, workshop, annulation et
+remboursement partiel, homonymes, contradiction d'email, téléphone partagé, modification sans
+toucher aux commandes, ajout de client, rattachement manuel, fusion avec garde-fous, cagnotte et
+bienvenue en lecture seule, alerte de compte modifié, fiche vide complétée sans écrasement,
+tests exclus, recherche, tri, pagination, aucun appel Make ni e-mail, relance de F8 sans effet).
