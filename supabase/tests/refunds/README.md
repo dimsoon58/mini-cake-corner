@@ -70,3 +70,25 @@ remboursement partiel, homonymes, contradiction d'email, téléphone partagé, m
 toucher aux commandes, ajout de client, rattachement manuel, fusion avec garde-fous, cagnotte et
 bienvenue en lecture seule, alerte de compte modifié, fiche vide complétée sans écrasement,
 tests exclus, recherche, tri, pagination, aucun appel Make ni e-mail, relance de F8 sans effet).
+
+## Lot E — Planning équipe (F9 + fonction `team-planning`)
+
+`test_team.mjs` applique F1–F9 au schéma de production, assemble la **vraie** fonction
+`supabase/functions/team-planning/index.ts` et le module de calcul `_shared/team-hours.ts`, puis
+simule la date du jour (`TEAM_PLANNING_TEST_TODAY`, variable réservée aux tests).
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save @electric-sql/pglite esbuild
+node test_team.mjs
+```
+
+Résultat attendu : `91 PASS, 0 FAIL`.
+
+Couvert : semaine normale de 21 h ; 23 h puis 19 h (solde cumulé 0) ; jour non renseigné
+(« À compléter », solde provisoire) ; pause non payée ; semaine complète de vacances (21 h
+décomptées, aucun déficit) ; un jour et une demi-journée (4 h 12 / 2 h 06, crédit distinct) ;
+samedi qui remplace le lundi ; période avec repos et jour férié ; maladie et réduction employeur
+séparées ; modification, suppression, doublon et chevauchement refusés ; semaines partielles de
+début et de fin ; copie de semaine (prévu uniquement, confirmation de remplacement) ; dates hors
+contrat ; prolongation avec son propre droit ; historique ; accès ; relance de F9 sans effet.
