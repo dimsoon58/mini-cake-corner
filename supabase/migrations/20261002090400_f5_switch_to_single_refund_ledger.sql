@@ -1,32 +1,50 @@
 -- F5 — Bascule vers le registre unique (à appliquer d'un seul bloc, après F1–F4).
 --
--- Plan v3 §4.3 / §4.4. Tout est dans UNE transaction : si une étape échoue,
--- rien n'est changé.
+-- Plan v3.1 §4.3 / §4.4, corrigé après relecture (02.10.2026). Tout est dans
+-- UNE transaction : si une étape échoue, rien n'est changé.
 --
--- Ce que fait cette migration :
---   1. Initialise orders.cashback_refund_adjustment avec ce qui a DÉJÀ été
---      retiré par les anciens mécanismes (cashback gagné − reward_amount_earned),
---      pour que le premier recalcul ne retire rien une seconde fois.
+--   1. Mémorise ce que les anciens mécanismes ont DÉJÀ retiré du cashback
+--      (cashback gagné − reward_amount_earned) : le premier recalcul ne
+--      retire rien une seconde fois.
 --   2. Remplace les deux anciens mécanismes de retrait de cashback :
---        - trigger trg_order_refunds_reward_adjustment (sur order_refunds) → supprimé ;
+--        - trigger trg_order_refunds_reward_adjustment (order_refunds) → supprimé ;
 --        - bloc « retirer 3,5 % » de finalize_workshop_refund → retiré
---          (le reste de la fonction est identique, copié de la production).
---      Le seul ajustement est désormais recompute_order_cashback(), appelé
---      par un trigger sur le registre unique.
---   3. Recopie automatique vers le registre unique, SANS modifier Make :
---        - order_refunds (écrit par Make 7425367 module 48 via
---          sync_manual_accounting_refund_event, inchangée) → ingest_refund(source 'make_notion') ;
---        - workshop_cancellation_log : nouvelle annulation avec montant dû →
---          décision 'workshop_cancel' ; remboursement confirmé → ingest_refund(source 'workshop').
---      Une erreur inattendue est notée dans refund_ingest_errors et ne fait
+--          (reste de la fonction identique à la production).
+--      Seul ajustement désormais : recompute_order_cashback(), via un trigger
+--      sur le registre unique (statut / montant).
+--   3. Protège le registre :
+--        - formulaire admin ACTUEL (écrit directement dans
+--          order_manual_refunds) → même contrôle que ingest_refund (plafond,
+--          doublons, double clic, commande encaissée), date « à dater »,
+--          excédent couvert par une décision automatique ;
+--        - modification directe d'un montant / statut / date → refusée ;
+--          suppression → refusée.
+--   4. Recopie automatique, SANS modifier Make :
+--        - order_refunds (Make 7425367 module 48, via
+--          sync_manual_accounting_refund_event, inchangée) → ingest_refund
+--          (source 'make_notion'). Date : celle envoyée par Make ; si Make
+--          n'en envoie pas (completed_at = created_at, valeur par défaut de la
+--          fonction), la ligne reste « à dater ».
+--        - workshop_cancellation_log :
+--            montant dû (création ou changement) → décision 'workshop_cancel',
+--              tenue à jour, plafonnée à l'encaissé (anomalie sinon) ;
+--            statut 'refunded' (passage, OU correction du montant / de la
+--              référence en restant 'refunded') → la MÊME ligne du registre
+--              est créée ou mise à jour (« à dater » : le suivi workshop ne
+--              connaît pas la date réelle) ;
+--            sortie du statut 'refunded' → la ligne du registre est annulée.
+--      Toute erreur inattendue est notée dans refund_ingest_errors et ne fait
 --      jamais échouer l'appel d'origine.
---   4. Reprend les données EXISTANTES (ce sont des tests, conservées pour
---      tester — exclues des chiffres par is_test une fois la liste validée) :
---      décisions d'après refund_due_amount / refund_status / annulations
---      workshop, puis les lignes de order_refunds et les remboursements
---      workshop confirmés, avec la détection de doublons normale.
---      Rien n'est supprimé.
---   5. Recalcule le cashback de chaque commande (une fois, idempotent).
+--   5. Reprend les données EXISTANTES (des tests, rien n'est supprimé) :
+--        a) décisions workshop (une par annulation) ;
+--        b) décisions d'après refund_due_amount, plafonnées au disponible
+--           (anomalie si réduites) ;
+--        c) commandes « à rembourser » sans montant : décision = disponible
+--           restant (encaissé − déjà décidé), jamais plus ;
+--        d) saisies admin existantes, lignes Make, remboursements workshop.
+--      Une même obligation n'est jamais comptée deux fois : chaque source a sa
+--      clé unique, et le total décidé ne dépasse jamais l'encaissé.
+--   6. Recalcule le cashback de chaque commande (une fois, idempotent).
 --
 -- Ne touche pas : Make, Notion, sync_manual_accounting_refund_event,
 -- order_refunds (table et données), accounting_monthly_summary,
@@ -132,7 +150,18 @@ create trigger trg_refund_ledger_cashback
   after insert or delete or update of status, amount, order_id on public.order_manual_refunds
   for each row execute function public.trg_refund_ledger_cashback();
 
--- ── 3a. order_refunds (Make) → registre ──────────────────────────────────
+-- ── 3. Garde du registre (formulaire admin actuel, écritures directes) ───
+drop trigger if exists trg_refund_ledger_guard on public.order_manual_refunds;
+create trigger trg_refund_ledger_guard
+  before insert or update or delete on public.order_manual_refunds
+  for each row execute function public.trg_refund_ledger_guard();
+
+drop trigger if exists trg_refund_ledger_after_insert on public.order_manual_refunds;
+create trigger trg_refund_ledger_after_insert
+  after insert on public.order_manual_refunds
+  for each row execute function public.trg_refund_ledger_after_insert();
+
+-- ── 4a. order_refunds (Make) → registre ──────────────────────────────────
 create or replace function public.trg_order_refunds_to_ledger()
 returns trigger
 language plpgsql
@@ -145,7 +174,9 @@ begin
       perform public.ingest_refund(
         p_order_id      => new.order_id,
         p_amount        => new.amount,
-        p_refunded_at   => new.completed_at,
+        -- completed_at = created_at : Make n'a pas envoyé de date (valeur par
+        -- défaut) → date inconnue, « à dater ». Jamais inventée.
+        p_refunded_at   => case when new.completed_at = new.created_at then null else new.completed_at end,
         p_source        => 'make_notion',
         p_source_ref    => new.postfinance_refund_id,
         p_reference     => new.postfinance_refund_id,
@@ -167,7 +198,7 @@ create trigger trg_order_refunds_to_ledger
   after insert or update on public.order_refunds
   for each row execute function public.trg_order_refunds_to_ledger();
 
--- ── 3b. workshop_cancellation_log → décision / registre ──────────────────
+-- ── 4b. workshop_cancellation_log → décision / registre ──────────────────
 create or replace function public.trg_workshop_log_to_refunds()
 returns trigger
 language plpgsql
@@ -177,37 +208,34 @@ as $$
 declare
   v_order_id uuid;
   v_item_id uuid;
+  v_ledger uuid;
 begin
   select wr.order_id, wr.order_item_id into v_order_id, v_item_id
   from public.workshop_reservations wr where wr.id = new.reservation_id;
   if v_order_id is null then return null; end if;
 
-  if tg_op = 'INSERT' and coalesce(new.refund_amount_requested, 0) > 0 then
+  -- Montant dû → décision (création ou mise à jour).
+  if tg_op = 'INSERT' or new.refund_amount_requested is distinct from old.refund_amount_requested then
     begin
-      perform public.record_refund_decision(
-        p_order_id      => v_order_id,
-        p_amount        => new.refund_amount_requested,
-        p_reason        => format('Annulation de %s place(s) workshop', new.seats_cancelled),
-        p_source        => 'workshop_cancel',
-        p_item_ids      => array[v_item_id],
-        p_by            => 'system',
-        p_source_ref    => new.id::text,
-        p_enforce_cap   => false
-      );
+      perform public.sync_workshop_cancel_decision(new.id);
     exception when others then
       insert into public.refund_ingest_errors (source, source_ref, order_id, error, payload)
       values ('workshop_cancel', new.id::text, v_order_id, sqlerrm, to_jsonb(new));
     end;
   end if;
 
-  if new.refund_status = 'refunded'
-     and (tg_op = 'INSERT' or old.refund_status is distinct from 'refunded')
-     and coalesce(new.refund_amount_completed, 0) > 0 then
+  -- Remboursement confirmé : passage à 'refunded' OU correction du montant /
+  -- de la référence en restant 'refunded' → même ligne du registre.
+  if new.refund_status = 'refunded' and coalesce(new.refund_amount_completed, 0) > 0
+     and (tg_op = 'INSERT'
+          or old.refund_status is distinct from 'refunded'
+          or new.refund_amount_completed is distinct from old.refund_amount_completed
+          or new.postfinance_refund_id is distinct from old.postfinance_refund_id) then
     begin
       perform public.ingest_refund(
         p_order_id      => v_order_id,
         p_amount        => new.refund_amount_completed,
-        p_refunded_at   => new.updated_at,
+        p_refunded_at   => null,   -- le suivi workshop ne connaît pas la date réelle
         p_source        => 'workshop',
         p_source_ref    => new.id::text,
         p_reference     => new.postfinance_refund_id,
@@ -219,6 +247,13 @@ begin
       insert into public.refund_ingest_errors (source, source_ref, order_id, error, payload)
       values ('workshop', new.id::text, v_order_id, sqlerrm, to_jsonb(new));
     end;
+  elsif tg_op = 'UPDATE' and old.refund_status = 'refunded'
+        and (new.refund_status is distinct from 'refunded' or coalesce(new.refund_amount_completed, 0) <= 0) then
+    select id into v_ledger from public.order_manual_refunds
+    where source = 'workshop' and source_ref = new.id::text and status <> 'voided';
+    if v_ledger is not null then
+      perform public.void_refund_entry(v_ledger, 'Remboursement workshop annulé ou ramené à 0 dans le suivi workshop', 'system');
+    end if;
   end if;
   return null;
 end;
@@ -226,7 +261,8 @@ $$;
 
 drop trigger if exists trg_workshop_log_to_refunds on public.workshop_cancellation_log;
 create trigger trg_workshop_log_to_refunds
-  after insert or update of refund_status, refund_amount_completed on public.workshop_cancellation_log
+  after insert or update of refund_status, refund_amount_completed, refund_amount_requested, postfinance_refund_id
+  on public.workshop_cancellation_log
   for each row execute function public.trg_workshop_log_to_refunds();
 
 do $$
@@ -237,35 +273,50 @@ begin
   end loop;
 end $$;
 
--- ── 4. Reprise des données existantes (tests, rien n'est supprimé) ───────
--- 4a. Décisions existantes.
-insert into public.order_refund_decisions (order_id, amount, reason, source, source_ref, decided_at, decided_by)
-select o.id, o.refund_due_amount, 'Repris de orders.refund_due_amount', 'legacy_due', o.id::text,
-       coalesce(o.cancelled_at, o.refund_marked_at, o.created_at), 'migration'
-from public.orders o
-where o.refund_due_amount > 0
-on conflict do nothing;
+-- ── 5. Reprise des données existantes (tests, rien n'est supprimé) ───────
+-- 5a. Décisions workshop (une par annulation, clé = id de l'annulation).
+do $$
+declare r record;
+begin
+  for r in select id from public.workshop_cancellation_log where refund_amount_requested > 0 order by created_at loop
+    perform public.sync_workshop_cancel_decision(r.id);
+  end loop;
+end $$;
 
-insert into public.order_refund_decisions (order_id, amount, reason, source, source_ref, decided_at, decided_by)
-select o.id, public.order_collected_amount(o.id),
-       'Repris de orders.refund_status (montant non renseigné : encaissé total)', 'legacy_due', o.id::text,
-       coalesce(o.cancelled_at, o.refund_marked_at, o.created_at), 'migration'
-from public.orders o
-where o.refund_status in ('to_refund', 'refunded')
-  and coalesce(o.refund_due_amount, 0) = 0
-  and public.order_collected_amount(o.id) > 0
-on conflict do nothing;
+-- 5b. refund_due_amount, plafonné au disponible (anomalie si réduit).
+do $$
+declare r record;
+begin
+  for r in select id, refund_due_amount from public.orders where refund_due_amount > 0 order by created_at loop
+    perform public.record_refund_decision(
+      p_order_id => r.id, p_amount => r.refund_due_amount,
+      p_reason => 'Repris de orders.refund_due_amount', p_source => 'legacy_due',
+      p_by => 'migration', p_source_ref => r.id::text, p_on_excess => 'clamp');
+  end loop;
+end $$;
 
-insert into public.order_refund_decisions (order_id, amount, reason, source, source_ref, decided_at, decided_by)
-select wr.order_id, l.refund_amount_requested,
-       format('Annulation de %s place(s) workshop', l.seats_cancelled), 'workshop_cancel', l.id::text,
-       l.created_at, 'migration'
-from public.workshop_cancellation_log l
-join public.workshop_reservations wr on wr.id = l.reservation_id
-where l.refund_amount_requested > 0
-on conflict do nothing;
+-- 5c. « À rembourser » sans montant : décision = disponible restant, jamais plus.
+do $$
+declare r record; v_room numeric;
+begin
+  for r in
+    select o.id from public.orders o
+    where o.refund_status in ('to_refund', 'refunded')
+      and coalesce(o.refund_due_amount, 0) = 0
+      and not exists (select 1 from public.order_refund_decisions d where d.source = 'legacy_due' and d.source_ref = o.id::text)
+    order by o.created_at
+  loop
+    v_room := public.order_collected_amount(r.id) - public.order_decided_amount(r.id);
+    if v_room > 0 then
+      perform public.record_refund_decision(
+        p_order_id => r.id, p_amount => v_room,
+        p_reason => 'Repris de orders.refund_status (montant non renseigné : solde encaissé non encore décidé)',
+        p_source => 'legacy_due', p_by => 'migration', p_source_ref => r.id::text, p_on_excess => 'clamp');
+    end if;
+  end loop;
+end $$;
 
--- 4b. Saisies admin déjà présentes : couverture par une décision automatique si besoin.
+-- 5d. Saisies admin existantes : couverture par une décision automatique si besoin.
 do $$
 declare r record;
 begin
@@ -274,13 +325,14 @@ begin
   end loop;
 end $$;
 
--- 4c. Lignes Make existantes (order_refunds), dans l'ordre chronologique.
+-- 5e. Lignes Make existantes (order_refunds), dans l'ordre chronologique.
 do $$
 declare r record;
 begin
   for r in select * from public.order_refunds where status = 'successful' order by created_at loop
     perform public.ingest_refund(
-      p_order_id => r.order_id, p_amount => r.amount, p_refunded_at => r.completed_at,
+      p_order_id => r.order_id, p_amount => r.amount,
+      p_refunded_at => case when r.completed_at = r.created_at then null else r.completed_at end,
       p_source => 'make_notion', p_source_ref => r.postfinance_refund_id,
       p_reference => r.postfinance_refund_id, p_note => 'Repris de order_refunds',
       p_item_ids => case when r.order_item_id is not null then array[r.order_item_id] end,
@@ -288,7 +340,7 @@ begin
   end loop;
 end $$;
 
--- 4d. Remboursements workshop déjà confirmés.
+-- 5f. Remboursements workshop déjà confirmés (« à dater »).
 do $$
 declare r record;
 begin
@@ -300,13 +352,13 @@ begin
     order by l.updated_at
   loop
     perform public.ingest_refund(
-      p_order_id => r.order_id, p_amount => r.refund_amount_completed, p_refunded_at => r.updated_at,
+      p_order_id => r.order_id, p_amount => r.refund_amount_completed, p_refunded_at => null,
       p_source => 'workshop', p_source_ref => r.id::text, p_reference => r.postfinance_refund_id,
       p_note => 'Repris du suivi workshop', p_item_ids => array[r.order_item_id], p_created_by => 'migration');
   end loop;
 end $$;
 
--- ── 5. Recalcul du cashback de chaque commande (idempotent) ──────────────
+-- ── 6. Recalcul du cashback de chaque commande (idempotent) ──────────────
 do $$
 declare r record;
 begin

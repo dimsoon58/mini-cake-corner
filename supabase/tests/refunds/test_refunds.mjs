@@ -73,6 +73,21 @@ const a3 = await order({ items: [{ total: 100 }] });
 await q("update public.orders set refund_status='to_refund' where id=$1", [a3.id]);
 await makeRow(a3, 40, "NOTION-A3");
 
+// A4 : commande annulée « à rembourser » sans montant + annulation workshop 85 (encaissé 100).
+const a4 = await order({ items: [{ total: 15 }, { total: 85, product: "workshop" }] });
+const a4res = await workshopRes(a4, 1);
+await q("insert into public.workshop_cancellation_log (reservation_id, idempotency_key, seats_cancelled, refund_amount_requested, refund_status) values ($1,'k4',1,85,'pending')", [a4res]);
+await q("update public.orders set refund_status='to_refund', order_validation='cancelled' where id=$1", [a4.id]);
+// A5 : refund_due_amount 100 + annulation workshop 85 sur un encaissé de 100.
+const a5 = await order({ items: [{ total: 15 }, { total: 85, product: "workshop" }] });
+const a5res = await workshopRes(a5, 1);
+await q("insert into public.workshop_cancellation_log (reservation_id, idempotency_key, seats_cancelled, refund_amount_requested, refund_status) values ($1,'k5',1,85,'pending')", [a5res]);
+await q("update public.orders set refund_status='to_refund', refund_due_amount=100 where id=$1", [a5.id]);
+// A6 : ligne Make sans date (valeur par défaut de la fonction Make) et ligne Make datée.
+const a6 = await order({ items: [{ total: 200 }] });
+await q("insert into public.order_refunds (order_id, postfinance_refund_id, amount) values ($1,'NOTION-A6-SANS-DATE',20)", [a6.id]);
+await q("insert into public.order_refunds (order_id, postfinance_refund_id, amount, completed_at) values ($1,'NOTION-A6-DATEE',30,'2026-09-20T10:00:00Z')", [a6.id]);
+
 console.log(`  avant F5 : A2 cashback restant ${a2RemainingBefore} (gagné ${a2.earned}) — double retrait attendu`);
 check("avant F5 : double retrait A2 quand Make arrive avant la confirmation workshop (défaut actuel)", Math.abs((a2.earned - a2RemainingBefore) - 2 * Math.trunc(85 * 0.035 * 100) / 100) < 0.011, { earned: a2.earned, rem: a2RemainingBefore });
 
@@ -260,6 +275,109 @@ const r16 = await ingest(b16, 200, { gesture: true, key: "b16" });
 check("B16 : cashback déjà dépensé → restant 0, pas négatif", (await remaining(b16)) === 0);
 await q("select public.void_refund_entry($1,'erreur','test')", [r16.refund_id]);
 check("B16 : correction → rend seulement le 1.00 retiré", (await remaining(b16)) === 1, await remaining(b16));
+
+
+// ═══ Phase C — points de la relecture ═══
+// C1 : formulaire admin ACTUEL (écrit directement dans order_manual_refunds, comme manage-order).
+const legacyInsert = (o, amount, note = null, item = null, by = "admin@test") =>
+  q("insert into public.order_manual_refunds (order_id, amount, note, created_by, order_item_id) values ($1,$2,$3,$4,$5) returning id, status, refunded_at, source", [o.id, amount, note, by, item]);
+const c1 = await order({ items: [{ total: 60 }, { total: 40 }] });
+const l1 = (await legacyInsert(c1, 30, "geste"))[0];
+check("C1 : saisie du formulaire actuel → comptée, source admin, « à dater »", l1.status === "counted" && l1.source === "admin" && l1.refunded_at === null, l1);
+s = await summary(c1);
+check("C1 : couverte par une décision automatique (reste 0), « à dater » visible", s.decided === 30 && s.remaining === 0 && s.undated_amount === 30, s);
+check("C1 : cashback ajusté une fois (1.05)", Math.abs((c1.earned - await remaining(c1)) - 1.05) < 0.001);
+e = await expectError("insert into public.order_manual_refunds (order_id, amount, note, created_by) values ($1, 30, 'geste', 'admin@test')", [c1.id], /double clic/);
+check("C1 : double clic du formulaire actuel → refusé", e.ok, e.msg);
+await legacyInsert(c1, 30, "second geste");
+check("C1 : une seconde saisie différente reste possible", (await summary(c1)).refunded === 60);
+e = await expectError("insert into public.order_manual_refunds (order_id, amount, note, created_by) values ($1, 50, 'trop', 'admin@test')", [c1.id], /Maximum possible : CHF 40\.00/);
+check("C1 : plafond appliqué au formulaire actuel (max 40)", e.ok, e.msg);
+const c1u = await order({ items: [{ total: 50 }], paid: false });
+e = await expectError("insert into public.order_manual_refunds (order_id, amount, created_by) values ($1, 10, 'admin@test')", [c1u.id], /non encaissée/);
+check("C1 : commande non encaissée refusée", e.ok, e.msg);
+e = await expectError("insert into public.order_manual_refunds (order_id, amount, created_by, order_item_id) values ($1, 5, 'admin@test', $2)", [c1.id, other.items[0]], /Article/);
+check("C1 : article d'une autre commande refusé", e.ok, e.msg);
+e = await expectError("update public.order_manual_refunds set amount = 1 where id = $1", [l1.id], /interdite/);
+check("C1 : modification directe du montant refusée", e.ok, e.msg);
+e = await expectError("delete from public.order_manual_refunds where id = $1", [l1.id], /Suppression interdite/);
+check("C1 : suppression refusée", e.ok, e.msg);
+await q("update public.order_manual_refunds set note = 'note corrigée' where id = $1", [l1.id]);
+check("C1 : modification d'une note seule autorisée", (await one("select note from public.order_manual_refunds where id=$1", [l1.id])).note === "note corrigée");
+const c1m = await order({ items: [{ total: 100 }] });
+await makeRow(c1m, 25, "NOTION-C1M");
+const l1m = (await legacyInsert(c1m, 25, "même remboursement ?"))[0];
+check("C1 : formulaire actuel après Make même montant → « à vérifier », hors totaux, cashback inchangé",
+  l1m.status === "to_review" && (await summary(c1m)).refunded === 25 && Math.abs((c1m.earned - await remaining(c1m)) - 0.87) < 0.001, { l1m, s: await summary(c1m) });
+
+// C2 : décisions — jamais deux fois la même obligation, jamais au-delà de l'encaissé.
+s = await summary(a4);
+check("C2 A4 : annulée sans montant + workshop 85 → décidé 100 (85 + 15), pas 185", s.decided === 100 && s.collected === 100, s);
+s = await summary(a5);
+const an5 = await q("select kind, requested, recorded from public.refund_anomalies where order_id=$1", [a5.id]);
+check("C2 A5 : refund_due 100 + workshop 85 → décidé 100, anomalie « réduite » 100 → 15",
+  s.decided === 100 && an5.length === 1 && an5[0].kind === "decision_reduite" && Number(an5[0].requested) === 100 && Number(an5[0].recorded) === 15, { s, an5 });
+const c2 = await order({ items: [{ total: 15 }, { total: 85, product: "workshop" }] });
+await decide(c2, 100, "admin_cancel");
+const c2res = await workshopRes(c2, 1);
+let c2err = null;
+const c2log = await one("insert into public.workshop_cancellation_log (reservation_id, idempotency_key, seats_cancelled, refund_amount_requested, refund_status) values ($1,'kc2',1,85,'pending') returning id", [c2res]).catch((err) => { c2err = err.message; });
+check("C2 : annulation workshop alors que tout est déjà décidé → pas d'erreur, pas de décision, anomalie « ignorée »",
+  !c2err && (await summary(c2)).decided === 100 && (await q("select 1 from public.refund_anomalies where order_id=$1 and kind='decision_ignoree'", [c2.id])).length === 1, { c2err });
+const c2b = await order({ items: [{ total: 15 }, { total: 85, product: "workshop" }] });
+const c2bres = await workshopRes(c2b, 1);
+const c2blog = await one("insert into public.workshop_cancellation_log (reservation_id, idempotency_key, seats_cancelled, refund_amount_requested, refund_status) values ($1,'kc2b',1,85,'pending') returning id", [c2bres]);
+await q("update public.workshop_cancellation_log set refund_amount_requested = 60 where id=$1", [c2blog.id]);
+const decs2b = await q("select amount from public.order_refund_decisions where order_id=$1 and voided_at is null", [c2b.id]);
+check("C2 : montant dû workshop corrigé 85 → 60 → même décision, 60", decs2b.length === 1 && Number(decs2b[0].amount) === 60, decs2b);
+const over = await q("select o.id from public.orders o where public.order_decided_amount(o.id) > public.order_collected_amount(o.id) + 0.004");
+check("C2 : invariant — aucune commande avec décidé > encaissé", over.length === 0, over);
+const dupDec = await q("select source, source_ref, count(*) from public.order_refund_decisions where source_ref is not null and voided_at is null group by 1,2 having count(*) > 1");
+check("C2 : aucune décision en double pour une même source", dupDec.length === 0, dupDec);
+
+// C3 : aucune date inventée.
+const a6rows = await q("select reference, refunded_at from public.order_manual_refunds where order_id=$1 order by reference", [a6.id]);
+check("C3 : Make sans date → « à dater » ; Make daté → date conservée",
+  a6rows.find((r) => r.reference === "NOTION-A6-SANS-DATE").refunded_at === null &&
+  new Date(a6rows.find((r) => r.reference === "NOTION-A6-DATEE").refunded_at).toISOString() === "2026-09-20T10:00:00.000Z", a6rows);
+const c3 = await order({ items: [{ total: 100 }] });
+await q("insert into public.order_refunds (order_id, postfinance_refund_id, amount) values ($1,'NOTION-C3',10)", [c3.id]);
+const c3row = await one("select id, refunded_at from public.order_manual_refunds where order_id=$1", [c3.id]);
+check("C3 : nouvelle ligne Make sans date (après bascule) → « à dater »", c3row.refunded_at === null);
+check("C3 : résumé — montant à dater visible", (await summary(c3)).undated_amount === 10);
+const remC3 = await remaining(c3);
+await q("select public.set_refund_date($1, '2026-09-25T09:00:00Z', 'admin@test')", [c3row.id]);
+check("C3 : datée par un admin → date enregistrée, cashback inchangé",
+  new Date((await one("select refunded_at from public.order_manual_refunds where id=$1", [c3row.id])).refunded_at).toISOString() === "2026-09-25T09:00:00.000Z" && (await remaining(c3)) === remC3);
+await q("update public.order_refunds set order_synced_at = now() where postfinance_refund_id='NOTION-C3'");
+check("C3 : rejeu Make sans date → la date saisie est conservée",
+  new Date((await one("select refunded_at from public.order_manual_refunds where id=$1", [c3row.id])).refunded_at).toISOString() === "2026-09-25T09:00:00.000Z");
+e = await expectError("select public.set_refund_date($1, now() + interval '10 days', 'x')", [c3row.id], /futur/);
+check("C3 : date future refusée", e.ok, e.msg);
+check("C3 : remboursement workshop (B9) → « à dater »", (await one("select refunded_at from public.order_manual_refunds where source='workshop' and order_id=$1", [b9.id])).refunded_at === null);
+
+// C4 : corrections du suivi workshop.
+const c4 = await order({ items: [{ total: 255, product: "workshop" }] });
+const c4res = await workshopRes(c4);
+const c4log = await one("insert into public.workshop_cancellation_log (reservation_id, idempotency_key, seats_cancelled, refund_amount_requested, refund_status) values ($1,'kc4',1,85,'pending') returning id", [c4res]);
+await q("select public.finalize_workshop_refund($1,'refunded',85,'PF-C4')", [c4log.id]);
+await q("update public.workshop_cancellation_log set refund_amount_completed = 80 where id=$1", [c4log.id]);
+let c4rows = await q("select amount, reference, status from public.order_manual_refunds where order_id=$1", [c4.id]);
+check("C4 : montant corrigé 85 → 80 (reste « refunded ») → même ligne, 80", c4rows.length === 1 && Number(c4rows[0].amount) === 80 && c4rows[0].status === "counted", c4rows);
+check("C4 : cashback recalculé sur 80 (2.80), sans double retrait", Math.abs((c4.earned - await remaining(c4)) - 2.80) < 0.001, await remaining(c4));
+await q("update public.workshop_cancellation_log set postfinance_refund_id = 'PF-C4-CORRIGE' where id=$1", [c4log.id]);
+c4rows = await q("select amount, reference from public.order_manual_refunds where order_id=$1", [c4.id]);
+check("C4 : référence corrigée → même ligne mise à jour, cashback inchangé",
+  c4rows.length === 1 && c4rows[0].reference === "PF-C4-CORRIGE" && Math.abs((c4.earned - await remaining(c4)) - 2.80) < 0.001, c4rows);
+await q("update public.workshop_cancellation_log set refund_status = 'failed' where id=$1", [c4log.id]);
+c4rows = await q("select status from public.order_manual_refunds where order_id=$1", [c4.id]);
+check("C4 : statut sorti de « refunded » → ligne annulée, cashback rendu", c4rows.length === 1 && c4rows[0].status === "voided" && (await remaining(c4)) === c4.earned, { c4rows, rem: await remaining(c4) });
+await q("update public.workshop_cancellation_log set refund_status = 'refunded' where id=$1", [c4log.id]);
+c4rows = await q("select status, amount from public.order_manual_refunds where order_id=$1", [c4.id]);
+check("C4 : revenu à « refunded » → même ligne réactivée, cashback retiré une fois",
+  c4rows.length === 1 && c4rows[0].status === "counted" && Math.abs((c4.earned - await remaining(c4)) - 2.80) < 0.001, { c4rows, rem: await remaining(c4) });
+check("C4 : places et montant workshop inchangés par le registre", Number((await one("select refunded_amount from public.workshop_reservations where id=$1", [c4res])).refunded_amount) === 85);
+check("C : aucune erreur de recopie", (await q("select * from public.refund_ingest_errors")).length === 0, await q("select * from public.refund_ingest_errors"));
 
 // R : relancer toutes les migrations ne change rien.
 const snap = async () => JSON.stringify({

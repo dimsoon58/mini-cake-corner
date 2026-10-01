@@ -11,7 +11,7 @@ npm install --no-save @electric-sql/pglite
 node test_refunds.mjs
 ```
 
-Résultat attendu : `61 PASS, 0 FAIL`.
+Résultat attendu : `93 PASS, 0 FAIL`.
 
 Ce qui est couvert : situation « avant » (anciens mécanismes) puis bascule F5, décisions et reste
 à rembourser, plafond (admin et Make), doublons (y compris réservation du plafond), double clic,
