@@ -8,7 +8,7 @@ import { fr as dateFnsFr } from "date-fns/locale";
 import { Loader2, Lock, CalendarDays, ChevronLeft, ChevronRight, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import Layout from "@/components/Layout";
+import AdminLayout from "@/components/admin/AdminLayout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -99,17 +99,17 @@ const AdminCalendar = () => {
 
   if (authLoading) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
   if (!user) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="max-w-md mx-auto px-6 py-24 text-center">
           <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
           <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
@@ -130,13 +130,13 @@ const AdminCalendar = () => {
             </Link>
           </Button>
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
   if (!isAdmin) {
     return (
-      <Layout>
+      <AdminLayout>
         <main className="max-w-md mx-auto px-6 py-24 text-center">
           <Lock className="w-8 h-8 mx-auto text-muted-foreground mb-4" />
           <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground mb-4">
@@ -146,7 +146,7 @@ const AdminCalendar = () => {
             {t("Your account does not have access to this page.", "Votre compte n'a pas accès à cette page.")}
           </p>
         </main>
-      </Layout>
+      </AdminLayout>
     );
   }
 
@@ -184,8 +184,9 @@ const AdminCalendar = () => {
   };
 
   return (
-    <Layout>
+    <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-5xl">
+<<<<<<< HEAD
         <div className="flex items-center justify-center gap-4 mb-4 text-[11px] uppercase tracking-[0.105em]">
           <Link to="/admin/orders" className="text-muted-foreground hover:text-foreground">{t("Orders", "Commandes")}</Link>
           <Link to="/admin/manual-orders" className="text-muted-foreground hover:text-foreground">{t("Manual orders", "Commandes manuelles")}</Link>
@@ -194,6 +195,8 @@ const AdminCalendar = () => {
           <Link to="/admin/production" className="text-muted-foreground hover:text-foreground">{t("Production", "Production")}</Link>
           <Link to="/admin/labels" className="text-muted-foreground hover:text-foreground">{t("Labels", "Étiquettes")}</Link>
         </div>
+=======
+>>>>>>> 89b8f09610f569ff945ce7358166f8bdb26a6efd
         <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8 text-center font-semibold flex items-center justify-center gap-3">
           <CalendarDays className="w-6 h-6 text-primary" strokeWidth={1.5} />
           {t("Order Calendar", "Calendrier des commandes")}
@@ -328,7 +331,7 @@ const AdminCalendar = () => {
           </div>
         )}
       </main>
-    </Layout>
+    </AdminLayout>
   );
 };
 

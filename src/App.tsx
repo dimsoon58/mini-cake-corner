@@ -28,6 +28,8 @@ import KitBentoCake from "./pages/KitBentoCake";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import AdminOrder from "./pages/AdminOrder";
 import AdminOrders from "./pages/AdminOrders";
+import AdminToday from "./pages/AdminToday";
+import AdminRefunds from "./pages/AdminRefunds";
 import AdminCalendar from "./pages/AdminCalendar";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProduction from "./pages/AdminProduction";
@@ -125,6 +127,7 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/admin" element={<AdminToday />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/calendar" element={<AdminCalendar />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
@@ -133,7 +136,11 @@ const App = () => (
             <Route path="/admin/manual-orders/new" element={<AdminManualOrderEditor />} />
             <Route path="/admin/manual-orders/:id/edit" element={<AdminManualOrderEditor />} />
             <Route path="/admin/order/:id" element={<AdminOrder />} />
+<<<<<<< HEAD
             <Route path="/admin/labels" element={<AdminLabels />} />
+=======
+            <Route path="/admin/refunds" element={<AdminRefunds />} />
+>>>>>>> 89b8f09610f569ff945ce7358166f8bdb26a6efd
             <Route path="/order-action" element={<OrderAction />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/legal" element={<Legal />} />
