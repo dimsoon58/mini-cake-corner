@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format, addMonths, subMonths } from "date-fns";
 import { fr as dateFnsFr } from "date-fns/locale";
-import { Loader2, Lock, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
+import { AlertTriangle, Download, Loader2, Lock, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -12,6 +12,7 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, designLabel } from "@/lib/orderLabels";
 import { workshopSessions } from "@/data/workshopSessions";
+import { fetchFinanceMonth, type FinanceMonth } from "@/lib/finance";
 
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
 type DayEntry = {
@@ -57,13 +58,6 @@ type DayEntry = {
 
 const formatChf = (n: number) => n.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// Same detection convention as AdminOrders.tsx's isManualOrder — order_number's
-// "ORDM-" prefix is the PRIMARY, unambiguous signal (minted at creation by
-// the Make scenario "Bento — Commandes manuelles instantanées" and never
-// changed afterward); order_source is checked as a fallback only.
-const isManualOrder = (e: Pick<DayEntry, "orderNumber" | "orderSource">): boolean =>
-  !!e.orderNumber?.startsWith("ORDM-") || (!!e.orderSource && e.orderSource !== "website");
-
 // Same "no meaningful design" set as AdminOrder.tsx/cartItemTitle — these
 // products have no real design/style choice, so appending one would just
 // repeat the product name (or show a raw internal id) for no new info.
@@ -93,6 +87,52 @@ const AdminDashboard = () => {
   const [days, setDays] = useState<Record<string, DayEntry[]>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Money figures (lot 3): by REAL date of collection / refund, from
+  // finance-month — independent of the production stats below, which stay
+  // scoped by pickup/delivery date.
+  const [finance, setFinance] = useState<FinanceMonth | null>(null);
+  const [financeError, setFinanceError] = useState<string | null>(null);
+  const [financeLoading, setFinanceLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const monthKey = format(monthCursor, "yyyy-MM");
+
+  useEffect(() => {
+    if (authLoading || !isAdmin) return;
+    let cancelled = false;
+    setFinanceLoading(true);
+    setFinanceError(null);
+    fetchFinanceMonth(monthKey)
+      .then((d) => { if (!cancelled) setFinance(d); })
+      .catch((e) => { if (!cancelled) { setFinance(null); setFinanceError(e instanceof Error ? e.message : String(e)); } })
+      .finally(() => { if (!cancelled) setFinanceLoading(false); });
+    return () => { cancelled = true; };
+  }, [monthKey, authLoading, isAdmin]);
+
+  const downloadExcel = async () => {
+    if (!finance || exporting) return;
+    setExporting(true);
+    try {
+      const [{ default: ExcelJS }, { buildFinanceWorkbook, financeFileName }] = await Promise.all([
+        import("exceljs"),
+        import("@/lib/financeExport"),
+      ]);
+      const wb = buildFinanceWorkbook(ExcelJS, finance);
+      const buffer = await wb.xlsx.writeBuffer();
+      const url = URL.createObjectURL(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = financeFileName(finance.month);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      console.error("Excel export failed:", e);
+      setFinanceError(t("The Excel file could not be created. Please try again.", "Le fichier Excel n'a pas pu être créé. Réessayez."));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     document.title = "Admin – Dashboard – Bento Cake Studio";
@@ -195,90 +235,8 @@ const AdminDashboard = () => {
   for (const e of allEntries) orderById.set(e.orderId, e);
   const orders = Array.from(orderById.values());
 
-  // "Brut" / encaissé: every paid order's full captured amount, regardless
-  // of what later happened to it — a pending-refund or already-refunded
-  // order still HAD its money captured, so it belongs in brut. Only
-  // paymentStatus==='paid' gates this (money genuinely came in); refundStatus
-  // is deliberately NOT filtered here any more (2026-09-20) — a mere
-  // cancellation or a refund still "to do" must not shrink brut OR net, only
-  // a REALLY completed refund should (see totalRefunded below). Item totals
-  // alone leave out delivery fee, express surcharge and welcome/partner/
-  // reward discounts — all order-level amounts, charged/deducted once per
-  // order, never per line (orderExtras/orderDiscount) — summed per item,
-  // then extras/discount added/subtracted once per order (deduped by
-  // orderId) so a multi-item order never double-counts them.
-  const sumEntries = (entries: DayEntry[]) => {
-    const itemsTotal = entries.reduce((sum, e) => sum + (e.total ?? 0), 0);
-    const seenOrderIds = new Set<string>();
-    let extras = 0;
-    let discount = 0;
-    for (const e of entries) {
-      if (seenOrderIds.has(e.orderId)) continue;
-      seenOrderIds.add(e.orderId);
-      extras += e.orderExtras || 0;
-      discount += e.orderDiscount || 0;
-    }
-    return itemsTotal + extras - discount;
-  };
-  const grossRevenueFor = (list: DayEntry[]) =>
-    sumEntries(allEntries.filter((e) => list.some((o) => o.orderId === e.orderId) && e.paymentStatus === "paid"));
-  const grossPaidRevenue = grossRevenueFor(orders);
-
-  // "Remboursé" / réellement remboursé — every REAL, already-completed
-  // refund, from every source that tracks one, added together (never
-  // double-counted: each source below covers orders/items no other source
-  // touches — see AdminOrder.tsx's own hide/warn logic for the workshop vs
-  // manual-refund-form split, and order_manual_refunds.order_item_id for
-  // the per-item vs whole-order split):
-  //   - manualRefundTotal: order-wide ad-hoc refunds (order_manual_refunds,
-  //     order_item_id NULL) — deduped by order, same value on every entry.
-  //   - itemManualRefundTotal: ad-hoc refunds tied to ONE order_item
-  //     (order_item_id set) — summed directly, no dedup needed (one entry
-  //     per item), attributed to that item's own pickup/delivery date.
-  //   - workshopRefundedTotal: workshop_reservations.refunded_amount, per
-  //     ITEM, kept live by cancel-workshop-seats/confirm-workshop-refund —
-  //     completely independent of orders.refund_status, which those never
-  //     touch (a partial seat refund is never a whole-order event).
-  //   - wholeOrderRefundTotal: orders.refund_status==='refunded' — set by
-  //     cancel-order (an approved+paid order cancelled after the fact — the
-  //     WHOLE order, always) or the rare mark_refunded "unexpectedly
-  //     captured on Refuse" case. Neither writes a separate tracked amount
-  //     (order_refunds' own automatic-sync writer was abandoned 2026-09-20
-  //     per postfinance-webhook/index.ts — that table has no active writer
-  //     any more, so it is deliberately not read here), so the order's own
-  //     captured total is used — exact for cancel-order's whole-order case,
-  //     an approximation only for the rare mixed-order partial mark_refunded
-  //     edge case (no test data for that one; flagged, not guessed further).
-  // A 'to_refund' order (refund decided but not yet actually done) is
-  // deliberately EXCLUDED from all of the above — pendingRefundTotal below
-  // tracks it separately, informational only, never subtracted from net.
-  const manualRefundTotal = orders.reduce((sum, o) => sum + (o.manualRefundTotal || 0), 0)
-    + allEntries.reduce((sum, e) => sum + (e.itemManualRefundTotal || 0), 0);
-  const workshopRefundedTotal = allEntries.reduce((sum, e) => sum + (e.workshopRefundedAmount || 0), 0);
-  const wholeOrderRefundTotal = sumEntries(allEntries.filter((e) => e.paymentStatus === "paid" && e.refundStatus === "refunded"));
-  const totalRefunded = manualRefundTotal + workshopRefundedTotal + wholeOrderRefundTotal;
-
-  // "Net" — the number that answers "what did we actually keep".
-  const revenue = grossPaidRevenue - totalRefunded;
-
-  // Informational only, never subtracted from brut or net above.
-  const pendingRefundTotal = sumEntries(allEntries.filter((e) => e.paymentStatus === "paid" && e.refundStatus === "to_refund"));
-  const pendingPaymentAmount = allEntries
-    .filter((e) => e.paymentStatus === "pending")
-    .reduce((sum, e) => sum + (e.total ?? 0), 0);
-
   const statusCounts: Record<OrderState, number> = { approved: 0, pending: 0, refused: 0, cancelled: 0 };
   for (const o of orders) statusCounts[o.status] = (statusCounts[o.status] ?? 0) + 1;
-
-  // Manual vs website split — counts (deduped by order, same as statusCounts
-  // above) and each side's share of gross paid revenue (before the manual-
-  // refund deduction above, kept simple/consistent with how the split is
-  // normally read: "how much did each channel bring in", not net of a later
-  // refund that isn't tied to one channel more than the other).
-  const manualOrders = orders.filter(isManualOrder);
-  const websiteOrders = orders.filter((o) => !isManualOrder(o));
-  const manualRevenue = grossRevenueFor(manualOrders);
-  const websiteRevenue = grossRevenueFor(websiteOrders);
 
   // Top products — counted per ITEM (not deduped by order): each cake or
   // workshop booking sold is one unit, so a 2-cake order counts as 2 here,
@@ -335,7 +293,7 @@ const AdminDashboard = () => {
   return (
     <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-3xl">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" strokeWidth={1.5} />
             {t("Dashboard", "Tableau de bord")}
@@ -353,6 +311,76 @@ const AdminDashboard = () => {
           </div>
         </div>
 
+        {/* Money (lot 3) — by REAL date of collection and of refund (Europe/
+            Zurich), test orders excluded. Same numbers as the Excel file. */}
+        <section className="space-y-3 mb-8" data-testid="finance">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="font-sans text-[12px] tracking-[0.105em] uppercase font-semibold text-foreground">{t("Money", "Argent")}</h2>
+              <p className="text-xs text-muted-foreground">
+                {t("By actual date of payment and of refund · test orders excluded.", "Par date réelle d'encaissement et de remboursement · commandes de test exclues.")}
+              </p>
+            </div>
+            <Button variant="outline" className="rounded-none" onClick={downloadExcel} disabled={!finance || exporting || financeLoading}>
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Download className="w-4 h-4 mr-1" />}
+              {t("Download Excel", "Télécharger Excel")}
+            </Button>
+          </div>
+          {financeLoading && !finance ? (
+            <div className="py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>
+          ) : financeError && !finance ? (
+            <p className="text-sm border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3">{financeError}</p>
+          ) : finance ? (
+            <>
+              {financeError && <p className="text-sm border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3">{financeError}</p>}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { k: "collected", label: t("Collected", "Encaissé"), v: finance.cards.collected, n: finance.cards.collectedCount, hint: t("orders paid this month", "commande(s) payée(s) ce mois") },
+                  { k: "refunded", label: t("Refunded", "Remboursé"), v: finance.cards.refunded, n: finance.cards.refundedCount, hint: t("refunds made this month", "remboursement(s) fait(s) ce mois") },
+                  { k: "net", label: t("Net", "Net"), v: finance.cards.net, strong: true, hint: t("collected − refunded", "encaissé − remboursé") },
+                  { k: "toCollect", label: t("To collect", "À encaisser"), v: finance.cards.toCollect, n: finance.cards.toCollectCount, hint: t("today, all months", "aujourd'hui, tous mois") },
+                  { k: "remaining", label: t("Left to refund", "Reste à rembourser"), v: finance.cards.remainingToRefund, n: finance.cards.remainingCount, hint: t("today, all months", "aujourd'hui, tous mois"), href: "/admin/refunds?tab=todo" },
+                ].map((c) => {
+                  const body = (
+                    <>
+                      <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{c.label}</span>
+                      <span className={`block tabular-nums ${c.strong ? "text-2xl font-bold" : "text-xl font-semibold"}`}>CHF {formatChf(Number(c.v) || 0)}</span>
+                      <span className="block text-[11px] text-muted-foreground">{c.n != null ? `${c.n} · ` : ""}{c.hint}</span>
+                    </>
+                  );
+                  const cls = `block px-4 py-3 border ${c.strong ? "border-primary/40 bg-primary/5" : "border-border/60 bg-background"}`;
+                  return c.href
+                    ? <Link key={c.k} to={c.href} data-k={c.k} className={`${cls} hover:bg-secondary/40`}>{body}</Link>
+                    : <div key={c.k} data-k={c.k} className={cls}>{body}</div>;
+                })}
+                <div className="px-4 py-3 border border-border/60 bg-background" data-k="origin">
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t("Collected by channel", "Encaissé par canal")}</span>
+                  <span className="flex justify-between text-sm tabular-nums"><span>{t("Website", "Site")} ({finance.cards.byOrigin.website.count})</span><span>CHF {formatChf(Number(finance.cards.byOrigin.website.collected) || 0)}</span></span>
+                  <span className="flex justify-between text-sm tabular-nums"><span>{t("Manual", "Manuel")} ({finance.cards.byOrigin.manual.count})</span><span>CHF {formatChf(Number(finance.cards.byOrigin.manual.collected) || 0)}</span></span>
+                </div>
+              </div>
+              {(finance.cards.undatedCount > 0 || finance.cards.toReviewCount > 0) && (
+                <div className="space-y-1.5">
+                  {finance.cards.undatedCount > 0 && (
+                    <Link to="/admin/refunds" className="flex gap-2 text-xs bg-amber-50 border border-amber-200 text-amber-900 px-3 py-2 hover:bg-amber-100">
+                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      {t(`${finance.cards.undatedCount} refund(s) without a date (CHF ${formatChf(Number(finance.cards.undated) || 0)}) — not included in any month until dated.`,
+                        `${finance.cards.undatedCount} remboursement(s) à dater (CHF ${formatChf(Number(finance.cards.undated) || 0)}) — inclus dans aucun mois tant qu'ils ne sont pas datés.`)}
+                    </Link>
+                  )}
+                  {finance.cards.toReviewCount > 0 && (
+                    <Link to="/admin/refunds?tab=review" className="flex gap-2 text-xs bg-amber-50 border border-amber-200 text-amber-900 px-3 py-2 hover:bg-amber-100">
+                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      {t(`${finance.cards.toReviewCount} refund(s) to check (CHF ${formatChf(Number(finance.cards.toReview) || 0)}) — not counted.`,
+                        `${finance.cards.toReviewCount} remboursement(s) à vérifier (CHF ${formatChf(Number(finance.cards.toReview) || 0)}) — non comptés.`)}
+                    </Link>
+                  )}
+                </div>
+              )}
+            </>
+          ) : null}
+        </section>
+
         {loading ? (
           <div className="text-center py-16">
             <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
@@ -361,35 +389,14 @@ const AdminDashboard = () => {
           <p className="text-center text-muted-foreground py-16">{loadError}</p>
         ) : (
           <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "Scoped by pickup/delivery date — an order counts in the month its cake or workshop actually happens, not the month it was placed.",
-                "Basé sur la date de retrait/livraison — une commande compte dans le mois où le gâteau ou l'atelier a vraiment lieu, pas dans le mois où elle a été passée."
-              )}
-            </p>
-
-            {/* Revenue card — net is the headline (what we actually kept);
-                gross and refunded are shown alongside so the two components
-                of that number are never hidden. A pending ("to_refund", not
-                yet actually done) refund is shown separately below and never
-                subtracted from either brut or net. */}
-            <div className="border border-border/60 bg-background p-6">
-              <p className="font-sans text-[11px] tracking-[0.105em] uppercase text-muted-foreground mb-1">
-                {t("Net revenue this month", "Chiffre d'affaires net du mois")}
-              </p>
-              <p className="font-sans text-3xl font-bold text-foreground">CHF {formatChf(revenue)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+            <div className="pt-2">
+              <h2 className="font-sans text-[12px] tracking-[0.105em] uppercase font-semibold text-foreground">{t("Production", "Production")}</h2>
+              <p className="text-xs text-muted-foreground">
                 {t(
-                  "Paid orders, minus refunds actually completed. A cancellation or refund still pending does not reduce this.",
-                  "Commandes payées, moins les remboursements réellement effectués. Une annulation ou un remboursement encore en attente ne réduit pas ce montant."
+                  "By pickup/delivery date — an order counts in the month its cake or workshop actually happens.",
+                  "Par date de retrait/livraison — une commande compte dans le mois où le gâteau ou l'atelier a vraiment lieu."
                 )}
               </p>
-              <div className="flex gap-4 mt-3 pt-3 border-t border-border/60 text-xs text-muted-foreground flex-wrap">
-                <span>{t("Gross:", "Brut :")} CHF {formatChf(grossPaidRevenue)}</span>
-                <span>{t("Refunded:", "Remboursé :")} CHF {formatChf(totalRefunded)}</span>
-                {pendingPaymentAmount > 0 && <span>{t("Payment pending:", "Paiement en attente :")} CHF {formatChf(pendingPaymentAmount)}</span>}
-                {pendingRefundTotal > 0 && <span>{t("Refund pending:", "Remboursement en attente :")} CHF {formatChf(pendingRefundTotal)}</span>}
-              </div>
             </div>
 
             {/* Status breakdown card */}
@@ -406,33 +413,6 @@ const AdminDashboard = () => {
                     <span className="font-bold text-foreground">{statusCounts[s]}</span>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Manual vs website split card */}
-            <div className="border border-border/60 bg-background p-6">
-              <p className="font-sans text-[11px] tracking-[0.105em] uppercase text-muted-foreground mb-3">
-                {t("Manual vs website", "Manuel vs site")}
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center justify-between px-3 py-2 bg-muted/30">
-                  <div>
-                    <span className="text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 shrink-0 bg-secondary text-secondary-foreground">
-                      {t("Website", "Site")}
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-1">CHF {formatChf(websiteRevenue)}</p>
-                  </div>
-                  <span className="font-bold text-foreground">{websiteOrders.length}</span>
-                </div>
-                <div className="flex items-center justify-between px-3 py-2 bg-muted/30">
-                  <div>
-                    <span className="text-[11px] uppercase tracking-[0.105em] px-2 py-0.5 shrink-0 bg-blue-100 text-blue-800">
-                      {t("Manual", "Manuel")}
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-1">CHF {formatChf(manualRevenue)}</p>
-                  </div>
-                  <span className="font-bold text-foreground">{manualOrders.length}</span>
-                </div>
               </div>
             </div>
 
