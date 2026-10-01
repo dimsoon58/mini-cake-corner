@@ -34,3 +34,20 @@ Résultat attendu : `48 PASS, 0 FAIL` (accès admin / PIN, décisions, rembourse
 geste commercial, plafond, correction, datation, onglets Effectués / À effectuer / À vérifier,
 bornes de mois Europe/Zurich, « à dater », commandes de test masquées, aucun effet sur paiement /
 statut / production, aucun appel Make).
+
+## Lot 3 — chiffres du mois (F7, `finance-month`) et export Excel
+
+`test_lot3.mjs` exécute la vraie fonction `finance-month` sur la base locale (schéma de production
++ F1–F7), puis génère le fichier Excel avec le vrai code du site (`src/lib/financeExport.ts`) et le
+relit avec `exceljs` (dépendance du projet : lancer `npm ci` à la racine d'abord).
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save @electric-sql/pglite esbuild
+node test_lot3.mjs
+```
+
+Résultat attendu : `36 PASS, 0 FAIL` (dates réelles d'encaissement et de remboursement, bornes de
+mois Europe/Zurich, commande multi-dates encaissée une fois, commande manuelle avec ajustement,
+« à dater » et « à vérifier » à part, à encaisser, reste à rembourser, tests exclus ; Excel : 4
+onglets, formules SUM, contrôles « OK », un gâteau par ligne, somme des lignes = encaissé).

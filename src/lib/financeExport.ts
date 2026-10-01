@@ -51,6 +51,7 @@ export const lineDescription = (l: FinanceLine): string => {
     add("partenaire", d.partnerDiscount, -1);
     add("cagnotte", d.rewardUsed, -1);
     add("ajustement manuel", d.priceAdjustment);
+    add("écart encaissé / total de la commande", d.paidVsTotal);
     return parts.length ? parts.join(", ") : "frais, remises et ajustements";
   }
   if (l.product === "workshop") {

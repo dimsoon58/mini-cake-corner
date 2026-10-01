@@ -186,17 +186,9 @@ const AdminCalendar = () => {
   return (
     <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-5xl">
-<<<<<<< HEAD
-        <div className="flex items-center justify-center gap-4 mb-4 text-[11px] uppercase tracking-[0.105em]">
-          <Link to="/admin/orders" className="text-muted-foreground hover:text-foreground">{t("Orders", "Commandes")}</Link>
-          <Link to="/admin/manual-orders" className="text-muted-foreground hover:text-foreground">{t("Manual orders", "Commandes manuelles")}</Link>
-          <span className="text-foreground font-semibold">{t("Calendar", "Calendrier")}</span>
-          <Link to="/admin/dashboard" className="text-muted-foreground hover:text-foreground">{t("Dashboard", "Tableau de bord")}</Link>
-          <Link to="/admin/production" className="text-muted-foreground hover:text-foreground">{t("Production", "Production")}</Link>
-          <Link to="/admin/labels" className="text-muted-foreground hover:text-foreground">{t("Labels", "Étiquettes")}</Link>
+        <div className="flex justify-end mb-2">
+          <Link to="/admin/labels" className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground hover:text-foreground">{t("Production labels", "Étiquettes de production")}</Link>
         </div>
-=======
->>>>>>> 89b8f09610f569ff945ce7358166f8bdb26a6efd
         <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8 text-center font-semibold flex items-center justify-center gap-3">
           <CalendarDays className="w-6 h-6 text-primary" strokeWidth={1.5} />
           {t("Order Calendar", "Calendrier des commandes")}

@@ -108,7 +108,8 @@ begin
            jsonb_build_object(
              'deliveryFee', c.delivery_fee, 'expressSurcharge', c.express_surcharge_amount,
              'welcomeDiscount', c.welcome_discount_amount, 'partnerDiscount', c.partner_discount_amount,
-             'rewardUsed', c.reward_amount_used, 'priceAdjustment', c.price_adjustment_amount) as detail
+             'rewardUsed', c.reward_amount_used, 'priceAdjustment', c.price_adjustment_amount,
+             'paidVsTotal', round(c.collected_amount - c.total_amount, 2)) as detail
     from collected c
   )
   select jsonb_build_object(

@@ -136,11 +136,8 @@ const App = () => (
             <Route path="/admin/manual-orders/new" element={<AdminManualOrderEditor />} />
             <Route path="/admin/manual-orders/:id/edit" element={<AdminManualOrderEditor />} />
             <Route path="/admin/order/:id" element={<AdminOrder />} />
-<<<<<<< HEAD
             <Route path="/admin/labels" element={<AdminLabels />} />
-=======
             <Route path="/admin/refunds" element={<AdminRefunds />} />
->>>>>>> 89b8f09610f569ff945ce7358166f8bdb26a6efd
             <Route path="/order-action" element={<OrderAction />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/legal" element={<Legal />} />
