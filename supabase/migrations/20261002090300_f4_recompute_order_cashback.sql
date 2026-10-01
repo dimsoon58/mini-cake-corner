@@ -54,7 +54,13 @@ declare
   v_detail text;
 begin
   select * into v_order from public.orders where id = p_order_id for update;
-  if not found or v_order.cashback_refund_initialized_at is not null then
+  -- Déjà initialisée, ou déjà suivie par recompute_order_cashback : rien à faire.
+  if not found or v_order.cashback_refund_initialized_at is not null
+     or coalesce(v_order.cashback_refund_target, 0) <> 0
+     or coalesce(v_order.cashback_refund_adjustment, 0) <> 0 then
+    if found and v_order.cashback_refund_initialized_at is null then
+      update public.orders set cashback_refund_initialized_at = now() where id = p_order_id;
+    end if;
     return;
   end if;
 
@@ -199,6 +205,10 @@ begin
              reward_amount_earned = round(v_earned.amount - v_desired, 2)
        where id = p_order_id;
     end if;
+  end if;
+
+  if v_order.cashback_refund_initialized_at is null then
+    update public.orders set cashback_refund_initialized_at = now() where id = p_order_id;
   end if;
 
   perform public.recompute_reward_balance(v_order.customer_id);

@@ -88,6 +88,27 @@ const a6 = await order({ items: [{ total: 200 }] });
 await q("insert into public.order_refunds (order_id, postfinance_refund_id, amount) values ($1,'NOTION-A6-SANS-DATE',20)", [a6.id]);
 await q("insert into public.order_refunds (order_id, postfinance_refund_id, amount, completed_at) values ($1,'NOTION-A6-DATEE',30,'2026-09-20T10:00:00Z')", [a6.id]);
 
+// A7 : rejeu Make SANS date avant F5 (la fonction Make met now() au rejeu).
+const a7 = await order({ items: [{ total: 200 }] });
+await q("select * from public.sync_manual_accounting_refund_event(p_order_id=>$1, p_gross_amount=>12, p_refund_reference=>'NOTION-A7')", [a7.id]);
+await q("select * from public.sync_manual_accounting_refund_event(p_order_id=>$1, p_gross_amount=>12, p_refund_reference=>'NOTION-A7')", [a7.id]);
+// A8 : cashback DÉJÀ dépensé avant F5 — 3.50 gagnés, 2.50 dépensés (réservation consommée), 1.00 disponible,
+//      puis remboursement de 85 enregistré par Make avec l'ancien mécanisme.
+const a8 = await order({ items: [{ total: 100 }] });
+const a8lot = (await one("select id from public.reward_transactions where order_id=$1 and type='earned'", [a8.id])).id;
+const a8spend = await one(`insert into public.orders (lang, first_name, last_name, email, phone, total_amount, payment_status, paid_at, order_validation, customer_id, reward_amount_used)
+  values ('fr','T','E','t@e.ch','000',50,'paid',now(),'approved',$1,2.50) returning id`, [a8.customer]);
+await q("insert into public.reward_reservations (order_id, customer_id, amount, status, consumed_at) values ($1,$2,2.50,'consumed',now())", [a8spend.id, a8.customer]);
+await q("insert into public.reward_reservation_items (order_id, reward_transaction_id, amount) values ($1,$2,2.50)", [a8spend.id, a8lot]);
+await q("update public.reward_transactions set remaining_amount = 1.00 where id=$1", [a8lot]);
+await makeRow(a8, 85, "NOTION-A8");
+const a8before = await remaining(a8);
+check("avant F5 A8 : l'ancien calcul laisse 0.53 (retrait réel 0.47)", a8before === 0.53, a8before);
+// A9 : historique ambigu — solde modifié sans trace (0.20 disponible, rien de dépensé tracé), puis 85 par Make.
+const a9 = await order({ items: [{ total: 100 }] });
+await q("update public.reward_transactions set remaining_amount = 0.20 where order_id=$1 and type='earned'", [a9.id]);
+await makeRow(a9, 85, "NOTION-A9");
+
 console.log(`  avant F5 : A2 cashback restant ${a2RemainingBefore} (gagné ${a2.earned}) — double retrait attendu`);
 check("avant F5 : double retrait A2 quand Make arrive avant la confirmation workshop (défaut actuel)", Math.abs((a2.earned - a2RemainingBefore) - 2 * Math.trunc(85 * 0.035 * 100) / 100) < 0.011, { earned: a2.earned, rem: a2RemainingBefore });
 
@@ -378,6 +399,60 @@ check("C4 : revenu à « refunded » → même ligne réactivée, cashback retir
   c4rows.length === 1 && c4rows[0].status === "counted" && Math.abs((c4.earned - await remaining(c4)) - 2.80) < 0.001, { c4rows, rem: await remaining(c4) });
 check("C4 : places et montant workshop inchangés par le registre", Number((await one("select refunded_amount from public.workshop_reservations where id=$1", [c4res])).refunded_amount) === 85);
 check("C : aucune erreur de recopie", (await q("select * from public.refund_ingest_errors")).length === 0, await q("select * from public.refund_ingest_errors"));
+
+
+// ═══ Phase D — corrections du 02.10 (vérification ChatGPT) ═══
+// D1 : rejeu Make sans date.
+const a7rows = await q("select refunded_at, amount from public.order_manual_refunds where order_id=$1", [a7.id]);
+check("D1 : rejeu sans date AVANT F5 → une ligne, « à dater » (+ anomalie date ambiguë)",
+  a7rows.length === 1 && a7rows[0].refunded_at === null &&
+  (await q("select 1 from public.refund_anomalies where order_id=$1 and kind='date_make_ambigue'", [a7.id])).length === 1, a7rows);
+const d1 = await order({ items: [{ total: 200 }] });
+const syncMake = (o, amount, ref, date) => date
+  ? q("select * from public.sync_manual_accounting_refund_event(p_order_id=>$1, p_gross_amount=>$2, p_refund_reference=>$3, p_completed_at=>$4)", [o.id, amount, ref, date])
+  : q("select * from public.sync_manual_accounting_refund_event(p_order_id=>$1, p_gross_amount=>$2, p_refund_reference=>$3)", [o.id, amount, ref]);
+await syncMake(d1, 20, "NOTION-D1");
+let d1row = await one("select refunded_at from public.order_manual_refunds where order_id=$1", [d1.id]);
+check("D1 : premier appel Make sans date → « à dater »", d1row.refunded_at === null);
+await syncMake(d1, 20, "NOTION-D1");
+let d1rows = await q("select refunded_at, amount from public.order_manual_refunds where order_id=$1", [d1.id]);
+check("D1 : rejeu Make sans date → toujours « à dater », une seule ligne", d1rows.length === 1 && d1rows[0].refunded_at === null, d1rows);
+await syncMake(d1, 25, "NOTION-D1");
+d1rows = await q("select refunded_at, amount from public.order_manual_refunds where order_id=$1", [d1.id]);
+check("D1 : rejeu sans date avec nouveau montant → montant mis à jour, toujours « à dater »", d1rows.length === 1 && Number(d1rows[0].amount) === 25 && d1rows[0].refunded_at === null, d1rows);
+await syncMake(d1, 25, "NOTION-D1", "2026-09-20T10:00:00Z");
+await syncMake(d1, 25, "NOTION-D1");
+d1rows = await q("select refunded_at from public.order_manual_refunds where order_id=$1", [d1.id]);
+check("D1 : date envoyée puis rejeu sans date → la date envoyée est conservée",
+  d1rows.length === 1 && new Date(d1rows[0].refunded_at).toISOString() === "2026-09-20T10:00:00.000Z", d1rows);
+
+// D2 : cashback déjà dépensé avant F5.
+const a8o = await one("select cashback_refund_adjustment a, cashback_refund_target t, cashback_needs_review r from public.orders where id=$1", [a8.id]);
+check("D2 : F5 ne change pas le solde (0.53) ; retrait réel mémorisé 0.47, visé 2.97",
+  (await remaining(a8)) === 0.53 && Number(a8o.a) === 0.47 && Number(a8o.t) === 2.97 && a8o.r === false, { rem: await remaining(a8), a8o });
+const a8ref = (await one("select id from public.order_manual_refunds where order_id=$1 and status='counted'", [a8.id])).id;
+await q("select public.void_refund_entry($1,'saisie erronée','test')", [a8ref]);
+check("D2 : annulation de la saisie → solde 1.00 (le réel retiré est rendu), PAS 3.50", (await remaining(a8)) === 1.00, await remaining(a8));
+check("D2 : profil client cohérent (1.00)", Number((await one("select reward_balance from public.profiles where id=$1", [a8.customer])).reward_balance) === 1.00);
+await q("select public.recompute_order_cashback($1)", [a8.id]);
+check("D2 : recalcul rejoué → toujours 1.00", (await remaining(a8)) === 1.00);
+
+// D3 : historique ambigu → signalé, aucune restitution supposée.
+const a9o = await one("select cashback_needs_review r from public.orders where id=$1", [a9.id]);
+check("D3 : historique ambigu signalé (anomalie + à vérifier)",
+  a9o.r === true && (await q("select 1 from public.refund_anomalies where order_id=$1 and kind='cashback_historique_ambigu'", [a9.id])).length === 1);
+const a9rem = await remaining(a9);
+const a9ref = (await one("select id from public.order_manual_refunds where order_id=$1 and status='counted'", [a9.id])).id;
+await q("select public.void_refund_entry($1,'saisie erronée','test')", [a9ref]);
+check("D3 : annulation → aucun crédit supposé (solde inchangé) + anomalie « restitution bloquée »",
+  (await remaining(a9)) === a9rem && (await q("select 1 from public.refund_anomalies where order_id=$1 and kind='cashback_restitution_bloquee'", [a9.id])).length === 1, { before: a9rem, after: await remaining(a9) });
+
+// D4 : dépense APRÈS un retrait, puis nouvel événement → jamais de crédit.
+const d4 = await order({ items: [{ total: 100 }] });
+await ingest(d4, 50, { gesture: true, key: "d4-1" });                       // retire 1.75 → 1.75 restant
+await q("update public.reward_transactions set remaining_amount = 0.25 where order_id=$1 and type='earned'", [d4.id]); // le client dépense 1.50
+await ingest(d4, 10, { gesture: true, key: "d4-2" });                       // visé +0.35 → retire 0.25 max
+check("D4 : dépense entre deux remboursements → solde 0, jamais négatif ni recrédité", (await remaining(d4)) === 0, await remaining(d4));
 
 // R : relancer toutes les migrations ne change rien.
 const snap = async () => JSON.stringify({

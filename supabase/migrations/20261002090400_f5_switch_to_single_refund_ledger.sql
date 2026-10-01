@@ -3,9 +3,12 @@
 -- Plan v3.1 §4.3 / §4.4, corrigé après relecture (02.10.2026). Tout est dans
 -- UNE transaction : si une étape échoue, rien n'est changé.
 --
---   1. Mémorise ce que les anciens mécanismes ont DÉJÀ retiré du cashback
---      (cashback gagné − reward_amount_earned) : le premier recalcul ne
---      retire rien une seconde fois.
+--   1. Établit, pour chaque commande, le retrait de cashback que l'ancien
+--      mécanisme VISAIT et celui qu'il a RÉELLEMENT appliqué (le cashback a pu
+--      être dépensé entre-temps) : le premier recalcul ne retire rien une
+--      seconde fois, et une correction ultérieure ne rend jamais plus que le
+--      retrait réel. Historique ambigu → signalé (refund_anomalies), aucune
+--      restitution automatique.
 --   2. Remplace les deux anciens mécanismes de retrait de cashback :
 --        - trigger trg_order_refunds_reward_adjustment (order_refunds) → supprimé ;
 --        - bloc « retirer 3,5 % » de finalize_workshop_refund → retiré
@@ -23,8 +26,9 @@
 --        - order_refunds (Make 7425367 module 48, via
 --          sync_manual_accounting_refund_event, inchangée) → ingest_refund
 --          (source 'make_notion'). Date : celle envoyée par Make ; si Make
---          n'en envoie pas (completed_at = created_at, valeur par défaut de la
---          fonction), la ligne reste « à dater ».
+--          n'en envoie pas (la fonction met alors now(), à la création comme
+--          au rejeu), la ligne reste « à dater » et une date déjà connue n'est
+--          jamais remplacée.
 --        - workshop_cancellation_log :
 --            montant dû (création ou changement) → décision 'workshop_cancel',
 --              tenue à jour, plafonnée à l'encaissé (anomalie sinon) ;
@@ -52,13 +56,16 @@
 
 begin;
 
--- ── 1. Ce qui a déjà été retiré ──────────────────────────────────────────
-update public.orders o
-   set cashback_refund_adjustment = greatest(round(rt.amount - coalesce(o.reward_amount_earned, 0), 2), 0)
-  from public.reward_transactions rt
- where rt.order_id = o.id
-   and rt.type = 'earned'
-   and o.cashback_refund_adjustment = 0;
+-- ── 1. Historique du cashback : visé (ancien mécanisme) et retrait RÉEL ──
+-- init_order_cashback_tracking (F4) : une fois par commande ; historique
+-- ambigu → cashback_needs_review + anomalie, jamais de crédit supposé.
+do $$
+declare r record;
+begin
+  for r in select id from public.orders where cashback_refund_initialized_at is null order by created_at loop
+    perform public.init_order_cashback_tracking(r.id);
+  end loop;
+end $$;
 
 -- ── 2a. Ancien trigger cashback sur order_refunds ────────────────────────
 drop trigger if exists trg_order_refunds_reward_adjustment on public.order_refunds;
@@ -174,9 +181,12 @@ begin
       perform public.ingest_refund(
         p_order_id      => new.order_id,
         p_amount        => new.amount,
-        -- completed_at = created_at : Make n'a pas envoyé de date (valeur par
-        -- défaut) → date inconnue, « à dater ». Jamais inventée.
-        p_refunded_at   => case when new.completed_at = new.created_at then null else new.completed_at end,
+        -- Date non envoyée par Make : sync_manual_accounting_refund_event met
+        -- alors now() (heure de la transaction), à la création COMME au rejeu.
+        -- completed_at = now() ou = created_at → date inconnue, « à dater ».
+        -- Un rejeu sans date ne remplace jamais une date déjà connue.
+        p_refunded_at   => case when new.completed_at = now() or new.completed_at = new.created_at
+                                then null else new.completed_at end,
         p_source        => 'make_notion',
         p_source_ref    => new.postfinance_refund_id,
         p_reference     => new.postfinance_refund_id,
@@ -326,13 +336,23 @@ begin
 end $$;
 
 -- 5e. Lignes Make existantes (order_refunds), dans l'ordre chronologique.
+-- completed_at = created_at → date non envoyée (« à dater ») ;
+-- completed_at > created_at → probablement l'heure d'un rejeu sans date :
+--   « à dater » + anomalie, plutôt qu'une date supposée.
 do $$
 declare r record;
 begin
   for r in select * from public.order_refunds where status = 'successful' order by created_at loop
+    if r.completed_at > r.created_at then
+      insert into public.refund_anomalies (order_id, kind, source, source_ref, detail)
+      values (r.order_id, 'date_make_ambigue', 'make_notion', r.postfinance_refund_id,
+              format('Date %s postérieure à l''enregistrement %s : probablement l''heure d''un rejeu sans date. Ligne laissée « à dater ».',
+                     r.completed_at, r.created_at))
+      on conflict do nothing;
+    end if;
     perform public.ingest_refund(
       p_order_id => r.order_id, p_amount => r.amount,
-      p_refunded_at => case when r.completed_at = r.created_at then null else r.completed_at end,
+      p_refunded_at => case when r.completed_at >= r.created_at then null else r.completed_at end,
       p_source => 'make_notion', p_source_ref => r.postfinance_refund_id,
       p_reference => r.postfinance_refund_id, p_note => 'Repris de order_refunds',
       p_item_ids => case when r.order_item_id is not null then array[r.order_item_id] end,
