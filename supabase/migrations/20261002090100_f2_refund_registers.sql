@@ -34,6 +34,9 @@
 --    de façon inattendue, l'erreur est notée ici au lieu de faire échouer
 --    l'appel de Make.
 --
+-- 5. refund_anomalies : anomalies à vérifier par un admin (décision
+--    automatique réduite ou ignorée pour ne pas dépasser l'encaissé…).
+--
 -- Tables réservées au service_role (même règle que les autres tables
 -- internes) : RLS activée, aucune politique ouverte, aucun droit anon /
 -- authenticated.
@@ -149,16 +152,37 @@ create table if not exists public.refund_ingest_errors (
   created_at timestamptz not null default now()
 );
 
+-- ── 5. Anomalies à signaler (jamais bloquantes pour Make / workshop) ─────
+-- Ex. : une décision automatique (annulation workshop, reprise) réduite ou
+-- ignorée parce que le total décidé aurait dépassé l'encaissé.
+create table if not exists public.refund_anomalies (
+  id          bigint generated always as identity primary key,
+  order_id    uuid references public.orders(id),
+  kind        text not null,
+  source      text,
+  source_ref  text,
+  requested   numeric(10,2),
+  recorded    numeric(10,2),
+  detail      text,
+  created_at  timestamptz not null default now(),
+  resolved_at timestamptz,
+  resolved_by text
+);
+create unique index if not exists refund_anomalies_once_uidx
+  on public.refund_anomalies (kind, coalesce(source, ''), coalesce(source_ref, ''), coalesce(requested, -1))
+  where resolved_at is null;
+
 -- ── Accès : service_role uniquement ──────────────────────────────────────
 alter table public.order_manual_refund_items    enable row level security;
 alter table public.order_refund_decisions       enable row level security;
 alter table public.order_refund_decision_items  enable row level security;
 alter table public.refund_ingest_errors         enable row level security;
+alter table public.refund_anomalies             enable row level security;
 
 do $$
 declare t text;
 begin
-  foreach t in array array['order_manual_refund_items', 'order_refund_decisions', 'order_refund_decision_items', 'refund_ingest_errors'] loop
+  foreach t in array array['order_manual_refund_items', 'order_refund_decisions', 'order_refund_decision_items', 'refund_ingest_errors', 'refund_anomalies'] loop
     if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and policyname = 'Service role only') then
       execute format('create policy "Service role only" on public.%I for all using (false) with check (false)', t);
     end if;
