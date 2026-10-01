@@ -9,13 +9,16 @@ import { isManualOrder, orderStatus, type ProdOrder } from "../_shared/productio
 //   - toDecide: paid website orders whose cakes still await Accept/Refuse
 //     (any date, soonest first);
 //   - toCollect: confirmed Admin orders still awaiting payment (any date);
-//   - days[today|tomorrow]: every cake/kit/Dot Cakes item and workshop
-//     booking scheduled that day (item's own date: order_fulfillments via
+//   - days[date]: for every date of the period, every cake/kit/Dot Cakes
+//     item and workshop booking scheduled that day (item's own date: order_fulfillments via
 //     order_items.fulfillment_id, legacy orders.pickup_delivery_date
 //     otherwise; workshops by order_items.workshop_date). Inclusion follows
 //     the Production tab's own rule (_shared/production-stats.ts
 //     orderStatus), so an order is counted the same way everywhere;
 //   - alerts: rows of the existing order_health_anomalies view.
+// Period: optional body { from, to } (YYYY-MM-DD, Europe/Zurich calendar
+// dates, both inclusive, at most MAX_RANGE_DAYS days). Without it: today and
+// tomorrow, as before.
 // Never writes anything. Same admin-only gate as get-production.
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
@@ -40,6 +43,13 @@ type Order = ProdOrder & Record<string, unknown> & {
   created_via?: string | null;
 };
 
+const MAX_RANGE_DAYS = 31;
+const isISODate = (v: unknown): v is string => {
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(`${v}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+};
+
 const customerName = (o: Order) => [o.first_name, o.last_name ? `${String(o.last_name).charAt(0)}.` : ""].filter(Boolean).join(" ");
 
 serve(async (req) => {
@@ -58,7 +68,24 @@ serve(async (req) => {
 
     const today = zurichTodayISO();
     const tomorrow = addDays(today, 1);
-    const dates = [today, tomorrow];
+
+    const body = await req.json().catch(() => ({}));
+    let from = today;
+    let to = tomorrow;
+    if (body?.from != null || body?.to != null) {
+      if (!isISODate(body?.from) || !isISODate(body?.to) || body.to < body.from) {
+        return json(cors, { error: "from and to must be dates (YYYY-MM-DD) with from <= to", reason: "bad_range" }, 400);
+      }
+      from = body.from;
+      to = body.to;
+    }
+    const dates: string[] = [];
+    for (let d = from; d <= to; d = addDays(d, 1)) {
+      dates.push(d);
+      if (dates.length > MAX_RANGE_DAYS) {
+        return json(cors, { error: `The period is limited to ${MAX_RANGE_DAYS} days`, reason: "range_too_long" }, 400);
+      }
+    }
 
     const ordersById = new Map<string, Order>();
     const loadOrders = async (ids: string[]) => {
@@ -118,16 +145,18 @@ serve(async (req) => {
       .map((o) => ({ orderId: o.id, orderNumber: o.order_number, customerName: customerName(o as Order), total: Number(o.total_amount) || 0, date: firstDate(o as Order) }))
       .sort(byDate);
 
-    // ── Items of today and tomorrow ──────────────────────────────────────
+    // ── Items of the period ──────────────────────────────────────────────
     const { data: fulfillmentsInRange, error: fErr } = await supabase
       .from("order_fulfillments")
       .select("order_id")
-      .in("pickup_delivery_date", dates);
+      .gte("pickup_delivery_date", from)
+      .lte("pickup_delivery_date", to);
     if (fErr) throw new Error(`Failed to load fulfillments: ${fErr.message}`);
     const { data: legacyOrders, error: lErr } = await supabase
       .from("orders")
       .select("id")
-      .in("pickup_delivery_date", dates);
+      .gte("pickup_delivery_date", from)
+      .lte("pickup_delivery_date", to);
     if (lErr) throw new Error(`Failed to load orders by date: ${lErr.message}`);
     const cakeOrderIds = Array.from(new Set([
       ...(fulfillmentsInRange ?? []).map((f) => f.order_id),
@@ -152,7 +181,7 @@ serve(async (req) => {
       productionStatus: string | null;
       badge: "to_accept" | "awaiting_payment" | null;
     };
-    const days: Record<string, DayItem[]> = { [today]: [], [tomorrow]: [] };
+    const days: Record<string, DayItem[]> = Object.fromEntries(dates.map((d) => [d, [] as DayItem[]]));
 
     if (cakeOrderIds.length > 0) {
       await loadOrders(cakeOrderIds);
@@ -201,7 +230,8 @@ serve(async (req) => {
       .from("order_items")
       .select("id, order_id, product, workshop_date, workshop_time, workshop_type, workshop_participants, production_status")
       .eq("product", "workshop")
-      .in("workshop_date", dates);
+      .gte("workshop_date", from)
+      .lte("workshop_date", to);
     if (wErr) throw new Error(`Failed to load workshop items: ${wErr.message}`);
     if ((wsItems ?? []).length > 0) {
       await loadOrders(Array.from(new Set(wsItems!.map((w) => w.order_id))));
@@ -270,6 +300,8 @@ serve(async (req) => {
     return json(cors, {
       today,
       tomorrow,
+      from,
+      to,
       toDecide,
       toCollect,
       days,

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
-import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Lock, Plus, RefreshCw } from "lucide-react";
+import { AlertTriangle, Loader2, Lock, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { ProductionCheck, isProductionDone } from "@/components/admin/ProductionCheck";
@@ -15,10 +16,13 @@ import { PRODUCT_LABELS, flavorLabel, shapeLabel, sizeLabel } from "@/lib/orderL
 import { formatChf } from "@/lib/manualOrders";
 import { cn } from "@/lib/utils";
 
-// Admin > Aujourd'hui — the Admin home. Read-only in this first version:
-// every row opens the order page, where the actions already exist (accept /
-// refuse, mark as paid). Data comes from one call to get-today (same
-// inclusion rule as the Production tab; alerts from order_health_anomalies).
+// Admin > Aujourd'hui — the Admin home. Every row opens the order page, where
+// the actions already exist (accept / refuse, mark as paid); the only action
+// here is the production tick box (update-production-status). Data comes from
+// one call to get-today for a chosen period (default: today + the next two
+// days, Europe/Zurich) — same inclusion rule as the Production tab; alerts
+// from order_health_anomalies. Each item is listed under its own
+// pickup/delivery date, even when it is prepared earlier.
 
 type ListedOrder = { orderId: string; orderNumber: string | null; customerName: string; total: number; date: string | null };
 type DayItem = {
@@ -40,8 +44,22 @@ type DayItem = {
   badge: "to_accept" | "awaiting_payment" | null;
 };
 type Alert = { orderId: string; orderNumber: string | null; issueType: string; detail: string | null; createdAt: string };
-type TodayData = { today: string; tomorrow: string; toDecide: ListedOrder[]; toCollect: ListedOrder[]; days: Record<string, DayItem[]>; alerts: Alert[] };
+type TodayData = { today: string; tomorrow: string; from?: string; to?: string; toDecide: ListedOrder[]; toCollect: ListedOrder[]; days: Record<string, DayItem[]>; alerts: Alert[] };
 
+type Filter = "all" | "todo" | "ready";
+
+const MAX_RANGE_DAYS = 31; // same limit as get-today
+const DEFAULT_EXTRA_DAYS = 2;
+const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+const zurichTodayISO = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+const addDays = (iso: string, n: number) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const daysBetween = (a: string, b: string) =>
+  Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000);
 
 const ALERT_LABELS: Record<string, { en: string; fr: string }> = {
   PAIEMENT_SANS_REFERENCE: { en: "Paid without a PostFinance reference", fr: "Payée sans référence PostFinance" },
@@ -61,7 +79,28 @@ const AdminToday = () => {
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showTomorrow, setShowTomorrow] = useState(false);
+  const [filter, setFilter] = useState<Filter>("all");
+
+  // Period kept in the URL (?from=&to=) so a reload shows the same days.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const zToday = zurichTodayISO();
+  const from = searchParams.get("from") ?? zToday;
+  const to = searchParams.get("to") ?? addDays(zToday, DEFAULT_EXTRA_DAYS);
+  const rangeError = !ISO_RE.test(from) || !ISO_RE.test(to) || Number.isNaN(daysBetween(from, to))
+    ? t("Choose a start and an end date.", "Choisissez une date de début et une date de fin.")
+    : to < from
+      ? t("The end date must be on or after the start date.", "La date de fin doit être après la date de début.")
+      : daysBetween(from, to) + 1 > MAX_RANGE_DAYS
+        ? t(`The period is limited to ${MAX_RANGE_DAYS} days.`, `La période est limitée à ${MAX_RANGE_DAYS} jours.`)
+        : null;
+  const setPeriod = (next: { from?: string; to?: string } | null) => {
+    const p = new URLSearchParams(searchParams);
+    if (!next) { p.delete("from"); p.delete("to"); } else {
+      p.set("from", next.from ?? from);
+      p.set("to", next.to ?? to);
+    }
+    setSearchParams(p, { replace: true });
+  };
 
   // Local update after a tick (ProductionCheck saves it on the server).
   const setItemStatus = (itemId: string, status: string) =>
@@ -78,10 +117,11 @@ const AdminToday = () => {
   }, []);
 
   const load = useCallback(async () => {
+    if (rangeError) return;
     setLoading(true);
     setError(null);
     try {
-      const { data: res, error: fnError } = await supabase.functions.invoke("get-today", { body: {} });
+      const { data: res, error: fnError } = await supabase.functions.invoke("get-today", { body: { from, to } });
       if (fnError || res?.error) {
         const status = (fnError as { context?: Response } | null)?.context?.status;
         const reason = fnError ? await extractFunctionErrorMessage(fnError, "") : String(res.error);
@@ -98,7 +138,7 @@ const AdminToday = () => {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, from, to, rangeError]);
 
   useEffect(() => {
     if (!authLoading && isAdmin) load();
@@ -160,14 +200,16 @@ const AdminToday = () => {
         ? `${t("Delivery", "Livraison")}${it.deliveryCity ? ` ${it.deliveryCity}` : ""}`
         : t("Pickup", "Retrait");
 
-  const today = data?.today;
-  const todayItems = today ? data?.days[today] ?? [] : [];
-  const tomorrowItems = data?.tomorrow ? data.days[data.tomorrow] ?? [] : [];
-
-  const progress = (items: DayItem[]) => {
-    const cakes = items.filter((i) => i.type === "cake");
-    return { done: cakes.filter((i) => isProductionDone(i.productionStatus)).length, total: cakes.length };
-  };
+  const today = data?.today ?? zToday;
+  // get-today returns from/to once it supports periods; an older deployment
+  // ignores them and only returns today + tomorrow.
+  const periodSupported = !!data?.from;
+  const periodDates = data ? Object.keys(data.days).sort() : [];
+  const allItems = periodDates.flatMap((d) => data!.days[d]);
+  const periodCakes = allItems.filter((i) => i.type === "cake");
+  const readyCount = periodCakes.filter((i) => isProductionDone(i.productionStatus)).length;
+  const counts: Record<Filter, number> = { all: periodCakes.length, todo: periodCakes.length - readyCount, ready: readyCount };
+  const workshopDates = periodDates.filter((d) => data!.days[d].some((i) => i.type === "workshop"));
 
   const itemLink = (it: DayItem, done: boolean) => (
     <Link to={`/admin/order/${it.orderId}`} className={cn("flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 pr-4 py-3 hover:bg-secondary/40", done && "opacity-60")}>
@@ -220,21 +262,31 @@ const AdminToday = () => {
     </div>
   );
 
-  // A day: cakes split into "À faire" (not ticked) and "Prêts" (ticked
-  // "Fait"); workshops apart, without a production box. "Prêts" is about
+  // One date of the period: its cakes, split into "À faire" (not ticked) and
+  // "Prêts" (ticked "Fait") according to the filter. "Prêts" is about
   // preparation only — payment and delivery are untouched.
-  const renderItems = (items: DayItem[]) => {
-    if (items.length === 0) return <p className="px-4 py-5 text-sm text-muted-foreground">{t("Nothing scheduled.", "Rien de prévu.")}</p>;
-    const cakes = items.filter((i) => i.type === "cake");
+  const renderCakeDay = (date: string) => {
+    const cakes = data!.days[date].filter((i) => i.type === "cake");
     const toDo = cakes.filter((i) => !isProductionDone(i.productionStatus));
     const ready = cakes.filter((i) => isProductionDone(i.productionStatus));
-    const workshops = items.filter((i) => i.type === "workshop");
     return (
-      <div className="divide-y divide-border/60">
-        {subList("todo", t("To do", "À faire"), toDo,
-          ready.length > 0 ? t("Everything is ready.", "Tout est prêt.") : t("Nothing to prepare.", "Rien à préparer."), true)}
-        {subList("ready", t("Ready", "Prêts"), ready, t("Nothing ready yet.", "Rien de prêt pour l'instant."), true)}
-        {workshops.length > 0 && subList("workshops", t("Workshops", "Workshops"), workshops, "", false)}
+      <div key={date} data-day={date} className={box}>
+        <div className={cn("flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-2.5 bg-secondary/30", cakes.length > 0 && "border-b border-border/60")}>
+          <span className="text-sm font-semibold first-letter:uppercase">
+            {dayLabel(date)}
+            {date === today && <span className="ml-2 text-xs font-medium text-primary">{t("Today", "Aujourd'hui")}</span>}
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {cakes.length === 0 ? t("nothing scheduled", "rien de prévu") : `${ready.length} / ${cakes.length} ${t("ready", "prêts")}`}
+          </span>
+        </div>
+        {cakes.length > 0 && (
+          <div className="divide-y divide-border/60">
+            {filter !== "ready" && subList("todo", t("To do", "À faire"), toDo,
+              ready.length > 0 ? t("Everything is ready.", "Tout est prêt.") : t("Nothing to prepare.", "Rien à préparer."), true)}
+            {filter !== "todo" && subList("ready", t("Ready", "Prêts"), ready, t("Nothing ready yet.", "Rien de prêt pour l'instant."), true)}
+          </div>
+        )}
       </div>
     );
   };
@@ -248,7 +300,7 @@ const AdminToday = () => {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground font-semibold">{t("Today", "Aujourd'hui")}</h1>
-            {today && <p className="text-sm text-muted-foreground first-letter:uppercase">{dayLabel(today)}</p>}
+            <p className="text-sm text-muted-foreground first-letter:uppercase">{dayLabel(today)}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={load} disabled={loading} className="rounded-none" aria-label={t("Refresh", "Actualiser")}>
@@ -260,6 +312,25 @@ const AdminToday = () => {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-end gap-3" aria-label={t("Period", "Période")}>
+          <label className="flex-1 min-w-[140px] sm:flex-none text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {t("From", "Du")}
+            <Input type="date" value={from} onChange={(e) => e.target.value && setPeriod({ from: e.target.value })} className="mt-1 rounded-none w-full sm:w-[170px] px-2 text-sm md:text-sm normal-case tracking-normal" />
+          </label>
+          <label className="flex-1 min-w-[140px] sm:flex-none text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {t("To", "Au")}
+            <Input type="date" value={to} onChange={(e) => e.target.value && setPeriod({ to: e.target.value })} className="mt-1 rounded-none w-full sm:w-[170px] px-2 text-sm md:text-sm normal-case tracking-normal" />
+          </label>
+          <Button variant="outline" onClick={() => setPeriod(null)} className="rounded-none">
+            {t("Today + 2 days", "Aujourd'hui + 2 jours")}
+          </Button>
+        </div>
+        {rangeError && (
+          <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {rangeError}
+          </div>
+        )}
+
         {error && (
           <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {error}
@@ -270,14 +341,14 @@ const AdminToday = () => {
           <div className="py-16 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" /></div>
         )}
 
-        {data && (
+        {data && !rangeError && (
           <>
             {/* Counters */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: t("To decide", "À décider"), value: data.toDecide.length, warn: data.toDecide.length > 0, href: "#a-faire" },
                 { label: t("To collect", "À encaisser"), value: data.toCollect.length, warn: false, href: "#a-faire" },
-                { label: t("Going out today", "Sort aujourd'hui"), value: todayItems.length, warn: false, href: "#aujourdhui" },
+                { label: t("Cakes in the period", "Gâteaux sur la période"), value: counts.all, warn: false, href: "#production" },
                 { label: t("Alerts", "Alertes"), value: data.alerts.length, danger: data.alerts.length > 0, href: "#alertes" },
               ].map((c) => (
                 <a
@@ -329,34 +400,64 @@ const AdminToday = () => {
               </div>
             </section>
 
-            {/* Today */}
-            <section id="aujourdhui">
-              <h2 className={sectionTitle}>
-                {t("Going out today", "Sort aujourd'hui")} ({todayItems.length})
-                {progress(todayItems).total > 0 && (
-                  <span className="ml-2 normal-case tracking-normal font-semibold text-emerald-700">
-                    · {progress(todayItems).done} / {progress(todayItems).total} {t("done", "faits")}
-                  </span>
-                )}
-              </h2>
-              <div className={box}>{renderItems(todayItems)}</div>
+            {/* Production of the period, by pickup/delivery date */}
+            <section id="production" className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className={cn(sectionTitle, "mb-0")}>{t("Production", "Production")}</h2>
+                <div role="group" aria-label={t("Filter", "Filtre")} className="flex border border-border/60">
+                  {([
+                    ["all", t("All", "Tous")],
+                    ["todo", t("To do", "À faire")],
+                    ["ready", t("Ready", "Prêts")],
+                  ] as [Filter, string][]).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-pressed={filter === key}
+                      onClick={() => setFilter(key)}
+                      className={cn(
+                        "px-3 py-1.5 text-sm border-l border-border/60 first:border-l-0",
+                        filter === key ? "bg-primary text-primary-foreground" : "bg-background hover:bg-secondary/40",
+                      )}
+                    >
+                      {label} <span className="tabular-nums">({counts[key]})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {!periodSupported && (
+                <p className="border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+                  {t("Only today and tomorrow are shown until the new get-today version is deployed.",
+                    "Seuls aujourd'hui et demain sont affichés tant que la nouvelle version de get-today n'est pas déployée.")}
+                </p>
+              )}
+              {periodDates.map(renderCakeDay)}
             </section>
 
-            {/* Tomorrow (folded) */}
-            <section>
-              <button
-                type="button"
-                onClick={() => setShowTomorrow((v) => !v)}
-                aria-expanded={showTomorrow}
-                className={cn(box, "w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary/40")}
-              >
-                <span>
-                  <span className="font-semibold">{t("Tomorrow", "Demain")}</span>
-                  <span className="text-muted-foreground first-letter:uppercase"> · {dayLabel(data.tomorrow)} · {tomorrowItems.length} {t("item(s)", "article(s)")}{progress(tomorrowItems).done > 0 ? ` · ${progress(tomorrowItems).done} ${t("done", "faits")}` : ""}</span>
-                </span>
-                {showTomorrow ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </button>
-              {showTomorrow && <div className={cn(box, "border-t-0")}>{renderItems(tomorrowItems)}</div>}
+            {/* Workshops of the period — no production box */}
+            <section id="workshops">
+              <h2 className={sectionTitle}>
+                {t("Workshops", "Workshops")} ({allItems.filter((i) => i.type === "workshop").length})
+              </h2>
+              {workshopDates.length === 0 ? (
+                <div className={box}><p className="px-4 py-5 text-sm text-muted-foreground">{t("No workshop in this period.", "Aucun workshop sur la période.")}</p></div>
+              ) : (
+                <div className="space-y-3">
+                  {workshopDates.map((date) => (
+                    <div key={date} data-workshop-day={date} className={box}>
+                      <div className="px-4 py-2.5 bg-secondary/30 border-b border-border/60 text-sm font-semibold first-letter:uppercase">
+                        {dayLabel(date)}
+                        {date === today && <span className="ml-2 text-xs font-medium text-primary">{t("Today", "Aujourd'hui")}</span>}
+                      </div>
+                      <ul className="divide-y divide-border/60">
+                        {data.days[date].filter((i) => i.type === "workshop").sort(bySlot).map((it) => (
+                          <li key={it.itemId} className="flex items-center pl-4">{itemLink(it, false)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* Alerts */}
