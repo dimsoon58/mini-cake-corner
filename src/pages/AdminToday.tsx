@@ -164,52 +164,80 @@ const AdminToday = () => {
   const todayItems = today ? data?.days[today] ?? [] : [];
   const tomorrowItems = data?.tomorrow ? data.days[data.tomorrow] ?? [] : [];
 
-  // Cakes still to prepare first, done ones greyed at the bottom (slot order kept).
-  const sortForKitchen = (items: DayItem[]) =>
-    [...items].sort((a, b) => Number(isProductionDone(a.productionStatus)) - Number(isProductionDone(b.productionStatus)));
   const progress = (items: DayItem[]) => {
     const cakes = items.filter((i) => i.type === "cake");
     return { done: cakes.filter((i) => isProductionDone(i.productionStatus)).length, total: cakes.length };
   };
 
-  const renderItems = (items: DayItem[]) =>
-    items.length === 0 ? (
-      <p className="px-4 py-5 text-sm text-muted-foreground">{t("Nothing scheduled.", "Rien de prévu.")}</p>
-    ) : (
-      <ul className="divide-y divide-border/60">
-        {sortForKitchen(items).map((it) => {
-          const done = it.type === "cake" && isProductionDone(it.productionStatus);
-          return (
-            <li key={it.itemId} className={cn("flex items-center gap-3 pl-4", done && "bg-secondary/30")}>
-              {it.type === "cake" ? (
-                <ProductionCheck
-                  itemId={it.itemId}
-                  status={it.productionStatus}
-                  disabledReason={it.badge === "to_accept" ? t("Accept the order first.", "Acceptez d'abord la commande.") : null}
-                  onChange={(next) => setItemStatus(it.itemId, next)}
-                />
-              ) : (
-                <span className="w-7 shrink-0" aria-hidden="true" />
-              )}
-              <Link to={`/admin/order/${it.orderId}`} className={cn("flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 pr-4 py-3 hover:bg-secondary/40", done && "opacity-60")}>
-                <span className="w-28 shrink-0 text-sm tabular-nums text-muted-foreground">{it.slot || t("No time slot", "Sans créneau")}</span>
-                <span className="flex-1 min-w-[180px]">
-                  <span className={cn("block text-sm font-medium text-foreground", done && "line-through")}>{itemTitle(it)}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {it.orderNumber} · {it.customerName} · {methodLabel(it)}
-                  </span>
-                </span>
-                <span className="flex flex-wrap gap-1.5">
-                  {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To accept", "À accepter")}</span>}
-                  {it.badge === "awaiting_payment" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("Awaiting payment", "Paiement en attente")}</span>}
-                  {done && <span className="px-2 py-0.5 text-[11px] bg-emerald-100 text-emerald-800">{t("Done", "Fait")}</span>}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+  const itemLink = (it: DayItem, done: boolean) => (
+    <Link to={`/admin/order/${it.orderId}`} className={cn("flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 pr-4 py-3 hover:bg-secondary/40", done && "opacity-60")}>
+      <span className="w-28 shrink-0 text-sm tabular-nums text-muted-foreground">{it.slot || t("No time slot", "Sans créneau")}</span>
+      <span className="flex-1 min-w-[180px]">
+        <span className={cn("block text-sm font-medium text-foreground", done && "line-through")}>{itemTitle(it)}</span>
+        <span className="block text-xs text-muted-foreground">
+          {it.orderNumber} · {it.customerName} · {methodLabel(it)}
+        </span>
+      </span>
+      <span className="flex flex-wrap gap-1.5">
+        {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To accept", "À accepter")}</span>}
+        {it.badge === "awaiting_payment" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To collect", "À encaisser")}</span>}
+        {done && <span className="px-2 py-0.5 text-[11px] bg-emerald-100 text-emerald-800">{t("Done", "Fait")}</span>}
+      </span>
+    </Link>
+  );
+
+  // One sub-list of a day ("À faire", "Prêts" or "Workshops"), items in slot
+  // order (same order as get-today, kept when a tick moves an item across).
+  const bySlot = (a: DayItem, b: DayItem) =>
+    (a.slot ?? "99").localeCompare(b.slot ?? "99") || (a.orderNumber ?? "").localeCompare(b.orderNumber ?? "");
+  const subList = (key: string, title: string, items: DayItem[], empty: string, withCheck: boolean) => (
+    <div key={key} data-list={key}>
+      <h3 className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        {title} <span className="tabular-nums">({items.length})</span>
+      </h3>
+      {items.length === 0 ? (
+        <p className="px-4 pb-3 text-sm text-muted-foreground">{empty}</p>
+      ) : (
+        <ul className="divide-y divide-border/60">
+          {[...items].sort(bySlot).map((it) => {
+            const done = withCheck && isProductionDone(it.productionStatus);
+            return (
+              <li key={it.itemId} className={cn("flex items-center gap-3 pl-4", done && "bg-secondary/30")}>
+                {withCheck && (
+                  <ProductionCheck
+                    itemId={it.itemId}
+                    status={it.productionStatus}
+                    disabledReason={it.badge === "to_accept" ? t("Accept the order first.", "Acceptez d'abord la commande.") : null}
+                    onChange={(next) => setItemStatus(it.itemId, next)}
+                  />
+                )}
+                {itemLink(it, done)}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+
+  // A day: cakes split into "À faire" (not ticked) and "Prêts" (ticked
+  // "Fait"); workshops apart, without a production box. "Prêts" is about
+  // preparation only — payment and delivery are untouched.
+  const renderItems = (items: DayItem[]) => {
+    if (items.length === 0) return <p className="px-4 py-5 text-sm text-muted-foreground">{t("Nothing scheduled.", "Rien de prévu.")}</p>;
+    const cakes = items.filter((i) => i.type === "cake");
+    const toDo = cakes.filter((i) => !isProductionDone(i.productionStatus));
+    const ready = cakes.filter((i) => isProductionDone(i.productionStatus));
+    const workshops = items.filter((i) => i.type === "workshop");
+    return (
+      <div className="divide-y divide-border/60">
+        {subList("todo", t("To do", "À faire"), toDo,
+          ready.length > 0 ? t("Everything is ready.", "Tout est prêt.") : t("Nothing to prepare.", "Rien à préparer."), true)}
+        {subList("ready", t("Ready", "Prêts"), ready, t("Nothing ready yet.", "Rien de prêt pour l'instant."), true)}
+        {workshops.length > 0 && subList("workshops", t("Workshops", "Workshops"), workshops, "", false)}
+      </div>
     );
+  };
 
   const sectionTitle = "text-sm font-bold uppercase tracking-[0.1em] text-foreground mb-2";
   const box = "border border-border/60 bg-background";
