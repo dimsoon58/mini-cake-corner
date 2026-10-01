@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -623,6 +623,12 @@ const AdminOrder = () => {
                         )}
                         {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
                         <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
+                        <div className="pt-2">
+                          <Link to={`/admin/labels?date=${fulfillmentById(item.fulfillment_id)?.pickup_delivery_date ?? order?.pickup_delivery_date ?? ""}`} className="text-[11px] text-primary hover:underline flex items-center gap-1">
+                            <Printer className="w-3 h-3" />
+                            {t("Print label", "Étiquette de production")}
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -5,7 +5,7 @@ import {
   format, addMonths, subMonths, isSameMonth, isToday,
 } from "date-fns";
 import { fr as dateFnsFr } from "date-fns/locale";
-import { Loader2, Lock, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Lock, CalendarDays, ChevronLeft, ChevronRight, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
@@ -192,6 +192,7 @@ const AdminCalendar = () => {
           <span className="text-foreground font-semibold">{t("Calendar", "Calendrier")}</span>
           <Link to="/admin/dashboard" className="text-muted-foreground hover:text-foreground">{t("Dashboard", "Tableau de bord")}</Link>
           <Link to="/admin/production" className="text-muted-foreground hover:text-foreground">{t("Production", "Production")}</Link>
+          <Link to="/admin/labels" className="text-muted-foreground hover:text-foreground">{t("Labels", "Étiquettes")}</Link>
         </div>
         <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8 text-center font-semibold flex items-center justify-center gap-3">
           <CalendarDays className="w-6 h-6 text-primary" strokeWidth={1.5} />
@@ -278,6 +279,15 @@ const AdminCalendar = () => {
                       ({selectedEntries.length})
                     </span>
                   </h2>
+                  <div className="flex items-center justify-between mb-3">
+                    <Link
+                      to={`/admin/labels?date=${selectedDate}`}
+                      className="text-[11px] uppercase tracking-[0.105em] text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Tag className="w-3 h-3" />
+                      {t("Labels", "Étiquettes")}
+                    </Link>
+                  </div>
                   <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
                     {selectedEntries.map((e) => (
                       <Link
