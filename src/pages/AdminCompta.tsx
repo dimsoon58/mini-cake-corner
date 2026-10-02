@@ -16,7 +16,7 @@ import {
   type ComptaSettings, type Expense, type ExpenseCategory, type ExpensePayer, type ExpensePeriod, type ExpenseStatus,
   type HistoryEntry, type PayerKind, type ReceiptFile,
 } from "@/lib/compta";
-import type { AdvancesOverview, SalaryOverview, SettlementView } from "@/lib/compta";
+import { comptaDossierIssues, settlementValues, type AdvancesOverview, type SalaryOverview, type SettlementView } from "@/lib/compta";
 import AdvancesTab from "@/components/admin/compta/AdvancesTab";
 import SettlementTab from "@/components/admin/compta/SettlementTab";
 import SalaryTab from "@/components/admin/compta/SalaryTab";
@@ -90,12 +90,13 @@ const AdminCompta = () => {
   const [salaryError, setSalaryError] = useState<string | null>(null);
   const [advances, setAdvances] = useState<AdvancesOverview | null>(null);
   const [advancesError, setAdvancesError] = useState<string | null>(null);
+  const [settlement, setSettlement] = useState<SettlementView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<Expense | "new" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [busyExport, setBusyExport] = useState<"xlsx" | "zip" | null>(null);
+  const [busyExport, setBusyExport] = useState<"xlsx" | "zip" | "dossier" | null>(null);
 
   useEffect(() => {
     document.title = "Admin – Compta – Bento Cake Studio";
@@ -106,13 +107,15 @@ const AdminCompta = () => {
     setLoading(true);
     setError(null);
     setFinanceError(null);
-    const [f, p, s, sa, ad] = await Promise.allSettled([
+    const [f, p, s, sa, ad, st] = await Promise.allSettled([
       fetchFinanceMonth(month),
       comptaApi<ExpensePeriod>({ action: "period", from, to }),
       comptaApi<ComptaSettings>({ action: "settings" }),
       comptaApi<SalaryOverview>({ action: "salary_overview", month }),
       comptaApi<AdvancesOverview>({ action: "advances_overview", month }),
+      comptaApi<SettlementView>({ action: "settlement_get", month: from }),
     ]);
+    setSettlement(st.status === "fulfilled" ? st.value : null);
     if (ad.status === "fulfilled") { setAdvances(ad.value); setAdvancesError(null); }
     else { setAdvances(null); setAdvancesError(ad.reason instanceof Error ? ad.reason.message : String(ad.reason)); }
     if (sa.status === "fulfilled") { setSalary(sa.value); setSalaryError(null); }
@@ -129,8 +132,8 @@ const AdminCompta = () => {
     setBusyExport("xlsx");
     try {
       const [{ default: ExcelJS }, { buildComptaWorkbook, comptaFileName }] = await Promise.all([import("exceljs"), import("@/lib/comptaExport")]);
-      const settlement = await comptaApi<SettlementView>({ action: "settlement_get", month: from }).catch(() => null);
-      const wb = buildComptaWorkbook(ExcelJS, finance, period, salary, advances, settlement);
+      const fresh = await comptaApi<SettlementView>({ action: "settlement_get", month: from }).catch(() => settlement);
+      const wb = buildComptaWorkbook(ExcelJS, finance, period, salary, advances, fresh);
       download(new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), comptaFileName(month));
     } catch (e) {
       console.error("Compta export failed:", e);
@@ -156,6 +159,33 @@ const AdminCompta = () => {
       setNotice(failed.length ? `ZIP créé, mais ${failed.length} fichier(s) n'ont pas pu être récupérés : ${failed.join(", ")}` : `${files.length} justificatif(s) téléchargé(s).`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusyExport(null);
+    }
+  };
+
+  // Lot K5 : dossier complet en un seul ZIP (Excel + justificatifs + index + LISEZMOI).
+  const downloadDossier = async () => {
+    if (!finance || !period || busyExport) return;
+    setBusyExport("dossier");
+    setNotice(null);
+    try {
+      const [{ default: ExcelJS }, X] = await Promise.all([import("exceljs"), import("@/lib/comptaExport")]);
+      const fresh = await comptaApi<SettlementView>({ action: "settlement_get", month: from }).catch(() => settlement);
+      const wb = X.buildComptaWorkbook(ExcelJS, finance, period, salary, advances, fresh);
+      const excel = new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const files = await comptaApi<ReceiptFile[]>({ action: "receipts_period", from, to });
+      const issues = comptaDossierIssues(finance, period, salary, advances, fresh);
+      const { blob, failed } = await X.buildDossierZip(excel, files, month, issues, async (url) => {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(String(r.status));
+        return r.blob();
+      });
+      download(blob, X.dossierZipName(month));
+      setNotice(`Dossier ${issues.length || failed.length ? "INCOMPLET" : "COMPLET"} téléchargé : Excel + ${files.length - failed.length} justificatif(s)${failed.length ? ` (${failed.length} non récupéré(s))` : ""}.`);
+    } catch (e) {
+      console.error("Dossier export failed:", e);
+      setError("Le dossier n'a pas pu être créé. Réessayez.");
     } finally {
       setBusyExport(null);
     }
@@ -197,6 +227,9 @@ const AdminCompta = () => {
           <Button variant="outline" className="rounded-none" onClick={downloadReceipts} disabled={!period || !!busyExport}>
             {busyExport === "zip" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Paperclip className="w-4 h-4 mr-1" />} Télécharger les justificatifs
           </Button>
+          <Button variant="outline" className="rounded-none" onClick={downloadDossier} disabled={!finance || !period || !!busyExport} data-testid="download-dossier">
+            {busyExport === "dossier" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />} Dossier complet (ZIP)
+          </Button>
         </div>
 
         {error && <p className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">{error}</p>}
@@ -211,7 +244,7 @@ const AdminCompta = () => {
           ))}
         </div>
 
-        {tab === "summary" && <SummaryTab finance={finance} financeError={financeError} period={period} salary={salary} advances={advances} onTab={(k) => setParam({ tab: k })} />}
+        {tab === "summary" && <SummaryTab finance={finance} financeError={financeError} period={period} salary={salary} advances={advances} settlement={settlement} onTab={(k) => setParam({ tab: k })} />}
         {tab === "revenue" && <RevenueTab finance={finance} financeError={financeError} />}
         {tab === "expenses" && period && settings && (
           <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)} />
@@ -240,7 +273,10 @@ const AdminCompta = () => {
 };
 
 // ── Résumé ───────────────────────────────────────────────────────────────
-function SummaryTab({ finance, financeError, period, salary, advances, onTab }: { finance: FinanceMonth | null; financeError: string | null; period: ExpensePeriod | null; salary: SalaryOverview | null; advances: AdvancesOverview | null; onTab: (t: Tab) => void }) {
+function SummaryTab({ finance, financeError, period, salary, advances, settlement, onTab }: { finance: FinanceMonth | null; financeError: string | null; period: ExpensePeriod | null; salary: SalaryOverview | null; advances: AdvancesOverview | null; settlement: SettlementView | null; onTab: (t: Tab) => void }) {
+  // Même liste de manques que l'Excel (lot K5).
+  const dossierIssues = comptaDossierIssues(finance, period, salary, advances, settlement);
+  const sv = settlement ? settlementValues(settlement) : null;
   const c = finance?.cards;
   const tt = period?.totals;
   const issues: { text: string; tab?: Tab; href?: string }[] = [];
@@ -305,10 +341,18 @@ function SummaryTab({ finance, financeError, period, salary, advances, onTab }: 
                 hint={`Remboursé ce mois ${money(advances.totals.repaidInMonth)} · un remboursement n'est jamais une dépense${advances.totals.unknownCount ? ` · ${advances.totals.unknownCount} montant(s) inconnu(s)` : ""}`} />
             </button>
           )}
-          <div className="border border-border/60 px-3 py-2 text-sm">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Résultat du mois</p>
-            <p className="text-muted-foreground">Non calculé : la règle (date d'achat ou de paiement, traitement du salaire) doit d'abord être validée. Ce n'est jamais le solde bancaire.</p>
-          </div>
+          {sv ? (
+            <button type="button" onClick={() => onTab("settlement")} className="text-left" data-testid="summary-result">
+              <Stat label={`Résultat du mois${sv.validated ? " — validé" : " — brouillon"}`} value={money(sv.resultAdjusted)} strong
+                tone={sv.validated ? undefined : "warn"}
+                hint={`revenus nets − dépenses (date d'achat) − salaire confirmé · conservé ${money(sv.retainedMonth)} · à partager ${money(sv.toShare)} (Mel ${money(sv.melShare)} / Eli ${money(sv.eliShare)}) · jamais le solde bancaire`} />
+            </button>
+          ) : (
+            <div className="border border-border/60 px-3 py-2 text-sm">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Résultat du mois</p>
+              <p className="text-muted-foreground">Décompte indisponible.</p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -325,6 +369,13 @@ function SummaryTab({ finance, financeError, period, salary, advances, onTab }: 
           </ul>
         </section>
       )}
+
+      <section className={cn("border px-4 py-3 text-sm", dossierIssues.length ? WARN : "border-emerald-300 bg-emerald-50 text-emerald-900")} data-testid="dossier-state">
+        <p className="font-semibold">Dossier du mois : {dossierIssues.length ? "INCOMPLET" : "COMPLET"}</p>
+        {dossierIssues.length
+          ? <p>{dossierIssues.join(" · ")}</p>
+          : <p>Rien ne manque et le décompte du mois est validé. Le dossier téléchargé (Excel + justificatifs) est marqué COMPLET.</p>}
+      </section>
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Informations manquantes</h2>

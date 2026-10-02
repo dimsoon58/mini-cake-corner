@@ -2,7 +2,7 @@ import { buildFinanceWorkbook } from "@/lib/financeExport";
 import type { FinanceMonth } from "@/lib/finance";
 import {
   ADVANCE_STATE_LABELS, METHOD_LABELS, MISSING_LABELS, SALARY_STATUS_LABELS, STATUS_LABELS, fmtHours, inRange, receiptFileName,
-  settlementValues, type AdvancesOverview, type ExpensePeriod, type ReceiptFile, type SalaryOverview, type SettlementView,
+  comptaDossierIssues, settlementValues, type AdvancesOverview, type ExpensePeriod, type ReceiptFile, type SalaryOverview, type SettlementView,
 } from "@/lib/compta";
 
 // Compta (lot K1) — dossier Excel du mois. Reprend TEL QUEL le classeur du
@@ -14,6 +14,12 @@ import {
 // versements » (lot K4 ; « / » est interdit dans un nom de feuille Excel).
 // Le dossier n'est « COMPLET » que si rien ne manque ET que le décompte du
 // mois est validé ; sinon il est marqué INCOMPLET avec la liste des manques.
+//
+// Lot K5 : la liste des manques vient d'UNE seule fonction
+// (comptaDossierIssues), utilisée aussi par le Résumé de la page, pour que la
+// page et le fichier disent toujours la même chose ; contrôles croisés entre
+// le décompte et les feuilles sources ; dossier complet en un seul ZIP
+// (Excel + justificatifs + index + LISEZMOI).
 //
 // Avances : chaque avance reste comptée une fois comme dépense (feuille
 // Dépenses) ; ses remboursements sont listés à part et ne sont jamais des
@@ -141,28 +147,32 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   if (t.salary?.toReconcileCount) add([`${t.salary.toReconcileCount} dépense(s) « Salaires » non rapprochée(s) : restent dans les dépenses, à vérifier pour éviter un double comptage`]);
 
   // ── Salaire (lot K2) ──
-  const salaryIssues = salary ? addSalarySheet(wb, salary, finance.month, m, add) : ["salaire : données non chargées"];
+  const salaryRef = salary ? addSalarySheet(wb, salary, finance.month, m, add) : null;
   // ── Avances et remboursements (lot K3) ──
-  const advanceIssues = advances ? addAdvancesSheet(wb, advances, finance.month, m, add) : ["avances : données non chargées"];
-  // ── Décompte Mel / Eli et versements (lot K4) ──
-  const settlementIssues = settlement ? addSettlementSheet(wb, settlement, m, add) : ["décompte Mel / Eli : données non chargées"];
+  if (advances) addAdvancesSheet(wb, advances, finance.month, m, add);
+  // ── Décompte Mel / Eli et versements (lot K4) + contrôles croisés (K5) ──
+  let netRow: number | null = null;
+  s.eachRow((row, i) => { if (String(row.getCell(1).value ?? "").startsWith("Net du mois")) netRow = i; });
+  if (settlement) {
+    addSettlementSheet(wb, settlement, m, add, {
+      revenueCell: netRow ? `'Synthèse'!B${netRow}` : null, revenueValue: Number(finance.cards.net) || 0,
+      expensesCell: `'Dépenses'!I${rEngaged}`, expensesValue: round(engagedKnown),
+      salaryCell: salaryRef?.confirmedCell ?? null, salaryValue: salaryRef?.confirmedValue ?? null,
+    });
+  }
 
   add([]);
   add(["État du dossier"], true);
-  const issues: string[] = [];
-  if (t.incompleteCount) issues.push(`${t.incompleteCount} dépense(s) à compléter`);
-  if (engagedUnknown) issues.push(`${engagedUnknown} montant(s) CHF inconnu(s)`);
-  if (t.missingReceiptCount) issues.push(`${t.missingReceiptCount} justificatif(s) manquant(s)`);
-  if (t.undatedCount) issues.push(`${t.undatedCount} dépense(s) sans date d'achat`);
-  if (finance.cards.undatedCount) issues.push(`${finance.cards.undatedCount} remboursement(s) client à dater`);
-  if (finance.cards.toReviewCount) issues.push(`${finance.cards.toReviewCount} remboursement(s) client à vérifier`);
-  if (t.salary?.toReconcileCount) issues.push(`${t.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher`);
-  issues.push(...salaryIssues, ...advanceIssues, ...settlementIssues);
+  const issues = comptaDossierIssues(finance, expenses, salary, advances, settlement);
   const state = issues.length
     ? s.addRow([`INCOMPLET — ${issues.join(" · ")}`])
     : s.addRow([`COMPLET — rien ne manque et le décompte du mois est validé (${settlement?.validated?.validated_at ? new Date(settlement.validated.validated_at).toLocaleDateString("fr-CH", { timeZone: "Europe/Zurich" }) : ""})`]);
   state.font = { bold: true, color: { argb: issues.length ? "FF8A5A00" : "FF1B5E20" } };
   s.getCell(`B${sUnknown}`).numFmt = "0";
+  add([]);
+  add(["Contenu du dossier"], true);
+  for (const name of wb.worksheets.map((w) => w.name)) add([`• Feuille « ${name} »`]);
+  add([`• Justificatifs : ${receiptsZipName(finance.month)} (ou dossier « justificatifs » du ZIP complet), fichiers nommés avec l'ID de dépense ou de salaire`]);
 
   // Feuilles : Synthèse, Commandes et articles, Encaissements, Remboursements, Dépenses, Salaire, Avances et remboursements,
   // Décompte Mel-Eli et versements.
@@ -171,7 +181,7 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
 
 type Workbook = import("exceljs").Workbook;
 
-/** Feuille « Salaire » + bloc de synthèse. Renvoie les points à compléter. */
+/** Feuille « Salaire » + bloc de synthèse. Renvoie la cellule du net confirmé du mois (contrôle croisé K5). */
 function addSalarySheet(wb: Workbook, o: SalaryOverview, month: string,
   m: (label: string, value: unknown, count?: number | null) => number, add: (cells: unknown[], bold?: boolean) => unknown) {
   const ws = wb.addWorksheet("Salaire");
@@ -183,7 +193,7 @@ function addSalarySheet(wb: Workbook, o: SalaryOverview, month: string,
     r.alignment = { wrapText: true, vertical: "top" };
   };
   const toEnter = "montant à saisir";
-  const issues: string[] = [];
+  let confirmedCell: string | null = null, confirmedValue: number | null = null, monthRows = 0;
   const t1 = ws.addRow([`Salaire — mois de salaire ${month.split("-").reverse().join(".")}`]); t1.font = { bold: true, size: 12 };
   ws.addRow(["Prévu, net confirmé (décompte de la fiduciaire) et versements sont séparés. Aucun paiement automatique. Jamais ajouté aux dépenses."]);
   ws.addRow([]);
@@ -196,9 +206,12 @@ function addSalarySheet(wb: Workbook, o: SalaryOverview, month: string,
       `prévu ${fmtHours(x.hours.plannedMin)} · réalisé ${fmtHours(x.hours.realizedMin)}`]);
     r.getCell(6).value = x.confirmed_net != null ? { formula: `D${r.number}-E${r.number}`, result: Math.round((x.confirmed_net - x.paid) * 100) / 100 } : toEnter;
     [3, 4, 5, 6].forEach((c) => { r.getCell(c).numFmt = MONEY; });
-    if (x.salary_month === `${month}-01`) r.font = { bold: true };
-    if (x.salary_month <= `${month}-01` && x.confirmed_net == null) issues.push(`${x.code} : net à confirmer`);
-    if (x.document_missing && (x.confirmed_net != null || x.paid > 0) && x.salary_month === `${month}-01`) issues.push(`${x.code} : justificatif manquant`);
+    if (x.salary_month === `${month}-01`) {
+      r.font = { bold: true };
+      monthRows += 1;
+      confirmedCell = `'Salaire'!D${r.number}`;
+      confirmedValue = x.confirmed_net == null ? null : (confirmedValue ?? 0) + Number(x.confirmed_net);
+    }
   }
   const last = ws.rowCount;
   const tot = ws.addRow(["Total versé (tous mois)", null, null, null, all.length ? { formula: `SUM(E${first}:E${last})`, result: all.reduce((s, x) => s + x.paid, 0) } : 0]);
@@ -225,7 +238,8 @@ function addSalarySheet(wb: Workbook, o: SalaryOverview, month: string,
   add(["Net confirmé (décompte de la fiduciaire)", o.totals.confirmedForMonth == null || o.totals.toConfirmCount ? (o.totals.confirmedForMonth == null ? toEnter : `${o.totals.confirmedForMonth} (partiel, à compléter)`) : o.totals.confirmedForMonth]);
   m("Versé dans le mois (date de versement)", { formula: `'Salaire'!F${paidRow.number}`, result: round(o.totals.paidInMonth) }, o.totals.paidInMonthCount);
   m("Reste à payer (net confirmé − versé, photo à l'export, tous mois)", round(o.balances.remaining));
-  return issues;
+  // Plusieurs personnes salariées le même mois : pas de cellule unique pour le contrôle croisé.
+  return { confirmedCell: monthRows === 1 ? confirmedCell : null, confirmedValue: monthRows === 0 ? 0 : confirmedValue, monthRows };
 }
 
 export const comptaFileName = (month: string) => `Bento-Cake-Studio_compta_${month}.xlsx`;
@@ -325,8 +339,14 @@ function addAdvancesSheet(wb: Workbook, o: AdvancesOverview, month: string,
 }
 
 /** Feuille « Décompte Mel-Eli et versements » + bloc de synthèse. Renvoie les points à compléter. */
+interface CrossRefs {
+  revenueCell: string | null; revenueValue: number;
+  expensesCell: string; expensesValue: number;
+  salaryCell: string | null; salaryValue: number | null;
+}
+
 function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, value: unknown, count?: number | null) => number,
-  add: (cells: unknown[], bold?: boolean) => unknown) {
+  add: (cells: unknown[], bold?: boolean) => unknown, refs?: CrossRefs) {
   const ws = wb.addWorksheet("Décompte Mel-Eli et versements");
   ws.columns = [{ width: 52 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 30 }];
   const issues: string[] = [];
@@ -354,6 +374,7 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
   const rAdj = line("Ajustements de mois déjà validés", x.adjustmentsTotal);
   const rResAdj = line("Résultat ajusté", f(`B${rRes}+B${rAdj}`, x.resultAdjusted));
   ws.getRow(rResAdj).font = { bold: true };
+  const rResAdjRef = rResAdj;
   line("Perte reportée en début de mois", x.lossIn);
   const rComp = line("Perte compensée ce mois (une seule fois)", x.lossCompensated);
   line("Perte reportée en fin de mois", x.lossOut);
@@ -424,6 +445,23 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
   line(`Reste à verser — ${eli}`, f(`B${rMel + 1}-B${rEliPaid}`, remEli));
   ws.addRow(["Les parts versées ne sont jamais des dépenses. La partie « avance » d'un versement passe par le registre des avances."]);
 
+  // ── Contrôles croisés (K5) : le décompte reprend-il les feuilles sources ? ──
+  if (refs) {
+    ws.addRow([]);
+    title("Contrôles : décompte = feuilles sources");
+    const frozen = x.validated ? " (mois validé : un ÉCART signale une modification après validation → ajustement)" : "";
+    const chk = (label: string, cell: string, other: string | null, a: number, b: number | null) => {
+      const ok = b != null && Math.abs(a - b) < 0.005;
+      const formula = other ? `IF(ISNUMBER(${other}),IF(ABS(${cell}-${other})<0.005,"OK","ÉCART"),IF(${cell}=0,"OK","ÉCART"))` : null;
+      const r = ws.addRow([label + frozen, formula ? { formula, result: ok || (b == null && a === 0) ? "OK" : "ÉCART" } : (b === a ? "OK" : "ÉCART")]);
+      return r;
+    };
+    chk("Revenus nets = Synthèse (lot 3)", `B${rRev}`, refs.revenueCell, x.revenueNet, refs.revenueValue);
+    chk("Dépenses du mois = feuille Dépenses (engagé)", `B${rExp}`, refs.expensesCell, x.expenses, refs.expensesValue);
+    chk("Salaire = feuille Salaire (net confirmé du mois)", `B${rSal}`, refs.salaryCell, x.salary, refs.salaryValue ?? (refs.salaryCell ? null : 0));
+    ws.addRow([`Résultat ajusté repris dans la synthèse : voir B${rResAdjRef}`]).font = { italic: true, color: { argb: "FF666666" } };
+  }
+
   if (v.figures.investments.length) {
     ws.addRow([]);
     title("Investissements du mois — information pour la fiduciaire (aucun amortissement calculé)");
@@ -444,3 +482,41 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
   if (remMel > 0 || remEli > 0) add([`Reste à verser : ${mel} ${remMel} · ${eli} ${remEli}`]);
   return issues;
 }
+
+export const dossierZipName = (month: string) => `Bento-Cake-Studio_dossier_${month}.zip`;
+
+/** Dossier complet du mois : Excel + justificatifs (même noms que l'Excel) + index + LISEZMOI. */
+export async function buildDossierZip(excel: Blob, files: ReceiptFile[], month: string, issues: string[], fetcher: (url: string) => Promise<Blob>) {
+  const { default: JSZip } = await import("jszip");
+  const zip = new JSZip();
+  zip.file(comptaFileName(month), excel);
+  const index: string[] = ["fichier;id;nom_original;statut"];
+  const counters = new Map<string, number>();
+  const failed: string[] = [];
+  for (const f of files) {
+    const n = (counters.get(f.code) ?? 0) + 1;
+    counters.set(f.code, n);
+    const name = receiptFileName(f.code, n, f.fileName);
+    try {
+      if (!f.url) throw new Error("no url");
+      zip.file(`justificatifs/${name}`, await fetcher(f.url));
+      index.push(`justificatifs/${name};${f.code};${f.fileName.replace(/;/g, ",")};ok`);
+    } catch {
+      failed.push(name);
+      index.push(`justificatifs/${name};${f.code};${f.fileName.replace(/;/g, ",")};MANQUANT (téléchargement impossible)`);
+    }
+  }
+  zip.file(`justificatifs/index_justificatifs_${month}.csv`, "\uFEFF" + index.join("\n"));
+  const all = failed.length ? [...issues, `${failed.length} justificatif(s) non récupéré(s) dans ce ZIP`] : issues;
+  zip.file("LISEZMOI.txt", [
+    `Bento Cake Studio — dossier comptable ${month}`,
+    "",
+    all.length ? `ÉTAT : INCOMPLET — ce dossier n'est pas définitif.\n${all.map((i) => `- ${i}`).join("\n")}` : "ÉTAT : COMPLET — rien ne manque et le décompte du mois est validé.",
+    "",
+    `${comptaFileName(month)} : synthèse, commandes et articles, encaissements, remboursements, dépenses, salaire, avances et remboursements, décompte Mel / Eli et versements.`,
+    "justificatifs/ : pièces nommées avec l'ID utilisé dans l'Excel (DEP-… pour les dépenses, SAL-… pour les décomptes de salaire).",
+    "Les parts versées aux associées et les remboursements d'avances ne sont jamais des dépenses.",
+  ].join("\n"));
+  return { blob: await zip.generateAsync({ type: "blob" }), failed };
+}
+export { comptaDossierIssues } from "@/lib/compta";

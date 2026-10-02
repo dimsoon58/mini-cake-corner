@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { FinanceMonth } from "@/lib/finance";
 
 // Admin > Compta (lot K1) — dépenses, catégories, « payé par »,
 // justificatifs. Types, appel unique à manage-expenses et aides
@@ -257,3 +258,52 @@ export function settlementValues(v: SettlementView) {
   const d = v.draft!;
   return { validated: false, ...d, treasury: v.treasury, blockReasons: d.blockReasons };
 }
+
+/**
+ * Liste des manques du dossier du mois (vide = COMPLET). Source unique pour
+ * l'Excel et le Résumé de la page.
+ */
+export function comptaDossierIssues(finance: FinanceMonth | null, expenses: ExpensePeriod | null, salary?: SalaryOverview | null,
+  advances?: AdvancesOverview | null, settlement?: SettlementView | null): string[] {
+  const issues: string[] = [];
+  if (!finance) issues.push("revenus : données non chargées");
+  if (!expenses) issues.push("dépenses : données non chargées");
+  if (finance) {
+    if (finance.cards.undatedCount) issues.push(`${finance.cards.undatedCount} remboursement(s) client à dater`);
+    if (finance.cards.toReviewCount) issues.push(`${finance.cards.toReviewCount} remboursement(s) client à vérifier`);
+  }
+  if (expenses && finance) {
+    const t = expenses.totals;
+    const from = finance.from, to = finance.to;
+    const unknown = expenses.expenses.filter((e) => e.counted !== false && inRange(e.purchase_date, from, to) && e.chf_amount == null).length;
+    if (t.incompleteCount) issues.push(`${t.incompleteCount} dépense(s) à compléter`);
+    if (unknown) issues.push(`${unknown} montant(s) CHF inconnu(s)`);
+    if (t.missingReceiptCount) issues.push(`${t.missingReceiptCount} justificatif(s) manquant(s)`);
+    if (t.undatedCount) issues.push(`${t.undatedCount} dépense(s) sans date d'achat`);
+    if (t.salary?.toReconcileCount) issues.push(`${t.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher`);
+  }
+  const month = finance?.month ?? expenses?.from?.slice(0, 7) ?? "";
+  if (!salary) issues.push("salaire : données non chargées");
+  else {
+    for (const x of salary.members.flatMap((mb) => mb.months)) {
+      if (x.salary_month <= `${month}-01` && x.confirmed_net == null) issues.push(`${x.code} : net à confirmer`);
+      if (x.document_missing && (x.confirmed_net != null || x.paid > 0) && x.salary_month === `${month}-01`) issues.push(`${x.code} : justificatif manquant`);
+    }
+  }
+  if (!advances) issues.push("avances : données non chargées");
+  else {
+    for (const a of advances.people.flatMap((p) => p.advances)) {
+      if (a.state === "unknown_amount") issues.push(`${a.code} : montant CHF de l'avance à saisir`);
+      if (a.state === "overpaid") issues.push(`${a.code} : avance trop remboursée`);
+    }
+  }
+  if (!settlement) issues.push("décompte Mel / Eli : données non chargées");
+  else {
+    const x = settlementValues(settlement);
+    if (!x.validated) issues.push("décompte Mel / Eli non validé");
+    if (!x.treasury && (x.toShare > 0 || !x.baseConstituted)) issues.push("solde bancaire de fin de mois manquant");
+    if (settlement.detectedDeltas.length) issues.push("écart sur un mois déjà validé : ajustement à créer");
+  }
+  return issues;
+}
+

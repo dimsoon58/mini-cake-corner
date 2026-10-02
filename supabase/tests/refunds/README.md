@@ -187,3 +187,21 @@ annulation ; arrondi (Mel au centime, Eli le reste) ; Excel (8 feuilles, formule
 COMPLET) ; décompte figé ; PIN admin exigé par le serveur pour valider, verser, annuler un
 versement, créer ou annuler un ajustement (absent ou incorrect → 403, aucune écriture ; correct →
 accepté) ; relance de F13 sans effet.
+
+## Compta, lot K5 — Finalisation des exports (aucune migration, aucune fonction)
+
+`test_compta_k5.mjs` (F1–F13, vraie fonction `manage-expenses`, vrai code d'export du site).
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save @electric-sql/pglite esbuild
+node test_compta_k5.mjs
+```
+
+Résultat attendu : `15 PASS, 0 FAIL`.
+
+Couvert : une seule liste des manques, identique dans l'Excel et sur la page ; contrôles croisés
+décompte ↔ feuilles sources (Synthèse, Dépenses, Salaire) en formules, OK puis ÉCART quand un mois
+validé est modifié (décompte figé, ajustement demandé) ; passage à COMPLET quand rien ne manque et
+que le décompte est validé ; dossier complet en un ZIP (Excel, justificatifs nommés avec les ID de
+l'Excel, index, LISEZMOI), pièce non récupérable marquée MANQUANT ; rien n'est supprimé.
