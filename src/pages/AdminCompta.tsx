@@ -16,23 +16,25 @@ import {
   type ComptaSettings, type Expense, type ExpenseCategory, type ExpensePayer, type ExpensePeriod, type ExpenseStatus,
   type HistoryEntry, type PayerKind, type ReceiptFile,
 } from "@/lib/compta";
-import type { SalaryOverview } from "@/lib/compta";
+import type { AdvancesOverview, SalaryOverview } from "@/lib/compta";
+import AdvancesTab from "@/components/admin/compta/AdvancesTab";
 import SalaryTab from "@/components/admin/compta/SalaryTab";
 import { cn } from "@/lib/utils";
 
-// Admin > Compta (lots K1, K2). Mois + onglets : Résumé, Revenus, Dépenses,
-// Salaire, Décompte Mel / Eli. Les revenus viennent de finance-month (lot 3,
+// Admin > Compta (lots K1 à K3). Mois + onglets : Résumé, Revenus, Dépenses,
+// Salaire, Avances, Décompte Mel / Eli. Les revenus viennent de finance-month (lot 3,
 // mêmes chiffres que le tableau de bord) ; les dépenses et le salaire de
 // manage-expenses. Aucun total ne mélange la date d'achat et la date de
-// paiement ; le salaire n'est jamais ajouté aux dépenses. Avances et
-// décompte : lots K3 et K4.
+// paiement ; le salaire et les remboursements d'avances ne sont jamais
+// ajoutés aux dépenses. Décompte : lot K4.
 
-type Tab = "summary" | "revenue" | "expenses" | "salary" | "settlement";
+type Tab = "summary" | "revenue" | "expenses" | "salary" | "advances" | "settlement";
 const TABS: { key: Tab; label: string }[] = [
   { key: "summary", label: "Résumé" },
   { key: "revenue", label: "Revenus" },
   { key: "expenses", label: "Dépenses" },
   { key: "salary", label: "Salaire" },
+  { key: "advances", label: "Avances" },
   { key: "settlement", label: "Décompte Mel / Eli" },
 ];
 const zurichMonth = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
@@ -84,6 +86,8 @@ const AdminCompta = () => {
   const [settings, setSettings] = useState<ComptaSettings | null>(null);
   const [salary, setSalary] = useState<SalaryOverview | null>(null);
   const [salaryError, setSalaryError] = useState<string | null>(null);
+  const [advances, setAdvances] = useState<AdvancesOverview | null>(null);
+  const [advancesError, setAdvancesError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -100,12 +104,15 @@ const AdminCompta = () => {
     setLoading(true);
     setError(null);
     setFinanceError(null);
-    const [f, p, s, sa] = await Promise.allSettled([
+    const [f, p, s, sa, ad] = await Promise.allSettled([
       fetchFinanceMonth(month),
       comptaApi<ExpensePeriod>({ action: "period", from, to }),
       comptaApi<ComptaSettings>({ action: "settings" }),
       comptaApi<SalaryOverview>({ action: "salary_overview", month }),
+      comptaApi<AdvancesOverview>({ action: "advances_overview", month }),
     ]);
+    if (ad.status === "fulfilled") { setAdvances(ad.value); setAdvancesError(null); }
+    else { setAdvances(null); setAdvancesError(ad.reason instanceof Error ? ad.reason.message : String(ad.reason)); }
     if (sa.status === "fulfilled") { setSalary(sa.value); setSalaryError(null); }
     else { setSalary(null); setSalaryError(sa.reason instanceof Error ? sa.reason.message : String(sa.reason)); }
     if (f.status === "fulfilled") setFinance(f.value); else { setFinance(null); setFinanceError(f.reason instanceof Error ? f.reason.message : String(f.reason)); }
@@ -120,7 +127,7 @@ const AdminCompta = () => {
     setBusyExport("xlsx");
     try {
       const [{ default: ExcelJS }, { buildComptaWorkbook, comptaFileName }] = await Promise.all([import("exceljs"), import("@/lib/comptaExport")]);
-      const wb = buildComptaWorkbook(ExcelJS, finance, period, salary);
+      const wb = buildComptaWorkbook(ExcelJS, finance, period, salary, advances);
       download(new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), comptaFileName(month));
     } catch (e) {
       console.error("Compta export failed:", e);
@@ -201,7 +208,7 @@ const AdminCompta = () => {
           ))}
         </div>
 
-        {tab === "summary" && <SummaryTab finance={finance} financeError={financeError} period={period} salary={salary} onTab={(k) => setParam({ tab: k })} />}
+        {tab === "summary" && <SummaryTab finance={finance} financeError={financeError} period={period} salary={salary} advances={advances} onTab={(k) => setParam({ tab: k })} />}
         {tab === "revenue" && <RevenueTab finance={finance} financeError={financeError} />}
         {tab === "expenses" && period && settings && (
           <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)} />
@@ -209,7 +216,10 @@ const AdminCompta = () => {
         {tab === "salary" && (salary
           ? <SalaryTab overview={salary} month={month} onChanged={load} onNotice={setNotice} onEditExpense={setEditing} />
           : <p className="text-sm text-amber-800">{salaryError ?? "Chargement…"}</p>)}
-        {tab === "settlement" && <SettlementTab period={period} />}
+        {tab === "advances" && (advances
+          ? <AdvancesTab overview={advances} month={month} onChanged={load} onNotice={setNotice} />
+          : <p className="text-sm text-amber-800">{advancesError ?? "Chargement…"}</p>)}
+        {tab === "settlement" && <SettlementTab period={period} advances={advances} />}
 
         {editing && settings && (
           <ExpenseDialog
@@ -227,7 +237,7 @@ const AdminCompta = () => {
 };
 
 // ── Résumé ───────────────────────────────────────────────────────────────
-function SummaryTab({ finance, financeError, period, salary, onTab }: { finance: FinanceMonth | null; financeError: string | null; period: ExpensePeriod | null; salary: SalaryOverview | null; onTab: (t: Tab) => void }) {
+function SummaryTab({ finance, financeError, period, salary, advances, onTab }: { finance: FinanceMonth | null; financeError: string | null; period: ExpensePeriod | null; salary: SalaryOverview | null; advances: AdvancesOverview | null; onTab: (t: Tab) => void }) {
   const c = finance?.cards;
   const tt = period?.totals;
   const issues: { text: string; tab?: Tab; href?: string }[] = [];
@@ -239,6 +249,7 @@ function SummaryTab({ finance, financeError, period, salary, onTab }: { finance:
   if (tt?.salary?.toReconcileCount) issues.push({ text: `${tt.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher d'un versement (restent comptées dans les dépenses en attendant)`, tab: "salary" });
   salary?.current.filter((x) => x.confirmed_net == null).forEach((x) => issues.push({ text: `${x.code} : net à confirmer (décompte de la fiduciaire)`, tab: "salary" }));
   salary?.current.filter((x) => x.document_missing && (x.confirmed_net != null || x.paid > 0)).forEach((x) => issues.push({ text: `${x.code} : justificatif manquant (décompte)`, tab: "salary" }));
+  advances?.people.filter((x) => x.overpaid > 0).forEach((x) => issues.push({ text: `${x.name} : avance trop remboursée de ${money(x.overpaid)}`, tab: "advances" }));
   if (c?.undatedCount) issues.push({ text: `${c.undatedCount} remboursement(s) client à dater (${money(c.undated)})`, href: "/admin/refunds" });
   if (c?.toReviewCount) issues.push({ text: `${c.toReviewCount} remboursement(s) client à vérifier (${money(c.toReview)}) — non comptés`, href: "/admin/refunds?tab=review" });
   return (
@@ -284,6 +295,12 @@ function SummaryTab({ finance, financeError, period, salary, onTab }: { finance:
               <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Salaire</p>
               <p className="text-muted-foreground">Données de salaire indisponibles.</p>
             </div>
+          )}
+          {advances && (
+            <button type="button" onClick={() => onTab("advances")} className="text-left">
+              <Stat label="Avances à rembourser (fin du mois)" value={money(advances.totals.openEnd)}
+                hint={`Remboursé ce mois ${money(advances.totals.repaidInMonth)} · un remboursement n'est jamais une dépense${advances.totals.unknownCount ? ` · ${advances.totals.unknownCount} montant(s) inconnu(s)` : ""}`} />
+            </button>
           )}
           <div className="border border-border/60 px-3 py-2 text-sm">
             <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Résultat du mois</p>
@@ -475,33 +492,25 @@ function ExpensesTab({ period, settings, from, to, onEdit, onSettings }: {
 }
 
 // ── Décompte Mel / Eli ──────────────────────────────────────────────────
-function SettlementTab({ period }: { period: ExpensePeriod | null }) {
-  const advances = (period?.expenses ?? []).filter((e) => e.personal_advance);
-  const byPerson = new Map<string, { known: number; unknown: number; n: number }>();
-  for (const e of advances) {
-    const k = e.payer_name ?? "—";
-    const v = byPerson.get(k) ?? { known: 0, unknown: 0, n: 0 };
-    v.n += 1;
-    if (e.chf_amount == null) v.unknown += 1; else v.known += Number(e.chf_amount);
-    byPerson.set(k, v);
-  }
+function SettlementTab({ period, advances }: { period: ExpensePeriod | null; advances: AdvancesOverview | null }) {
+  const partners = advances?.people.filter((p) => p.kind === "partner") ?? [];
   return (
     <div className="space-y-4" data-testid="settlement">
       <div className={cn("border px-4 py-3 text-sm space-y-1", WARN)}>
         <p className="font-semibold">Répartition à configurer</p>
-        <p>Le décompte Mel / Eli (avances à rembourser + part validée = total à verser, déjà versé, reste à verser) arrive avec les lots K3 et K4.
+        <p>Le décompte Mel / Eli (avances à rembourser + part validée = total à verser, déjà versé, reste à verser) arrive avec le lot K4.
           Il sera un brouillon à valider manuellement ; aucun virement n'est déclenché.</p>
         <p>Aucune répartition n'est présumée : elle sera réglable et datée, avec une réserve pour Bento. Un résultat négatif ne sera jamais réparti.</p>
       </div>
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Avances personnelles saisies (achats de la période affichée)</h2>
-        <p className="text-xs text-muted-foreground">Information seulement : le suivi des remboursements d'avances (partiels, reportés) arrive avec le lot K3. Chaque avance ne compte qu'une fois comme dépense.</p>
-        {byPerson.size === 0 ? <p className="text-sm text-muted-foreground">Aucune avance personnelle.</p> : (
+        <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Avances restant à rembourser (fin du mois)</h2>
+        <p className="text-xs text-muted-foreground">Première composante du futur décompte. Les remboursements se saisissent dans l'onglet Avances ; ils ne sont jamais des dépenses.</p>
+        {!advances ? <p className="text-sm text-muted-foreground">{period ? "Données d'avances indisponibles." : "Chargement…"}</p> : partners.length === 0 ? <p className="text-sm text-muted-foreground">Aucune associée.</p> : (
           <ul className="border border-border/60 divide-y divide-border/60 text-sm">
-            {[...byPerson.entries()].map(([name, v]) => (
-              <li key={name} className="flex justify-between px-3 py-1.5">
-                <span>{name} <span className="text-muted-foreground">({v.n})</span></span>
-                <span className="tabular-nums">{money(v.known)}{v.unknown ? <span className="text-amber-700"> + {v.unknown} montant(s) inconnu(s)</span> : null}</span>
+            {partners.map((p) => (
+              <li key={p.payerId} className="flex justify-between px-3 py-1.5">
+                <span>{p.name}{p.unknownCount ? <span className="text-amber-700"> · {p.unknownCount} montant(s) inconnu(s)</span> : null}</span>
+                <span className="tabular-nums">{money(p.openEnd)}</span>
               </li>
             ))}
           </ul>

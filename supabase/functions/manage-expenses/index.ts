@@ -21,6 +21,10 @@ import { corsHeaders } from "../_shared/cors.ts";
 // n'en sort qu'après rapprochement explicite avec un versement. Les
 // actions du lot K1 restent inchangées.
 //
+// Lot K3 (migration F12) : remboursement des avances personnelles
+// (actions advance_*). Un remboursement n'est jamais une dépense ; il ne
+// peut pas dépasser le reste d'une avance ; correction = annulation tracée.
+//
 // Ne lit ni ne modifie aucune commande, aucun paiement, aucun remboursement
 // client ; n'envoie aucun e-mail ; ne déclenche aucun virement.
 
@@ -128,7 +132,7 @@ serve(async (req) => {
       }
       case "history": {
         const table = String(body.table ?? "expenses");
-        if (!["expenses", "expense_attachments", "expense_categories", "expense_payers", "salary_months", "salary_payments", "salary_rates"].includes(table)) throw new InputError("Table inconnue");
+        if (!["expenses", "expense_attachments", "expense_categories", "expense_payers", "salary_months", "salary_payments", "salary_rates", "advance_repayments"].includes(table)) throw new InputError("Table inconnue");
         data = await rpc("compta_history", { p_table: table, p_row: uuid(body.id, "Élément") });
         break;
       }
@@ -303,6 +307,28 @@ serve(async (req) => {
         data = { url, expiresIn: 300 };
         break;
       }
+      // ── Lot K3 : remboursement des avances ──
+      case "advances_overview":
+        data = await rpc("advances_overview", { p_month: month(body.month, "Mois") });
+        break;
+      case "advance_repay": {
+        if (!Array.isArray(body.allocations) || body.allocations.length === 0 || body.allocations.length > 100) throw new InputError("Choisissez au moins une avance à rembourser");
+        const allocations = body.allocations.map((a: { expenseId?: unknown; amount?: unknown }) => ({
+          expenseId: uuid(a?.expenseId, "Avance"),
+          amount: amount(a?.amount, "Montant remboursé"),
+        }));
+        if (allocations.some((a: { amount: number | null }) => a.amount == null || a.amount <= 0)) throw new InputError("Montant remboursé manquant");
+        data = await rpc("compta_repay_advances", {
+          p_key: text(body.idempotencyKey, 100), p_payer: uuid(body.payerId, "Personne"), p_paid_at: date(body.paidAt, "Date du remboursement"),
+          p_method: text(body.method, 20), p_reference: text(body.reference, 200), p_note: text(body.note, 500),
+          p_allocations: allocations, p_by: by,
+        });
+        break;
+      }
+      case "advance_void_repayment":
+        await rpc("compta_void_repayment", { p_id: uuid(body.id, "Remboursement"), p_reason: text(body.reason, 300), p_by: by });
+        data = { ok: true };
+        break;
       default:
         return json(cors, { error: "Action inconnue", reason: "input" }, 400);
     }

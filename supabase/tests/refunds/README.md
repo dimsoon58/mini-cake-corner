@@ -138,3 +138,25 @@ comptée tant qu'elle n'est pas rapprochée, puis comptée une seule fois (verse
 existant), annulation du rapprochement ; prolongation proposée puis ajoutée à la main ; décompte
 facultatif (« justificatif manquant »), bucket privé, lien court ; historique ; Excel (feuille
 Salaire, colonnes séparées, formules) et ZIP ; compatibilité K1 ; relance de F11 sans effet.
+
+## Compta, lot K3 — Remboursement des avances (F12 + actions `advance_*` de `manage-expenses`)
+
+`test_compta_k3.mjs` applique F1–F12, assemble la vraie fonction `manage-expenses` et le vrai
+code d'export du site.
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save @electric-sql/pglite esbuild
+node test_compta_k3.mjs
+```
+
+Résultat attendu : `46 PASS, 0 FAIL`.
+
+Couvert : avances comptées une fois en dépense ; remboursement partiel puis report sur le mois
+suivant sans nouvelle déduction ; remboursement jamais compté comme dépense ; dépassement du reste
+et avance soldée refusés ; double clic ; un virement pour plusieurs avances ; montant inconnu,
+fournisseur pas encore payé, autre personne, compte Bento et doublon refusés ; avance « À payer »
+hors du reste à rembourser ; Nahya remboursée ; garde-fous sur une avance déjà remboursée
+(suppression, personne, case avance, montant effacé) ; correction à la baisse → trop-remboursé
+signalé ; annulation tracée puis nouveau remboursement ; historique ; Excel (feuille Avances et
+remboursements, formules, contrôle) ; compatibilité K1/K2 ; relance de F12 sans effet.

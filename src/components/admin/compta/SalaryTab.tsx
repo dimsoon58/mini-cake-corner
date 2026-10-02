@@ -249,6 +249,7 @@ function PaymentDialog({ m, onClose, onSaved }: { m: SalaryMonth; onClose: () =>
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date());
   const [f, setF] = useState({ paidAt: today, amount: "", method: "transfer", reference: "", note: "" });
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
   const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
   return (
@@ -273,12 +274,13 @@ function PaymentDialog({ m, onClose, onSaved }: { m: SalaryMonth; onClose: () =>
         <div className="flex justify-end gap-2">
           <Button variant="outline" className="rounded-none" onClick={onClose} disabled={busy}>Annuler</Button>
           <Button className="rounded-none" disabled={busy || !f.amount.trim() || !f.paidAt} data-testid="pay-save" onClick={async () => {
-            if (busy) return;
+            if (inFlight.current) return;
+            inFlight.current = true;
             setBusy(true); setErr(null);
             try {
               const r = await comptaApi<{ code: string }>({ action: "salary_add_payment", idempotencyKey: key, monthId: m.id, ...f });
               onSaved(`Versement ${r.code} enregistré.`);
-            } catch (e) { setErr(errText(e)); } finally { setBusy(false); }
+            } catch (e) { setErr(errText(e)); } finally { inFlight.current = false; setBusy(false); }
           }}>{busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}Enregistrer</Button>
         </div>
       </DialogContent>

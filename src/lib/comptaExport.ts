@@ -1,17 +1,23 @@
 import { buildFinanceWorkbook } from "@/lib/financeExport";
 import type { FinanceMonth } from "@/lib/finance";
 import {
-  METHOD_LABELS, MISSING_LABELS, SALARY_STATUS_LABELS, STATUS_LABELS, fmtHours, inRange, receiptFileName,
-  type ExpensePeriod, type ReceiptFile, type SalaryOverview,
+  ADVANCE_STATE_LABELS, METHOD_LABELS, MISSING_LABELS, SALARY_STATUS_LABELS, STATUS_LABELS, fmtHours, inRange, receiptFileName,
+  type AdvancesOverview, type ExpensePeriod, type ReceiptFile, type SalaryOverview,
 } from "@/lib/compta";
 
 // Compta (lot K1) — dossier Excel du mois. Reprend TEL QUEL le classeur du
 // lot 3 (Synthèse, Commandes et articles, Encaissements, Remboursements avec
 // le bloc « À dater ») — même source finance-month, mêmes chiffres que le
 // tableau de bord — et y ajoute la feuille « Dépenses » et le bloc dépenses
-// de la synthèse, puis (lot K2) la feuille « Salaire ». Les feuilles Avances
-// et Décompte viendront avec les lots K3 et K4 ; tant qu'elles manquent, le
-// dossier est marqué INCOMPLET, jamais définitif.
+// de la synthèse, puis la feuille « Salaire » (lot K2) et la feuille
+// « Avances et remboursements » (lot K3). Le décompte Mel / Eli viendra avec
+// le lot K4 ; tant qu'il manque, le dossier est marqué INCOMPLET, jamais
+// définitif.
+//
+// Avances : chaque avance reste comptée une fois comme dépense (feuille
+// Dépenses) ; ses remboursements sont listés à part et ne sont jamais des
+// dépenses. Reste fin de mois = montant − remboursé avant − remboursé dans le
+// mois (en formule).
 //
 // Salaire : prévu, net confirmé (décompte de la fiduciaire) et versements
 // restent trois colonnes séparées ; un montant non confirmé est « à saisir »,
@@ -33,7 +39,7 @@ const round = (n: number) => Math.round(n * 100) / 100;
 
 const isCounted = (e: { counted?: boolean }) => e.counted !== false;
 
-export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMonth, expenses: ExpensePeriod, salary?: SalaryOverview | null) {
+export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMonth, expenses: ExpensePeriod, salary?: SalaryOverview | null, advances?: AdvancesOverview | null) {
   const wb = buildFinanceWorkbook(ExcelJS, finance);
   const { from, to } = { from: finance.from, to: finance.to };
   const ws = wb.addWorksheet("Dépenses");
@@ -132,6 +138,8 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
 
   // ── Salaire (lot K2) ──
   const salaryIssues = salary ? addSalarySheet(wb, salary, finance.month, m, add) : ["salaire : données non chargées"];
+  // ── Avances et remboursements (lot K3) ──
+  const advanceIssues = advances ? addAdvancesSheet(wb, advances, finance.month, m, add) : ["avances : données non chargées"];
 
   add([]);
   add(["État du dossier"], true);
@@ -143,12 +151,12 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   if (finance.cards.undatedCount) issues.push(`${finance.cards.undatedCount} remboursement(s) client à dater`);
   if (finance.cards.toReviewCount) issues.push(`${finance.cards.toReviewCount} remboursement(s) client à vérifier`);
   if (t.salary?.toReconcileCount) issues.push(`${t.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher`);
-  issues.push(...salaryIssues);
-  const state = s.addRow([`INCOMPLET — ${[...issues, "avances et décompte Mel / Eli pas encore dans ce dossier (lots K3 et K4)"].join(" · ")}`]);
+  issues.push(...salaryIssues, ...advanceIssues);
+  const state = s.addRow([`INCOMPLET — ${[...issues, "décompte Mel / Eli pas encore dans ce dossier (lot K4, répartition à configurer)"].join(" · ")}`]);
   state.font = { bold: true, color: { argb: "FF8A5A00" } };
   s.getCell(`B${sUnknown}`).numFmt = "0";
 
-  // Feuilles : Synthèse, Commandes et articles, Encaissements, Remboursements, Dépenses, Salaire.
+  // Feuilles : Synthèse, Commandes et articles, Encaissements, Remboursements, Dépenses, Salaire, Avances et remboursements.
   return wb;
 }
 
@@ -236,4 +244,73 @@ export async function buildReceiptsZip(files: ReceiptFile[], month: string, fetc
   }
   zip.file(`index_justificatifs_${month}.csv`, "﻿" + index.join("\n"));
   return { blob: await zip.generateAsync({ type: "blob" }), failed };
+}
+
+/** Feuille « Avances et remboursements » + bloc de synthèse. Renvoie les points à compléter. */
+function addAdvancesSheet(wb: Workbook, o: AdvancesOverview, month: string,
+  m: (label: string, value: unknown, count?: number | null) => number, add: (cells: unknown[], bold?: boolean) => unknown) {
+  const ws = wb.addWorksheet("Avances et remboursements");
+  ws.columns = [{ width: 14 }, { width: 15 }, { width: 12 }, { width: 22 }, { width: 13 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 30 }];
+  const header = (cells: string[]) => {
+    const r = ws.addRow(cells);
+    r.font = { bold: true };
+    r.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EEE6" } };
+    r.alignment = { wrapText: true, vertical: "top" };
+  };
+  const issues: string[] = [];
+  const t1 = ws.addRow([`Avances personnelles — ${month.split("-").reverse().join(".")}`]); t1.font = { bold: true, size: 12 };
+  ws.addRow(["Chaque avance est comptée une seule fois comme dépense (feuille Dépenses). Ses remboursements par Bento ne sont jamais des dépenses."]);
+  ws.addRow([]);
+  header(["Personne", "ID dépense", "Date", "Fournisseur", "Montant CHF", "Remboursé avant le mois", "Remboursé dans le mois", "Reste fin de mois", "État"]);
+  const first = ws.rowCount + 1;
+  for (const p of o.people) for (const a of p.advances) {
+    const r = ws.addRow([p.name, a.code, toDate(a.paid_at ?? a.purchase_date), a.supplier ?? "", a.chf_amount, a.repaid_before, a.repaid_in_month, null,
+      `${ADVANCE_STATE_LABELS[a.state]}${a.carried_over ? " · reportée" : ""}`]);
+    r.getCell(3).numFmt = DATE;
+    r.getCell(8).value = a.chf_amount != null ? { formula: `E${r.number}-F${r.number}-G${r.number}`, result: round(a.chf_amount - a.repaid_before - a.repaid_in_month) } : "montant à saisir";
+    [5, 6, 7, 8].forEach((c) => { r.getCell(c).numFmt = MONEY; });
+    if (a.state === "unknown_amount") issues.push(`${a.code} : montant CHF de l'avance à saisir`);
+    if (a.state === "overpaid") issues.push(`${a.code} : avance trop remboursée`);
+  }
+  const last = ws.rowCount;
+  const tot = ws.addRow(["Total"]);
+  const sum = (col: string, result: number) => (last >= first ? { formula: `SUM(${col}${first}:${col}${last})`, result: round(result) } : 0);
+  const all = o.people.flatMap((p) => p.advances);
+  tot.getCell(7).value = sum("G", all.reduce((s2, a) => s2 + a.repaid_in_month, 0));
+  tot.getCell(8).value = sum("H", all.reduce((s2, a) => s2 + (a.chf_amount != null ? a.chf_amount - a.repaid_before - a.repaid_in_month : 0), 0));
+  [7, 8].forEach((c) => { tot.getCell(c).numFmt = MONEY; });
+  tot.font = { bold: true };
+
+  ws.addRow([]);
+  const t2 = ws.addRow(["Remboursements du mois (date de remboursement) — hors dépenses"]); t2.font = { bold: true, size: 12 };
+  header(["Date", "Code", "Personne", "Avances remboursées", "Moyen", "Référence", "Montant", "État", ""]);
+  const fr = ws.rowCount + 1;
+  for (const r0 of o.repayments) {
+    const r = ws.addRow([toDate(r0.paid_at), r0.code, r0.payer_name, r0.allocations.map((a) => `${a.code} (${a.amount})`).join(", "),
+      r0.method ? METHOD_LABELS[r0.method] : "", r0.reference ?? "", r0.voided_at ? null : Number(r0.total),
+      r0.voided_at ? `ANNULÉ (${r0.void_reason ?? ""}) — ${Number(r0.total)} non compté` : "Compté"]);
+    r.getCell(1).numFmt = DATE; r.getCell(7).numFmt = MONEY;
+  }
+  const lr = ws.rowCount;
+  const repRow = ws.addRow(["Total remboursé dans le mois"]);
+  repRow.getCell(7).value = o.repayments.length ? { formula: `SUM(G${fr}:G${lr})`, result: round(o.totals.repaidInMonth) } : 0;
+  repRow.getCell(7).numFmt = MONEY; repRow.font = { bold: true };
+
+  ws.addRow([]);
+  const t3 = ws.addRow(["Par personne"]); t3.font = { bold: true, size: 12 };
+  header(["Personne", "À rembourser au début du mois", "Nouvelles avances du mois", "Remboursé dans le mois", "Reste à rembourser fin de mois", "Montants inconnus", "Trop remboursé"]);
+  for (const p of o.people.filter((x) => x.advances.length || x.openEnd)) {
+    const r = ws.addRow([p.name, p.openStart, p.newInMonth, p.repaidInMonth, p.openEnd, p.unknownCount || null, p.overpaid || null]);
+    [2, 3, 4, 5, 7].forEach((c) => { r.getCell(c).numFmt = MONEY; });
+  }
+  const chk = ws.addRow(["Contrôle : remboursements du mois = total des affectations",
+    { formula: `IF(ABS(G${repRow.number}-G${tot.number})<0.005,"OK","ÉCART")`, result: "OK" }]);
+  chk.font = { italic: true };
+
+  add([]);
+  add(["Avances personnelles — remboursements séparés, jamais des dépenses"], true);
+  m("Remboursé aux personnes dans le mois", { formula: `'Avances et remboursements'!G${repRow.number}`, result: round(o.totals.repaidInMonth) }, o.totals.repaidInMonthCount);
+  m("Reste à rembourser à la fin du mois (reporté)", { formula: `'Avances et remboursements'!H${tot.number}`, result: round(o.totals.openEnd) });
+  if (o.totals.unknownCount) add([`  ${o.totals.unknownCount} avance(s) au montant CHF inconnu, non comptée(s)`]);
+  return issues;
 }

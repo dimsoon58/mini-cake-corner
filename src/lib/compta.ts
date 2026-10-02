@@ -23,6 +23,8 @@ export interface Expense {
   // Lot K2 (absents tant que F11 n'est pas appliquée)
   counted?: boolean; salary_payment_id?: string | null; salary_to_reconcile?: boolean;
   salary_payment?: { id: string; code: string; paid_at: string; amount: number; month_code: string } | null;
+  // Lot K3 (absent tant que F12 n'est pas appliquée)
+  advance?: { repaid: number; remaining: number | null } | null;
   duplicates: { id: string; code: string; purchase_date: string | null; supplier: string | null; chf_amount: number | null }[];
 }
 export interface Sum { known: number; count: number; unknownCount: number }
@@ -147,3 +149,33 @@ export const METHOD_LABELS: Record<"transfer" | "twint" | "cash" | "other", stri
 export const fmtHours = (min: number) => { const h = Math.floor(min / 60), m = Math.round(min % 60); return `${h} h${m ? ` ${String(m).padStart(2, "0")}` : ""}`; };
 /** « montant à saisir » plutôt que 0 quand un montant n'est pas encore connu. */
 export const moneyOrToEnter = (v: number | null | undefined) => (v == null ? "montant à saisir" : money(v));
+
+// ── Lot K3 : remboursement des avances (jamais une dépense) ───────────────
+export type AdvanceState = "unknown_amount" | "supplier_unpaid" | "open" | "partly_repaid" | "settled" | "overpaid";
+export interface AdvanceItem {
+  id: string; code: string; purchase_date: string | null; paid_at: string | null; supplier: string | null; description: string | null;
+  status: ExpenseStatus; chf_amount: number | null; repaid_before: number; repaid_in_month: number; repaid_total: number;
+  open_start: number | null; open_end: number | null; remaining_now: number | null; carried_over: boolean; state: AdvanceState;
+}
+export interface AdvancePerson {
+  payerId: string; name: string; kind: PayerKind; openStart: number; newInMonth: number; repaidInMonth: number; openEnd: number; openNow: number;
+  unknownCount: number; overpaid: number; advances: AdvanceItem[];
+}
+export interface AdvanceRepayment {
+  id: string; code: string; payer_id: string; payer_name: string; paid_at: string; method: "transfer" | "twint" | "cash" | "other" | null;
+  reference: string | null; note: string | null; total: number; created_by: string | null;
+  voided_at: string | null; voided_by: string | null; void_reason: string | null;
+  allocations: { expenseId: string; code: string; amount: number; supplier: string | null; chf_amount: number | null }[];
+}
+export interface AdvancesOverview {
+  month: string; people: AdvancePerson[]; repayments: AdvanceRepayment[];
+  totals: { repaidInMonth: number; repaidInMonthCount: number; openEnd: number; unknownCount: number };
+}
+export const ADVANCE_STATE_LABELS: Record<AdvanceState, string> = {
+  unknown_amount: "Montant CHF à saisir — non remboursable",
+  supplier_unpaid: "Fournisseur pas encore payé — non remboursable",
+  open: "À rembourser",
+  partly_repaid: "Partiellement remboursée",
+  settled: "Remboursée",
+  overpaid: "Trop remboursée",
+};
