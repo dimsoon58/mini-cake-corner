@@ -1,8 +1,11 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 8080 },
-    { "name": "compta-api", "runtimeExecutable": "/private/tmp/claude-501/-Users-melodienagle-Documents-GitHub-mini-cake-corner/54562f58-d142-4830-a684-072ab2a86736/scratchpad/node-v24.21.0-darwin-arm64/bin/node", "runtimeArgs": ["/private/tmp/claude-501/-Users-melodienagle-Documents-GitHub-mini-cake-corner/54562f58-d142-4830-a684-072ab2a86736/scratchpad/e2e/server4.mjs"], "port": 8095 },
-    { "name": "harness", "runtimeExecutable": "/private/tmp/claude-501/-Users-melodienagle-Documents-GitHub-mini-cake-corner/54562f58-d142-4830-a684-072ab2a86736/scratchpad/node-v24.21.0-darwin-arm64/bin/node", "runtimeArgs": ["node_modules/vite/bin/vite.js", "--config", "node_modules/.harness/vite.config.mjs", "--force"], "port": 8091 }
+    {
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 8080
+    }
   ]
 }
