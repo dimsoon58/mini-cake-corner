@@ -14,6 +14,11 @@ import { corsHeaders } from "../_shared/cors.ts";
 // un lien signé de 5 minutes généré à la demande. La référence durable est
 // l'identifiant de la pièce et le code de la dépense, jamais un lien.
 //
+// Lot K2 (migration F11) : salaire de Nahya depuis le décompte de la
+// fiduciaire (actions payroll_*). Aucun calcul de salaire ; le coût (brut +
+// charges employeur) vient de la fiche, les paiements ne sont jamais ajoutés
+// aux dépenses. Les actions du lot K1 restent inchangées.
+//
 // Ne lit ni ne modifie aucune commande, aucun paiement, aucun remboursement
 // client ; n'envoie aucun e-mail ; ne déclenche aucun virement.
 
@@ -53,6 +58,28 @@ const amount = (v: unknown, field: string): number | null => {
   const n = typeof v === "number" ? v : Number(String(v).replace(/[’'\s]/g, "").replace(",", "."));
   if (!Number.isFinite(n) || n < 0 || n > 10_000_000) throw new InputError(`${field} invalide`);
   return Math.round(n * 100) / 100;
+};
+/** Montant signé facultatif (autres éléments du décompte). */
+const signedAmount = (v: unknown, field: string): number | null => {
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : Number(String(v).replace(/[’'\s]/g, "").replace(",", ".").replace("−", "-"));
+  if (!Number.isFinite(n) || Math.abs(n) > 10_000_000) throw new InputError(`${field} invalide`);
+  return Math.round(n * 100) / 100;
+};
+const month = (v: unknown, field: string): string => {
+  const m = typeof v === "string" ? /^(\d{4})-(\d{2})(-\d{2})?$/.exec(v) : null;
+  if (!m || Number(m[2]) < 1 || Number(m[2]) > 12) throw new InputError(`${field} invalide (AAAA-MM)`);
+  return `${m[1]}-${m[2]}-01`;
+};
+const lines = (v: unknown, field: string) => {
+  if (v == null) return [];
+  if (!Array.isArray(v) || v.length > 30) throw new InputError(`${field} invalide`);
+  return v.map((x) => {
+    const label = text((x as { label?: unknown })?.label, 100);
+    const amt = signedAmount((x as { amount?: unknown })?.amount, field);
+    if (!label) throw new InputError(`${field} : libellé manquant`);
+    return { label, amount: amt };
+  });
 };
 const safeName = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "").slice(-80) || "fichier";
 
@@ -116,7 +143,7 @@ serve(async (req) => {
       }
       case "history": {
         const table = String(body.table ?? "expenses");
-        if (!["expenses", "expense_attachments", "expense_categories", "expense_payers"].includes(table)) throw new InputError("Table inconnue");
+        if (!["expenses", "expense_attachments", "expense_categories", "expense_payers", "payroll_slips", "payroll_insurances", "payroll_payments"].includes(table)) throw new InputError("Table inconnue");
         data = await rpc("compta_history", { p_table: table, p_row: uuid(body.id, "Élément") });
         break;
       }
@@ -133,6 +160,11 @@ serve(async (req) => {
       case "receipts_period": {
         const from = date(body.from, "Début"), to = date(body.to, "Fin");
         const list = await rpc("compta_receipts_period", { p_from: from, p_to: to }) as { path: string }[];
+        // Lot K2 : documents de paie du mois de salaire (même ZIP).
+        if (from.endsWith("-01")) {
+          const pay = await rpc("payroll_receipts_month", { p_month: from }).catch(() => []) as { path: string }[];
+          list.push(...(pay ?? []));
+        }
         data = await Promise.all(list.map(async (r) => ({ ...r, url: await signed(r.path, 600) })));
         break;
       }
@@ -164,14 +196,24 @@ serve(async (req) => {
         data = { ok: true };
         break;
       case "upload_url": {
-        const expenseId = uuid(body.expenseId, "Dépense");
         const mime = String(body.mimeType ?? "");
         const size = Number(body.size ?? 0);
         if (!MIME.has(mime)) throw new InputError("Format accepté : photo (JPEG, PNG, WebP, HEIC) ou PDF");
         if (!(size > 0) || size > MAX_BYTES) throw new InputError("Fichier trop lourd (15 Mo maximum)");
-        const e = await rpc("compta_expense_get", { p_id: expenseId });
-        if (!e) return json(cors, { error: "Dépense introuvable", reason: "not_found" }, 404);
-        const path = `${expenseId}/${crypto.randomUUID()}_${safeName(String(body.fileName ?? "justificatif"))}`;
+        let prefix: string;
+        if (body.slipId) {
+          // Lot K2 : document du décompte de salaire.
+          const slipId = uuid(body.slipId, "Fiche de paie");
+          const m = await rpc("payroll_slip_exists", { p_id: slipId });
+          if (!m) return json(cors, { error: "Fiche de paie introuvable", reason: "not_found" }, 404);
+          prefix = `payroll/${slipId}`;
+        } else {
+          const expenseId = uuid(body.expenseId, "Dépense");
+          const e = await rpc("compta_expense_get", { p_id: expenseId });
+          if (!e) return json(cors, { error: "Dépense introuvable", reason: "not_found" }, 404);
+          prefix = expenseId;
+        }
+        const path = `${prefix}/${crypto.randomUUID()}_${safeName(String(body.fileName ?? "justificatif"))}`;
         const { data: up, error } = await storage.createSignedUploadUrl(path);
         if (error || !up?.token) {
           console.error("manage-expenses upload_url:", error);
@@ -209,6 +251,85 @@ serve(async (req) => {
           p_id: optUuid(body.id, "Payé par"), p_name: text(body.name, 80), p_kind: kind,
           p_sort: Number.isInteger(body.sort) ? body.sort : null, p_active: body.active !== false, p_by: by,
         }) };
+        break;
+      }
+      // ── Lot K2 : salaire (depuis le décompte de la fiduciaire) ──
+      case "payroll_month":
+        data = await rpc("payroll_month", { p_month: month(body.month, "Mois") });
+        break;
+      case "payroll_save_slip":
+        data = await rpc("payroll_save_slip", {
+          p_id: optUuid(body.id, "Fiche"),
+          p_member: uuid(body.memberId, "Personne"),
+          p_month: month(body.month, "Mois de salaire"),
+          p_gross: amount(body.gross, "Salaire brut"),
+          p_deductions: amount(body.employeeDeductions, "Retenues salariée"),
+          p_other: signedAmount(body.otherItems, "Autres éléments"),
+          p_other_label: text(body.otherItemsLabel, 200),
+          p_net: amount(body.net, "Salaire net"),
+          p_employer: amount(body.employerCharges, "Charges employeur"),
+          p_deduction_lines: lines(body.deductionLines, "Détail des retenues"),
+          p_employer_lines: lines(body.employerLines, "Détail des charges"),
+          p_notes: text(body.notes, 2000),
+          p_by: by,
+        });
+        break;
+      case "payroll_delete_slip":
+        await rpc("payroll_delete_slip", { p_id: uuid(body.id, "Fiche"), p_reason: text(body.reason, 300), p_by: by });
+        data = { ok: true };
+        break;
+      case "payroll_save_insurance":
+        data = { id: await rpc("payroll_save_insurance", {
+          p_id: optUuid(body.id, "Assurance"), p_slip: optUuid(body.slipId, "Fiche"), p_kind: text(body.kind, 10) ?? "other",
+          p_label: text(body.label, 100), p_treatment: String(body.treatment ?? "unclear"), p_amount: amount(body.amountInSlip, "Montant"),
+          p_note: text(body.note, 500), p_by: by,
+        }) };
+        break;
+      case "payroll_save_payment": {
+        const kind = body.kind === "contributions" ? "contributions" : "net_salary";
+        data = await rpc("payroll_save_payment", {
+          p_key: text(body.idempotencyKey, 100), p_kind: kind, p_member: uuid(body.memberId, "Personne"),
+          p_slip: optUuid(body.slipId, "Fiche"),
+          p_period_from: kind === "contributions" ? month(body.periodFrom, "Début de période") : null,
+          p_period_to: kind === "contributions" ? month(body.periodTo, "Fin de période") : null,
+          p_paid_at: date(body.paidAt, "Date de paiement"), p_amount: amount(body.amount, "Montant"),
+          p_payee: text(body.payee, 200), p_method: text(body.method, 20), p_reference: text(body.reference, 200),
+          p_note: text(body.note, 500), p_by: by,
+        });
+        break;
+      }
+      case "payroll_delete_payment":
+        await rpc("payroll_delete_payment", { p_id: uuid(body.id, "Paiement"), p_reason: text(body.reason, 300), p_by: by });
+        data = { ok: true };
+        break;
+      case "payroll_link_expense": {
+        const link = body.link == null || body.link === "" ? null : String(body.link);
+        await rpc("payroll_link_expense", {
+          p_expense: uuid(body.expenseId, "Dépense"), p_link: link, p_slip: optUuid(body.slipId, "Fiche"),
+          p_insurance: optUuid(body.insuranceId, "Assurance"), p_by: by,
+        });
+        data = { ok: true };
+        break;
+      }
+      case "payroll_attach": {
+        const mime = String(body.mimeType ?? "");
+        if (!MIME.has(mime)) throw new InputError("Format non accepté");
+        data = { id: await rpc("payroll_add_attachment", {
+          p_slip: uuid(body.slipId, "Fiche"), p_path: String(body.path ?? ""), p_name: text(body.fileName, 200) ?? "decompte",
+          p_mime: mime, p_size: Number(body.size) || null, p_by: by,
+        }) };
+        break;
+      }
+      case "payroll_delete_attachment":
+        await rpc("payroll_delete_attachment", { p_id: uuid(body.id, "Document"), p_by: by });
+        data = { ok: true };
+        break;
+      case "payroll_view_attachment": {
+        const path = await rpc("payroll_attachment_path", { p_slip: uuid(body.slipId, "Fiche"), p_id: uuid(body.id, "Document") }) as string | null;
+        if (!path) return json(cors, { error: "Document introuvable", reason: "not_found" }, 404);
+        const url = await signed(path, 300);
+        if (!url) return json(cors, { error: "Fichier indisponible", reason: "storage" }, 502);
+        data = { url, expiresIn: 300 };
         break;
       }
       default:
