@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 
 // Admin > Équipe (lot E) — horaires prévus et réalisés de Nahya, vacances et
-// absences de Nahya, Élie et Melodie. Compteurs en haut, calendrier dessous,
+// absences de Nahya, Eli et Melodie. Compteurs en haut, calendrier dessous,
 // formulaires simples au clic sur un jour. Tous les calculs viennent du
 // serveur (team-planning). Aucune donnée de commande ou de paiement.
 

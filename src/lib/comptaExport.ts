@@ -122,7 +122,7 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   if (t.undatedCount) issues.push(`${t.undatedCount} dépense(s) sans date d'achat`);
   if (finance.cards.undatedCount) issues.push(`${finance.cards.undatedCount} remboursement(s) client à dater`);
   if (finance.cards.toReviewCount) issues.push(`${finance.cards.toReviewCount} remboursement(s) client à vérifier`);
-  const state = s.addRow([`INCOMPLET — ${[...issues, "salaire, avances et décompte Mel / Élie pas encore dans ce dossier (lots K2 à K4)"].join(" · ")}`]);
+  const state = s.addRow([`INCOMPLET — ${[...issues, "salaire, avances et décompte Mel / Eli pas encore dans ce dossier (lots K2 à K4)"].join(" · ")}`]);
   state.font = { bold: true, color: { argb: "FF8A5A00" } };
   s.getCell(`B${sUnknown}`).numFmt = "0";
 

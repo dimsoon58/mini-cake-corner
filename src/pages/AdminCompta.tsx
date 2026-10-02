@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 
 // Admin > Compta (lot K1). Mois + quatre onglets : Résumé, Revenus,
-// Dépenses, Décompte Mel / Élie. Les revenus viennent de finance-month
+// Dépenses, Décompte Mel / Eli. Les revenus viennent de finance-month
 // (lot 3, mêmes chiffres que le tableau de bord) ; les dépenses de
 // manage-expenses. Aucun total ne mélange la date d'achat et la date de
 // paiement. Salaire, avances et décompte : lots K2 à K4.
@@ -29,7 +29,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "summary", label: "Résumé" },
   { key: "revenue", label: "Revenus" },
   { key: "expenses", label: "Dépenses" },
-  { key: "settlement", label: "Décompte Mel / Élie" },
+  { key: "settlement", label: "Décompte Mel / Eli" },
 ];
 const zurichMonth = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
 const zurichToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date());
@@ -448,7 +448,7 @@ function ExpensesTab({ period, settings, from, to, onEdit, onSettings }: {
   );
 }
 
-// ── Décompte Mel / Élie ──────────────────────────────────────────────────
+// ── Décompte Mel / Eli ──────────────────────────────────────────────────
 function SettlementTab({ period }: { period: ExpensePeriod | null }) {
   const advances = (period?.expenses ?? []).filter((e) => e.personal_advance);
   const byPerson = new Map<string, { known: number; unknown: number; n: number }>();
@@ -463,7 +463,7 @@ function SettlementTab({ period }: { period: ExpensePeriod | null }) {
     <div className="space-y-4" data-testid="settlement">
       <div className={cn("border px-4 py-3 text-sm space-y-1", WARN)}>
         <p className="font-semibold">Répartition à configurer</p>
-        <p>Le décompte Mel / Élie (avances à rembourser + part validée = total à verser, déjà versé, reste à verser) arrive avec les lots K3 et K4.
+        <p>Le décompte Mel / Eli (avances à rembourser + part validée = total à verser, déjà versé, reste à verser) arrive avec les lots K3 et K4.
           Il sera un brouillon à valider manuellement ; aucun virement n'est déclenché.</p>
         <p>Aucune répartition n'est présumée : elle sera réglable et datée, avec une réserve pour Bento. Un résultat négatif ne sera jamais réparti.</p>
       </div>
@@ -598,144 +598,157 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
-      <DialogContent className="max-w-lg w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] overflow-y-auto rounded-none p-4 sm:p-6 gap-3">
-        <DialogHeader>
-          <DialogTitle>{expense ? `Dépense ${expense.code}` : "Ajouter une dépense"}</DialogTitle>
-          <DialogDescription>Les champs peuvent rester vides : la dépense sera marquée « À compléter ». Aucun taux de change n'est appliqué.</DialogDescription>
+      {/* Pleine page sur tous les écrans : tout le formulaire visible d'un coup,
+          justificatifs à gauche et champs à droite sur grand écran,
+          boutons toujours visibles en bas. */}
+      <DialogContent className="left-0 top-0 translate-x-0 translate-y-0 w-screen max-w-none h-[100dvh] rounded-none sm:rounded-none border-0 p-0 gap-0 flex flex-col overflow-hidden data-[state=open]:slide-in-from-left-0 data-[state=open]:slide-in-from-top-0 data-[state=closed]:slide-out-to-left-0 data-[state=closed]:slide-out-to-top-0 data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100">
+        <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left sm:text-left">
+          <div className="w-full max-w-6xl mx-auto space-y-1">
+            <DialogTitle>{expense ? `Dépense ${expense.code}` : "Ajouter une dépense"}</DialogTitle>
+            <DialogDescription>Les champs peuvent rester vides : la dépense sera marquée « À compléter ». Aucun taux de change n'est appliqué.</DialogDescription>
+          </div>
         </DialogHeader>
 
-        {expense && expense.duplicates.filter((d) => !acked.includes(d.id)).length > 0 && (
-          <div className={cn("border px-3 py-2 text-sm space-y-1", "border-red-300 bg-red-50 text-red-900")}>
-            <p className="font-semibold flex gap-1.5"><Copy className="w-4 h-4 mt-0.5" />Doublon possible</p>
-            {expense.duplicates.filter((d) => !acked.includes(d.id)).map((d) => (
-              <div key={d.id} className="flex flex-wrap items-center gap-2">
-                <span className="flex-1">{d.code} · {frDate(d.purchase_date)} · {d.supplier ?? "—"} · {money(d.chf_amount)}</span>
-                <Button size="sm" variant="outline" className="rounded-none h-7" onClick={async () => { await comptaApi({ action: "ack_duplicate", a: expense.id, b: d.id }); setAcked((a) => [...a, d.id]); }}>Ce n'est pas un doublon</Button>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="w-full max-w-6xl mx-auto px-4 py-4 space-y-4">
+            {expense && expense.duplicates.filter((d) => !acked.includes(d.id)).length > 0 && (
+              <div className={cn("border px-3 py-2 text-sm space-y-1", "border-red-300 bg-red-50 text-red-900")}>
+                <p className="font-semibold flex gap-1.5"><Copy className="w-4 h-4 mt-0.5" />Doublon possible</p>
+                {expense.duplicates.filter((d) => !acked.includes(d.id)).map((d) => (
+                  <div key={d.id} className="flex flex-wrap items-center gap-2">
+                    <span className="flex-1">{d.code} · {frDate(d.purchase_date)} · {d.supplier ?? "—"} · {money(d.chf_amount)}</span>
+                    <Button size="sm" variant="outline" className="rounded-none h-7" onClick={async () => { await comptaApi({ action: "ack_duplicate", a: expense.id, b: d.id }); setAcked((a) => [...a, d.id]); }}>Ce n'est pas un doublon</Button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-6">
+            {/* Justificatifs : en premier sur téléphone, colonne de gauche sur grand écran */}
+            <section className="space-y-2 min-w-0">
+              <Label className="text-xs">Justificatifs (photo ou PDF, plusieurs possibles)</Label>
+              <input ref={fileInput} type="file" accept="image/*,application/pdf" multiple className="hidden"
+                onChange={(e) => { const list = Array.from(e.target.files ?? []); setFiles((x) => [...x, ...list]); e.target.value = ""; }} data-testid="file-input" />
+              <Button type="button" variant="outline" className="rounded-none w-full h-11 sm:h-9" onClick={() => fileInput.current?.click()} disabled={f.noReceipt}>
+                <Paperclip className="w-4 h-4 mr-1" /> Ajouter une photo ou un PDF
+              </Button>
+              {(attachments.length > 0 || files.length > 0) && (
+                <ul className="space-y-1 text-sm">
+                  {attachments.map((a, i) => (
+                    <li key={a.id} className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
+                      <button type="button" className="flex-1 min-w-0 truncate text-left underline-offset-2 hover:underline" onClick={() => view(a.id, a.mime_type)}>{expense?.code}_{i + 1} · {a.file_name}</button>
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => removeAttachment(a.id)} aria-label="Retirer"><Trash2 className="w-3.5 h-3.5" /></Button>
+                    </li>
+                  ))}
+                  {pendingPreviews.map(({ file, url }, i) => (
+                    <li key={`${file.name}-${i}`} className="flex items-center gap-2">
+                      {url ? <img src={url} alt="" className="w-10 h-10 object-cover border" /> : <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />}
+                      <span className="flex-1 min-w-0 truncate">{file.name} <span className="text-muted-foreground">(envoyé à l'enregistrement)</span></span>
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setFiles((x) => x.filter((_, j) => j !== i))} aria-label="Retirer"><Trash2 className="w-3.5 h-3.5" /></Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {preview && (
+                <div className="border border-border/60 p-2 space-y-1 min-w-0">
+                  {preview.mime.startsWith("image/")
+                    ? <img src={preview.url} alt="Justificatif" className="max-h-[60vh] max-w-full mx-auto object-contain" />
+                    : <a href={preview.url} target="_blank" rel="noreferrer" className="text-sm underline">Ouvrir le PDF (lien valable 5 minutes)</a>}
+                </div>
+              )}
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" className="w-4 h-4 mt-0.5" checked={f.noReceipt} onChange={(e) => set("noReceipt", e.target.checked)} />
+                <span>Pas de justificatif disponible</span>
+              </label>
+              {f.noReceipt && <Input value={f.receiptMissingReason} onChange={(e) => set("receiptMissingReason", e.target.value)} placeholder="Pourquoi ? (ex. ticket perdu)" className={field} />}
+            </section>
 
-        {/* Justificatifs en premier : photo du ticket sur téléphone */}
-        <section className="space-y-2">
-          <Label className="text-xs">Justificatifs (photo ou PDF, plusieurs possibles)</Label>
-          <input ref={fileInput} type="file" accept="image/*,application/pdf" multiple className="hidden"
-            onChange={(e) => { const list = Array.from(e.target.files ?? []); setFiles((x) => [...x, ...list]); e.target.value = ""; }} data-testid="file-input" />
-          <Button type="button" variant="outline" className="rounded-none w-full h-11 sm:h-9" onClick={() => fileInput.current?.click()} disabled={f.noReceipt}>
-            <Paperclip className="w-4 h-4 mr-1" /> Ajouter une photo ou un PDF
-          </Button>
-          {(attachments.length > 0 || files.length > 0) && (
-            <ul className="space-y-1 text-sm">
-              {attachments.map((a, i) => (
-                <li key={a.id} className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
-                  <button type="button" className="flex-1 min-w-0 truncate text-left underline-offset-2 hover:underline" onClick={() => view(a.id, a.mime_type)}>{expense?.code}_{i + 1} · {a.file_name}</button>
-                  <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => removeAttachment(a.id)} aria-label="Retirer"><Trash2 className="w-3.5 h-3.5" /></Button>
-                </li>
-              ))}
-              {pendingPreviews.map(({ file, url }, i) => (
-                <li key={`${file.name}-${i}`} className="flex items-center gap-2">
-                  {url ? <img src={url} alt="" className="w-10 h-10 object-cover border" /> : <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />}
-                  <span className="flex-1 min-w-0 truncate">{file.name} <span className="text-muted-foreground">(envoyé à l'enregistrement)</span></span>
-                  <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setFiles((x) => x.filter((_, j) => j !== i))} aria-label="Retirer"><Trash2 className="w-3.5 h-3.5" /></Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {preview && (
-            <div className="border border-border/60 p-2 space-y-1">
-              {preview.mime.startsWith("image/")
-                ? <img src={preview.url} alt="Justificatif" className="max-h-80 mx-auto" />
-                : <a href={preview.url} target="_blank" rel="noreferrer" className="text-sm underline">Ouvrir le PDF (lien valable 5 minutes)</a>}
+            <section className="grid grid-cols-2 gap-3 content-start min-w-0 [&>*]:min-w-0">
+              <div className="space-y-1 col-span-2 sm:col-span-1">
+                <Label className="text-xs">Devise d'origine</Label>
+                <select className={select} value={f.currency} onChange={(e) => set("currency", e.target.value)}>
+                  {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  <option value="OTHER">Autre…</option>
+                </select>
+                {f.currency === "OTHER" && <Input value={f.customCurrency} maxLength={3} onChange={(e) => set("customCurrency", e.target.value.toUpperCase())} placeholder="Code (ex. JPY)" className={field} />}
+              </div>
+              <div className="space-y-1 col-span-2 sm:col-span-1">
+                <Label className="text-xs">{isChf ? "Montant payé (CHF)" : `Montant d'origine (${currency || "?"})`}</Label>
+                <Input inputMode="decimal" value={f.originalAmount} onChange={(e) => set("originalAmount", e.target.value)} placeholder="ex. 24.90" className={field} data-testid="amount" />
+              </div>
+              {!isChf && (
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs">Montant réellement débité en CHF</Label>
+                  <Input inputMode="decimal" value={f.chfAmount} onChange={(e) => set("chfAmount", e.target.value)} placeholder="Tel qu'il apparaît sur le relevé — vide si inconnu" className={field} data-testid="chf-amount" />
+                  <p className="text-[11px] text-muted-foreground">Laissez vide si vous ne le connaissez pas encore : la dépense reste « À compléter » et n'entre dans aucun total. Aucune conversion n'est estimée.</p>
+                </div>
+              )}
+              <div className="space-y-1 col-span-2 sm:col-span-1">
+                <Label className="text-xs">Date d'achat</Label>
+                <Input type="date" value={f.purchaseDate} onChange={(e) => set("purchaseDate", e.target.value)} className={field} />
+              </div>
+              <div className="space-y-1 col-span-2 sm:col-span-1">
+                <Label className="text-xs">Fournisseur ou magasin</Label>
+                <Input value={f.supplier} onChange={(e) => set("supplier", e.target.value)} className={field} data-testid="supplier" />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <Label className="text-xs">Description</Label>
+                <Input value={f.description} onChange={(e) => set("description", e.target.value)} className={field} />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <Label className="text-xs">Catégorie</Label>
+                <select className={select} value={f.categoryId} onChange={(e) => set("categoryId", e.target.value)} data-testid="category">
+                  <option value="">— à choisir —</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}{c.active ? "" : " (désactivée)"}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1 col-span-2 sm:col-span-1">
+                <Label className="text-xs">Payé par</Label>
+                <select className={select} value={f.payerId} onChange={(e) => choosePayer(e.target.value)} data-testid="payer">
+                  <option value="">— à choisir —</option>
+                  {payers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <label className="col-span-2 sm:col-span-1 flex items-start gap-2 text-sm sm:pt-6">
+                <input type="checkbox" className="w-4 h-4 mt-0.5" checked={f.personalAdvance} disabled={!payer || payer.kind === "company"} onChange={(e) => set("personalAdvance", e.target.checked)} data-testid="advance" />
+                <span>Avance personnelle à rembourser par Bento</span>
+              </label>
+              <div className="space-y-1 col-span-2 sm:col-span-1">
+                <Label className="text-xs">Statut</Label>
+                <div className="flex border border-input">
+                  {(["paid", "to_pay"] as ExpenseStatus[]).map((s) => (
+                    <button key={s} type="button" onClick={() => set("status", s)} className={cn("flex-1 h-11 sm:h-9 text-sm", f.status === s ? "bg-primary text-primary-foreground" : "bg-background")}>{STATUS_LABELS[s]}</button>
+                  ))}
+                </div>
+              </div>
+              {f.status === "paid" && (
+                <div className="space-y-1 col-span-2 sm:col-span-1">
+                  <Label className="text-xs">Date de paiement</Label>
+                  <Input type="date" value={f.paidAt} onChange={(e) => set("paidAt", e.target.value)} className={field} />
+                </div>
+              )}
+              <div className="space-y-1 col-span-2">
+                <Label className="text-xs">Notes (facultatif)</Label>
+                <Input value={f.notes} onChange={(e) => set("notes", e.target.value)} className={field} />
+              </div>
+            </section>
             </div>
-          )}
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" className="w-4 h-4 mt-0.5" checked={f.noReceipt} onChange={(e) => set("noReceipt", e.target.checked)} />
-            <span>Pas de justificatif disponible</span>
-          </label>
-          {f.noReceipt && <Input value={f.receiptMissingReason} onChange={(e) => set("receiptMissingReason", e.target.value)} placeholder="Pourquoi ? (ex. ticket perdu)" className={field} />}
-        </section>
-
-        <section className="grid grid-cols-2 gap-3">
-          <div className="space-y-1 col-span-2 sm:col-span-1">
-            <Label className="text-xs">Devise d'origine</Label>
-            <select className={select} value={f.currency} onChange={(e) => set("currency", e.target.value)}>
-              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              <option value="OTHER">Autre…</option>
-            </select>
-            {f.currency === "OTHER" && <Input value={f.customCurrency} maxLength={3} onChange={(e) => set("customCurrency", e.target.value.toUpperCase())} placeholder="Code (ex. JPY)" className={field} />}
+            {history && <HistoryList entries={history} />}
           </div>
-          <div className="space-y-1 col-span-2 sm:col-span-1">
-            <Label className="text-xs">{isChf ? "Montant payé (CHF)" : `Montant d'origine (${currency || "?"})`}</Label>
-            <Input inputMode="decimal" value={f.originalAmount} onChange={(e) => set("originalAmount", e.target.value)} placeholder="ex. 24.90" className={field} data-testid="amount" />
-          </div>
-          {!isChf && (
-            <div className="space-y-1 col-span-2">
-              <Label className="text-xs">Montant réellement débité en CHF</Label>
-              <Input inputMode="decimal" value={f.chfAmount} onChange={(e) => set("chfAmount", e.target.value)} placeholder="Tel qu'il apparaît sur le relevé — vide si inconnu" className={field} data-testid="chf-amount" />
-              <p className="text-[11px] text-muted-foreground">Laissez vide si vous ne le connaissez pas encore : la dépense reste « À compléter » et n'entre dans aucun total. Aucune conversion n'est estimée.</p>
-            </div>
-          )}
-          <div className="space-y-1 col-span-2 sm:col-span-1">
-            <Label className="text-xs">Date d'achat</Label>
-            <Input type="date" value={f.purchaseDate} onChange={(e) => set("purchaseDate", e.target.value)} className={field} />
-          </div>
-          <div className="space-y-1 col-span-2 sm:col-span-1">
-            <Label className="text-xs">Fournisseur ou magasin</Label>
-            <Input value={f.supplier} onChange={(e) => set("supplier", e.target.value)} className={field} data-testid="supplier" />
-          </div>
-          <div className="space-y-1 col-span-2">
-            <Label className="text-xs">Description</Label>
-            <Input value={f.description} onChange={(e) => set("description", e.target.value)} className={field} />
-          </div>
-          <div className="space-y-1 col-span-2">
-            <Label className="text-xs">Catégorie</Label>
-            <select className={select} value={f.categoryId} onChange={(e) => set("categoryId", e.target.value)} data-testid="category">
-              <option value="">— à choisir —</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}{c.active ? "" : " (désactivée)"}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1 col-span-2 sm:col-span-1">
-            <Label className="text-xs">Payé par</Label>
-            <select className={select} value={f.payerId} onChange={(e) => choosePayer(e.target.value)} data-testid="payer">
-              <option value="">— à choisir —</option>
-              {payers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <label className="col-span-2 sm:col-span-1 flex items-start gap-2 text-sm sm:pt-6">
-            <input type="checkbox" className="w-4 h-4 mt-0.5" checked={f.personalAdvance} disabled={!payer || payer.kind === "company"} onChange={(e) => set("personalAdvance", e.target.checked)} data-testid="advance" />
-            <span>Avance personnelle à rembourser par Bento</span>
-          </label>
-          <div className="space-y-1 col-span-2 sm:col-span-1">
-            <Label className="text-xs">Statut</Label>
-            <div className="flex border border-input">
-              {(["paid", "to_pay"] as ExpenseStatus[]).map((s) => (
-                <button key={s} type="button" onClick={() => set("status", s)} className={cn("flex-1 h-11 sm:h-9 text-sm", f.status === s ? "bg-primary text-primary-foreground" : "bg-background")}>{STATUS_LABELS[s]}</button>
-              ))}
-            </div>
-          </div>
-          {f.status === "paid" && (
-            <div className="space-y-1 col-span-2 sm:col-span-1">
-              <Label className="text-xs">Date de paiement</Label>
-              <Input type="date" value={f.paidAt} onChange={(e) => set("paidAt", e.target.value)} className={field} />
-            </div>
-          )}
-          <div className="space-y-1 col-span-2">
-            <Label className="text-xs">Notes (facultatif)</Label>
-            <Input value={f.notes} onChange={(e) => set("notes", e.target.value)} className={field} />
-          </div>
-        </section>
-
-        {err && <p className="border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">{err}</p>}
-
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          {expense && <Button variant="ghost" size="sm" className="text-red-700" onClick={remove} disabled={busy}><Trash2 className="w-4 h-4 mr-1" /> Supprimer</Button>}
-          {expense && <Button variant="ghost" size="sm" onClick={async () => setHistory(await comptaApi<HistoryEntry[]>({ action: "history", table: "expenses", id: expense.id }))}><History className="w-4 h-4 mr-1" /> Historique</Button>}
-          <span className="flex-1" />
-          <Button variant="outline" className="rounded-none" onClick={onClose} disabled={busy}>Annuler</Button>
-          <Button className="rounded-none" onClick={save} disabled={busy} data-testid="save">{busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}Enregistrer</Button>
         </div>
-        {history && <HistoryList entries={history} />}
+
+        <div className="shrink-0 border-t border-border bg-background px-4 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+          <div className="w-full max-w-6xl mx-auto space-y-2">
+            {err && <p className="border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">{err}</p>}
+            <div className="flex flex-wrap items-center gap-2">
+              {expense && <Button variant="ghost" size="sm" className="text-red-700" onClick={remove} disabled={busy}><Trash2 className="w-4 h-4 mr-1" /> Supprimer</Button>}
+              {expense && <Button variant="ghost" size="sm" onClick={async () => setHistory(await comptaApi<HistoryEntry[]>({ action: "history", table: "expenses", id: expense.id }))}><History className="w-4 h-4 mr-1" /> Historique</Button>}
+              <span className="flex-1" />
+              <Button variant="outline" className="rounded-none" onClick={onClose} disabled={busy}>Annuler</Button>
+              <Button className="rounded-none" onClick={save} disabled={busy} data-testid="save">{busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}Enregistrer</Button>
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

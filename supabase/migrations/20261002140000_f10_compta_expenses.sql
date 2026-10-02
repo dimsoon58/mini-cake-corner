@@ -517,10 +517,16 @@ select v.* from (values
 ) as v(name, kind, sort, created_by, updated_by)
 where not exists (select 1 from public.expense_categories);
 
+-- Orthographe : le prénom est « Eli » (et non « Élie »). Corrige aussi le nom
+-- affiché du planning équipe (F9, déjà en place) ; l'identifiant interne
+-- « elie » ne change pas.
+update public.team_members set display_name = 'Eli' where slug = 'elie' and display_name = 'Élie';
+update public.expense_payers set name = 'Eli' where slug = 'elie' and name = 'Élie';
+
 insert into public.expense_payers (slug, name, kind, sort, created_by, updated_by) values
   ('bento', 'Compte Bento', 'company', 10, 'migration', 'migration'),
   ('mel', 'Mel', 'partner', 20, 'migration', 'migration'),
-  ('elie', 'Élie', 'partner', 30, 'migration', 'migration'),
+  ('elie', 'Eli', 'partner', 30, 'migration', 'migration'),
   ('nahya', 'Nahya', 'employee', 40, 'migration', 'migration'),
   ('autre', 'Autre', 'other', 90, 'migration', 'migration')
 on conflict (slug) do nothing;

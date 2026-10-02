@@ -265,17 +265,17 @@ check("Semaine partielle de fin : objectif 1020 (férié du vendredi déduit)", 
 p = (await preview(NAHYA, "vacation", "2026-12-24", "2026-12-31")).body.data;
 check("Dates hors contrat : avertissement, non décomptées", p.warnings.some((x) => x.includes("hors de la période")) && p.days.filter((d) => d.reason === "outside_contract").length === 4 && p.deductionMin === 252, p);
 
-// ═══ Élie et Melodie : calendrier seulement ═══
+// ═══ Eli et Melodie : calendrier seulement ═══
 r = await absence(ELIE, "vacation", "2026-10-19", "2026-10-23");
-check("Vacances d'Élie enregistrées", r.status === 200, r.body);
+check("Vacances d'Eli enregistrées", r.status === 200, r.body);
 p = (await preview(MELODIE, "vacation", "2026-10-19", "2026-10-23")).body.data;
 check("Melodie : aperçu sans décompte", p.errors.length === 0 && p.deductionMin === 0 && p.days.length === 5 && p.days[0].reason === "calendar_only", p);
 const all2 = await get("2026-10-19", "2026-10-25");
 const elie = all2.members.find((m) => m.slug === "elie");
-check("Élie : absences dans le calendrier, aucun compteur", elie.absences.length === 1 && elie.weeks === undefined && elie.leave === undefined);
+check("Eli : absences dans le calendrier, aucun compteur", elie.absences.length === 1 && elie.weeks === undefined && elie.leave === undefined);
 r = await call({ action: "save_slot", memberId: ELIE, date: "2026-10-20", start: "09:00", end: "12:00" });
-check("Pas d'horaires pour Élie", r.status === 409, r.body);
-check("Les vacances d'Élie n'apparaissent pas dans le solde de Nahya", (await leave()).remainingMin === 315);
+check("Pas d'horaires pour Eli", r.status === 409, r.body);
+check("Les vacances d'Eli n'apparaissent pas dans le solde de Nahya", (await leave()).remainingMin === 315);
 
 // ═══ Autres refus ═══
 r = await log("2026-12-15", "09:00", "13:00");

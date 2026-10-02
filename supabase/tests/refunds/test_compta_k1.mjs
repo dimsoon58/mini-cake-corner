@@ -104,7 +104,7 @@ check("Accès : sans connexion → 401", (await call({ action: "settings" }, nul
 check("Accès : non admin → 401", (await call({ action: "settings" }, "client-jwt")).status === 401);
 check("Tables fermées à anon / authenticated", (await one("select count(*)::int n from information_schema.role_table_grants where table_schema='public' and (table_name like 'expense%' or table_name like 'compta_%') and grantee in ('anon','authenticated')")).n === 0);
 check("Catégories Notion + Salaires + Charges sociales (14)", settings.categories.length === 14 && settings.categories.some((c) => c.name === "Rémunération de mandataire") && settings.categories.filter((c) => c.kind === "payroll").map((c) => c.name).join() === "Salaires,Charges sociales");
-check("Payeurs : compte Bento, Mel, Élie, Nahya, Autre", settings.payers.map((p) => p.name).join() === "Compte Bento,Mel,Élie,Nahya,Autre");
+check("Payeurs : compte Bento, Mel, Eli, Nahya, Autre", settings.payers.map((p) => p.name).join() === "Compte Bento,Mel,Eli,Nahya,Autre");
 
 // ═══ Dépense Bento ═══
 let r = await save({ purchaseDate: "2026-10-02", supplier: "Migros", description: "Farine, beurre", categoryId: cat("Courses de production"), currency: "CHF", originalAmount: "45.20", paidAt: "2026-10-02", payerId: payer("bento") });
@@ -142,7 +142,7 @@ const usdRow = byCode(p, usd.code);
 check("USD sans montant CHF : chf_amount null (jamais 0)", usdRow.chf_amount === null, usdRow);
 check("… badge « À compléter » : montant CHF et justificatif", usdRow.missing.includes("chf_amount") && usdRow.missing.includes("receipt"), usdRow.missing);
 check("… non compté dans le total connu, compté à part", near(p.totals.engaged.known, 133.55) && p.totals.engaged.unknownCount === 1, p.totals.engaged);
-check("… avance d'Élie au montant inconnu : avances connues inchangées", near(p.totals.engaged.advances, 30) && p.totals.engaged.advancesCount === 2);
+check("… avance d'Eli au montant inconnu : avances connues inchangées", near(p.totals.engaged.advances, 30) && p.totals.engaged.advancesCount === 2);
 r = await save({ supplier: "Inconnu" });
 check("Saisie très incomplète acceptée (sans date ni montant)", r.status === 200);
 const bare = r.body.data;

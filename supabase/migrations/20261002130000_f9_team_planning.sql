@@ -1,5 +1,5 @@
 -- F9 — Planning équipe (lot E) : horaires prévus et réalisés de Nahya,
--- vacances et absences de Nahya, Élie et Melodie, paramètres de contrat.
+-- vacances et absences de Nahya, Eli et Melodie, paramètres de contrat.
 --
 -- Indépendant des commandes, paiements et remboursements (rien n'y est lu ni
 -- modifié). Aucune dépendance à Make ou Notion. Service_role uniquement : tout
@@ -538,7 +538,7 @@ end $$;
 -- ── Données initiales ────────────────────────────────────────────────────
 insert into public.team_members (slug, display_name, color, tracks_hours, tracks_leave) values
   ('nahya', 'Nahya', '#C2185B', true, true),
-  ('elie', 'Élie', '#1565C0', false, false),
+  ('elie', 'Eli', '#1565C0', false, false),
   ('melodie', 'Melodie', '#2E7D32', false, false)
 on conflict (slug) do nothing;
 
