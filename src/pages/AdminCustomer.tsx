@@ -247,7 +247,7 @@ const OrderRow = ({ o, currentName }: { o: CustomerOrder; currentName: string })
   return (
     <li className={cn("px-4 py-3 text-sm", o.isTest && "bg-secondary/30")} data-order={o.id}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <Link to={`/admin/order/${o.id}`} className="font-medium underline underline-offset-2">{o.orderNumber ?? o.id.slice(0, 8)}</Link>
+        <Link to={`/admin/order/${o.id}`} className="font-bold text-base text-foreground underline underline-offset-2 tracking-wide">{o.orderNumber ?? o.id.slice(0, 8)}</Link>
         <span className="text-muted-foreground">{t("ordered", "commandée le")} {formatDay(o.createdAt, l)}</span>
         <span className="text-xs px-1.5 py-0.5 bg-secondary">{SOURCE_LABELS[o.source]?.[l] ?? o.source}</span>
         {o.isTest && <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-900">TEST</span>}
