@@ -92,3 +92,26 @@ samedi qui remplace le lundi ; période avec repos et jour férié ; maladie et 
 séparées ; modification, suppression, doublon et chevauchement refusés ; semaines partielles de
 début et de fin ; copie de semaine (prévu uniquement, confirmation de remplacement) ; dates hors
 contrat ; prolongation avec son propre droit ; historique ; accès ; relance de F9 sans effet.
+
+## Compta, lot K1 — Dépenses (F10 + fonction `manage-expenses`)
+
+`test_compta_k1.mjs` applique F1–F10, assemble les **vraies** fonctions `manage-expenses` et
+`finance-month`, et le **vrai** code d'export du site (`src/lib/comptaExport.ts` : Excel et ZIP
+des justificatifs). Le stockage des fichiers est simulé (aucun accès réseau).
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save @electric-sql/pglite esbuild
+node test_compta_k1.mjs
+```
+
+Résultat attendu : `66 PASS, 0 FAIL`.
+
+Couvert : dépense Bento et avance personnelle (jamais « payée par le compte Bento ») ; achat en
+EUR avec le montant réellement débité en CHF ; montant CHF inconnu (jamais 0, hors totaux, compté
+à part) et justificatif manquant ; saisie très incomplète ; achat de septembre payé en octobre
+(deux lectures) ; reste à payer ; double clic ; doublons possibles signalés sans blocage ;
+correction et historique ; suppression logique ; catégories désactivées / renommées ; permissions
+des justificatifs (bucket privé, formats, taille, liens signés courts, aucun lien stocké) ;
+cohérence revenus tableau de bord / Excel ; commandes de test exclues ; noms identiques Excel /
+ZIP ; aucune commande modifiée ; relance de F10 sans effet.
