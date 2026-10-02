@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BarChart3, Calculator, CakeSlice, CalendarDays, ClipboardList, PencilLine, RotateCcw, Sun, UserRoundCog, Users } from "lucide-react";
+import { BarChart3, Calculator, CakeSlice, CalendarDays, ClipboardList, Handshake, PencilLine, RotateCcw, Sun, UserRoundCog, Users } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -23,6 +23,7 @@ const ITEMS = [
   { to: "/admin/production", en: "Production", fr: "Production", short: { en: "Prod.", fr: "Prod." }, icon: CakeSlice },
   { to: "/admin/refunds", en: "Refunds", fr: "Remboursements", short: { en: "Refunds", fr: "Remb." }, icon: RotateCcw },
   { to: "/admin/compta", en: "Accounting", fr: "Compta", short: { en: "Acct.", fr: "Compta" }, icon: Calculator },
+  { to: "/admin/partners", en: "Partners", fr: "Partenaires", short: { en: "Partners", fr: "Part." }, icon: Handshake },
   { to: "/admin/dashboard", en: "Dashboard", fr: "Tableau de bord", short: { en: "Stats", fr: "Stats" }, icon: BarChart3 },
 ];
 
@@ -86,7 +87,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
                 aria-label={t(it.en, it.fr)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex-auto min-w-[36px] flex flex-col items-center justify-center gap-0.5 px-0 py-2 text-[10px] leading-tight tracking-[-0.02em]",
+                  "flex-auto min-w-[34px] flex flex-col items-center justify-center gap-0.5 px-0 py-2 text-[10px] leading-tight tracking-[-0.02em]",
                   active ? "text-primary font-semibold" : "text-muted-foreground",
                 )}
               >

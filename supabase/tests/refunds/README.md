@@ -205,3 +205,27 @@ décompte ↔ feuilles sources (Synthèse, Dépenses, Salaire) en formules, OK p
 validé est modifié (décompte figé, ajustement demandé) ; passage à COMPLET quand rien ne manque et
 que le décompte est validé ; dossier complet en un ZIP (Excel, justificatifs nommés avec les ID de
 l'Excel, index, LISEZMOI), pièce non récupérable marquée MANQUANT ; rien n'est supprimé.
+
+## Partenaires V1 — migration F14 et fonction `manage-partners`
+
+`test_partners.mjs` applique F1–F14, assemble la vraie fonction `manage-partners` et simule des
+commandes du site telles que le paiement les enregistre (partenaire, remise et commission figés).
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save @electric-sql/pglite esbuild
+node test_partners.mjs
+```
+
+Résultat attendu : `53 PASS, 0 FAIL`.
+
+Couvert : accès admin et PIN pour toute écriture ; création, identifiant en double ou modifié
+refusé ; lien `?ref=` avec le jeton existant ; code Notion gardé comme simple référence ; remise
+0 % et commission « À configurer » ; règles P5 (annulation client d'un ou deux gâteaux, même gâteau
+annulé deux fois, geste commercial partiel ou total, motif retiré) ; remboursement sans motif →
+« À vérifier » avec la commission initiale visible ; commission « calculée » tant que les
+conditions ne sont pas confirmées, « due » ensuite, révocation ; paiements au partenaire
+(idempotence, trop-versé après annulation, annulation d'un paiement) ; changement de taux sans
+recalcul des commandes passées ; filtre de période, désactivation, recherche ; commandes de test
+et brouillons exclus ; aucune attribution manuelle (une commande manuelle n'apparaît jamais) ;
+journal d'audit ; aucun appel externe ; relance de F14 sans effet.
