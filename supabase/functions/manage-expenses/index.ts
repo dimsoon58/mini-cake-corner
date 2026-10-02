@@ -25,7 +25,9 @@ import { computeSettlement, type SettlementChoices, type SettlementInputs } from
 // Lot K4 (migration F13) : décompte Mel / Eli (actions settlement_*,
 // bank_balance_*, treasury_check). Le brouillon est calculé ici
 // (_shared/settlement.ts) puis re-vérifié en SQL à la validation. Aucun
-// virement : seuls les versements réels sont enregistrés.
+// virement : seuls les versements réels sont enregistrés. Valider un
+// décompte, enregistrer ou annuler un versement, créer ou annuler un
+// ajustement exigent en plus le PIN admin (ADMIN_ORDER_PIN), vérifié ici.
 //
 // Lot K3 (migration F12) : remboursement des avances personnelles
 // (actions advance_*). Un remboursement n'est jamais une dépense ; il ne
@@ -35,6 +37,8 @@ import { computeSettlement, type SettlementChoices, type SettlementInputs } from
 // client ; n'envoie aucun e-mail ; ne déclenche aucun virement.
 
 const BUCKET = "expense-receipts";
+// Lot K4 : actions qui exigent le PIN admin en plus de la session.
+const PIN_ACTIONS = new Set(["settlement_validate", "settlement_payout", "settlement_void_payout", "settlement_adjust", "settlement_void_adjustment"]);
 const MAX_BYTES = 15 * 1024 * 1024;
 const MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"]);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -101,6 +105,12 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const action = String(body?.action ?? "");
+    if (PIN_ACTIONS.has(action)) {
+      const pin = Deno.env.get("ADMIN_ORDER_PIN");
+      if (!pin || typeof body?.pin !== "string" || body.pin !== pin) {
+        return json(cors, { error: "Code PIN administrateur incorrect ou manquant", reason: "pin" }, 403);
+      }
+    }
     const by = admin.email;
     const rpc = async (fn: string, args: Record<string, unknown>) => {
       const { data, error } = await supabase.rpc(fn, args);

@@ -117,7 +117,8 @@ async function paySalary(m, net, paidAt) {
   await call({ action: "salary_add_payment", idempotencyKey: `sal-${m}`, monthId: sm.id, paidAt, amount: String(net) });
 }
 const get = async (m, extra = {}) => (await call({ action: "settlement_get", month: m, ...extra })).body.data;
-const validate = (m, extra = {}) => call({ action: "settlement_validate", month: m, ...extra });
+const PIN = "1234"; // ADMIN_ORDER_PIN du banc de test
+const validate = (m, extra = {}) => call({ action: "settlement_validate", pin: PIN, month: m, ...extra });
 // Le scénario se déroule dans le futur (oct. 2026 → mai 2027) : la saisie d'un solde futur
 // est refusée par bank_balance_save (testé plus bas), on insère donc ces soldes directement.
 const balance = (d, amount) => q("insert into public.bank_balances (balance_date, amount, created_by) values ($1, $2, 'test')", [d, amount]);
@@ -129,6 +130,22 @@ check("Accès : non admin → 401", (await call({ action: "settlement_validate",
 check("Tables fermées à anon / authenticated", (await one("select count(*)::int n from information_schema.role_table_grants where table_schema='public' and (table_name like 'settlement%' or table_name = 'bank_balances') and grantee in ('anon','authenticated')")).n === 0);
 const rules = await one("select * from public.settlement_rules");
 check("Règles confirmées : dès 10.2026, base 4'000, +300/mois, Mel 60 %", rules.effective_month.toISOString().slice(0, 10) === "2026-10-01" && Number(rules.base_target) === 4000 && Number(rules.monthly_extra) === 300 && Number(rules.mel_pct) === 60 && rules.mel_payer_id === MEL && rules.eli_payer_id === ELI);
+
+// ═══ PIN admin (K4) : contrôlé par le serveur ═══
+const pinCases = [
+  ["settlement_validate", { month: "2026-10" }],
+  ["settlement_payout", { settlementId: "00000000-0000-0000-0000-000000000000", payerId: MEL, paidAt: "2026-11-01", share: "1" }],
+  ["settlement_void_payout", { id: "00000000-0000-0000-0000-000000000000", reason: "x" }],
+  ["settlement_adjust", { sourceMonth: "2026-10", amount: "-1", reason: "x" }],
+  ["settlement_void_adjustment", { id: "00000000-0000-0000-0000-000000000000", reason: "x" }],
+];
+for (const [action, body] of pinCases) {
+  const none = await call({ action, ...body });
+  const wrong = await call({ action, ...body, pin: "0000" });
+  check(`${action} : PIN absent → 403, PIN incorrect → 403`, none.status === 403 && none.body.reason === "pin" && wrong.status === 403 && wrong.body.reason === "pin", [none.status, wrong.status]);
+}
+check("Lecture et soldes sans PIN (session admin)", (await call({ action: "settlement_get", month: "2026-10" })).status === 200);
+check("Aucune écriture faite par les tentatives sans PIN", (await one("select (select count(*) from public.settlements) + (select count(*) from public.settlement_payouts) + (select count(*) from public.settlement_adjustments) n")).n === 0);
 
 // ═══ Septembre : avant le début ═══
 g = await get("2026-09");
@@ -156,7 +173,7 @@ g = await get("2026-10");
 check("Octobre : résultat = 3'450 − 250 (avance comptée une fois) − 1'700 = 1'500 ; remboursement d'avance non déduit", !g.draft.blocked && g.draft.result === 1500 && g.draft.expenses === 250 && g.draft.salary === 1700, g.draft);
 check("Octobre : tout est conservé (base pas encore atteinte), rien à partager, aucun solde exigé", g.draft.retainedMonth === 1500 && g.draft.toShare === 0 && !g.draft.needsBankBalance);
 r = await validate("2026-10");
-check("Octobre validé sans solde bancaire (aucun partage)", r.status === 200, r.body);
+check("Octobre validé avec le bon PIN, sans solde bancaire (aucun partage)", r.status === 200, r.body);
 r = await validate("2026-10");
 check("Valider deux fois → refus", r.status === 409);
 check("Décompte validé figé (modification directe refusée)", await db.query("update public.settlements set result = 0").then(() => false, (e) => /figé/.test(e.message)));
@@ -166,11 +183,17 @@ await saveExpense({ purchaseDate: "2026-10-15", supplier: "Oubli", originalAmoun
 g = await get("2026-11");
 check("Dépense d'octobre ajoutée après validation : écart de −100 détecté, octobre inchangé", g.detectedDeltas.length === 1 && Number(g.detectedDeltas[0].delta) === -100 && Number(g.history[0].result) === 1500);
 check("… rien n'est appliqué tant que l'ajustement n'est pas créé", g.adjustments.length === 0);
-r = await call({ action: "settlement_adjust", sourceMonth: "2026-10", amount: "-100", reason: "" });
+r = await call({ action: "settlement_adjust", pin: PIN, sourceMonth: "2026-10", amount: "-100", reason: "" });
 check("Ajustement sans raison → refus", r.status === 409);
-r = await call({ action: "settlement_adjust", sourceMonth: "2026-10", amount: "-100", reason: "Facture Oubli du 15.10 saisie après validation" });
+r = await call({ action: "settlement_adjust", pin: PIN, sourceMonth: "2026-10", amount: "-100", reason: "Facture Oubli du 15.10 saisie après validation" });
 g = await get("2026-11");
 check("Ajustement créé : plus d'écart détecté, en attente pour novembre", r.status === 200 && g.detectedDeltas.length === 0 && g.adjustments.length === 1);
+r = await call({ action: "settlement_adjust", pin: PIN, sourceMonth: "2026-10", amount: "-5", reason: "Erreur de saisie" });
+const extraAdj = r.body.data.id;
+r = await call({ action: "settlement_void_adjustment", id: extraAdj, reason: "doublon", pin: "0000" });
+check("Annuler un ajustement avec un PIN incorrect → 403, rien ne change", r.status === 403 && (await get("2026-11")).adjustments.length === 2);
+r = await call({ action: "settlement_void_adjustment", id: extraAdj, reason: "doublon", pin: PIN });
+check("Annuler un ajustement avec le bon PIN → accepté", r.status === 200 && (await get("2026-11")).adjustments.length === 1);
 
 // ═══ Novembre : 1'800 − 100 d'ajustement ═══
 await revenue(3500, "2026-11-10T10:00:00Z");
@@ -218,23 +241,23 @@ const jan = (await get("2027-01")).validated;
 check("Janvier validé : Mel 540.00 / Eli 360.00", r.status === 200 && Number(jan.mel_share) === 540 && Number(jan.eli_share) === 360 && jan.base_confirmed_now === true);
 
 // ═══ Versements réels (aucun automatique) ═══
-r = await call({ action: "settlement_payout", idempotencyKey: "p1", settlementId: jan.id, payerId: MEL, paidAt: "2027-02-03", share: "540" });
+r = await call({ action: "settlement_payout", pin: PIN, idempotencyKey: "p1", settlementId: jan.id, payerId: MEL, paidAt: "2027-02-03", share: "540" });
 check("Versement d'une part sans solde de vérification → refus", r.status === 400, r.body);
 await balance("2027-01-20", 9999);
 const balJan20 = (await one("select id from public.bank_balances where balance_date='2027-01-20'")).id;
-r = await call({ action: "settlement_payout", idempotencyKey: "p1", settlementId: jan.id, payerId: MEL, paidAt: "2027-02-03", share: "540", balanceId: balJan20 });
+r = await call({ action: "settlement_payout", pin: PIN, idempotencyKey: "p1", settlementId: jan.id, payerId: MEL, paidAt: "2027-02-03", share: "540", balanceId: balJan20 });
 check("Solde antérieur à la fin du mois du décompte → refus (pas de mélange de dates)", r.status === 400, r.body);
 await balance("2027-02-02", 5300);
 const balFeb2 = (await one("select id from public.bank_balances where balance_date='2027-02-02'")).id;
 const t = (await call({ action: "treasury_check", balanceId: balFeb2 })).body.data;
 check("Vérification au 02.02 : solde 5'300 − parts non versées 900 = 4'400 disponibles (dettes du même jour)", t.sharesUnpaid === 900 && t.available === 4400, t);
-r = await call({ action: "settlement_payout", idempotencyKey: "p1", settlementId: jan.id, payerId: MEL, paidAt: "2027-02-03", share: "540", balanceId: balFeb2 });
+r = await call({ action: "settlement_payout", pin: PIN, idempotencyKey: "p1", settlementId: jan.id, payerId: MEL, paidAt: "2027-02-03", share: "540", balanceId: balFeb2 });
 check("Versement de 540 à Mel enregistré", r.status === 200 && r.body.data.code.startsWith("VERS-"), r.body);
-r = await call({ action: "settlement_payout", idempotencyKey: "p1", settlementId: jan.id, payerId: MEL, paidAt: "2027-02-03", share: "540", balanceId: balFeb2 });
+r = await call({ action: "settlement_payout", pin: PIN, idempotencyKey: "p1", settlementId: jan.id, payerId: MEL, paidAt: "2027-02-03", share: "540", balanceId: balFeb2 });
 check("Double clic : un seul versement", r.body.data.replayed === true);
-r = await call({ action: "settlement_payout", idempotencyKey: "p2", settlementId: jan.id, payerId: MEL, paidAt: "2027-02-04", share: "1", balanceId: balFeb2 });
+r = await call({ action: "settlement_payout", pin: PIN, idempotencyKey: "p2", settlementId: jan.id, payerId: MEL, paidAt: "2027-02-04", share: "1", balanceId: balFeb2 });
 check("Part déjà entièrement versée → refus", r.status === 409);
-r = await call({ action: "settlement_payout", idempotencyKey: "p3", settlementId: jan.id, payerId: ELI, paidAt: "2027-02-03", share: "200", balanceId: balFeb2 });
+r = await call({ action: "settlement_payout", pin: PIN, idempotencyKey: "p3", settlementId: jan.id, payerId: ELI, paidAt: "2027-02-03", share: "200", balanceId: balFeb2 });
 g = await get("2027-02");
 const h = g.history.find((x) => x.month.startsWith("2027-01"));
 check("Eli payée 200 sur 360 : reste à verser 160 (jamais transformé en épargne)", r.status === 200 && Number(h.eliPaid) === 200 && Number(h.melPaid) === 540 && Number(g.prev.retainedCum) === 5500);
@@ -272,20 +295,20 @@ const apr = (await get("2027-04")).validated;
 check("Avril validé avec confirmations explicites (historisées)", r.status === 200 && apr.flags.ackBaseBreach === true && apr.flags.ackCashShort === true);
 await balance("2027-05-02", 3000);
 const balMay = (await one("select id from public.bank_balances where balance_date='2027-05-02'")).id;
-r = await call({ action: "settlement_payout", idempotencyKey: "p4", settlementId: apr.id, payerId: ELI, paidAt: "2027-05-03", share: "280", balanceId: balMay });
+r = await call({ action: "settlement_payout", pin: PIN, idempotencyKey: "p4", settlementId: apr.id, payerId: ELI, paidAt: "2027-05-03", share: "280", balanceId: balMay });
 check("Versement avec trésorerie insuffisante → à confirmer (409)", r.status === 409 && r.body.reason === "cash_short");
-r = await call({ action: "settlement_payout", idempotencyKey: "p4", settlementId: apr.id, payerId: ELI, paidAt: "2027-05-03", share: "280", balanceId: balMay, ackCashShort: true });
+r = await call({ action: "settlement_payout", pin: PIN, idempotencyKey: "p4", settlementId: apr.id, payerId: ELI, paidAt: "2027-05-03", share: "280", balanceId: balMay, ackCashShort: true });
 check("… puis enregistré avec la vérification conservée", r.status === 200 && (await one("select check_snapshot from public.settlement_payouts where code=$1", [r.body.data.code])).check_snapshot.acknowledged === true);
 
 // ═══ Versement groupé : part + avance ═══
 r = await saveExpense({ purchaseDate: "2027-04-20", supplier: "Landi", originalAmount: "150", paidAt: "2027-04-20", payerId: MEL, personalAdvance: true });
 const melAdv2 = r.body.data.id;
 const engagedApr = (await call({ action: "period", from: "2027-04-01", to: "2027-04-30" })).body.data.totals.engaged.known;
-r = await call({ action: "settlement_payout", idempotencyKey: "p5", settlementId: apr.id, payerId: MEL, paidAt: "2027-05-03", share: "420", allocations: [{ expenseId: melAdv2, amount: "150" }], balanceId: balMay, ackCashShort: true });
+r = await call({ action: "settlement_payout", pin: PIN, idempotencyKey: "p5", settlementId: apr.id, payerId: MEL, paidAt: "2027-05-03", share: "420", allocations: [{ expenseId: melAdv2, amount: "150" }], balanceId: balMay, ackCashShort: true });
 const pay5 = r.body.data;
 check("Versement groupé à Mel : part 420 + avance 150, deux composantes", r.status === 200 && Number(pay5.share) === 420 && Number(pay5.advance) === 150);
 check("… la partie avance passe par le registre K3, jamais une dépense", (await one("select count(*)::int n from public.advance_repayment_allocations where expense_id=$1", [melAdv2])).n === 1 && (await call({ action: "period", from: "2027-04-01", to: "2027-04-30" })).body.data.totals.engaged.known === engagedApr);
-r = await call({ action: "settlement_void_payout", id: pay5.id, reason: "virement refusé" });
+r = await call({ action: "settlement_void_payout", pin: PIN, id: pay5.id, reason: "virement refusé" });
 check("Annuler le versement groupé annule aussi la partie avance (tracé)", r.status === 200 && (await one("select voided_at is not null v from public.advance_repayments where id=(select advance_repayment_id from public.settlement_payouts where id=$1)", [pay5.id])).v);
 
 // ═══ Soldes bancaires ═══
@@ -334,7 +357,7 @@ check("Synthèse : parts du mois et statut du décompte", /validé/.test(String(
 // ═══ Dossier COMPLET une fois tout réglé ═══
 await call({ action: "salary_confirm", id: (await salMonth("2026-09")).id, net: "113.30" });
 const dl = (await get("2027-05")).detectedDeltas;
-await call({ action: "settlement_adjust", sourceMonth: dl[0].month.slice(0, 7), amount: String(dl[0].delta), reason: "Avance Landi saisie après validation d'avril" });
+await call({ action: "settlement_adjust", pin: PIN, sourceMonth: dl[0].month.slice(0, 7), amount: String(dl[0].delta), reason: "Avance Landi saisie après validation d'avril" });
 const wb2 = CX.buildComptaWorkbook(ExcelJS, finance, periodJan, (await call({ action: "salary_overview", month: "2027-01" })).body.data,
   (await call({ action: "advances_overview", month: "2027-01" })).body.data, await get("2027-01"));
 let complete = null; wb2.getWorksheet("Synthèse").eachRow((y) => { if (String(y.getCell(1).value ?? "").startsWith("COMPLET")) complete = y; });

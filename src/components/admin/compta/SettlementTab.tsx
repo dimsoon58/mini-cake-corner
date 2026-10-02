@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 // de mois, puis 300 conservés par mois et partage 60 / 40. Brouillon recalculé
 // côté serveur ; validation manuelle (chiffres figés) ; versements réels
 // saisis à la main avec vérification de trésorerie à la même date. Aucun
-// virement automatique.
+// virement automatique. Valider, verser, annuler un versement et créer un
+// ajustement exigent le code PIN admin (vérifié par le serveur).
 
 const WARN = "border-amber-400 bg-amber-50 text-amber-900";
 const BAD = "border-red-300 bg-red-50 text-red-900";
@@ -42,6 +43,8 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [payFor, setPayFor] = useState<"mel" | "eli" | null>(null);
+  const [pin, setPin] = useState(""); // jamais conservé ailleurs que dans cet écran
+  const needPin = () => { if (!pin.trim()) { setErr("Saisissez d'abord le code PIN administrateur."); return true; } return false; };
   const inFlight = useRef(false);
 
   const load = async () => {
@@ -76,10 +79,10 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   };
   const doValidate = async () => {
-    if (inFlight.current) return;
+    if (inFlight.current || needPin()) return;
     inFlight.current = true; setBusy(true); setErr(null);
     try {
-      await comptaApi({ action: "settlement_validate", month: `${month}-01`, explicitKeep: keep || null, release: release || null, releaseReason, ackBaseBreach: ackBase, ackCashShort: ackCash, note });
+      await comptaApi({ action: "settlement_validate", pin, month: `${month}-01`, explicitKeep: keep || null, release: release || null, releaseReason, ackBaseBreach: ackBase, ackCashShort: ackCash, note });
       setConfirmOpen(false); onNotice(`Décompte de ${monthTitle(month)} validé : chiffres figés.`); await load();
     } catch (e) { setErr(errText(e)); } finally { inFlight.current = false; setBusy(false); }
   };
@@ -98,6 +101,13 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
       {x.warnings.length > 0 && <ul className={cn("border px-3 py-2 text-sm space-y-0.5", WARN)}>{x.warnings.map((w) => <li key={w}>• {w}</li>)}</ul>}
       {err && <p className={cn("border px-3 py-2 text-sm", BAD)} role="alert">{err}</p>}
 
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="space-y-1">
+          <Label htmlFor="settlement-pin" className="text-xs text-muted-foreground">Code PIN administrateur (valider, verser, annuler, ajuster)</Label>
+          <Input id="settlement-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-48 rounded-none h-9" data-testid="settlement-pin" />
+        </div>
+      </div>
+
       {view.detectedDeltas.length > 0 && (
         <section className={cn("border px-3 py-2 text-sm space-y-2", BAD)}>
           <p className="font-semibold">Écart sur un mois déjà validé : un ajustement explicite est nécessaire</p>
@@ -105,9 +115,10 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
             <div key={d.month} className="flex flex-wrap items-center gap-2">
               <span className="flex-1">{monthTitle(d.month.slice(0, 7))} : figé {money(d.frozenResult)}, recalculé {money(d.liveResult)}{d.alreadyAdjusted ? `, déjà ajusté ${money(d.alreadyAdjusted)}` : ""} → <strong>{money(d.delta)}</strong></span>
               <Button size="sm" variant="outline" className="rounded-none h-8" onClick={async () => {
+                if (needPin()) return;
                 const reason = window.prompt(`Raison de l'ajustement de ${money(d.delta)} sur ${monthTitle(d.month.slice(0, 7))} (obligatoire) :`);
                 if (!reason?.trim()) return;
-                try { await comptaApi({ action: "settlement_adjust", sourceMonth: d.month.slice(0, 7), amount: d.delta, reason }); onNotice("Ajustement créé : il sera appliqué au prochain décompte validé."); await load(); } catch (e) { setErr(errText(e)); }
+                try { await comptaApi({ action: "settlement_adjust", pin, sourceMonth: d.month.slice(0, 7), amount: d.delta, reason }); onNotice("Ajustement créé : il sera appliqué au prochain décompte validé."); await load(); } catch (e) { setErr(errText(e)); }
               }}>Créer l'ajustement</Button>
             </div>
           ))}
@@ -217,8 +228,8 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
         <p className="text-xs text-muted-foreground">Les avances se remboursent à tout moment (onglet Avances ou dans un versement groupé) ; elles ne sont jamais une part ni une dépense supplémentaire.</p>
         {x.validated && (
           <div className="flex flex-wrap gap-2">
-            <Button className="rounded-none" onClick={() => setPayFor("mel")}>Enregistrer un versement à {mel}</Button>
-            <Button className="rounded-none" variant="outline" onClick={() => setPayFor("eli")}>Enregistrer un versement à {eli}</Button>
+            <Button className="rounded-none" onClick={() => { if (!needPin()) setPayFor("mel"); }}>Enregistrer un versement à {mel}</Button>
+            <Button className="rounded-none" variant="outline" onClick={() => { if (!needPin()) setPayFor("eli"); }}>Enregistrer un versement à {eli}</Button>
           </div>
         )}
         {view.payouts.length > 0 && (
@@ -229,9 +240,10 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
                 <span className="flex-1 min-w-0">{p.code} · {p.payer_name} · part {money(p.share_amount)}{Number(p.advance_amount) ? ` + avances ${money(p.advance_amount)}` : ""}{p.method ? ` · ${METHOD_LABELS[p.method]}` : ""}{p.reference ? ` · ${p.reference}` : ""}
                   {p.check_snapshot?.short ? " · trésorerie insuffisante confirmée" : ""}{p.voided_at ? ` — ANNULÉ (${p.void_reason ?? ""})` : ""}</span>
                 {!p.voided_at && <Button size="sm" variant="ghost" className="h-7 px-2" aria-label="Annuler le versement" onClick={async () => {
+                  if (needPin()) return;
                   const reason = window.prompt("Raison de l'annulation (obligatoire) :");
                   if (!reason?.trim()) return;
-                  try { await comptaApi({ action: "settlement_void_payout", id: p.id, reason }); onNotice(`${p.code} annulé.`); await load(); } catch (e) { setErr(errText(e)); }
+                  try { await comptaApi({ action: "settlement_void_payout", pin, id: p.id, reason }); onNotice(`${p.code} annulé.`); await load(); } catch (e) { setErr(errText(e)); }
                 }}><Undo2 className="w-3.5 h-3.5" /></Button>}
               </li>
             ))}
@@ -286,7 +298,7 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
       </Dialog>
 
       {payFor && view.validated && (
-        <PayoutDialog view={view} who={payFor} onClose={() => setPayFor(null)} onSaved={async (msg) => { setPayFor(null); onNotice(msg); await load(); }} />
+        <PayoutDialog view={view} who={payFor} pin={pin} onClose={() => setPayFor(null)} onSaved={async (msg) => { setPayFor(null); onNotice(msg); await load(); }} />
       )}
     </div>
   );
@@ -321,7 +333,7 @@ function BalancesBox({ view, onChanged, onNotice, onError }: { view: SettlementV
   );
 }
 
-function PayoutDialog({ view, who, onClose, onSaved }: { view: SettlementView; who: "mel" | "eli"; onClose: () => void; onSaved: (m: string) => void }) {
+function PayoutDialog({ view, who, pin, onClose, onSaved }: { view: SettlementView; who: "mel" | "eli"; pin: string; onClose: () => void; onSaved: (m: string) => void }) {
   const s = view.validated!;
   const payerId = who === "mel" ? s.mel_payer_id : s.eli_payer_id;
   const name = who === "mel" ? view.melName ?? "Mel" : view.eliName ?? "Eli";
@@ -355,7 +367,7 @@ function PayoutDialog({ view, who, onClose, onSaved }: { view: SettlementView; w
     inFlight.current = true; setBusy(true); setErr(null);
     try {
       const r = await comptaApi<{ code: string }>({
-        action: "settlement_payout", idempotencyKey: key, settlementId: s.id, payerId, paidAt, share: share || "0",
+        action: "settlement_payout", pin, idempotencyKey: key, settlementId: s.id, payerId, paidAt, share: share || "0",
         allocations: Object.entries(alloc).filter(([, v]) => n(v)).map(([expenseId, amount]) => ({ expenseId, amount })),
         balanceId: balanceId || null, ackCashShort: ack, method, reference,
       });

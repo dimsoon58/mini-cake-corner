@@ -173,7 +173,7 @@ npm install --no-save @electric-sql/pglite esbuild
 node test_compta_k4.mjs
 ```
 
-Résultat attendu : `73 PASS, 0 FAIL`.
+Résultat attendu : `82 PASS, 0 FAIL`.
 
 Couvert : règles confirmées (dès 10.2026, base 4'000, +300, 60 %) ; blocages (salaire à confirmer,
 montant inconnu, mois précédent non validé) ; résultat logique B, avance comptée une fois et
@@ -184,4 +184,6 @@ plus ; libération motivée et plafonnée ; versements réels avec solde récent
 jour, part partiellement payée qui reste à verser ; perte reportée compensée une seule fois ; base
 entamée et trésorerie insuffisante à confirmer ; versement groupé part + avance (registre K3),
 annulation ; arrondi (Mel au centime, Eli le reste) ; Excel (8 feuilles, formules, INCOMPLET puis
-COMPLET) ; décompte figé ; relance de F13 sans effet.
+COMPLET) ; décompte figé ; PIN admin exigé par le serveur pour valider, verser, annuler un
+versement, créer ou annuler un ajustement (absent ou incorrect → 403, aucune écriture ; correct →
+accepté) ; relance de F13 sans effet.
