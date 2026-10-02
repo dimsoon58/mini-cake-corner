@@ -1,23 +1,14 @@
 import { buildFinanceWorkbook } from "@/lib/financeExport";
 import type { FinanceMonth } from "@/lib/finance";
-import {
-  METHOD_LABELS, MISSING_LABELS, PAYROLL_LINK_LABELS, PAYROLL_MISSING_LABELS, STATUS_LABELS, TREATMENT_LABELS, fmtHours, inRange,
-  receiptFileName, type ExpensePeriod, type PayrollMonth, type ReceiptFile,
-} from "@/lib/compta";
+import { MISSING_LABELS, STATUS_LABELS, inRange, receiptFileName, type ExpensePeriod, type ReceiptFile } from "@/lib/compta";
 
 // Compta (lot K1) — dossier Excel du mois. Reprend TEL QUEL le classeur du
 // lot 3 (Synthèse, Commandes et articles, Encaissements, Remboursements avec
 // le bloc « À dater ») — même source finance-month, mêmes chiffres que le
 // tableau de bord — et y ajoute la feuille « Dépenses » et le bloc dépenses
-// de la synthèse, puis (lot K2) la feuille « Salaire et charges ». Les
-// feuilles Avances et Décompte viendront avec les lots K3 et K4 ; tant
-// qu'elles manquent, le dossier est marqué INCOMPLET, jamais définitif.
-//
-// Salaire : coût = brut + charges employeur du MOIS DE SALAIRE, recopiés du
-// décompte de la fiduciaire. Les paiements (net, cotisations) sont listés à
-// leur date, à part, et ne sont jamais ajoutés aux dépenses. Les dépenses
-// « Salaires » / « Charges sociales » et les assurances comprises dans le
-// décompte sont exclues des totaux de dépenses (colonne « Comptée »).
+// de la synthèse. Les feuilles Salaire, Avances et Décompte viendront avec
+// les lots K2 à K4 ; tant qu'elles manquent, le dossier est marqué
+// INCOMPLET, jamais définitif.
 //
 // Dépenses : deux lectures séparées, jamais additionnées entre elles :
 //   « engagé » = date d'achat dans le mois ; « payé » = date de paiement
@@ -31,9 +22,7 @@ const DATE = "dd.mm.yyyy";
 const toDate = (d: string | null) => (d ? new Date(`${d}T00:00:00Z`) : null);
 const round = (n: number) => Math.round(n * 100) / 100;
 
-const isCounted = (e: { counted?: boolean }) => e.counted !== false;
-
-export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMonth, expenses: ExpensePeriod, payroll?: PayrollMonth | null) {
+export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMonth, expenses: ExpensePeriod) {
   const wb = buildFinanceWorkbook(ExcelJS, finance);
   const { from, to } = { from: finance.from, to: finance.to };
   const ws = wb.addWorksheet("Dépenses");
@@ -54,7 +43,6 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
     { header: "Achat dans le mois", key: "inEngaged", width: 10 },
     { header: "Payée dans le mois", key: "inPaid", width: 10 },
     { header: "À compléter", key: "missing", width: 30 },
-    { header: "Comptée dans les dépenses", key: "counted", width: 16 },
   ];
   const head = ws.getRow(1);
   head.font = { bold: true };
@@ -82,18 +70,16 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
         : e.receipt_missing_reason ? `Aucun (${e.receipt_missing_reason})` : "MANQUANT",
       inEngaged: inRange(e.purchase_date, from, to) ? "Oui" : "Non",
       inPaid: e.status === "paid" && inRange(e.paid_at, from, to) ? "Oui" : "Non",
-      missing: e.missing.map((m) => MISSING_LABELS[m] ?? m).join(", "),
-      counted: isCounted(e) ? "Oui" : `Non — paie${e.payroll_slip_code ? ` (${e.payroll_slip_code})` : " (à rattacher)"}`,
+      missing: e.missing.map((m) => MISSING_LABELS[m]).join(", "),
     });
     if (e.missing.length) row.getCell("missing").font = { color: { argb: "FF8A5A00" } };
     if (e.chf_amount == null) row.getCell("chf").value = null;
   });
   const first = 2, last = list.length + 1;
   const rng = (col: string) => `${col}${first}:${col}${Math.max(first, last)}`;
-  const counted = list.filter(isCounted);
-  const engagedKnown = counted.filter((e) => inRange(e.purchase_date, from, to)).reduce((s, e) => s + (Number(e.chf_amount) || 0), 0);
-  const paidKnown = counted.filter((e) => e.status === "paid" && inRange(e.paid_at, from, to)).reduce((s, e) => s + (Number(e.chf_amount) || 0), 0);
-  const engagedUnknown = counted.filter((e) => inRange(e.purchase_date, from, to) && e.chf_amount == null).length;
+  const engagedKnown = list.filter((e) => inRange(e.purchase_date, from, to)).reduce((s, e) => s + (Number(e.chf_amount) || 0), 0);
+  const paidKnown = list.filter((e) => e.status === "paid" && inRange(e.paid_at, from, to)).reduce((s, e) => s + (Number(e.chf_amount) || 0), 0);
+  const engagedUnknown = list.filter((e) => inRange(e.purchase_date, from, to) && e.chf_amount == null).length;
   ws.addRow([]);
   const tot = (label: string, formula: string, result: number | string, fmt = MONEY) => {
     const row = ws.addRow([]);
@@ -103,9 +89,9 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
     row.font = { bold: true };
     return row.number;
   };
-  const rEngaged = tot("Engagé — date d'achat dans le mois (CHF connus)", list.length ? `SUMIFS(${rng("I")},${rng("N")},"Oui",${rng("Q")},"Oui")` : "0", round(engagedKnown));
-  const rPaid = tot("Payé — date de paiement dans le mois (CHF connus)", list.length ? `SUMIFS(${rng("I")},${rng("O")},"Oui",${rng("Q")},"Oui")` : "0", round(paidKnown));
-  const rUnknown = tot("Achats du mois au montant CHF inconnu (nombre)", list.length ? `COUNTIFS(${rng("N")},"Oui",${rng("I")},"",${rng("Q")},"Oui")` : "0", engagedUnknown, "0");
+  const rEngaged = tot("Engagé — date d'achat dans le mois (CHF connus)", list.length ? `SUMIFS(${rng("I")},${rng("N")},"Oui")` : "0", round(engagedKnown));
+  const rPaid = tot("Payé — date de paiement dans le mois (CHF connus)", list.length ? `SUMIFS(${rng("I")},${rng("O")},"Oui")` : "0", round(paidKnown));
+  const rUnknown = tot("Achats du mois au montant CHF inconnu (nombre)", list.length ? `COUNTIFS(${rng("N")},"Oui",${rng("I")},"")` : "0", engagedUnknown, "0");
 
   // ── Bloc dépenses de la synthèse ──
   const s = wb.getWorksheet("Synthèse")!;
@@ -127,13 +113,6 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   add([]);
   add(["Contrôles dépenses"], true);
   s.addRow(["Synthèse = feuille Dépenses (engagé)", { formula: `IF(ABS(B${sEngaged}-'Dépenses'!I${rEngaged})<0.005,"OK","ÉCART")`, result: "OK" }]);
-  if (t.payroll && (t.payroll.coveredCount || t.payroll.toLinkCount)) {
-    add([`Exclues des dépenses (paie) : ${t.payroll.coveredCount} couverte(s) par la paie, ${t.payroll.toLinkCount} à rattacher à une fiche`]);
-  }
-
-  // ── Salaire et charges (lot K2) ──
-  const payrollIssues = payroll ? addPayrollSheet(wb, s, payroll, finance.month, m, add) : ["salaire : données non chargées"];
-
   add([]);
   add(["État du dossier"], true);
   const issues: string[] = [];
@@ -143,121 +122,12 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   if (t.undatedCount) issues.push(`${t.undatedCount} dépense(s) sans date d'achat`);
   if (finance.cards.undatedCount) issues.push(`${finance.cards.undatedCount} remboursement(s) client à dater`);
   if (finance.cards.toReviewCount) issues.push(`${finance.cards.toReviewCount} remboursement(s) client à vérifier`);
-  issues.push(...payrollIssues);
-  const state = s.addRow([`INCOMPLET — ${[...issues, "avances et décompte Mel / Eli pas encore dans ce dossier (lots K3 et K4)"].join(" · ")}`]);
+  const state = s.addRow([`INCOMPLET — ${[...issues, "salaire, avances et décompte Mel / Eli pas encore dans ce dossier (lots K2 à K4)"].join(" · ")}`]);
   state.font = { bold: true, color: { argb: "FF8A5A00" } };
   s.getCell(`B${sUnknown}`).numFmt = "0";
 
-  // Feuilles : Synthèse, Commandes et articles, Encaissements, Remboursements, Dépenses, Salaire et charges.
+  // Feuilles dans l'ordre : Synthèse, Commandes et articles, Encaissements, Remboursements, Dépenses.
   return wb;
-}
-
-type Workbook = import("exceljs").Workbook;
-type Worksheet = import("exceljs").Worksheet;
-
-/** Feuille « Salaire et charges » + bloc de synthèse. Renvoie les points manquants. */
-function addPayrollSheet(wb: Workbook, s: Worksheet, p: PayrollMonth, month: string,
-  m: (label: string, value: unknown, count?: number | null) => number, add: (cells: unknown[], bold?: boolean) => unknown) {
-  const ws = wb.addWorksheet("Salaire et charges");
-  ws.columns = [{ width: 22 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 40 }];
-  const title = (text: string) => { const r = ws.addRow([text]); r.font = { bold: true, size: 12 }; };
-  const header = (cells: string[]) => {
-    const r = ws.addRow(cells);
-    r.font = { bold: true };
-    r.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EEE6" } };
-    r.alignment = { wrapText: true, vertical: "top" };
-  };
-  const money = (r: import("exceljs").Row, cols: number[]) => cols.forEach((c) => { r.getCell(c).numFmt = MONEY; });
-  const issues: string[] = [];
-
-  title(`Salaire et charges — mois de salaire ${month.split("-").reverse().join(".")}`);
-  ws.addRow(["Montants recopiés du décompte de la fiduciaire (rien n'est calculé). Coût = brut + charges employeur. Les paiements ne sont jamais ajoutés aux dépenses."]);
-  ws.addRow([]);
-  header(["Fiche", "Personne", "Brut", "Retenues salariée", "Autres éléments", "Net (décompte)", "Écart net non expliqué", "Charges employeur", "Coût (brut + charges)", "Net versé (à ce jour)", "Net restant à payer", "Document / à compléter"]);
-  const firstSlip = ws.rowCount + 1;
-  for (const sl of p.slips) {
-    const r = ws.addRow([sl.code, sl.member_name, sl.gross, sl.employee_deductions, sl.other_items, sl.net, sl.net_gap || null,
-      sl.employer_charges, null, sl.net_paid, sl.net_remaining,
-      [sl.attachments.map((a, i) => receiptFileName(sl.code, i + 1, a.file_name)).join(", ") || "Document MANQUANT",
-       sl.missing.filter((x) => x !== "document").map((x) => PAYROLL_MISSING_LABELS[x]).join(", ")].filter(Boolean).join(" · ")]);
-    r.getCell(9).value = sl.gross != null && sl.employer_charges != null
-      ? { formula: `C${r.number}+H${r.number}`, result: round(sl.gross + sl.employer_charges) } : null;
-    money(r, [3, 4, 5, 6, 7, 8, 9, 10, 11]);
-    if (sl.missing.length) r.getCell(12).font = { color: { argb: "FF8A5A00" } };
-    sl.missing.forEach((x) => issues.push(`${sl.code} : ${PAYROLL_MISSING_LABELS[x]}`));
-  }
-  if (p.slips.length === 0) { ws.addRow(["Aucune fiche de paie saisie pour ce mois de salaire."]); issues.push("fiche de paie du mois non saisie"); }
-  const lastSlip = ws.rowCount;
-  const costRow = ws.addRow(["Total coût du mois"]);
-  costRow.getCell(9).value = p.slips.length ? { formula: `SUM(I${firstSlip}:I${lastSlip})`, result: round(p.totals.cost) } : 0;
-  costRow.getCell(9).numFmt = MONEY;
-  costRow.font = { bold: true };
-
-  ws.addRow([]);
-  title("Assurances — rattachement explicite");
-  header(["Fiche", "Assurance", "Rattachement", "Montant dans le décompte", "Dépenses rattachées", "", "", "", "", "", "", "Statut"]);
-  for (const sl of p.slips) for (const i of sl.insurances) {
-    const r = ws.addRow([sl.code, i.label, TREATMENT_LABELS[i.treatment], i.amount_in_slip, i.expenses.map((e) => e.code).join(", "),
-      null, null, null, null, null, null,
-      i.treatment === "unclear" ? "À CLARIFIER — non comptée deux fois, rattachement à confirmer" : i.treatment === "in_slip" ? "Dans les charges du décompte ; dépenses rattachées exclues" : ""]);
-    money(r, [4]);
-    if (i.treatment === "unclear") r.getCell(12).font = { bold: true, color: { argb: "FF8A5A00" } };
-  }
-
-  ws.addRow([]);
-  title("Paiements du mois (date de paiement) — hors dépenses");
-  header(["Date", "Code", "Type", "Fiche / période", "Bénéficiaire", "Moyen", "Référence", "Montant"]);
-  const firstPay = ws.rowCount + 1;
-  for (const x of p.payments) {
-    const r = ws.addRow([toDate(x.paid_at), x.code, x.kind === "net_salary" ? "Net versé" : "Cotisations",
-      x.kind === "net_salary" ? x.slip_code ?? "" : `${(x.period_from ?? "").slice(0, 7)} → ${(x.period_to ?? "").slice(0, 7)}`,
-      x.payee ?? "", x.method ? METHOD_LABELS[x.method] : "", x.reference ?? "", Number(x.amount)]);
-    r.getCell(1).numFmt = DATE;
-    money(r, [8]);
-  }
-  const lastPay = ws.rowCount;
-  const payTot = (label: string, kind: string, result: number) => {
-    const r = ws.addRow([label]);
-    r.getCell(8).value = p.payments.length ? { formula: `SUMIFS(H${firstPay}:H${lastPay},C${firstPay}:C${lastPay},"${kind}")`, result: round(result) } : 0;
-    r.getCell(8).numFmt = MONEY;
-    r.font = { bold: true };
-    return r.number;
-  };
-  const rNet = payTot("Net versé dans le mois", "Net versé", p.totals.netPaidInMonth);
-  const rContrib = payTot("Cotisations payées dans le mois", "Cotisations", p.totals.contributionsPaidInMonth);
-
-  ws.addRow([]);
-  title("Soldes à ce jour (tous mois)");
-  const bal = (label: string, v: number) => { const r = ws.addRow([label, null, v]); money(r, [3]); return r; };
-  bal("Net restant à verser", p.balances.netRemaining);
-  bal("Cotisations dues (retenues + charges employeur)", p.balances.contributionsDue);
-  bal("Cotisations payées", p.balances.contributionsPaid);
-  const rb = bal("Solde de cotisations à payer", round(p.balances.contributionsDue - p.balances.contributionsPaid));
-  rb.font = { bold: true };
-
-  ws.addRow([]);
-  title("Heures du planning (référence seulement, aucun calcul)");
-  for (const mb of p.members) ws.addRow([mb.name, `prévu ${fmtHours(mb.hours.plannedMin)}`, `réalisé ${fmtHours(mb.hours.realizedMin)} (${mb.hours.realizedDays} jour(s))`]);
-
-  if (p.expensesToLink.length) {
-    ws.addRow([]);
-    title("Dépenses « Salaires » / « Charges sociales » à rattacher (exclues des dépenses)");
-    header(["ID dépense", "Date d'achat", "Fournisseur", "Montant CHF"]);
-    for (const e of p.expensesToLink) { const r = ws.addRow([e.code, toDate(e.purchase_date), e.supplier ?? "", e.chf_amount]); r.getCell(2).numFmt = DATE; money(r, [4]); }
-    issues.push(`${p.expensesToLink.length} dépense(s) de paie à rattacher`);
-  }
-  if (p.unclearInsurances.length) issues.push(`${p.unclearInsurances.length} assurance(s) à clarifier`);
-
-  // Bloc de synthèse.
-  add([]);
-  add(["Salaire et charges — mois de salaire (jamais additionné aux paiements ni aux dépenses)"], true);
-  m("Coût du mois (brut + charges employeur)", { formula: `'Salaire et charges'!I${costRow.number}`, result: round(p.totals.cost) }, p.totals.slipCount);
-  if (p.totals.costUnknownCount) add([`  ${p.totals.costUnknownCount} fiche(s) au brut ou aux charges inconnus, non comptée(s)`]);
-  m("Net versé dans le mois (date de paiement)", { formula: `'Salaire et charges'!H${rNet}`, result: round(p.totals.netPaidInMonth) });
-  m("Cotisations payées dans le mois (date de paiement)", { formula: `'Salaire et charges'!H${rContrib}`, result: round(p.totals.contributionsPaidInMonth) });
-  m("Net restant à verser (photo à l'export, tous mois)", round(p.balances.netRemaining));
-  m("Solde de cotisations à payer (photo à l'export, tous mois)", round(p.balances.contributionsDue - p.balances.contributionsPaid));
-  return issues;
 }
 
 export const comptaFileName = (month: string) => `Bento-Cake-Studio_compta_${month}.xlsx`;
