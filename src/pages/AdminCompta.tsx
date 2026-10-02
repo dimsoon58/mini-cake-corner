@@ -16,19 +16,23 @@ import {
   type ComptaSettings, type Expense, type ExpenseCategory, type ExpensePayer, type ExpensePeriod, type ExpenseStatus,
   type HistoryEntry, type PayerKind, type ReceiptFile,
 } from "@/lib/compta";
+import type { SalaryOverview } from "@/lib/compta";
+import SalaryTab from "@/components/admin/compta/SalaryTab";
 import { cn } from "@/lib/utils";
 
-// Admin > Compta (lot K1). Mois + quatre onglets : Résumé, Revenus,
-// Dépenses, Décompte Mel / Eli. Les revenus viennent de finance-month
-// (lot 3, mêmes chiffres que le tableau de bord) ; les dépenses de
+// Admin > Compta (lots K1, K2). Mois + onglets : Résumé, Revenus, Dépenses,
+// Salaire, Décompte Mel / Eli. Les revenus viennent de finance-month (lot 3,
+// mêmes chiffres que le tableau de bord) ; les dépenses et le salaire de
 // manage-expenses. Aucun total ne mélange la date d'achat et la date de
-// paiement. Salaire, avances et décompte : lots K2 à K4.
+// paiement ; le salaire n'est jamais ajouté aux dépenses. Avances et
+// décompte : lots K3 et K4.
 
-type Tab = "summary" | "revenue" | "expenses" | "settlement";
+type Tab = "summary" | "revenue" | "expenses" | "salary" | "settlement";
 const TABS: { key: Tab; label: string }[] = [
   { key: "summary", label: "Résumé" },
   { key: "revenue", label: "Revenus" },
   { key: "expenses", label: "Dépenses" },
+  { key: "salary", label: "Salaire" },
   { key: "settlement", label: "Décompte Mel / Eli" },
 ];
 const zurichMonth = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
@@ -78,6 +82,8 @@ const AdminCompta = () => {
   const [financeError, setFinanceError] = useState<string | null>(null);
   const [period, setPeriod] = useState<ExpensePeriod | null>(null);
   const [settings, setSettings] = useState<ComptaSettings | null>(null);
+  const [salary, setSalary] = useState<SalaryOverview | null>(null);
+  const [salaryError, setSalaryError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -94,11 +100,14 @@ const AdminCompta = () => {
     setLoading(true);
     setError(null);
     setFinanceError(null);
-    const [f, p, s] = await Promise.allSettled([
+    const [f, p, s, sa] = await Promise.allSettled([
       fetchFinanceMonth(month),
       comptaApi<ExpensePeriod>({ action: "period", from, to }),
       comptaApi<ComptaSettings>({ action: "settings" }),
+      comptaApi<SalaryOverview>({ action: "salary_overview", month }),
     ]);
+    if (sa.status === "fulfilled") { setSalary(sa.value); setSalaryError(null); }
+    else { setSalary(null); setSalaryError(sa.reason instanceof Error ? sa.reason.message : String(sa.reason)); }
     if (f.status === "fulfilled") setFinance(f.value); else { setFinance(null); setFinanceError(f.reason instanceof Error ? f.reason.message : String(f.reason)); }
     if (p.status === "fulfilled") setPeriod(p.value); else { setPeriod(null); setError(p.reason instanceof Error ? p.reason.message : String(p.reason)); }
     if (s.status === "fulfilled") setSettings(s.value);
@@ -111,7 +120,7 @@ const AdminCompta = () => {
     setBusyExport("xlsx");
     try {
       const [{ default: ExcelJS }, { buildComptaWorkbook, comptaFileName }] = await Promise.all([import("exceljs"), import("@/lib/comptaExport")]);
-      const wb = buildComptaWorkbook(ExcelJS, finance, period);
+      const wb = buildComptaWorkbook(ExcelJS, finance, period, salary);
       download(new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), comptaFileName(month));
     } catch (e) {
       console.error("Compta export failed:", e);
@@ -192,11 +201,14 @@ const AdminCompta = () => {
           ))}
         </div>
 
-        {tab === "summary" && <SummaryTab finance={finance} financeError={financeError} period={period} onTab={(k) => setParam({ tab: k })} />}
+        {tab === "summary" && <SummaryTab finance={finance} financeError={financeError} period={period} salary={salary} onTab={(k) => setParam({ tab: k })} />}
         {tab === "revenue" && <RevenueTab finance={finance} financeError={financeError} />}
         {tab === "expenses" && period && settings && (
           <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)} />
         )}
+        {tab === "salary" && (salary
+          ? <SalaryTab overview={salary} month={month} onChanged={load} onNotice={setNotice} onEditExpense={setEditing} />
+          : <p className="text-sm text-amber-800">{salaryError ?? "Chargement…"}</p>)}
         {tab === "settlement" && <SettlementTab period={period} />}
 
         {editing && settings && (
@@ -215,7 +227,7 @@ const AdminCompta = () => {
 };
 
 // ── Résumé ───────────────────────────────────────────────────────────────
-function SummaryTab({ finance, financeError, period, onTab }: { finance: FinanceMonth | null; financeError: string | null; period: ExpensePeriod | null; onTab: (t: Tab) => void }) {
+function SummaryTab({ finance, financeError, period, salary, onTab }: { finance: FinanceMonth | null; financeError: string | null; period: ExpensePeriod | null; salary: SalaryOverview | null; onTab: (t: Tab) => void }) {
   const c = finance?.cards;
   const tt = period?.totals;
   const issues: { text: string; tab?: Tab; href?: string }[] = [];
@@ -224,6 +236,9 @@ function SummaryTab({ finance, financeError, period, onTab }: { finance: Finance
   if (tt?.missingReceiptCount) issues.push({ text: `${tt.missingReceiptCount} justificatif(s) manquant(s)`, tab: "expenses" });
   if (tt?.undatedCount) issues.push({ text: `${tt.undatedCount} dépense(s) sans date d'achat`, tab: "expenses" });
   if (tt?.duplicateCount) issues.push({ text: `${tt.duplicateCount} doublon(s) possible(s) à vérifier`, tab: "expenses" });
+  if (tt?.salary?.toReconcileCount) issues.push({ text: `${tt.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher d'un versement (restent comptées dans les dépenses en attendant)`, tab: "salary" });
+  salary?.current.filter((x) => x.confirmed_net == null).forEach((x) => issues.push({ text: `${x.code} : net à confirmer (décompte de la fiduciaire)`, tab: "salary" }));
+  salary?.current.filter((x) => x.document_missing && (x.confirmed_net != null || x.paid > 0)).forEach((x) => issues.push({ text: `${x.code} : justificatif manquant (décompte)`, tab: "salary" }));
   if (c?.undatedCount) issues.push({ text: `${c.undatedCount} remboursement(s) client à dater (${money(c.undated)})`, href: "/admin/refunds" });
   if (c?.toReviewCount) issues.push({ text: `${c.toReviewCount} remboursement(s) client à vérifier (${money(c.toReview)}) — non comptés`, href: "/admin/refunds?tab=review" });
   return (
@@ -257,10 +272,19 @@ function SummaryTab({ finance, financeError, period, onTab }: { finance: Finance
           </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <div className="border border-border/60 px-3 py-2 text-sm">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Salaire et charges employeur</p>
-            <p className="text-muted-foreground">Saisie de la paie de Nahya : lot K2 (pas encore disponible). Non inclus ici.</p>
-          </div>
+          {salary ? (
+            <button type="button" onClick={() => onTab("salary")} className="text-left">
+              <Stat label="Salaire (mois de salaire)"
+                value={salary.totals.confirmedForMonth != null && !salary.totals.toConfirmCount ? money(salary.totals.confirmedForMonth) : "montant à saisir"}
+                tone={salary.totals.toConfirmCount ? "warn" : undefined}
+                hint={`Net prévu ${salary.totals.plannedForMonth != null ? money(salary.totals.plannedForMonth) : "à saisir"} · versé ce mois ${money(salary.totals.paidInMonth)} · reste à payer ${money(salary.balances.remaining)} · jamais ajouté aux dépenses`} />
+            </button>
+          ) : (
+            <div className="border border-border/60 px-3 py-2 text-sm">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Salaire</p>
+              <p className="text-muted-foreground">Données de salaire indisponibles.</p>
+            </div>
+          )}
           <div className="border border-border/60 px-3 py-2 text-sm">
             <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Résultat du mois</p>
             <p className="text-muted-foreground">Non calculé : la règle (date d'achat ou de paiement, traitement du salaire) doit d'abord être validée. Ce n'est jamais le solde bancaire.</p>
@@ -438,6 +462,8 @@ function ExpensesTab({ period, settings, from, to, onEdit, onSettings }: {
                 {e.personal_advance && <Badge className="border-violet-300 bg-violet-50 text-violet-900">Avance {e.payer_name ?? ""}</Badge>}
                 {e.missing.length > 0 && <Badge className={WARN} title={e.missing.map((m) => MISSING_LABELS[m]).join(", ")}>À compléter : {e.missing.map((m) => MISSING_LABELS[m]).join(", ")}</Badge>}
                 {e.duplicates.length > 0 && <Badge className="border-red-300 bg-red-50 text-red-900">Doublon possible ({e.duplicates.map((d) => d.code).join(", ")})</Badge>}
+                {e.salary_payment && <Badge className="border-slate-300 bg-slate-50 text-slate-700">Rapprochée de {e.salary_payment.code} — comptée dans le salaire, hors dépenses</Badge>}
+                {e.salary_to_reconcile && <Badge className={WARN}>Salaires — à rapprocher d'un versement</Badge>}
                 {e.attachments.length > 0 && <Badge className="border-border text-muted-foreground"><Paperclip className="inline w-3 h-3 mr-0.5" />{e.attachments.length}</Badge>}
               </span>
             </button>
@@ -533,7 +559,10 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
   const currency = f.currency === "OTHER" ? f.customCurrency.toUpperCase() : f.currency;
   const isChf = currency === "CHF";
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((x) => ({ ...x, [k]: v }));
-  const categories = settings.categories.filter((c) => c.active || c.id === f.categoryId);
+  // Lot K2 : le salaire se saisit dans l'onglet Salaire ; la catégorie
+  // « Salaires » n'est plus proposée (sauf pour une dépense qui l'a déjà).
+  // « Charges sociales » reste une dépense normale, saisie à la main.
+  const categories = settings.categories.filter((c) => (c.active && !(c.kind === "payroll" && c.name === "Salaires")) || c.id === f.categoryId);
   const payers = settings.payers.filter((p) => p.active || p.id === f.payerId);
   const pendingPreviews = useMemo(() => files.map((file) => ({ file, url: file.type.startsWith("image/") ? URL.createObjectURL(file) : null })), [files]);
   useEffect(() => () => pendingPreviews.forEach((p) => p.url && URL.revokeObjectURL(p.url)), [pendingPreviews]);

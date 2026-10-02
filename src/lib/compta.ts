@@ -20,6 +20,9 @@ export interface Expense {
   personal_advance: boolean; receipt_missing_reason: string | null; notes: string | null;
   created_at: string; created_by: string | null; updated_at: string; updated_by: string | null;
   attachments: ExpenseAttachment[]; missing: MissingField[];
+  // Lot K2 (absents tant que F11 n'est pas appliquée)
+  counted?: boolean; salary_payment_id?: string | null; salary_to_reconcile?: boolean;
+  salary_payment?: { id: string; code: string; paid_at: string; amount: number; month_code: string } | null;
   duplicates: { id: string; code: string; purchase_date: string | null; supplier: string | null; chf_amount: number | null }[];
 }
 export interface Sum { known: number; count: number; unknownCount: number }
@@ -29,6 +32,7 @@ export interface ExpensePeriod {
     engaged: Sum & { advances: number; advancesCount: number; advancesUnknownCount: number;
       byCategory: (Sum & { category: string; kind: string | null })[]; byPayer: (Sum & { payer: string; kind: PayerKind | null })[] };
     paid: Sum; toPayBalance: Sum;
+    salary?: { reconciledCount: number; reconciledKnown: number; toReconcileCount: number };
     incompleteCount: number; undatedCount: number; missingReceiptCount: number; duplicateCount: number;
   };
 }
@@ -60,6 +64,16 @@ export async function uploadReceipt(expenseId: string, file: File): Promise<stri
   const { error } = await supabase.storage.from(up.bucket).uploadToSignedUrl(up.path, up.token, file, { contentType: mimeType });
   if (error) throw new ComptaError(`Envoi de « ${file.name} » impossible. Réessayez.`, "storage");
   const r = await comptaApi<{ id: string }>({ action: "attach", expenseId, path: up.path, fileName: file.name, mimeType, size: file.size });
+  return r.id;
+}
+
+/** Lot K2 : envoie le décompte de salaire (facultatif) et l'enregistre sur le mois. */
+export async function uploadSalaryDocument(salaryMonthId: string, file: File): Promise<string> {
+  const mimeType = file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "");
+  const up = await comptaApi<{ path: string; token: string; bucket: string }>({ action: "upload_url", salaryMonthId, fileName: file.name, mimeType, size: file.size });
+  const { error } = await supabase.storage.from(up.bucket).uploadToSignedUrl(up.path, up.token, file, { contentType: mimeType });
+  if (error) throw new ComptaError(`Envoi de « ${file.name} » impossible. Réessayez.`, "storage");
+  const r = await comptaApi<{ id: string }>({ action: "salary_attach", salaryMonthId, path: up.path, fileName: file.name, mimeType, size: file.size });
   return r.id;
 }
 
@@ -98,3 +112,38 @@ export const CURRENCIES = ["CHF", "EUR", "USD", "GBP"];
 /** Code lisible d'une pièce dans le ZIP et dans l'Excel : DEP-2026-0012_1_ticket.jpg */
 export const receiptFileName = (code: string, index: number, fileName: string) =>
   `${code}_${index}_${fileName.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9._-]+/g, "_")}`;
+
+// ── Lot K2 : salaire mensuel (prévu / confirmé / versé, jamais automatique) ──
+export type SalaryStatus = "to_confirm" | "to_pay" | "partly_paid" | "paid" | "overpaid";
+export interface SalaryPayment {
+  id: string; code: string; salary_month_id: string; paid_at: string; amount: number;
+  method: "transfer" | "twint" | "cash" | "other" | null; reference: string | null; note: string | null;
+  created_by: string | null; month_code?: string; expense?: { id: string; code: string } | null;
+}
+export interface SalaryMonth {
+  id: string; code: string; member_id: string; member_name: string; salary_month: string;
+  planned: number | null; confirmed_net: number | null; confirmed_at: string | null; confirmed_by: string | null; notes: string | null;
+  paid: number; remaining: number | null; status: SalaryStatus; document_missing: boolean;
+  documents: ExpenseAttachment[]; payments: SalaryPayment[]; hours: { plannedMin: number; realizedMin: number };
+}
+export interface SalaryRate { id: string; member_id: string; effective_month: string; net_amount: number; note: string | null; created_by: string | null }
+export interface SalaryOverview {
+  month: string;
+  members: { id: string; name: string; rates: SalaryRate[]; proposedMonths: string[]; months: SalaryMonth[] }[];
+  current: SalaryMonth[];
+  paymentsInMonth: SalaryPayment[];
+  totals: { plannedForMonth: number | null; plannedMissingCount: number; confirmedForMonth: number | null; toConfirmCount: number; paidInMonth: number; paidInMonthCount: number };
+  balances: { remaining: number; toConfirmCount: number; documentMissingCount: number };
+  expensesToReconcile: Expense[];
+}
+export const SALARY_STATUS_LABELS: Record<SalaryStatus, string> = {
+  to_confirm: "Net à confirmer",
+  to_pay: "À payer",
+  partly_paid: "Partiellement payé",
+  paid: "Payé",
+  overpaid: "Versé en trop",
+};
+export const METHOD_LABELS: Record<"transfer" | "twint" | "cash" | "other", string> = { transfer: "Virement", twint: "TWINT", cash: "Espèces", other: "Autre" };
+export const fmtHours = (min: number) => { const h = Math.floor(min / 60), m = Math.round(min % 60); return `${h} h${m ? ` ${String(m).padStart(2, "0")}` : ""}`; };
+/** « montant à saisir » plutôt que 0 quand un montant n'est pas encore connu. */
+export const moneyOrToEnter = (v: number | null | undefined) => (v == null ? "montant à saisir" : money(v));

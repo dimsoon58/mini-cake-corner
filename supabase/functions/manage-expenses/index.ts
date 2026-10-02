@@ -14,6 +14,13 @@ import { corsHeaders } from "../_shared/cors.ts";
 // un lien signé de 5 minutes généré à la demande. La référence durable est
 // l'identifiant de la pièce et le code de la dépense, jamais un lien.
 //
+// Lot K2 (migration F11) : salaire mensuel de Nahya (actions salary_*).
+// Montant prévu (à partir d'un mois), net confirmé depuis le décompte de la
+// fiduciaire, versements saisis à la main : jamais de paiement automatique.
+// Le salaire n'est jamais ajouté aux dépenses ; une dépense « Salaires »
+// n'en sort qu'après rapprochement explicite avec un versement. Les
+// actions du lot K1 restent inchangées.
+//
 // Ne lit ni ne modifie aucune commande, aucun paiement, aucun remboursement
 // client ; n'envoie aucun e-mail ; ne déclenche aucun virement.
 
@@ -53,6 +60,11 @@ const amount = (v: unknown, field: string): number | null => {
   const n = typeof v === "number" ? v : Number(String(v).replace(/[’'\s]/g, "").replace(",", "."));
   if (!Number.isFinite(n) || n < 0 || n > 10_000_000) throw new InputError(`${field} invalide`);
   return Math.round(n * 100) / 100;
+};
+const month = (v: unknown, field: string): string => {
+  const m = typeof v === "string" ? /^(\d{4})-(\d{2})(-\d{2})?$/.exec(v) : null;
+  if (!m || Number(m[2]) < 1 || Number(m[2]) > 12) throw new InputError(`${field} invalide (AAAA-MM)`);
+  return `${m[1]}-${m[2]}-01`;
 };
 const safeName = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "").slice(-80) || "fichier";
 
@@ -116,7 +128,7 @@ serve(async (req) => {
       }
       case "history": {
         const table = String(body.table ?? "expenses");
-        if (!["expenses", "expense_attachments", "expense_categories", "expense_payers"].includes(table)) throw new InputError("Table inconnue");
+        if (!["expenses", "expense_attachments", "expense_categories", "expense_payers", "salary_months", "salary_payments", "salary_rates"].includes(table)) throw new InputError("Table inconnue");
         data = await rpc("compta_history", { p_table: table, p_row: uuid(body.id, "Élément") });
         break;
       }
@@ -133,6 +145,11 @@ serve(async (req) => {
       case "receipts_period": {
         const from = date(body.from, "Début"), to = date(body.to, "Fin");
         const list = await rpc("compta_receipts_period", { p_from: from, p_to: to }) as { path: string }[];
+        // Lot K2 : décomptes de salaire du mois (même ZIP).
+        if (from.endsWith("-01")) {
+          const docs = await rpc("salary_documents_month", { p_month: from }).catch(() => []) as { path: string }[];
+          list.push(...(docs ?? []));
+        }
         data = await Promise.all(list.map(async (r) => ({ ...r, url: await signed(r.path, 600) })));
         break;
       }
@@ -164,14 +181,23 @@ serve(async (req) => {
         data = { ok: true };
         break;
       case "upload_url": {
-        const expenseId = uuid(body.expenseId, "Dépense");
         const mime = String(body.mimeType ?? "");
         const size = Number(body.size ?? 0);
         if (!MIME.has(mime)) throw new InputError("Format accepté : photo (JPEG, PNG, WebP, HEIC) ou PDF");
         if (!(size > 0) || size > MAX_BYTES) throw new InputError("Fichier trop lourd (15 Mo maximum)");
-        const e = await rpc("compta_expense_get", { p_id: expenseId });
-        if (!e) return json(cors, { error: "Dépense introuvable", reason: "not_found" }, 404);
-        const path = `${expenseId}/${crypto.randomUUID()}_${safeName(String(body.fileName ?? "justificatif"))}`;
+        let prefix: string;
+        if (body.salaryMonthId) {
+          // Lot K2 : décompte de salaire (facultatif).
+          const monthId = uuid(body.salaryMonthId, "Mois de salaire");
+          if (!(await rpc("salary_month_exists", { p_id: monthId }))) return json(cors, { error: "Mois de salaire introuvable", reason: "not_found" }, 404);
+          prefix = `salary/${monthId}`;
+        } else {
+          const expenseId = uuid(body.expenseId, "Dépense");
+          const e = await rpc("compta_expense_get", { p_id: expenseId });
+          if (!e) return json(cors, { error: "Dépense introuvable", reason: "not_found" }, 404);
+          prefix = expenseId;
+        }
+        const path = `${prefix}/${crypto.randomUUID()}_${safeName(String(body.fileName ?? "justificatif"))}`;
         const { data: up, error } = await storage.createSignedUploadUrl(path);
         if (error || !up?.token) {
           console.error("manage-expenses upload_url:", error);
@@ -209,6 +235,72 @@ serve(async (req) => {
           p_id: optUuid(body.id, "Payé par"), p_name: text(body.name, 80), p_kind: kind,
           p_sort: Number.isInteger(body.sort) ? body.sort : null, p_active: body.active !== false, p_by: by,
         }) };
+        break;
+      }
+      // ── Lot K2 : salaire mensuel ──
+      case "salary_overview":
+        data = await rpc("salary_overview", { p_month: month(body.month, "Mois") });
+        break;
+      case "salary_set_rate":
+        data = { id: await rpc("salary_set_rate", {
+          p_member: uuid(body.memberId, "Personne"), p_from_month: month(body.fromMonth, "Mois de départ"),
+          p_amount: amount(body.amount, "Montant net prévu"), p_note: text(body.note, 300), p_by: by,
+        }) };
+        break;
+      case "salary_delete_rate":
+        await rpc("salary_delete_rate", { p_id: uuid(body.id, "Montant"), p_by: by });
+        data = { ok: true };
+        break;
+      case "salary_add_months": {
+        if (!Array.isArray(body.months) || body.months.length === 0 || body.months.length > 24) throw new InputError("Choisissez les mois à ajouter");
+        data = { added: await rpc("salary_add_months", {
+          p_member: uuid(body.memberId, "Personne"), p_months: body.months.map((m: unknown) => month(m, "Mois")), p_by: by,
+        }) };
+        break;
+      }
+      case "salary_confirm":
+        await rpc("salary_confirm", { p_id: uuid(body.id, "Mois de salaire"), p_net: amount(body.net, "Net confirmé"), p_notes: text(body.notes, 1000), p_by: by });
+        data = { ok: true };
+        break;
+      case "salary_delete_month":
+        await rpc("salary_delete_month", { p_id: uuid(body.id, "Mois de salaire"), p_reason: text(body.reason, 300), p_by: by });
+        data = { ok: true };
+        break;
+      case "salary_add_payment":
+        data = await rpc("salary_add_payment", {
+          p_key: text(body.idempotencyKey, 100), p_month_id: uuid(body.monthId, "Mois de salaire"), p_paid_at: date(body.paidAt, "Date du versement"),
+          p_amount: amount(body.amount, "Montant"), p_method: text(body.method, 20), p_reference: text(body.reference, 200), p_note: text(body.note, 500), p_by: by,
+        });
+        break;
+      case "salary_delete_payment":
+        await rpc("salary_delete_payment", { p_id: uuid(body.id, "Versement"), p_reason: text(body.reason, 300), p_by: by });
+        data = { ok: true };
+        break;
+      case "salary_reconcile_expense":
+        data = await rpc("salary_reconcile_expense", {
+          p_expense: uuid(body.expenseId, "Dépense"), p_payment: optUuid(body.paymentId, "Versement"), p_month: optUuid(body.monthId, "Mois de salaire"),
+          p_key: text(body.idempotencyKey, 100), p_by: by,
+        });
+        break;
+      case "salary_attach": {
+        const mime = String(body.mimeType ?? "");
+        if (!MIME.has(mime)) throw new InputError("Format non accepté");
+        data = { id: await rpc("salary_add_document", {
+          p_month_id: uuid(body.salaryMonthId, "Mois de salaire"), p_path: String(body.path ?? ""), p_name: text(body.fileName, 200) ?? "decompte",
+          p_mime: mime, p_size: Number(body.size) || null, p_by: by,
+        }) };
+        break;
+      }
+      case "salary_delete_document":
+        await rpc("salary_delete_document", { p_id: uuid(body.id, "Document"), p_by: by });
+        data = { ok: true };
+        break;
+      case "salary_view_document": {
+        const path = await rpc("salary_document_path", { p_month_id: uuid(body.salaryMonthId, "Mois de salaire"), p_id: uuid(body.id, "Document") }) as string | null;
+        if (!path) return json(cors, { error: "Document introuvable", reason: "not_found" }, 404);
+        const url = await signed(path, 300);
+        if (!url) return json(cors, { error: "Fichier indisponible", reason: "storage" }, 502);
+        data = { url, expiresIn: 300 };
         break;
       }
       default:

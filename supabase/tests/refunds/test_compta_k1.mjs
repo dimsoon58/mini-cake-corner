@@ -275,7 +275,7 @@ check("Feuille Dépenses : total engagé en formule SUMIFS", sumifs && /^SUMIFS\
 const unknownRow = findRow(S, "Achats du mois au montant CHF inconnu");
 check("Synthèse : 1 achat au montant CHF inconnu signalé (non compté)", val(unknownRow.getCell(2)) === 1);
 const stateRow = findRow(S, "INCOMPLET");
-check("Dossier marqué INCOMPLET (montants / pièces manquants, salaire à venir), jamais définitif", !!stateRow && /justificatif/.test(stateRow.getCell(1).value) && /K2/.test(stateRow.getCell(1).value));
+check("Dossier marqué INCOMPLET (montants / pièces manquants, salaire à venir), jamais définitif", !!stateRow && /justificatif/.test(stateRow.getCell(1).value) && /salaire/.test(stateRow.getCell(1).value));
 check("Contrôle « Synthèse = feuille Dépenses » = OK", val(findRow(S, "Synthèse = feuille Dépenses").getCell(2)) === "OK");
 check("Commande de test absente de l'Excel", !JSON.stringify(rb.getWorksheet("Encaissements").getSheetValues()).includes("ORD-T"));
 

@@ -115,3 +115,26 @@ correction et historique ; suppression logique ; catégories désactivées / ren
 des justificatifs (bucket privé, formats, taille, liens signés courts, aucun lien stocké) ;
 cohérence revenus tableau de bord / Excel ; commandes de test exclues ; noms identiques Excel /
 ZIP ; aucune commande modifiée ; relance de F10 sans effet.
+
+## Compta, lot K2 — Salaire mensuel de Nahya (F11 + actions `salary_*` de `manage-expenses`)
+
+`test_compta_k2.mjs` applique F1–F11 (`20261002160000_f11_compta_salary.sql`), assemble la vraie
+fonction `manage-expenses` et le vrai code d'export du site.
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save @electric-sql/pglite esbuild
+node test_compta_k2.mjs
+```
+
+Résultat attendu : `58 PASS, 0 FAIL`.
+
+Couvert : mois du contrat (septembre compris) créés sans montant (« à saisir », jamais 0) ; net
+prévu récurrent et nouveau montant à partir d'un mois sans toucher les précédents ; aucun
+prorata ; net confirmé séparé du prévu ; plusieurs versements datés, total versé et reste,
+dépassement refusé, double clic ; aucun « payé » automatique ; versements comptés à leur date,
+jamais dans les dépenses ; charges sociales = dépenses normales ; ancienne dépense « Salaires »
+comptée tant qu'elle n'est pas rapprochée, puis comptée une seule fois (versement créé ou
+existant), annulation du rapprochement ; prolongation proposée puis ajoutée à la main ; décompte
+facultatif (« justificatif manquant »), bucket privé, lien court ; historique ; Excel (feuille
+Salaire, colonnes séparées, formules) et ZIP ; compatibilité K1 ; relance de F11 sans effet.
