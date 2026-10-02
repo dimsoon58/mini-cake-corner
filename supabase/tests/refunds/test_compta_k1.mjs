@@ -299,5 +299,13 @@ await db.exec(fs.readFileSync(F10, "utf8"));
 const after = await one("select (select count(*) from public.expenses) e, (select count(*) from public.expense_categories) c, (select count(*) from public.expense_payers) p, (select count(*) from public.expense_attachments) a, (select string_agg(name || active::text, ',' order by name) from public.expense_categories) n");
 check("Relance de F10 : rien n'est modifié (catégories renommées / désactivées conservées)", JSON.stringify(before) === JSON.stringify(after), { before, after });
 
+// ═══ Orthographe « Eli » : correction du nom déjà enregistré par F9 en production ═══
+await q("update public.team_members set display_name='Élie' where slug='elie'");
+await q("update public.expense_payers set name='Élie' where slug='elie'");
+await db.exec(fs.readFileSync(F10, "utf8"));
+check("F10 corrige « Élie » en « Eli » (planning et payeurs), identifiant interne inchangé",
+  (await one("select display_name from public.team_members where slug='elie'")).display_name === "Eli"
+  && (await one("select name from public.expense_payers where slug='elie'")).name === "Eli");
+
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);
