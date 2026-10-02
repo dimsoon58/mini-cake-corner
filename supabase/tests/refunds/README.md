@@ -105,7 +105,7 @@ npm install --no-save @electric-sql/pglite esbuild
 node test_compta_k1.mjs
 ```
 
-Résultat attendu : `66 PASS, 0 FAIL`.
+Résultat attendu : `67 PASS, 0 FAIL`.
 
 Couvert : dépense Bento et avance personnelle (jamais « payée par le compte Bento ») ; achat en
 EUR avec le montant réellement débité en CHF ; montant CHF inconnu (jamais 0, hors totaux, compté

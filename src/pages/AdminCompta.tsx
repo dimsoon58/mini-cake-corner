@@ -601,7 +601,7 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
       {/* Pleine page sur tous les écrans : tout le formulaire visible d'un coup,
           justificatifs à gauche et champs à droite sur grand écran,
           boutons toujours visibles en bas. */}
-      <DialogContent className="left-0 top-0 translate-x-0 translate-y-0 w-screen max-w-none h-[100dvh] rounded-none sm:rounded-none border-0 p-0 gap-0 flex flex-col overflow-hidden data-[state=open]:slide-in-from-left-0 data-[state=open]:slide-in-from-top-0 data-[state=closed]:slide-out-to-left-0 data-[state=closed]:slide-out-to-top-0 data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100">
+      <DialogContent className="left-0 top-0 translate-x-0 translate-y-0 w-screen max-w-none h-[100dvh] rounded-none sm:rounded-none border-0 p-0 gap-0 flex flex-col overflow-hidden !animate-none">
         <DialogHeader className="shrink-0 border-b border-border px-4 py-3 pr-12 text-left sm:text-left">
           <div className="w-full max-w-6xl mx-auto space-y-1">
             <DialogTitle>{expense ? `Dépense ${expense.code}` : "Ajouter une dépense"}</DialogTitle>
@@ -636,14 +636,14 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
                   {attachments.map((a, i) => (
                     <li key={a.id} className="flex items-center gap-2">
                       <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
-                      <button type="button" className="flex-1 min-w-0 truncate text-left underline-offset-2 hover:underline" onClick={() => view(a.id, a.mime_type)}>{expense?.code}_{i + 1} · {a.file_name}</button>
+                      <button type="button" className="flex-1 min-w-0 break-all text-left underline-offset-2 hover:underline" onClick={() => view(a.id, a.mime_type)}>{expense?.code}_{i + 1} · {a.file_name}</button>
                       <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => removeAttachment(a.id)} aria-label="Retirer"><Trash2 className="w-3.5 h-3.5" /></Button>
                     </li>
                   ))}
                   {pendingPreviews.map(({ file, url }, i) => (
                     <li key={`${file.name}-${i}`} className="flex items-center gap-2">
                       {url ? <img src={url} alt="" className="w-10 h-10 object-cover border" /> : <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />}
-                      <span className="flex-1 min-w-0 truncate">{file.name} <span className="text-muted-foreground">(envoyé à l'enregistrement)</span></span>
+                      <span className="flex-1 min-w-0 break-all">{file.name} <span className="text-muted-foreground">(envoyé à l'enregistrement)</span></span>
                       <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setFiles((x) => x.filter((_, j) => j !== i))} aria-label="Retirer"><Trash2 className="w-3.5 h-3.5" /></Button>
                     </li>
                   ))}
