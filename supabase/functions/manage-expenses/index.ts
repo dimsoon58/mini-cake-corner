@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { computeSettlement, type SettlementChoices, type SettlementInputs } from "../_shared/settlement.ts";
 
 // Admin > Compta, lot K1 : dépenses, catégories, « payé par » et
 // justificatifs. Session admin requise pour tout (lecture et saisie). Les
@@ -20,6 +21,11 @@ import { corsHeaders } from "../_shared/cors.ts";
 // Le salaire n'est jamais ajouté aux dépenses ; une dépense « Salaires »
 // n'en sort qu'après rapprochement explicite avec un versement. Les
 // actions du lot K1 restent inchangées.
+//
+// Lot K4 (migration F13) : décompte Mel / Eli (actions settlement_*,
+// bank_balance_*, treasury_check). Le brouillon est calculé ici
+// (_shared/settlement.ts) puis re-vérifié en SQL à la validation. Aucun
+// virement : seuls les versements réels sont enregistrés.
 //
 // Lot K3 (migration F12) : remboursement des avances personnelles
 // (actions advance_*). Un remboursement n'est jamais une dépense ; il ne
@@ -132,7 +138,7 @@ serve(async (req) => {
       }
       case "history": {
         const table = String(body.table ?? "expenses");
-        if (!["expenses", "expense_attachments", "expense_categories", "expense_payers", "salary_months", "salary_payments", "salary_rates", "advance_repayments"].includes(table)) throw new InputError("Table inconnue");
+        if (!["expenses", "expense_attachments", "expense_categories", "expense_payers", "salary_months", "salary_payments", "salary_rates", "advance_repayments", "settlements", "settlement_payouts", "settlement_adjustments", "bank_balances"].includes(table)) throw new InputError("Table inconnue");
         data = await rpc("compta_history", { p_table: table, p_row: uuid(body.id, "Élément") });
         break;
       }
@@ -160,7 +166,7 @@ serve(async (req) => {
 
       // ── Écritures ──
       case "save": {
-        data = await rpc("compta_save_expense", {
+        const saved = await rpc("compta_save_expense", {
           p_id: optUuid(body.id, "Dépense"),
           p_key: body.id ? null : text(body.idempotencyKey, 100),
           p_purchase_date: optDate(body.purchaseDate, "Date d'achat"),
@@ -177,7 +183,10 @@ serve(async (req) => {
           p_receipt_missing_reason: text(body.receiptMissingReason, 300),
           p_notes: text(body.notes, 2000),
           p_by: by,
-        });
+        }) as { id: string };
+        // Lot K4 : case « Investissement » (information pour la fiduciaire).
+        if (typeof body.investment === "boolean") await rpc("compta_set_investment", { p_id: saved.id, p_flag: body.investment, p_by: by });
+        data = saved;
         break;
       }
       case "delete":
@@ -327,6 +336,104 @@ serve(async (req) => {
       }
       case "advance_void_repayment":
         await rpc("compta_void_repayment", { p_id: uuid(body.id, "Remboursement"), p_reason: text(body.reason, 300), p_by: by });
+        data = { ok: true };
+        break;
+      // ── Lot K4 : décompte Mel / Eli ──
+      case "settlement_get":
+      case "settlement_validate": {
+        const m = month(body.month, "Mois");
+        const choices: SettlementChoices = {
+          explicitKeep: amount(body.explicitKeep, "Montant conservé en plus"),
+          release: amount(body.release, "Bénéfice libéré"),
+          releaseReason: text(body.releaseReason, 300),
+          ackBaseBreach: body.ackBaseBreach === true,
+          ackCashShort: body.ackCashShort === true,
+        };
+        const overview = await rpc("settlement_overview", { p_month: m }) as SettlementInputs & Record<string, unknown>;
+        const draft = overview.validated ? null : computeSettlement(overview, choices);
+        if (action === "settlement_get") { data = { ...overview, draft }; break; }
+        if (!draft) return json(cors, { error: "Ce mois est déjà validé", reason: "refused" }, 409);
+        if (draft.blocked) return json(cors, { error: draft.blockText, reason: "blocked", draft }, 409);
+        const id = await rpc("settlement_validate", {
+          p_month: m,
+          p_snapshot: {
+            draft, prevId: overview.prev?.id ?? null, adjustmentIds: overview.adjustments.map((a) => a.id),
+            bankBalanceId: overview.bankBalance?.id ?? null, treasury: overview.treasury, figures: overview.figures,
+            rules: overview.rules, note: text(body.note, 1000),
+          },
+          p_by: by,
+        });
+        data = { id };
+        break;
+      }
+      case "bank_balance_save":
+        data = { id: await rpc("bank_balance_save", {
+          p_date: date(body.date, "Date du solde"), p_amount: (() => {
+            const n = Number(String(body.amount ?? "").replace(/[’'\s]/g, "").replace(",", ".").replace("−", "-"));
+            if (body.amount == null || body.amount === "" || !Number.isFinite(n)) throw new InputError("Montant du solde invalide");
+            return Math.round(n * 100) / 100;
+          })(), p_note: text(body.note, 300), p_by: by,
+        }) };
+        break;
+      case "bank_balance_delete":
+        await rpc("bank_balance_delete", { p_id: uuid(body.id, "Solde"), p_by: by });
+        data = { ok: true };
+        break;
+      case "settlement_adjust":
+        data = { id: await rpc("settlement_create_adjustment", {
+          p_source_month: month(body.sourceMonth, "Mois corrigé"), p_amount: (() => {
+            const n = Number(String(body.amount ?? "").replace(/[’'\s]/g, "").replace(",", ".").replace("−", "-"));
+            if (!Number.isFinite(n) || n === 0) throw new InputError("Montant de l'ajustement invalide");
+            return Math.round(n * 100) / 100;
+          })(), p_reason: text(body.reason, 300), p_by: by,
+        }) };
+        break;
+      case "settlement_void_adjustment":
+        await rpc("settlement_void_adjustment", { p_id: uuid(body.id, "Ajustement"), p_reason: text(body.reason, 300), p_by: by });
+        data = { ok: true };
+        break;
+      case "treasury_check": {
+        // Vérification d'un versement : un solde récent ET les dettes à cette même date.
+        const bal = await rpc("bank_balance_get", { p_id: uuid(body.balanceId, "Solde") }) as { balance_date: string; amount: number } | null;
+        if (!bal) return json(cors, { error: "Solde introuvable", reason: "not_found" }, 404);
+        data = await rpc("treasury_at", { p_date: bal.balance_date, p_balance: bal.amount });
+        break;
+      }
+      case "settlement_payout": {
+        const share = amount(body.share, "Part versée") ?? 0;
+        const allocations = Array.isArray(body.allocations) ? body.allocations.filter((a: { amount?: unknown }) => a && a.amount !== "" && a.amount != null)
+          .map((a: { expenseId?: unknown; amount?: unknown }) => ({ expenseId: uuid(a.expenseId, "Avance"), amount: amount(a.amount, "Montant d'avance") })) : [];
+        let check: Record<string, unknown> | null = null;
+        let balanceId: string | null = null;
+        if (share > 0) {
+          // Part : vérification obligatoire avec un solde daté et les dettes du même jour.
+          balanceId = uuid(body.balanceId, "Solde bancaire");
+          const bal = await rpc("bank_balance_get", { p_id: balanceId }) as { balance_date: string; amount: number } | null;
+          if (!bal) return json(cors, { error: "Solde introuvable", reason: "not_found" }, 404);
+          const st = await rpc("settlement_get_row", { p_id: uuid(body.settlementId, "Décompte") }) as { month: string } | null;
+          if (!st) return json(cors, { error: "Décompte introuvable", reason: "not_found" }, 404);
+          const monthEnd = new Date(Date.UTC(+st.month.slice(0, 4), +st.month.slice(5, 7), 0)).toISOString().slice(0, 10);
+          if (bal.balance_date < monthEnd) throw new InputError("Utilisez un solde daté au plus tôt de la fin du mois du décompte");
+          const t = await rpc("treasury_at", { p_date: bal.balance_date, p_balance: bal.amount }) as Record<string, number | boolean>;
+          const rules = await rpc("settlement_rules_for", { p_month: st.month }) as { base_target: number } | { base_target: number }[];
+          const target = Number(Array.isArray(rules) ? rules[0]?.base_target : rules?.base_target) || 0;
+          const reserved = (t.baseConstituted ? target : 0) + Number(t.extraCum || 0);
+          const free = Math.round((Number(t.available) - reserved) * 100) / 100;
+          check = { date: bal.balance_date, balance: bal.amount, available: t.available, reserved, free, short: free < 0, acknowledged: body.ackCashShort === true };
+          if (free < 0 && body.ackCashShort !== true) {
+            return json(cors, { error: `Au ${bal.balance_date.split("-").reverse().join(".")}, la trésorerie disponible (${t.available}) ne couvre pas la base et l'épargne (${reserved}) : confirmez pour enregistrer quand même ce versement réel.`, reason: "cash_short", check }, 409);
+          }
+        }
+        data = await rpc("settlement_payout", {
+          p_key: text(body.idempotencyKey, 100), p_settlement: uuid(body.settlementId, "Décompte"), p_payer: uuid(body.payerId, "Personne"),
+          p_paid_at: date(body.paidAt, "Date du versement"), p_share: share, p_allocations: allocations,
+          p_method: text(body.method, 20), p_reference: text(body.reference, 200), p_note: text(body.note, 500),
+          p_balance: balanceId, p_check: check, p_by: by,
+        });
+        break;
+      }
+      case "settlement_void_payout":
+        await rpc("settlement_void_payout", { p_id: uuid(body.id, "Versement"), p_reason: text(body.reason, 300), p_by: by });
         data = { ok: true };
         break;
       default:

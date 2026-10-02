@@ -25,6 +25,8 @@ export interface Expense {
   salary_payment?: { id: string; code: string; paid_at: string; amount: number; month_code: string } | null;
   // Lot K3 (absent tant que F12 n'est pas appliquée)
   advance?: { repaid: number; remaining: number | null } | null;
+  // Lot K4 : information pour la fiduciaire (aucun amortissement)
+  is_investment?: boolean;
   duplicates: { id: string; code: string; purchase_date: string | null; supplier: string | null; chf_amount: number | null }[];
 }
 export interface Sum { known: number; count: number; unknownCount: number }
@@ -179,3 +181,79 @@ export const ADVANCE_STATE_LABELS: Record<AdvanceState, string> = {
   settled: "Remboursée",
   overpaid: "Trop remboursée",
 };
+
+// ── Lot K4 : décompte Mel / Eli ───────────────────────────────────────────
+export interface SettlementDraft {
+  blocked: boolean; blockReasons: string[]; blockText: string; warnings: string[];
+  revenueNet: number; expenses: number; salary: number; result: number; adjustmentsTotal: number; resultAdjusted: number;
+  lossIn: number; lossCompensated: number; lossOut: number; available: number; toBase: number;
+  baseBefore: boolean; baseConstituted: boolean; baseConfirmedNow: boolean; baseMissingInBank: number | null;
+  retainedBefore: number; extraKept: number; explicitKeep: number; maxKeep: number; freeRetained: number; released: number; releaseReason: string | null;
+  retainedMonth: number; retainedCum: number; extraCumBefore: number; extraCum: number;
+  toShare: number; melShare: number; eliShare: number; melPct: number; freeForShares: number | null;
+  flags: { baseBreach: boolean; cashShort: boolean; ackBaseBreach: boolean; ackCashShort: boolean; noBankBalance?: boolean };
+  needsBankBalance: boolean;
+}
+export interface Treasury {
+  date: string; balance: number; invoicesToPay: number; invoicesUnknownCount: number; salaryRemaining: number; advancesToRepay: number;
+  advancesUnknownCount: number; sharesUnpaid: number; available: number; baseConstituted?: boolean; extraCum?: number; retainedCum?: number;
+}
+/** Ligne figée d'un décompte validé (colonnes de la table settlements). */
+export interface SettlementRow {
+  id: string; month: string; revenue_net: number; expenses: number; salary: number; result: number; adjustments_total: number; result_adjusted: number;
+  loss_in: number; loss_compensated: number; loss_out: number; available_result: number; to_base: number; base_constituted: boolean;
+  base_confirmed_now: boolean; extra_kept: number; explicit_keep: number; released: number; release_reason: string | null; retained_month: number;
+  retained_cum: number; extra_cum: number; to_share: number; mel_payer_id: string; eli_payer_id: string; mel_share: number; eli_share: number;
+  bank_balance_id: string | null; treasury: Treasury | null; flags: SettlementDraft["flags"]; note: string | null; validated_by: string | null; validated_at: string;
+  snapshot: { draft: SettlementDraft };
+}
+export interface SettlementPayout {
+  id: string; code: string; settlement_id: string; payer_id: string; payer_name: string; paid_at: string; share_amount: number; advance_amount: number;
+  advance_repayment_id: string | null; method: "transfer" | "twint" | "cash" | "other" | null; reference: string | null; note: string | null;
+  check_snapshot: { date: string; available: number; reserved: number; free: number; short: boolean; acknowledged: boolean } | null;
+  created_by: string | null; voided_at: string | null; voided_by: string | null; void_reason: string | null;
+}
+export interface SettlementView {
+  month: string; monthEnd: string; startMonth: string | null;
+  rules: { id: string; base_target: number; monthly_extra: number; mel_pct: number; mel_payer_id: string; eli_payer_id: string; effective_month: string; note: string | null } | null;
+  melName: string | null; eliName: string | null;
+  validated: SettlementRow | null;
+  prev: { id: string; month: string; retainedCum: number; baseConstituted: boolean; extraCum: number; lossOut: number } | null;
+  prevMonthValidated: boolean;
+  figures: {
+    revenueNet: number; collected: number; refunded: number; refundsUndatedCount: number; refundsToReviewCount: number;
+    expensesKnown: number; expensesCount: number; expensesUnknown: { id: string; code: string; supplier: string | null }[];
+    expensesUndated: { id: string; code: string; supplier: string | null }[];
+    investments: { id: string; code: string; supplier: string | null; description: string | null; chf_amount: number | null }[];
+    salaryTotal: number; salaryLines: { id: string; code: string; confirmed: number | null }[]; salaryToConfirm: { id: string; code: string }[];
+  };
+  adjustments: { id: string; sourceMonth: string; amount: number; reason: string }[];
+  bankBalance: { id: string; date: string; amount: number; note: string | null } | null;
+  treasury: Treasury | null;
+  history: { id: string; month: string; result: number; resultAdjusted: number; lossOut: number; retainedMonth: number; retainedCum: number;
+    baseConstituted: boolean; baseConfirmedNow: boolean; extraKept: number; extraCum: number; toShare: number; melShare: number; eliShare: number;
+    melPaid: number; eliPaid: number; validatedAt: string; validatedBy: string | null }[];
+  payouts: SettlementPayout[];
+  bankBalances: { id: string; date: string; amount: number; note: string | null; createdBy: string | null }[];
+  detectedDeltas: { month: string; frozenResult: number; liveResult: number; alreadyAdjusted: number; delta: number; liveIncomplete: boolean }[];
+  partnersAdvances: { payerId: string; name: string; advances: { id: string; code: string; supplier: string | null; date: string; remaining: number }[] }[];
+  draft: SettlementDraft | null;
+}
+/** Valeurs à afficher : la ligne figée si le mois est validé, sinon le brouillon. */
+export function settlementValues(v: SettlementView) {
+  const s = v.validated;
+  if (s) {
+    const d = s.snapshot?.draft;
+    return {
+      validated: true, revenueNet: +s.revenue_net, expenses: +s.expenses, salary: +s.salary, result: +s.result, adjustmentsTotal: +s.adjustments_total,
+      resultAdjusted: +s.result_adjusted, lossIn: +s.loss_in, lossCompensated: +s.loss_compensated, lossOut: +s.loss_out, available: +s.available_result,
+      toBase: +s.to_base, baseConstituted: s.base_constituted, baseConfirmedNow: s.base_confirmed_now, extraKept: +s.extra_kept,
+      explicitKeep: +s.explicit_keep, released: +s.released, releaseReason: s.release_reason, retainedMonth: +s.retained_month,
+      retainedCum: +s.retained_cum, extraCum: +s.extra_cum, toShare: +s.to_share, melShare: +s.mel_share, eliShare: +s.eli_share,
+      freeRetained: d?.freeRetained ?? null, freeForShares: d?.freeForShares ?? null, flags: s.flags, treasury: s.treasury,
+      melPct: d?.melPct ?? Number(v.rules?.mel_pct ?? 60), warnings: d?.warnings ?? [], blockReasons: [] as string[],
+    };
+  }
+  const d = v.draft!;
+  return { validated: false, ...d, treasury: v.treasury, blockReasons: d.blockReasons };
+}

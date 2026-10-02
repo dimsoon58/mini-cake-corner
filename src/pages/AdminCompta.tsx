@@ -16,8 +16,9 @@ import {
   type ComptaSettings, type Expense, type ExpenseCategory, type ExpensePayer, type ExpensePeriod, type ExpenseStatus,
   type HistoryEntry, type PayerKind, type ReceiptFile,
 } from "@/lib/compta";
-import type { AdvancesOverview, SalaryOverview } from "@/lib/compta";
+import type { AdvancesOverview, SalaryOverview, SettlementView } from "@/lib/compta";
 import AdvancesTab from "@/components/admin/compta/AdvancesTab";
+import SettlementTab from "@/components/admin/compta/SettlementTab";
 import SalaryTab from "@/components/admin/compta/SalaryTab";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +27,8 @@ import { cn } from "@/lib/utils";
 // mêmes chiffres que le tableau de bord) ; les dépenses et le salaire de
 // manage-expenses. Aucun total ne mélange la date d'achat et la date de
 // paiement ; le salaire et les remboursements d'avances ne sont jamais
-// ajoutés aux dépenses. Décompte : lot K4.
+// ajoutés aux dépenses. Le décompte Mel / Eli (lot K4) suit les règles
+// confirmées : logique B, trésorerie de base 4'000, +300 par mois, 60 / 40.
 
 type Tab = "summary" | "revenue" | "expenses" | "salary" | "advances" | "settlement";
 const TABS: { key: Tab; label: string }[] = [
@@ -127,7 +129,8 @@ const AdminCompta = () => {
     setBusyExport("xlsx");
     try {
       const [{ default: ExcelJS }, { buildComptaWorkbook, comptaFileName }] = await Promise.all([import("exceljs"), import("@/lib/comptaExport")]);
-      const wb = buildComptaWorkbook(ExcelJS, finance, period, salary, advances);
+      const settlement = await comptaApi<SettlementView>({ action: "settlement_get", month: from }).catch(() => null);
+      const wb = buildComptaWorkbook(ExcelJS, finance, period, salary, advances, settlement);
       download(new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), comptaFileName(month));
     } catch (e) {
       console.error("Compta export failed:", e);
@@ -219,7 +222,7 @@ const AdminCompta = () => {
         {tab === "advances" && (advances
           ? <AdvancesTab overview={advances} month={month} onChanged={load} onNotice={setNotice} />
           : <p className="text-sm text-amber-800">{advancesError ?? "Chargement…"}</p>)}
-        {tab === "settlement" && <SettlementTab period={period} advances={advances} />}
+        {tab === "settlement" && <SettlementTab month={month} onNotice={setNotice} />}
 
         {editing && settings && (
           <ExpenseDialog
@@ -479,6 +482,7 @@ function ExpensesTab({ period, settings, from, to, onEdit, onSettings }: {
                 {e.personal_advance && <Badge className="border-violet-300 bg-violet-50 text-violet-900">Avance {e.payer_name ?? ""}</Badge>}
                 {e.missing.length > 0 && <Badge className={WARN} title={e.missing.map((m) => MISSING_LABELS[m]).join(", ")}>À compléter : {e.missing.map((m) => MISSING_LABELS[m]).join(", ")}</Badge>}
                 {e.duplicates.length > 0 && <Badge className="border-red-300 bg-red-50 text-red-900">Doublon possible ({e.duplicates.map((d) => d.code).join(", ")})</Badge>}
+                {e.is_investment && <Badge className="border-indigo-300 bg-indigo-50 text-indigo-900">Investissement</Badge>}
                 {e.salary_payment && <Badge className="border-slate-300 bg-slate-50 text-slate-700">Rapprochée de {e.salary_payment.code} — comptée dans le salaire, hors dépenses</Badge>}
                 {e.salary_to_reconcile && <Badge className={WARN}>Salaires — à rapprocher d'un versement</Badge>}
                 {e.attachments.length > 0 && <Badge className="border-border text-muted-foreground"><Paperclip className="inline w-3 h-3 mr-0.5" />{e.attachments.length}</Badge>}
@@ -492,39 +496,11 @@ function ExpensesTab({ period, settings, from, to, onEdit, onSettings }: {
 }
 
 // ── Décompte Mel / Eli ──────────────────────────────────────────────────
-function SettlementTab({ period, advances }: { period: ExpensePeriod | null; advances: AdvancesOverview | null }) {
-  const partners = advances?.people.filter((p) => p.kind === "partner") ?? [];
-  return (
-    <div className="space-y-4" data-testid="settlement">
-      <div className={cn("border px-4 py-3 text-sm space-y-1", WARN)}>
-        <p className="font-semibold">Répartition à configurer</p>
-        <p>Le décompte Mel / Eli (avances à rembourser + part validée = total à verser, déjà versé, reste à verser) arrive avec le lot K4.
-          Il sera un brouillon à valider manuellement ; aucun virement n'est déclenché.</p>
-        <p>Aucune répartition n'est présumée : elle sera réglable et datée, avec une réserve pour Bento. Un résultat négatif ne sera jamais réparti.</p>
-      </div>
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Avances restant à rembourser (fin du mois)</h2>
-        <p className="text-xs text-muted-foreground">Première composante du futur décompte. Les remboursements se saisissent dans l'onglet Avances ; ils ne sont jamais des dépenses.</p>
-        {!advances ? <p className="text-sm text-muted-foreground">{period ? "Données d'avances indisponibles." : "Chargement…"}</p> : partners.length === 0 ? <p className="text-sm text-muted-foreground">Aucune associée.</p> : (
-          <ul className="border border-border/60 divide-y divide-border/60 text-sm">
-            {partners.map((p) => (
-              <li key={p.payerId} className="flex justify-between px-3 py-1.5">
-                <span>{p.name}{p.unknownCount ? <span className="text-amber-700"> · {p.unknownCount} montant(s) inconnu(s)</span> : null}</span>
-                <span className="tabular-nums">{money(p.openEnd)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
-  );
-}
-
 // ── Saisie d'une dépense ─────────────────────────────────────────────────
 interface Form {
   purchaseDate: string; supplier: string; description: string; categoryId: string; currency: string; customCurrency: string;
   originalAmount: string; chfAmount: string; status: ExpenseStatus; paidAt: string; payerId: string; personalAdvance: boolean;
-  noReceipt: boolean; receiptMissingReason: string; notes: string;
+  noReceipt: boolean; receiptMissingReason: string; notes: string; investment: boolean;
 }
 const amountStr = (v: number | null | undefined) => (v == null ? "" : String(v));
 
@@ -550,6 +526,7 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
     noReceipt: !!expense?.receipt_missing_reason,
     receiptMissingReason: expense?.receipt_missing_reason ?? "",
     notes: expense?.notes ?? "",
+    investment: expense?.is_investment ?? false,
   }));
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -593,6 +570,7 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
         currency, originalAmount: f.originalAmount, chfAmount: isChf ? f.originalAmount : f.chfAmount,
         status: f.status, paidAt: f.status === "paid" ? f.paidAt || null : null, payerId: f.payerId || null,
         personalAdvance: f.personalAdvance, receiptMissingReason: f.noReceipt ? f.receiptMissingReason || "Pas de justificatif" : null, notes: f.notes,
+        investment: f.investment,
       });
       setSavedId(r.id);
       const failed: string[] = [];
@@ -765,6 +743,10 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
                   <Input type="date" value={f.paidAt} onChange={(e) => set("paidAt", e.target.value)} className={field} />
                 </div>
               )}
+              <label className="col-span-2 flex items-start gap-2 text-sm">
+                <input type="checkbox" className="w-4 h-4 mt-0.5" checked={f.investment} onChange={(e) => set("investment", e.target.checked)} data-testid="investment" />
+                <span>Investissement (à signaler à la fiduciaire)<span className="block text-[11px] text-muted-foreground">Information seulement : la dépense compte normalement dans le mois d'achat, aucun amortissement n'est calculé.</span></span>
+              </label>
               <div className="space-y-1 col-span-2">
                 <Label className="text-xs">Notes (facultatif)</Label>
                 <Input value={f.notes} onChange={(e) => set("notes", e.target.value)} className={field} />

@@ -160,3 +160,28 @@ hors du reste à rembourser ; Nahya remboursée ; garde-fous sur une avance déj
 (suppression, personne, case avance, montant effacé) ; correction à la baisse → trop-remboursé
 signalé ; annulation tracée puis nouveau remboursement ; historique ; Excel (feuille Avances et
 remboursements, formules, contrôle) ; compatibilité K1/K2 ; relance de F12 sans effet.
+
+## Compta, lot K4 — Décompte Mel / Eli (F13 + actions `settlement_*` de `manage-expenses`)
+
+`test_compta_k4.mjs` applique F1–F13, assemble la vraie fonction `manage-expenses`, le module de
+calcul `_shared/settlement.ts` et le vrai code d'export du site. Le scénario va d'octobre 2026 à
+mai 2027 ; les soldes bancaires futurs sont insérés directement (la page refuse une date future).
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save @electric-sql/pglite esbuild
+node test_compta_k4.mjs
+```
+
+Résultat attendu : `73 PASS, 0 FAIL`.
+
+Couvert : règles confirmées (dès 10.2026, base 4'000, +300, 60 %) ; blocages (salaire à confirmer,
+montant inconnu, mois précédent non validé) ; résultat logique B, avance comptée une fois et
+remboursée hors partage avant la base ; ajustement explicite après validation, appliqué une fois ;
+base comptable atteinte mais non prouvée par la banque (tout conservé) ; base confirmée par le
+solde de fin de mois, 300 dès ce mois, 60/40 ; bénéfice conservé ≠ base + épargne ; conserver en
+plus ; libération motivée et plafonnée ; versements réels avec solde récent et dettes du même
+jour, part partiellement payée qui reste à verser ; perte reportée compensée une seule fois ; base
+entamée et trésorerie insuffisante à confirmer ; versement groupé part + avance (registre K3),
+annulation ; arrondi (Mel au centime, Eli le reste) ; Excel (8 feuilles, formules, INCOMPLET puis
+COMPLET) ; décompte figé ; relance de F13 sans effet.

@@ -2,7 +2,7 @@ import { buildFinanceWorkbook } from "@/lib/financeExport";
 import type { FinanceMonth } from "@/lib/finance";
 import {
   ADVANCE_STATE_LABELS, METHOD_LABELS, MISSING_LABELS, SALARY_STATUS_LABELS, STATUS_LABELS, fmtHours, inRange, receiptFileName,
-  type AdvancesOverview, type ExpensePeriod, type ReceiptFile, type SalaryOverview,
+  settlementValues, type AdvancesOverview, type ExpensePeriod, type ReceiptFile, type SalaryOverview, type SettlementView,
 } from "@/lib/compta";
 
 // Compta (lot K1) — dossier Excel du mois. Reprend TEL QUEL le classeur du
@@ -10,9 +10,10 @@ import {
 // le bloc « À dater ») — même source finance-month, mêmes chiffres que le
 // tableau de bord — et y ajoute la feuille « Dépenses » et le bloc dépenses
 // de la synthèse, puis la feuille « Salaire » (lot K2) et la feuille
-// « Avances et remboursements » (lot K3). Le décompte Mel / Eli viendra avec
-// le lot K4 ; tant qu'il manque, le dossier est marqué INCOMPLET, jamais
-// définitif.
+// « Avances et remboursements » (lot K3) et « Décompte Mel - Eli et
+// versements » (lot K4 ; « / » est interdit dans un nom de feuille Excel).
+// Le dossier n'est « COMPLET » que si rien ne manque ET que le décompte du
+// mois est validé ; sinon il est marqué INCOMPLET avec la liste des manques.
 //
 // Avances : chaque avance reste comptée une fois comme dépense (feuille
 // Dépenses) ; ses remboursements sont listés à part et ne sont jamais des
@@ -39,7 +40,8 @@ const round = (n: number) => Math.round(n * 100) / 100;
 
 const isCounted = (e: { counted?: boolean }) => e.counted !== false;
 
-export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMonth, expenses: ExpensePeriod, salary?: SalaryOverview | null, advances?: AdvancesOverview | null) {
+export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMonth, expenses: ExpensePeriod, salary?: SalaryOverview | null,
+  advances?: AdvancesOverview | null, settlement?: SettlementView | null) {
   const wb = buildFinanceWorkbook(ExcelJS, finance);
   const { from, to } = { from: finance.from, to: finance.to };
   const ws = wb.addWorksheet("Dépenses");
@@ -61,6 +63,7 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
     { header: "Payée dans le mois", key: "inPaid", width: 10 },
     { header: "À compléter", key: "missing", width: 30 },
     { header: "Comptée dans les dépenses", key: "counted", width: 18 },
+    { header: "Investissement (info fiduciaire, sans amortissement)", key: "investment", width: 16 },
   ];
   const head = ws.getRow(1);
   head.font = { bold: true };
@@ -90,6 +93,7 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
       inPaid: e.status === "paid" && inRange(e.paid_at, from, to) ? "Oui" : "Non",
       missing: [...e.missing.map((m) => MISSING_LABELS[m] ?? m), ...(e.salary_to_reconcile ? ["à rapprocher d'un versement de salaire"] : [])].join(", "),
       counted: isCounted(e) ? "Oui" : `Non — rapprochée de ${e.salary_payment?.code ?? "un versement de salaire"}`,
+      investment: e.is_investment ? "Oui" : "",
     });
     if (e.missing.length) row.getCell("missing").font = { color: { argb: "FF8A5A00" } };
     if (e.chf_amount == null) row.getCell("chf").value = null;
@@ -140,6 +144,8 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   const salaryIssues = salary ? addSalarySheet(wb, salary, finance.month, m, add) : ["salaire : données non chargées"];
   // ── Avances et remboursements (lot K3) ──
   const advanceIssues = advances ? addAdvancesSheet(wb, advances, finance.month, m, add) : ["avances : données non chargées"];
+  // ── Décompte Mel / Eli et versements (lot K4) ──
+  const settlementIssues = settlement ? addSettlementSheet(wb, settlement, m, add) : ["décompte Mel / Eli : données non chargées"];
 
   add([]);
   add(["État du dossier"], true);
@@ -151,12 +157,15 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   if (finance.cards.undatedCount) issues.push(`${finance.cards.undatedCount} remboursement(s) client à dater`);
   if (finance.cards.toReviewCount) issues.push(`${finance.cards.toReviewCount} remboursement(s) client à vérifier`);
   if (t.salary?.toReconcileCount) issues.push(`${t.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher`);
-  issues.push(...salaryIssues, ...advanceIssues);
-  const state = s.addRow([`INCOMPLET — ${[...issues, "décompte Mel / Eli pas encore dans ce dossier (lot K4, répartition à configurer)"].join(" · ")}`]);
-  state.font = { bold: true, color: { argb: "FF8A5A00" } };
+  issues.push(...salaryIssues, ...advanceIssues, ...settlementIssues);
+  const state = issues.length
+    ? s.addRow([`INCOMPLET — ${issues.join(" · ")}`])
+    : s.addRow([`COMPLET — rien ne manque et le décompte du mois est validé (${settlement?.validated?.validated_at ? new Date(settlement.validated.validated_at).toLocaleDateString("fr-CH", { timeZone: "Europe/Zurich" }) : ""})`]);
+  state.font = { bold: true, color: { argb: issues.length ? "FF8A5A00" : "FF1B5E20" } };
   s.getCell(`B${sUnknown}`).numFmt = "0";
 
-  // Feuilles : Synthèse, Commandes et articles, Encaissements, Remboursements, Dépenses, Salaire, Avances et remboursements.
+  // Feuilles : Synthèse, Commandes et articles, Encaissements, Remboursements, Dépenses, Salaire, Avances et remboursements,
+  // Décompte Mel-Eli et versements.
   return wb;
 }
 
@@ -312,5 +321,126 @@ function addAdvancesSheet(wb: Workbook, o: AdvancesOverview, month: string,
   m("Remboursé aux personnes dans le mois", { formula: `'Avances et remboursements'!G${repRow.number}`, result: round(o.totals.repaidInMonth) }, o.totals.repaidInMonthCount);
   m("Reste à rembourser à la fin du mois (reporté)", { formula: `'Avances et remboursements'!H${tot.number}`, result: round(o.totals.openEnd) });
   if (o.totals.unknownCount) add([`  ${o.totals.unknownCount} avance(s) au montant CHF inconnu, non comptée(s)`]);
+  return issues;
+}
+
+/** Feuille « Décompte Mel-Eli et versements » + bloc de synthèse. Renvoie les points à compléter. */
+function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, value: unknown, count?: number | null) => number,
+  add: (cells: unknown[], bold?: boolean) => unknown) {
+  const ws = wb.addWorksheet("Décompte Mel-Eli et versements");
+  ws.columns = [{ width: 52 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 30 }];
+  const issues: string[] = [];
+  const x = settlementValues(v);
+  const mel = v.melName ?? "Mel", eli = v.eliName ?? "Eli";
+  const target = Number(v.rules?.base_target ?? 4000);
+  const title = (t: string) => { const r = ws.addRow([t]); r.font = { bold: true, size: 12 }; };
+  const line = (label: string, value: unknown, fmt = MONEY) => { const r = ws.addRow([label, value]); r.getCell(2).numFmt = fmt; return r.number; };
+  const f = (formula: string, result: number) => ({ formula, result: round(result) });
+
+  title(`Décompte Mel / Eli — ${v.month.slice(0, 7).split("-").reverse().join(".")}`);
+  const st = ws.addRow([x.validated
+    ? `VALIDÉ le ${new Date(v.validated!.validated_at).toLocaleString("fr-CH", { timeZone: "Europe/Zurich" })} par ${v.validated!.validated_by ?? "—"} — chiffres figés`
+    : `BROUILLON — non validé${x.blockReasons.length ? ` · bloqué : ${x.blockReasons.join(" ")}` : ""}`]);
+  st.font = { bold: true, color: { argb: x.validated ? "FF1B5E20" : "FF8A5A00" } };
+  if (!x.validated) issues.push("décompte Mel / Eli non validé");
+  ws.addRow(["Résultat = revenus nets − dépenses du mois (date d'achat) − salaire net confirmé. Remboursements d'avances, versements de salaire et parts versées ne sont jamais déduits."]);
+  ws.addRow([]);
+
+  title("Résultat du mois");
+  const rRev = line("Revenus nets (encaissé − remboursements clients)", x.revenueNet);
+  const rExp = line("Dépenses du mois (date d'achat, chacune une fois)", x.expenses);
+  const rSal = line("Salaire net confirmé du mois", x.salary);
+  const rRes = line("Résultat du mois", f(`B${rRev}-B${rExp}-B${rSal}`, x.result));
+  const rAdj = line("Ajustements de mois déjà validés", x.adjustmentsTotal);
+  const rResAdj = line("Résultat ajusté", f(`B${rRes}+B${rAdj}`, x.resultAdjusted));
+  ws.getRow(rResAdj).font = { bold: true };
+  line("Perte reportée en début de mois", x.lossIn);
+  const rComp = line("Perte compensée ce mois (une seule fois)", x.lossCompensated);
+  line("Perte reportée en fin de mois", x.lossOut);
+  const rAvail = line("Disponible après pertes", x.resultAdjusted >= 0 ? f(`B${rResAdj}-B${rComp}`, x.available) : 0);
+  ws.addRow([]);
+
+  title("Conservé dans Bento et partage");
+  const rBase = line("Vers la trésorerie de base", x.toBase);
+  const rExtra = line(`Épargne supplémentaire du mois (${Number(v.rules?.monthly_extra ?? 300)} si le surplus suffit)`, x.extraKept);
+  const rKeep = line("Conservé en plus (choix explicite)", x.explicitKeep);
+  const rRel = line(`Bénéfice conservé libéré (décision${x.releaseReason ? ` : ${x.releaseReason}` : ""})`, x.released);
+  line("Conservé ce mois (bénéfice conservé)", x.retainedMonth);
+  const rShare = line("À partager", x.baseConstituted ? f(`B${rAvail}-B${rBase}-B${rExtra}-B${rKeep}+B${rRel}`, x.toShare) : x.toShare);
+  ws.getRow(rShare).font = { bold: true };
+  const rMel = line(`Mel (${x.melPct} %, arrondi au centime)`, f(`ROUND(B${rShare}*${x.melPct}/100,2)`, x.melShare));
+  line(`Eli (reste exact)`, f(`B${rShare}-B${rMel}`, x.eliShare));
+  ws.addRow([]);
+
+  title("Trésorerie de base, épargne et bénéfice conservé (à la fin du mois)");
+  line("Trésorerie de base", x.baseConstituted ? target : `non constituée (objectif ${target})`);
+  line("Épargne supplémentaire cumulée", x.extraCum);
+  line("Bénéfice conservé cumulé", x.retainedCum);
+  if (x.freeRetained != null) line("dont bénéfice conservé libre (partageable seulement sur décision)", x.freeRetained);
+  ws.addRow([]);
+
+  const tr = x.treasury;
+  title(`Vérification de trésorerie${tr ? ` au ${tr.date.split("-").reverse().join(".")} (solde et dettes du même jour)` : ""}`);
+  if (!tr) {
+    ws.addRow([`Solde bancaire au ${v.monthEnd.split("-").reverse().join(".")} non saisi`]);
+    if (x.toShare > 0 || !x.baseConstituted) issues.push("solde bancaire de fin de mois manquant");
+  } else {
+    const b0 = line("Solde bancaire daté", tr.balance);
+    const b1 = line("− factures encore à payer", tr.invoicesToPay);
+    const b2 = line("− salaire restant à verser", tr.salaryRemaining);
+    const b3 = line("− avances restant à rembourser", tr.advancesToRepay);
+    const b4 = line("− parts validées non versées", tr.sharesUnpaid);
+    const b5 = line("Trésorerie disponible", f(`B${b0}-B${b1}-B${b2}-B${b3}-B${b4}`, tr.available));
+    ws.getRow(b5).font = { bold: true };
+    if (x.baseConstituted) {
+      line("Libre pour les parts (disponible − base − épargne supplémentaire)", f(`B${b5}-${target}-${x.extraCum}`, tr.available - target - x.extraCum));
+    }
+    if (x.flags?.baseBreach) { ws.addRow([`TRÉSORERIE DE BASE ENTAMÉE${x.flags.ackBaseBreach ? " — confirmé avant le partage" : ""}`]).font = { bold: true, color: { argb: "FFB71C1C" } }; }
+    if (x.flags?.cashShort) { ws.addRow([`TRÉSORERIE INSUFFISANTE POUR LES PARTS${x.flags.ackCashShort ? " — confirmé" : ""}`]).font = { bold: true, color: { argb: "FFB71C1C" } }; }
+    if (tr.invoicesUnknownCount || tr.advancesUnknownCount) ws.addRow(["Factures ou avances au montant inconnu non comprises dans la vérification"]);
+  }
+  ws.addRow([]);
+
+  title("Versements réels (aucun virement automatique)");
+  const head = ws.addRow(["Date · code · personne · référence", "Part", "Avance", "Total", "État"]);
+  head.font = { bold: true };
+  const fp = ws.rowCount + 1;
+  for (const p of v.payouts) {
+    const r = ws.addRow([`${p.paid_at.split("-").reverse().join(".")} · ${p.code} · ${p.payer_name}${p.reference ? ` · ${p.reference}` : ""}`,
+      p.voided_at ? null : Number(p.share_amount), p.voided_at ? null : Number(p.advance_amount), null,
+      p.voided_at ? `ANNULÉ (${p.void_reason ?? ""})` : p.check_snapshot?.short ? "trésorerie insuffisante confirmée" : "Compté"]);
+    r.getCell(4).value = p.voided_at ? null : f(`B${r.number}+C${r.number}`, Number(p.share_amount) + Number(p.advance_amount));
+    [2, 3, 4].forEach((c) => { r.getCell(c).numFmt = MONEY; });
+  }
+  const lp = ws.rowCount;
+  const paid = (who: string) => v.payouts.filter((p) => !p.voided_at && p.payer_id === who).reduce((s2, p) => s2 + Number(p.share_amount), 0);
+  const melId = v.validated?.mel_payer_id ?? v.rules?.mel_payer_id ?? "", eliId = v.validated?.eli_payer_id ?? v.rules?.eli_payer_id ?? "";
+  const sumIf = (name: string, who: string) => v.payouts.length
+    ? f(`SUMIFS(B${fp}:B${lp},A${fp}:A${lp},"*${name}*")`, paid(who)) : 0;
+  const rMelPaid = line(`Part versée — ${mel}`, sumIf(mel, melId));
+  const rEliPaid = line(`Part versée — ${eli}`, sumIf(eli, eliId));
+  const remMel = round(x.melShare - paid(melId)), remEli = round(x.eliShare - paid(eliId));
+  line(`Reste à verser — ${mel}`, f(`B${rMel}-B${rMelPaid}`, remMel));
+  line(`Reste à verser — ${eli}`, f(`B${rMel + 1}-B${rEliPaid}`, remEli));
+  ws.addRow(["Les parts versées ne sont jamais des dépenses. La partie « avance » d'un versement passe par le registre des avances."]);
+
+  if (v.figures.investments.length) {
+    ws.addRow([]);
+    title("Investissements du mois — information pour la fiduciaire (aucun amortissement calculé)");
+    for (const i of v.figures.investments) { const r = ws.addRow([`${i.code} · ${i.supplier ?? ""}${i.description ? ` · ${i.description}` : ""}`, i.chf_amount]); r.getCell(2).numFmt = MONEY; }
+  }
+  if (v.detectedDeltas.length) {
+    ws.addRow([]);
+    ws.addRow([`Écarts détectés sur des mois validés (ajustement à créer) : ${v.detectedDeltas.map((d) => `${d.month.slice(0, 7)} : ${d.delta}`).join(" · ")}`]).font = { color: { argb: "FFB71C1C" } };
+    issues.push("écart sur un mois déjà validé : ajustement à créer");
+  }
+
+  add([]);
+  add([`Décompte Mel / Eli — ${x.validated ? "validé" : "brouillon, non validé"}`], true);
+  m("Résultat du mois (après ajustements)", f(`'Décompte Mel-Eli et versements'!B${rResAdj}`, x.resultAdjusted));
+  m("Conservé dans Bento ce mois", x.retainedMonth);
+  m("À partager", f(`'Décompte Mel-Eli et versements'!B${rShare}`, x.toShare));
+  m(`dont ${mel} / ${eli}`, `${x.melShare} / ${x.eliShare}`);
+  if (remMel > 0 || remEli > 0) add([`Reste à verser : ${mel} ${remMel} · ${eli} ${remEli}`]);
   return issues;
 }
