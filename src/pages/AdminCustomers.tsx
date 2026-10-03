@@ -148,7 +148,7 @@ const AdminCustomers = () => {
                       </span>
                       <span className="truncate text-muted-foreground md:text-foreground">{c.email ?? "—"}</span>
                       <span className="truncate text-muted-foreground">{c.phone ?? "—"}</span>
-                      <span className="md:text-right tabular-nums text-muted-foreground md:text-foreground">{c.ordersCount} {t("order(s)", "cmde(s)")}</span>
+                      <span className="md:text-right tabular-nums text-muted-foreground md:text-foreground">{c.ordersCount}<span className="md:hidden"> {t("order(s)", "cmde(s)")}</span></span>
                       <span className="md:text-right tabular-nums">{chf(c.net)}</span>
                       <span className="md:text-right tabular-nums text-muted-foreground">{c.lastOrderAt ? formatDay(c.lastOrderAt, l) : "—"}</span>
                     </Link>
