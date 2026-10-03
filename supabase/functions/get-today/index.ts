@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { zurichTodayISO } from "../_shared/order-pricing.ts";
-import { isManualOrder, orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
+import { isAwaitingDecision, orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
 
 // Admin > Aujourd'hui — read-only. One call returns what the day needs:
 //   - toDecide: paid website orders whose cakes still await Accept/Refuse
@@ -110,10 +110,8 @@ serve(async (req) => {
       .in("physical_validation", ["pending", "not_applicable"])
       .is("order_failure_reason", null);
     if (dErr) throw new Error(`Failed to load orders to decide: ${dErr.message}`);
-    const pendingDecision = (decisionCandidates ?? []).filter((o) =>
-      !isManualOrder(o as Order) && o.is_draft !== true
-      && o.order_validation !== "cancelled" && o.order_validation !== "rejected"
-      && (o.physical_validation === "pending" || o.order_validation === "pending"));
+    // Même définition que l'agenda et les étiquettes (production-stats).
+    const pendingDecision = (decisionCandidates ?? []).filter((o) => isAwaitingDecision(o as Order));
 
     // ── To collect: confirmed Admin orders awaiting payment ───────────────
     const { data: awaitingPayment, error: pErr } = await supabase
@@ -190,6 +188,7 @@ serve(async (req) => {
       deliveryCity: string | null;
       productionStatus: string | null;
       badge: "to_accept" | "awaiting_payment" | null;
+      quantity?: number; // cakes on this line (order_items.quantity, 1 by default)
     };
     const days: Record<string, DayItem[]> = Object.fromEntries(dates.map((d) => [d, [] as DayItem[]]));
 
@@ -203,7 +202,7 @@ serve(async (req) => {
       const fById = new Map((allF ?? []).map((f) => [f.id, f]));
       const { data: items, error: iErr } = await supabase
         .from("order_items")
-        .select("id, order_id, fulfillment_id, product, size, shape, flavors, production_status")
+        .select("id, order_id, fulfillment_id, product, size, shape, flavors, production_status, quantity")
         .in("order_id", cakeOrderIds)
         .neq("product", "workshop");
       if (iErr) throw new Error(`Failed to load order items: ${iErr.message}`);
@@ -232,6 +231,7 @@ serve(async (req) => {
           deliveryCity: f ? f.delivery_city : (o.delivery_city ?? null),
           productionStatus: it.production_status,
           badge: st.badge,
+          quantity: Number.isInteger(it.quantity) && it.quantity > 1 ? it.quantity : 1,
         });
       }
     }

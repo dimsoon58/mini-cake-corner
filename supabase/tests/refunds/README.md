@@ -285,3 +285,16 @@ différée, paiement « pending », n'apparaissaient pas dans « À décider »)
 Couvert : commande du site autorisée en attente (capture différée), workshop seul en attente,
 ancienne commande payée en attente ; acceptée, refusée, annulée, en échec, manuelle, brouillon,
 remboursée exclues ; date de réception renvoyée ; lecture seule ; bandeau de la page.
+
+## Gâteaux « À accepter » dans la production, le planning et les étiquettes
+
+`test_pending_production.mjs` : vraies fonctions `get-production`, `get-today`,
+`list-orders-by-date`, `get-orders-for-labels` et `update-production-status`, puis vrai code des
+étiquettes. Résultat attendu : `34 PASS, 0 FAIL`.
+
+Couvert : définition unique `isAwaitingDecision` (commande du site autorisée en attente, ancienne
+payée en attente) ; gâteaux visibles avec « À accepter », à leur propre date (plusieurs dates),
+quantité 2 → 2 unités / 2 étiquettes ; non comptés (commandés, à faire, goûts, ingrédients),
+comptés à part ; « Fait » refusé avant acceptation ; étiquettes non cochées par défaut, mention
+encadrée sur chaque étiquette (suites comprises) et dans l'Excel ; après acceptation : badge
+retiré, compté, « Fait » possible ; après refus / annulation : retirés.

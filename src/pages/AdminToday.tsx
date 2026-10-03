@@ -42,6 +42,7 @@ type DayItem = {
   deliveryCity: string | null;
   productionStatus: string | null;
   badge: "to_accept" | "awaiting_payment" | null;
+  quantity?: number;
 };
 type Alert = { orderId: string; orderNumber: string | null; issueType: string; detail: string | null; createdAt: string };
 type TodayData = { today: string; tomorrow: string; from?: string; to?: string; toDecide: ListedOrder[]; toCollect: ListedOrder[]; days: Record<string, DayItem[]>; alerts: Alert[] };
@@ -200,7 +201,7 @@ const AdminToday = () => {
     if (it.size && it.product !== "diy_kit" && it.product !== "edible_printing") parts.push(sizeLabel(it.size, l));
     if (it.shape && it.shape !== "round") parts.push(shapeLabel(it.shape, l));
     if (it.flavors?.length) parts.push(flavorLabel(it.flavors.join(",")));
-    return parts.join(" · ");
+    return `${it.quantity && it.quantity > 1 ? `${it.quantity} × ` : ""}${parts.join(" · ")}`;
   };
   const methodLabel = (it: DayItem) =>
     it.type === "workshop"
@@ -215,9 +216,14 @@ const AdminToday = () => {
   const periodSupported = !!data?.from;
   const periodDates = data ? Object.keys(data.days).sort() : [];
   const allItems = periodDates.flatMap((d) => data!.days[d]);
-  const periodCakes = allItems.filter((i) => i.type === "cake");
-  const readyCount = periodCakes.filter((i) => isProductionDone(i.productionStatus)).length;
-  const counts: Record<Filter, number> = { all: periodCakes.length, todo: periodCakes.length - readyCount, ready: readyCount };
+  // Les gâteaux « À accepter » sont listés mais pas comptés comme confirmés.
+  // Un gâteau = une unité de quantité (une ligne « × 2 » compte pour 2).
+  const qtyOf = (i: DayItem) => (i.quantity && i.quantity > 1 ? i.quantity : 1);
+  const sumQty = (list: DayItem[]) => list.reduce((s, i) => s + qtyOf(i), 0);
+  const periodCakes = allItems.filter((i) => i.type === "cake" && i.badge !== "to_accept");
+  const toAcceptCakes = sumQty(allItems.filter((i) => i.type === "cake" && i.badge === "to_accept"));
+  const readyCount = sumQty(periodCakes.filter((i) => isProductionDone(i.productionStatus)));
+  const counts: Record<Filter, number> = { all: sumQty(periodCakes), todo: sumQty(periodCakes) - readyCount, ready: readyCount };
   const workshopDates = periodDates.filter((d) => data!.days[d].some((i) => i.type === "workshop"));
 
   const itemLink = (it: DayItem, done: boolean) => (
@@ -230,7 +236,7 @@ const AdminToday = () => {
         </span>
       </span>
       <span className="flex flex-wrap gap-1.5">
-        {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To accept", "À accepter")}</span>}
+        {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-blue-600 text-white">{t("To accept", "À accepter")}</span>}
         {it.badge === "awaiting_payment" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To collect", "À encaisser")}</span>}
         {done && <span className="px-2 py-0.5 text-[11px] bg-emerald-100 text-emerald-800">{t("Done", "Fait")}</span>}
       </span>
@@ -373,7 +379,8 @@ const AdminToday = () => {
               {[
                 { label: t("To decide", "À décider"), value: data.toDecide.length, warn: data.toDecide.length > 0, href: "#a-faire" },
                 { label: t("To collect", "À encaisser"), value: data.toCollect.length, warn: false, href: "#a-faire" },
-                { label: t("Cakes in the period", "Gâteaux sur la période"), value: counts.all, warn: false, href: "#production" },
+                { label: t("Cakes in the period", "Gâteaux sur la période"), value: counts.all, warn: false, href: "#production",
+                  note: toAcceptCakes > 0 ? t(`+ ${toAcceptCakes} to accept`, `+ ${toAcceptCakes} à accepter`) : null },
                 { label: t("Alerts", "Alertes"), value: data.alerts.length, danger: data.alerts.length > 0, href: "#alertes" },
               ].map((c) => (
                 <a
@@ -386,6 +393,7 @@ const AdminToday = () => {
                 >
                   <span className="block text-xs font-semibold uppercase tracking-[0.08em] opacity-80">{c.label}</span>
                   <span className="block text-3xl font-semibold tabular-nums">{c.value}</span>
+                  {"note" in c && c.note && <span className="block text-xs font-semibold text-blue-800">{c.note}</span>}
                 </a>
               ))}
             </div>

@@ -25,6 +25,7 @@ type DayEntry = {
   orderNumber: string | null;
   customerName: string;
   status: OrderState;
+  awaitingDecision?: boolean;
   product: string;
   size: string | null;
   shape: string | null;
@@ -309,9 +310,13 @@ const AdminCalendar = () => {
                             <span className="text-[10px] font-sans tracking-[0.105em] font-medium uppercase text-foreground/70">
                               {e.orderNumber || `#${e.orderId.slice(0, 8).toUpperCase()}`}
                             </span>
-                            <span className={cn("text-[10px] uppercase tracking-[0.105em] px-1.5 py-0.5", statusBadgeClass(e.status))}>
-                              {e.type === "workshop" ? "WORKSHOP · " : ""}{e.status}
-                            </span>
+                            {e.awaitingDecision ? (
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.105em] px-1.5 py-0.5 bg-blue-600 text-white">{t("To accept", "À accepter")}</span>
+                            ) : (
+                              <span className={cn("text-[10px] uppercase tracking-[0.105em] px-1.5 py-0.5", statusBadgeClass(e.status))}>
+                                {e.type === "workshop" ? "WORKSHOP · " : ""}{e.status}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </Link>

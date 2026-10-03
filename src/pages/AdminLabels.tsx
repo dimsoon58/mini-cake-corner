@@ -11,7 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { PRODUCT_LABELS, formatDateCH } from "@/lib/orderLabels";
 import {
-  EXCLUDED_LABELS, buildCakeLabels, layoutAll,
+  EXCLUDED_LABELS, buildCakeLabels, defaultSelectedKeys, layoutAll,
   type CakeLabel, type LabelPage, type LabelSourceItem,
 } from "@/lib/productionLabels";
 import { canvasMeasure, exportNiimbotXlsx, exportOnePng, exportPdf, exportPngZip, renderPage } from "@/lib/productionLabelsExport";
@@ -76,7 +76,7 @@ export default function AdminLabels() {
       const list = (data?.items ?? []) as LabelSourceItem[];
       setItems(list);
       const cakes = buildCakeLabels(list);
-      setSelected(new Set(cakes.filter((c) => !itemId || c.itemId === itemId).map((c) => c.key)));
+      setSelected(new Set(defaultSelectedKeys(cakes, itemId)));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setItems(null);
@@ -88,6 +88,7 @@ export default function AdminLabels() {
   const cakes = useMemo(() => (items ? buildCakeLabels(items) : []), [items]);
   const excluded = useMemo(() => (items ?? []).filter((i) => i.excluded), [items]);
   const chosen = useMemo(() => cakes.filter((c) => selected.has(c.key)), [cakes, selected]);
+  const toAccept = useMemo(() => cakes.filter((c) => c.badge === "to_accept"), [cakes]);
   const pages = useMemo(() => (fontsReady ? layoutAll(chosen, canvasMeasure) : []), [chosen, fontsReady]);
   const pagesByCake = useMemo(() => {
     const m = new Map<string, LabelPage[]>();
@@ -155,7 +156,12 @@ export default function AdminLabels() {
                 <span className="font-semibold">{chosen.length} gâteau{chosen.length > 1 ? "x" : ""} sélectionné{chosen.length > 1 ? "s" : ""} sur {cakes.length}</span>
                 <span className="text-muted-foreground">· {pages.length} étiquette{pages.length > 1 ? "s" : ""}{suites ? ` (dont ${suites} « Suite »)` : ""}</span>
                 <span className="flex-1" />
-                <Button size="sm" variant="outline" className="rounded-none h-8" onClick={() => setSelected(new Set(cakes.map((c) => c.key)))}>Tout sélectionner</Button>
+                <Button size="sm" variant="outline" className="rounded-none h-8" onClick={() => setSelected(new Set(defaultSelectedKeys(cakes)))}>Tous les confirmés</Button>
+                {toAccept.length > 0 && (
+                  <Button size="sm" variant="outline" className="rounded-none h-8" onClick={() => setSelected((s) => new Set([...s, ...toAccept.map((c) => c.key)]))}>
+                    + les {toAccept.length} « À accepter »
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" className="rounded-none h-8" onClick={() => setSelected(new Set())}>Aucun</Button>
               </div>
               {cakes.length === 0 && <p className="text-sm text-muted-foreground">Aucun gâteau {orderId ? "à étiqueter dans cette commande" : "sur cette période"}.</p>}
@@ -173,7 +179,8 @@ export default function AdminLabels() {
                             <p className="text-muted-foreground break-words">{c.productLine || "Produit ?"}{c.flavour ? ` · ${c.flavour}` : ""}</p>
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {c.isTest && <span className="text-[10px] px-1.5 border border-border">TEST</span>}
-                              {c.badge && <span className="text-[10px] px-1.5 border border-amber-300 bg-amber-50 text-amber-900">{BADGES[c.badge]}</span>}
+                              {c.badge === "to_accept" && <span className="text-[10px] font-semibold uppercase px-1.5 bg-blue-600 text-white">À accepter · non coché par défaut</span>}
+                              {c.badge === "awaiting_payment" && <span className="text-[10px] px-1.5 border border-amber-300 bg-amber-50 text-amber-900">{BADGES[c.badge]}</span>}
                               {n > 1 && <span className="text-[10px] px-1.5 border border-sky-300 bg-sky-50 text-sky-900">{n} étiquettes (texte long)</span>}
                             </div>
                             {c.missing.length > 0 && (

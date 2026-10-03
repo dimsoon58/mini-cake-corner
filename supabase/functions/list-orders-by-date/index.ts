@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { requireAdmin } from "../_shared/admin-auth.ts";
+import { isAwaitingDecision, type ProdOrder } from "../_shared/production-stats.ts";
 
 // Calendar view for /admin/calendar — every physical order ITEM and
 // workshop booking scheduled within a given month, grouped by day. A
@@ -91,6 +92,9 @@ serve(async (req) => {
       orderSource: string | null;
       customerName: string;
       status: OrderState;
+      // Cake of a website order waiting for Accept / Refuse (shared rule,
+      // production-stats.isAwaitingDecision) → « À accepter » badge.
+      awaitingDecision?: boolean;
       product: string;
       size: string | null;
       shape: string | null;
@@ -213,7 +217,7 @@ serve(async (req) => {
     if (cakeOrderIds.length > 0) {
       const { data: cakeOrders, error: cakeErr } = await supabase
         .from("orders")
-        .select("id, order_number, order_source, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, pickup_delivery_slot, delivery_method, payment_status, refund_status, delivery_fee, express_surcharge_amount, welcome_discount_amount, partner_discount_amount, reward_amount_used")
+        .select("id, order_number, order_source, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, is_draft, pickup_delivery_date, pickup_delivery_slot, delivery_method, payment_status, refund_status, delivery_fee, express_surcharge_amount, welcome_discount_amount, partner_discount_amount, reward_amount_used")
         .in("id", cakeOrderIds);
       if (cakeErr) throw new Error(`Failed to load cake orders: ${cakeErr.message}`);
       cakeOrdersById = new Map((cakeOrders ?? []).map((o) => [o.id, o]));
@@ -263,6 +267,7 @@ serve(async (req) => {
           orderSource: o.order_source ?? null,
           customerName,
           status,
+          awaitingDecision: isAwaitingDecision(o as unknown as ProdOrder),
           product: it.product,
           size: it.size,
           shape: it.shape,

@@ -332,7 +332,7 @@ const AdminProduction = () => {
                   <span className="flex flex-wrap gap-1 items-center">
                     <span>{l.source === "manual" ? t("Manual", "Manuel") : t("Website", "Site")}{l.channel && l.source === "manual" ? ` · ${l.channel}` : ""}</span>
                     {l.badge === "awaiting_payment" && <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">{t("Awaiting payment", "En attente de paiement")}</span>}
-                    {l.badge === "to_accept" && <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">{t("To accept", "À accepter")}</span>}
+                    {l.badge === "to_accept" && <span className="bg-blue-600 text-white font-semibold px-1.5 py-0.5 text-[10px] uppercase tracking-wide">{t("To accept · not counted", "À accepter · non compté")}</span>}
                   </span>
                 )}
               </td>
@@ -383,12 +383,11 @@ const AdminProduction = () => {
               <div className="border border-border/60 bg-background p-4">
                 <p className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground mb-1">{t("Cakes ordered", "Gâteaux commandés")}</p>
                 <p className="text-3xl font-bold text-foreground">{s.ordered}</p>
-                {(s.awaitingPayment > 0 || s.toAccept > 0) && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {s.awaitingPayment > 0 && <>{t("of which", "dont")} {s.awaitingPayment} {t("awaiting payment", "en attente de paiement")}</>}
-                    {s.awaitingPayment > 0 && s.toAccept > 0 && " · "}
-                    {s.toAccept > 0 && <>{s.awaitingPayment > 0 ? "" : `${t("of which", "dont")} `}{s.toAccept} {t("to accept", "à accepter")}</>}
-                  </p>
+                {s.awaitingPayment > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">{t("of which", "dont")} {s.awaitingPayment} {t("awaiting payment", "en attente de paiement")}</p>
+                )}
+                {s.toAccept > 0 && (
+                  <p className="text-xs font-semibold text-blue-800 mt-1">+ {s.toAccept} {t("to accept (not counted until accepted)", "à accepter (non comptés tant qu'ils ne sont pas acceptés)")}</p>
                 )}
               </div>
               <div className="border border-border/60 bg-background p-4">
@@ -452,12 +451,11 @@ const AdminProduction = () => {
                                           : <span className="w-3.5" />}
                                         {tr(CATEGORY_LABELS[r.category])}
                                       </span>
-                                      {(r.awaitingPayment > 0 || r.toAccept > 0) && (
-                                        <span className="block pl-[18px] text-[11px] text-muted-foreground">
-                                          {r.awaitingPayment > 0 && `${r.awaitingPayment} ${t("awaiting payment", "en attente paiement")}`}
-                                          {r.awaitingPayment > 0 && r.toAccept > 0 && " · "}
-                                          {r.toAccept > 0 && `${r.toAccept} ${t("to accept", "à accepter")}`}
-                                        </span>
+                                      {r.awaitingPayment > 0 && (
+                                        <span className="block pl-[18px] text-[11px] text-muted-foreground">{`${t("of which", "dont")} ${r.awaitingPayment} ${t("awaiting payment", "en attente paiement")}`}</span>
+                                      )}
+                                      {r.toAccept > 0 && (
+                                        <span className="block pl-[18px] text-[11px] font-semibold text-blue-800">{`+ ${r.toAccept} ${t("to accept, not counted", "à accepter, non comptés")}`}</span>
                                       )}
                                     </td>
                                     <td className="py-2 px-2 text-right">{r.ordered}</td>

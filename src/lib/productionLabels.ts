@@ -208,6 +208,13 @@ export function buildCakeLabels(items: LabelSourceItem[]): CakeLabel[] {
   return sorted.flatMap(cakeLabelsFor);
 }
 
+/** Sélection par défaut : tous les gâteaux confirmés (ou seulement le
+ *  gâteau demandé depuis la fiche commande). Un gâteau « À accepter » est
+ *  visible mais jamais coché d'office. */
+export function defaultSelectedKeys(cakes: CakeLabel[], itemId?: string | null): string[] {
+  return cakes.filter((c) => c.badge !== "to_accept" && (!itemId || c.itemId === itemId)).map((c) => c.key);
+}
+
 // ── Mise en page (points à 203 dpi) ──────────────────────────────────────
 export const LABEL_W = 384;          // 48 mm imprimables sur une étiquette de 50 mm
 export const LABEL_H = 640;          // 80 mm
@@ -341,6 +348,17 @@ function header(c: CakeLabel, measure: Measure, suite: { index: number; count: n
   for (const ln of wrap(c.customer || "Client ?", fc, CONTENT_W, measure)) { ops.push({ type: "text", x: PAD_X, y, text: ln, font: fc }); y += lh(fc); }
   const fo = suite ? F.sOrder : F.order;
   for (const ln of wrap(c.orderNumber || "N° ?", fo, CONTENT_W, measure)) { ops.push({ type: "text", x: PAD_X, y, text: ln, font: fo }); y += lh(fo); }
+  if (c.badge === "to_accept") {
+    // Commande pas encore acceptée : mention encadrée sur chaque étiquette
+    // (retour à la ligne si besoin, marge haute pour l'accent du « À »).
+    y += 4;
+    const lines = wrap(TO_ACCEPT, F.tag, CONTENT_W - 16, measure);
+    const w = Math.min(CONTENT_W, Math.max(...lines.map((ln) => measure(ln, F.tag))) + 16);
+    const h = lines.length * lh(F.tag) + 12;
+    ops.push({ type: "box", x: PAD_X, y, w, h });
+    lines.forEach((ln, k) => ops.push({ type: "text", x: PAD_X + 8, y: y + 7 + k * lh(F.tag), text: ln, font: F.tag }));
+    y += h + 2;
+  }
   y += 6;
   ops.push({ type: "rule", y, thick: true });
   y += 12;
@@ -348,6 +366,7 @@ function header(c: CakeLabel, measure: Measure, suite: { index: number; count: n
 }
 
 const FOOTER_H = 30;
+export const TO_ACCEPT = "À ACCEPTER — commande non validée";
 
 /** Pages (étiquettes physiques) d'un gâteau : 1, ou plus avec des « Suite ». */
 export function layoutCake(c: CakeLabel, measure: Measure): LabelPage[] {
@@ -404,7 +423,7 @@ export const pageText = (p: LabelPage) => p.ops.filter((o): o is Extract<DrawOp,
 
 // ── Lignes pour l'app NIIMBOT (source de données Excel) ──────────────────
 export const NIIMBOT_COLUMNS = [
-  "Date", "Client", "Commande", "Repère", "Produit", "Goût", "Base", "Design", "Couleurs",
+  "Date", "Client", "Commande", "Repère", "Statut", "Produit", "Goût", "Base", "Design", "Couleurs",
   "Texte", "Couleur texte", "Écriture", "Détails",
 ] as const;
 
@@ -412,6 +431,7 @@ export const NIIMBOT_COLUMNS = [
  *  ligne), pour un modèle à une seule zone de texte sans lignes vides. */
 export function niimbotRow(c: CakeLabel): Record<(typeof NIIMBOT_COLUMNS)[number], string> {
   const details = [
+    c.badge === "to_accept" ? TO_ACCEPT : "",
     c.productLine,
     c.flavour ? `Goût : ${c.flavour}` : "",
     c.base ? `Base : ${c.base}` : "",
@@ -422,7 +442,7 @@ export function niimbotRow(c: CakeLabel): Record<(typeof NIIMBOT_COLUMNS)[number
     c.textStyle ? `Écriture : ${c.textStyle}` : "",
   ].filter(Boolean).join("\n");
   return {
-    Date: c.dateText, Client: c.customer, Commande: c.orderNumber ?? "", Repère: c.marker ?? "",
+    Date: c.dateText, Client: c.customer, Commande: c.orderNumber ?? "", Repère: c.marker ?? "", Statut: c.badge === "to_accept" ? "À ACCEPTER" : "",
     Produit: c.productLine, Goût: c.flavour ?? "", Base: c.base ?? "", Design: c.design ?? "", Couleurs: c.colours ?? "",
     Texte: c.cakeText ?? "", "Couleur texte": c.textColour ?? "", Écriture: c.textStyle ?? "", Détails: details,
   };

@@ -92,7 +92,7 @@ serve(async (req) => {
 
       const { data: items, error: iErr } = await supabase
         .from("order_items")
-        .select("id, order_id, fulfillment_id, product, size, shape, flavors")
+        .select("id, order_id, fulfillment_id, product, size, shape, flavors, quantity")
         .in("order_id", cakeOrderIds)
         .neq("product", "workshop");
       if (iErr) throw new Error(`Failed to load order items: ${iErr.message}`);
@@ -110,6 +110,7 @@ serve(async (req) => {
           size: it.size,
           shape: it.shape,
           flavors: it.flavors,
+          quantity: it.quantity,
           date: date!,
           slot: f ? f.pickup_delivery_slot : (o.pickup_delivery_slot ?? null),
         });

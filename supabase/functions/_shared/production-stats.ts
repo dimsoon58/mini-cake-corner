@@ -6,9 +6,12 @@
 //   - excluded: Admin drafts, cancelled / rejected / failed orders, cake part
 //     refused (physical_validation = 'rejected'), items cancelled through a
 //     manual refund marked cancels_item;
-//   - website order: counted only when payment_status = 'paid' (a 'pending'
-//     website order can simply be an abandoned checkout); paid but not yet
-//     accepted (physical_validation = 'pending') → counted, badge to_accept;
+//   - website order: counted when payment_status = 'paid' and accepted;
+//   - website order waiting for Accept / Refuse (isAwaitingDecision — since
+//     the deferred capture of 2026-09-15 its payment is 'pending' =
+//     authorized, 'paid' for older orders) → its cakes are SHOWN with the
+//     badge to_accept but NOT counted in the quantities to make (rule of
+//     2026-10-03); they can't be marked done before acceptance;
 //   - manual order (ORDM / non-website source): 'paid', or 'pending' as long
 //     as it is not a draft → counted, badge awaiting_payment;
 //   - workshops: real seats only — active_seats of reservations confirmed /
@@ -56,6 +59,7 @@ export interface ProdCakeItem {
   size: string | null;
   shape: string | null;
   flavors: string[] | null;
+  quantity?: number | null; // order_items.quantity (1 by default) — units are multiplied by it
   date: string; // the item's own pickup/delivery date (fulfillment or order)
   slot: string | null;
 }
@@ -136,6 +140,21 @@ export function isManualOrder(o: Pick<ProdOrder, "order_number" | "order_source"
   return !!o.order_number?.startsWith("ORDM-") || (!!o.order_source && o.order_source !== "website");
 }
 
+/** Commande du site qui attend « Accepter / Refuser » — définition unique,
+ *  utilisée par « À décider » (get-today), l'agenda de production, les
+ *  étiquettes et update-production-status. Capture différée : une commande
+ *  du site n'existe qu'une fois le paiement AUTORISÉ et reste 'pending'
+ *  jusqu'à l'acceptation ('paid' pour les commandes plus anciennes). La
+ *  décision est physical_validation pour une commande avec gâteau,
+ *  order_validation pour un workshop seul (physical 'not_applicable'). */
+export function isAwaitingDecision(o: ProdOrder): boolean {
+  if (isManualOrder(o) || o.is_draft === true || o.order_failure_reason) return false;
+  if (o.order_validation === "cancelled" || o.order_validation === "rejected") return false;
+  if (o.payment_status !== "pending" && o.payment_status !== "paid") return false;
+  return o.physical_validation === "pending"
+    || (o.physical_validation === "not_applicable" && o.order_validation === "pending");
+}
+
 // Order-level rule, shared by cakes and workshops.
 export function orderStatus(o: ProdOrder, forPhysicalItem: boolean): OrderStatus {
   if (o.is_draft === true) return { include: false };
@@ -144,9 +163,11 @@ export function orderStatus(o: ProdOrder, forPhysicalItem: boolean): OrderStatus
   if (forPhysicalItem && o.physical_validation === "rejected") return { include: false };
 
   const manual = isManualOrder(o);
+  // Gâteau d'une commande du site en attente de décision : visible, badge
+  // « À accepter », non compté (computeProduction) et non « Fait ».
+  if (forPhysicalItem && isAwaitingDecision(o)) return { include: true, badge: "to_accept", manual };
   if (o.payment_status === "paid") {
-    const toAccept = !manual && forPhysicalItem && o.physical_validation === "pending";
-    return { include: true, badge: toAccept ? "to_accept" : null, manual };
+    return { include: true, badge: null, manual };
   }
   if (manual && o.payment_status === "pending") {
     return { include: true, badge: "awaiting_payment", manual };
@@ -173,6 +194,7 @@ export function computeProduction(input: {
     const key = `${base}|${category}`;
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key)!.push(line);
+    if (line.badge === "to_accept") return;   // montré, jamais compté
     flavourUnits.set(flavour.id, (flavourUnits.get(flavour.id) ?? 0) + line.units);
     for (const ing of flavour.ingredients) {
       ingredientUnits.set(ing, (ingredientUnits.get(ing) ?? 0) + line.units);
@@ -207,9 +229,11 @@ export function computeProduction(input: {
       shape: it.shape,
     };
     const flavours = (it.flavors ?? []).filter((f) => f && f.trim());
+    // A line of quantity 2 is two cakes (two packs for Dot Cakes).
+    const qty = Number.isInteger(it.quantity) && (it.quantity as number) > 1 ? (it.quantity as number) : 1;
 
     if (category === null) {
-      toConfirm.push({ ...common, flavourRaw: flavours.join(", ") || null, flavourId: null, flavourLabel: null, units: 1, reason: "unknown_category" });
+      toConfirm.push({ ...common, flavourRaw: flavours.join(", ") || null, flavourId: null, flavourLabel: null, units: qty, reason: "unknown_category" });
       continue;
     }
 
@@ -218,33 +242,33 @@ export function computeProduction(input: {
       if (!pack || flavours.length > pack.flavours) {
         toConfirm.push({
           ...common, flavourRaw: flavours.join(", ") || null, flavourId: null, flavourLabel: null,
-          units: pack?.total ?? 1, reason: pack ? "dot_too_many_flavours" : "dot_unknown_pack",
+          units: (pack?.total ?? 1) * qty, reason: pack ? "dot_too_many_flavours" : "dot_unknown_pack",
         });
         continue;
       }
       for (const raw of flavours) {
         const f = resolveFlavour(raw);
-        const line = { ...common, flavourRaw: raw, flavourId: f?.id ?? null, flavourLabel: f?.names[0] ?? null, units: pack.perFlavour };
+        const line = { ...common, flavourRaw: raw, flavourId: f?.id ?? null, flavourLabel: f?.names[0] ?? null, units: pack.perFlavour * qty };
         if (f) addClassified(f.base, "dot_cake", f, line);
         else toConfirm.push({ ...line, reason: "unknown_flavour" });
       }
       const missing = pack.total - flavours.length * pack.perFlavour;
       if (missing > 0) {
-        toConfirm.push({ ...common, flavourRaw: null, flavourId: null, flavourLabel: null, units: missing, reason: "dot_missing_flavours" });
+        toConfirm.push({ ...common, flavourRaw: null, flavourId: null, flavourLabel: null, units: missing * qty, reason: "dot_missing_flavours" });
       }
       continue;
     }
 
-    // Every other cake: exactly one flavour, 1 unit.
+    // Every other cake: exactly one flavour, 1 unit per cake.
     if (flavours.length !== 1) {
       toConfirm.push({
-        ...common, flavourRaw: flavours.join(", ") || null, flavourId: null, flavourLabel: null, units: 1,
+        ...common, flavourRaw: flavours.join(", ") || null, flavourId: null, flavourLabel: null, units: qty,
         reason: flavours.length === 0 ? "missing_flavour" : "several_flavours",
       });
       continue;
     }
     const f = resolveFlavour(flavours[0]);
-    const line = { ...common, flavourRaw: flavours[0], flavourId: f?.id ?? null, flavourLabel: f?.names[0] ?? null, units: 1 };
+    const line = { ...common, flavourRaw: flavours[0], flavourId: f?.id ?? null, flavourLabel: f?.names[0] ?? null, units: qty };
     if (f) addClassified(f.base, category, f, line);
     else toConfirm.push({ ...line, reason: "unknown_flavour" });
   }
@@ -312,9 +336,11 @@ export function computeProduction(input: {
     for (const category of PRODUCTION_CATEGORIES) {
       const key = `${base}|${category}`;
       const lines = (buckets.get(key) ?? []).sort((a, b) => a.date.localeCompare(b.date));
-      const ordered = lines.reduce((s, l) => s + l.units, 0);
+      // « ordered » = commandes confirmées seulement ; les gâteaux « À
+      // accepter » sont listés et comptés à part (toAccept), hors production.
+      const ordered = lines.filter((l) => l.badge !== "to_accept").reduce((s, l) => s + l.units, 0);
       const stock = stockByKey.get(key) ?? 0;
-      if (ordered === 0 && stock === 0) continue;
+      if (ordered === 0 && stock === 0 && lines.length === 0) continue;
       const row: ProdRow = {
         category,
         ordered,
@@ -336,7 +362,7 @@ export function computeProduction(input: {
     return { base, rows };
   });
 
-  summary.toConfirm = toConfirm.reduce((s, l) => s + l.units, 0);
+  summary.toConfirm = toConfirm.filter((l) => l.badge !== "to_accept").reduce((s, l) => s + l.units, 0);
 
   return {
     summary,
