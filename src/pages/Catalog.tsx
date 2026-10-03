@@ -173,6 +173,7 @@ import bentoGallery14 from "@/assets/bento-gallery-14.jpg";
 import bentoGallery15 from "@/assets/bento-gallery-15.jpg";
 import bentoGallery16 from "@/assets/bento-gallery-16.jpg";
 import bentoGallery17 from "@/assets/bento-gallery-17.jpg";
+import { colourFr, textStyleFr } from "@/data/catalogLabelsFr";
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -985,37 +986,6 @@ const secondaryLabelFr: Record<string, string> = {
   "Second colour (optional)": "Deuxième couleur (optionnel)",
   "Choose your colours": "Choisissez vos couleurs",
   "Heart colour": "Couleur du cœur",
-};
-const textStyleFr: Record<string, string> = {
-  "Normal": "Normal", "UPPERCASE": "MAJUSCULES", "Cursive": "Cursive",
-};
-const colourFr: Record<string, string> = {
-  "White": "Blanc",
-  "Cream": "Crème",
-  "Pastel Pink": "Rose Pastel",
-  "Pink": "Rose",
-  "Baby Pink": "Rose Bébé",
-  "Dark Pink": "Rose Foncé",
-  "Red": "Rouge",
-  "Wine Red": "Rouge Vin",
-  "Burgundy": "Bordeaux",
-  "Pastel Yellow": "Jaune Pastel",
-  "Yellow": "Jaune",
-  "Pastel Orange": "Orange Pastel",
-  "Orange": "Orange",
-  "Pastel Green": "Vert Pastel",
-  "Green": "Vert",
-  "Forest Green": "Vert Forêt",
-  "Pastel Blue": "Bleu Pastel",
-  "Sky Blue": "Bleu Ciel",
-  "Blue": "Bleu",
-  "Midnight Blue": "Bleu Nuit",
-  "Lavender": "Lavande",
-  "Plum": "Prune",
-  "Light Brown": "Brun Clair",
-  "Dark Brown": "Brun Foncé",
-  "Black": "Noir",
-  "Gold": "Or",
 };
 const candleNameFr: Record<string, string> = {
   "blue-ombre": "Dégradé bleu",

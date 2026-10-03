@@ -566,9 +566,9 @@ const AdminOrder = () => {
                         {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
                         <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
                         <div className="pt-2">
-                          <Link to={`/admin/labels?date=${fulfillmentById(item.fulfillment_id)?.pickup_delivery_date ?? order?.pickup_delivery_date ?? ""}`} className="text-[11px] text-primary hover:underline flex items-center gap-1">
+                          <Link to={`/admin/labels?order=${order?.id ?? ""}&item=${item.id}`} className="text-[11px] text-primary hover:underline flex items-center gap-1">
                             <Printer className="w-3 h-3" />
-                            {t("Print label", "Étiquette de production")}
+                            {t("Production label", "Étiquette de production")}
                           </Link>
                         </div>
                         <ReferencePhotos urls={item.reference_images} />

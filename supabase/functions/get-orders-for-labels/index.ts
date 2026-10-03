@@ -2,111 +2,143 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
+import { productionCategory } from "../_shared/production-catalog.ts";
 
-// Returns all non-workshop order items whose effective pickup date falls
-// within [startDate, endDate] (YYYY-MM-DD, inclusive). Effective date =
-// order_fulfillments.pickup_delivery_date when the item has a fulfillment,
-// otherwise orders.pickup_delivery_date. Cancelled orders are excluded.
-serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+// Admin > Étiquettes de production — read-only. Returns the physical cakes
+// to label, with ONLY what a label shows (customer first/last name, order
+// number, the item's own date and its cake fields — never email, phone,
+// address, prices or notes).
+//
+// Same eligibility as the production agenda (get-production +
+// _shared/production-stats.ts): drafts, cancelled / rejected / failed
+// orders, refused cake parts, unpaid website orders and items cancelled
+// through a manual refund marked cancels_item are left out; workshops,
+// candles and edible printing sheets are not cakes. Each item is dated by
+// its own fulfillment (order_items.fulfillment_id), else by the order.
+//
+// Two modes:
+//   { from, to }  — every eligible cake dated in the period (max 31 days);
+//   { orderId }   — every cake of one order (any date), for the order sheet;
+//                   ineligible cakes come back with `excluded` set so the
+//                   page can say why instead of silently hiding them.
+// Never writes anything, never sends anything.
+
+const MAX_DAYS = 31;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ITEM_FIELDS =
+  "id, order_id, fulfillment_id, product, size, shape, flavors, design, base_color, decoration_color, inside_color, " +
+  "ribbon_color, butterfly_color, extra, cake_text, text_color, text_style, item_comment, quantity, created_at";
+
+const json = (cors: Record<string, string>, body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+
+type Excluded = "not_a_cake" | "order_not_eligible" | "item_cancelled" | "no_date" | null;
+
+serve(async (req) => {
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (req.method !== "POST") return json(cors, { error: "Method not allowed" }, 405);
 
   try {
-    const authError = await requireAdmin(req);
-    if (authError) return authError;
-
-    const { startDate, endDate } = (await req.json()) as {
-      startDate: string;
-      endDate: string;
-    };
-
-    if (!startDate || !endDate) {
-      return new Response(
-        JSON.stringify({ error: "startDate and endDate are required (YYYY-MM-DD)" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { auth: { persistSession: false } }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
     );
+    const admin = await requireAdmin(req, supabase);
+    if (!admin) return json(cors, { error: "Admin sign-in required" }, 401);
 
-    // ── Fetch items with embedded order ──────────────────────────────────
-    const { data: rawItems, error: itemsErr } = await admin
-      .from("order_items")
-      .select(`
-        id, order_id, product, size, shape, flavors, design,
-        base_color, decoration_color, cake_text, text_style, text_color,
-        ribbon_color, butterfly_color, item_comment, fulfillment_id,
-        orders!inner(
-          id, first_name, last_name, order_number, order_validation,
-          pickup_delivery_date, order_source
-        )
-      `)
-      .neq("product", "workshop");
-
-    if (itemsErr) throw itemsErr;
-
-    // ── Fetch fulfillments in bulk ────────────────────────────────────────
-    const fulfillmentIds = [
-      ...new Set(
-        (rawItems ?? [])
-          .filter((i: any) => i.fulfillment_id)
-          .map((i: any) => i.fulfillment_id as string)
-      ),
-    ];
-
-    const fulfillmentMap: Record<string, { id: string; pickup_delivery_date: string }> = {};
-
-    if (fulfillmentIds.length > 0) {
-      const { data: fulfs } = await admin
-        .from("order_fulfillments")
-        .select("id, pickup_delivery_date")
-        .in("id", fulfillmentIds);
-      (fulfs ?? []).forEach((f: any) => {
-        fulfillmentMap[f.id] = f;
-      });
+    const body = await req.json().catch(() => ({}));
+    const orderId = typeof body?.orderId === "string" ? body.orderId : null;
+    const from = String(body?.from ?? "");
+    const to = String(body?.to ?? "");
+    const single = !!orderId;
+    if (single) {
+      if (!UUID_RE.test(orderId!)) return json(cors, { error: "orderId invalide" }, 400);
+    } else {
+      if (!ISO_DATE.test(from) || !ISO_DATE.test(to)) return json(cors, { error: "from and to must be YYYY-MM-DD" }, 400);
+      if (from > to) return json(cors, { error: "from must be on or before to" }, 400);
+      const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
+      if (days > MAX_DAYS) return json(cors, { error: `Période trop longue (max ${MAX_DAYS} jours)` }, 400);
     }
 
-    // ── Filter and enrich ─────────────────────────────────────────────────
-    const result = (rawItems ?? [])
-      .map((item: any) => {
-        const order = item.orders as any;
-        if (order.order_validation === "cancelled") return null;
+    // ── Candidate orders (same approach as get-production) ────────────────
+    let orderIds: string[];
+    if (single) {
+      orderIds = [orderId!];
+    } else {
+      const { data: fIn, error: fErr } = await supabase
+        .from("order_fulfillments").select("order_id").gte("pickup_delivery_date", from).lte("pickup_delivery_date", to);
+      if (fErr) throw new Error(`Failed to load fulfillments: ${fErr.message}`);
+      const { data: oIn, error: oErr } = await supabase
+        .from("orders").select("id").gte("pickup_delivery_date", from).lte("pickup_delivery_date", to);
+      if (oErr) throw new Error(`Failed to load orders by date: ${oErr.message}`);
+      orderIds = Array.from(new Set([...(fIn ?? []).map((f) => f.order_id), ...(oIn ?? []).map((o) => o.id)]));
+    }
+    if (orderIds.length === 0) return json(cors, { items: [] });
 
-        const fulfillment = item.fulfillment_id
-          ? fulfillmentMap[item.fulfillment_id]
-          : null;
-        const effectiveDate =
-          fulfillment?.pickup_delivery_date ?? order.pickup_delivery_date;
+    // select("*") like get-production: is_draft / created_via / is_test are
+    // read when present. Only names and the order number leave this function.
+    const { data: orders, error: ordErr } = await supabase.from("orders").select("*").in("id", orderIds);
+    if (ordErr) throw new Error(`Failed to load orders: ${ordErr.message}`);
+    const orderById = new Map((orders ?? []).map((o) => [o.id, o as ProdOrder & Record<string, unknown>]));
+    if (single && orderById.size === 0) return json(cors, { error: "Commande introuvable" }, 404);
 
-        if (
-          !effectiveDate ||
-          effectiveDate < startDate ||
-          effectiveDate > endDate
-        )
-          return null;
+    const { data: fulfillments, error: afErr } = await supabase
+      .from("order_fulfillments").select("id, pickup_delivery_date").in("order_id", orderIds);
+    if (afErr) throw new Error(`Failed to load order fulfillments: ${afErr.message}`);
+    const fById = new Map((fulfillments ?? []).map((f) => [f.id, f]));
 
-        return { ...item, effectiveDate };
-      })
-      .filter(Boolean)
-      .sort((a: any, b: any) => {
-        const d = a.effectiveDate.localeCompare(b.effectiveDate);
-        if (d !== 0) return d;
-        return (a.orders.order_number ?? "").localeCompare(
-          b.orders.order_number ?? ""
-        );
+    const { data: items, error: iErr } = await supabase
+      .from("order_items").select(ITEM_FIELDS).in("order_id", orderIds).neq("product", "workshop");
+    if (iErr) throw new Error(`Failed to load order items: ${iErr.message}`);
+
+    const ids = (items ?? []).map((i) => i.id);
+    const cancelled = new Set<string>();
+    if (ids.length > 0) {
+      const { data: cancels, error: cErr } = await supabase
+        .from("order_manual_refunds").select("order_item_id").eq("cancels_item", true).in("order_item_id", ids);
+      if (cErr) throw new Error(`Failed to load item cancellations: ${cErr.message}`);
+      for (const c of cancels ?? []) if (c.order_item_id) cancelled.add(c.order_item_id);
+    }
+
+    const out = [];
+    for (const it of items ?? []) {
+      const o = orderById.get(it.order_id);
+      if (!o) continue;
+      const f = it.fulfillment_id ? fById.get(it.fulfillment_id) : null;
+      const date: string | null = f ? f.pickup_delivery_date : ((o.pickup_delivery_date as string | null) ?? null);
+      if (!single && !(date && date >= from && date <= to)) continue;
+
+      let excluded: Excluded = null;
+      const status = orderStatus(o, true);
+      if (productionCategory(it.product, it.size, it.shape) === "skip") excluded = "not_a_cake";
+      else if (!status.include) excluded = "order_not_eligible";
+      else if (cancelled.has(it.id)) excluded = "item_cancelled";
+      else if (!date) excluded = "no_date";
+      if (excluded && !single) continue;
+
+      out.push({
+        ...it,
+        date,
+        excluded,
+        badge: status.include ? status.badge : null,
+        order: {
+          id: o.id,
+          order_number: o.order_number ?? null,
+          first_name: o.first_name ?? null,
+          last_name: o.last_name ?? null,
+          manual: status.include ? status.manual : null,
+          is_test: (o as { is_test?: boolean }).is_test === true,
+        },
       });
-
-    return new Response(JSON.stringify({ items: result }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    console.error("get-orders-for-labels error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    }
+    return json(cors, { items: out });
+  } catch (error) {
+    console.error("get-orders-for-labels error:", error);
+    return json(cors, { error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });

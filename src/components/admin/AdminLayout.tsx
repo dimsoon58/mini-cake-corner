@@ -18,7 +18,7 @@ const ITEMS = [
   { to: "/admin/orders", en: "Orders", fr: "Commandes", short: { en: "Orders", fr: "Cmdes" }, icon: ClipboardList, also: ["/admin/order/"] },
   { to: "/admin/customers", en: "Customers", fr: "Clients", short: { en: "Clients", fr: "Clients" }, icon: Users },
   { to: "/admin/manual-orders", en: "Manual orders", fr: "Commandes manuelles", short: { en: "Manual", fr: "Manu." }, icon: PencilLine },
-  { to: "/admin/calendar", en: "Planning", fr: "Planning", short: { en: "Plan.", fr: "Plan." }, icon: CalendarDays },
+  { to: "/admin/calendar", en: "Planning", fr: "Planning", short: { en: "Plan.", fr: "Plan." }, icon: CalendarDays, also: ["/admin/labels"] },
   { to: "/admin/team", en: "Team", fr: "Équipe", short: { en: "Team", fr: "Équipe" }, icon: UserRoundCog },
   { to: "/admin/production", en: "Production", fr: "Production", short: { en: "Prod.", fr: "Prod." }, icon: CakeSlice },
   { to: "/admin/refunds", en: "Refunds", fr: "Remboursements", short: { en: "Refunds", fr: "Remb." }, icon: RotateCcw },
@@ -87,7 +87,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
                 aria-label={t(it.en, it.fr)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex-auto min-w-[34px] flex flex-col items-center justify-center gap-0.5 px-0 py-2 text-[10px] leading-tight tracking-[-0.02em]",
+                  "flex-[1_0_auto] flex flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-[10px] leading-tight tracking-[-0.02em]",
                   active ? "text-primary font-semibold" : "text-muted-foreground",
                 )}
               >

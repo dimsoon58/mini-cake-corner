@@ -251,3 +251,27 @@ utilisée, invité, non demandée) ; deux gâteaux (bienvenue sur un seul, commi
 lignes PostFinance = total. Comportement inchangé sans partenaire et pour un partenaire à 10 %
 (remise appliquée, bienvenue jamais réservée, jamais -20 %). Site : l'offre de bienvenue n'est
 masquée que par un partenaire avec remise, le jeton est toujours envoyé, aucun message « 0 % ».
+
+## Étiquettes de production (NIIMBOT B1, 50 × 80 mm)
+
+`test_labels.mjs` : vraie fonction `get-orders-for-labels` sur le schéma de production (F1–F14,
+lecture seule via une petite traduction supabase-js → SQL), puis vrai code du site
+(`src/lib/productionLabels.ts` : contenu et mise en page, sans navigateur).
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save @electric-sql/pglite esbuild
+node test_labels.mjs
+```
+
+Résultat attendu : `50 PASS, 0 FAIL`.
+
+Couvert : accès admin, période limitée ; règles de l'agenda (commande annulée, non payée, brouillon,
+gâteau refusé, workshop, bougies, gâteau annulé exclus ; commande manuelle en attente incluse) ;
+date propre à chaque gâteau (fulfillments) ; données client limitées (ni e-mail, ni téléphone, ni
+prix, ni créneau, ni note) ; mode fiche commande avec la raison des exclusions ; aucune écriture.
+Contenu : libellés du catalogue en français (couleurs, goûts, designs, photo choisie), texte exact,
+champs vides masqués, informations essentielles manquantes signalées ; plusieurs gâteaux sans
+mélange ; quantité 2 → « 1/2 », « 2/2 » ; tri ; texte long → étiquettes « Suite » avec date, client,
+commande, intitulé repris, sans perte de mot ni police réduite ; marges respectées ; lignes Excel
+pour l'app NIIMBOT. Le rendu réel (mesure du texte par le navigateur) est vérifié dans l'aperçu.
