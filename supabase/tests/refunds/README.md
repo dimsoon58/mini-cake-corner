@@ -298,3 +298,10 @@ quantité 2 → 2 unités / 2 étiquettes ; non comptés (commandés, à faire, 
 comptés à part ; « Fait » refusé avant acceptation ; étiquettes non cochées par défaut, mention
 encadrée sur chaque étiquette (suites comprises) et dans l'Excel ; après acceptation : badge
 retiré, compté, « Fait » possible ; après refus / annulation : retirés.
+
+## Commandes manuelles — quels gâteaux pour quelle date
+
+`test_manual_schedule.mjs` : vraie fonction `list-manual-orders`. Résultat attendu : `8 PASS, 0 FAIL`.
+Couvert : une date avec plusieurs gâteaux ; plusieurs gâteaux sur plusieurs dates (chaque gâteau
+sous sa propre date, dates dans l'ordre) ; quantité, taille et forme ; champ `dates` et filtre par
+date inchangés.

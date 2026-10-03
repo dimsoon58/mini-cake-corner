@@ -10,11 +10,15 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { cn } from "@/lib/utils";
-import { CHANNEL_LABELS, formatChf, MANUAL_STATUS_LABELS, type ManualStatus } from "@/lib/manualOrders";
+import { CHANNEL_LABELS, formatChf, labelShape, labelSize, MANUAL_STATUS_LABELS, type ManualStatus } from "@/lib/manualOrders";
+import { PRODUCT_LABELS, flavorLabel } from "@/lib/orderLabels";
+import { allFlavors } from "@/data/customization";
 
 // Admin > Manual orders — list (list-manual-orders). Orders created from the
 // Admin editor can be edited while they are a draft or awaiting payment;
 // legacy ORDM orders from the Notion/Make flow are shown read-only.
+
+interface ScheduleItem { product: string; size: string | null; shape: string | null; flavors: string[]; quantity: number; participants: number | null }
 
 interface ManualOrderRow {
   id: string;
@@ -29,6 +33,8 @@ interface ManualOrderRow {
   status: ManualStatus;
   paymentStatus: string | null;
   dates: string[];
+  // Which cakes go with which date (absent with an older list-manual-orders).
+  schedule?: { date: string | null; items: ScheduleItem[] }[];
   itemsCount: number;
   calculatedAmount: number | null;
   adjustmentAmount: number;
@@ -42,7 +48,7 @@ interface ManualOrderRow {
 const STATUS_TABS: (ManualStatus | "all")[] = ["all", "draft", "awaiting_payment", "paid", "cancelled"];
 
 const AdminManualOrders = () => {
-  const { t } = useLang();
+  const { t, lang: l } = useLang();
   const { user, loading: authLoading } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
   const tr = (l: { en: string; fr: string }) => t(l.en, l.fr);
@@ -123,6 +129,17 @@ const AdminManualOrders = () => {
   }
 
   const fmtDate = (d: string) => { try { return format(parseISO(d), "dd.MM.yy"); } catch { return d; } };
+  // Short line for one item under its date: « 2 × Bento · Cœur · Vanilla ».
+  const itemLine = (it: ScheduleItem) => {
+    if (it.product === "workshop") return `${t("Workshop", "Workshop")}${it.participants ? ` · ${it.participants} ${t("seat(s)", "place(s)")}` : ""}`;
+    const product = PRODUCT_LABELS[it.product] ? t(PRODUCT_LABELS[it.product].en, PRODUCT_LABELS[it.product].fr) : it.product;
+    const size = it.size ? labelSize(it.size, l) : "";
+    // Bento : la taille suffit (« Medium ») ; Dot Cakes : « Dot Cakes 12 pièces ».
+    const head = size && (it.product === "bento_cake" || size.toLowerCase().includes(product.toLowerCase())) ? size : [product, size].filter(Boolean).join(" ");
+    const shape = it.shape && it.shape !== "round" ? labelShape(it.shape, l) : "";
+    const flavours = it.flavors.map((f) => allFlavors.find((x) => x.id === f)?.name ?? flavorLabel(f)).filter(Boolean).join(", ");
+    return `${it.quantity > 1 ? `${it.quantity} × ` : ""}${[head, shape, flavours].filter(Boolean).join(" · ")}`;
+  };
 
   return (
     <AdminLayout>
@@ -189,7 +206,7 @@ const AdminManualOrders = () => {
                 <tr className="text-left text-[11px] uppercase tracking-[0.08em] text-muted-foreground border-b border-border/60">
                   <th className="py-2 px-3 font-medium">{t("Order", "Commande")}</th>
                   <th className="py-2 px-3 font-medium">{t("Customer", "Client")}</th>
-                  <th className="py-2 px-3 font-medium">{t("Date(s)", "Date(s)")}</th>
+                  <th className="py-2 px-3 font-medium">{t("Dates & items", "Dates et produits")}</th>
                   <th className="py-2 px-3 font-medium text-right">{t("Items", "Produits")}</th>
                   <th className="py-2 px-3 font-medium text-right">{t("Calculated", "Prix calculé")}</th>
                   <th className="py-2 px-3 font-medium text-right">{t("Adjustment", "Ajustement")}</th>
@@ -215,8 +232,19 @@ const AdminManualOrders = () => {
                       {o.company && <span className="block text-[11px] text-muted-foreground">{o.company}</span>}
                       {o.phone && <span className="block text-[11px] text-muted-foreground whitespace-nowrap">{o.phone}</span>}
                     </td>
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      {o.dates.length === 0 ? "—" : o.dates.map((d) => <span key={d} className="block">{fmtDate(d)}</span>)}
+                    <td className="py-2 px-3 min-w-[220px]" data-testid="manual-schedule">
+                      {o.schedule && o.schedule.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {o.schedule.map((g) => (
+                            <div key={g.date ?? "none"}>
+                              <span className="block font-medium whitespace-nowrap">{g.date ? fmtDate(g.date) : t("No date", "Sans date")}</span>
+                              {g.items.map((it, k) => (
+                                <span key={k} className="block text-[12px] text-muted-foreground leading-snug">{itemLine(it)}</span>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      ) : o.dates.length === 0 ? "—" : o.dates.map((d) => <span key={d} className="block whitespace-nowrap">{fmtDate(d)}</span>)}
                     </td>
                     <td className="py-2 px-3 text-right">{o.itemsCount}</td>
                     <td className="py-2 px-3 text-right whitespace-nowrap">{formatChf(o.calculatedAmount)}</td>
