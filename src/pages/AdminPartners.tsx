@@ -10,13 +10,13 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { money } from "@/lib/compta";
-import { partnerBalance, partnerLink, partnersApi, pctLabel, type PartnerRow } from "@/lib/partners";
+import { commissionDue, netForBento, partnerBalance, partnerLink, partnersApi, pctLabel, type PartnerRow } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
 // Admin > Partenaires (lot Partenaires V1) — liste. Les commandes sont
 // attribuées automatiquement par le site (lien ?ref=) ; aucune attribution
-// manuelle. Une commission n'est « due » qu'après confirmation des
-// conditions du partenaire ; sinon elle est « calculée ».
+// manuelle. La commission est affichée directement, avec ce qui reste à
+// Bento une fois la commission déduite.
 
 const monthStart = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date()).slice(0, 8) + "01";
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date());
@@ -98,16 +98,16 @@ const AdminPartners = () => {
                 <th className="text-left px-2 font-normal">Lien</th>
                 <th className="text-right px-2 font-normal">Commandes<br />période / total</th>
                 <th className="text-right px-2 font-normal">CA après remb.<br />période</th>
-                <th className="text-right px-2 font-normal">Commissions dues<br />total</th>
+                <th className="text-right px-2 font-normal">Commission<br />période</th>
+                <th className="text-right px-2 font-normal">Net pour Bento<br />période</th>
                 <th className="text-right px-2 font-normal">Payées<br />total</th>
                 <th className="text-right px-2 font-normal">Reste à payer<br />total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {data?.partners.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-muted-foreground">Aucun partenaire.</td></tr>}
+              {data?.partners.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-muted-foreground">Aucun partenaire.</td></tr>}
               {data?.partners.map((p) => {
                 const url = partnerLink(data.siteBaseUrl, p.referralToken);
-                const confirmed = p.conditions.currentRateConfirmed;
                 const { balance, provisional, overpaid } = partnerBalance(p.total);
                 return (
                   <tr key={p.id} className={cn(!p.active && "opacity-60")}>
@@ -115,15 +115,14 @@ const AdminPartners = () => {
                       <Link to={`/admin/partners/${p.id}`} className="font-semibold underline underline-offset-2">{p.name}</Link>
                       <span className={cn("ml-2 text-[11px] px-1.5 py-0.5 border", p.active ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-border text-muted-foreground")}>{p.active ? "Actif" : "Inactif"}</span>
                       <span className="block text-xs text-muted-foreground">remise {pctLabel(p.customerDiscountRate)} · commission {p.conditions.commissionConfigured ? pctLabel(p.commissionRate) : "À configurer"}{p.promoCodeReference ? ` · code Notion ${p.promoCodeReference} (référence)` : ""}</span>
-                      {!confirmed && p.conditions.commissionConfigured && <span className="block text-[11px] text-amber-800">Conditions à confirmer</span>}
                     </td>
                     <td className="px-2"><Button size="sm" variant="outline" className="rounded-none h-8" onClick={() => copy(url)} aria-label={`Copier le lien de ${p.name}`}><Copy className="w-3.5 h-3.5 mr-1" />Copier</Button></td>
                     <td className="text-right px-2">{p.period.ordersCount} / {p.total.ordersCount}</td>
                     <td className="text-right px-2">{money(p.period.revenueNet)}</td>
-                    <td className="text-right px-2">{money(p.total.earnedConfirmed)}
-                      {p.total.earnedUnconfirmed > 0 && <span className="block text-[11px] text-amber-800">+ {money(p.total.earnedUnconfirmed)} calculé, à confirmer</span>}
-                      {p.total.toCheckCount > 0 && <span className="block text-[11px] text-amber-800">{p.total.toCheckCount} commande(s) à vérifier</span>}
+                    <td className="text-right px-2">{money(commissionDue(p.period))}
+                      {p.period.toCheckCount > 0 && <span className="block text-[11px] text-amber-800">{p.period.toCheckCount} commande(s) à vérifier</span>}
                     </td>
+                    <td className="text-right px-2 font-semibold">{money(netForBento(p.period))}</td>
                     <td className="text-right px-2">{money(p.total.payouts)}</td>
                     <td className={cn("text-right px-2", overpaid && "text-red-700 font-semibold")}>{money(balance)}
                       {overpaid && <span className="block text-[11px]">trop versé à compenser</span>}

@@ -12,28 +12,20 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { money } from "@/lib/compta";
 import { PRODUCT_LABELS, sizeLabel } from "@/lib/orderLabels";
 import {
-  ESTABLISHMENT_LABELS, MOTIF_LABELS, STATUS_LABELS, partnerBalance, partnerLink, partnersApi, pctLabel,
+  ESTABLISHMENT_LABELS, MOTIF_LABELS, STATUS_LABELS, commissionDue, netForBento, partnerBalance, partnerLink, partnersApi, pctLabel,
   type PartnerDetail, type PartnerMetrics, type PartnerOrder, type RefundMotif,
 } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
 // Admin > Partenaires > fiche (lot Partenaires V1). Commandes attribuées
 // automatiquement par le lien du site (pas d'attribution manuelle).
-// Commission « due » seulement après confirmation des conditions ; un
-// remboursement sans motif met la commande « À vérifier » ; les paiements au
+// Commission due affichée directement ; un remboursement sans motif met la
+// commande « À vérifier » ; les paiements au
 // partenaire sont enregistrés à la main (aucun virement automatique).
 
 const fmtDate = (s: string | null | undefined) => (s ? new Date(s.length === 10 ? `${s}T12:00:00` : s).toLocaleDateString("fr-CH", { timeZone: "Europe/Zurich" }) : "—");
 const itemName = (product: string) => PRODUCT_LABELS[product]?.fr ?? product;
 const zToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date());
-
-const CONDITION_TERMS: { key: "rate" | "products" | "base" | "vat" | "earned"; label: string }[] = [
-  { key: "rate", label: "Le taux de commission indiqué est celui convenu avec le partenaire." },
-  { key: "products", label: "Produits concernés : bento cakes, gâteaux rectangulaires et dot cakes (pas les ateliers ni les extras)." },
-  { key: "base", label: "Base : prix de base des gâteaux, avant remise client, hors livraison et options." },
-  { key: "vat", label: "Le traitement TVA est précisé ci-dessous." },
-  { key: "earned", label: "Commission acquise une fois la commande payée ; une annulation par le client retire la commission du gâteau, un geste commercial la conserve." },
-];
 
 const PinField = ({ pin, setPin }: { pin: string; setPin: (v: string) => void }) => (
   <div className="space-y-1">
@@ -150,7 +142,6 @@ const AdminPartner = () => {
             <Metrics label={from || to ? "Période sélectionnée" : "Depuis le début"} m={d.period} />
             {(from || to) && <Metrics label="Total depuis le début" m={d.total} />}
 
-            <Conditions d={d} pin={pin} setPin={setPin} write={write} />
             <Orders orders={d.orders} pin={pin} setPin={setPin} write={write} />
             <Payouts d={d} pin={pin} setPin={setPin} write={write} />
 
@@ -198,72 +189,13 @@ function Metrics({ label, m }: { label: string; m: PartnerMetrics }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <Metric label="Commandes" value={String(m.ordersCount)} sub={`${m.paidOrdersCount} payée(s)${m.unpaidCount ? ` · ${m.unpaidCount} non encaissée(s)` : ""}`} />
         <Metric label="CA après remboursements" value={money(m.revenueNet)} sub={`encaissé ${money(m.collected)} · remboursé ${money(m.refunded)}`} />
-        <Metric label="Commission initiale" value={money(m.initial)} sub={`base ${money(m.commissionBase)}`} />
-        <Metric label="Commission due" value={money(m.earnedConfirmed)} sub={m.earnedUnconfirmed ? `+ ${money(m.earnedUnconfirmed)} calculé (conditions à confirmer)` : "conditions confirmées"} tone={m.earnedUnconfirmed ? "warn" : undefined} />
+        <Metric label="Commission due" value={money(commissionDue(m))} sub={`sur une base de ${money(m.commissionBase)} (prix de base des gâteaux)`} />
+        <Metric label="Net pour Bento" value={money(netForBento(m))} sub={m.toCheckCount ? "CA − commission (provisoire : commandes à vérifier)" : "CA après remboursements − commission"} tone={m.toCheckCount ? "warn" : undefined} />
         <Metric label="À vérifier" value={String(m.toCheckCount)} sub={m.toCheckCount ? `commission initiale ${money(m.toCheckInitial)}` : "aucun remboursement sans motif"} tone={m.toCheckCount ? "warn" : undefined} />
         <Metric label="Déjà payé" value={money(m.payouts)} sub={`${m.payoutsCount} paiement(s)`} />
         <Metric label="Reste à payer" value={money(balance)} tone={overpaid ? "bad" : provisional ? "warn" : undefined}
-          sub={overpaid ? "trop versé : à compenser sur un prochain paiement" : provisional ? "provisoire : commissions à confirmer ou à vérifier non comptées" : "commission due − déjà payé"} />
+          sub={overpaid ? "trop versé : à compenser sur un prochain paiement" : provisional ? "provisoire : commandes à vérifier non comptées" : "commission due − déjà payé"} />
       </div>
-    </section>
-  );
-}
-
-function Conditions({ d, pin, setPin, write }: { d: PartnerDetail; pin: string; setPin: (v: string) => void; write: Write }) {
-  const [terms, setTerms] = useState({ rate: false, products: false, base: false, vat: false, earned: false, vatNote: "", note: "" });
-  const [open, setOpen] = useState(false);
-  const [revoke, setRevoke] = useState<{ id: string; reason: string } | null>(null);
-  const a = useAction();
-  const c = d.conditions;
-  const allTicked = CONDITION_TERMS.every((x) => terms[x.key]) && terms.vatNote.trim() !== "";
-  return (
-    <section className="border border-border/60 p-4 space-y-3 text-sm" data-testid="partner-conditions">
-      <h2 className="font-semibold uppercase tracking-[0.08em] text-sm">Conditions du partenaire</h2>
-      {!c.commissionConfigured ? (
-        <p className="text-amber-800">Commission « À configurer » : aucune commission n'est calculée tant qu'un taux n'est pas saisi.</p>
-      ) : c.currentRateConfirmed ? (
-        <p className="text-emerald-800">Conditions confirmées pour le taux {pctLabel(d.partner.commission_rate)} : les commissions des commandes à ce taux sont présentées comme dues.</p>
-      ) : (
-        <p className="text-amber-800">Conditions à confirmer pour le taux {pctLabel(d.partner.commission_rate)} : les commissions restent « calculées », pas encore « dues ».</p>
-      )}
-      {c.commissionConfigured && !c.currentRateConfirmed && (open ? (
-        <div className="space-y-2">
-          {CONDITION_TERMS.map((x) => (
-            <label key={x.key} className="flex items-start gap-2"><input type="checkbox" className="w-4 h-4 mt-0.5" checked={terms[x.key]} onChange={(e) => setTerms((s) => ({ ...s, [x.key]: e.target.checked }))} />{x.label}</label>
-          ))}
-          <div className="grid sm:grid-cols-2 gap-2">
-            <div className="space-y-1"><Label className="text-xs">Traitement TVA (obligatoire)</Label><Input value={terms.vatNote} onChange={(e) => setTerms((s) => ({ ...s, vatNote: e.target.value }))} className="rounded-none h-9" placeholder="ex. commission TTC, sans TVA facturée" /></div>
-            <div className="space-y-1"><Label className="text-xs">Note (facultatif)</Label><Input value={terms.note} onChange={(e) => setTerms((s) => ({ ...s, note: e.target.value }))} className="rounded-none h-9" /></div>
-          </div>
-          <ErrLine err={a.err} />
-          <div className="flex flex-wrap items-end gap-2">
-            <PinField pin={pin} setPin={setPin} />
-            <Button className="rounded-none" disabled={!allTicked || a.busy} onClick={async () => { if (await a.run(() => write({ action: "confirm_conditions", partnerId: d.partner.id, terms }, "Conditions confirmées."))) setOpen(false); }}>
-              {a.busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}Confirmer les conditions</Button>
-            <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Annuler</Button>
-          </div>
-        </div>
-      ) : <Button variant="outline" className="rounded-none" onClick={() => setOpen(true)}>Confirmer les conditions</Button>)}
-      {d.confirmations.length > 0 && (
-        <ul className="divide-y divide-border/60 border-t border-border/60">
-          {d.confirmations.map((x) => (
-            <li key={x.id} className={cn("py-2 flex flex-wrap items-center gap-2", x.revoked_at && "text-muted-foreground line-through decoration-1")}>
-              <span className="flex-1 min-w-[200px]">Taux {pctLabel(x.commission_rate)} confirmé le {fmtDate(x.confirmed_at)} par {x.confirmed_by ?? "—"}
-                {typeof x.terms?.vatNote === "string" && <> · TVA : {x.terms.vatNote as string}</>}
-                {x.revoked_at && <span className="no-underline"> · révoqué le {fmtDate(x.revoked_at)} ({x.revoke_reason})</span>}</span>
-              {!x.revoked_at && (revoke?.id === x.id ? (
-                <span className="flex flex-wrap items-end gap-2 no-underline">
-                  <Input value={revoke.reason} onChange={(e) => setRevoke({ id: x.id, reason: e.target.value })} placeholder="Raison" className="rounded-none h-9 w-48" />
-                  <PinField pin={pin} setPin={setPin} />
-                  <Button size="sm" variant="destructive" className="rounded-none" disabled={!revoke.reason.trim() || a.busy}
-                    onClick={async () => { if (await a.run(() => write({ action: "revoke_conditions", id: x.id, reason: revoke.reason }, "Confirmation révoquée."))) setRevoke(null); }}>Révoquer</Button>
-                </span>
-              ) : <Button size="sm" variant="ghost" className="rounded-none" onClick={() => setRevoke({ id: x.id, reason: "" })}>Révoquer…</Button>)}
-            </li>
-          ))}
-        </ul>
-      )}
-      {revoke && <ErrLine err={a.err} />}
     </section>
   );
 }
@@ -291,16 +223,16 @@ function OrderCard({ o, pin, setPin, write }: { o: PartnerOrder; pin: string; se
         <span className="tabular-nums">total {money(o.total)}{o.partnerDiscount ? ` (remise partenaire −${money(o.partnerDiscount)})` : ""}</span>
         <span className="flex-1" />
         <span className={cn("text-[11px] px-1.5 py-0.5 border",
-          c.status === "earned" && (c.confirmed ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-900"),
+          c.status === "earned" && "border-emerald-300 bg-emerald-50 text-emerald-900",
           c.status === "to_check" && "border-amber-400 bg-amber-100 text-amber-900",
           (c.status === "unpaid" || c.status === "none") && "border-border text-muted-foreground")}>
-          {c.status === "earned" && !c.confirmed ? "Calculée (conditions à confirmer)" : c.status === "earned" ? "Due" : STATUS_LABELS[c.status]}
+          {c.status === "earned" ? "Due" : STATUS_LABELS[c.status]}
         </span>
       </div>
       <p className="text-xs text-muted-foreground tabular-nums">
         Commission initiale {money(c.initial)} ({pctLabel(c.rate)} de {money(c.base)})
         {c.cancelledCommission > 0 && <> · retirée (annulation client) −{money(c.cancelledCommission)}</>}
-        {c.earned != null && <> · <b className="text-foreground">{c.confirmed ? "due" : "calculée"} {money(c.earned)}</b></>}
+        {c.earned != null && <> · <b className="text-foreground">due {money(c.earned)}</b></>}
         {c.refunded > 0 && <> · encaissé {money(c.collected)}, remboursé {money(c.refunded)}</>}
       </p>
       {c.status === "to_check" && <p className="text-xs text-amber-900">À vérifier : {c.toCheckReasons.join(" ; ") || "remboursement sans motif"}. Aucune décision automatique.</p>}
@@ -378,7 +310,7 @@ function Payouts({ d, pin, setPin, write }: { d: PartnerDetail; pin: string; set
         <h2 className="font-semibold uppercase tracking-[0.08em] text-sm flex-1">Paiements au partenaire</h2>
         <Button variant="outline" className="rounded-none" onClick={() => setOpen((v) => !v)}>Enregistrer un paiement</Button>
       </div>
-      <p className="text-xs text-muted-foreground">Enregistre un paiement déjà effectué hors du site (aucun virement automatique). Total dû {money(d.total.earnedConfirmed)} · déjà payé {money(d.total.payouts)} · reste {money(balance)}{provisional ? " (provisoire)" : ""}.</p>
+      <p className="text-xs text-muted-foreground">Enregistre un paiement déjà effectué hors du site (aucun virement automatique). Total dû {money(commissionDue(d.total))} · déjà payé {money(d.total.payouts)} · reste {money(balance)}{provisional ? " (provisoire)" : ""}.</p>
       {overpaid && <p className="border border-red-300 bg-red-50 text-red-900 px-3 py-2">Trop versé de {money(-balance)} (commission retirée après paiement) : ajustement à compenser sur un prochain paiement.</p>}
       {open && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-secondary/20 p-3 [&>*]:min-w-0">

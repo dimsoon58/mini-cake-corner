@@ -85,11 +85,20 @@ export const MOTIF_LABELS: Record<RefundMotif, string> = {
 };
 export const ESTABLISHMENT_LABELS: Record<string, string> = { hotel: "Hôtel", bar: "Bar", restaurant: "Restaurant", company: "Entreprise", other: "Autre" };
 
+/** Commission due : directement le montant calculé (taux figé sur la
+ *  commande × prix de base, moins les gâteaux annulés par le client) pour
+ *  les commandes encaissées. Les commandes « À vérifier » (remboursement
+ *  sans motif) n'y sont pas, tant que le motif n'est pas indiqué. */
+export const commissionDue = (m: PartnerMetrics) => Math.round((m.earnedConfirmed + m.earnedUnconfirmed) * 100) / 100;
+
+/** Ce qui reste à Bento : CA après remboursements − commission due. */
+export const netForBento = (m: PartnerMetrics) => Math.round((m.revenueNet - commissionDue(m)) * 100) / 100;
+
 /** Reste à payer = commission due − déjà payé. Provisoire tant que des
- *  commissions sont « calculées » (conditions à confirmer) ou « À vérifier » :
- *  un solde négatif n'est alors pas présenté comme un trop-versé. */
+ *  commandes sont « À vérifier » : un solde négatif n'est alors pas
+ *  présenté comme un trop-versé. */
 export function partnerBalance(m: PartnerMetrics) {
-  const balance = Math.round((m.earnedConfirmed - m.payouts) * 100) / 100;
-  const provisional = m.earnedUnconfirmed > 0 || m.toCheckCount > 0;
+  const balance = Math.round((commissionDue(m) - m.payouts) * 100) / 100;
+  const provisional = m.toCheckCount > 0;
   return { balance, provisional, overpaid: balance < 0 && !provisional };
 }
