@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   quoteManualOrder,
@@ -496,8 +496,8 @@ serve(async (req) => {
     // changes. Only after the payment is committed is the confirmation
     // email sent (if requested) — an email failure never undoes a payment.
     if (action === "mark_paid") {
-      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
-      if (!adminPin || String(body?.pin ?? "") !== adminPin) return json(cors, { error: "Invalid PIN" }, 403);
+      // PIN validé pour la session (F16) ou saisi avec la demande.
+      if (!adminPinOk(admin, body?.pin)) return json(cors, { error: "Invalid PIN" }, 403);
 
       const orderId = String(body?.orderId ?? "");
       const method = String(body?.paymentMethod ?? "");

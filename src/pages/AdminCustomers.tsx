@@ -11,6 +11,7 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { chf, formatDay } from "@/lib/refunds";
 import { customersApi, CustomersError, fullName, type CustomerList } from "@/lib/customers";
 import { cn } from "@/lib/utils";
+import { useSessionPin } from "@/lib/adminSession";
 
 // Admin > Clients (lot C) — one shared customer base (with or without an
 // account). Search by name, email or phone; sort; pages of 25. Figures come
@@ -177,7 +178,7 @@ const AdminCustomers = () => {
 const NewCustomerForm = ({ onCancel, onCreated }: { onCancel: () => void; onCreated: (id: string) => void }) => {
   const { t } = useLang();
   const [f, setF] = useState({ firstName: "", lastName: "", email: "", phone: "", company: "", address: "", notes: "" });
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ text: string; existingId?: string | null } | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
@@ -212,10 +213,12 @@ const NewCustomerForm = ({ onCancel, onCreated }: { onCancel: () => void; onCrea
         <Input id="nc-notes" value={f.notes} onChange={set("notes")} className="rounded-none" />
       </div>
       <div className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1">
-          <Label htmlFor="nc-pin" className="text-xs text-muted-foreground">{t("Admin PIN", "Code PIN administrateur")}</Label>
-          <Input id="nc-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
-        </div>
+        {!pinBySession && (
+          <div className="space-y-1">
+            <Label htmlFor="nc-pin" className="text-xs text-muted-foreground">{t("Admin PIN", "Code PIN administrateur")}</Label>
+            <Input id="nc-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
+          </div>
+        )}
         <Button type="submit" className="rounded-none" disabled={busy || !pin.trim() || !(f.firstName.trim() || f.lastName.trim() || f.email.trim())}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}{t("Create", "Créer")}
         </Button>

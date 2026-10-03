@@ -16,6 +16,7 @@ import {
   type PartnerDetail, type PartnerMetrics, type PartnerOrder, type RefundMotif,
 } from "@/lib/partners";
 import { cn } from "@/lib/utils";
+import { useAdminSessionActive, useSessionPin } from "@/lib/adminSession";
 
 // Admin > Partenaires > fiche (lot Partenaires V1). Commandes attribuées
 // automatiquement par le lien du site (pas d'attribution manuelle).
@@ -27,12 +28,13 @@ const fmtDate = (s: string | null | undefined) => (s ? new Date(s.length === 10 
 const itemName = (product: string) => PRODUCT_LABELS[product]?.fr ?? product;
 const zToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date());
 
-const PinField = ({ pin, setPin }: { pin: string; setPin: (v: string) => void }) => (
+// Plus de champ PIN quand la session est déverrouillée (F16).
+const PinField = ({ pin, setPin }: { pin: string; setPin: (v: string) => void }) => (useAdminSessionActive() ? null : (
   <div className="space-y-1">
     <Label className="text-xs">Code PIN administrateur</Label>
     <Input type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="rounded-none h-9 w-40" />
   </div>
-);
+));
 
 const Metric = ({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "warn" | "bad" }) => (
   <div className="border border-border/60 px-3 py-2 min-w-0">
@@ -53,7 +55,7 @@ const AdminPartner = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
@@ -71,6 +73,9 @@ const AdminPartner = () => {
   /** Exécute une écriture (avec PIN) puis recharge la fiche. */
   const write = async (body: Record<string, unknown>, ok: string) => {
     if (!pin.trim()) throw new Error("Saisissez le code PIN administrateur.");
+    // PIN de session (F16) : confirmation simple pour les paiements au partenaire.
+    if (pinBySession && (body.action === "payout_save" || body.action === "payout_void")
+      && !window.confirm(body.action === "payout_save" ? "Enregistrer ce paiement au partenaire ?" : "Annuler ce paiement ?")) throw new Error("Action annulée.");
     await partnersApi({ ...body, pin });
     setNotice(ok);
     await load();

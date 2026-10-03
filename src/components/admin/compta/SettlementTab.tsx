@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { METHOD_LABELS, comptaApi, frDate, money, monthTitle, settlementValues, type SettlementView, type Treasury } from "@/lib/compta";
 import { cn } from "@/lib/utils";
+import { useSessionPin } from "@/lib/adminSession";
 
 // Compta > Décompte Mel / Eli (lot K4). Résultat du mois (logique B), pertes
 // reportées, trésorerie de base 4'000 confirmée par un solde bancaire de fin
@@ -43,7 +44,8 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [payFor, setPayFor] = useState<"mel" | "eli" | null>(null);
-  const [pin, setPin] = useState(""); // jamais conservé ailleurs que dans cet écran
+  // PIN : déverrouillé une fois pour la session (F16) ; sinon saisi ici, jamais conservé ailleurs.
+  const [pin, setPin, pinBySession] = useSessionPin();
   const needPin = () => { if (!pin.trim()) { setErr("Saisissez d'abord le code PIN administrateur."); return true; } return false; };
   const inFlight = useRef(false);
 
@@ -101,12 +103,14 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
       {x.warnings.length > 0 && <ul className={cn("border px-3 py-2 text-sm space-y-0.5", WARN)}>{x.warnings.map((w) => <li key={w}>• {w}</li>)}</ul>}
       {err && <p className={cn("border px-3 py-2 text-sm", BAD)} role="alert">{err}</p>}
 
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1">
-          <Label htmlFor="settlement-pin" className="text-xs text-muted-foreground">Code PIN administrateur (valider, verser, annuler, ajuster)</Label>
-          <Input id="settlement-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-48 rounded-none h-9" data-testid="settlement-pin" />
+      {!pinBySession && (
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="settlement-pin" className="text-xs text-muted-foreground">Code PIN administrateur (valider, verser, annuler, ajuster)</Label>
+            <Input id="settlement-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-48 rounded-none h-9" data-testid="settlement-pin" />
+          </div>
         </div>
-      </div>
+      )}
 
       {view.detectedDeltas.length > 0 && (
         <section className={cn("border px-3 py-2 text-sm space-y-2", BAD)}>

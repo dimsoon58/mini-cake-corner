@@ -12,6 +12,7 @@ import {
   type OrderRefunds, type RefundDecision, type RefundEntry, type RefundMethod,
 } from "@/lib/refunds";
 import { cn } from "@/lib/utils";
+import { useSessionPin } from "@/lib/adminSession";
 
 // Order page block (lot 2): what was collected, decided and actually
 // refunded, the remaining amount, and the history. Two separate actions:
@@ -35,7 +36,7 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
   const [data, setData] = useState<OrderRefunds | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   const [open, setOpen] = useState<null | "refund" | "decision">(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
@@ -64,6 +65,8 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
       setMessage({ type: "error", text: t("Enter the admin PIN first.", "Saisissez d'abord le code PIN administrateur.") });
       return false;
     }
+    // PIN de session (F16) : confirmation simple à la place de la ressaisie.
+    if (pinBySession && !window.confirm(t("Confirm this refund action?", "Confirmer cette opération de remboursement ?"))) return false;
     setBusy(tag);
     setMessage(null);
     try {
@@ -157,10 +160,12 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
 
       {/* Actions */}
       <div className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1">
-          <Label htmlFor="refund-panel-pin" className={smallLabel}>{t("Admin PIN", "Code PIN administrateur")}</Label>
-          <Input id="refund-panel-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
-        </div>
+        {!pinBySession && (
+          <div className="space-y-1">
+            <Label htmlFor="refund-panel-pin" className={smallLabel}>{t("Admin PIN", "Code PIN administrateur")}</Label>
+            <Input id="refund-panel-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
+          </div>
+        )}
         <Button variant="outline" className="rounded-none" disabled={collected <= 0} onClick={() => { setOpen(open === "refund" ? null : "refund"); setMessage(null); }}>
           <Plus className="w-4 h-4 mr-1" /> {t("Record a refund made", "Enregistrer un remboursement effectué")}
         </Button>
@@ -546,7 +551,7 @@ const LegacyRefundForm = ({ orderId }: { orderId: string }) => {
   const { t } = useLang();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const a = parseAmount(amount);
@@ -556,6 +561,7 @@ const LegacyRefundForm = ({ orderId }: { orderId: string }) => {
       onSubmit={async (e) => {
         e.preventDefault();
         if (busy || !(a > 0) || !pin.trim()) return;
+        if (pinBySession && !window.confirm(t("Record this refund?", "Enregistrer ce remboursement ?"))) return;
         setBusy(true);
         setMsg(null);
         try {
@@ -586,10 +592,12 @@ const LegacyRefundForm = ({ orderId }: { orderId: string }) => {
           <Label className={smallLabel}>{t("Note (optional)", "Note (facultatif)")}</Label>
           <Input value={note} onChange={(e) => setNote(e.target.value)} className="rounded-none" />
         </div>
-        <div className="space-y-1">
-          <Label className={smallLabel}>{t("Admin PIN", "Code PIN administrateur")}</Label>
-          <Input type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-28 rounded-none" />
-        </div>
+        {!pinBySession && (
+          <div className="space-y-1">
+            <Label className={smallLabel}>{t("Admin PIN", "Code PIN administrateur")}</Label>
+            <Input type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-28 rounded-none" />
+          </div>
+        )}
         <Button type="submit" variant="outline" className="rounded-none" disabled={busy || !(a > 0) || !pin.trim()}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}{t("Record", "Enregistrer")}
         </Button>

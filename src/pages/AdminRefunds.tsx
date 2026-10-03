@@ -13,6 +13,7 @@ import {
   type RefundAnomaly, type RefundItem, type RefundMethod,
 } from "@/lib/refunds";
 import { cn } from "@/lib/utils";
+import { useSessionPin } from "@/lib/adminSession";
 
 // Admin > Remboursements (lot 2). Three tabs:
 //   Effectués   — refunds actually made in the chosen period (by their real
@@ -65,7 +66,7 @@ const AdminRefunds = () => {
   const [counts, setCounts] = useState<{ todo: number | null; review: number | null }>({ todo: null, review: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   const [busy, setBusy] = useState<number | null>(null);
 
   useEffect(() => {
@@ -193,7 +194,7 @@ const AdminRefunds = () => {
             <input type="checkbox" className="w-4 h-4" checked={includeTests} onChange={(e) => setParam({ tests: e.target.checked ? "1" : null })} />
             {t("Show tests", "Afficher les tests")}
           </label>
-          {tab === "review" && (
+          {tab === "review" && !pinBySession && (
             <div className="space-y-1 ml-auto">
               <Label className="text-xs text-muted-foreground">{t("Admin PIN", "Code PIN administrateur")}</Label>
               <Input type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />

@@ -25,7 +25,7 @@ import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { claimAndSendTechnicalAlert, ALERT_COOLDOWN_SECONDS } from "../_shared/admin-alert.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
 import { applyOrderRefund } from "../_shared/order-refunds.ts";
 
 // 2026-09-15: deferred capture restored (pre-04a6199 model, reused almost
@@ -867,8 +867,8 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
         });
       }
-      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
-      if (!adminPin || pin !== adminPin) {
+      // PIN validé pour la session (F16) ou saisi avec la demande.
+      if (!adminPinOk(admin, pin)) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {
           headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 403,
         });
@@ -913,8 +913,8 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
         });
       }
-      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
-      if (!adminPin || pin !== adminPin) {
+      // PIN validé pour la session (F16) ou saisi avec la demande.
+      if (!adminPinOk(admin, pin)) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {
           headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 403,
         });
@@ -980,8 +980,8 @@ serve(async (req) => {
           status: 401,
         });
       }
-      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
-      if (!adminPin || pin !== adminPin) {
+      // PIN validé pour la session (F16) ou saisi avec la demande.
+      if (!adminPinOk(admin, pin)) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {
           headers: { ...corsHeaders(req), "Content-Type": "application/json" },
           status: 403,

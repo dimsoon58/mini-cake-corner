@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Admin > Clients (lot C). One entry point for the list, the customer page,
@@ -62,8 +62,8 @@ serve(async (req) => {
     const action = String(body?.action ?? "");
     if (!READ.has(action) && !WRITE.has(action)) return json(cors, { error: "Action inconnue", reason: "input" }, 400);
     if (WRITE.has(action)) {
-      const pin = Deno.env.get("ADMIN_ORDER_PIN");
-      if (!pin || body?.pin !== pin) return json(cors, { error: "Code PIN incorrect", reason: "pin" }, 403);
+      // PIN validé pour la session (F16) ou saisi avec la demande.
+      if (!adminPinOk(admin, body?.pin)) return json(cors, { error: "Code PIN incorrect", reason: "pin" }, 403);
     }
 
     const rpc = async (fn: string, args: Record<string, unknown>) => {

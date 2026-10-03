@@ -6,6 +6,11 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { cn } from "@/lib/utils";
+import { AdminPinGate } from "@/components/admin/AdminPinGate";
+import { installAdminSessionTransport } from "@/lib/adminSession";
+
+// The admin PIN session token travels with every admin function call (F16).
+installAdminSessionTransport();
 
 // Admin shell: the site Layout plus one menu shared by every Admin page —
 // a side menu on large screens, a bottom bar on tablet / phone. Only
@@ -41,6 +46,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
 
   return (
     <Layout>
+      <AdminPinGate>
       <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-2 lg:px-4 pb-20 lg:pb-0">
         {/* Side menu (large screens) */}
         <nav aria-label={t("Admin menu", "Menu Admin")} className="hidden lg:block pt-8">
@@ -98,6 +104,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
           })}
         </div>
       </nav>
+      </AdminPinGate>
     </Layout>
   );
 };

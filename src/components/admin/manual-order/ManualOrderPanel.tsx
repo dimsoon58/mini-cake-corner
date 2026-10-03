@@ -14,6 +14,7 @@ import {
   manualStatusOf,
   PAYMENT_METHODS,
 } from "@/lib/manualOrders";
+import { useSessionPin } from "@/lib/adminSession";
 
 // Admin order page — block shown only for orders created from the Admin
 // manual-order editor (created_via = 'admin'): amounts (calculated /
@@ -48,7 +49,7 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
   const [method, setMethod] = useState("twint");
   const [paymentNote, setPaymentNote] = useState("");
   const [paidOn, setPaidOn] = useState(() => format(new Date(), "yyyy-MM-dd"));
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   const [sendConfirmation, setSendConfirmation] = useState(true); // checked by default
   const [busy, setBusy] = useState<"pay" | "email" | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null);
@@ -66,6 +67,8 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
 
   const markPaid = async () => {
     if (!pin.trim()) { setMessage({ type: "error", text: t("Please enter the admin PIN.", "Veuillez saisir le code PIN administrateur.") }); return; }
+    // PIN de session (F16) : confirmation simple à la place de la ressaisie.
+    if (pinBySession && !window.confirm(t("Mark this order as paid?", "Marquer cette commande comme payée ?"))) return;
     setBusy("pay");
     setMessage(null);
     const { data, error } = await supabase.functions.invoke("manage-manual-order", {
@@ -250,10 +253,12 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
                 className={field}
               />
             </div>
-            <div>
-              <label className="block text-xs mb-1">{t("Admin PIN", "Code PIN administrateur")}</label>
-              <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} className={field} autoComplete="off" />
-            </div>
+            {!pinBySession && (
+              <div>
+                <label className="block text-xs mb-1">{t("Admin PIN", "Code PIN administrateur")}</label>
+                <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} className={field} autoComplete="off" />
+              </div>
+            )}
           </div>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={sendConfirmation} onChange={(e) => setSendConfirmation(e.target.checked)} className="mt-0.5" />

@@ -319,3 +319,18 @@ restitution automatique, restitution au plus ce qui a été retiré et une seule
 rétroactif ; annulation avant préparation (hors besoins, stock inchangé) ; préparé puis annulé
 (réutilisable / perdu, une seule fois, trace conservée) ; « À accepter » sans stock ; ancienne page
 sans « mode » (aucun retrait) ; droits ; journal cohérent ; relance de F15 sans effet.
+
+## PIN admin une seule fois par session (F16)
+
+`test_admin_pin.mjs` : migration F16 + vraies fonctions `admin-pin`, `manage-customers` et
+`get-today` avec le vrai `_shared/admin-auth.ts`. Résultat attendu : `38 PASS, 0 FAIL`.
+
+Couvert : comparaison du PIN en temps constant ; connexion et liste d'admins toujours exigées ;
+mauvais PIN refusé avec essais restants ; autorisation (jeton + expiration 12 h) ; ni PIN ni jeton en
+clair en base ; écriture protégée acceptée avec l'autorisation, refusée sans ; ancienne page (PIN
+saisi) acceptée ; jeton refusé dans une autre session de connexion, pour un autre compte ou un
+compte non admin ; une autorisation par session ; expiration ; verrouillage à la déconnexion ;
+5 échecs = blocage 15 min (par compte) ; mode obligatoire (`ADMIN_PIN_SESSION_REQUIRED`) ; écran PIN
+devant le dashboard, révocation à la déconnexion, seul le jeton gardé dans le navigateur, toutes
+les fonctions du dashboard reçoivent l'autorisation, plus aucune comparaison directe du PIN,
+champs PIN masqués, confirmations simples ; droits ; relance de F16 sans effet.

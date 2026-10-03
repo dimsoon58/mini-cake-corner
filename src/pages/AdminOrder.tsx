@@ -17,6 +17,7 @@ import { ReferencePhotos } from "@/components/ReferencePhotos";
 import { ProductionCheck } from "@/components/admin/ProductionCheck";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
 import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
+import { useSessionPin } from "@/lib/adminSession";
 
 // pending/approved/rejected/cancelled -> the French/English label actually
 // shown for the header decision badge. Same lookup as AdminOrders.tsx's own
@@ -81,7 +82,7 @@ const AdminOrder = () => {
   // visible on this page instead of only in Edge Function logs. Null in
   // every other case (invoiceUrl present, or invoice_path never set at all).
   const [invoiceUrlError, setInvoiceUrlError] = useState<string | null>(null);
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   // Bumped after a manual-order action (mark as paid, send confirmation) to reload the order.
   const [reloadKey, setReloadKey] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -150,6 +151,10 @@ const AdminOrder = () => {
       setResult({ type: "error", message: t("Please enter the admin PIN", "Veuillez saisir le code PIN administrateur") });
       return;
     }
+    // PIN de session (F16) : confirmation simple à la place de la ressaisie.
+    if (pinBySession && !window.confirm(action === "approve"
+      ? t("Accept this order? The payment will be captured.", "Accepter cette commande ? Le paiement sera encaissé.")
+      : t("Refuse this order? The payment will be released or refunded.", "Refuser cette commande ? Le paiement sera libéré ou remboursé."))) return;
     if (!effectiveToken) {
       setResult({ type: "error", message: t("No action token available for this order yet. Please reload the page.", "Aucun jeton d'action disponible pour cette commande pour le moment. Merci de recharger la page.") });
       return;
@@ -657,17 +662,19 @@ const AdminOrder = () => {
           {/* Admin Actions */}
           {!isResolved ? (
             <div className="border-t border-border pt-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="pin">{t("Admin PIN", "Code PIN administrateur")}</Label>
-                <Input
-                  id="pin"
-                  type="password"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder={t("Enter your admin PIN", "Saisissez votre code PIN administrateur")}
-                  className="max-w-xs"
-                />
-              </div>
+              {!pinBySession && (
+                <div className="space-y-2">
+                  <Label htmlFor="pin">{t("Admin PIN", "Code PIN administrateur")}</Label>
+                  <Input
+                    id="pin"
+                    type="password"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    placeholder={t("Enter your admin PIN", "Saisissez votre code PIN administrateur")}
+                    className="max-w-xs"
+                  />
+                </div>
+              )}
 
               {result && (
                 <div className={`p-3 text-sm border ${

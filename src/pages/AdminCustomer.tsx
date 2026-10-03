@@ -16,6 +16,7 @@ import {
   customersApi, CustomersError, fullName, type CustomerDetail, type CustomerOrder,
 } from "@/lib/customers";
 import { cn } from "@/lib/utils";
+import { useSessionPin } from "@/lib/adminSession";
 
 // Admin > Clients > fiche (lot C). Contact details and notes are editable
 // (admin PIN); editing never rewrites any order or invoice — each order keeps
@@ -36,7 +37,7 @@ const AdminCustomer = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<CustomerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [mergeWith, setMergeWith] = useState<string | null>(null);
 
@@ -116,10 +117,12 @@ const AdminCustomer = () => {
               )}
 
               <div className="flex flex-wrap items-end gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="cust-pin" className="text-xs text-muted-foreground">{t("Admin PIN (to edit)", "Code PIN administrateur (pour modifier)")}</Label>
-                  <Input id="cust-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-40 rounded-none" />
-                </div>
+                {!pinBySession && (
+                  <div className="space-y-1">
+                    <Label htmlFor="cust-pin" className="text-xs text-muted-foreground">{t("Admin PIN (to edit)", "Code PIN administrateur (pour modifier)")}</Label>
+                    <Input id="cust-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-40 rounded-none" />
+                  </div>
+                )}
                 {msg && <p role="status" className={cn("text-sm px-3 py-2 border", msg.ok ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-red-50 border-red-200 text-red-800")}>{msg.text}</p>}
               </div>
 
