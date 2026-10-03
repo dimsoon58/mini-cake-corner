@@ -323,6 +323,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setPartnerReferral(resolved);
         setStoredPartnerReferral(resolved);
 
+        // Commission-only partner (0 %): attributed silently, the customer
+        // gets no partner benefit, so nothing to announce.
+        if (resolved.discountRate <= 0) return;
+
         // Display only — the fraction is converted to a whole percentage
         // purely for the toast wording, never stored or used for pricing.
         const displayPercent = Math.round(resolved.discountRate * 100);

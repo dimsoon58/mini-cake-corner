@@ -229,3 +229,25 @@ conditions ne sont pas confirmées, « due » ensuite, révocation ; paiements a
 recalcul des commandes passées ; filtre de période, désactivation, recherche ; commandes de test
 et brouillons exclus ; aucune attribution manuelle (une commande manuelle n'apparaît jamais) ;
 journal d'audit ; aucun appel externe ; relance de F14 sans effet.
+
+## Partenaire sans remise (0 %) — paiement
+
+`test_partner_checkout.mjs` assemble le **vrai** code du paiement (`create-postfinance-payment` et
+`_shared/partner-referral.ts`) avec une base simulée en mémoire et un PostFinance simulé (aucun
+appel réseau, aucune base PGlite nécessaire).
+
+```bash
+cd supabase/tests/refunds
+npm install --no-save esbuild
+node test_partner_checkout.mjs
+```
+
+Résultat attendu : `33 PASS, 0 FAIL` (sur l'ancien code : 14 échecs, tous sur les cas 0 %).
+
+Couvert : lien d'un partenaire à 0 % reconnu, remise négative / 100 % / partenaire inactif refusés ;
+commande attribuée avec la commission configurée (sur le prix de base), aucune remise partenaire ;
+remise de bienvenue réservée et appliquée si le client y a droit, prix plein sinon (bienvenue déjà
+utilisée, invité, non demandée) ; deux gâteaux (bienvenue sur un seul, commission sur les deux) ;
+lignes PostFinance = total. Comportement inchangé sans partenaire et pour un partenaire à 10 %
+(remise appliquée, bienvenue jamais réservée, jamais -20 %). Site : l'offre de bienvenue n'est
+masquée que par un partenaire avec remise, le jeton est toujours envoyé, aucun message « 0 % ».

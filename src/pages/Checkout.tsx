@@ -62,6 +62,7 @@ import { onOrderCompleted } from "@/lib/orderCompletionChannel";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { getWelcomeDiscountEligibility, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
 import { computePartnerEligibleBase, computePartnerDiscountAmount } from "@/lib/partnerDiscount";
+import { partnerGivesDiscount } from "@/lib/partnerReferral";
 import { sumChf, roundChf, formatChf } from "@/lib/money";
 
 // Anti double-payment guard. Set when the customer is handed to PostFinance,
@@ -852,7 +853,9 @@ const Checkout = () => {
   // the welcome-discount checkbox/offer is suppressed entirely here —
   // matching create-postfinance-payment exactly (it never even claims the
   // voucher when a partner referral is active, so it stays fully unspent).
-  const canUseWelcomeDiscountNow = !partnerReferral && (welcomeVoucherEligible || justSubscribingNow);
+  // A commission-only partner (0 %) gives no discount: the welcome offer
+  // stays available.
+  const canUseWelcomeDiscountNow = !partnerGivesDiscount(partnerReferral) && (welcomeVoucherEligible || justSubscribingNow);
 
   // Display-only, for the newsletter checkbox copy below — never used for
   // pricing/eligibility itself (canUseWelcomeDiscountNow, untouched, still
@@ -864,7 +867,7 @@ const Checkout = () => {
   // (welcomeVoucherEligible) — a customer who used the discount, whose
   // voucher expired, or who is mid-way through a reservation for another
   // order sees the plain newsletter copy instead of a false 10% promise.
-  const newsletterWouldGrantWelcomeDiscount = !partnerReferral && (welcomeVoucherEligible || (
+  const newsletterWouldGrantWelcomeDiscount = !partnerGivesDiscount(partnerReferral) && (welcomeVoucherEligible || (
     baseWelcomeDiscountEligible
     && profile?.newsletter_subscription !== true
     && (!profile?.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date())

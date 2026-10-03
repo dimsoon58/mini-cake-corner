@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,7 +53,7 @@ export default function PartnerForm({ partner, onCancel, onSaved }: { partner: P
           </select></div>
         <div className="space-y-1"><Label className="text-xs">Remise client (%)</Label>
           <Input inputMode="decimal" value={f.discountPct} onChange={(e) => set("discountPct", e.target.value)} className={field} />
-          <p className="text-[11px] text-muted-foreground">Appliquée par le site au paiement, sur le prix de base des gâteaux éligibles. 0 % possible.</p></div>
+          <p className="text-[11px] text-muted-foreground">Appliquée par le site au paiement, sur le prix de base des gâteaux éligibles. 0 % possible (commission seule).</p></div>
         <div className="space-y-1"><Label className="text-xs">Commission du partenaire (%)</Label>
           <Input inputMode="decimal" value={f.commissionPct} disabled={!f.commissionConfigured} onChange={(e) => set("commissionPct", e.target.value)} className={field} placeholder={f.commissionConfigured ? "" : "À configurer"} />
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="w-4 h-4" checked={!f.commissionConfigured} onChange={(e) => set("commissionConfigured", !e.target.checked)} />À configurer (aucun taux pour l'instant)</label></div>
@@ -71,8 +71,8 @@ export default function PartnerForm({ partner, onCancel, onSaved }: { partner: P
           <p className="text-[11px] text-muted-foreground">S'applique aux nouvelles commandes à partir d'aujourd'hui ; les commandes passées gardent leur taux. Les conditions devront être reconfirmées pour le nouveau taux.</p></div>}
       </div>
       {zeroDiscount && (
-        <p className="border border-amber-400 bg-amber-50 text-amber-900 px-3 py-2 flex gap-2"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-          Remise 0 % : aujourd'hui, le paiement refuse un lien partenaire sans remise. Ce partenaire est enregistré, mais son lien n'attribuera pas les commandes du site tant que le paiement n'est pas adapté.</p>
+        <p className="border border-sky-300 bg-sky-50 text-sky-900 px-3 py-2 flex gap-2"><Info className="w-4 h-4 mt-0.5 shrink-0" />
+          Remise 0 % : les commandes passées avec son lien lui sont attribuées, avec sa commission. Le client ne reçoit aucune remise partenaire et garde sa remise de bienvenue s'il y a droit.</p>
       )}
       {err && <p className="border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900" role="alert">{err}</p>}
       <div className="flex flex-wrap items-end gap-2">

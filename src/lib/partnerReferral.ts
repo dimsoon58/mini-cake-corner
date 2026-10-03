@@ -44,3 +44,12 @@ export function setStoredPartnerReferral(referral: PartnerReferral) {
     sessionStorage.setItem(PARTNER_REFERRAL_KEY, JSON.stringify(referral));
   } catch { /* ignore — non-fatal, referral recognition is a bonus, never a blocker */ }
 }
+
+// True only when the partner gives the customer a discount (rate > 0). The
+// partner discount never stacks with the welcome discount, so only such a
+// partner hides the welcome offer; a commission-only partner (0 %) is still
+// carried to checkout for attribution, and the welcome offer stays
+// available. Mirrors partnerGivesDiscount in _shared/partner-referral.ts.
+export function partnerGivesDiscount(referral: PartnerReferral | null | undefined): boolean {
+  return !!referral && referral.discountRate > 0;
+}

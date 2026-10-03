@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, Copy, Loader2, Lock, Pencil } from "lucide-react";
+import { ArrowLeft, Copy, Info, Loader2, Lock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -135,8 +135,8 @@ const AdminPartner = () => {
                 <p className="text-muted-foreground">Contact : {[p.contact_first_name, p.contact_last_name].filter(Boolean).join(" ")}{p.contact_email ? ` · ${p.contact_email}` : ""}{p.contact_phone ? ` · ${p.contact_phone}` : ""}</p>
               )}
               {Number(p.customer_discount_rate) === 0 && (
-                <p className="border border-amber-400 bg-amber-50 text-amber-900 px-3 py-2 flex gap-2"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                  Remise 0 % : aujourd'hui, le paiement refuse un lien partenaire sans remise ; ce lien n'attribue donc pas encore les commandes du site.</p>
+                <p className="border border-sky-300 bg-sky-50 text-sky-900 px-3 py-2 flex gap-2"><Info className="w-4 h-4 mt-0.5 shrink-0" />
+                  Remise 0 % (commission seule) : les commandes passées avec ce lien sont attribuées au partenaire ; le client garde sa remise de bienvenue s'il y a droit.</p>
               )}
               {!p.active && <p className="text-amber-800">Partenaire inactif : son lien n'est plus reconnu par le site. L'historique est conservé.</p>}
             </section>
