@@ -17,6 +17,8 @@ import {
 // anything. Same admin-only gate as list-orders-by-date.
 
 const MAX_DAYS = 93;
+// « Fait » (same list as the admin ProductionCheck box).
+const DONE_STATUSES = new Set(["completed", "ready_for_pickup", "delivered", "picked_up"]);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
@@ -92,7 +94,7 @@ serve(async (req) => {
 
       const { data: items, error: iErr } = await supabase
         .from("order_items")
-        .select("id, order_id, fulfillment_id, product, size, shape, flavors, quantity")
+        .select("id, order_id, fulfillment_id, product, size, shape, flavors, quantity, production_status")
         .in("order_id", cakeOrderIds)
         .neq("product", "workshop");
       if (iErr) throw new Error(`Failed to load order items: ${iErr.message}`);
@@ -111,6 +113,7 @@ serve(async (req) => {
           shape: it.shape,
           flavors: it.flavors,
           quantity: it.quantity,
+          done: DONE_STATUSES.has(it.production_status),
           date: date!,
           slot: f ? f.pickup_delivery_slot : (o.pickup_delivery_slot ?? null),
         });
@@ -179,7 +182,19 @@ serve(async (req) => {
       stock: stock ?? [],
     });
 
-    return json(cors, { from, to, ...result, stockRows: stock ?? [] });
+    // Stock ↔ production (F15) : gâteaux préparés puis annulés (à décider) et
+    // journal des mouvements. Absents tant que F15 n'est pas appliquée.
+    const { data: pendingReuse, error: prErr } = await supabase.rpc("production_pending_reuse");
+    const { data: movements, error: mvErr } = await supabase.rpc("production_recent_movements", { p_limit: 30 });
+    const stockLinked = !prErr && !mvErr;
+    if (!stockLinked) console.warn("get-production: stock link (F15) not available:", prErr?.message ?? mvErr?.message);
+
+    return json(cors, {
+      from, to, ...result, stockRows: stock ?? [],
+      stockLinked,
+      pendingReuse: stockLinked ? pendingReuse ?? [] : [],
+      movements: stockLinked ? movements ?? [] : [],
+    });
   } catch (error) {
     console.error("get-production error:", error);
     return json(cors, { error: error instanceof Error ? error.message : "Unknown error" }, 500);

@@ -11,13 +11,12 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { flavorDescMap } from "@/data/flavorDesc";
 import { cn } from "@/lib/utils";
+import { BASE_LABELS, CATEGORY_LABELS, CATEGORY_ORDER, genoiseLabel, type Category, type SpongeBase, type StockUnits } from "@/lib/production";
 
 // Admin > Production — production sheet for a period, computed server-side
 // by get-production (_shared/production-stats.ts holds every counting rule).
 // Read-only except the manual stock (update-production-stock).
 
-type SpongeBase = "vanilla" | "chocolate" | "red_velvet" | "vanilla_gf" | "chocolate_gf" | "red_velvet_gf";
-type Category = "bento_round" | "bento_heart" | "medium_round" | "medium_heart" | "large_round" | "large_heart" | "rectangle" | "dot_cake";
 type Badge = "awaiting_payment" | "to_accept";
 
 interface ProdLine {
@@ -36,12 +35,16 @@ interface ProdLine {
   source: "website" | "manual";
   channel: string | null;
   badge: Badge | null;
+  done?: boolean;
   reason?: string;
 }
 
 interface ProdRow {
   category: Category;
   ordered: number;
+  done?: number;      // F15: already « Fait »
+  needed?: number;    // F15: still to prepare (ordered − done)
+  remaining?: number; // F15: stock − needed
   stock: number;
   toMake: number;
   surplus: number;
@@ -51,32 +54,31 @@ interface ProdRow {
 }
 
 interface ProductionData {
-  summary: { ordered: number; stock: number; toMake: number; surplus: number; awaitingPayment: number; toAccept: number; toConfirm: number };
+  summary: { ordered: number; done?: number; needed?: number; remaining?: number; stock: number; toMake: number; surplus: number; awaitingPayment: number; toAccept: number; toConfirm: number };
   sections: { base: SpongeBase; rows: ProdRow[] }[];
   toConfirm: ProdLine[];
   flavours: { flavourId: string; label: string; units: number }[];
   ingredients: { ingredient: string; units: number }[];
+  stockLinked?: boolean;
+  pendingReuse?: PendingReuse[];
+  movements?: Movement[];
 }
 
-const BASE_LABELS: Record<SpongeBase, { en: string; fr: string }> = {
-  vanilla: { en: "Vanilla", fr: "Vanille" },
-  chocolate: { en: "Chocolate", fr: "Chocolat" },
-  red_velvet: { en: "Red Velvet", fr: "Red Velvet" },
-  vanilla_gf: { en: "Vanilla GF", fr: "Vanille sans gluten" },
-  chocolate_gf: { en: "Chocolate GF", fr: "Chocolat sans gluten" },
-  red_velvet_gf: { en: "Red Velvet GF", fr: "Red Velvet sans gluten" },
-};
-
-const CATEGORY_ORDER: Category[] = ["bento_round", "bento_heart", "medium_round", "medium_heart", "large_round", "large_heart", "rectangle", "dot_cake"];
-const CATEGORY_LABELS: Record<Category, { en: string; fr: string }> = {
-  bento_round: { en: "Round Bento", fr: "Bento rond" },
-  bento_heart: { en: "Heart Bento", fr: "Bento cœur" },
-  medium_round: { en: "Round Medium", fr: "Medium rond" },
-  medium_heart: { en: "Heart Medium", fr: "Medium cœur" },
-  large_round: { en: "Round Large", fr: "Large rond" },
-  large_heart: { en: "Heart Large", fr: "Large cœur" },
-  rectangle: { en: "Rectangle", fr: "Rectangle" },
-  dot_cake: { en: "Dot Cake", fr: "Dot Cake" },
+// F15 : gâteau préparé puis annulé (« réutilisable ? ») et journal du stock.
+interface PendingReuse {
+  preparationId: string; orderItemId: string; orderId: string; orderNumber: string | null; customerName: string;
+  product: string | null; size: string | null; shape: string | null; preparedAt: string; preparedBy: string | null;
+  needs: StockUnits[]; taken: StockUnits[]; freshUnits: number; unknownUnits: number;
+}
+interface Movement {
+  id: string; created_at: string; created_by: string | null; sponge_base: SpongeBase; product_category: Category;
+  delta: number; quantity_after: number; kind: "order_use" | "return_uncheck" | "return_cancelled" | "inventory"; note: string | null; order_number: string | null;
+}
+const MOVEMENT_LABELS: Record<Movement["kind"], { en: string; fr: string }> = {
+  order_use: { en: "Used for an order", fr: "Utilisée pour une commande" },
+  return_uncheck: { en: "Put back (« Done » undone)", fr: "Remise en stock (« Fait » décoché)" },
+  return_cancelled: { en: "Put back (cancelled, reusable)", fr: "Remise en stock (annulé, réutilisable)" },
+  inventory: { en: "Stock entered by hand", fr: "Saisie manuelle du stock" },
 };
 
 const INGREDIENT_LABELS: Record<string, { en: string; fr: string }> = {
@@ -189,10 +191,12 @@ const AddStock = ({ base, used, open, onOpen, onClose, onSave, t, tr }: {
 const ISO = "yyyy-MM-dd";
 
 const AdminProduction = () => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { user, loading: authLoading } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
   const tr = (l: { en: string; fr: string }) => t(l.en, l.fr);
+  const [reuseUnits, setReuseUnits] = useState<Record<string, number>>({});
+  const [decidingId, setDecidingId] = useState<string | null>(null);
 
   const [from, setFrom] = useState(() => format(new Date(), ISO));
   const [to, setTo] = useState(() => format(addDays(new Date(), 6), ISO));
@@ -249,6 +253,30 @@ const AdminProduction = () => {
       return;
     }
     setSavingKey(null);
+    await load();
+  };
+
+  // Gâteau préparé puis annulé : « réutilisable » (remise en stock, au plus
+  // ce qui a été préparé) ou « perdu ». Jamais automatique, une seule fois.
+  const decideReuse = async (p: PendingReuse, reusable: boolean) => {
+    setDecidingId(p.preparationId);
+    setStockError(null);
+    const units = reusable ? p.needs.map((n) => ({ ...n, units: reuseUnits[`${p.preparationId}|${n.base}|${n.category}`] ?? 0 })).filter((n) => n.units > 0) : [];
+    if (reusable && units.length === 0) {
+      setStockError(t("Enter how many génoises can be reused.", "Indiquez combien de génoises sont réutilisables."));
+      setDecidingId(null);
+      return;
+    }
+    const { data: res, error } = await supabase.functions.invoke("update-production-stock", {
+      body: { action: "reuse", preparationId: p.preparationId, reusable, units },
+    });
+    if (error || res?.error) {
+      const reason = error ? await extractFunctionErrorMessage(error, "") : String(res.error);
+      setStockError(reason || t("The decision could not be saved.", "La décision n'a pas pu être enregistrée."));
+      setDecidingId(null);
+      return;
+    }
+    setDecidingId(null);
     await load();
   };
 
@@ -331,6 +359,7 @@ const AdminProduction = () => {
                 ) : (
                   <span className="flex flex-wrap gap-1 items-center">
                     <span>{l.source === "manual" ? t("Manual", "Manuel") : t("Website", "Site")}{l.channel && l.source === "manual" ? ` · ${l.channel}` : ""}</span>
+                    {l.done && <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">{t("Done", "Fait")}</span>}
                     {l.badge === "awaiting_payment" && <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">{t("Awaiting payment", "En attente de paiement")}</span>}
                     {l.badge === "to_accept" && <span className="bg-blue-600 text-white font-semibold px-1.5 py-0.5 text-[10px] uppercase tracking-wide">{t("To accept · not counted", "À accepter · non compté")}</span>}
                   </span>
@@ -365,8 +394,8 @@ const AdminProduction = () => {
 
         <p className="text-xs text-muted-foreground mb-4">
           {t(
-            "Counted by each item's own pickup / delivery / workshop date. Stock = cakes already prepared, entered by hand.",
-            "Compté selon la date de retrait / livraison / workshop de chaque article. Stock = gâteaux déjà prêts, saisis à la main."
+            "Counted by each item's own pickup / delivery / workshop date. Needed = confirmed cakes not yet done. Stock = génoises ready; « Done » with « Taken from stock » removes them.",
+            "Compté selon la date de retrait / livraison / workshop de chaque article. Nécessaires = gâteaux confirmés pas encore « Fait ». Stock = génoises prêtes ; « Fait » avec « Pris dans le stock » les retire."
           )}
         </p>
 
@@ -378,28 +407,72 @@ const AdminProduction = () => {
           <div className={cn("space-y-6 transition-opacity", loading && "opacity-60")}>
             {stockError && <p className="text-sm text-destructive">{stockError}</p>}
 
-            {/* Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Summary — besoins = gâteaux confirmés pas encore « Fait » */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="production-summary">
               <div className="border border-border/60 bg-background p-4">
-                <p className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground mb-1">{t("Cakes ordered", "Gâteaux commandés")}</p>
-                <p className="text-3xl font-bold text-foreground">{s.ordered}</p>
+                <p className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground mb-1">{t("Needed", "Nécessaires")}</p>
+                <p className="text-3xl font-bold text-foreground">{s.needed ?? s.ordered}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("ordered", "commandés")} {s.ordered}{(s.done ?? 0) > 0 ? ` · ${t("done", "faits")} ${s.done}` : ""}</p>
                 {s.awaitingPayment > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">{t("of which", "dont")} {s.awaitingPayment} {t("awaiting payment", "en attente de paiement")}</p>
+                  <p className="text-xs text-muted-foreground">{t("of which", "dont")} {s.awaitingPayment} {t("awaiting payment", "en attente de paiement")}</p>
                 )}
                 {s.toAccept > 0 && (
                   <p className="text-xs font-semibold text-blue-800 mt-1">+ {s.toAccept} {t("to accept (not counted until accepted)", "à accepter (non comptés tant qu'ils ne sont pas acceptés)")}</p>
                 )}
               </div>
               <div className="border border-border/60 bg-background p-4">
-                <p className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground mb-1">{t("Already in stock", "Déjà en stock")}</p>
+                <p className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground mb-1">{t("In stock", "En stock")}</p>
                 <p className="text-3xl font-bold text-foreground">{s.stock}</p>
-                {s.surplus > 0 && <p className="text-xs text-muted-foreground mt-1">{t("surplus", "surplus")} {s.surplus}</p>}
+              </div>
+              <div className="border border-border/60 bg-background p-4">
+                <p className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground mb-1">{t("Left after preparation", "Restant après préparation")}</p>
+                <p className="text-3xl font-bold text-foreground">{s.remaining ?? s.surplus}</p>
               </div>
               <div className="border border-primary/40 bg-background p-4">
-                <p className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground mb-1">{t("Left to make", "Reste à produire")}</p>
+                <p className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground mb-1">{t("Missing — to make", "Manque — à préparer")}</p>
                 <p className="text-3xl font-bold text-primary">{s.toMake}</p>
               </div>
             </div>
+
+            {(data.pendingReuse ?? []).length > 0 && (
+              <section className="border border-amber-400 bg-background" data-testid="pending-reuse">
+                <h2 className="px-4 py-2.5 border-b border-amber-300 text-sm font-semibold uppercase tracking-[0.12em] text-amber-900 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" /> {t("Prepared then cancelled — reusable?", "Préparés puis annulés — réutilisables ?")}
+                </h2>
+                <ul className="divide-y divide-border/60">
+                  {data.pendingReuse!.map((p) => (
+                    <li key={p.preparationId} className="px-4 py-3 text-sm space-y-2">
+                      <p>
+                        <Link to={`/admin/order/${p.orderId}`} className="font-semibold text-primary hover:underline">{p.orderNumber || p.orderId.slice(0, 8)}</Link>
+                        {" · "}{p.customerName || "—"} · {t("prepared on", "préparé le")} {fmtDate(p.preparedAt.slice(0, 10))}
+                      </p>
+                      {p.needs.length === 0 && <p className="text-xs text-muted-foreground">{t("Base unknown: nothing to put back.", "Base inconnue : rien à remettre en stock.")}</p>}
+                      {p.needs.map((n) => {
+                        const k = `${p.preparationId}|${n.base}|${n.category}`;
+                        return (
+                          <label key={k} className="flex items-center justify-between gap-3 max-w-md">
+                            <span>{genoiseLabel(n, lang)} <span className="text-muted-foreground">({t("prepared", "préparées")} : {n.units})</span></span>
+                            <input type="number" min={0} max={n.units} value={reuseUnits[k] ?? 0}
+                              onChange={(e) => setReuseUnits((r) => ({ ...r, [k]: Math.max(0, Math.min(n.units, Math.floor(Number(e.target.value) || 0))) }))}
+                              className="w-16 border border-input bg-background px-2 py-1 text-right" aria-label={t("Reusable", "Réutilisables")} />
+                          </label>
+                        );
+                      })}
+                      <div className="flex flex-wrap gap-2">
+                        {p.needs.length > 0 && (
+                          <Button size="sm" className="rounded-none" disabled={decidingId === p.preparationId} onClick={() => decideReuse(p, true)}>
+                            {t("Reusable — put back in stock", "Réutilisable — remettre en stock")}
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" className="rounded-none" disabled={decidingId === p.preparationId} onClick={() => decideReuse(p, false)}>
+                          {t("Lost — stock unchanged", "Perdu — stock inchangé")}
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {s.toConfirm > 0 && (
               <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-2">
@@ -428,10 +501,12 @@ const AdminProduction = () => {
                           <thead>
                             <tr className="text-left text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
                               <th className="py-1.5 pr-3 font-medium">{t("Product", "Produit")}</th>
-                              <th className="py-1.5 px-2 font-medium text-right">{t("Ordered", "Commandé")}</th>
+                              <th className="py-1.5 px-2 font-medium text-right">{t("Ordered", "Commandés")}</th>
+                              <th className="py-1.5 px-2 font-medium text-right">{t("Done", "Faits")}</th>
+                              <th className="py-1.5 px-2 font-medium text-right">{t("Needed", "Nécessaires")}</th>
                               <th className="py-1.5 px-2 font-medium text-right">{t("Stock", "Stock")}</th>
-                              <th className="py-1.5 px-2 font-medium text-right">{t("To make", "À faire")}</th>
-                              <th className="py-1.5 pl-2 font-medium text-right">{t("Surplus", "Surplus")}</th>
+                              <th className="py-1.5 px-2 font-medium text-right">{t("Left after", "Restant après")}</th>
+                              <th className="py-1.5 pl-2 font-medium text-right">{t("Missing", "Manque")}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -458,14 +533,16 @@ const AdminProduction = () => {
                                         <span className="block pl-[18px] text-[11px] font-semibold text-blue-800">{`+ ${r.toAccept} ${t("to accept, not counted", "à accepter, non comptés")}`}</span>
                                       )}
                                     </td>
-                                    <td className="py-2 px-2 text-right">{r.ordered}</td>
+                                    <td className="py-2 px-2 text-right text-muted-foreground">{r.ordered}</td>
+                                    <td className="py-2 px-2 text-right text-muted-foreground">{r.done ?? 0}</td>
+                                    <td className="py-2 px-2 text-right font-semibold">{r.needed ?? r.ordered}</td>
                                     <td className="py-2 px-2 text-right"><StockCell base={base} category={r.category} value={r.stock} saving={savingKey === `${base}|${r.category}`} onSave={saveStock} t={t} /></td>
-                                    <td className={cn("py-2 px-2 text-right font-semibold", r.toMake > 0 ? "text-primary" : "text-muted-foreground")}>{r.toMake}</td>
-                                    <td className="py-2 pl-2 text-right text-muted-foreground">{r.surplus}</td>
+                                    <td className="py-2 px-2 text-right">{r.remaining ?? r.surplus}</td>
+                                    <td className={cn("py-2 pl-2 text-right font-semibold", r.toMake > 0 ? "text-primary" : "text-muted-foreground")}>{r.toMake}</td>
                                   </tr>
                                   {open && (
                                     <tr className="bg-secondary/20">
-                                      <td colSpan={5} className="px-3 py-2"><LinesTable lines={r.lines} /></td>
+                                      <td colSpan={7} className="px-3 py-2"><LinesTable lines={r.lines} /></td>
                                     </tr>
                                   )}
                                 </Fragment>
@@ -480,6 +557,38 @@ const AdminProduction = () => {
                 </section>
               );
             })}
+
+            {/* Stock journal (F15) */}
+            {data.stockLinked && (
+              <details className="border border-border/60 bg-background" data-testid="stock-journal">
+                <summary className="px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.12em] cursor-pointer">{t("Stock journal", "Journal du stock")} ({(data.movements ?? []).length})</summary>
+                {(data.movements ?? []).length === 0 ? (
+                  <p className="px-4 pb-3 text-xs text-muted-foreground">{t("No movement yet.", "Aucun mouvement pour l'instant.")}</p>
+                ) : (
+                  <div className="overflow-x-auto px-4 pb-3">
+                    <table className="w-full text-xs">
+                      <thead><tr className="text-left text-muted-foreground">
+                        <th className="py-1.5 pr-3 font-medium">{t("When", "Quand")}</th><th className="py-1.5 pr-3 font-medium">{t("Génoise", "Génoise")}</th>
+                        <th className="py-1.5 pr-3 font-medium text-right">{t("Change", "Mouvement")}</th><th className="py-1.5 pr-3 font-medium text-right">{t("Stock after", "Stock après")}</th>
+                        <th className="py-1.5 pr-3 font-medium">{t("Why", "Pourquoi")}</th><th className="py-1.5 font-medium">{t("By", "Par")}</th>
+                      </tr></thead>
+                      <tbody>
+                        {data.movements!.map((m) => (
+                          <tr key={m.id} className="border-t border-border/50 align-top">
+                            <td className="py-1.5 pr-3 whitespace-nowrap">{format(parseISO(m.created_at), "dd.MM HH:mm")}</td>
+                            <td className="py-1.5 pr-3">{genoiseLabel({ base: m.sponge_base, category: m.product_category }, lang)}</td>
+                            <td className={cn("py-1.5 pr-3 text-right font-semibold", m.delta < 0 ? "text-red-700" : "text-emerald-700")}>{m.delta > 0 ? `+${m.delta}` : m.delta}</td>
+                            <td className="py-1.5 pr-3 text-right">{m.quantity_after}</td>
+                            <td className="py-1.5 pr-3">{tr(MOVEMENT_LABELS[m.kind])}{m.order_number ? ` · ${m.order_number}` : ""}{m.note ? ` · ${m.note}` : ""}</td>
+                            <td className="py-1.5 text-muted-foreground">{m.created_by ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </details>
+            )}
 
             {/* To confirm */}
             {data.toConfirm.length > 0 && (

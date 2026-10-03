@@ -60,6 +60,7 @@ export interface ProdCakeItem {
   shape: string | null;
   flavors: string[] | null;
   quantity?: number | null; // order_items.quantity (1 by default) — units are multiplied by it
+  done?: boolean;            // already marked « Fait » → shown, not in the needs
   date: string; // the item's own pickup/delivery date (fulfillment or order)
   slot: string | null;
 }
@@ -99,15 +100,19 @@ export interface ProdLine {
   source: "website" | "manual";
   channel: string | null;
   badge: Badge | null;
+  done?: boolean;              // already prepared (« Fait »)
   reason?: string;             // only for "à confirmer" lines
 }
 
 export interface ProdRow {
   category: ProductionCategory;
-  ordered: number;
+  ordered: number;     // confirmed cakes of the period (done included)
+  done: number;        // of which already « Fait »
+  needed: number;      // still to prepare = ordered − done
   stock: number;
-  toMake: number;
-  surplus: number;
+  toMake: number;      // needed − stock (missing génoises)
+  remaining: number;   // stock − needed (left after preparation)
+  surplus: number;     // same as remaining (kept for older pages)
   awaitingPayment: number;
   toAccept: number;
   lines: ProdLine[];
@@ -121,6 +126,9 @@ export interface ProdSection {
 export interface ProductionResult {
   summary: {
     ordered: number;
+    done: number;
+    needed: number;
+    remaining: number;
     stock: number;
     toMake: number;
     surplus: number;
@@ -194,7 +202,7 @@ export function computeProduction(input: {
     const key = `${base}|${category}`;
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key)!.push(line);
-    if (line.badge === "to_accept") return;   // montré, jamais compté
+    if (line.badge === "to_accept" || line.done) return;   // montré, pas dans les besoins
     flavourUnits.set(flavour.id, (flavourUnits.get(flavour.id) ?? 0) + line.units);
     for (const ing of flavour.ingredients) {
       ingredientUnits.set(ing, (ingredientUnits.get(ing) ?? 0) + line.units);
@@ -222,6 +230,7 @@ export function computeProduction(input: {
 
     const common = {
       ...baseLine(o, status),
+      done: it.done === true,
       date: it.date,
       slot: it.slot,
       product: it.product,
@@ -330,7 +339,7 @@ export function computeProduction(input: {
     stockByKey.set(`${s.sponge_base}|${s.product_category}`, Math.max(0, Number(s.quantity) || 0));
   }
 
-  const summary = { ordered: 0, stock: 0, toMake: 0, surplus: 0, awaitingPayment: 0, toAccept: 0, toConfirm: 0 };
+  const summary = { ordered: 0, done: 0, needed: 0, remaining: 0, stock: 0, toMake: 0, surplus: 0, awaitingPayment: 0, toAccept: 0, toConfirm: 0 };
   const sections: ProdSection[] = SPONGE_BASES.map((base) => {
     const rows: ProdRow[] = [];
     for (const category of PRODUCTION_CATEGORIES) {
@@ -338,20 +347,29 @@ export function computeProduction(input: {
       const lines = (buckets.get(key) ?? []).sort((a, b) => a.date.localeCompare(b.date));
       // « ordered » = commandes confirmées seulement ; les gâteaux « À
       // accepter » sont listés et comptés à part (toAccept), hors production.
-      const ordered = lines.filter((l) => l.badge !== "to_accept").reduce((s, l) => s + l.units, 0);
+      const confirmed = lines.filter((l) => l.badge !== "to_accept");
+      const ordered = confirmed.reduce((s, l) => s + l.units, 0);
+      const done = confirmed.filter((l) => l.done).reduce((s, l) => s + l.units, 0);
+      const needed = ordered - done;
       const stock = stockByKey.get(key) ?? 0;
       if (ordered === 0 && stock === 0 && lines.length === 0) continue;
       const row: ProdRow = {
         category,
         ordered,
+        done,
+        needed,
         stock,
-        toMake: Math.max(ordered - stock, 0),
-        surplus: Math.max(stock - ordered, 0),
+        toMake: Math.max(needed - stock, 0),
+        remaining: Math.max(stock - needed, 0),
+        surplus: Math.max(stock - needed, 0),
         awaitingPayment: lines.filter((l) => l.badge === "awaiting_payment").reduce((s, l) => s + l.units, 0),
         toAccept: lines.filter((l) => l.badge === "to_accept").reduce((s, l) => s + l.units, 0),
         lines,
       };
       summary.ordered += row.ordered;
+      summary.done += row.done;
+      summary.needed += row.needed;
+      summary.remaining += row.remaining;
       summary.stock += row.stock;
       summary.toMake += row.toMake;
       summary.surplus += row.surplus;
@@ -362,7 +380,7 @@ export function computeProduction(input: {
     return { base, rows };
   });
 
-  summary.toConfirm = toConfirm.filter((l) => l.badge !== "to_accept").reduce((s, l) => s + l.units, 0);
+  summary.toConfirm = toConfirm.filter((l) => l.badge !== "to_accept" && !l.done).reduce((s, l) => s + l.units, 0);
 
   return {
     summary,
@@ -377,4 +395,45 @@ export function computeProduction(input: {
     ingredients: Array.from(ingredientUnits, ([ingredient, units]) => ({ ingredient, units }))
       .sort((a, b) => b.units - a.units),
   };
+}
+
+// ── Génoises utilisées par un gâteau (lien stock ↔ « Fait ») ─────────────
+// Même classement que computeProduction : base de génoise (goût) × catégorie
+// (taille + forme), multiplié par la quantité ; Dot Cakes en pièces, réparties
+// par base. Ce qui ne peut pas être classé (goût ou forme inconnus) est compté
+// dans unknownUnits : « Fait » reste possible, mais le stock n'est pas ajusté.
+export interface StockNeed { base: SpongeBase; category: ProductionCategory; units: number }
+export function itemStockNeeds(it: { product: string | null; size: string | null; shape: string | null; flavors: string[] | null; quantity?: number | null }):
+  { needs: StockNeed[]; unknownUnits: number; notACake: boolean } {
+  const qty = Number.isInteger(it.quantity) && (it.quantity as number) > 1 ? (it.quantity as number) : 1;
+  const category = productionCategory(it.product, it.size, it.shape);
+  if (category === "skip" || it.product === "workshop") return { needs: [], unknownUnits: 0, notACake: true };
+  const flavours = (it.flavors ?? []).filter((f) => f && f.trim());
+  const acc = new Map<string, StockNeed>();
+  let unknown = 0;
+  const add = (base: SpongeBase, cat: ProductionCategory, units: number) => {
+    const k = `${base}|${cat}`;
+    const cur = acc.get(k);
+    if (cur) cur.units += units; else acc.set(k, { base, category: cat, units });
+  };
+  if (category === null) {
+    unknown = qty;
+  } else if (category === "dot_cake") {
+    const pack = dotCakePack(it.size);
+    if (!pack || flavours.length > pack.flavours) {
+      unknown = (pack?.total ?? 1) * qty;
+    } else {
+      for (const raw of flavours) {
+        const f = resolveFlavour(raw);
+        if (f) add(f.base, "dot_cake", pack.perFlavour * qty); else unknown += pack.perFlavour * qty;
+      }
+      unknown += (pack.total - flavours.length * pack.perFlavour) * qty;
+    }
+  } else if (flavours.length !== 1) {
+    unknown = qty;
+  } else {
+    const f = resolveFlavour(flavours[0]);
+    if (f) add(f.base, category, qty); else unknown = qty;
+  }
+  return { needs: [...acc.values()], unknownUnits: unknown, notACake: false };
 }

@@ -305,3 +305,17 @@ retiré, compté, « Fait » possible ; après refus / annulation : retirés.
 Couvert : une date avec plusieurs gâteaux ; plusieurs gâteaux sur plusieurs dates (chaque gâteau
 sous sa propre date, dates dans l'ordre) ; quantité, taille et forme ; champ `dates` et filtre par
 date inchangés.
+
+## Stock relié à la production (F15)
+
+`test_stock_production.mjs` : migration F15 + vraies fonctions `get-production`,
+`update-production-status` et `update-production-stock`. Résultat attendu : `42 PASS, 0 FAIL`.
+
+Couvert : saisie manuelle inscrite au journal ; exemple 4 en stock / 2 nécessaires / 2 restantes ;
+aperçu avant confirmation (quantité retirée) ; « Pris dans le stock » sans double retrait (double
+clic, clics simultanés) ; « Préparé frais » ; stock insuffisant (jamais négatif, le reste frais) ;
+Dot Cakes en pièces par base ; base inconnue (« Fait » sans retrait, tracé) ; décochage sans
+restitution automatique, restitution au plus ce qui a été retiré et une seule fois ; aucun retrait
+rétroactif ; annulation avant préparation (hors besoins, stock inchangé) ; préparé puis annulé
+(réutilisable / perdu, une seule fois, trace conservée) ; « À accepter » sans stock ; ancienne page
+sans « mode » (aucun retrait) ; droits ; journal cohérent ; relance de F15 sans effet.
