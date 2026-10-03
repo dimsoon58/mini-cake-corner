@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 // from order_health_anomalies. Each item is listed under its own
 // pickup/delivery date, even when it is prepared earlier.
 
-type ListedOrder = { orderId: string; orderNumber: string | null; customerName: string; total: number; date: string | null };
+type ListedOrder = { orderId: string; orderNumber: string | null; customerName: string; total: number; date: string | null; receivedAt?: string | null };
 type DayItem = {
   type: "cake" | "workshop";
   orderId: string;
@@ -175,6 +175,15 @@ const AdminToday = () => {
     try {
       return format(parseISO(iso), l === "fr" ? "EEEE d MMMM" : "EEEE, MMMM d", l === "fr" ? { locale: frLocale } : undefined);
     } catch { return iso; }
+  };
+  // How long an order has been waiting for Accept / Refuse.
+  const waitingFor = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const hours = Math.max(0, (Date.now() - new Date(iso).getTime()) / 3_600_000);
+    if (hours < 1) return { text: t("received < 1 h ago", "reçue il y a moins d'1 h"), late: false };
+    if (hours < 24) return { text: t(`received ${Math.floor(hours)} h ago`, `reçue il y a ${Math.floor(hours)} h`), late: false };
+    const days = Math.floor(hours / 24);
+    return { text: t(`waiting for ${days} day${days > 1 ? "s" : ""}`, `en attente depuis ${days} jour${days > 1 ? "s" : ""}`), late: true };
   };
   const shortDate = (iso: string | null) => {
     if (!iso) return t("no date", "sans date");
@@ -343,6 +352,22 @@ const AdminToday = () => {
 
         {data && !rangeError && (
           <>
+            {/* Orders waiting for Accept / Refuse — never let one wait unnoticed */}
+            {data.toDecide.length > 0 && (() => {
+              const oldest = data.toDecide.reduce<string | null>((m, o) => (o.receivedAt && (!m || o.receivedAt < m) ? o.receivedAt : m), null);
+              const w = waitingFor(oldest);
+              return (
+                <a href="#a-faire" className="flex items-start gap-2 border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-950" data-testid="pending-banner">
+                  <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
+                  <span>
+                    <b>{data.toDecide.length} {t(data.toDecide.length > 1 ? "orders waiting for validation" : "order waiting for validation", data.toDecide.length > 1 ? "commandes en attente de validation" : "commande en attente de validation")}</b>
+                    {w && <> · {t("oldest", "la plus ancienne")} {w.text}</>}
+                    <span className="block text-xs">{t("Accept or refuse them below.", "Acceptez-les ou refusez-les ci-dessous.")}</span>
+                  </span>
+                </a>
+              );
+            })()}
+
             {/* Counters */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
@@ -378,6 +403,7 @@ const AdminToday = () => {
                         <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To decide", "À décider")}</span>
                         <span className="flex-1 min-w-[180px] text-sm">
                           <span className="font-medium">{o.orderNumber}</span> · {o.customerName} · {shortDate(o.date)} · {formatChf(o.total)}
+                          {(() => { const w = waitingFor(o.receivedAt); return w ? <span className={cn("block text-xs", w.late ? "text-red-700 font-semibold" : "text-muted-foreground")}>{w.text}</span> : null; })()}
                         </span>
                         <Button asChild variant="outline" size="sm" className="rounded-none">
                           <Link to={`/admin/order/${o.orderId}`}>{t("Accept or refuse", "Accepter ou refuser")}</Link>

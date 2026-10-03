@@ -275,3 +275,13 @@ champs vides masqués, informations essentielles manquantes signalées ; plusieu
 mélange ; quantité 2 → « 1/2 », « 2/2 » ; tri ; texte long → étiquettes « Suite » avec date, client,
 commande, intitulé repris, sans perte de mot ni police réduite ; marges respectées ; lignes Excel
 pour l'app NIIMBOT. Le rendu réel (mesure du texte par le navigateur) est vérifié dans l'aperçu.
+
+## Aujourd'hui — commandes en attente de validation
+
+`test_today_pending.mjs` : vraie fonction `get-today` sur le schéma de production (F1–F14).
+Résultat attendu : `13 PASS, 0 FAIL` (sur l'ancienne version : les commandes autorisées en capture
+différée, paiement « pending », n'apparaissaient pas dans « À décider »).
+
+Couvert : commande du site autorisée en attente (capture différée), workshop seul en attente,
+ancienne commande payée en attente ; acceptée, refusée, annulée, en échec, manuelle, brouillon,
+remboursée exclues ; date de réception renvoyée ; lecture seule ; bandeau de la page.

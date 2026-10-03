@@ -96,15 +96,24 @@ serve(async (req) => {
       for (const o of data ?? []) ordersById.set(o.id, o as Order);
     };
 
-    // ── To decide: paid website orders, cakes not yet accepted/refused ────
-    const { data: pendingDecision, error: dErr } = await supabase
+    // ── To decide: website orders waiting for Accept / Refuse ─────────────
+    // Deferred capture (2026-09-15): a website order row only exists once its
+    // payment is AUTHORIZED, and stays payment_status = 'pending' until the
+    // admin Accepts it (the capture then sets 'paid'). Older orders, from the
+    // immediate-capture period, may wait as 'paid'. Both are listed. The
+    // decision is physical_validation for an order with a cake, and
+    // order_validation for a workshop-only order ('not_applicable').
+    const { data: decisionCandidates, error: dErr } = await supabase
       .from("orders")
       .select("*")
-      .eq("payment_status", "paid")
-      .eq("physical_validation", "pending")
-      .not("order_validation", "in", "(cancelled,rejected)")
+      .in("payment_status", ["pending", "paid"])
+      .in("physical_validation", ["pending", "not_applicable"])
       .is("order_failure_reason", null);
     if (dErr) throw new Error(`Failed to load orders to decide: ${dErr.message}`);
+    const pendingDecision = (decisionCandidates ?? []).filter((o) =>
+      !isManualOrder(o as Order) && o.is_draft !== true
+      && o.order_validation !== "cancelled" && o.order_validation !== "rejected"
+      && (o.physical_validation === "pending" || o.order_validation === "pending"));
 
     // ── To collect: confirmed Admin orders awaiting payment ───────────────
     const { data: awaitingPayment, error: pErr } = await supabase
@@ -117,10 +126,10 @@ serve(async (req) => {
       .is("order_failure_reason", null);
     if (pErr) throw new Error(`Failed to load orders awaiting payment: ${pErr.message}`);
 
-    for (const o of [...(pendingDecision ?? []), ...(awaitingPayment ?? [])]) ordersById.set(o.id, o as Order);
+    for (const o of [...pendingDecision, ...(awaitingPayment ?? [])]) ordersById.set(o.id, o as Order);
 
     // First date of each listed order (for sorting and display).
-    const listedIds = [...(pendingDecision ?? []), ...(awaitingPayment ?? [])].map((o) => o.id);
+    const listedIds = [...pendingDecision, ...(awaitingPayment ?? [])].map((o) => o.id);
     const firstDateByOrder = new Map<string, string>();
     if (listedIds.length > 0) {
       const { data: fs, error } = await supabase
@@ -137,9 +146,10 @@ serve(async (req) => {
     const byDate = (a: { date: string | null }, b: { date: string | null }) =>
       (a.date ?? "9999-12-31").localeCompare(b.date ?? "9999-12-31");
 
-    const toDecide = (pendingDecision ?? [])
-      .filter((o) => !isManualOrder(o as Order) && (o as Order).fulfillment_type !== "workshop_only")
-      .map((o) => ({ orderId: o.id, orderNumber: o.order_number, customerName: customerName(o as Order), total: Number(o.total_amount) || 0, date: firstDate(o as Order) }))
+    // receivedAt: since when the order waits (oldest first is not the sort —
+    // the closest pickup date is — but the page shows how long each waits).
+    const toDecide = pendingDecision
+      .map((o) => ({ orderId: o.id, orderNumber: o.order_number, customerName: customerName(o as Order), total: Number(o.total_amount) || 0, date: firstDate(o as Order), receivedAt: (o.created_at as string | null) ?? null }))
       .sort(byDate);
     const toCollect = (awaitingPayment ?? [])
       .map((o) => ({ orderId: o.id, orderNumber: o.order_number, customerName: customerName(o as Order), total: Number(o.total_amount) || 0, date: firstDate(o as Order) }))
