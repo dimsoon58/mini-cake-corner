@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { forCaller, requireStaff } from "../_shared/staff-auth.ts";
 
 // Read-only order list for the /admin/orders dashboard — the one entry point
 // that lets an admin browse every order without already holding a specific
@@ -33,8 +33,9 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    const admin = await requireAdmin(req, supabase);
-    if (!admin) {
+    // Administratrices comme avant ; employée avec « orders.view », sans aucun montant (F23).
+    const caller = await requireStaff(req, supabase, "orders.view");
+    if (!caller) {
       return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
@@ -96,12 +97,12 @@ serve(async (req) => {
     }
     const orders = pageRows.map((o) => ({ ...o, hasWorkshopItem: workshopOrderIds.has(o.id) }));
 
-    return new Response(JSON.stringify({
+    return new Response(JSON.stringify(forCaller(caller, {
       orders,
       page,
       pageSize: PAGE_SIZE,
       hasMore,
-    }), {
+    })), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

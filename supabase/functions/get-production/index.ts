@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { forCaller, requireStaff } from "../_shared/staff-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   computeProduction,
@@ -35,8 +35,9 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    const admin = await requireAdmin(req, supabase);
-    if (!admin) return json(cors, { error: "Admin sign-in required" }, 401);
+    // Administratrices comme avant ; employée avec « production.view », sans aucun montant (F23).
+    const caller = await requireStaff(req, supabase, "production.view");
+    if (!caller) return json(cors, { error: "Admin sign-in required" }, 401);
 
     const body = await req.json().catch(() => ({}));
     const from = String(body?.from ?? "");
@@ -191,12 +192,12 @@ serve(async (req) => {
     const stockLinked = !prErr && !mvErr;
     if (!stockLinked) console.warn("get-production: stock link (F15) not available:", prErr?.message ?? mvErr?.message);
 
-    return json(cors, {
+    return json(cors, forCaller(caller, {
       from, to, ...result, stockRows: stock ?? [],
       stockLinked,
       pendingReuse: stockLinked ? pendingReuse ?? [] : [],
       movements: stockLinked ? movements ?? [] : [],
-    });
+    }));
   } catch (error) {
     console.error("get-production error:", error);
     return json(cors, { error: error instanceof Error ? error.message : "Unknown error" }, 500);

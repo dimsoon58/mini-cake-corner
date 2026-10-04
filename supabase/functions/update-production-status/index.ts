@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { requireStaff } from "../_shared/staff-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { itemStockNeeds, orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
 
@@ -63,7 +63,9 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    const admin = await requireAdmin(req, supabase);
+    // Administratrices comme avant ; employée avec « production.update » (F23). L'auteur
+    // (email de la personne connectée) est enregistré dans le journal de production.
+    const admin = await requireStaff(req, supabase, "production.update");
     if (!admin) return json(cors, { error: "Admin sign-in required" }, 401);
 
     const body = await req.json().catch(() => ({}));

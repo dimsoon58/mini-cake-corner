@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { requireAdmin } from "../_shared/admin-auth.ts";
+import { employeeCaller } from "../_shared/staff-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   ABSENCE_KINDS, type Absence, type Contract, type MemberData, addDays, cumulativeBalance, dayInfo, eachDay,
@@ -11,7 +12,15 @@ import {
 // l'équipe, compteurs. Session admin requise (pas de PIN : aucune donnée
 // financière). Les règles dures (dates, chevauchements, doublons,
 // historique) sont en SQL (migration F9) ; les calculs dans
-// _shared/team-hours.ts. Ne touche ni aux commandes, ni aux paiements, ni
+// _shared/team-hours.ts.
+//
+// F23 : l'employée (accès staff_access, jamais le PIN) n'a que ses propres
+// données — « me » (ses horaires, ses absences, son solde de vacances
+// calculé avec les mêmes règles, ses demandes), « preview_leave »,
+// « request_leave », « cancel_leave_request » — toujours pour SA personne
+// (identifiant tiré de son accès, jamais de la demande). Mel ou Eli
+// approuvent ou refusent (« leave_requests », « decide_leave ») : une demande
+// approuvée devient l'absence « vacances » habituelle. Ne touche ni aux commandes, ni aux paiements, ni
 // aux remboursements, et n'envoie aucun e-mail.
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -88,14 +97,15 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
     const admin = await requireAdmin(req, supabase);
-    if (!admin) return json(cors, { error: "Admin sign-in required", reason: "auth" }, 401);
+    const employee = admin ? null : await employeeCaller(req, supabase);
+    if (!admin && !employee) return json(cors, { error: "Admin sign-in required", reason: "auth" }, 401);
 
     const body = await req.json().catch(() => ({}));
     const action = String(body?.action ?? "");
     // TEAM_PLANNING_TEST_TODAY : réservé aux tests locaux, jamais défini en production.
     const testToday = Deno.env.get("TEAM_PLANNING_TEST_TODAY") ?? "";
     const today = DATE_RE.test(testToday) ? testToday : zurichToday();
-    const by = admin.email;
+    const by = admin?.email ?? employee!.email;
 
     const rpc = async (fn: string, args: Record<string, unknown>) => {
       const { data, error } = await supabase.rpc(fn, args);
@@ -105,7 +115,89 @@ serve(async (req) => {
     const load = async (from: string, to: string) => (await rpc("team_planning_data", { p_from: from, p_to: to })) as Raw;
 
     let data: unknown;
+    // ── Employée : seulement ses propres données (F23) ──
+    if (employee) {
+      const can = (p: string) => employee.permissions.includes(p as never);
+      const me = employee.memberId;
+      const deny = () => json(cors, { error: "Réservé aux administratrices", reason: "forbidden" }, 403);
+      switch (action) {
+        case "me": {
+          if (!can("team.self") && !can("leave.self")) return deny();
+          const from = date(body.from, "Début");
+          const to = date(body.to, "Fin");
+          if (to < from || eachDay(from, to).length > 62) throw new InputError("Période invalide (62 jours maximum)");
+          const raw = await load(from, to);
+          const mb = raw.members.find((x) => x.id === me);
+          if (!mb) return json(cors, { error: "Personne inconnue", reason: "not_found" }, 404);
+          const m = memberData(raw, me, today);
+          const out: Record<string, unknown> = { today, from, to, member: { id: mb.id, name: mb.display_name, color: mb.color },
+            holidays: raw.holidays, permissions: employee.permissions };
+          if (can("team.self")) {
+            out.slots = m.slots.filter((x) => x.work_date >= from && x.work_date <= to);
+            out.days = mb.tracks_hours ? eachDay(from, to).map((d) => dayInfo(m, d)) : [];
+            out.absences = m.absences.filter((a) => a.end_date >= from && a.start_date <= to);
+          }
+          if (can("leave.self")) {
+            const requests = (await rpc("leave_requests_list", { p_member: me })) as { status: string; start_date: string; end_date: string; portion: Absence["portion"] }[];
+            const pending = requests.filter((r) => r.status === "pending");
+            // Solde : mêmes règles que l'admin (contrat, fériés, jours de référence). Sans contrat : pas de solde.
+            const approved = mb.tracks_leave ? leaveBalances(m) : [];
+            const withPending = mb.tracks_leave ? leaveBalances({ ...m, absences: [...m.absences, ...pending.map((r, i) => ({
+              id: `pending-${i}`, member_id: me, kind: "vacation", start_date: r.start_date, end_date: r.end_date, portion: r.portion, note: null,
+            } as Absence))] }) : [];
+            out.leave = {
+              tracked: mb.tracks_leave,
+              balances: approved.map((b) => {
+                const w = withPending.find((x) => x.contractId === b.contractId);
+                return { ...b, pendingMin: w ? w.reservedMin + w.takenMin - b.reservedMin - b.takenMin : 0, remainingIfApprovedMin: w ? w.remainingMin : b.remainingMin };
+              }),
+              vacations: m.absences.filter((a) => a.kind === "vacation"),
+              requests,
+            };
+          }
+          data = out;
+          break;
+        }
+        case "preview_leave": {
+          if (!can("leave.self")) return deny();
+          const draft = { id: null, member_id: me, kind: "vacation" as Absence["kind"], start_date: date(body.start, "Début"), end_date: date(body.end, "Fin"),
+            portion: String(body.portion ?? "full") as Absence["portion"] };
+          if (!["full", "am", "pm"].includes(draft.portion)) throw new InputError("Durée invalide");
+          const raw = await load(draft.start_date, draft.end_date);
+          const mb = raw.members.find((x) => x.id === me);
+          if (!mb) return json(cors, { error: "Personne inconnue", reason: "not_found" }, 404);
+          const m = memberData(raw, me, today);
+          data = previewAbsence(mb.tracks_leave ? m : null, draft, m.absences);
+          break;
+        }
+        case "request_leave": {
+          if (!can("leave.self")) return deny();
+          const portion = String(body.portion ?? "full");
+          if (!["full", "am", "pm"].includes(portion)) throw new InputError("Durée invalide");
+          data = await rpc("leave_request_create", { p_member: me, p_start: date(body.start, "Début"), p_end: date(body.end, "Fin"),
+            p_portion: portion, p_note: text(body.note), p_by: employee.email });
+          break;
+        }
+        case "cancel_leave_request":
+          if (!can("leave.self")) return deny();
+          await rpc("leave_request_cancel", { p_id: uuid(body.id, "Demande"), p_member: me, p_by: employee.email });
+          data = { ok: true };
+          break;
+        default:
+          return deny();
+      }
+      return json(cors, { data });
+    }
+
     switch (action) {
+      // ── F23 : demandes de congés (administratrices) ──
+      case "leave_requests":
+        data = await rpc("leave_requests_list", { p_member: null });
+        break;
+      case "decide_leave":
+        if (typeof body.approve !== "boolean") throw new InputError("Décision manquante");
+        data = await rpc("leave_request_decide", { p_id: uuid(body.id, "Demande"), p_approve: body.approve, p_note: text(body.note), p_by: by });
+        break;
       case "get": {
         const from = date(body.from, "Début");
         const to = date(body.to, "Fin");

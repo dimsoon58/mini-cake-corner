@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { forCaller, requireStaff } from "../_shared/staff-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { zurichTodayISO } from "../_shared/order-pricing.ts";
 import { isAwaitingDecision, orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
@@ -63,8 +63,9 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    const admin = await requireAdmin(req, supabase);
-    if (!admin) return json(cors, { error: "Admin sign-in required" }, 401);
+    // Administratrices comme avant ; employée avec « today.view », sans aucun montant (F23).
+    const caller = await requireStaff(req, supabase, "today.view");
+    if (!caller) return json(cors, { error: "Admin sign-in required" }, 401);
 
     const today = zurichTodayISO();
     const tomorrow = addDays(today, 1);
@@ -307,7 +308,7 @@ serve(async (req) => {
       .limit(50);
     if (aErr) throw new Error(`Failed to load alerts: ${aErr.message}`);
 
-    return json(cors, {
+    return json(cors, forCaller(caller, {
       today,
       tomorrow,
       from,
@@ -315,14 +316,15 @@ serve(async (req) => {
       toDecide,
       toCollect,
       days,
-      alerts: (anomalies ?? []).map((a) => ({
+      // Les alertes (écarts de paiement…) restent réservées aux administratrices.
+      alerts: caller.role === "employee" ? [] : (anomalies ?? []).map((a) => ({
         orderId: a.order_id,
         orderNumber: a.order_number,
         issueType: a.issue_type,
         detail: a.detail,
         createdAt: a.created_at,
       })),
-    });
+    }));
   } catch (error) {
     console.error("get-today error:", error);
     return json(cors, { error: error instanceof Error ? error.message : "Unknown error" }, 500);
