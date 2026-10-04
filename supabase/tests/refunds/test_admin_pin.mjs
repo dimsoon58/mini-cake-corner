@@ -259,6 +259,40 @@ check("Actions sensibles : confirmation simple (accepter/refuser, payé, rembour
   /window\.confirm/.test(src("src/pages/AdminOrder.tsx")) && /window\.confirm/.test(src("src/components/admin/manual-order/ManualOrderPanel.tsx"))
   && /window\.confirm/.test(src("src/components/admin/refunds/OrderRefundsPanel.tsx")) && /window\.confirm/.test(src("src/pages/AdminPartner.tsx")));
 
+// ═══ Site : le jeton part VRAIMENT avec chaque appel (vrai supabase-js) ═══
+// supabase.functions est un accesseur qui crée un nouveau client à chaque
+// lecture : le jeton doit être joint à TOUS ces clients, pas à un seul.
+{
+  const sent = [];
+  fs.writeFileSync(path.join(tmp, "client.mjs"), `import { createClient } from "@supabase/supabase-js";
+export const supabase = createClient("https://proj.supabase.co", "anon-key", { auth: { persistSession: false },
+  global: { fetch: async (url, init) => { globalThis.__sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } }); } } });`);
+  fs.writeFileSync(path.join(tmp, "entry.mjs"), `export * from ${JSON.stringify(path.join(REPO, "src/lib/adminSession.ts"))}; export { supabase } from "@/integrations/supabase/client";`);
+  await build({ entryPoints: [path.join(tmp, "entry.mjs")], bundle: true, format: "esm", platform: "node", outfile: path.join(tmp, "adminSession.mjs"), logLevel: "error",
+    nodePaths: [path.join(REPO, "node_modules")],
+    plugins: [{ name: "a", setup(b) { b.onResolve({ filter: /^@\/integrations\/supabase\/client$/ }, () => ({ path: path.join(tmp, "client.mjs") })); } }] });
+  globalThis.__sent = sent;
+  const store = new Map();
+  globalThis.window = { localStorage: { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) }, setTimeout, clearTimeout };
+  const AS = await import(path.join(tmp, "adminSession.mjs"));
+  const real = AS.supabase;
+  check("Vrai supabase-js : `functions` crée un nouveau client à chaque lecture (cause du bug)", real.functions !== real.functions);
+  AS.installAdminSessionTransport();
+  AS.setAdminSession("u1", "tok-" + "x".repeat(40), new Date(Date.now() + 3600e3).toISOString());
+  await real.functions.invoke("manage-order", { body: { orderId: "o1", pin: "__session__" } });
+  await real.functions.invoke("get-order-detail", { body: { orderId: "o1" } });
+  await real.functions.invoke("admin-pin", { body: { action: "status" } });
+  await real.functions.invoke("create-postfinance-payment", { body: { a: 1 } });
+  const by = (n) => sent.find((x) => x.url.endsWith(`/functions/v1/${n}`))?.body;
+  check("Vrai supabase-js : jeton joint à chaque appel admin (accepter/refuser, fiche, statut PIN)",
+    by("manage-order")?._adminSession === "tok-" + "x".repeat(40) && by("get-order-detail")?._adminSession && by("admin-pin")?._adminSession && by("manage-order")?.pin === "__session__", sent);
+  check("Vrai supabase-js : jamais joint aux fonctions publiques (paiement)", by("create-postfinance-payment") && !("_adminSession" in by("create-postfinance-payment")));
+  AS.clearAdminSession();
+  await real.functions.invoke("manage-order", { body: { orderId: "o2" } });
+  check("Vrai supabase-js : après déconnexion, plus de jeton envoyé", !("_adminSession" in sent[sent.length - 1].body));
+}
+
 // ═══ Migration ══════════════════════════════════════════════════════════
 check("Tables fermées à anon / authenticated", (await one("select count(*)::int n from information_schema.role_table_grants where table_schema='public' and table_name in ('admin_pin_sessions','admin_pin_attempts') and grantee in ('anon','authenticated')")).n === 0);
 const n0 = (await one("select count(*)::int n from public.admin_pin_sessions")).n;

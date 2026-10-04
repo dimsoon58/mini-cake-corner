@@ -328,7 +328,7 @@ sans « mode » (aucun retrait) ; droits ; journal cohérent ; relance de F15 sa
 
 `test_admin_pin.mjs` : migration F16 + vraies fonctions `admin-pin`, `manage-customers`,
 `get-today`, `manage-order` et `get-order-detail` avec le vrai `_shared/admin-auth.ts`.
-Résultat attendu : `54 PASS, 0 FAIL` (sur l'ancienne version de `manage-order` /
+Résultat attendu : `58 PASS, 0 FAIL` (dont l'envoi réel du jeton avec le vrai supabase-js ; sur l'ancienne version de `manage-order` /
 `get-order-detail`, qui lisaient la demande avant la vérification : 5 FAIL — jeton ignoré).
 
 Couvert : comparaison du PIN en temps constant ; connexion et liste d'admins toujours exigées ;

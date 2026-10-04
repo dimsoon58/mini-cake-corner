@@ -90,13 +90,15 @@ export function useSessionPin(): [string, (v: string) => void, boolean] {
 }
 
 // ── Joindre le jeton aux appels des fonctions admin ──────────────────────
-let installed = false;
-export function installAdminSessionTransport() {
-  if (installed) return;
-  installed = true;
-  const fns = supabase.functions as unknown as { invoke: (name: string, opts?: { body?: unknown; [k: string]: unknown }) => Promise<unknown> };
-  const original = fns.invoke.bind(fns);
-  fns.invoke = (name: string, opts?: { body?: unknown; [k: string]: unknown }) => {
+// Attention : dans supabase-js, `supabase.functions` est un accesseur qui
+// crée un NOUVEAU client à chaque lecture. Modifier `invoke` sur un seul de
+// ces clients ne sert à rien (le jeton n'était jamais envoyé → « Invalid
+// PIN » et écran PIN redemandé). On enveloppe donc l'accesseur lui-même :
+// chaque client renvoyé reçoit l'`invoke` qui joint le jeton.
+type Invoke = (name: string, opts?: { body?: unknown; [k: string]: unknown }) => Promise<unknown>;
+
+function withSessionToken(original: Invoke): Invoke {
+  return (name, opts) => {
     const s = ADMIN_FUNCTIONS.has(name) ? read() : null;
     if (!s) return original(name, opts);
     const body = opts?.body;
@@ -104,4 +106,33 @@ export function installAdminSessionTransport() {
     if (!plain) return original(name, opts);
     return original(name, { ...(opts ?? {}), body: { ...((body as Record<string, unknown>) ?? {}), _adminSession: s.token } });
   };
+}
+
+function wrapClient<T extends { invoke: Invoke }>(client: T): T {
+  if ((client as { __adminSession?: boolean }).__adminSession) return client;
+  const original = client.invoke.bind(client);
+  client.invoke = withSessionToken(original);
+  (client as { __adminSession?: boolean }).__adminSession = true;
+  return client;
+}
+
+let installed = false;
+export function installAdminSessionTransport() {
+  if (installed) return;
+  installed = true;
+  // Accesseur `functions` (supabase-js) : trouvé sur la chaîne des prototypes.
+  let getter: (() => unknown) | undefined;
+  for (let o: object | null = supabase; o && !getter; o = Object.getPrototypeOf(o)) {
+    getter = Object.getOwnPropertyDescriptor(o, "functions")?.get;
+  }
+  if (getter) {
+    const get = getter;
+    Object.defineProperty(supabase, "functions", {
+      configurable: true,
+      get() { return wrapClient(get.call(this) as { invoke: Invoke }); },
+    });
+  } else {
+    // Simple objet (tests) : un seul client, modifié une fois.
+    wrapClient(supabase.functions as unknown as { invoke: Invoke });
+  }
 }
