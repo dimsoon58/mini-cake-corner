@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   COUNTRY_CODES,
   normalizeEmail,
@@ -381,7 +382,7 @@ const Signup = () => {
 
           <div>
             <Label htmlFor="password">{t("Password", "Mot de passe")}</Label>
-            <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <PasswordInput id="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
 
           <div className="flex items-start gap-3">

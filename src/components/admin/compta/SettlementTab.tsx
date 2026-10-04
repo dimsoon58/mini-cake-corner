@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { METHOD_LABELS, comptaApi, frDate, money, monthTitle, settlementValues, type SettlementView, type Treasury } from "@/lib/compta";
 import { cn } from "@/lib/utils";
 import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Compta > Décompte Mel / Eli (lot K4). Résultat du mois (logique B), pertes
 // reportées, trésorerie de base 4'000 confirmée par un solde bancaire de fin
@@ -107,7 +108,7 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
         <div className="flex flex-wrap items-end gap-2">
           <div className="space-y-1">
             <Label htmlFor="settlement-pin" className="text-xs text-muted-foreground">Code PIN administrateur (valider, verser, annuler, ajuster)</Label>
-            <Input id="settlement-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-48 rounded-none h-9" data-testid="settlement-pin" />
+            <PasswordInput id="settlement-pin" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-48 rounded-none h-9" data-testid="settlement-pin" />
           </div>
         </div>
       )}

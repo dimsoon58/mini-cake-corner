@@ -17,6 +17,7 @@ import {
 } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 import { useAdminSessionActive, useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Admin > Partenaires > fiche (lot Partenaires V1). Commandes attribuées
 // automatiquement par le lien du site (pas d'attribution manuelle).
@@ -32,7 +33,7 @@ const zToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich
 const PinField = ({ pin, setPin }: { pin: string; setPin: (v: string) => void }) => (useAdminSessionActive() ? null : (
   <div className="space-y-1">
     <Label className="text-xs">Code PIN administrateur</Label>
-    <Input type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="rounded-none h-9 w-40" />
+    <PasswordInput autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="rounded-none h-9 w-40" />
   </div>
 ));
 

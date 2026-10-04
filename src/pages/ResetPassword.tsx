@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Reached via the link Supabase sends from resetPasswordForEmail(). Clicking
 // that link signs the browser into a temporary recovery session, so this
@@ -82,11 +83,11 @@ const ResetPassword = () => {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <Label htmlFor="password">{t("New Password", "Nouveau mot de passe")}</Label>
-            <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <PasswordInput id="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           <div>
             <Label htmlFor="confirmPassword">{t("Confirm Password", "Confirmer le mot de passe")}</Label>
-            <Input id="confirmPassword" type="password" required minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+            <PasswordInput id="confirmPassword" required minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
           </div>
 
           <Button

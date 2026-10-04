@@ -14,6 +14,7 @@ import {
 } from "@/lib/refunds";
 import { cn } from "@/lib/utils";
 import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Admin > Remboursements (lot 2). Three tabs:
 //   Effectués   — refunds actually made in the chosen period (by their real
@@ -197,7 +198,7 @@ const AdminRefunds = () => {
           {tab === "review" && !pinBySession && (
             <div className="space-y-1 ml-auto">
               <Label className="text-xs text-muted-foreground">{t("Admin PIN", "Code PIN administrateur")}</Label>
-              <Input type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
+              <PasswordInput autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
             </div>
           )}
         </div>

@@ -85,7 +85,8 @@ export function useAdminSessionActive(userId?: string | null): boolean {
 export function useSessionPin(): [string, (v: string) => void, boolean] {
   const active = useAdminSessionActive();
   const [pin, setPin] = useState("");
-  return [active ? SESSION_PIN : pin, setPin, active];
+  // Espaces au début / à la fin ignorés (remplissage automatique du navigateur).
+  return [active ? SESSION_PIN : pin.trim(), setPin, active];
 }
 
 // ── Joindre le jeton aux appels des fonctions admin ──────────────────────

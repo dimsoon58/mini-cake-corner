@@ -13,6 +13,7 @@ import {
 } from "@/lib/refunds";
 import { cn } from "@/lib/utils";
 import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Order page block (lot 2): what was collected, decided and actually
 // refunded, the remaining amount, and the history. Two separate actions:
@@ -163,7 +164,7 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
         {!pinBySession && (
           <div className="space-y-1">
             <Label htmlFor="refund-panel-pin" className={smallLabel}>{t("Admin PIN", "Code PIN administrateur")}</Label>
-            <Input id="refund-panel-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
+            <PasswordInput id="refund-panel-pin" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
           </div>
         )}
         <Button variant="outline" className="rounded-none" disabled={collected <= 0} onClick={() => { setOpen(open === "refund" ? null : "refund"); setMessage(null); }}>
@@ -595,7 +596,7 @@ const LegacyRefundForm = ({ orderId }: { orderId: string }) => {
         {!pinBySession && (
           <div className="space-y-1">
             <Label className={smallLabel}>{t("Admin PIN", "Code PIN administrateur")}</Label>
-            <Input type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-28 rounded-none" />
+            <PasswordInput autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-28 rounded-none" />
           </div>
         )}
         <Button type="submit" variant="outline" className="rounded-none" disabled={busy || !(a > 0) || !pin.trim()}>

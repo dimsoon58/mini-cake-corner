@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { normalizeEmail } from "@/lib/identity";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const RESEND_COOLDOWN_SECONDS = 120;
 
@@ -145,7 +146,7 @@ const Login = () => {
           </div>
           <div>
             <Label htmlFor="password">{t("Password", "Mot de passe")}</Label>
-            <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <PasswordInput id="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
 
           <Button

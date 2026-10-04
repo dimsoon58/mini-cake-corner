@@ -18,6 +18,7 @@ import { ProductionCheck } from "@/components/admin/ProductionCheck";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
 import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // pending/approved/rejected/cancelled -> the French/English label actually
 // shown for the header decision badge. Same lookup as AdminOrders.tsx's own
@@ -665,9 +666,9 @@ const AdminOrder = () => {
               {!pinBySession && (
                 <div className="space-y-2">
                   <Label htmlFor="pin">{t("Admin PIN", "Code PIN administrateur")}</Label>
-                  <Input
+                  <PasswordInput
                     id="pin"
-                    type="password"
+                   
                     value={pin}
                     onChange={(e) => setPin(e.target.value)}
                     placeholder={t("Enter your admin PIN", "Saisissez votre code PIN administrateur")}

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ESTABLISHMENT_LABELS, partnersApi, type PartnerDetail } from "@/lib/partners";
 import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Formulaire partenaire (création / modification). La remise client et la
 // commission sont deux paramètres distincts. L'identifiant (slug) et le
@@ -77,7 +78,7 @@ export default function PartnerForm({ partner, onCancel, onSaved }: { partner: P
       )}
       {err && <p className="border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900" role="alert">{err}</p>}
       <div className="flex flex-wrap items-end gap-2">
-        {!pinBySession && <div className="space-y-1"><Label className="text-xs">Code PIN administrateur</Label><Input type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="rounded-none h-9 w-40" data-testid="partner-pin" /></div>}
+        {!pinBySession && <div className="space-y-1"><Label className="text-xs">Code PIN administrateur</Label><PasswordInput autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="rounded-none h-9 w-40" data-testid="partner-pin" /></div>}
         <span className="flex-1" />
         <Button type="button" variant="outline" className="rounded-none" onClick={onCancel} disabled={busy}>Annuler</Button>
         <Button type="submit" className="rounded-none" disabled={busy}>{busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}Enregistrer</Button>

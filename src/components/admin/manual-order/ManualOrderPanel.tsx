@@ -15,6 +15,7 @@ import {
   PAYMENT_METHODS,
 } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Admin order page — block shown only for orders created from the Admin
 // manual-order editor (created_via = 'admin'): amounts (calculated /
@@ -256,7 +257,7 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
             {!pinBySession && (
               <div>
                 <label className="block text-xs mb-1">{t("Admin PIN", "Code PIN administrateur")}</label>
-                <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} className={field} autoComplete="off" />
+                <PasswordInput value={pin} onChange={(e) => setPin(e.target.value)} className={field} autoComplete="off" />
               </div>
             )}
           </div>

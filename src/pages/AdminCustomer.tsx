@@ -17,6 +17,7 @@ import {
 } from "@/lib/customers";
 import { cn } from "@/lib/utils";
 import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Admin > Clients > fiche (lot C). Contact details and notes are editable
 // (admin PIN); editing never rewrites any order or invoice — each order keeps
@@ -120,7 +121,7 @@ const AdminCustomer = () => {
                 {!pinBySession && (
                   <div className="space-y-1">
                     <Label htmlFor="cust-pin" className="text-xs text-muted-foreground">{t("Admin PIN (to edit)", "Code PIN administrateur (pour modifier)")}</Label>
-                    <Input id="cust-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-40 rounded-none" />
+                    <PasswordInput id="cust-pin" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-40 rounded-none" />
                   </div>
                 )}
                 {msg && <p role="status" className={cn("text-sm px-3 py-2 border", msg.ok ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-red-50 border-red-200 text-red-800")}>{msg.text}</p>}

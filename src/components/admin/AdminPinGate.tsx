@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useLang } from "@/context/LanguageContext";
 import { clearAdminSession, getAdminSession, setAdminSession, useAdminSessionActive } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Admin > écran « Code PIN » (F16) : après la connexion par email, le PIN
 // est demandé une fois ; ensuite tout le dashboard est accessible sans le
@@ -51,7 +51,8 @@ export function AdminPinGate({ children }: { children: ReactNode }) {
     e.preventDefault();
     if (busy || !pin.trim() || !user) return;
     setBusy(true); setError(null);
-    const { data, error: err } = await supabase.functions.invoke("admin-pin", { body: { action: "unlock", pin } });
+    // Les espaces ajoutés au début ou à la fin (remplissage automatique) sont ignorés.
+    const { data, error: err } = await supabase.functions.invoke("admin-pin", { body: { action: "unlock", pin: pin.trim() } });
     let message: string | null = data?.error ?? null;
     if (err) { try { message = (await (err as { context?: Response }).context?.json())?.error ?? null; } catch { /* ignore */ } }
     setBusy(false);
@@ -75,7 +76,7 @@ export function AdminPinGate({ children }: { children: ReactNode }) {
         {t("Asked once per session. Then every admin action works without typing it again.", "Demandé une seule fois par session. Ensuite, toutes les actions admin fonctionnent sans le ressaisir.")}
       </p>
       <form onSubmit={unlock} className="space-y-3">
-        <Input type="password" inputMode="numeric" autoComplete="off" autoFocus value={pin} onChange={(e) => setPin(e.target.value)}
+        <PasswordInput autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} autoFocus value={pin} onChange={(e) => setPin(e.target.value)}
           aria-label={t("Admin PIN", "Code PIN administrateur")} className="rounded-none text-center text-lg tracking-[0.3em]" />
         {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
         <Button type="submit" className="w-full rounded-none" disabled={busy || !pin.trim()}>
