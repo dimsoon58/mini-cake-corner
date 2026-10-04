@@ -236,7 +236,9 @@ const src = (f) => fs.readFileSync(path.join(REPO, f), "utf8");
 const gate = src("src/components/admin/AdminPinGate.tsx");
 check("Écran PIN : admin-pin pas encore déployée (pré-vérification CORS bloquée) → dashboard comme avant",
   /adminPinDeployed\(\)\) === false\) \{ setState\("legacy"\)/.test(gate) && /code !== "NOT_FOUND"/.test(gate));
-check("Dashboard derrière l'écran PIN (AdminLayout → AdminPinGate)", src("src/components/admin/AdminLayout.tsx").includes("<AdminPinGate>") && src("src/components/admin/AdminLayout.tsx").includes("installAdminSessionTransport()"));
+// F23 : les administratrices passent toujours par AdminPinGate ; l'employée (sans PIN) n'y passe pas.
+const layout = src("src/components/admin/AdminLayout.tsx");
+check("Dashboard derrière l'écran PIN (AdminLayout → AdminPinGate pour les administratrices)", layout.includes("const Gate = admin ? AdminPinGate :") && layout.includes("<Gate>") && layout.includes("installAdminSessionTransport()"));
 check("Déconnexion : autorisation révoquée puis oubliée", /lockAdminSession\(\);\s*await supabase\.auth\.signOut\(\)/.test(src("src/context/AuthContext.tsx")));
 const store = src("src/lib/adminSession.ts");
 check("Navigateur : seul le jeton est conservé, jamais le PIN", /setItem\(KEY, JSON\.stringify\(\{ userId, token, expiresAt \}\)\)/.test(store) && !/setItem\([^)]*pin/i.test(store));

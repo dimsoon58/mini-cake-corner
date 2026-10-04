@@ -11,6 +11,7 @@ import { ProductionCheck, isProductionDone } from "@/components/admin/Production
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, flavorLabel, shapeLabel, sizeLabel } from "@/lib/orderLabels";
 import { formatChf } from "@/lib/manualOrders";
@@ -75,7 +76,10 @@ const AdminToday = () => {
   const { t, lang } = useLang();
   const l = lang === "en" ? "en" : "fr";
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = isAdminEmail(user?.email);
+  // F23 : l'employée voit la production, sans montants ni tâches de gestion (décider, encaisser, alertes).
+  const staff = useStaffRole();
+  const employee = staff.isEmployee;
+  const isAdmin = isAdminEmail(user?.email) || staff.can("today.view");
 
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -142,10 +146,10 @@ const AdminToday = () => {
   }, [t, from, to, rangeError]);
 
   useEffect(() => {
-    if (!authLoading && isAdmin) load();
-  }, [authLoading, isAdmin, load]);
+    if (!authLoading && !staff.loading && isAdmin) load();
+  }, [authLoading, staff.loading, isAdmin, load]);
 
-  if (authLoading) {
+  if (authLoading || staff.loading) {
     return (
       <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
@@ -321,9 +325,11 @@ const AdminToday = () => {
             <Button variant="outline" onClick={load} disabled={loading} className="rounded-none" aria-label={t("Refresh", "Actualiser")}>
               <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
             </Button>
-            <Button asChild className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Link to="/admin/manual-orders/new"><Plus className="w-4 h-4 mr-1" /> {t("New order", "Nouvelle commande")}</Link>
-            </Button>
+            {!employee && (
+              <Button asChild className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Link to="/admin/manual-orders/new"><Plus className="w-4 h-4 mr-1" /> {t("New order", "Nouvelle commande")}</Link>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -359,7 +365,7 @@ const AdminToday = () => {
         {data && !rangeError && (
           <>
             {/* Orders waiting for Accept / Refuse — never let one wait unnoticed */}
-            {data.toDecide.length > 0 && (() => {
+            {!employee && data.toDecide.length > 0 && (() => {
               const oldest = data.toDecide.reduce<string | null>((m, o) => (o.receivedAt && (!m || o.receivedAt < m) ? o.receivedAt : m), null);
               const w = waitingFor(oldest);
               return (
@@ -377,11 +383,13 @@ const AdminToday = () => {
             {/* Counters */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: t("To decide", "À décider"), value: data.toDecide.length, warn: data.toDecide.length > 0, href: "#a-faire" },
-                { label: t("To collect", "À encaisser"), value: data.toCollect.length, warn: false, href: "#a-faire" },
+                ...(employee ? [] : [
+                  { label: t("To decide", "À décider"), value: data.toDecide.length, warn: data.toDecide.length > 0, href: "#a-faire" },
+                  { label: t("To collect", "À encaisser"), value: data.toCollect.length, warn: false, href: "#a-faire" },
+                ]),
                 { label: t("Cakes in the period", "Gâteaux sur la période"), value: counts.all, warn: false, href: "#production",
                   note: toAcceptCakes > 0 ? t(`+ ${toAcceptCakes} to accept`, `+ ${toAcceptCakes} à accepter`) : null },
-                { label: t("Alerts", "Alertes"), value: data.alerts.length, danger: data.alerts.length > 0, href: "#alertes" },
+                ...(employee ? [] : [{ label: t("Alerts", "Alertes"), value: data.alerts.length, danger: data.alerts.length > 0, href: "#alertes" }]),
               ].map((c) => (
                 <a
                   key={c.label}
@@ -399,6 +407,7 @@ const AdminToday = () => {
             </div>
 
             {/* To do now */}
+            {!employee && (
             <section id="a-faire">
               <h2 className={sectionTitle}>{t("To do now", "À faire maintenant")}</h2>
               <div className={box}>
@@ -433,6 +442,7 @@ const AdminToday = () => {
                 )}
               </div>
             </section>
+            )}
 
             {/* Production of the period, by pickup/delivery date */}
             <section id="production" className="space-y-3">
@@ -495,6 +505,7 @@ const AdminToday = () => {
             </section>
 
             {/* Alerts */}
+            {!employee && (
             <section id="alertes">
               <h2 className={sectionTitle}>{t("Alerts", "Alertes")}</h2>
               {data.alerts.length === 0 ? (
@@ -516,6 +527,7 @@ const AdminToday = () => {
                 </ul>
               )}
             </section>
+            )}
           </>
         )}
       </main>

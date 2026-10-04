@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BarChart3, Calculator, CakeSlice, CalendarDays, ClipboardList, Handshake, PencilLine, RotateCcw, Sun, UserRoundCog, Users } from "lucide-react";
+import { BarChart3, Calculator, CakeSlice, CalendarCheck, CalendarDays, ClipboardList, Handshake, PencilLine, RotateCcw, Sun, UserRoundCog, Users } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { useStaffRole, type StaffPermission } from "@/lib/staff";
 import { cn } from "@/lib/utils";
 import { AdminPinGate } from "@/components/admin/AdminPinGate";
 import { NewVersionBanner } from "@/components/admin/NewVersionBanner";
@@ -16,8 +17,9 @@ installAdminSessionTransport();
 // Admin shell: the site Layout plus one menu shared by every Admin page —
 // a side menu on large screens, a bottom bar on tablet / phone. Only
 // sections that exist are listed; new ones are added here when they ship.
-// The menu shows for admins only (sign-in / access-denied screens keep the
-// plain Layout look).
+// The menu shows for admins and, since F23, for the employee — who only
+// sees her allowed sections and never the admin PIN gate (sign-in /
+// access-denied screens keep the plain Layout look).
 
 const ITEMS = [
   { to: "/admin", en: "Today", fr: "Aujourd'hui", short: { en: "Today", fr: "Auj." }, icon: Sun, exact: true },
@@ -33,12 +35,26 @@ const ITEMS = [
   { to: "/admin/dashboard", en: "Dashboard", fr: "Tableau de bord", short: { en: "Stats", fr: "Stats" }, icon: BarChart3 },
 ];
 
+// F23 : sections de l'employée (aucune donnée financière, aucune gestion).
+const EMPLOYEE_ITEMS: ((typeof ITEMS)[number] & { perms: StaffPermission[] })[] = [
+  { ...ITEMS[0], perms: ["today.view"] },
+  { to: "/admin/production", en: "Production", fr: "Production", short: { en: "Prod.", fr: "Prod." }, icon: CakeSlice, perms: ["production.view"] },
+  { ...ITEMS[1], perms: ["orders.view"] },
+  { to: "/admin/calendar", en: "Planning", fr: "Planning", short: { en: "Plan.", fr: "Plan." }, icon: CalendarDays, perms: ["planning.view"] },
+  { to: "/admin/me", en: "My schedule & leave", fr: "Mon planning et congés", short: { en: "Me", fr: "Moi" }, icon: CalendarCheck, perms: ["team.self", "leave.self"] },
+];
+
 const AdminLayout = ({ children }: { children: ReactNode }) => {
   const { t } = useLang();
   const { user } = useAuth();
   const { pathname } = useLocation();
+  const staff = useStaffRole();
+  const admin = isAdminEmail(user?.email);
 
-  if (!isAdminEmail(user?.email)) return <Layout>{children}</Layout>;
+  if (!admin && !staff.isEmployee) return <Layout>{children}</Layout>;
+  const items: (typeof ITEMS)[number][] = admin ? ITEMS : EMPLOYEE_ITEMS.filter((it) => it.perms.some((p) => staff.can(p)));
+  // L'employée n'a jamais le PIN administrateur : pas de demande de PIN.
+  const Gate = admin ? AdminPinGate : ({ children: c }: { children: ReactNode }) => <>{c}</>;
 
   const isActive = (it: (typeof ITEMS)[number]) =>
     it.exact
@@ -48,13 +64,13 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
   return (
     <Layout>
       <NewVersionBanner />
-      <AdminPinGate>
+      <Gate>
       <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-2 lg:px-4 pb-20 lg:pb-0">
         {/* Side menu (large screens) */}
         <nav aria-label={t("Admin menu", "Menu Admin")} className="hidden lg:block pt-8">
           <div className="sticky top-28 space-y-1">
-            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Admin</p>
-            {ITEMS.map((it) => {
+            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{admin ? "Admin" : t("Team", "Équipe")}</p>
+            {items.map((it) => {
               const Icon = it.icon;
               const active = isActive(it);
               return (
@@ -85,7 +101,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div className="flex overflow-x-auto [scrollbar-width:none]">
-          {ITEMS.map((it) => {
+          {items.map((it) => {
             const Icon = it.icon;
             const active = isActive(it);
             return (
@@ -106,7 +122,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
           })}
         </div>
       </nav>
-      </AdminPinGate>
+      </Gate>
     </Layout>
   );
 };

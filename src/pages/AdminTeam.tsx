@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { EmployeeAccessBox, LeaveRequestsBox } from "@/components/admin/team/StaffPanel";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -156,6 +157,12 @@ const AdminTeam = () => {
 
         {error && <p className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error}</p>}
         {notice && <p className="border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900" role="status">{notice}</p>}
+
+        {/* ── F23 : demandes de congés de l'employée et son accès ── */}
+        <div className="grid lg:grid-cols-2 gap-3">
+          <LeaveRequestsBox onChanged={load} />
+          <EmployeeAccessBox />
+        </div>
 
         {/* ── Compteurs ── */}
         {nahya && <Counters nahya={nahya} week={week} view={view} />}

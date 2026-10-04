@@ -130,3 +130,24 @@ export const CREDIT_BASIS_LABELS: Record<Contract["absence_credit_basis"], strin
 /** Libellé neutre d'un solde : jamais « heures dues ». */
 export const balanceLabel = (min: number) =>
   min > 0 ? "Heures en plus" : min < 0 ? "Écart à analyser" : "Équilibré";
+
+// ── F23 : congés demandés par l'employée, approuvés par Mel ou Eli ──────
+export type LeaveRequestStatus = "pending" | "approved" | "refused" | "cancelled";
+export interface LeaveRequest {
+  id: string; member_id: string; memberName?: string; start_date: string; end_date: string; portion: Portion; note: string | null;
+  status: LeaveRequestStatus; absence_id: string | null; decision_note: string | null; decided_by: string | null; decided_at: string | null;
+  created_by: string | null; created_at: string;
+}
+export const LEAVE_STATUS_LABELS: Record<LeaveRequestStatus, { label: string; className: string }> = {
+  pending: { label: "En attente", className: "bg-amber-100 text-amber-900" },
+  approved: { label: "Approuvée", className: "bg-emerald-100 text-emerald-900" },
+  refused: { label: "Refusée", className: "bg-red-100 text-red-900" },
+  cancelled: { label: "Annulée", className: "bg-secondary text-muted-foreground" },
+};
+export interface MyBalance extends LeaveBalance { pendingMin: number; remainingIfApprovedMin: number }
+export interface MyTeamData {
+  today: string; from: string; to: string; member: { id: string; name: string; color: string };
+  holidays: { holiday_date: string; label: string }[]; permissions: string[];
+  slots?: TimeRange[]; days?: DayInfo[]; absences?: Absence[];
+  leave?: { tracked: boolean; balances: MyBalance[]; vacations: Absence[]; requests: LeaveRequest[] };
+}

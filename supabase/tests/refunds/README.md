@@ -441,3 +441,18 @@ trésorerie, réserve, parts, avances, dépenses, ventes et mouvements identique
 export par période : feuilles, totaux = page, chaque justificatif ↔ sa ligne Excel, pièces manquantes,
 fichier non récupéré signalé, rien d'envoyé. Résultat attendu : `63 PASS, 0 FAIL`.
 
+## Accès employée F23 — Nahya, sans aucune donnée financière
+
+`test_staff_employee.mjs` (schéma de production + F1–F23, vraies fonctions get-today, get-production,
+update-production-status, list-orders, get-order-detail, list-orders-by-date, team-planning,
+staff-access et 11 fonctions réservées aux administratrices ; Auth simulé, aucune invitation ni e-mail
+réel) : sans accès → rien ; invitation (PIN, confirmation, compte existant sans e-mail, adresse
+administratrice refusée, « brouillons de commandes manuelles » impossible à accorder) ; sections
+autorisées SANS aucun montant, prix, frais, remise, cagnotte, facture, remboursement ni jeton (scan
+complet des réponses) ; administratrices inchangées ; « Fait » / « À préparer » enregistrés avec
+l'auteur ; stock manuel, Accepter / Refuser et toutes les fonctions administratrices refusés (même
+avec le PIN dans la demande) ; commandes jamais modifiées ; congés : seulement les siens, aperçu et
+solde par les règles existantes, en attente / approuvé / refusé / annulé, chevauchements, décision par
+Eli ou Mel, historique, aucun solde inventé sans contrat ; désactivation ; accès lié au compte ;
+relance de F23. Résultat attendu : `83 PASS, 0 FAIL`.
+

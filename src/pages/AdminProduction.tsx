@@ -8,6 +8,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { flavorDescMap } from "@/data/flavorDesc";
 import { cn } from "@/lib/utils";
@@ -119,9 +120,9 @@ type T = (en: string, fr: string) => string;
 
 // Module-level (not nested in the page) so a page refresh never remounts
 // them and never loses a number being typed.
-const StockCell = ({ base, category, value, saving, onSave, t }: {
+const StockCell = ({ base, category, value, saving, onSave, t, readOnly }: {
   base: SpongeBase; category: Category; value: number; saving: boolean;
-  onSave: (base: SpongeBase, category: Category, quantity: number) => void; t: T;
+  onSave: (base: SpongeBase, category: Category, quantity: number) => void; t: T; readOnly?: boolean;
 }) => {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
@@ -130,6 +131,7 @@ const StockCell = ({ base, category, value, saving, onSave, t }: {
     if (draft.trim() === "" || !Number.isInteger(n) || n < 0) { setDraft(String(value)); return; }
     if (n !== value) onSave(base, category, n);
   };
+  if (readOnly) return <span className="tabular-nums">{value}</span>;
   return (
     <span className="inline-flex items-center gap-1 justify-end">
       {saving && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
@@ -193,7 +195,11 @@ const ISO = "yyyy-MM-dd";
 const AdminProduction = () => {
   const { t, lang } = useLang();
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = isAdminEmail(user?.email);
+  // F23 : l'employée voit la production et coche « Fait » ; le stock manuel et
+  // les décisions « réutilisable / perdu » restent aux administratrices.
+  const staff = useStaffRole();
+  const employee = staff.isEmployee;
+  const isAdmin = isAdminEmail(user?.email) || staff.can("production.view");
   const tr = (l: { en: string; fr: string }) => t(l.en, l.fr);
   const [reuseUnits, setReuseUnits] = useState<Record<string, number>>({});
   const [decidingId, setDecidingId] = useState<string | null>(null);
@@ -235,9 +241,9 @@ const AdminProduction = () => {
   }, [from, to, t]);
 
   useEffect(() => {
-    if (authLoading || !isAdmin) { setLoading(authLoading); return; }
+    if (authLoading || staff.loading || !isAdmin) { setLoading(authLoading || staff.loading); return; }
     load();
-  }, [authLoading, isAdmin, load]);
+  }, [authLoading, staff.loading, isAdmin, load]);
 
   const saveStock = async (base: SpongeBase, category: Category, quantity: number) => {
     const key = `${base}|${category}`;
@@ -286,7 +292,7 @@ const AdminProduction = () => {
     return next;
   });
 
-  if (authLoading) {
+  if (authLoading || staff.loading) {
     return (
       <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
@@ -434,7 +440,7 @@ const AdminProduction = () => {
               </div>
             </div>
 
-            {(data.pendingReuse ?? []).length > 0 && (
+            {!employee && (data.pendingReuse ?? []).length > 0 && (
               <section className="border border-amber-400 bg-background" data-testid="pending-reuse">
                 <h2 className="px-4 py-2.5 border-b border-amber-300 text-sm font-semibold uppercase tracking-[0.12em] text-amber-900 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4" /> {t("Prepared then cancelled — reusable?", "Préparés puis annulés — réutilisables ?")}
@@ -536,7 +542,7 @@ const AdminProduction = () => {
                                     <td className="py-2 px-2 text-right text-muted-foreground">{r.ordered}</td>
                                     <td className="py-2 px-2 text-right text-muted-foreground">{r.done ?? 0}</td>
                                     <td className="py-2 px-2 text-right font-semibold">{r.needed ?? r.ordered}</td>
-                                    <td className="py-2 px-2 text-right"><StockCell base={base} category={r.category} value={r.stock} saving={savingKey === `${base}|${r.category}`} onSave={saveStock} t={t} /></td>
+                                    <td className="py-2 px-2 text-right"><StockCell base={base} category={r.category} value={r.stock} saving={savingKey === `${base}|${r.category}`} onSave={saveStock} t={t} readOnly={employee} /></td>
                                     <td className="py-2 px-2 text-right">{r.remaining ?? r.surplus}</td>
                                     <td className={cn("py-2 pl-2 text-right font-semibold", r.toMake > 0 ? "text-primary" : "text-muted-foreground")}>{r.toMake}</td>
                                   </tr>
@@ -552,7 +558,7 @@ const AdminProduction = () => {
                         </table>
                       </div>
                     )}
-                    <AddStock base={base} used={used} open={addingIn === base} onOpen={() => setAddingIn(base)} onClose={() => setAddingIn(null)} onSave={saveStock} t={t} tr={tr} />
+                    {!employee && <AddStock base={base} used={used} open={addingIn === base} onOpen={() => setAddingIn(base)} onClose={() => setAddingIn(null)} onSave={saveStock} t={t} tr={tr} />}
                   </div>
                 </section>
               );

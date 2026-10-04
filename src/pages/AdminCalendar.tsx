@@ -12,6 +12,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, flavorLabel } from "@/lib/orderLabels";
@@ -55,7 +56,10 @@ const statusBadgeClass = (status: OrderState) =>
 const AdminCalendar = () => {
   const { t, lang } = useLang();
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = isAdminEmail(user?.email);
+  // F23 : l'employée voit le planning des commandes sans montants (le serveur ne les envoie pas).
+  const staff = useStaffRole();
+  const employee = staff.isEmployee;
+  const isAdmin = isAdminEmail(user?.email) || staff.can("planning.view");
   const dfLocale = lang === "fr" ? { locale: dateFnsFr } : undefined;
 
   const [monthCursor, setMonthCursor] = useState(() => new Date());
@@ -70,7 +74,7 @@ const AdminCalendar = () => {
   }, []);
 
   useEffect(() => {
-    if (authLoading || !isAdmin) { setLoading(authLoading); return; }
+    if (authLoading || staff.loading || !isAdmin) { setLoading(authLoading || staff.loading); return; }
     let cancelled = false;
     const fetchMonth = async () => {
       setLoading(true);
@@ -101,9 +105,9 @@ const AdminCalendar = () => {
     };
     fetchMonth();
     return () => { cancelled = true; };
-  }, [monthCursor, authLoading, isAdmin, t]);
+  }, [monthCursor, authLoading, isAdmin, t, staff.loading]);
 
-  if (authLoading) {
+  if (authLoading || staff.loading) {
     return (
       <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
@@ -193,7 +197,7 @@ const AdminCalendar = () => {
     <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="flex justify-end mb-2">
-          <Link to="/admin/labels" className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground hover:text-foreground">{t("Production labels", "Étiquettes de production")}</Link>
+          {!employee && <Link to="/admin/labels" className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground hover:text-foreground">{t("Production labels", "Étiquettes de production")}</Link>}
         </div>
         <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8 text-center font-semibold flex items-center justify-center gap-3">
           <CalendarDays className="w-6 h-6 text-primary" strokeWidth={1.5} />
