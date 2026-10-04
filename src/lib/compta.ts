@@ -151,6 +151,20 @@ export const SALARY_STATUS_LABELS: Record<SalaryStatus, string> = {
 };
 export const METHOD_LABELS: Record<"transfer" | "twint" | "cash" | "other", string> = { transfer: "Virement", twint: "TWINT", cash: "Espèces", other: "Autre" };
 export const fmtHours = (min: number) => { const h = Math.floor(min / 60), m = Math.round(min % 60); return `${h} h${m ? ` ${String(m).padStart(2, "0")}` : ""}`; };
+// Salaire vu comme une dépense mensuelle (affichage seulement).
+/** Montant du mois : net du mois s'il est saisi, sinon le montant mensuel. */
+export const salaryAmount = (m: Pick<SalaryMonth, "confirmed_net" | "planned">) => (m.confirmed_net ?? m.planned ?? null);
+
+/** Total des salaires du mois (pour « Dépenses du mois, salaire compris »). */
+const r2 = (n: number) => Math.round(n * 100) / 100;
+export function salaryMonthTotal(o: SalaryOverview | null) {
+  if (!o) return { total: 0, missing: 0 };
+  let total = 0, missing = 0;
+  for (const m of o.current) { const a = salaryAmount(m); if (a == null) missing += 1; else total += Number(a); }
+  return { total: r2(total), missing };
+}
+
+
 /** « montant à saisir » plutôt que 0 quand un montant n'est pas encore connu. */
 export const moneyOrToEnter = (v: number | null | undefined) => (v == null ? "montant à saisir" : money(v));
 

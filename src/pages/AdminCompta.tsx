@@ -16,6 +16,7 @@ import {
   type ComptaSettings, type Expense, type ExpenseCategory, type ExpensePayer, type ExpensePeriod, type ExpenseStatus,
   type HistoryEntry, type PayerKind, type ReceiptFile,
 } from "@/lib/compta";
+import { salaryMonthTotal } from "@/lib/compta";
 import {
   SALES_REASON_LABELS, SALES_STATE_LABELS, comptaDossierIssues, salesLineLabel, salesLineNet, salesLinePaid,
   type AdvancesOverview, type SalaryOverview, type SalesLine, type SalesMonth, type SettlementView,
@@ -23,6 +24,7 @@ import {
 import AdvancesTab from "@/components/admin/compta/AdvancesTab";
 import SettlementTab from "@/components/admin/compta/SettlementTab";
 import SalaryTab from "@/components/admin/compta/SalaryTab";
+import SalaryExpenseRows from "@/components/admin/compta/SalaryExpenseRows";
 import { cn } from "@/lib/utils";
 
 // Admin > Compta. Mois + trois onglets :
@@ -30,8 +32,10 @@ import { cn } from "@/lib/utils";
 //     séance ; F17, une ligne par gâteau), résumé du mois, annulés à part,
 //     encaissements par date de paiement en détail secondaire (finance-month,
 //     mêmes chiffres que le tableau de bord, jamais additionnés aux ventes) ;
-//   « Dépenses » — dépenses (date d'achat / de paiement) + salaire (K2),
-//     le salaire n'étant jamais ajouté aux dépenses ;
+//   « Dépenses » — dépenses (date d'achat / de paiement) ; le salaire y
+//     apparaît comme une dépense mensuelle (une ligne par mois, bouton
+//     « Payé »), le détail K2 étant rangé dans « Gérer le salaire » ; les
+//     données et le calcul Mel / Eli ne changent pas (salaire compté une fois) ;
 //   « Mel / Eli » — décompte (K4 : logique B, base 4'000, +300, 60 / 40),
 //     en distinguant le résultat à partager du disponible à verser, puis
 //     les avances (K3).
@@ -246,14 +250,17 @@ const AdminCompta = () => {
           <div className="space-y-10">
             <ChargesSummary period={period} salary={salary} />
             {period && settings
-              ? <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)} />
+              ? <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)}
+                  salaryRows={salary ? <SalaryExpenseRows overview={salary} month={month} onChanged={load} onNotice={setNotice} /> : null} />
               : <p className="text-sm text-amber-800">{error ?? "Chargement…"}</p>}
-            <section className="space-y-3 border-t border-border pt-6" id="salaire">
-              <h2 className="text-base font-semibold uppercase tracking-[0.08em]">Salaire</h2>
-              {salary
-                ? <SalaryTab overview={salary} month={month} onChanged={load} onNotice={setNotice} onEditExpense={setEditing} />
-                : <p className="text-sm text-amber-800">{salaryError ?? "Chargement…"}</p>}
-            </section>
+            <details className="border border-border/60" id="salaire" data-testid="salary-details">
+              <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Gérer le salaire (montant mensuel, décompte, historique)</summary>
+              <div className="px-3 pb-4 pt-2">
+                {salary
+                  ? <SalaryTab overview={salary} month={month} onChanged={load} onNotice={setNotice} onEditExpense={setEditing} />
+                  : <p className="text-sm text-amber-800">{salaryError ?? "Chargement…"}</p>}
+              </div>
+            </details>
           </div>
         )}
         {tab === "partners" && (
@@ -298,7 +305,7 @@ function SalesTab({ sales, salesError, finance, financeError, period, salary, ad
   if (tt?.undatedCount) issues.push({ text: `${tt.undatedCount} dépense(s) sans date d'achat`, tab: "expenses" });
   if (tt?.duplicateCount) issues.push({ text: `${tt.duplicateCount} doublon(s) possible(s) à vérifier`, tab: "expenses" });
   if (tt?.salary?.toReconcileCount) issues.push({ text: `${tt.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher d'un versement (restent comptées dans les dépenses en attendant)`, tab: "expenses" });
-  salary?.current.filter((x) => x.confirmed_net == null).forEach((x) => issues.push({ text: `${x.code} : net à confirmer (décompte de la fiduciaire)`, tab: "expenses" }));
+  salary?.current.filter((x) => x.confirmed_net == null).forEach((x) => issues.push({ text: `Salaire ${x.member_name} : montant du mois à confirmer (« Payé » ou « Modifier le montant » dans Dépenses)`, tab: "expenses" }));
   salary?.current.filter((x) => x.document_missing && (x.confirmed_net != null || x.paid > 0)).forEach((x) => issues.push({ text: `${x.code} : justificatif manquant (décompte)`, tab: "expenses" }));
   advances?.people.filter((x) => x.overpaid > 0).forEach((x) => issues.push({ text: `${x.name} : avance trop remboursée de ${money(x.overpaid)}`, tab: "partners" }));
   if (sales?.cards.toAcceptCount) issues.push({ text: `${sales.cards.toAcceptCount} commande(s) du mois encore à accepter — pas encore des ventes`, href: "/admin/orders" });
@@ -310,7 +317,7 @@ function SalesTab({ sales, salesError, finance, financeError, period, salary, ad
   if (salesError) return <p className={cn("border px-3 py-2 text-sm", WARN)}>{salesError}</p>;
   if (!sales) return <div className="py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>;
   const c = sales.cards;
-  const sal = salary?.totals;
+  const salTotal = salaryMonthTotal(salary);
   const kept = sales.lines.filter((l) => l.state === "kept");
   const off = sales.lines.filter((l) => l.state !== "kept");
   return (
@@ -318,15 +325,11 @@ function SalesTab({ sales, salesError, finance, financeError, period, salary, ad
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Résumé du mois</h2>
         <p className="text-xs text-muted-foreground">Chaque gâteau compte dans le mois de son retrait ou de sa livraison, chaque workshop dans le mois de sa séance — quelle que soit la date du paiement. Commandes de test exclues.</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           <Stat label="Ventes maintenues" value={money(c.net)} strong hint={`après annulations et gestes · ${c.cakes} gâteau(x) / article(s)${c.workshopSeats ? ` · ${c.workshopSeats} place(s) de workshop` : ""}`} />
           <button type="button" className="text-left" onClick={() => onTab("expenses")}>
-            <Stat label="Dépenses du mois" value={tt ? money(tt.engaged.known) : "—"} tone={tt?.engaged.unknownCount ? "warn" : undefined}
-              hint={`date d'achat${tt?.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""}`} />
-          </button>
-          <button type="button" className="text-left" onClick={() => onTab("expenses")}>
-            <Stat label="Salaire net confirmé" value={sal && sal.confirmedForMonth != null && !sal.toConfirmCount ? money(sal.confirmedForMonth) : "montant à saisir"}
-              tone={sal?.toConfirmCount ? "warn" : undefined} hint="séparé des dépenses, compté une fois" />
+            <Stat label="Dépenses du mois" value={tt ? money(tt.engaged.known + salTotal.total) : "—"} tone={tt?.engaged.unknownCount || salTotal.missing ? "warn" : undefined}
+              hint={`salaire compris (${money(salTotal.total)})${tt?.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""}${salTotal.missing ? " · salaire à saisir" : ""}`} />
           </button>
           <Stat label="Restant à payer par les clients" value={money(c.toCollect)} tone={c.toCollect ? "warn" : undefined}
             hint={`${c.toCollectOrders} commande(s) du mois pas encore payée(s) — compté dans les ventes`} />
@@ -466,35 +469,30 @@ function CollectionsDetail({ finance, financeError }: { finance: FinanceMonth | 
   );
 }
 
-// ── Dépenses + salaire : charges du mois, chacune comptée une fois ─────────
+// ── Dépenses du mois, salaire compris (compté une seule fois) ─────────────
 function ChargesSummary({ period, salary }: { period: ExpensePeriod | null; salary: SalaryOverview | null }) {
   const tt = period?.totals;
-  const sal = salary?.totals;
-  const salKnown = sal && sal.confirmedForMonth != null && !sal.toConfirmCount;
+  const sal = salaryMonthTotal(salary);
   return (
     <section className="space-y-2" data-testid="charges">
-      <p className="text-xs text-muted-foreground">
-        Deux lectures séparées des dépenses, jamais additionnées entre elles : <strong>engagé</strong> = date d'achat dans le mois (celle du résultat) ; <strong>payé</strong> = date de paiement.
-        Le salaire est suivi à part (plus bas) et n'est jamais ajouté aux dépenses ; une dépense « Salaires » rapprochée d'un versement sort des dépenses.
-      </p>
       {tt && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <Stat label="Dépenses du mois (date d'achat)" value={money(tt.engaged.known)} strong tone={tt.engaged.unknownCount ? "warn" : undefined}
-            hint={`${tt.engaged.count} dépense(s)${tt.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""} · dont avances ${money(tt.engaged.advances)}`} />
-          <Stat label="Salaire net confirmé" value={salKnown ? money(sal!.confirmedForMonth) : "montant à saisir"} tone={salKnown ? undefined : "warn"}
-            hint={sal ? `versé ce mois ${money(sal.paidInMonth)} · reste à payer ${money(salary!.balances.remaining)}` : undefined} />
-          <Stat label="Payé ce mois (date de paiement)" value={money(tt.paid.known)} hint={`${tt.paid.count} paiement(s)`} />
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <Stat label="Dépenses du mois" value={money(tt.engaged.known + sal.total)} strong tone={tt.engaged.unknownCount || sal.missing ? "warn" : undefined}
+            hint={`dont salaire ${money(sal.total)}${sal.missing ? " (montant à saisir)" : ""} · ${tt.engaged.count} autre(s) dépense(s)${tt.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""}`} />
+          <Stat label="Payé ce mois (date de paiement)" value={money(tt.paid.known + Number(salary?.totals.paidInMonth ?? 0))} hint={`salaire versé compris (${money(salary?.totals.paidInMonth ?? 0)})`} />
           <Stat label="Factures encore à payer" value={money(tt.toPayBalance.known)} hint={`tous mois, à ce jour · ${tt.toPayBalance.count} dépense(s)`} />
         </div>
       )}
+      <p className="text-xs text-muted-foreground">Dépenses par date d'achat. Le salaire est une dépense mensuelle : une ligne par mois ci-dessous ; le détail est dans « Gérer le salaire ».</p>
     </section>
   );
 }
 
 // ── Dépenses ─────────────────────────────────────────────────────────────
 type Reading = "all" | "engaged" | "paid";
-function ExpensesTab({ period, settings, from, to, onEdit, onSettings }: {
+function ExpensesTab({ period, settings, from, to, onEdit, onSettings, salaryRows }: {
   period: ExpensePeriod; settings: ComptaSettings; from: string; to: string; onEdit: (e: Expense) => void; onSettings: () => void;
+  salaryRows?: React.ReactNode;
 }) {
   const [q, setQ] = useState("");
   const [allMonths, setAllMonths] = useState(false);
@@ -530,6 +528,8 @@ function ExpensesTab({ period, settings, from, to, onEdit, onSettings }: {
     return true;
   });
   const select = "h-9 border border-input bg-background px-2 text-sm min-w-0";
+  // Salaire : une ligne par mois, en tête (pas dans la recherche « tous les mois » ni les filtres).
+  const showSalary = !allMonths && !q && !payer && !status && reading !== "paid" && (!cat || settings.categories.find((c) => c.id === cat)?.name === "Salaires");
 
   return (
     <div className="space-y-3" data-testid="expenses">
@@ -566,11 +566,12 @@ function ExpensesTab({ period, settings, from, to, onEdit, onSettings }: {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {searching ? "Recherche…" : `${rows.length} dépense(s)`}
+        {searching ? "Recherche…" : `${rows.length} dépense(s)${showSalary && salaryRows ? " + salaire du mois" : ""}`}
         {!allMonths && " · les dépenses sans date d'achat apparaissent dans chaque mois tant qu'elles ne sont pas complétées"}
       </p>
       <ul className="border border-border/60 divide-y divide-border/60" data-testid="expense-list">
-        {rows.length === 0 && <li className="px-3 py-6 text-sm text-muted-foreground">Aucune dépense.</li>}
+        {showSalary && salaryRows}
+        {rows.length === 0 && !salaryRows && <li className="px-3 py-6 text-sm text-muted-foreground">Aucune dépense.</li>}
         {rows.map((e) => (
           <li key={e.id}>
             <button type="button" onClick={() => onEdit(e)} data-code={e.code} className="w-full text-left px-3 py-2 hover:bg-secondary/40 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1">
