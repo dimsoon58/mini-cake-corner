@@ -178,6 +178,33 @@ const cal = Object.values(r.body.days ?? {}).flat();
 check("Planning : gâteaux de A et C marqués « À accepter »", cal.filter((e) => e.orderId === A || e.orderId === C).every((e) => e.awaitingDecision === true) && cal.filter((e) => e.orderId === A).length === 2, cal.map((e) => [e.orderNumber, e.awaitingDecision]));
 check("Planning : confirmée, manuelle, refusée, annulée sans « À accepter »", cal.filter((e) => [B, Dm, E, Fo].includes(e.orderId)).every((e) => e.awaitingDecision === false));
 
+// ═══ Planning : annulations retirées (2026-10-05) ══════════════════════════
+// PG : commande confirmée, 2 gâteaux, un annulé seul (annulation partielle) ;
+// H : 2 gâteaux, un annulé par un remboursement « annule l'article ».
+const PG = await order({ num: "ORD-PCG", pay: "paid", physical: "approved", validation: "approved", date: "2026-12-05" });
+const pg1 = await item(PG, { flavor: "Vanilla", seq: 1 }), pg2 = await item(PG, { flavor: "Lemon", seq: 2 });
+await q("update public.order_items set production_status='cancelled' where id=$1", [pg2]);
+const PH = await order({ num: "ORD-PCH", pay: "paid", physical: "approved", validation: "approved", date: "2026-12-05" });
+const ph1 = await item(PH, { seq: 1 }), ph2 = await item(PH, { seq: 2 });
+await q("insert into public.order_manual_refunds (order_id, order_item_id, amount, cancels_item, status, refunded_at) values ($1,$2,40,true,'counted',now())", [PH, ph2]).catch(async () =>
+  q("insert into public.order_manual_refunds (order_id, order_item_id, amount, cancels_item) values ($1,$2,40,true)", [PH, ph2]));
+fs.writeFileSync(path.join(tmp, "client.mjs"), "export const supabase = {};");
+await build({ entryPoints: [path.join(REPO, "src/lib/planning.ts")], bundle: true, format: "esm", platform: "node", outfile: path.join(tmp, "planning.mjs"), logLevel: "error" });
+const PL = await import(path.join(tmp, "planning.mjs"));
+r = await call("list-orders-by-date", { year: 2026, month: 11 });
+const novE = r.body.days ?? {};
+r = await call("list-orders-by-date", { year: 2026, month: 12 });
+const allE = [...Object.values(novE).flat(), ...Object.values(r.body.days ?? {}).flat()];
+const shown = [...Object.values(PL.planningDays(novE)).flat(), ...Object.values(PL.planningDays(r.body.days ?? {})).flat()];
+check("Service : les entrées annulées restent renvoyées (tableau de bord inchangé)", allE.some((e) => e.orderId === Fo) && allE.some((e) => e.itemId === pg2) && allE.some((e) => e.itemId === ph2));
+check("Service : article annulé seul marqué (production_status ou remboursement « annule l'article »)", allE.find((e) => e.itemId === pg2)?.itemCancelled === true && allE.find((e) => e.itemId === ph2)?.itemCancelled === true
+  && allE.find((e) => e.itemId === pg1)?.itemCancelled === false && allE.find((e) => e.itemId === ph1)?.itemCancelled === false, allE.filter((e) => [PG, PH].includes(e.orderId)).map((e) => [e.itemId === pg2 || e.itemId === ph2, e.itemCancelled]));
+check("Planning : commande annulée en entier retirée", !shown.some((e) => e.orderId === Fo));
+check("Planning : annulation partielle → le gâteau annulé disparaît, l'autre reste à faire", shown.some((e) => e.itemId === pg1) && !shown.some((e) => e.itemId === pg2)
+  && shown.some((e) => e.itemId === ph1) && !shown.some((e) => e.itemId === ph2));
+check("Planning : commandes actives inchangées (A, B, C, D)", [A, B, C, Dm].every((id) => shown.some((e) => e.orderId === id)));
+check("Planning : un jour où tout est annulé disparaît", Object.values(PL.planningDays({ "2026-11-01": [{ status: "cancelled" }, { status: "approved", itemCancelled: true }] })).length === 0);
+
 // ═══ Étiquettes ═════════════════════════════════════════════════════════
 r = await call("get-orders-for-labels", { from: "2026-11-01", to: "2026-11-30" });
 const cakes = L.buildCakeLabels(r.body.items ?? []);

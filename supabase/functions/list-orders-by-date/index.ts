@@ -33,6 +33,13 @@ import { isAwaitingDecision, type ProdOrder } from "../_shared/production-stats.
 //
 // Same admin-only gate as list-orders/get-order-detail/manage-order — see
 // _shared/admin-auth.ts.
+//
+// 2026-10-05: each entry also says whether its ARTICLE is cancelled
+// (`itemCancelled`: cake cancelled on its own — production_status
+// 'cancelled' or a refund that cancels it — or a workshop booking with no
+// seat left). The Planning hides cancelled orders and cancelled articles
+// (no longer to do); the entries themselves are still returned, so the
+// dashboard figures built on this endpoint do not change.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -166,6 +173,8 @@ serve(async (req) => {
       // built (see invoice-pdf.ts) — items + orderExtras - orderDiscount.
       orderExtras: number;
       orderDiscount: number;
+      // Article cancelled on its own (see header). Never true for a still-active article.
+      itemCancelled: boolean;
     };
     const byDate = new Map<string, DayEntry[]>();
     const pushEntry = (date: string | null | undefined, entry: DayEntry) => {
@@ -223,11 +232,11 @@ serve(async (req) => {
       cakeOrdersById = new Map((cakeOrders ?? []).map((o) => [o.id, o]));
     }
 
-    let cakeItemsByOrder = new Map<string, Array<{ id: string; order_id: string; fulfillment_id: string | null; product: string; size: string | null; shape: string | null; design: string | null; flavors: string[] | null; design_image_url: string | null; reference_images: string[] | null; total: number | null }>>();
+    let cakeItemsByOrder = new Map<string, Array<{ id: string; order_id: string; fulfillment_id: string | null; product: string; size: string | null; shape: string | null; design: string | null; flavors: string[] | null; design_image_url: string | null; reference_images: string[] | null; total: number | null; production_status: string | null }>>();
     if (cakeOrderIds.length > 0) {
       const { data: items, error: itemsErr } = await supabase
         .from("order_items")
-        .select("id, order_id, fulfillment_id, product, size, shape, design, flavors, design_image_url, reference_images, total")
+        .select("id, order_id, fulfillment_id, product, size, shape, design, flavors, design_image_url, reference_images, total, production_status")
         .in("order_id", cakeOrderIds)
         .neq("product", "workshop");
       if (itemsErr) throw new Error(`Failed to load order items: ${itemsErr.message}`);
@@ -289,6 +298,7 @@ serve(async (req) => {
           workshopActiveSeats: 0,
           orderExtras,
           orderDiscount,
+          itemCancelled: it.production_status === "cancelled",
         });
       }
     }
@@ -327,6 +337,7 @@ serve(async (req) => {
     const workshopItemIds = (workshopItems ?? []).map((it) => it.id);
     let workshopRefundedByItem = new Map<string, number>();
     let workshopActiveSeatsByItem = new Map<string, number>();
+    const workshopWithReservation = new Set<string>();
     if (workshopItemIds.length > 0) {
       const { data: reservations, error: reservationsErr } = await supabase
         .from("workshop_reservations")
@@ -334,6 +345,7 @@ serve(async (req) => {
         .in("order_item_id", workshopItemIds);
       if (reservationsErr) throw new Error(`Failed to load workshop reservations: ${reservationsErr.message}`);
       workshopRefundedByItem = new Map((reservations ?? []).map((r) => [r.order_item_id, Number(r.refunded_amount) || 0]));
+      for (const r of reservations ?? []) workshopWithReservation.add(r.order_item_id);
       const OCCUPYING_STATUSES = new Set(["pending", "confirmed", "partially_cancelled"]);
       workshopActiveSeatsByItem = new Map(
         (reservations ?? []).map((r) => [r.order_item_id, OCCUPYING_STATUSES.has(r.status) ? (Number(r.active_seats) || 0) : 0]),
@@ -387,6 +399,8 @@ serve(async (req) => {
         workshopActiveSeats: workshopActiveSeatsByItem.get(it.id) ?? 0,
         orderExtras: (Number(parent?.delivery_fee) || 0) + (Number(parent?.express_surcharge_amount) || 0),
         orderDiscount: (Number(parent?.welcome_discount_amount) || 0) + (Number(parent?.partner_discount_amount) || 0) + (Number(parent?.reward_amount_used) || 0),
+        // A booking whose seats are all cancelled (or the reservation cancelled / refused) is no longer to do.
+        itemCancelled: workshopWithReservation.has(it.id) && (workshopActiveSeatsByItem.get(it.id) ?? 0) === 0,
       });
     }
 
@@ -421,6 +435,18 @@ serve(async (req) => {
       for (const e of allEntries) {
         e.manualRefundTotal = orderWideTotalByOrder.get(e.orderId) ?? 0;
         e.itemManualRefundTotal = itemTotalByItem.get(e.itemId) ?? 0;
+      }
+      // Cakes cancelled through a refund marked « cancels the item » (as in Production / Aujourd'hui).
+      const itemIds = allEntries.filter((e) => e.type === "cake").map((e) => e.itemId);
+      if (itemIds.length > 0) {
+        const { data: cancels, error: cErr } = await supabase
+          .from("order_manual_refunds")
+          .select("order_item_id")
+          .eq("cancels_item", true)
+          .in("order_item_id", itemIds);
+        if (cErr) throw new Error(`Failed to load item cancellations: ${cErr.message}`);
+        const cancelledIds = new Set((cancels ?? []).map((c) => c.order_item_id));
+        for (const e of allEntries) if (cancelledIds.has(e.itemId)) e.itemCancelled = true;
       }
     }
 

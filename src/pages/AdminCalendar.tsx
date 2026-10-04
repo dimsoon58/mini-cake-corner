@@ -16,6 +16,7 @@ import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, flavorLabel } from "@/lib/orderLabels";
 import { cn } from "@/lib/utils";
+import { planningDays } from "@/lib/planning";
 
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
 type DayEntry = {
@@ -38,7 +39,10 @@ type DayEntry = {
   pickupDeliverySlot: string | null;
   deliveryMethod: string | null;
   total: number | null;
+  // Article annulé seul (gâteau annulé, places de workshop toutes annulées).
+  itemCancelled?: boolean;
 };
+
 
 const dateKey = (d: Date) => format(d, "yyyy-MM-dd");
 
@@ -87,7 +91,8 @@ const AdminCalendar = () => {
         console.error("list-orders-by-date failed:", data.error);
         setLoadError(t("Could not load the calendar. Please try again.", "Impossible de charger le calendrier. Merci de réessayer."));
       } else {
-        setDays(data.days ?? {});
+        // Annulations (entières ou partielles) : plus à faire, plus affichées.
+        setDays(planningDays<DayEntry>(data.days ?? {}));
         // A newly selected date from a previous month wouldn't exist in
         // this month's data — clear it rather than showing a stale list.
         setSelectedDate(null);
