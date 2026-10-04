@@ -9,6 +9,7 @@
 import { freshDb } from "./load.mjs";
 import { build } from "esbuild";
 import fs from "fs";
+import { execSync } from "child_process";
 import path from "path";
 import os from "os";
 
@@ -296,7 +297,15 @@ const unknown = [...usedNames].filter((n) => !styleNames.includes(n.toLowerCase(
 check("Référence : noms de design = ceux du catalogue (sauf ceux signalés à vérifier)", unknown.length === 0, unknown);
 const r1 = R.INSPIRATION_REFERENCE["inspiration-14"], r30 = R.INSPIRATION_REFERENCE["inspiration-29"], r82 = R.INSPIRATION_REFERENCE["inspiration-83"];
 check("Dictée respectée : #1 Bordeaux / Bordeaux / cerises pailletées / écriture non précisée", r1.position === 1 && r1.base === "Bordeaux" && r1.decoration === "Bordeaux" && r1.extras.join() === "Cerises pailletées" && r1.writingColour === null);
-check("Rien d'inventé : #82 base non répartie (null + à vérifier), #30 écart photo signalé", r82.base === null && r82.decoration === null && r82.toCheck.length === 1 && r30.base === "Rouge" && r30.toCheck.some((x) => /rose foncé/.test(x)));
+check("Rien d'inventé : #82 base non répartie (null + à vérifier)", r82.base === null && r82.decoration === null && r82.toCheck.length === 1);
+const rp = (n) => Object.values(R.INSPIRATION_REFERENCE).find((r) => r.position === n);
+check("Corrections du 2026-10-04 : #9 Retro, #13 Normal with border, #30 Rainbow rose/rose, #37 Heart Bomb rose / rose et blanche, #47 Heart Bomb",
+  rp(9).design === "Retro / Vintage" && rp(9).base === "Verte" && rp(13).design === "Normal with border" && rp(13).base === "Rose"
+  && r30.design === "Rainbow Cake" && r30.base === "Rose" && r30.decoration === "Rose"
+  && rp(37).design === "Heart Bomb" && rp(37).base === "Rose" && rp(37).decoration === "Rose et blanche"
+  && rp(47).design === "Heart Bomb" && rp(47).base === "Verte" && rp(47).decoration === "Orange");
+check("Fiches d'inspiration : utilisées seulement par les étiquettes (aucune page client)",
+  execSync("git grep -l inspirationReference -- src", { cwd: REPO }).toString().trim().split("\n").sort().join() === "src/data/inspirationReference.ts,src/lib/productionLabels.ts");
 const inspItem = { ...itE, design: "inspiration-22", base_color: null, decoration_color: null, extra: null, text_color: null, text_style: null, cake_text: "Bravo", item_comment: null, order: { ...itE.order, has_comment: false } };
 const li = L.cakeLabelsFor(inspItem)[0];
 check("Étiquette d'inspiration : n° de galerie (pas l'identifiant interne) et design de référence", li.design === "Inspiration n°3 — Pearl Border × Retro", li.design);

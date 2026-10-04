@@ -264,7 +264,7 @@ npm install --no-save @electric-sql/pglite esbuild
 node test_labels.mjs
 ```
 
-Résultat attendu : `79 PASS, 0 FAIL`.
+Résultat attendu : `81 PASS, 0 FAIL`.
 
 Couvert : accès admin, période limitée ; règles de l'agenda (commande annulée, non payée, brouillon,
 gâteau refusé, workshop, bougies, gâteau annulé exclus ; commande manuelle en attente incluse) ;

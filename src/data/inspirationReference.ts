@@ -1,6 +1,11 @@
 // Caractéristiques de référence des photos d'inspiration (dictée du
 // 2026-10-04), pour la préparation et les étiquettes de production.
 //
+// * USAGE INTERNE seulement (étiquettes, préparation des crèmes) : jamais
+//   affiché aux clients — seul src/lib/productionLabels.ts l'importe (testé).
+//   Idée générale du gâteau ; l'essentiel = couleurs de base et de déco. Les
+//   personnalisations sont signalées par les alertes « commentaire client »
+//   et « photo de référence ».
 // * Clé = identifiant enregistré dans la commande (order_items.design =
 //   « inspiration-N »), qui n'est PAS la position dans la galerie : la
 //   position (« Inspiration Cake #3 ») est rappelée dans `position` et
@@ -38,11 +43,11 @@ const ROWS: Row[] = [
   [6, "inspiration-2", "Shag Cake", null, null, [], null, null, ["Couleurs citées sans répartition base / déco : bleu, vert, rose, orange, blanc", "Dictée « Shaker » → Shag Cake (photo)"]],
   [7, "inspiration-81", "Butterfly Garden", "Dégradé bleu et blanc", null, ["Perles", "Papillons"], null],
   [8, "inspiration-13", "Pearl Border × Retro (rétro chic)", "Noire", "Noire", ["Perles blanches"], null],
-  [9, "inspiration-1", null, "Verte", "Blanc, vert, rose, bleu", [], "Blanche", null, ["Design non précisé"]],
+  [9, "inspiration-1", "Retro / Vintage", "Verte", "Blanc, vert, rose, bleu", [], "Blanche", null, ["Confirmé le 2026-10-04 : design Retro"]],
   [10, "inspiration-3", "Shag Cake", "Bleue", "Orange, rose, bleu", ["Cerises pailletées"], null, null, ["Dictée « Shaker » → Shag Cake (photo)"]],
   [11, "inspiration-4", "Heart Bomb, fleurs à la place des cœurs", "Rose", "Rose", ["Fleurs rouges"], "Rouge", null, ["Dictée « Headband » → Heart Bomb"]],
   [12, "inspiration-6", "Normal without border", "Rouge", null, [], "Blanche"],
-  [13, "inspiration-7", null, "Rose", "Rouge", [], null, null, ["Design non précisé"]],
+  [13, "inspiration-7", "Normal with border", "Rose", "Rouge", [], null, null, ["Confirmé le 2026-10-04 : design Normal with Border"]],
   [14, "inspiration-8", "Heart Bomb", "Blanche", "Rouge", ["Quelques cœurs rouges"], "Rouge", null, ["Confirmé le 2026-10-04 : Heart Bomb, base blanche, déco rouge"]],
   [15, "inspiration-9", "Normal with border + Printed Picture", "Blanche", "Blanche", ["Photo imprimée"], null, null, ["Dictée « headboarder » : bordure pochée sur la photo → Normal with border"]],
   [16, "inspiration-10", "Gold Leaves", "Blanche", null, ["Feuille d'or"], "Rouge"],
@@ -59,14 +64,14 @@ const ROWS: Row[] = [
   [27, "inspiration-26", "Normal with border + Custom Drawing", "Verte", "Verte", ["Smileys jaunes"], null],
   [28, "inspiration-27", "Normal with border", "Verte", "Verte", [], "Rose clair"],
   [29, "inspiration-28", "Normal without border + Custom Drawing", "Bleue", null, ["Fleurs blanches et jaunes"], null],
-  [30, "inspiration-29", "Rainbow Cake", "Rouge", "Multicolore (arc-en-ciel)", [], null, null, ["Base dictée « rouge » ; la photo paraît rose foncé"]],
+  [30, "inspiration-29", "Rainbow Cake", "Rose", "Rose", [], null, null, ["Confirmé le 2026-10-04 : Rainbow, base rose, déco rose"]],
   [31, "inspiration-30", "Normal with border", "Noire", "Noire et verte", [], "Rose"],
   [32, "inspiration-31", "Gold Leaves", "Rouge", null, ["Feuille d'or"], "Blanche"],
   [33, "inspiration-32", "Normal without border", "Rouge", null, [], "Blanche"],
   [34, "inspiration-33", "Normal with border + Roses Please", "Noire", "Noire", ["Fleurs roses"], null, null, ["Dictée « Rose Spruce » : roses pochées sur la photo → Roses Please"]],
   [35, "inspiration-34", "Retro / Vintage", "Blanche", "Blanche", [], null],
   [36, "inspiration-35", "Normal without border", "Rose clair", null, [], "Verte"],
-  [37, "inspiration-36", "Rainbow (à vérifier)", "Rose foncé et rouge", "Rouge", ["Cœur blanc"], null, null, ["Design dicté « Rainbow » : pas d'arc-en-ciel visible sur la photo (cœurs blancs)"]],
+  [37, "inspiration-36", "Heart Bomb", "Rose", "Rose et blanche", ["Cœur blanc"], null, null, ["Confirmé le 2026-10-04 : Heart Bomb, base rose, déco rose et blanche"]],
   [38, "inspiration-37", "Retro / Vintage + Roses Please", "Jaune", "Jaune et orange", ["Fleurs roses"], null, null, ["Dictée « Rose Spruce » : roses pochées sur la photo → Roses Please"]],
   [39, "inspiration-38", "Roses Please", "Rouge", "Rouge", ["Fleurs blanches"], null, null, ["Dictée « Rose Spruce » : roses pochées sur la photo → Roses Please"]],
   [40, "inspiration-39", "Gender Reveal", "Blanche", "Blanche", ["Dessin noir"], null],
@@ -76,7 +81,7 @@ const ROWS: Row[] = [
   [44, "inspiration-43", "Normal with border + Custom Drawing", "Rose", null, ["Dessin rouge et noir"], null],
   [45, "inspiration-44", "Roses Please", "Rose", "Rose", ["Fleurs roses"], "Blanche", null, ["Dictée « Rose Spruce » : roses pochées sur la photo → Roses Please"]],
   [46, "inspiration-45", "Normal without border + Custom Drawing", "Blanche", null, ["Dessins rouges, bleus et verts"], null],
-  [47, "inspiration-46", "Normal without border, style « Heartbound »", "Verte", "Orange", ["Cerises"], null, null, ["Style « Heartbound » à vérifier (cerises sur la photo, pas de cœurs)"]],
+  [47, "inspiration-46", "Heart Bomb", "Verte", "Orange", ["Cerises"], null, null, ["Confirmé le 2026-10-04 : design Heart Bomb"]],
   [48, "inspiration-47", "Retro / Vintage", "Rouge", "Blanche", ["Ruban rouge"], null],
   [49, "inspiration-48", "Rainbow Cake", "Noire", "Noire", ["Cerises pailletées"], null],
   [50, "inspiration-49", "Chequered (damier)", null, null, [], null, null, ["Pas de design « Chequered » dans le catalogue", "Couleurs citées sans répartition base / déco : rose, bleu, vert, rose foncé, bleu foncé"]],
