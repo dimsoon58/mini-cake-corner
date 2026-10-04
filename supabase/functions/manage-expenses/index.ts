@@ -136,6 +136,13 @@ serve(async (req) => {
         data = await rpc("compta_expenses_period", { p_from: from, p_to: to });
         break;
       }
+      // Ventes du mois de réalisation (F17) : lecture seule.
+      case "sales_month": {
+        const m = String(body.month ?? "");
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)) throw new InputError("Mois invalide (AAAA-MM)");
+        data = await rpc("admin_sales_month", { p_month: `${m}-01`, p_include_tests: false });
+        break;
+      }
       case "search":
         data = await rpc("compta_expense_search", { p_search: text(body.q, 100), p_limit: 300 });
         break;
