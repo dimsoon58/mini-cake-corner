@@ -401,8 +401,8 @@ function SalesList({ title, lines, empty, testId }: { title: string; lines: Sale
           {lines.map((l, i) => {
             const paid = salesLinePaid(l);
             return (
-              <li key={`${l.orderId}-${l.itemId ?? l.kind}-${l.unitIndex}-${l.state}-${i}`} className="px-3 py-2 grid grid-cols-[44px_minmax(0,1fr)_auto] sm:grid-cols-[64px_minmax(0,1fr)_auto] gap-x-3 gap-y-0.5">
-                <span className="tabular-nums text-muted-foreground">{frDate(l.serviceDate).slice(0, 5)}</span>
+              <li key={`${l.orderId}-${l.itemId ?? l.kind}-${l.unitIndex}-${l.state}-${i}`} className="px-3 py-2 grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-0.5">
+                <span className="tabular-nums text-muted-foreground whitespace-nowrap">{frDate(l.serviceDate).slice(0, 5)}</span>
                 <span className="min-w-0">
                   <span className="block break-words">{salesLineLabel(l)}</span>
                   <span className="block text-xs text-muted-foreground break-words">
@@ -443,8 +443,8 @@ function CollectionsDetail({ finance, financeError }: { finance: FinanceMonth | 
       {rows.length === 0 ? <p className="text-sm text-muted-foreground">{empty}</p> : (
         <ul className="border border-border/60 divide-y divide-border/60 text-sm">
           {rows.map((r) => (
-            <li key={r.key} className="grid grid-cols-[80px_minmax(0,1fr)_auto] gap-2 px-3 py-1.5">
-              <span className="tabular-nums">{r.date ? frDate(r.date.slice(0, 10)) : "À dater"}</span>
+            <li key={r.key} className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 px-3 py-1.5">
+              <span className="tabular-nums whitespace-nowrap">{r.date ? frDate(r.date.slice(0, 10)) : "À dater"}</span>
               <span className="min-w-0 truncate">{r.order} · {r.who}{r.extra ? <span className="text-muted-foreground"> · {r.extra}</span> : null}</span>
               <span className="tabular-nums">{money(r.amount)}</span>
             </li>

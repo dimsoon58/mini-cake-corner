@@ -29,7 +29,12 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 type Write = (body: Record<string, unknown>, ok?: string) => Promise<{ ok: boolean; data?: unknown; error?: string }>;
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="flex justify-between gap-3"><dt className="text-muted-foreground shrink-0">{label}</dt><dd className="text-right min-w-0 break-words">{children}</dd></div>
+  // Valeur à côté du libellé si elle tient, sinon sur la ligne suivante ; un email
+  // n'est coupé que s'il est plus long que la case elle-même.
+  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+    <dt className="text-muted-foreground">{label}</dt>
+    <dd className="ml-auto text-right min-w-0 [overflow-wrap:anywhere]">{children}</dd>
+  </div>
 );
 
 // ── Compte de connexion ─────────────────────────────────────────────────
@@ -282,15 +287,15 @@ export function RewardHistoryBox({ history }: { history: RewardHistory }) {
       {history.events.length === 0 ? <p className="text-sm text-muted-foreground">{t("No movement.", "Aucun mouvement.")}</p> : (
         <ul className="divide-y divide-border/60 border border-border/60 text-sm">
           {history.events.map((e, i) => (
-            <li key={i} className="px-3 py-1.5 grid grid-cols-[80px_minmax(0,1fr)_auto] gap-2" data-kind={e.kind}>
-              <span className="tabular-nums text-muted-foreground">{e.at ? formatDay(e.at, l) : t("date ?", "date ?")}</span>
+            <li key={i} className="px-3 py-1.5 grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-0.5" data-kind={e.kind}>
+              <span className="tabular-nums text-muted-foreground whitespace-nowrap">{e.at ? formatDay(e.at, l) : t("date ?", "date ?")}</span>
               <span className="min-w-0">
                 {REWARD_EVENT_LABELS[e.kind]?.[l] ?? e.kind}
                 {e.orderId && <> · <Link to={`/admin/order/${e.orderId}`} className="underline">{e.orderNumber ?? e.orderId.slice(0, 8)}</Link></>}
                 {e.reason && <span className="text-muted-foreground"> · {e.reason}</span>}
                 {e.by && <span className="text-muted-foreground"> · {e.by}</span>}
               </span>
-              <span className={cn("tabular-nums text-right", e.amount < 0 ? "text-red-800" : "text-emerald-800")}>{e.amount > 0 ? "+" : "−"}{chf(Math.abs(e.amount))}</span>
+              <span className={cn("tabular-nums text-right whitespace-nowrap", e.amount < 0 ? "text-red-800" : "text-emerald-800")}>{e.amount > 0 ? "+" : "−"}{chf(Math.abs(e.amount))}</span>
             </li>
           ))}
         </ul>
