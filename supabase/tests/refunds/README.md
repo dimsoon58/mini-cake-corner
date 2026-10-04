@@ -390,8 +390,10 @@ double déduction ; décompte Mel / Eli sur les ventes ; trésorerie : paiements
 commandes futures déduits du disponible, sommes dues par les clients en information.
 Avec F18 : remboursements clients encore dus déduits du disponible (article annulé payé non
 remboursé, décision de remboursement, sans double comptage avec une décision pour la même annulation
-ni avec les paiements de commandes futures ; rien pour une commande non payée).
-Résultat attendu : `43 PASS, 0 FAIL`.
+ni avec les paiements de commandes futures ; rien pour une commande non payée). Avec F19 : article
+annulé sans décision + geste commercial sur la même commande = les deux réservés (59 + 20), geste
+remboursé sans décision, décision « geste » visant l'article annulé, plafond à l'argent reçu.
+Résultat attendu : `51 PASS, 0 FAIL`.
 
 `test_compta_page.mjs` (vraie fonction `manage-expenses`, vrai export du site, vrai calcul du
 décompte) : « Tableau du mois (Excel) » = écran (une ligne par gâteau, totaux en formules égaux aux

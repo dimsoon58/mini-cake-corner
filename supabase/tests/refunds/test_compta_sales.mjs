@@ -208,6 +208,41 @@ check("F18 : commande non payée : aucun remboursement dû déduit", num((await 
 // e) Décision prise APRÈS la date du solde : pas encore due à cette date.
 check("F18 : décision du geste prise après la date du solde : non comptée à cette date", num((await tq("2027-02-28")).customerRefundsOwed) === X0 + 40);
 
+// ═══ F19 : article annulé SANS décision + geste commercial, même commande ══
+// Toutes les dates en mai 2027 : les commandes précédentes laissent un dû stable (base).
+const base19 = num((await tq("2027-05-31")).customerRefundsOwed);
+const owedAt = async (d) => num(num((await tq(d)).customerRefundsOwed) - base19);
+const G = await order({ num: "ORD-F19G", paidAt: "2027-05-02T09:00:00Z", items: [{ total: 80, date: "2027-05-05" }, { total: 59, date: "2027-05-05" }] });
+await q("update public.order_items set production_status='cancelled' where id=$1", [G.items[1]]);
+check("F19 : article annulé sans décision : 59 dû", await owedAt("2027-05-31") === 59);
+await q("select public.record_refund_decision(p_order_id=>$1, p_amount=>20, p_reason=>'geste', p_source=>'admin_gesture', p_idempotency_key=>'f19g', p_item_ids=>$2)", [G.id, [G.items[0]]]);
+check("F19 : + geste décidé de 20 sur le gâteau maintenu : 79 réservés (59 + 20), plus 59 seulement", await owedAt("2027-05-31") === 79);
+await refund(G, 20, "2027-05-10 12:00 Europe/Zurich", [G.items[0]]);
+check("F19 : geste remboursé (20) : reste 59 (l'annulation)", await owedAt("2027-05-31") === 59 && await owedAt("2027-05-09") === 79);
+await refund(G, 59, "2027-05-12 12:00 Europe/Zurich", [G.items[1]]);
+check("F19 : annulation remboursée ensuite (décision automatique créée) : plus rien de dû, aucun reste négatif ni double", await owedAt("2027-05-31") === 0);
+// Geste remboursé SANS décision (remboursement visant le gâteau maintenu) + annulation non remboursée.
+const H = await order({ num: "ORD-F19H", paidAt: "2027-05-02T09:00:00Z", items: [{ total: 70, date: "2027-05-06" }, { total: 25, date: "2027-05-06" }] });
+await q("update public.order_items set production_status='cancelled' where id=$1", [H.items[1]]);
+await refund(H, 15, "2027-05-08 12:00 Europe/Zurich", [H.items[0]]);
+check("F19 : geste remboursé sans décision préalable (15) : l'annulation de 25 reste entièrement due", await owedAt("2027-05-31") === 25);
+// Geste décidé SANS article, annulation avec sa propre décision : 30 + 10, jamais 30 + 30 + 10.
+const J = await order({ num: "ORD-F19J", paidAt: "2027-05-02T09:00:00Z", items: [{ total: 50, date: "2027-05-07" }, { total: 30, date: "2027-05-07" }] });
+await q("update public.order_items set production_status='cancelled' where id=$1", [J.items[1]]);
+await q("select public.record_refund_decision(p_order_id=>$1, p_amount=>30, p_reason=>'annulation', p_source=>'admin_cancel', p_idempotency_key=>'f19j1', p_item_ids=>$2)", [J.id, [J.items[1]]]);
+await q("select public.record_refund_decision(p_order_id=>$1, p_amount=>10, p_reason=>'geste', p_source=>'admin_gesture', p_idempotency_key=>'f19j2')", [J.id]);
+check("F19 : annulation décidée (30) + geste (10) = 40, l'annulation et sa décision ne s'additionnent pas", await owedAt("2027-05-31") === 25 + 40);
+// Décision « geste » saisie pour l'article annulé lui-même : traitée comme l'annulation.
+const K2 = await order({ num: "ORD-F19K", paidAt: "2027-05-02T09:00:00Z", items: [{ total: 40, date: "2027-05-08" }, { total: 35, date: "2027-05-08" }] });
+await q("update public.order_items set production_status='cancelled' where id=$1", [K2.items[1]]);
+await q("select public.record_refund_decision(p_order_id=>$1, p_amount=>35, p_reason=>'remboursement', p_source=>'admin_gesture', p_idempotency_key=>'f19k', p_item_ids=>$2)", [K2.id, [K2.items[1]]]);
+check("F19 : décision saisie comme geste mais visant l'article annulé : 35, pas 70", await owedAt("2027-05-31") === 25 + 40 + 35);
+// Plafond : jamais plus que l'argent reçu pour la commande.
+const L = await order({ num: "ORD-F19L", paidAt: "2027-05-02T09:00:00Z", items: [{ total: 20, date: "2027-05-09" }, { total: 10, date: "2027-05-09" }] });
+await q("update public.order_items set production_status='cancelled' where id=$1", [L.items[1]]);
+await q("select public.record_refund_decision(p_order_id=>$1, p_amount=>20, p_reason=>'geste', p_source=>'admin_gesture', p_idempotency_key=>'f19l', p_item_ids=>$2, p_on_excess=>'clamp')", [L.id, [L.items[0]]]);
+check("F19 : annulation 10 + geste 20 sur une commande de 30 : 30 réservés, jamais plus que reçu", await owedAt("2027-05-31") === 25 + 40 + 35 + 30);
+
 // ═══ Droits / relance ════════════════════════════════════════════════════
 check("Fonction fermée à anon / authenticated", (await one("select count(*)::int n from information_schema.routine_privileges where routine_name='admin_sales_month' and grantee in ('anon','authenticated','PUBLIC')")).n === 0);
 await db.exec(fs.readFileSync(F17, "utf8"));
