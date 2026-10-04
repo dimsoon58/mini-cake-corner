@@ -75,6 +75,8 @@ await build({ entryPoints: [path.join(REPO, "src/lib/productionLabels.ts")], bun
     b.onLoad({ filter: /\.(png|jpe?g|webp|svg|gif)$/ }, (a) => ({ contents: `export default ${JSON.stringify(path.basename(a.path))};`, loader: "js" }));
   } }] });
 const L = await import(path.join(tmp, "labels.mjs"));
+await build({ entryPoints: [path.join(REPO, "src/data/inspirationReference.ts")], bundle: true, format: "esm", platform: "node", outfile: path.join(tmp, "ref.mjs"), logLevel: "error" });
+const R = await import(path.join(tmp, "ref.mjs"));
 
 const call = async (body, jwt = "admin-jwt") => {
   const r = await handler(new Request("http://x/", { method: "POST", headers: { "Content-Type": "application/json", ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) }, body: JSON.stringify(body) }));
@@ -144,6 +146,15 @@ await q("insert into public.order_items (order_id, product, total, workshop_date
 // Hors période
 const oLater = await order({ num: "ORD-261025-0001", date: "2026-10-25" }); await item(oLater);
 
+// Alertes : commentaire de commande, photo personnelle (+ photo d'inspiration recopiée par le catalogue).
+// (le jeu de données donne une note à toutes les commandes : on ne la garde que sur la commande simple)
+await q("update public.orders set order_comment = null where id <> $1", [oSimple]);
+await q("update public.orders set order_comment = 'Merci de mettre un petit cœur' where id = $1", [oEmpty]);
+await q("update public.order_items set reference_images = $2, design_image_url = $3 where id = $1",
+  [iMultiA, ["https://site.test/assets/inspiration-22-AbC123.jpg", "https://cdn.test/order-uploads/photo-cliente.jpg"], "https://site.test/assets/inspiration-22-AbC123.jpg"]);
+await q("update public.order_items set reference_images = $2, design_image_url = $3 where id = $1",
+  [iQty, ["https://site.test/assets/style-heart-bomb.jpg"], "https://site.test/assets/style-heart-bomb.jpg"]);
+
 const snapshot = async () => JSON.stringify(await q("select to_jsonb(o) as o, (select json_agg(i order by i.id) from public.order_items i where i.order_id = o.id) as items from public.orders o order by o.id"));
 const before = await snapshot();
 
@@ -199,8 +210,8 @@ check("Simple : couleurs du design et des décorations (déco, rubans, paillette
 check("« Paillettes : Or » jamais coupé avant les deux-points", !L.layoutCake(s, measure).flatMap(L.pageText).some((l) => l.trim().startsWith(":")));
 check("Simple : texte exact (accents, majuscules, ponctuation), couleur et écriture", s.cakeText === "Joyeux anniversaire Zoé !" && s.textColour === "Rouge" && s.textStyle === "Cursive");
 const st = textOf(s).join(" | ");
-check("Simple : 1 étiquette, rien d'interdit (créneau, bougies, notes, prix, retrait)", L.layoutCake(s, measure).length === 1
-  && !/14:00|bougie|spiral|Merci beaucoup|Note client|CHF|Retrait|Livraison|45/i.test(st), st);
+check("Simple : commentaire de la cliente → alerte, sans en imprimer le texte", s.alerts.join() === L.ALERT_COMMENT);
+check("Simple : rien d'interdit (créneau, bougies, notes, prix, retrait)", !/14:00|bougie|spiral|Merci beaucoup|Note client|CHF|Retrait|Livraison|45/i.test(st), st);
 check("Simple : type de déco (Cerises) et lignes « Déco », « Couleur déco », « Style texte »", s.decoType === "Cerises" && st.includes("Déco : ") && st.includes("Couleur déco : ") && st.includes("Style texte : "), st);
 check("Simple : ordre date → client → commande en tête", st.indexOf("12.10.2026") < st.indexOf("Élodie Müller") && st.indexOf("Élodie Müller") < st.indexOf("ORD-261012-0001"));
 
@@ -253,10 +264,53 @@ check("Style « Normal » affiché quand il y a un texte", L.cakeLabelsFor({ ...
   && L.cakeLabelsFor({ ...base0, cake_text: "Bravo", text_style: null })[0].textStyle === "Normal" && L.cakeLabelsFor({ ...base0, cake_text: null, text_style: null })[0].textStyle === null);
 check("Majuscules : « MAJUSCULES »", lg.textStyle === "MAJUSCULES", lg.textStyle);
 
+// ═══ Alertes (données de la fonction) ═══════════════════════════════════
+const itA = items.find((i) => i.id === iMultiA), itQ = items.find((i) => i.id === iQty), itE = items.find((i) => i.id === iEmpty);
+check("Fonction : 1 photo personnelle (la photo d'inspiration recopiée ne compte pas), 0 quand seule la photo du design", itA.reference_photos === 1 && itQ.reference_photos === 0, { a: itA.reference_photos, q: itQ.reference_photos });
+check("Fonction : commentaire de commande signalé (présence seulement, sans le texte)", itE.order.has_comment === true && !JSON.stringify(items).includes("petit cœur") && !JSON.stringify(items).includes("photo-cliente"));
+check("Alerte photo de référence", L.cakeLabelsFor(itA)[0].alerts.join() === L.ALERT_PHOTO);
+check("Pas d'alerte photo pour la seule photo du design choisi", L.cakeLabelsFor(itQ).every((c) => c.alerts.length === 0));
+check("Alerte commentaire (commande) sur le gâteau de la commande", L.cakeLabelsFor(itE)[0].alerts.join() === L.ALERT_COMMENT);
+check("Commentaire sur l'article → alerte ; seule mention « photo choisie » → pas d'alerte",
+  L.cakeLabelsFor({ ...itQ, item_comment: "Écrire en doré svp" })[0].alerts.includes(L.ALERT_COMMENT) && L.cakeLabelsFor({ ...itQ, item_comment: "[Preferred design: Option 2]" })[0].alerts.length === 0);
+const both = L.cakeLabelsFor({ ...itA, order: { ...itA.order, has_comment: true } });
+check("Commentaire de commande : alerte sur chaque gâteau de la commande, et les deux alertes ensemble", both[0].alerts.join() === `${L.ALERT_COMMENT},${L.ALERT_PHOTO}`
+  && L.cakeLabelsFor({ ...itQ, order: { ...itQ.order, has_comment: true } }).every((c) => c.alerts.includes(L.ALERT_COMMENT)));
+const longBoth = L.cakeLabelsFor({ ...items.find((i) => i.id === iLong), reference_photos: 2, order: { ...items.find((i) => i.id === iLong).order, has_comment: true } })[0];
+const lpA = L.layoutCake(longBoth, measure);
+check("Alertes sur CHAQUE étiquette (suites comprises), triangle dessiné devant chaque alerte", lpA.length >= 2 && lpA.every((p) => { const t = L.pageText(p).join(" "); return t.includes(L.ALERT_COMMENT) && t.includes(L.ALERT_PHOTO) && p.ops.filter((o) => o.type === "warn").length === 2; }), lpA.map(L.pageText));
+check("Alertes jamais coupées : bandeau dans la zone imprimable, triangle dessiné", lpA.every((p) => p.ops.filter((o) => o.type === "fill").every((o) => o.y + o.h <= L.LABEL_H - 18 + 0.5) && p.ops.some((o) => o.type === "warn")));
+check("Texte long + alertes : aucun mot perdu", (() => { const printed = lpA.flatMap(L.pageText).join(" ").split(/\s+/); let k = 0; for (const w of longText.split(/\s+/)) { k = printed.indexOf(w, k); if (k < 0) return false; k++; } return true; })());
+check("Excel : colonne Alertes et lignes « ATTENTION : … » dans Détails", L.niimbotRow(both[0]).Alertes === `ATTENTION : ${L.ALERT_COMMENT}\nATTENTION : ${L.ALERT_PHOTO}` && L.niimbotRow(both[0]).Détails.includes("ATTENTION : PHOTO"));
+
+// ═══ Inspirations : caractéristiques de référence ═══════════════════════
+const inspSrc = fs.readFileSync(path.join(REPO, "src/data/inspirations.ts"), "utf8");
+const gallery = [...inspSrc.matchAll(/\{ id: "(inspiration-\d+)", src/g)].map((m) => m[1]);
+const refs = Object.entries(R.INSPIRATION_REFERENCE);
+check("Référence : 82 inspirations, une par photo de la galerie", refs.length === 82 && gallery.length === 82);
+check("Référence : chaque n° de galerie pointe la bonne photo (aucun décalage)", gallery.every((id, k) => R.INSPIRATION_REFERENCE[id]?.position === k + 1), gallery.filter((id, k) => R.INSPIRATION_REFERENCE[id]?.position !== k + 1));
+const custSrc = fs.readFileSync(path.join(REPO, "src/data/customization.ts"), "utf8");
+const styleNames = [...custSrc.matchAll(/id: "[^"]+", name: "([^"]+)", price:/g)].map((m) => m[1].toLowerCase());
+const usedNames = new Set(refs.flatMap(([, r]) => (r.design ?? "").split(" + ").map((x) => x.replace(/\s*\(.*\)$|,.*$/, "").trim())).filter(Boolean));
+const unknown = [...usedNames].filter((n) => !styleNames.includes(n.toLowerCase()) && !/^(Rainbow|Chequered|Pearl Border|Normal without border, style|Normal without border \+ fleurs)$/.test(n) && n !== "fleurs");
+check("Référence : noms de design = ceux du catalogue (sauf ceux signalés à vérifier)", unknown.length === 0, unknown);
+const r1 = R.INSPIRATION_REFERENCE["inspiration-14"], r30 = R.INSPIRATION_REFERENCE["inspiration-29"], r82 = R.INSPIRATION_REFERENCE["inspiration-83"];
+check("Dictée respectée : #1 Bordeaux / Bordeaux / cerises pailletées / écriture non précisée", r1.position === 1 && r1.base === "Bordeaux" && r1.decoration === "Bordeaux" && r1.extras.join() === "Cerises pailletées" && r1.writingColour === null);
+check("Rien d'inventé : #82 base non répartie (null + à vérifier), #30 écart photo signalé", r82.base === null && r82.decoration === null && r82.toCheck.length === 1 && r30.base === "Rouge" && r30.toCheck.some((x) => /rose foncé/.test(x)));
+const inspItem = { ...itE, design: "inspiration-22", base_color: null, decoration_color: null, extra: null, text_color: null, text_style: null, cake_text: "Bravo", item_comment: null, order: { ...itE.order, has_comment: false } };
+const li = L.cakeLabelsFor(inspItem)[0];
+check("Étiquette d'inspiration : n° de galerie (pas l'identifiant interne) et design de référence", li.design === "Inspiration n°3 — Pearl Border × Retro", li.design);
+check("Champs vides de la commande remplis par la référence, marqués « (réf.) »", li.base === "Rose clair (réf.)" && li.colours === "Rose foncé (réf.)" && li.decoType === "Bordure de perles (réf.)" && li.textColour === "Rose foncé (réf.)", li);
+const own = L.cakeLabelsFor({ ...inspItem, base_color: "black", decoration_color: "white", extra: "Cherries", text_color: "midnight-blue" })[0];
+check("Les choix de la commande ne sont jamais écrasés par la référence", own.base === "Noir" && own.colours === "Blanc" && own.decoType === "Cerises" && own.textColour === "Bleu Nuit", own);
+const st23 = (style) => L.cakeLabelsFor({ ...inspItem, design: "inspiration-21", text_style: style })[0].textStyle;
+check("Style d'écriture de référence (« En perles ») si la commande n'a qu'un style normal ; choix explicite prioritaire", st23("normal") === "En perles (réf.)" && st23(null) === "En perles (réf.)" && st23("cursive") === "Cursive");
+check("Gâteau hors inspiration : aucune valeur de référence", !Object.values(L.cakeLabelsFor(itE)[0]).some((v) => typeof v === "string" && v.includes("(réf.)")));
+
 const rows = cakes.map(L.niimbotRow);
 check("Excel NIIMBOT : une ligne par gâteau (quantité comprise), colonnes fixes", rows.length === cakes.length && Object.keys(rows[0]).join() === L.NIIMBOT_COLUMNS.join());
 const rl = L.niimbotRow(lg);
-check("Excel NIIMBOT : texte exact et « Détails » sans ligne vide", rl.Texte === longText && !rl.Détails.split("\n").some((x) => !x.trim()) && L.niimbotRow(e).Détails === "Bento Cake · Bento · Rond\nGoût : Vanilla");
+check("Excel NIIMBOT : texte exact et « Détails » sans ligne vide", rl.Texte === longText && !rl.Détails.split("\n").some((x) => !x.trim()) && L.niimbotRow(e).Détails === "Bento Cake · Bento · Rond\nGoût : Vanilla\nATTENTION : COMMENTAIRE CLIENT À LIRE");
 
 // ═══ Site ═══════════════════════════════════════════════════════════════
 const src = (f) => fs.readFileSync(path.join(REPO, f), "utf8");

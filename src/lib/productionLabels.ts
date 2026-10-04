@@ -1,5 +1,6 @@
 import { allFlavors, baseColors, extras as catalogExtras, ribbonColors, butterflyColors, glitterColors, glitterCherriesColors } from "@/data/customization";
 import { colourFr, extraNameFr, textStyleFr } from "@/data/catalogLabelsFr";
+import { inspirationReference } from "@/data/inspirationReference";
 import { PRODUCT_LABELS, designLabel, flavorLabel, formatDateCH, shapeLabel, sizeLabel, splitComment } from "@/lib/orderLabels";
 
 // Admin > Étiquettes de production — contenu et mise en page, sans DOM.
@@ -36,12 +37,15 @@ export interface LabelSourceItem {
   text_color: string | null;
   text_style: string | null;
   item_comment: string | null;
+  // Nombre de photos de référence envoyées par la cliente (hors photo du
+  // design choisi sur le site) — get-orders-for-labels ; absent = inconnu.
+  reference_photos?: number;
   quantity: number | null;
   created_at: string | null;
   date: string | null;
   excluded: "not_a_cake" | "order_not_eligible" | "item_cancelled" | "no_date" | null;
   badge: "to_accept" | "awaiting_payment" | null;
-  order: { id: string; order_number: string | null; first_name: string | null; last_name: string | null; manual: boolean | null; is_test: boolean };
+  order: { id: string; order_number: string | null; first_name: string | null; last_name: string | null; manual: boolean | null; is_test: boolean; has_comment?: boolean };
 }
 
 export interface CakeLabel {
@@ -63,9 +67,13 @@ export interface CakeLabel {
   textColour: string | null;
   textStyle: string | null;
   missing: string[];      // informations essentielles absentes (aperçu seulement)
+  alerts: string[];       // « COMMENTAIRE CLIENT À LIRE », « PHOTO DE RÉFÉRENCE À VOIR »
   isTest: boolean;
   badge: LabelSourceItem["badge"];
 }
+
+export const ALERT_COMMENT = "COMMENTAIRE CLIENT À LIRE";
+export const ALERT_PHOTO = "PHOTO DE RÉFÉRENCE À VOIR";
 
 export const EXCLUDED_LABELS: Record<NonNullable<LabelSourceItem["excluded"]>, string> = {
   not_a_cake: "Pas un gâteau (bougies, impression…)",
@@ -175,7 +183,13 @@ export function cakeLabelsFor(item: LabelSourceItem): CakeLabel[] {
   const o = item.order;
   const customer = [clean(o.first_name), clean(o.last_name)].filter(Boolean).join(" ");
   const photo = splitComment(item.item_comment).designPhoto;
-  const design = clean(item.design) ? `${designLabel(clean(item.design))}${photo ? ` — photo ${photo}` : ""}` : null;
+  // Inspiration : n° vu dans la galerie (pas l'identifiant interne) + design de référence.
+  const ref = inspirationReference(clean(item.design));
+  const design = ref
+    ? `Inspiration n°${ref.position}${ref.design ? ` — ${ref.design}` : ""}`
+    : clean(item.design) ? `${designLabel(clean(item.design))}${photo ? ` — photo ${photo}` : ""}` : null;
+  // Valeur de référence de l'inspiration, seulement si la commande n'a rien.
+  const refOnly = (v: string | null | undefined) => (v ? `${v} (réf.)` : null);
   const colours = [
     ...decorationColours(item.decoration_color),
     ...(clean(item.inside_color) ? [`Intérieur : ${clean(item.inside_color)}`] : []),
@@ -186,6 +200,8 @@ export function cakeLabelsFor(item: LabelSourceItem): CakeLabel[] {
   const style = clean(item.text_style);
   // Style d'écriture affiché dès qu'il y a un texte (« Normal » compris).
   const styleName = style === "uppercase" ? "UPPERCASE" : style === "cursive" ? "Cursive" : style === "normal" || (!style && item.cake_text?.trim()) ? "Normal" : style;
+  // Style choisi (cursive, majuscules) > style de référence de l'inspiration > « Normal ».
+  const chosenStyle = style === "uppercase" || style === "cursive" || (style && style !== "normal");
   const cakeText = item.cake_text && item.cake_text.trim() ? item.cake_text : null;   // exact : jamais retouché
   const flavour = flavourLine(item.flavors);
 
@@ -196,7 +212,15 @@ export function cakeLabelsFor(item: LabelSourceItem): CakeLabel[] {
   if (!clean(item.product)) missing.push("produit");
   if (item.product && NEEDS_SIZE.has(item.product) && !clean(item.size)) missing.push("taille");
   if (item.product && NEEDS_FLAVOUR.has(item.product) && !flavour) missing.push("goût");
-  if (cakeText && !clean(item.text_color)) missing.push("couleur du texte");
+  if (cakeText && !clean(item.text_color) && !ref?.writingColour) missing.push("couleur du texte");
+
+  // Alertes : commentaire de la cliente (sur ce gâteau, ou sur la commande —
+  // alors sur chaque gâteau de la commande) et photo de référence personnelle
+  // (la photo du design choisi sur le site ne compte pas). Rien n'est déduit
+  // du commentaire : l'alerte renvoie à l'admin.
+  const alerts: string[] = [];
+  if (splitComment(item.item_comment).comment || o.has_comment) alerts.push(ALERT_COMMENT);
+  if ((item.reference_photos ?? 0) > 0) alerts.push(ALERT_PHOTO);
 
   const qty = Number.isInteger(item.quantity) && (item.quantity as number) > 1 ? (item.quantity as number) : 1;
   return Array.from({ length: qty }, (_, i) => ({
@@ -210,15 +234,16 @@ export function cakeLabelsFor(item: LabelSourceItem): CakeLabel[] {
     marker: qty > 1 ? `${i + 1}/${qty}` : null,
     productLine: productLine(item),
     flavour,
-    base: clean(item.base_color) ? colourLabel(clean(item.base_color)) : null,
+    base: clean(item.base_color) ? colourLabel(clean(item.base_color)) : refOnly(ref?.base),
     design,
-    decoType: decoTypes(item.extra),
+    decoType: decoTypes(item.extra) ?? refOnly(ref?.extras.length ? ref.extras.join(", ") : null),
     // espace insécable avant « : » : « Paillettes : Or » ne se coupe jamais avant les deux-points
-    colours: colours.length ? colours.join(" · ").replace(/ : /g, "\u00a0: ") : null,
+    colours: colours.length ? colours.join(" · ").replace(/ : /g, "\u00a0: ") : refOnly(ref?.decoration),
     cakeText,
-    textColour: clean(item.text_color) ? colourLabel(clean(item.text_color)) : null,
-    textStyle: styleName ? (textStyleFr[styleName] ?? styleName) : null,
+    textColour: clean(item.text_color) ? colourLabel(clean(item.text_color)) : refOnly(ref?.writingColour),
+    textStyle: !chosenStyle && ref?.writingStyle ? refOnly(ref.writingStyle) : styleName ? (textStyleFr[styleName] ?? styleName) : null,
     missing,
+    alerts,
     isTest: o.is_test,
     badge: item.badge,
   }));
@@ -256,7 +281,9 @@ export const fontCss = (f: FontSpec) => `${f.bold ? "bold " : ""}${f.size}px ${F
 export type Measure = (text: string, font: FontSpec) => number;
 
 export type DrawOp =
-  | { type: "text"; x: number; y: number; text: string; font: FontSpec; align?: "left" | "right" }
+  | { type: "text"; x: number; y: number; text: string; font: FontSpec; align?: "left" | "right"; white?: boolean }
+  | { type: "fill"; x: number; y: number; w: number; h: number }
+  | { type: "warn"; x: number; y: number; size: number }
   | { type: "rule"; y: number; thick: boolean }
   | { type: "box"; x: number; y: number; w: number; h: number };
 
@@ -396,9 +423,38 @@ const FOOTER_H = 30;
 export const TO_ACCEPT = "À ACCEPTER — commande non validée";
 
 /** Pages (étiquettes physiques) d'un gâteau : 1, ou plus avec des « Suite ». */
+// Alertes en bas de CHAQUE étiquette (suites comprises) : bandeau noir,
+// texte blanc, triangle « attention » DESSINÉ (pas le caractère ⚠, qu'une
+// police ou l'imprimante peut ne pas rendre). Place réservée : jamais
+// coupées. L'Excel, lui, écrit « ATTENTION : … » en toutes lettres.
+const ALERT_FONT: FontSpec = { size: 20, bold: true };
+function alertBlock(alerts: string[], measure: Measure): { h: number; ops: (top: number) => DrawOp[] } {
+  if (alerts.length === 0) return { h: 0, ops: () => [] };
+  const icon = 22, gap = 6, pad = 5;
+  const lines = alerts.map((a) => wrap(a, ALERT_FONT, CONTENT_W - icon - 2 * pad - gap, measure));
+  const rowH = (n: number) => n * lh(ALERT_FONT) + 2 * pad;
+  const h = lines.reduce((s, l) => s + rowH(l.length) + 4, 6);
+  return {
+    h,
+    ops: (top) => {
+      const ops: DrawOp[] = [];
+      let y = top + 6;
+      for (const l of lines) {
+        const hh = rowH(l.length);
+        ops.push({ type: "fill", x: PAD_X, y, w: CONTENT_W, h: hh });
+        ops.push({ type: "warn", x: PAD_X + pad, y: y + (hh - icon) / 2, size: icon });
+        l.forEach((ln, k) => ops.push({ type: "text", x: PAD_X + pad + icon + gap, y: y + pad + k * lh(ALERT_FONT), text: ln, font: ALERT_FONT, white: true }));
+        y += hh + 4;
+      }
+      return ops;
+    },
+  };
+}
+
 export function layoutCake(c: CakeLabel, measure: Measure): LabelPage[] {
   const units = bodyUnits(c, measure);
-  const bottom = LABEL_H - PAD_BOTTOM;
+  const alertsBox = alertBlock(c.alerts ?? [], measure);
+  const bottom = LABEL_H - PAD_BOTTOM - alertsBox.h;
   const pages: DrawOp[][] = [];
   let i = 0;
   // 1ʳᵉ passe : répartition des unités ; le nombre total de pages n'est
@@ -434,6 +490,7 @@ export function layoutCake(c: CakeLabel, measure: Measure): LabelPage[] {
     const ops = [...hd.ops];
     let y = hd.h;
     for (const u of chunk) { ops.push(...u.ops(y)); y += u.h; }
+    ops.push(...alertsBox.ops(bottom));
     if (p < chunks.length - 1) {
       ops.push({ type: "rule", y: bottom - FOOTER_H + 2, thick: false });
       ops.push({ type: "text", x: PAD_X, y: bottom - lh(F.footer), text: `→ Suite sur l'étiquette ${p + 2}/${chunks.length}`, font: F.footer });
@@ -451,12 +508,13 @@ export const pageText = (p: LabelPage) => p.ops.filter((o): o is Extract<DrawOp,
 // ── Lignes pour l'app NIIMBOT (source de données Excel) ──────────────────
 export const NIIMBOT_COLUMNS = [
   "Date", "Client", "Commande", "Repère", "Statut", "Produit", "Goût", "Base", "Design", "Déco", "Couleur déco",
-  "Texte", "Couleur texte", "Style texte", "Détails",
+  "Texte", "Couleur texte", "Style texte", "Alertes", "Détails",
 ] as const;
 
 /** Une ligne par gâteau. « Détails » regroupe les champs remplis (un par
  *  ligne), pour un modèle à une seule zone de texte sans lignes vides. */
 export function niimbotRow(c: CakeLabel): Record<(typeof NIIMBOT_COLUMNS)[number], string> {
+  const alertText = (c.alerts ?? []).map((a) => `ATTENTION : ${a}`).join("\n");
   const details = [
     c.badge === "to_accept" ? TO_ACCEPT : "",
     c.productLine,
@@ -468,10 +526,11 @@ export function niimbotRow(c: CakeLabel): Record<(typeof NIIMBOT_COLUMNS)[number
     c.cakeText ? `Texte : ${c.cakeText}` : "",
     c.textColour ? `Couleur texte : ${c.textColour}` : "",
     c.textStyle ? `Style texte : ${c.textStyle}` : "",
+    alertText,
   ].filter(Boolean).join("\n");
   return {
     Date: c.dateText, Client: c.customer, Commande: c.orderNumber ?? "", Repère: c.marker ?? "", Statut: c.badge === "to_accept" ? "À ACCEPTER" : "",
     Produit: c.productLine, Goût: c.flavour ?? "", Base: c.base ?? "", Design: c.design ?? "", Déco: c.decoType ?? "", "Couleur déco": c.colours ?? "",
-    Texte: c.cakeText ?? "", "Couleur texte": c.textColour ?? "", "Style texte": c.textStyle ?? "", Détails: details,
+    Texte: c.cakeText ?? "", "Couleur texte": c.textColour ?? "", "Style texte": c.textStyle ?? "", Alertes: alertText, Détails: details,
   };
 }

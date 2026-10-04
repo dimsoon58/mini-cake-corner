@@ -264,7 +264,7 @@ npm install --no-save @electric-sql/pglite esbuild
 node test_labels.mjs
 ```
 
-Résultat attendu : `57 PASS, 0 FAIL`.
+Résultat attendu : `79 PASS, 0 FAIL`.
 
 Couvert : accès admin, période limitée ; règles de l'agenda (commande annulée, non payée, brouillon,
 gâteau refusé, workshop, bougies, gâteau annulé exclus ; commande manuelle en attente incluse) ;
@@ -274,7 +274,11 @@ Contenu : libellés du catalogue en français (couleurs, goûts, designs, photo 
 champs vides masqués, informations essentielles manquantes signalées ; plusieurs gâteaux sans
 mélange ; quantité 2 → « 1/2 », « 2/2 » ; tri ; texte long → étiquettes « Suite » avec date, client,
 commande, intitulé repris, sans perte de mot ni police réduite ; marges respectées ; lignes Excel
-pour l'app NIIMBOT. Le rendu réel (mesure du texte par le navigateur) est vérifié dans l'aperçu.
+pour l'app NIIMBOT. Inspirations : 82 fiches de référence (ordre de la galerie, noms du
+catalogue), caractéristiques marquées « (réf.) » sans jamais remplacer les choix de la commande.
+Alertes en bas de chaque étiquette, jamais coupées : « COMMENTAIRE CLIENT À LIRE » (commentaire du
+gâteau ou de la commande, texte jamais renvoyé), « PHOTO DE RÉFÉRENCE À VOIR » (photos de la
+cliente seulement, pas la photo du design choisi) ; « ATTENTION : » dans l'Excel. Le rendu réel (mesure du texte par le navigateur) est vérifié dans l'aperçu.
 
 ## Aujourd'hui — commandes en attente de validation
 

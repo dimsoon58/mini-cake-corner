@@ -8,7 +8,9 @@ import { productionCategory } from "../_shared/production-catalog.ts";
 // Admin > Étiquettes de production — read-only. Returns the physical cakes
 // to label, with ONLY what a label shows (customer first/last name, order
 // number, the item's own date and its cake fields — never email, phone,
-// address, prices or notes).
+// address, prices or notes). Since 2026-10-04 also whether the customer left
+// an order comment (has_comment) and how many reference photos of her own she
+// sent (reference_photos) — presence only, for the label alerts.
 //
 // Same eligibility as the production agenda (get-production +
 // _shared/production-stats.ts): drafts, cancelled / rejected / failed
@@ -30,7 +32,17 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const ITEM_FIELDS =
   "id, order_id, fulfillment_id, product, size, shape, flavors, design, base_color, decoration_color, inside_color, " +
-  "ribbon_color, butterfly_color, extra, cake_text, text_color, text_style, item_comment, quantity, created_at";
+  "ribbon_color, butterfly_color, extra, cake_text, text_color, text_style, item_comment, quantity, created_at, " +
+  "reference_images, design_image_url";
+
+// Photos de référence envoyées par la cliente : reference_images sans la photo
+// du design choisi sur le site (design_image_url, ou la photo d'inspiration
+// que le catalogue y recopie). Seul le nombre est renvoyé, jamais les liens.
+const INSPIRATION_ASSET = /\/inspiration-\d+[^/]*\.(jpe?g|png|webp)(\?.*)?$/i;
+function customerPhotoCount(refs: unknown, designUrl: unknown): number {
+  if (!Array.isArray(refs)) return 0;
+  return refs.filter((u) => typeof u === "string" && u.trim() && u !== designUrl && !INSPIRATION_ASSET.test(u)).length;
+}
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -121,8 +133,10 @@ serve(async (req) => {
       else if (!date) excluded = "no_date";
       if (excluded && !single) continue;
 
+      const { reference_images, design_image_url, ...fields } = it as typeof it & { reference_images?: unknown; design_image_url?: unknown };
       out.push({
-        ...it,
+        ...fields,
+        reference_photos: customerPhotoCount(reference_images, design_image_url),
         date,
         excluded,
         badge: status.include ? status.badge : null,
@@ -133,6 +147,8 @@ serve(async (req) => {
           last_name: o.last_name ?? null,
           manual: status.include ? status.manual : null,
           is_test: (o as { is_test?: boolean }).is_test === true,
+          // Commentaire de commande : présence seulement (le texte reste dans l'admin).
+          has_comment: typeof (o as { order_comment?: unknown }).order_comment === "string" && !!String((o as { order_comment?: string }).order_comment).trim(),
         },
       });
     }

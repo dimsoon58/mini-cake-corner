@@ -39,7 +39,19 @@ export function renderPage(page: LabelPage, target?: HTMLCanvasElement): HTMLCan
     if (op.type === "text") {
       ctx.font = fontCss(op.font);
       ctx.textAlign = op.align === "right" ? "right" : "left";
+      ctx.fillStyle = op.white ? "#fff" : "#000";
       ctx.fillText(op.text, op.x, op.y);
+      ctx.fillStyle = "#000";
+    } else if (op.type === "fill") {
+      ctx.fillRect(Math.round(op.x), Math.round(op.y), Math.round(op.w), Math.round(op.h));
+    } else if (op.type === "warn") {
+      // Triangle « attention » dessiné (blanc sur le bandeau noir), « ! » noir.
+      const { x, y, size } = op;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.moveTo(x + size / 2, y); ctx.lineTo(x + size, y + size); ctx.lineTo(x, y + size); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#000";
+      ctx.fillRect(Math.round(x + size / 2 - 1.5), Math.round(y + size * 0.35), 3, Math.round(size * 0.35));
+      ctx.fillRect(Math.round(x + size / 2 - 1.5), Math.round(y + size * 0.8), 3, 3);
     } else if (op.type === "rule") {
       ctx.fillRect(16, Math.round(op.y), LABEL_W - 32, op.thick ? 3 : 1);
     } else {

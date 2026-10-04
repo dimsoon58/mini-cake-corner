@@ -181,6 +181,7 @@ export default function AdminLabels() {
                               {c.isTest && <span className="text-[10px] px-1.5 border border-border">TEST</span>}
                               {c.badge === "to_accept" && <span className="text-[10px] font-semibold uppercase px-1.5 bg-blue-600 text-white">À accepter · non coché par défaut</span>}
                               {c.badge === "awaiting_payment" && <span className="text-[10px] px-1.5 border border-amber-300 bg-amber-50 text-amber-900">{BADGES[c.badge]}</span>}
+                              {(c.alerts ?? []).map((a) => <span key={a} className="text-[10px] font-semibold px-1.5 bg-foreground text-background">⚠ {a}</span>)}
                               {n > 1 && <span className="text-[10px] px-1.5 border border-sky-300 bg-sky-50 text-sky-900">{n} étiquettes (texte long)</span>}
                             </div>
                             {c.missing.length > 0 && (
