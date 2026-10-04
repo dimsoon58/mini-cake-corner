@@ -33,6 +33,13 @@ import { computeSettlement, type SettlementChoices, type SettlementInputs } from
 // (actions advance_*). Un remboursement n'est jamais une dépense ; il ne
 // peut pas dépasser le reste d'une avance ; correction = annulation tracée.
 //
+// Lot « Compta en 3 espaces » (migration F22) : ajouts « fiduciaire
+// uniquement » (actions fiduciary_*, table séparée : jamais lue par le
+// résultat, la trésorerie, les avances ni le partage) et lecture des
+// commandes du mois avec leurs montants enregistrés (sales_orders_month).
+// Un ajout ressemblant à une ligne existante n'est enregistré qu'avec la
+// confirmation explicite « Ce n'est pas un doublon », gardée dans l'historique.
+//
 // Ne lit ni ne modifie aucune commande, aucun paiement, aucun remboursement
 // client ; n'envoie aucun e-mail ; ne déclenche aucun virement.
 
@@ -79,6 +86,11 @@ const month = (v: unknown, field: string): string => {
   const m = typeof v === "string" ? /^(\d{4})-(\d{2})(-\d{2})?$/.exec(v) : null;
   if (!m || Number(m[2]) < 1 || Number(m[2]) > 12) throw new InputError(`${field} invalide (AAAA-MM)`);
   return `${m[1]}-${m[2]}-01`;
+};
+/** AAAA-MM-01 → premier jour du mois suivant. */
+const nextMonth = (m: string) => {
+  const [y, mo] = m.split("-").map(Number);
+  return mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, "0")}-01`;
 };
 const safeName = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "").slice(-80) || "fichier";
 
@@ -143,6 +155,19 @@ serve(async (req) => {
         data = await rpc("admin_sales_month", { p_month: `${m}-01`, p_include_tests: false });
         break;
       }
+      // F22 : commandes du mois (montants enregistrés, mois couverts, impayés des mois précédents).
+      case "sales_orders_month": {
+        const m = String(body.month ?? "");
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)) throw new InputError("Mois invalide (AAAA-MM)");
+        data = await rpc("admin_sales_orders_month", { p_month: `${m}-01`, p_include_tests: false });
+        break;
+      }
+      case "fiduciary_period": {
+        const from = date(body.from, "Début"), to = date(body.to, "Fin");
+        if (to < from) throw new InputError("Période invalide");
+        data = await rpc("fiduciary_period", { p_from: from, p_to: to });
+        break;
+      }
       case "search":
         data = await rpc("compta_expense_search", { p_search: text(body.q, 100), p_limit: 300 });
         break;
@@ -155,7 +180,7 @@ serve(async (req) => {
       }
       case "history": {
         const table = String(body.table ?? "expenses");
-        if (!["expenses", "expense_attachments", "expense_categories", "expense_payers", "salary_months", "salary_payments", "salary_rates", "advance_repayments", "settlements", "settlement_payouts", "settlement_adjustments", "bank_balances"].includes(table)) throw new InputError("Table inconnue");
+        if (!["expenses", "expense_attachments", "fiduciary_expenses", "fiduciary_expense_attachments", "fiduciary_duplicate_confirmations", "expense_categories", "expense_payers", "salary_months", "salary_payments", "salary_rates", "advance_repayments", "settlements", "settlement_payouts", "settlement_adjustments", "bank_balances"].includes(table)) throw new InputError("Table inconnue");
         data = await rpc("compta_history", { p_table: table, p_row: uuid(body.id, "Élément") });
         break;
       }
@@ -171,12 +196,17 @@ serve(async (req) => {
       }
       case "receipts_period": {
         const from = date(body.from, "Début"), to = date(body.to, "Fin");
+        if (to < from) throw new InputError("Période invalide");
         const list = await rpc("compta_receipts_period", { p_from: from, p_to: to }) as { path: string }[];
-        // Lot K2 : décomptes de salaire du mois (même ZIP).
+        // Lot K2 : décomptes de salaire de chaque mois de la période (même ZIP).
         if (from.endsWith("-01")) {
-          const docs = await rpc("salary_documents_month", { p_month: from }).catch(() => []) as { path: string }[];
-          list.push(...(docs ?? []));
+          for (let m = from; m <= to; m = nextMonth(m)) {
+            const docs = await rpc("salary_documents_month", { p_month: m }).catch(() => []) as { path: string }[];
+            list.push(...(docs ?? []));
+          }
         }
+        // F22 : justificatifs des ajouts fiduciaires (dossier fiduciaire seulement).
+        if (body.includeFiduciary === true) list.push(...(await rpc("fiduciary_receipts_period", { p_from: from, p_to: to }) as { path: string }[]));
         data = await Promise.all(list.map(async (r) => ({ ...r, url: await signed(r.path, 600) })));
         break;
       }
@@ -243,6 +273,69 @@ serve(async (req) => {
           p_expense: uuid(body.expenseId, "Dépense"), p_path: String(body.path ?? ""), p_name: text(body.fileName, 200) ?? "justificatif",
           p_mime: mime, p_size: Number(body.size) || null, p_by: by,
         }) };
+        break;
+      }
+      // ── F22 : ajouts « fiduciaire uniquement » ──
+      case "fiduciary_save": {
+        const saved = await rpc("fiduciary_save", {
+          p_id: optUuid(body.id, "Ajout fiduciaire"),
+          p_key: body.id ? null : text(body.idempotencyKey, 100),
+          p_date: date(body.date, "Date"),
+          p_supplier: text(body.supplier, 200),
+          p_category: optUuid(body.categoryId, "Catégorie"),
+          p_description: text(body.description, 1000),
+          p_amount: amount(body.amount, "Montant"),
+          p_payer: optUuid(body.payerId, "Payé par"),
+          p_receipt_missing_reason: text(body.receiptMissingReason, 300),
+          p_comment: text(body.comment, 2000),
+          p_confirm_not_duplicate: body.confirmNotDuplicate === true,
+          p_by: by,
+        }) as { duplicate?: boolean; matches?: unknown[] };
+        if (saved?.duplicate) return json(cors, { error: "Doublon possible : confirmez « Ce n'est pas un doublon » pour enregistrer.", reason: "duplicate", matches: saved.matches }, 409);
+        data = saved;
+        break;
+      }
+      case "fiduciary_delete":
+        await rpc("fiduciary_delete", { p_id: uuid(body.id, "Ajout fiduciaire"), p_reason: text(body.reason, 300), p_by: by });
+        data = { ok: true };
+        break;
+      case "fiduciary_upload_url": {
+        const mime = String(body.mimeType ?? "");
+        const size = Number(body.size ?? 0);
+        if (!MIME.has(mime)) throw new InputError("Format accepté : photo (JPEG, PNG, WebP, HEIC) ou PDF");
+        if (!(size > 0) || size > MAX_BYTES) throw new InputError("Fichier trop lourd (15 Mo maximum)");
+        const id = uuid(body.id, "Ajout fiduciaire");
+        if (!(await rpc("fiduciary_get", { p_id: id }))) return json(cors, { error: "Ajout fiduciaire introuvable", reason: "not_found" }, 404);
+        const path = `fiduciary/${id}/${crypto.randomUUID()}_${safeName(String(body.fileName ?? "justificatif"))}`;
+        const { data: up, error } = await storage.createSignedUploadUrl(path);
+        if (error || !up?.token) {
+          console.error("manage-expenses fiduciary_upload_url:", error);
+          return json(cors, { error: "Impossible de préparer l'envoi du fichier", reason: "storage" }, 502);
+        }
+        data = { path, token: up.token, bucket: BUCKET };
+        break;
+      }
+      case "fiduciary_attach": {
+        const mime = String(body.mimeType ?? "");
+        if (!MIME.has(mime)) throw new InputError("Format non accepté");
+        data = { id: await rpc("fiduciary_add_attachment", {
+          p_id: uuid(body.id, "Ajout fiduciaire"), p_path: String(body.path ?? ""), p_name: text(body.fileName, 200) ?? "justificatif",
+          p_mime: mime, p_size: Number(body.size) || null, p_by: by,
+        }) };
+        break;
+      }
+      case "fiduciary_delete_attachment":
+        await rpc("fiduciary_delete_attachment", { p_id: uuid(body.attachmentId, "Justificatif"), p_by: by });
+        data = { ok: true };
+        break;
+      case "fiduciary_view_attachment": {
+        const aid = uuid(body.attachmentId, "Justificatif");
+        const f = await rpc("fiduciary_get", { p_id: uuid(body.id, "Ajout fiduciaire") }) as { storage?: { id: string; path: string }[] } | null;
+        const a = f?.storage?.find((x) => x.id === aid);
+        if (!a) return json(cors, { error: "Justificatif introuvable", reason: "not_found" }, 404);
+        const url = await signed(a.path, 300);
+        if (!url) return json(cors, { error: "Fichier indisponible", reason: "storage" }, 502);
+        data = { url, expiresIn: 300 };
         break;
       }
       case "delete_attachment":
