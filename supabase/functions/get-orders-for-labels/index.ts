@@ -15,7 +15,8 @@ import { productionCategory } from "../_shared/production-catalog.ts";
 // Same eligibility as the production agenda (get-production +
 // _shared/production-stats.ts): drafts, cancelled / rejected / failed
 // orders, refused cake parts, unpaid website orders and items cancelled
-// through a manual refund marked cancels_item are left out; workshops,
+// through a manual refund marked cancels_item or marked cancelled
+// (order_items.production_status = 'cancelled') are left out; workshops,
 // candles and edible printing sheets are not cakes. Each item is dated by
 // its own fulfillment (order_items.fulfillment_id), else by the order.
 //
@@ -33,7 +34,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ITEM_FIELDS =
   "id, order_id, fulfillment_id, product, size, shape, flavors, design, base_color, decoration_color, inside_color, " +
   "ribbon_color, butterfly_color, extra, cake_text, text_color, text_style, item_comment, quantity, created_at, " +
-  "reference_images, design_image_url";
+  "reference_images, design_image_url, production_status";
 
 // Photos de référence envoyées par la cliente : reference_images sans la photo
 // du design choisi sur le site (design_image_url, ou la photo d'inspiration
@@ -129,11 +130,11 @@ serve(async (req) => {
       const status = orderStatus(o, true);
       if (productionCategory(it.product, it.size, it.shape) === "skip") excluded = "not_a_cake";
       else if (!status.include) excluded = "order_not_eligible";
-      else if (cancelled.has(it.id)) excluded = "item_cancelled";
+      else if (cancelled.has(it.id) || (it as { production_status?: string }).production_status === "cancelled") excluded = "item_cancelled";
       else if (!date) excluded = "no_date";
       if (excluded && !single) continue;
 
-      const { reference_images, design_image_url, ...fields } = it as typeof it & { reference_images?: unknown; design_image_url?: unknown };
+      const { reference_images, design_image_url, production_status: _ps, ...fields } = it as typeof it & { reference_images?: unknown; design_image_url?: unknown; production_status?: unknown };
       out.push({
         ...fields,
         reference_photos: customerPhotoCount(reference_images, design_image_url),

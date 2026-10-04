@@ -105,6 +105,8 @@ serve(async (req) => {
         const f = it.fulfillment_id ? fulfillmentById.get(it.fulfillment_id) : null;
         const date = f ? f.pickup_delivery_date : (o.pickup_delivery_date ?? null);
         if (!inRange(date)) continue;
+        // Gâteau annulé (annulation d'article ou de commande) : hors production.
+        if (it.production_status === "cancelled") continue;
         cakeItems.push({
           id: it.id,
           order_id: it.order_id,

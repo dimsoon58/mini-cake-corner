@@ -20,7 +20,7 @@ export const SESSION_PIN = "__session__";
 
 // Fonctions du dashboard admin (et seulement elles) reçoivent le jeton.
 const ADMIN_FUNCTIONS = new Set([
-  "admin-pin", "finance-month", "get-order-detail", "get-orders-for-labels", "get-production", "get-today",
+  "admin-pin", "cancel-order", "cancel-workshop-seats", "finance-month", "get-order-detail", "get-orders-for-labels", "get-production", "get-today",
   "list-manual-orders", "list-orders", "list-orders-by-date", "manage-customers", "manage-expenses",
   "manage-manual-order", "manage-order", "manage-partners", "manage-refunds", "quote-manual-order",
   "team-planning", "update-production-status", "update-production-stock",

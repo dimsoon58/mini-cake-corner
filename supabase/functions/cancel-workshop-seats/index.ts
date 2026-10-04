@@ -1,15 +1,22 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
-import {
-  claimAndDispatchWorkshopReservationSync,
-  type WorkshopRefundStatus,
-} from "../_shared/workshop-make.ts";
+import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
+import { adminPinOk, requireAdmin, safeEqual } from "../_shared/admin-auth.ts";
+import { cancelReservationSeats } from "../_shared/workshop-cancel.ts";
 
 // Partial cancellation of a workshop booking. Distinct from manage-order.
 //
-// Admin / Make only (customer cannot self-cancel yet): auth is an
-// ADMIN_ORDER_PIN match in the body. verify_jwt stays at its default (true).
+// Admin / Make only (customer cannot self-cancel yet). Auth (2026-10-04):
+// from the admin dashboard = admin sign-in + PIN session (F16) or the PIN
+// typed with the request (adminPinOk); without a sign-in (Make) = the
+// ADMIN_ORDER_PIN in the body, compared in constant time — unchanged.
+// Deployed with verify_jwt = false (as in production; see config.toml).
+//
+// No double email (2026-10-04): a retry / double click with the SAME
+// idempotency_key returns the original cancellation and sends NO second
+// email; the email also carries a Resend Idempotency-Key bound to the
+// cancellation-log row (send-workshop-cancellation-email, log_id).
 //
 // Never touches: cake orders, order_validation, the production Make webhook,
 // welcome discount, tokens, complete-online, void-online, the FULL refund
@@ -77,22 +84,6 @@ import {
 //   5. cancellation email.
 
 
-const REFUND_CUTOFF_DAYS = 7;
-
-function zurichToday(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(new Date());
-}
-
-function daysBetween(fromISO: string, toISO: string): number {
-  const a = Date.UTC(+fromISO.slice(0, 4), +fromISO.slice(5, 7) - 1, +fromISO.slice(8, 10));
-  const b = Date.UTC(+toISO.slice(0, 4), +toISO.slice(5, 7) - 1, +toISO.slice(8, 10));
-  return Math.round((b - a) / 86_400_000);
-}
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders(req) });
@@ -108,9 +99,21 @@ serve(async (req) => {
       pin,
     } = body ?? {};
 
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
+
     // ── Auth ─────────────────────────────────────────────────────────────
+    // Admin dashboard: sign-in + PIN session or typed PIN. Make (no sign-in):
+    // typed PIN only, constant-time comparison.
+    const admin = await requireAdmin(req, supabase, { body, allowWithoutPinSession: true });
     const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
-    if (!adminPin || pin !== adminPin) {
+    const pinOk = admin
+      ? adminPinOk(admin, pin)
+      : !!adminPin && typeof pin === "string" && safeEqual(pin, adminPin);
+    if (!pinOk) {
       return new Response(JSON.stringify({ error: "Invalid PIN" }), {
         headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 403,
       });
@@ -131,12 +134,6 @@ serve(async (req) => {
         error: "idempotency_key is required. Retry the exact same cancellation with the exact same idempotency_key.",
       }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 400 });
     }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } },
-    );
 
     // ── Load reservation (pre-change) + session + order — fast, friendly
     // 404/409s only; cancel_workshop_seats_atomic() re-checks the same
@@ -174,62 +171,23 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 409 });
     }
 
-    // The ONLY non-DB-state input to the financial calculation: a pure date
-    // fact (today, Europe/Zurich, vs the fixed workshop date), safe to
-    // compute here since it never depends on concurrent state.
-    const daysUntil = daysBetween(zurichToday(), String(session.workshop_date));
-    const withinFreeWindow = daysUntil >= REFUND_CUTOFF_DAYS;
-
-    // ── 1. ONE atomic call — lock, idempotency, cumulative cash/reward
-    //    calculation, seat bump, log insert. See the migration's own header
-    //    comment for the concurrency guarantee this provides.
-    //    cancel_workshop_seats_atomic — a NEW, distinctly-named function
-    //    (20260912100300_cancel_workshop_seats_atomic.sql), deliberately NOT
-    //    a replacement of the old cancel_workshop_seats: this Edge Function
-    //    and that migration must be deployed together, and this rename is
-    //    what makes a backward-compatible rollout possible (the OLD
-    //    Edge Function, if still live, keeps calling the OLD RPC name,
-    //    untouched, until this new version replaces it).
-    const { data: cancelLog, error: rpcErr } = await supabase.rpc("cancel_workshop_seats_atomic", {
-      p_reference: workshop_reference,
-      p_reservation_id: reservation_id,
-      p_seats_to_cancel: seats,
-      p_idempotency_key: idemKey,
-      p_within_free_window: withinFreeWindow,
+    // ── 1+2. Seats cancelled atomically (cash due recorded, never refunded
+    //    here) + reward restoration — shared with cancel-order
+    //    (_shared/workshop-cancel.ts, cancel_workshop_seats_atomic RPC).
+    const cancellation = await cancelReservationSeats(supabase, {
+      reservationId: reservationBefore.id,
+      seats,
+      idempotencyKey: idemKey,
+      workshopDate: String(session.workshop_date),
+      customerId: order.customer_id ?? null,
+      orderId: order.id,
     });
-    if (rpcErr) throw new Error(`cancel_workshop_seats_atomic failed: ${rpcErr.message}`);
-    if (!cancelLog) throw new Error("cancel_workshop_seats_atomic returned no row");
-
-    const logId: string = cancelLog.id;
-    const cashRefundDue = round2(Number(cancelLog.refund_amount_requested) || 0);
-    const logRefundStatus: WorkshopRefundStatus = cancelLog.refund_status;
-    const refundApplied = round2(Number(cancelLog.refund_amount_completed) || 0);
-    const postfinanceRefundId: string | null = cancelLog.postfinance_refund_id ?? null;
-    const rewardDue = round2(Number(cancelLog.reward_amount_due) || 0);
-    let rewardRestored = round2(Number(cancelLog.reward_amount_restored) || 0);
-
-    // ── 2. Reward restoration — a purely internal ledger credit, no
-    //    external API call, so it happens right away (unlike the cash side,
-    //    which always waits for a human). Idempotent on its own
-    //    (workshop_cancellation_log.reward_amount_restored) — safe to call
-    //    again on a retry, it no-ops once already applied.
-    if (rewardDue > 0 && rewardRestored === 0) {
-      const { data: restored, error: restoreErr } = await supabase.rpc("restore_workshop_reward", {
-        p_log_id: logId,
-        p_customer_id: order.customer_id,
-        p_order_id: order.id,
-        p_amount: rewardDue,
-      });
-      if (restoreErr) {
-        // Never fails the whole cancellation over this — the seats are
-        // already cancelled and the cash side is already recorded as due.
-        // Surfaced loudly so it gets noticed and fixed; a retry (same
-        // idempotency_key) will attempt the restoration again.
-        console.error("restore_workshop_reward failed:", restoreErr);
-      } else {
-        rewardRestored = round2(Number(restored ?? 0));
-      }
-    }
+    const logId = cancellation.logId;
+    const cashRefundDue = cancellation.cashRefundDue;
+    const logRefundStatus = cancellation.refundStatus;
+    const refundApplied = cancellation.refundApplied;
+    const postfinanceRefundId = cancellation.postfinanceRefundId;
+    const rewardRestored = cancellation.rewardRestored;
 
     // ── Re-read reservation for fresh seat counts ─────────────────────────
     const { data: reservation, error: rereadErr } = await supabase
@@ -253,12 +211,14 @@ serve(async (req) => {
     //    reservation eligible for claim in the first place.
     await claimAndDispatchWorkshopReservationSync(supabase, reservation.id);
 
-    // ── 4. Cancellation email (best-effort) ─────────────────────────────
-    EdgeRuntime.waitUntil((async () => {
+    // ── 4. Cancellation email (best-effort) — once per cancellation: not
+    //    on a replay of the same idempotency_key (double click / retry).
+    if (!cancellation.replayed) EdgeRuntime.waitUntil((async () => {
       try {
         await supabase.functions.invoke("send-workshop-cancellation-email", {
           body: {
             reservation_id: reservation.id,
+            log_id: logId,
             seats_cancelled: seats,
             // Nothing has actually been refunded automatically — refund_amount
             // stays whatever finalize_workshop_refund last recorded (0 until a
@@ -292,6 +252,7 @@ serve(async (req) => {
       postfinance_refund_id: postfinanceRefundId,
       reward_restored: rewardRestored,
       cancellation_log_id: logId,
+      already_cancelled: cancellation.replayed,
     }), {
       headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,

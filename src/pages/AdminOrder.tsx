@@ -16,6 +16,7 @@ import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPan
 import { ReferencePhotos } from "@/components/ReferencePhotos";
 import { ProductionCheck } from "@/components/admin/ProductionCheck";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
+import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
 import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -63,6 +64,7 @@ const AdminOrder = () => {
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [fulfillments, setFulfillments] = useState<any[]>([]);
+  const [reservations, setReservations] = useState<WorkshopReservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Filled from get-order-detail's response when the URL had no token (the
@@ -138,6 +140,7 @@ const AdminOrder = () => {
         setOrder(data.order);
         setItems(data.items || []);
         setFulfillments(data.fulfillments || []);
+        setReservations(data.workshopReservations || []);
         if (data.actionToken) setFetchedToken(data.actionToken);
         setInvoiceUrl(data.invoiceUrl ?? null);
         setInvoiceUrlError(data.invoiceUrlError ?? null);
@@ -658,6 +661,21 @@ const AdminOrder = () => {
                 : isMultiDate ? formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date) : null;
               return { id: item.id, label: date ? `${productName} ${idx + 1} — ${date}` : `${productName} ${idx + 1}` };
             })}
+          />
+
+          {/* Annulation (2026-10-04) : commande entière ou places de workshop,
+              avec les e-mails existants — remplace les actions Notion. Une
+              commande du site encore à accepter se refuse (bloc ci-dessous). */}
+          <OrderCancellationPanel
+            order={order}
+            reservations={isCancelled ? [] : reservations}
+            canCancelOrder={!isCancelled && !order.is_draft && decisionState !== "rejected" && (isManual || decisionState === "approved")}
+            labelFor={(itemId) => {
+              const idx = items.findIndex((it: any) => it.id === itemId);
+              const it = idx >= 0 ? items[idx] : null;
+              return it ? `${t(PRODUCT_LABELS[it.product]?.en, PRODUCT_LABELS[it.product]?.fr) || it.product} ${idx + 1} — ${formatDateFromIso(it.workshop_date)}` : t("Workshop", "Workshop");
+            }}
+            onChanged={() => setReloadKey((k) => k + 1)}
           />
 
           {/* Admin Actions */}

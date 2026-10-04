@@ -140,6 +140,14 @@ serve(async (req) => {
       .from("order_manual_refunds").select("*").eq("order_id", orderId).order("created_at", { ascending: false });
     if (manualRefundsErr) throw new Error(`Failed to load manual refunds: ${manualRefundsErr.message}`);
 
+    // Workshop reservations (seats bought / cancelled / still active) — for
+    // the admin « cancel seats » action on AdminOrder.tsx.
+    const { data: workshopReservations, error: reservationsErr } = await supabase
+      .from("workshop_reservations")
+      .select("id, order_item_id, workshop_reference, workshop_session_id, purchased_seats, cancelled_seats, status")
+      .eq("order_id", orderId);
+    if (reservationsErr) throw new Error(`Failed to load workshop reservations: ${reservationsErr.message}`);
+
     // When the caller didn't already supply their own token (the dashboard
     // flow), resolve this order's own existing order_action_tokens row (if
     // any) so Accept/Refuse from AdminOrder.tsx still has one to use —
@@ -198,6 +206,7 @@ serve(async (req) => {
       items: items ?? [],
       fulfillments: fulfillments ?? [],
       manualRefunds: manualRefunds ?? [],
+      workshopReservations: workshopReservations ?? [],
       actionToken,
       invoiceUrl,
       invoiceUrlError,

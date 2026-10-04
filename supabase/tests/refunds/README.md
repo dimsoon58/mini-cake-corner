@@ -345,3 +345,22 @@ champs PIN masqués, confirmations simples ; droits ; relance de F16 sans effet.
 transmis à `requireAdmin`), en mode normal et obligatoire ; lien e-mail Accepter/Refuser inchangé ;
 aucune fonction ne lit la demande avant `requireAdmin` sans lui transmettre ce corps ; écran PIN
 non affiché tant que `admin-pin` n'est pas déployée (Supabase « NOT_FOUND »).
+
+## Annulations depuis l'admin (commande entière, places de workshop)
+
+`test_cancellations.mjs` : vraies fonctions `cancel-order`, `cancel-workshop-seats`,
+`send-workshop-cancellation-email`, `admin-pin`, `get-production` et `get-orders-for-labels`
+sur le schéma de production (F1–F16). Resend, Make et PostFinance simulés : aucun e-mail réel.
+Résultat attendu : `49 PASS, 0 FAIL`.
+
+Couvert : accès (connexion admin + session PIN sans ressaisie ; refus sans connexion, compte non
+admin, sans PIN, mauvais secret Make) ; commande du site payée annulée (statut, « à rembourser »,
+gâteaux hors production, un seul e-mail = modèle existant, aucun remboursement automatique) ;
+nouvelle tentative et double clic simultané sans second e-mail ; refus pour une commande à
+accepter (« Refuser »), un brouillon, une commande sans e-mail (avant toute modification) ;
+commande manuelle non payée ; commande mixte annulée entièrement (places libérées et tracées,
+un seul e-mail) ; places de workshop partielles puis totales (e-mail workshop existant, clé
+anti-doublon, nouvelle tentative et double clic sans second e-mail, dépassement refusé, commande
+à accepter refusée) ; Make (secret / PIN) inchangé ; gâteau annulé seul hors production et hors
+étiquettes ; aucun e-mail à l'enregistrement d'un remboursement ; modèles d'e-mail identiques ;
+bloc « Annulation » de la fiche commande ; config JWT.

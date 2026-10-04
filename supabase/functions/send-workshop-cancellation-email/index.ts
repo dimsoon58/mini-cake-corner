@@ -34,6 +34,7 @@ async function sendCancellationEmail(
     refundAmount: number;
     nominalRefund: number;
     refundStatus: "non_required" | "pending" | "refunded" | "outside_window" | "failed";
+    logId?: string | null;
   },
 ) {
   const lang = getCustomerLang(order);
@@ -164,9 +165,13 @@ ${brandDarkModeStyle()}
 </body>
 </html>`;
 
+  // One email per cancellation: Resend ignores a repeat with the same key
+  // (retry / double click on the same cancellation-log row).
+  const headers: Record<string, string> = { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" };
+  if (opts.logId) headers["Idempotency-Key"] = `workshop-cancellation-${opts.logId}`;
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ from: "contact@bentocakestudio.ch", to: [order.email], subject, html }),
   });
   const data = await resp.json();
@@ -184,7 +189,7 @@ serve(async (req) => {
   }
 
   try {
-    const { reservation_id, seats_cancelled, refund_amount, nominal_refund, refund_status } = await req.json();
+    const { reservation_id, log_id, seats_cancelled, refund_amount, nominal_refund, refund_status } = await req.json();
     if (!reservation_id) throw new Error("reservation_id is required");
 
     const supabase = createClient(
@@ -213,6 +218,7 @@ serve(async (req) => {
       refundAmount: Number(refund_amount) || 0,
       nominalRefund: Number(nominal_refund) || 0,
       refundStatus: (refund_status ?? "non_required"),
+      logId: typeof log_id === "string" ? log_id : null,
     });
 
     return new Response(JSON.stringify({ success: true, id: result.id }), {

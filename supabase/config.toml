@@ -45,3 +45,12 @@ verify_jwt = false
 # referral token and only returns limited partner information.
 [functions.resolve-partner-ref]
 verify_jwt = false
+
+# Annulations (2026-10-04) : appelées par Make sans jeton Supabase (secret
+# x-make-secret / PIN) et par l'admin (connexion vérifiée dans la fonction).
+# JWT désactivé, comme en production.
+[functions.cancel-order]
+verify_jwt = false
+
+[functions.cancel-workshop-seats]
+verify_jwt = false
