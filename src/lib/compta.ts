@@ -44,20 +44,20 @@ export interface ExpensePeriod {
 }
 export interface ComptaSettings { categories: ExpenseCategory[]; payers: ExpensePayer[] }
 export interface HistoryEntry { action: string; before: Record<string, unknown> | null; after: Record<string, unknown> | null; actor: string | null; at: string }
-export interface ReceiptFile { attachmentId: string; expenseId: string; code: string; path: string; fileName: string; mimeType: string; url: string | null }
+export interface ReceiptFile { attachmentId: string; expenseId?: string; fiduciaryId?: string; code: string; path: string; fileName: string; mimeType: string; url: string | null }
 
 export class ComptaError extends Error {
-  constructor(message: string, public reason: string | null) { super(message); }
+  constructor(message: string, public reason: string | null, public matches: unknown[] | null = null) { super(message); }
 }
 
 export async function comptaApi<T = unknown>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("manage-expenses", { body });
   if (error) {
     const ctx = (error as { context?: Response }).context;
-    let j: { error?: string; reason?: string } | null = null;
+    let j: { error?: string; reason?: string; matches?: unknown[] } | null = null;
     try { j = await ctx?.json(); } catch { /* not JSON */ }
     if (ctx?.status === 404 && !j?.reason) throw new ComptaError("La fonction manage-expenses n'est pas encore déployée.", "not_deployed");
-    throw new ComptaError(j?.error || "Erreur inattendue. Réessayez.", j?.reason ?? null);
+    throw new ComptaError(j?.error || "Erreur inattendue. Réessayez.", j?.reason ?? null, j?.matches ?? null);
   }
   if (data?.error) throw new ComptaError(String(data.error), data.reason ?? null);
   return (data?.data ?? null) as T;
@@ -377,3 +377,54 @@ export function comptaDossierIssues(sales: SalesMonth | null, finance: FinanceMo
   return issues;
 }
 
+
+// ── F22 : commandes du mois (montants enregistrés) et ajouts fiduciaires ──
+export interface OrderComponents { items: number; delivery: number; express: number; welcome: number; partner: number; reward: number; adjustment: number; other: number }
+export interface SalesOrder {
+  orderId: string; orderNumber: string | null; origin: "website" | "manual"; customer: string; partnerName: string | null;
+  orderValidation: string; paymentStatus: string; paidAt: string | null; isTest: boolean;
+  amount: number; refunded: number; refundedInMonth: number; net: number; months: string[]; spansMonths: boolean; components: OrderComponents;
+}
+export interface SalesOrdersMonth {
+  month: string; orders: SalesOrder[];
+  unpaidBefore: { count: number; amount: number; orders: { orderId: string; orderNumber: string | null; customer: string; amount: number; firstDate: string }[] };
+}
+/** Montants de la commande tels qu'enregistrés, dans l'ordre d'affichage (signés). */
+export function orderComponentRows(c: OrderComponents): { key: keyof OrderComponents; label: string; amount: number }[] {
+  const rows: { key: keyof OrderComponents; label: string; amount: number }[] = [
+    { key: "items", label: "Articles (prix enregistrés)", amount: +c.items },
+    { key: "delivery", label: "Livraison", amount: +c.delivery },
+    { key: "express", label: "Supplément express", amount: +c.express },
+    { key: "welcome", label: "Remise de bienvenue", amount: -c.welcome },
+    { key: "partner", label: "Remise partenaire", amount: -c.partner },
+    { key: "reward", label: "Cagnotte utilisée", amount: -c.reward },
+    { key: "adjustment", label: "Ajustement de prix", amount: +c.adjustment },
+    { key: "other", label: "Autre écart (montant payé ≠ total)", amount: +c.other },
+  ];
+  return rows.filter((r) => r.key === "items" || Math.abs(r.amount) >= 0.005);
+}
+export const FIDUCIARY_LABEL = "Fiduciaire uniquement — traitement à valider";
+export interface FiduciaryMatch { kind: "expense" | "fiduciary"; id: string; code: string; date: string | null; supplier: string | null; amount: number }
+export interface FiduciaryItem {
+  id: string; code: string; expense_date: string; supplier: string; category_id: string | null; category_name: string | null;
+  description: string | null; chf_amount: number; payer_id: string | null; payer_name: string | null; comment: string | null;
+  receipt_missing_reason: string | null; treatment: "to_validate"; label: string; receipt_missing: boolean;
+  attachments: ExpenseAttachment[]; duplicates: FiduciaryMatch[]; confirmations: { matches: FiduciaryMatch[]; by: string | null; at: string }[];
+  created_by: string | null; created_at: string; updated_by: string | null; updated_at: string;
+}
+export interface FiduciaryPeriod { from: string; to: string; items: FiduciaryItem[]; total: number; count: number; missingReceiptCount: number }
+/** Envoie un justificatif d'ajout fiduciaire (même bucket privé, dossier fiduciary/). */
+export async function uploadFiduciaryReceipt(id: string, file: File): Promise<string> {
+  const mimeType = file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "");
+  const up = await comptaApi<{ path: string; token: string; bucket: string }>({ action: "fiduciary_upload_url", id, fileName: file.name, mimeType, size: file.size });
+  const { error } = await supabase.storage.from(up.bucket).uploadToSignedUrl(up.path, up.token, file, { contentType: mimeType });
+  if (error) throw new ComptaError(`Envoi de « ${file.name} » impossible. Réessayez.`, "storage");
+  const r = await comptaApi<{ id: string }>({ action: "fiduciary_attach", id, path: up.path, fileName: file.name, mimeType, size: file.size });
+  return r.id;
+}
+/** Mois AAAA-MM compris entre deux dates (incluses). */
+export function monthsBetween(from: string, to: string): string[] {
+  const out: string[] = [];
+  for (let m = from.slice(0, 7); m <= to.slice(0, 7) && out.length < 36; m = shiftMonth(m, 1)) out.push(m);
+  return out;
+}

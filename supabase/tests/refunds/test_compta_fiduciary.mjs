@@ -241,5 +241,85 @@ const snapF = JSON.stringify(await q("select id, code, chf_amount, deleted_at fr
 await db.exec(fs.readFileSync(F22, "utf8"));
 check("Relance de F22 : sans erreur, rien ne change", JSON.stringify(await q("select id, code, chf_amount, deleted_at from public.fiduciary_expenses order by code")) === snapF && (await snapshot()) === before);
 
+// ═══ Export « dossier fiduciaire » par période (vrai code du site) ══════
+const REPO = path.resolve(ROOT, "..");
+fs.writeFileSync(path.join(tmp, "client.mjs"), "export const supabase = {};");
+await build({
+  entryPoints: [path.join(REPO, "src/lib/fiduciaryExport.ts")], bundle: true, format: "esm", platform: "node",
+  outfile: path.join(tmp, "fx.mjs"), logLevel: "warning", external: ["exceljs", "jszip"],
+  loader: { ".png": "empty", ".jpg": "empty", ".jpeg": "empty", ".webp": "empty", ".svg": "empty", ".gif": "empty" },
+  plugins: [{ name: "alias", setup(b) {
+    b.onResolve({ filter: /^@\/integrations\/supabase\/client$/ }, () => ({ path: path.join(tmp, "client.mjs") }));
+    b.onResolve({ filter: /^@\// }, (a) => {
+      const base = path.join(REPO, "src", a.path.slice(2));
+      for (const ext of ["", ".ts", ".tsx", "/index.ts"]) if (fs.existsSync(base + ext) && fs.statSync(base + ext).isFile()) return { path: base + ext };
+      return { path: base };
+    });
+    b.onResolve({ filter: /^jszip$/ }, () => ({ path: path.join(REPO, "node_modules/jszip/lib/index.js") }));
+  } }],
+});
+const FX = await import(path.join(tmp, "fx.mjs"));
+const ExcelJS = (await import(path.join(REPO, "node_modules/exceljs/excel.js"))).default;
+const JSZip = (await import(path.join(REPO, "node_modules/jszip/lib/index.js"))).default;
+// Une dépense commune sans justificatif ni raison (pièce manquante), une avec justificatif.
+r = await call({ action: "save", idempotencyKey: "dep-3", purchaseDate: "2026-11-04", supplier: "Manor", categoryId: cat("Matériel"), currency: "CHF", originalAmount: "33", status: "paid", paidAt: "2026-11-04", payerId: BENTO });
+const DEP3 = r.body.data;
+r = await call({ action: "upload_url", expenseId: DEP1.id, mimeType: "image/jpeg", size: 500, fileName: "ticket migros.jpg" });
+await call({ action: "attach", expenseId: DEP1.id, path: r.body.data.path, fileName: "ticket migros.jpg", mimeType: "image/jpeg", size: 500 });
+const fin = async (m) => (await q("select public.admin_finance_month($1::date, false) f", [`${m}-01`]))[0].f;
+const months = ["2026-10", "2026-11"];
+const data = {
+  from: "2026-10-01", to: "2026-11-30", months,
+  sales: await Promise.all(months.map(async (m) => (await call({ action: "sales_month", month: m })).body.data)),
+  orders: await Promise.all(months.map(async (m) => (await call({ action: "sales_orders_month", month: m })).body.data)),
+  finance: await Promise.all(months.map(fin)),
+  salary: await Promise.all(months.map(async (m) => (await call({ action: "salary_overview", month: m })).body.data)),
+  expenses: (await call({ action: "period", from: "2026-10-01", to: "2026-11-30" })).body.data,
+  fiduciary: (await call({ action: "fiduciary_period", from: "2026-10-01", to: "2026-11-30" })).body.data,
+  receipts: (await call({ action: "receipts_period", from: "2026-10-01", to: "2026-11-30", includeFiduciary: true })).body.data,
+};
+const fetched = [];
+const { blob, files, missing } = await FX.buildFiduciaryZip(ExcelJS, data, async (url) => { fetched.push(url); return new Blob([`fichier ${url}`]); });
+const zip = await JSZip.loadAsync(Buffer.from(await blob.arrayBuffer()));
+const names = Object.keys(zip.files);
+const xlsxName = names.find((n) => n.endsWith(".xlsx"));
+check("Export : un Excel nommé par période, un LISEZMOI et un index", xlsxName === "Bento-Cake-Studio_dossier-fiduciaire_2026-10_2026-11.xlsx" && names.includes("LISEZMOI.txt") && names.includes("justificatifs/index.csv"), names);
+const wb = new ExcelJS.Workbook();
+await wb.xlsx.load(await zip.file(xlsxName).async("nodebuffer"));
+check("Feuilles : synthèse, commandes, montants, paiements, remboursements, dépenses, salaire, ajouts, justificatifs, pièces manquantes",
+  wb.worksheets.map((w) => w.name).join("|") === "Synthèse|Commandes|Montants des commandes|Paiements|Remboursements|Dépenses communes|Salaire|Ajouts fiduciaires|Justificatifs|Pièces manquantes",
+  wb.worksheets.map((w) => w.name));
+const rows = (name) => { const out = []; wb.getWorksheet(name).eachRow((row, i) => { if (i > 1) out.push(row); }); return out; };
+const cellNum = (v) => Number(typeof v === "object" && v ? v.result ?? v : v);
+check("Commandes : une ligne par gâteau / workshop des 2 mois (aucune duplication)", rows("Commandes").length === data.sales[0].lines.length + data.sales[1].lines.length);
+check("Commandes : la vente nette des lignes = ventes nettes des 2 mois",
+  Math.round(rows("Commandes").reduce((s, r) => s + cellNum(r.getCell(14).value), 0) * 100) / 100 === Math.round((Number(data.sales[0].cards.net) + Number(data.sales[1].cards.net)) * 100) / 100);
+const syn = Object.fromEntries(rows("Synthèse").map((r) => [String(r.getCell(1).value), r.getCell(2).value]));
+check("Synthèse : ventes nettes, encaissements, remboursements = chiffres de la page",
+  Number(syn["Ventes nettes (mois de réalisation)"]) === Math.round((Number(data.sales[0].cards.net) + Number(data.sales[1].cards.net)) * 100) / 100
+  && Number(syn["Encaissements"]) === Math.round((Number(data.finance[0].cards.collected) + Number(data.finance[1].cards.collected)) * 100) / 100
+  && Number(syn["Remboursements effectués"]) === Math.round((Number(data.finance[0].cards.refunded) + Number(data.finance[1].cards.refunded)) * 100) / 100, syn);
+check("Synthèse : dépenses communes et ajouts fiduciaires totalisés À PART (50 + 80 + 33 / 50)", Number(syn["Dépenses communes (date d'achat dans la période)"]) === 163
+  && Number(syn["Ajouts « fiduciaire uniquement »"]) === 50 && Number(syn["Écart avec notre suivi interne"]) === 50, syn);
+check("Montants des commandes : multi-mois marqué « prorata », remise partenaire négative", rows("Montants des commandes").some((r) => r.getCell(2).value === "ORD-M" && String(r.getCell(16).value).includes("prorata"))
+  && rows("Montants des commandes").some((r) => r.getCell(2).value === "ORD-PA" && cellNum(r.getCell(9).value) === -9));
+check("Paiements : P1 (payé en septembre) absent de la période octobre–novembre", !rows("Paiements").some((r) => r.getCell(2).value === "ORD-P1"));
+// Chaque justificatif ↔ sa ligne.
+const idx = rows("Justificatifs");
+const okRefs = idx.every((r) => {
+  const sheetName = r.getCell(3).value, line = r.getCell(4).value, file = String(r.getCell(1).value);
+  const target = wb.getWorksheet(sheetName)?.getRow(line);
+  return target && String(target.getCell(1).value) === r.getCell(2).value && String(target.values.find((v) => typeof v === "string" && v.includes(file)) ?? "").includes(file) && !!zip.file(file);
+});
+check("Chaque justificatif : référence = sa ligne Excel (feuille + n° de ligne), fichier présent dans le ZIP", idx.length === 2 && okRefs, idx.map((r) => r.values));
+check("Fichiers nommés par référence (DEP-…, FID-…)", files.every((f) => f.name.startsWith(f.code + "_")) && files.some((f) => f.code.startsWith("FID-")) && files.some((f) => f.code.startsWith("DEP-")));
+check("Pièces manquantes signalées : la dépense sans justificatif ni raison (Manor)", missing.length === 1 && missing[0].ref === DEP3.code && rows("Pièces manquantes").length === 1, missing);
+check("Ajouts fiduciaires : mention et confirmation « Ce n'est pas un doublon » dans l'Excel", rows("Ajouts fiduciaires").length === 1
+  && String(rows("Ajouts fiduciaires")[0].getCell(8).value) === "Fiduciaire uniquement — traitement à valider" && String(rows("Ajouts fiduciaires")[0].getCell(10).value).includes(DEP1.code));
+check("Rien n'est envoyé : seuls les justificatifs sont lus (liens signés)", fetched.length === 2 && fetched.every((u) => u.startsWith("https://signed.test/")));
+const failing = await FX.buildFiduciaryZip(ExcelJS, data, async () => { throw new Error("404"); });
+check("Justificatif non récupéré : signalé comme pièce manquante, jamais silencieux", failing.missing.length === 3 && failing.files.every((f) => !f.ok));
+check("Export : aucun effet sur le partage", (await snapshot()) !== "" && JSON.parse(await snapshot()).moves === JSON.parse(before).moves);
+
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);

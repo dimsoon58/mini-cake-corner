@@ -428,3 +428,16 @@ champ email ordinaire et ancien changement isolé refusés ; commandes émises i
 historique (anciennes / nouvelle adresse, auteur, date, étapes) ; relance de F21.
 Résultat attendu : `63 PASS, 0 FAIL`.
 
+## Compta F22 — 3 espaces : commandes du mois, ajouts fiduciaires, dossier par période
+
+`test_compta_fiduciary.mjs` (schéma de production + F1–F22, vraie fonction `manage-expenses`,
+stockage simulé, vrai export du site) : commandes du mois avec leurs montants enregistrés (articles,
+livraison, express, bienvenue, remise partenaire, cagnotte, ajustement, aucun écart), multi-dates sur
+2 mois (« prorata »), quantité 2 (2 lignes, jamais 2 × le prix), payée en septembre et réalisée en
+octobre (aucun 2e encaissement), annulations et remboursements, impayé du mois précédent (alerte
+séparée) ; ajouts « fiduciaire uniquement » : doublon bloqué puis « Ce n'est pas un doublon »
+confirmé et historisé, double clic, modification, justificatifs, suppression, droits ; **résultat,
+trésorerie, réserve, parts, avances, dépenses, ventes et mouvements identiques avant / après** ;
+export par période : feuilles, totaux = page, chaque justificatif ↔ sa ligne Excel, pièces manquantes,
+fichier non récupéré signalé, rien d'envoyé. Résultat attendu : `63 PASS, 0 FAIL`.
+

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Download, FileText, FolderArchive, History, Loader2, Lock, Paperclip, Plus, Search, Settings, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Download, FileText, History, Loader2, Lock, Paperclip, Plus, Search, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,42 +14,47 @@ import {
   CURRENCIES, MISSING_LABELS, PAYER_KIND_LABELS, STATUS_LABELS, comptaApi, frDate, inRange, money, monthBounds, monthTitle,
   shiftMonth, uploadReceipt,
   type ComptaSettings, type Expense, type ExpenseCategory, type ExpensePayer, type ExpensePeriod, type ExpenseStatus,
-  type HistoryEntry, type PayerKind, type ReceiptFile,
+  type HistoryEntry, type PayerKind,
 } from "@/lib/compta";
 import { salaryMonthTotal } from "@/lib/compta";
 import {
-  SALES_REASON_LABELS, SALES_STATE_LABELS, comptaDossierIssues, salesLineLabel, salesLineNet, salesLinePaid,
-  type AdvancesOverview, type SalaryOverview, type SalesLine, type SalesMonth, type SettlementView,
+  comptaDossierIssues, settlementValues,
+  type AdvancesOverview, type SalaryOverview, type SalesMonth, type SalesOrdersMonth, type SettlementView,
 } from "@/lib/compta";
 import AdvancesTab from "@/components/admin/compta/AdvancesTab";
 import SettlementTab from "@/components/admin/compta/SettlementTab";
 import SalaryTab from "@/components/admin/compta/SalaryTab";
 import SalaryExpenseRows from "@/components/admin/compta/SalaryExpenseRows";
+import FiduciaryTab from "@/components/admin/compta/FiduciaryTab";
+import { MonthOrders, MonthTotals } from "@/components/admin/compta/MonthOrders";
+import { TreasuryOverview } from "@/components/admin/compta/TreasuryOverview";
 import { cn } from "@/lib/utils";
 
-// Admin > Compta. Mois + trois onglets :
-//   « Ventes du mois » — ventes au mois de RÉALISATION (retrait, livraison,
-//     séance ; F17, une ligne par gâteau), résumé du mois, annulés à part,
-//     encaissements par date de paiement en détail secondaire (finance-month,
-//     mêmes chiffres que le tableau de bord, jamais additionnés aux ventes) ;
-//   « Dépenses » — dépenses (date d'achat / de paiement) ; le salaire y
-//     apparaît comme une dépense mensuelle (une ligne par mois, bouton
-//     « Payé »), le détail K2 étant rangé dans « Gérer le salaire » ; les
-//     données et le calcul Mel / Eli ne changent pas (salaire compté une fois) ;
-//   « Mel / Eli » — décompte (K4 : logique B, base 4'000, +300, 60 / 40),
-//     en distinguant le résultat à partager du disponible à verser, puis
-//     les avances (K3).
-// Deux exports : « Tableau du mois (Excel) » et « Dossier pour le fiduciaire
-// (Excel + justificatifs) », construits avec les mêmes données que l'écran.
+// Admin > Compta, en trois espaces (F22, décision du 2026-10-04) :
+//   « Compta du mois » — les 6 totaux du mois (ventes nettes au mois de
+//     RÉALISATION, F17 ; encaissements / remboursements à leur date, F7 ;
+//     reste à encaisser du mois + alerte des impayés des mois précédents),
+//     puis les commandes regroupées par numéro (une ligne par gâteau ou
+//     workshop, annulées comprises, frais et remises au niveau de la
+//     commande, « réparti au prorata » quand elle couvre plusieurs mois),
+//     puis le tableau des dépenses inchangé (salaire compris) ; le détail
+//     technique est dans « Voir le détail » ;
+//   « Trésorerie et partage » — « En bref » puis le décompte K4 (base 4'000,
+//     +300, 60 / 40, inchangé), les soldes datés, les versements et les
+//     avances (K3), séparées du partage ;
+//   « Dossier fiduciaire » — ajouts « fiduciaire uniquement » (table séparée,
+//     jamais dans le partage) et export par période (Excel + justificatifs).
+// Aucun total n'est recalculé ici : mêmes lectures serveur qu'avant.
 
-type Tab = "sales" | "expenses" | "partners";
+type Tab = "month" | "treasury" | "fiduciary";
 const TABS: { key: Tab; label: string }[] = [
-  { key: "sales", label: "Ventes du mois" },
-  { key: "expenses", label: "Dépenses" },
-  { key: "partners", label: "Mel / Eli" },
+  { key: "month", label: "Compta du mois" },
+  { key: "treasury", label: "Trésorerie et partage" },
+  { key: "fiduciary", label: "Dossier fiduciaire" },
 ];
-// Anciens liens (?tab=…) : redirigés vers le nouvel onglet.
-const OLD_TABS: Record<string, Tab> = { summary: "sales", revenue: "sales", salary: "expenses", advances: "partners", settlement: "partners" };
+// Anciens liens (?tab=…) : redirigés vers le nouvel espace.
+const OLD_TABS: Record<string, Tab> = { sales: "month", expenses: "month", summary: "month", revenue: "month", salary: "month",
+  partners: "treasury", advances: "treasury", settlement: "treasury" };
 const zurichMonth = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
 const zurichToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date());
 
@@ -87,7 +92,7 @@ const AdminCompta = () => {
   const [params, setParams] = useSearchParams();
   const month = /^\d{4}-\d{2}$/.test(params.get("month") ?? "") ? params.get("month")! : zurichMonth();
   const rawTab = params.get("tab") ?? "";
-  const tab: Tab = TABS.some((x) => x.key === rawTab) ? (rawTab as Tab) : OLD_TABS[rawTab] ?? "sales";
+  const tab: Tab = TABS.some((x) => x.key === rawTab) ? (rawTab as Tab) : OLD_TABS[rawTab] ?? "month";
   const setParam = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams(params);
     for (const [k, v] of Object.entries(patch)) { if (v == null) p.delete(k); else p.set(k, v); }
@@ -96,6 +101,7 @@ const AdminCompta = () => {
   const { from, to } = monthBounds(month);
 
   const [sales, setSales] = useState<SalesMonth | null>(null);
+  const [orders, setOrders] = useState<SalesOrdersMonth | null>(null);
   const [salesError, setSalesError] = useState<string | null>(null);
   const [finance, setFinance] = useState<FinanceMonth | null>(null);
   const [financeError, setFinanceError] = useState<string | null>(null);
@@ -111,7 +117,7 @@ const AdminCompta = () => {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<Expense | "new" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [busyExport, setBusyExport] = useState<"xlsx" | "dossier" | null>(null);
+  const [busyExport, setBusyExport] = useState<"xlsx" | null>(null);
 
   useEffect(() => {
     document.title = "Admin – Compta – Bento Cake Studio";
@@ -122,7 +128,7 @@ const AdminCompta = () => {
     setLoading(true);
     setError(null);
     setFinanceError(null);
-    const [sm, f, p, s, sa, ad, st] = await Promise.allSettled([
+    const [sm, f, p, s, sa, ad, st, so] = await Promise.allSettled([
       comptaApi<SalesMonth>({ action: "sales_month", month }),
       fetchFinanceMonth(month),
       comptaApi<ExpensePeriod>({ action: "period", from, to }),
@@ -130,7 +136,10 @@ const AdminCompta = () => {
       comptaApi<SalaryOverview>({ action: "salary_overview", month }),
       comptaApi<AdvancesOverview>({ action: "advances_overview", month }),
       comptaApi<SettlementView>({ action: "settlement_get", month: from }),
+      // F22 : montants enregistrés des commandes (absent tant que la fonction n'est pas déployée).
+      comptaApi<SalesOrdersMonth>({ action: "sales_orders_month", month }),
     ]);
+    setOrders(so.status === "fulfilled" ? so.value : null);
     if (sm.status === "fulfilled") { setSales(sm.value); setSalesError(null); }
     else { setSales(null); setSalesError(errText(sm.reason)); }
     setSettlement(st.status === "fulfilled" ? st.value : null);
@@ -168,30 +177,6 @@ const AdminCompta = () => {
       setBusyExport(null);
     }
   };
-  // Dossier pour le fiduciaire : le même Excel + justificatifs + index + LISEZMOI, en un ZIP.
-  const downloadDossier = async () => {
-    if (!ready || busyExport) return;
-    setBusyExport("dossier");
-    setNotice(null);
-    try {
-      const { X, blob: excel, fresh } = await buildExcel();
-      const files = await comptaApi<ReceiptFile[]>({ action: "receipts_period", from, to });
-      const issues = comptaDossierIssues(sales, finance, period, salary, advances, fresh);
-      const { blob, failed } = await X.buildDossierZip(excel, files, month, issues, async (url) => {
-        const r = await fetch(url);
-        if (!r.ok) throw new Error(String(r.status));
-        return r.blob();
-      });
-      download(blob, X.dossierZipName(month));
-      setNotice(`Dossier ${issues.length || failed.length ? "INCOMPLET" : "COMPLET"} téléchargé : Excel + ${files.length - failed.length} justificatif(s)${failed.length ? ` (${failed.length} non récupéré(s))` : ""}.`);
-    } catch (e) {
-      console.error("Dossier export failed:", e);
-      setError("Le dossier n'a pas pu être créé. Réessayez.");
-    } finally {
-      setBusyExport(null);
-    }
-  };
-
   if (authLoading) return <AdminLayout><main className="py-16 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" /></main></AdminLayout>;
   if (!user || !isAdmin) {
     return (
@@ -225,9 +210,6 @@ const AdminCompta = () => {
           <Button variant="outline" className="rounded-none" onClick={downloadExcel} disabled={!ready || !!busyExport} data-testid="download-excel">
             {busyExport === "xlsx" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />} Tableau du mois (Excel)
           </Button>
-          <Button variant="outline" className="rounded-none" onClick={downloadDossier} disabled={!ready || !!busyExport} data-testid="download-dossier">
-            {busyExport === "dossier" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FolderArchive className="w-4 h-4 mr-1" />} Dossier pour le fiduciaire (Excel + justificatifs)
-          </Button>
         </div>
 
         {error && <p className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">{error}</p>}
@@ -235,45 +217,51 @@ const AdminCompta = () => {
 
         <div className="flex overflow-x-auto border-b border-border [scrollbar-width:none]" role="tablist">
           {TABS.map((x) => (
-            <button key={x.key} type="button" role="tab" aria-selected={tab === x.key} onClick={() => setParam({ tab: x.key === "sales" ? null : x.key })}
+            <button key={x.key} type="button" role="tab" aria-selected={tab === x.key} onClick={() => setParam({ tab: x.key === "month" ? null : x.key })}
               className={cn("px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px", tab === x.key ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground")}>
               {x.label}
             </button>
           ))}
         </div>
 
-        {tab === "sales" && (
-          <SalesTab sales={sales} salesError={salesError} finance={finance} financeError={financeError} period={period} salary={salary}
-            advances={advances} settlement={settlement} onTab={(k) => setParam({ tab: k === "sales" ? null : k })} />
-        )}
-        {tab === "expenses" && (
+        {tab === "month" && (
           <div className="space-y-10">
-            <ChargesSummary period={period} salary={salary} />
-            {period && settings
-              ? <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)}
-                  salaryRows={salary ? <SalaryExpenseRows overview={salary} month={month} onChanged={load} onNotice={setNotice} /> : null} />
-              : <p className="text-sm text-amber-800">{error ?? "Chargement…"}</p>}
-            <details className="border border-border/60" id="salaire" data-testid="salary-details">
-              <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Gérer le salaire (montant mensuel, décompte, historique)</summary>
-              <div className="px-3 pb-4 pt-2">
-                {salary
-                  ? <SalaryTab overview={salary} month={month} onChanged={load} onNotice={setNotice} onEditExpense={setEditing} />
-                  : <p className="text-sm text-amber-800">{salaryError ?? "Chargement…"}</p>}
-              </div>
-            </details>
+            <SalesTab sales={sales} salesError={salesError} finance={finance} financeError={financeError} period={period} salary={salary}
+              advances={advances} settlement={settlement} orders={orders} onTab={(k) => setParam({ tab: k === "month" ? null : k })} />
+            <section className="space-y-4 border-t border-border pt-6" id="depenses" data-testid="expenses-section">
+              <h2 className="text-base font-semibold uppercase tracking-[0.08em]">Dépenses du mois</h2>
+              <ChargesSummary period={period} salary={salary} />
+              {period && settings
+                ? <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)}
+                    salaryRows={salary ? <SalaryExpenseRows overview={salary} month={month} onChanged={load} onNotice={setNotice} /> : null} />
+                : <p className="text-sm text-amber-800">{error ?? "Chargement…"}</p>}
+              <details className="border border-border/60" id="salaire" data-testid="salary-details">
+                <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Gérer le salaire (montant mensuel, décompte, historique)</summary>
+                <div className="px-3 pb-4 pt-2">
+                  {salary
+                    ? <SalaryTab overview={salary} month={month} onChanged={load} onNotice={setNotice} onEditExpense={setEditing} />
+                    : <p className="text-sm text-amber-800">{salaryError ?? "Chargement…"}</p>}
+                </div>
+              </details>
+            </section>
           </div>
         )}
-        {tab === "partners" && (
+        {tab === "treasury" && (
           <div className="space-y-10">
-            <SettlementTab month={month} onNotice={setNotice} />
+            <TreasuryOverview view={settlement} advances={advances} />
+            <section className="space-y-3 border-t border-border pt-6">
+              <h2 className="text-base font-semibold uppercase tracking-[0.08em]">Décompte du mois, soldes et versements</h2>
+              <SettlementTab month={month} onNotice={(t) => { setNotice(t); load(); }} />
+            </section>
             <section className="space-y-3 border-t border-border pt-6" id="avances">
-              <h2 className="text-base font-semibold uppercase tracking-[0.08em]">Avances personnelles</h2>
+              <h2 className="text-base font-semibold uppercase tracking-[0.08em]">Avances personnelles (remboursement, hors partage)</h2>
               {advances
                 ? <AdvancesTab overview={advances} month={month} onChanged={load} onNotice={setNotice} />
                 : <p className="text-sm text-amber-800">{advancesError ?? "Chargement…"}</p>}
             </section>
           </div>
         )}
+        {tab === "fiduciary" && <FiduciaryTab month={month} settings={settings} onNotice={setNotice} />}
 
         {editing && settings && (
           <ExpenseDialog
@@ -290,24 +278,25 @@ const AdminCompta = () => {
   );
 };
 
-// ── Ventes du mois ───────────────────────────────────────────────────────
-function SalesTab({ sales, salesError, finance, financeError, period, salary, advances, settlement, onTab }: {
+// ── Compta du mois : totaux, commandes regroupées, détail ───────────────
+function SalesTab({ sales, salesError, finance, financeError, period, salary, advances, settlement, orders, onTab }: {
   sales: SalesMonth | null; salesError: string | null; finance: FinanceMonth | null; financeError: string | null; period: ExpensePeriod | null;
-  salary: SalaryOverview | null; advances: AdvancesOverview | null; settlement: SettlementView | null; onTab: (t: Tab) => void;
+  salary: SalaryOverview | null; advances: AdvancesOverview | null; settlement: SettlementView | null; orders: SalesOrdersMonth | null; onTab: (t: Tab) => void;
 }) {
   // Même liste de manques que l'Excel.
   const dossierIssues = comptaDossierIssues(sales, finance, period, salary, advances, settlement);
   const tt = period?.totals;
+  const EXP = "#depenses";
   const issues: { text: string; tab?: Tab; href?: string }[] = [];
-  if (tt?.incompleteCount) issues.push({ text: `${tt.incompleteCount} dépense(s) « À compléter »`, tab: "expenses" });
-  if (tt?.engaged.unknownCount) issues.push({ text: `${tt.engaged.unknownCount} achat(s) du mois au montant CHF inconnu — non comptés`, tab: "expenses" });
-  if (tt?.missingReceiptCount) issues.push({ text: `${tt.missingReceiptCount} justificatif(s) manquant(s)`, tab: "expenses" });
-  if (tt?.undatedCount) issues.push({ text: `${tt.undatedCount} dépense(s) sans date d'achat`, tab: "expenses" });
-  if (tt?.duplicateCount) issues.push({ text: `${tt.duplicateCount} doublon(s) possible(s) à vérifier`, tab: "expenses" });
-  if (tt?.salary?.toReconcileCount) issues.push({ text: `${tt.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher d'un versement (restent comptées dans les dépenses en attendant)`, tab: "expenses" });
-  salary?.current.filter((x) => x.confirmed_net == null).forEach((x) => issues.push({ text: `Salaire ${x.member_name} : montant du mois à confirmer (« Payé » ou « Modifier le montant » dans Dépenses)`, tab: "expenses" }));
-  salary?.current.filter((x) => x.document_missing && (x.confirmed_net != null || x.paid > 0)).forEach((x) => issues.push({ text: `${x.code} : justificatif manquant (décompte)`, tab: "expenses" }));
-  advances?.people.filter((x) => x.overpaid > 0).forEach((x) => issues.push({ text: `${x.name} : avance trop remboursée de ${money(x.overpaid)}`, tab: "partners" }));
+  if (tt?.incompleteCount) issues.push({ text: `${tt.incompleteCount} dépense(s) « À compléter »`, href: EXP });
+  if (tt?.engaged.unknownCount) issues.push({ text: `${tt.engaged.unknownCount} achat(s) du mois au montant CHF inconnu — non comptés`, href: EXP });
+  if (tt?.missingReceiptCount) issues.push({ text: `${tt.missingReceiptCount} justificatif(s) manquant(s)`, href: EXP });
+  if (tt?.undatedCount) issues.push({ text: `${tt.undatedCount} dépense(s) sans date d'achat`, href: EXP });
+  if (tt?.duplicateCount) issues.push({ text: `${tt.duplicateCount} doublon(s) possible(s) à vérifier`, href: EXP });
+  if (tt?.salary?.toReconcileCount) issues.push({ text: `${tt.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher d'un versement (restent comptées dans les dépenses en attendant)`, href: EXP });
+  salary?.current.filter((x) => x.confirmed_net == null).forEach((x) => issues.push({ text: `Salaire ${x.member_name} : montant du mois à confirmer (« Payé » ou « Modifier le montant » dans les dépenses)`, href: EXP }));
+  salary?.current.filter((x) => x.document_missing && (x.confirmed_net != null || x.paid > 0)).forEach((x) => issues.push({ text: `${x.code} : justificatif manquant (décompte)`, href: EXP }));
+  advances?.people.filter((x) => x.overpaid > 0).forEach((x) => issues.push({ text: `${x.name} : avance trop remboursée de ${money(x.overpaid)}`, tab: "treasury" }));
   if (sales?.cards.toAcceptCount) issues.push({ text: `${sales.cards.toAcceptCount} commande(s) du mois encore à accepter — pas encore des ventes`, href: "/admin/orders" });
   if (sales?.cards.undatedCount) issues.push({ text: `${sales.cards.undatedCount} ligne(s) vendue(s) sans date de réalisation (${money(sales.cards.undatedAmount)}) — hors de tout mois` });
   const fc = finance?.cards;
@@ -316,119 +305,57 @@ function SalesTab({ sales, salesError, finance, financeError, period, salary, ad
 
   if (salesError) return <p className={cn("border px-3 py-2 text-sm", WARN)}>{salesError}</p>;
   if (!sales) return <div className="py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>;
-  const c = sales.cards;
-  const salTotal = salaryMonthTotal(salary);
-  const kept = sales.lines.filter((l) => l.state === "kept");
-  const off = sales.lines.filter((l) => l.state !== "kept");
+  const treasury = settlement ? settlementValues(settlement).treasury ?? null : null;
   return (
     <div className="space-y-6" data-testid="sales">
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Résumé du mois</h2>
-        <p className="text-xs text-muted-foreground">Chaque gâteau compte dans le mois de son retrait ou de sa livraison, chaque workshop dans le mois de sa séance — quelle que soit la date du paiement. Commandes de test exclues.</p>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          <Stat label="Ventes maintenues" value={money(c.net)} strong hint={`après annulations et gestes · ${c.cakes} gâteau(x) / article(s)${c.workshopSeats ? ` · ${c.workshopSeats} place(s) de workshop` : ""}`} />
-          <button type="button" className="text-left" onClick={() => onTab("expenses")}>
-            <Stat label="Dépenses du mois" value={tt ? money(tt.engaged.known + salTotal.total) : "—"} tone={tt?.engaged.unknownCount || salTotal.missing ? "warn" : undefined}
-              hint={`salaire compris (${money(salTotal.total)})${tt?.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""}${salTotal.missing ? " · salaire à saisir" : ""}`} />
-          </button>
-          <Stat label="Restant à payer par les clients" value={money(c.toCollect)} tone={c.toCollect ? "warn" : undefined}
-            hint={`${c.toCollectOrders} commande(s) du mois pas encore payée(s) — compté dans les ventes`} />
-        </div>
-        <p className="text-sm tabular-nums" data-testid="sales-bridge">
-          Ventes {money(c.gross)} − annulés {money(c.cancelled)} ({c.cancelledCount}) − gestes commerciaux {money(c.gestures)} = <strong>ventes maintenues {money(c.net)}</strong>
+      {financeError && <p className={cn("border px-3 py-2 text-sm", WARN)}>{financeError}</p>}
+      <MonthTotals sales={sales} finance={finance} orders={orders} treasury={treasury} />
+      {issues.length > 0 && (
+        <p className={cn("flex gap-2 border px-3 py-2 text-sm", WARN)} data-testid="issues-count">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />{issues.length} point(s) à compléter — voir « Voir le détail » plus bas.
         </p>
-        <p className="text-xs text-muted-foreground">
-          Un article annulé est retiré des ventes une fois : son remboursement ({money(c.cancellationRefunds)} ce mois) n'est jamais déduit en plus. Seul un geste commercial (remboursement sans annulation) est déduit.
-          {c.cancellationsToRefund > 0 && <> Annulés payés encore à rembourser : <strong>{money(c.cancellationsToRefund)}</strong>.</>}
-        </p>
-      </section>
-
-      <SalesList title={`Vendu en ${monthTitle(sales.month)}`} lines={kept} empty="Aucune vente réalisée ce mois." testId="sales-kept" />
-      {off.length > 0 && <SalesList title="Annulés et refusés (retirés des ventes)" lines={off} empty="" testId="sales-cancelled" />}
-      {sales.undated.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Sans date de réalisation — hors de tout mois</h2>
-          <ul className={cn("border divide-y text-sm", WARN)}>
-            {sales.undated.map((u, i) => (
-              <li key={`${u.orderId}-${i}`} className="px-3 py-1.5 flex gap-3"><span className="flex-1 min-w-0 truncate">{u.orderNumber ?? u.orderId.slice(0, 8)} · {u.customer} · {u.kind === "delivery" ? "Frais de livraison" : u.product}</span><span className="tabular-nums">{money(u.amount)}</span></li>
-            ))}
-          </ul>
-        </section>
       )}
+      <MonthOrders sales={sales} orders={orders} />
 
-      <details className="border border-border/60" data-testid="collections-details">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Encaissements par date de paiement (détail secondaire)</summary>
-        <div className="px-3 pb-3 pt-1">
+      <details className="border border-border/60" data-testid="month-details">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Voir le détail (encaissements ligne à ligne, sans date, points à compléter, état du dossier)</summary>
+        <div className="px-3 pb-4 pt-2 space-y-6">
           <CollectionsDetail finance={finance} financeError={financeError} />
+          {sales.undated.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.08em]">Sans date de réalisation — hors de tout mois</h3>
+              <ul className={cn("border divide-y text-sm", WARN)}>
+                {sales.undated.map((u, i) => (
+                  <li key={`${u.orderId}-${i}`} className="px-3 py-1.5 flex gap-3"><span className="flex-1 min-w-0 truncate">{u.orderNumber ?? u.orderId.slice(0, 8)} · {u.customer} · {u.kind === "delivery" ? "Frais de livraison" : u.product}</span><span className="tabular-nums">{money(u.amount)}</span></li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <section className={cn("border px-4 py-3 text-sm", dossierIssues.length ? WARN : "border-emerald-300 bg-emerald-50 text-emerald-900")} data-testid="dossier-state">
+            <p className="font-semibold">Dossier du mois : {dossierIssues.length ? "INCOMPLET" : "COMPLET"}</p>
+            {dossierIssues.length
+              ? <p>{dossierIssues.join(" · ")}</p>
+              : <p>Rien ne manque et le décompte du mois est validé.</p>}
+          </section>
+          {issues.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.08em]">À compléter</h3>
+              <ul className="space-y-1">
+                {issues.map((x) => (
+                  <li key={x.text}>
+                    {x.href?.startsWith("#")
+                      ? <a href={x.href} className={cn("flex gap-2 text-sm border px-3 py-2", WARN)}><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />{x.text}</a>
+                      : x.href
+                        ? <Link to={x.href} className={cn("flex gap-2 text-sm border px-3 py-2", WARN)}><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />{x.text}</Link>
+                        : <button type="button" onClick={() => x.tab && onTab(x.tab)} className={cn("w-full text-left flex gap-2 text-sm border px-3 py-2", WARN)}><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />{x.text}</button>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
       </details>
-
-      <section className={cn("border px-4 py-3 text-sm", dossierIssues.length ? WARN : "border-emerald-300 bg-emerald-50 text-emerald-900")} data-testid="dossier-state">
-        <p className="font-semibold">Dossier du mois : {dossierIssues.length ? "INCOMPLET" : "COMPLET"}</p>
-        {dossierIssues.length
-          ? <p>{dossierIssues.join(" · ")}</p>
-          : <p>Rien ne manque et le décompte du mois est validé. Le dossier pour le fiduciaire est marqué COMPLET.</p>}
-      </section>
-
-      {issues.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">À compléter</h2>
-          <ul className="space-y-1">
-            {issues.map((x) => (
-              <li key={x.text}>
-                {x.href
-                  ? <Link to={x.href} className={cn("flex gap-2 text-sm border px-3 py-2", WARN)}><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />{x.text}</Link>
-                  : <button type="button" onClick={() => x.tab && onTab(x.tab)} className={cn("w-full text-left flex gap-2 text-sm border px-3 py-2", WARN)}><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />{x.text}</button>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
-  );
-}
-
-function SalesList({ title, lines, empty, testId }: { title: string; lines: SalesLine[]; empty: string; testId: string }) {
-  const total = Math.round(lines.reduce((s, l) => s + salesLineNet(l), 0) * 100) / 100;
-  return (
-    <section className="space-y-2" data-testid={testId}>
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">{title} <span className="font-normal text-muted-foreground">({lines.length})</span></h2>
-        {lines.some((l) => l.state === "kept") && <span className="text-sm tabular-nums font-semibold">{money(total)}</span>}
-      </div>
-      {lines.length === 0 ? <p className="text-sm text-muted-foreground">{empty}</p> : (
-        <ul className="border border-border/60 divide-y divide-border/60 text-sm">
-          {lines.map((l, i) => {
-            const paid = salesLinePaid(l);
-            return (
-              <li key={`${l.orderId}-${l.itemId ?? l.kind}-${l.unitIndex}-${l.state}-${i}`} className="px-3 py-2 grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-0.5">
-                <span className="tabular-nums text-muted-foreground whitespace-nowrap">{frDate(l.serviceDate).slice(0, 5)}</span>
-                <span className="min-w-0">
-                  <span className="block break-words">{salesLineLabel(l)}</span>
-                  <span className="block text-xs text-muted-foreground break-words">
-                    <strong className="text-foreground">{l.orderNumber ?? l.orderId.slice(0, 8)}</strong> · {l.customer}
-                    {Number(l.adjustment) ? ` · prix ${money(l.base)} ${Number(l.adjustment) > 0 ? "+" : "−"} frais/remises ${money(Math.abs(Number(l.adjustment)))}` : ""}
-                  </span>
-                </span>
-                <span className="text-right">
-                  <span className={cn("block tabular-nums font-semibold", l.state !== "kept" && "line-through text-muted-foreground font-normal")}>{money(l.amount)}</span>
-                  {Number(l.gesture) > 0 && <span className="block text-xs tabular-nums text-amber-800">geste −{money(l.gesture)}</span>}
-                </span>
-                <span className="col-start-2 col-span-2 flex flex-wrap gap-1">
-                  {l.state !== "kept" && <Badge className={WARN}>{SALES_STATE_LABELS[l.state]}{l.reason ? ` · ${SALES_REASON_LABELS[l.reason] ?? l.reason}` : ""}</Badge>}
-                  {l.state !== "kept" && Number(l.cancellationRefund) > 0 && <Badge className="border-border text-muted-foreground">remboursé {money(l.cancellationRefund)} (annulation)</Badge>}
-                  {l.state === "kept" && paid === "Non" && <Badge className="border-sky-300 bg-sky-50 text-sky-900">Restant à payer</Badge>}
-                  {l.state === "kept" && paid !== "Non" && l.paidAt && l.paidAt.slice(0, 7) !== l.serviceDate.slice(0, 7) && (
-                    <Badge className="border-border text-muted-foreground">payé le {frDate(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date(l.paidAt)))}</Badge>
-                  )}
-                  {l.origin === "manual" && <Badge className="border-border text-muted-foreground">manuelle</Badge>}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
   );
 }
 
