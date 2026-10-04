@@ -55,7 +55,9 @@ serve(async (req) => {
   }
 
   try {
-    const { orderId, token } = await req.json();
+    // Corps lu une seule fois ; transmis à requireAdmin pour le jeton PIN (_adminSession).
+    const body = await req.json();
+    const { orderId, token } = body ?? {};
     if (!orderId) {
       throw new Error("Missing required field: orderId");
     }
@@ -72,7 +74,7 @@ serve(async (req) => {
     // token was the ONLY gate; a leaked/guessed order id + token pair could
     // read a customer's name/e-mail/phone/address with no login at all).
     // Same pattern as list-orders/list-orders-by-date.
-    const admin = await requireAdmin(req, supabase);
+    const admin = await requireAdmin(req, supabase, { body });
     if (!admin) {
       return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },

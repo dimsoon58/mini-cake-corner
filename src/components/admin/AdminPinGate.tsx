@@ -13,9 +13,27 @@ import { PasswordInput } from "@/components/ui/password-input";
 // La vérification est faite par le serveur (fonction admin-pin) ; ce
 // composant n'est qu'un écran. Tant que admin-pin n'est pas déployée, le
 // dashboard fonctionne comme avant (PIN saisi action par action).
+//
+// Fonction absente : Supabase répond 404 à la pré-vérification CORS, que le
+// navigateur bloque — l'appel échoue alors sans statut lisible (ce n'était pas
+// un 404, d'où l'écran PIN affiché avant le déploiement). Une requête GET
+// simple (sans pré-vérification) lit, elle, la réponse : code NOT_FOUND =
+// fonction pas encore déployée.
 
 type GateState = "checking" | "locked" | "open" | "legacy";
 let verified: { token: string; until: number } | null = null;   // déjà vérifié côté serveur pendant cette visite
+
+/** false = admin-pin pas encore déployée ; true = déployée ; null = inconnu (réseau). */
+async function adminPinDeployed(): Promise<boolean | null> {
+  try {
+    const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-pin`);
+    if (r.status !== 404) return true;
+    const j = await r.json().catch(() => null);
+    return j?.code !== "NOT_FOUND";
+  } catch {
+    return null;
+  }
+}
 
 export function AdminPinGate({ children }: { children: ReactNode }) {
   const { t } = useLang();
@@ -33,6 +51,7 @@ export function AdminPinGate({ children }: { children: ReactNode }) {
     if (err) {
       const status = (err as { context?: Response }).context?.status;
       if (status === 404) { setState("legacy"); return; }            // fonction pas encore déployée
+      if (!status && !s && (await adminPinDeployed()) === false) { setState("legacy"); return; }
       setState(s ? "open" : "locked");                                // erreur passagère : le serveur revérifie à chaque appel
       return;
     }

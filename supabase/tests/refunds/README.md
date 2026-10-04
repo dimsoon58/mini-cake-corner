@@ -326,8 +326,10 @@ sans « mode » (aucun retrait) ; droits ; journal cohérent ; relance de F15 sa
 
 ## PIN admin une seule fois par session (F16)
 
-`test_admin_pin.mjs` : migration F16 + vraies fonctions `admin-pin`, `manage-customers` et
-`get-today` avec le vrai `_shared/admin-auth.ts`. Résultat attendu : `38 PASS, 0 FAIL`.
+`test_admin_pin.mjs` : migration F16 + vraies fonctions `admin-pin`, `manage-customers`,
+`get-today`, `manage-order` et `get-order-detail` avec le vrai `_shared/admin-auth.ts`.
+Résultat attendu : `54 PASS, 0 FAIL` (sur l'ancienne version de `manage-order` /
+`get-order-detail`, qui lisaient la demande avant la vérification : 5 FAIL — jeton ignoré).
 
 Couvert : comparaison du PIN en temps constant ; connexion et liste d'admins toujours exigées ;
 mauvais PIN refusé avec essais restants ; autorisation (jeton + expiration 12 h) ; ni PIN ni jeton en
@@ -338,3 +340,8 @@ compte non admin ; une autorisation par session ; expiration ; verrouillage à l
 devant le dashboard, révocation à la déconnexion, seul le jeton gardé dans le navigateur, toutes
 les fonctions du dashboard reçoivent l'autorisation, plus aucune comparaison directe du PIN,
 champs PIN masqués, confirmations simples ; droits ; relance de F16 sans effet.
+`manage-order` (remboursement manuel, marquer remboursé, accepter/refuser depuis l'admin) et
+`get-order-detail` acceptent l'autorisation de session (corps de la demande lu une seule fois et
+transmis à `requireAdmin`), en mode normal et obligatoire ; lien e-mail Accepter/Refuser inchangé ;
+aucune fonction ne lit la demande avant `requireAdmin` sans lui transmettre ce corps ; écran PIN
+non affiché tant que `admin-pin` n'est pas déployée (Supabase « NOT_FOUND »).

@@ -65,12 +65,15 @@ export function jwtSessionId(jwt: string): string {
   }
 }
 
-async function readSessionToken(req: Request): Promise<string | null> {
+// The token travels in the JSON body. A function that has already read the
+// body (req.json() before requireAdmin) MUST pass it as `options.body`:
+// a consumed request can no longer be cloned, and the token would be missed.
+async function readSessionToken(req: Request, parsed?: unknown): Promise<string | null> {
   const h = req.headers.get("x-admin-session");
   if (h) return h.trim() || null;
   if (req.method !== "POST") return null;
   try {
-    const body = await req.clone().json();
+    const body = parsed !== undefined ? parsed as { _adminSession?: unknown } : (req.bodyUsed ? null : await req.clone().json());
     const t = body?._adminSession;
     return typeof t === "string" && t.length >= 20 && t.length <= 200 ? t : null;
   } catch {
@@ -83,7 +86,7 @@ export const pinSessionRequired = () => Deno.env.get("ADMIN_PIN_SESSION_REQUIRED
 export async function requireAdmin(
   req: Request,
   supabase: Client,
-  options: { allowWithoutPinSession?: boolean } = {},
+  options: { allowWithoutPinSession?: boolean; body?: unknown } = {},
 ): Promise<AdminCaller | null> {
   const authHeader = req.headers.get("Authorization") ?? req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
@@ -102,7 +105,7 @@ export async function requireAdmin(
 
   const authSessionId = jwtSessionId(jwt);
   let pinExpiresAt: string | null = null;
-  const token = await readSessionToken(req);
+  const token = await readSessionToken(req, options.body);
   if (token && typeof supabase.rpc === "function") {
     try {
       const { data, error } = await supabase.rpc("admin_pin_check", { p_email: email, p_session: authSessionId, p_token_hash: await sha256Hex(token) });

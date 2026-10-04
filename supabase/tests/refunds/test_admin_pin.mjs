@@ -1,5 +1,6 @@
 // PIN admin demandé une seule fois par session (F16) — vraies fonctions
-// admin-pin, manage-customers (écriture protégée) et get-today (lecture), avec
+// admin-pin, manage-customers (écriture protégée), get-today (lecture),
+// manage-order et get-order-detail (corps lu avant la vérification), avec
 // le vrai _shared/admin-auth.ts, sur le schéma de production (PGlite, F1–F16,
 // petite traduction supabase-js → SQL). Ne se connecte jamais à Supabase.
 //
@@ -87,12 +88,14 @@ globalThis.Deno = { env: { get: (k) => ENV[k] } };
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ap-"));
 fs.writeFileSync(path.join(tmp, "serve.mjs"), "export function serve(h) { globalThis.__handler = h; }");
 fs.writeFileSync(path.join(tmp, "supa.mjs"), "export function createClient() { return globalThis.__supa; }");
+fs.writeFileSync(path.join(tmp, "pdf.mjs"), "export const PDFDocument = {}, StandardFonts = {}; export const rgb = () => 0;");
 const fns = {};
-for (const name of ["admin-pin", "manage-customers", "get-today"]) {
+for (const name of ["admin-pin", "manage-customers", "get-today", "manage-order", "get-order-detail"]) {
   await build({ entryPoints: [path.join(ROOT, `functions/${name}/index.ts`)], bundle: true, format: "esm", platform: "node", outfile: path.join(tmp, `${name}.mjs`), logLevel: "error",
     plugins: [{ name: "m", setup(b) {
       b.onResolve({ filter: /^https:\/\/deno\.land/ }, () => ({ path: path.join(tmp, "serve.mjs") }));
       b.onResolve({ filter: /^npm:@supabase/ }, () => ({ path: path.join(tmp, "supa.mjs") }));
+      b.onResolve({ filter: /^npm:pdf-lib/ }, () => ({ path: path.join(tmp, "pdf.mjs") }));
     } }] });
   await import(path.join(tmp, `${name}.mjs`));
   fns[name] = globalThis.__handler;
@@ -179,8 +182,60 @@ check("Mode obligatoire : PIN saisi seul ne suffit plus (connexion + autorisatio
 check("Mode obligatoire : admin-pin reste accessible pour déverrouiller", (await unlock("4711")).status === 200);
 delete ENV.ADMIN_PIN_SESSION_REQUIRED;
 
+// ═══ manage-order / get-order-detail : corps lu AVANT la vérification ═══
+// Ces deux fonctions lisent la demande (req.json()) avant requireAdmin : le
+// jeton doit être pris dans ce corps déjà lu (une demande lue ne peut plus
+// être relue). Montant 0 → 400 « refundAmount » = PIN accepté (rien écrit).
+const T5 = (await unlock("4711")).body.data.token;
+const NO_ORDER = "00000000-0000-4000-8000-000000000001";
+const refund = (extra, token = MEL_S1) => call("manage-order", { orderId: NO_ORDER, action: "record_manual_refund", refundAmount: 0, ...extra }, token);
+const refundsBefore = (await one("select count(*)::int n from public.order_manual_refunds")).n;
+r = await refund({ _adminSession: T5, pin: "__session__" });
+check("manage-order (remboursement manuel) : autorisation de session acceptée sans PIN saisi", r.status === 400 && /refundAmount/.test(r.body.error), r);
+r = await refund({ _adminSession: T5, pin: "__session__" }, MEL_S2);
+check("manage-order : jeton d'une autre session de connexion refusé", r.status === 403 && r.body.error === "Invalid PIN", r);
+r = await refund({ pin: "__session__" });
+check("manage-order : valeur de remplacement sans autorisation refusée", r.status === 403, r);
+r = await refund({ pin: "4711" });
+check("manage-order : ancienne page (PIN saisi) toujours acceptée", r.status === 400, r);
+r = await call("manage-order", { orderId: NO_ORDER, action: "mark_refunded", _adminSession: T5, pin: "__session__" }, CLIENT);
+check("manage-order : compte non admin refusé (401, avec en-têtes CORS)", r.status === 401);
+r = await call("manage-order", { orderId: NO_ORDER, action: "approve", token: "t".repeat(32), pin: "__session__", _adminSession: T5 });
+check("manage-order (accepter/refuser depuis l'admin) : autorisation de session acceptée", r.body.error !== "Invalid PIN" && r.body.error !== "Admin sign-in required", r);
+r = await call("manage-order", { orderId: NO_ORDER, action: "approve", token: "t".repeat(32), pin: "__session__" });
+check("manage-order (accepter/refuser) : sans autorisation ni PIN refusé", r.status === 403 && r.body.error === "Invalid PIN", r);
+r = await call("get-order-detail", { orderId: NO_ORDER, _adminSession: T5 });
+check("get-order-detail : connexion admin + autorisation → commande cherchée (404 ici)", r.status === 404, r);
+ENV.ADMIN_PIN_SESSION_REQUIRED = "true";
+r = await call("get-order-detail", { orderId: NO_ORDER, _adminSession: T5 });
+check("Mode obligatoire : get-order-detail accepte l'autorisation de session", r.status === 404, r);
+r = await call("get-order-detail", { orderId: NO_ORDER });
+check("Mode obligatoire : get-order-detail sans autorisation refusé (401)", r.status === 401, r);
+r = await refund({ _adminSession: T5, pin: "__session__" });
+check("Mode obligatoire : manage-order accepte l'autorisation de session", r.status === 400 && /refundAmount/.test(r.body.error), r);
+r = await refund({ pin: "4711" });
+check("Mode obligatoire : manage-order avec PIN saisi seul refusé (401)", r.status === 401, r);
+r = await call("manage-order", { orderId: NO_ORDER, action: "approve", token: "t".repeat(32) }, null);
+check("Mode obligatoire : lien e-mail Accepter/Refuser (jeton seul, sans connexion) inchangé", r.body.error !== "Admin sign-in required" && r.status !== 401, r);
+delete ENV.ADMIN_PIN_SESSION_REQUIRED;
+check("Aucun remboursement écrit par ces essais", (await one("select count(*)::int n from public.order_manual_refunds")).n === refundsBefore);
+
+const late = [];
+for (const d of fs.readdirSync(path.join(ROOT, "functions"))) {
+  const f = path.join(ROOT, "functions", d, "index.ts");
+  if (!fs.existsSync(f)) continue;
+  const code = fs.readFileSync(f, "utf8");
+  const read = code.search(/await req\.(json|text|formData)\(\)/);
+  if (read < 0) continue;
+  for (const m of code.slice(read).matchAll(/requireAdmin\(req, supabase(, \{[^)]*\})?\)/g)) if (!/body/.test(m[0])) late.push(d);
+}
+check("Toutes les fonctions qui lisent la demande avant requireAdmin lui transmettent ce corps", late.length === 0, late);
+
 // ═══ Site ═══════════════════════════════════════════════════════════════
 const src = (f) => fs.readFileSync(path.join(REPO, f), "utf8");
+const gate = src("src/components/admin/AdminPinGate.tsx");
+check("Écran PIN : admin-pin pas encore déployée (pré-vérification CORS bloquée) → dashboard comme avant",
+  /adminPinDeployed\(\)\) === false\) \{ setState\("legacy"\)/.test(gate) && /code !== "NOT_FOUND"/.test(gate));
 check("Dashboard derrière l'écran PIN (AdminLayout → AdminPinGate)", src("src/components/admin/AdminLayout.tsx").includes("<AdminPinGate>") && src("src/components/admin/AdminLayout.tsx").includes("installAdminSessionTransport()"));
 check("Déconnexion : autorisation révoquée puis oubliée", /lockAdminSession\(\);\s*await supabase\.auth\.signOut\(\)/.test(src("src/context/AuthContext.tsx")));
 const store = src("src/lib/adminSession.ts");

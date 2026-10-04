@@ -832,7 +832,9 @@ serve(async (req) => {
   }
 
   try {
-    const { orderId, action: rawAction, pin, token, refundReference, refundAmount, refundNote, refundOrderItemId } = await req.json();
+    // Corps lu une seule fois ; transmis à requireAdmin pour le jeton PIN (_adminSession).
+    const body = await req.json();
+    const { orderId, action: rawAction, pin, token, refundReference, refundAmount, refundNote, refundOrderItemId } = body ?? {};
 
     if (!orderId || !rawAction) {
       throw new Error("Missing required fields: orderId, action");
@@ -861,10 +863,10 @@ serve(async (req) => {
     if (action === "mark_refunded") {
       // 2026-09-17 (real auth guard): a valid admin session is now required
       // in addition to the PIN — see _shared/admin-auth.ts.
-      const admin = await requireAdmin(req, supabase);
+      const admin = await requireAdmin(req, supabase, { body });
       if (!admin) {
         return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 401,
         });
       }
       // PIN validé pour la session (F16) ou saisi avec la demande.
@@ -907,10 +909,10 @@ serve(async (req) => {
     //    order_manual_refunds migration's own header for why this is an
     //    append-only log rather than a single running-total column.
     if (action === "record_manual_refund") {
-      const admin = await requireAdmin(req, supabase);
+      const admin = await requireAdmin(req, supabase, { body });
       if (!admin) {
         return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 401,
         });
       }
       // PIN validé pour la session (F16) ou saisi avec la demande.
@@ -973,10 +975,10 @@ serve(async (req) => {
     // unchanged, no admin session required, so the one-click Accept/Refuse
     // links in the notification e-mail keep working exactly as before.
     if (pin) {
-      const admin = await requireAdmin(req, supabase);
+      const admin = await requireAdmin(req, supabase, { body });
       if (!admin) {
         return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
           status: 401,
         });
       }
