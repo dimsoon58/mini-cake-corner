@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { FinanceMonth } from "@/lib/finance";
+import { PRODUCT_LABELS, flavorLabel, shapeLabel, sizeLabel } from "@/lib/orderLabels";
 
 // Admin > Compta (lot K1) — dépenses, catégories, « payé par »,
 // justificatifs. Types, appel unique à manage-expenses et aides
@@ -183,6 +184,50 @@ export const ADVANCE_STATE_LABELS: Record<AdvanceState, string> = {
   overpaid: "Trop remboursée",
 };
 
+// ── F17 : ventes du mois de réalisation (une ligne par gâteau) ────────────
+export type SalesState = "kept" | "cancelled" | "refused";
+export interface SalesLine {
+  orderId: string; orderNumber: string | null; origin: "website" | "manual"; customer: string; isTest: boolean;
+  paymentStatus: string; paidAt: string | null; orderValidation: string;
+  kind: "item" | "delivery"; itemId: string | null; product: string | null; size: string | null; shape: string | null; flavors: string[] | null;
+  design: string | null; workshopType: string | null; seats: number | null; unitIndex: number; unitCount: number;
+  serviceDate: string; state: SalesState; reason: string | null;
+  base: number; adjustment: number; amount: number; gesture: number; cancellationRefund: number;
+}
+export interface SalesMonth {
+  month: string; from: string; to: string; includeTests: boolean;
+  cards: {
+    gross: number; cancelled: number; cancelledCount: number; kept: number; gestures: number; net: number;
+    cancellationRefunds: number; cancellationsToRefund: number; toCollect: number; toCollectOrders: number;
+    orders: number; cakes: number; workshopSeats: number; refusedCount: number; toAcceptCount: number;
+    undatedCount: number; undatedAmount: number;
+  };
+  lines: SalesLine[];
+  undated: { orderId: string; orderNumber: string | null; customer: string; product: string | null; kind: string; amount: number; state: SalesState }[];
+}
+export const SALES_STATE_LABELS: Record<SalesState, string> = { kept: "Vendu", cancelled: "Annulé", refused: "Refusé (jamais vendu)" };
+export const SALES_REASON_LABELS: Record<string, string> = {
+  order_cancelled: "commande annulée", item_cancelled: "article annulé", seats_cancelled: "places annulées", refused: "gâteau refusé",
+};
+/** « Oui » payée, « Non » en attente de paiement (= restant à payer), sinon le statut brut. */
+export const salesLinePaid = (l: Pick<SalesLine, "paymentStatus">) =>
+  l.paymentStatus === "pending" ? "Non" : ["paid", "refunded"].includes(l.paymentStatus) ? "Oui" : l.paymentStatus;
+/**
+ * Vente retenue d'une ligne = montant si vendue (0 si annulée / refusée) − geste
+ * commercial. La somme des lignes = « ventes maintenues » du serveur (F17).
+ */
+export const salesLineNet = (l: Pick<SalesLine, "state" | "amount" | "gesture">) =>
+  Math.round(((l.state === "kept" ? Number(l.amount) : 0) - Number(l.gesture)) * 100) / 100;
+export function salesLineLabel(l: Pick<SalesLine, "kind" | "product" | "size" | "shape" | "flavors" | "workshopType" | "seats" | "unitIndex" | "unitCount">): string {
+  if (l.kind === "delivery") return "Frais de livraison";
+  if (l.product === "workshop") return `Workshop ${l.workshopType === "paint" ? "Peinture" : "Signature"}${l.seats ? ` · ${l.seats} place(s)` : ""}`;
+  const parts = [PRODUCT_LABELS[l.product ?? ""]?.fr ?? l.product ?? "Article"];
+  if (l.size && l.product !== "diy_kit" && l.product !== "edible_printing") parts.push(sizeLabel(l.size, "fr"));
+  if (l.shape && l.shape !== "round") parts.push(shapeLabel(l.shape, "fr"));
+  if (l.flavors?.length) parts.push(flavorLabel(l.flavors.join(",")));
+  return parts.filter(Boolean).join(" · ") + (l.unitCount > 1 ? ` (${l.unitIndex}/${l.unitCount})` : "");
+}
+
 // ── Lot K4 : décompte Mel / Eli ───────────────────────────────────────────
 export interface SettlementDraft {
   blocked: boolean; blockReasons: string[]; blockText: string; warnings: string[];
@@ -194,10 +239,14 @@ export interface SettlementDraft {
   toShare: number; melShare: number; eliShare: number; melPct: number; freeForShares: number | null;
   flags: { baseBreach: boolean; cashShort: boolean; ackBaseBreach: boolean; ackCashShort: boolean; noBankBalance?: boolean };
   needsBankBalance: boolean;
+  // F17 (absents des brouillons calculés avant F17)
+  toCollectInResult?: number; payableNow?: number; notYetAvailable?: number;
 }
 export interface Treasury {
   date: string; balance: number; invoicesToPay: number; invoicesUnknownCount: number; salaryRemaining: number; advancesToRepay: number;
   advancesUnknownCount: number; sharesUnpaid: number; available: number; baseConstituted?: boolean; extraCum?: number; retainedCum?: number;
+  // F17 : paiements reçus pour des commandes futures (déduits) ; sommes dues par les clients (information, jamais en banque)
+  customerPrepayments?: number; customerPrepaymentsUndated?: number; customersOwe?: number;
 }
 /** Ligne figée d'un décompte validé (colonnes de la table settlements). */
 export interface SettlementRow {
@@ -222,7 +271,8 @@ export interface SettlementView {
   prev: { id: string; month: string; retainedCum: number; baseConstituted: boolean; extraCum: number; lossOut: number } | null;
   prevMonthValidated: boolean;
   figures: {
-    revenueNet: number; collected: number; refunded: number; refundsUndatedCount: number; refundsToReviewCount: number;
+    revenueNet: number; revenueBasis?: "sales"; salesGross?: number; salesCancelled?: number; salesGestures?: number; salesToCollect?: number;
+    collected: number; refunded: number; refundsUndatedCount: number; refundsToReviewCount: number;
     expensesKnown: number; expensesCount: number; expensesUnknown: { id: string; code: string; supplier: string | null }[];
     expensesUndated: { id: string; code: string; supplier: string | null }[];
     investments: { id: string; code: string; supplier: string | null; description: string | null; chf_amount: number | null }[];
@@ -253,20 +303,24 @@ export function settlementValues(v: SettlementView) {
       retainedCum: +s.retained_cum, extraCum: +s.extra_cum, toShare: +s.to_share, melShare: +s.mel_share, eliShare: +s.eli_share,
       freeRetained: d?.freeRetained ?? null, freeForShares: d?.freeForShares ?? null, flags: s.flags, treasury: s.treasury,
       melPct: d?.melPct ?? Number(v.rules?.mel_pct ?? 60), warnings: d?.warnings ?? [], blockReasons: [] as string[],
+      toCollectInResult: d?.toCollectInResult ?? null, payableNow: d?.payableNow ?? null, notYetAvailable: d?.notYetAvailable ?? null,
     };
   }
   const d = v.draft!;
-  return { validated: false, ...d, treasury: v.treasury, blockReasons: d.blockReasons };
+  return { validated: false, ...d, treasury: v.treasury, blockReasons: d.blockReasons,
+    toCollectInResult: d.toCollectInResult ?? null, payableNow: d.payableNow ?? null, notYetAvailable: d.notYetAvailable ?? null };
 }
 
 /**
  * Liste des manques du dossier du mois (vide = COMPLET). Source unique pour
- * l'Excel et le Résumé de la page.
+ * l'Excel et l'onglet « Ventes du mois » de la page.
  */
-export function comptaDossierIssues(finance: FinanceMonth | null, expenses: ExpensePeriod | null, salary?: SalaryOverview | null,
+export function comptaDossierIssues(sales: SalesMonth | null, finance: FinanceMonth | null, expenses: ExpensePeriod | null, salary?: SalaryOverview | null,
   advances?: AdvancesOverview | null, settlement?: SettlementView | null): string[] {
   const issues: string[] = [];
-  if (!finance) issues.push("revenus : données non chargées");
+  if (!sales) issues.push("ventes du mois : données non chargées");
+  else if (sales.cards.undatedCount) issues.push(`${sales.cards.undatedCount} ligne(s) vendue(s) sans date de réalisation (hors de tout mois)`);
+  if (!finance) issues.push("encaissements : données non chargées");
   if (!expenses) issues.push("dépenses : données non chargées");
   if (finance) {
     if (finance.cards.undatedCount) issues.push(`${finance.cards.undatedCount} remboursement(s) client à dater`);
@@ -274,7 +328,7 @@ export function comptaDossierIssues(finance: FinanceMonth | null, expenses: Expe
   }
   if (expenses && finance) {
     const t = expenses.totals;
-    const from = finance.from, to = finance.to;
+    const { from, to } = finance;
     const unknown = expenses.expenses.filter((e) => e.counted !== false && inRange(e.purchase_date, from, to) && e.chf_amount == null).length;
     if (t.incompleteCount) issues.push(`${t.incompleteCount} dépense(s) à compléter`);
     if (unknown) issues.push(`${unknown} montant(s) CHF inconnu(s)`);
@@ -282,7 +336,7 @@ export function comptaDossierIssues(finance: FinanceMonth | null, expenses: Expe
     if (t.undatedCount) issues.push(`${t.undatedCount} dépense(s) sans date d'achat`);
     if (t.salary?.toReconcileCount) issues.push(`${t.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher`);
   }
-  const month = finance?.month ?? expenses?.from?.slice(0, 7) ?? "";
+  const month = sales?.month ?? finance?.month ?? expenses?.from?.slice(0, 7) ?? "";
   if (!salary) issues.push("salaire : données non chargées");
   else {
     for (const x of salary.members.flatMap((mb) => mb.months)) {

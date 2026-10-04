@@ -5,7 +5,7 @@
 //   cd supabase/tests/refunds
 //   npm install --no-save @electric-sql/pglite esbuild
 //   node test_compta_k3.mjs
-import { freshDb } from "./load.mjs";
+import { freshDb, salesStub } from "./load.mjs";
 import { build } from "esbuild";
 import fs from "fs";
 import path from "path";
@@ -198,7 +198,7 @@ check("Octobre : seule la correction 80 → 70 change l'engagé (225 → 215), j
 
 // ═══ Excel ═══
 const finance = (await invoke("finance-month", { month: "2026-10" })).body.data;
-const wb = CX.buildComptaWorkbook(ExcelJS, finance, await period(...OCT), null, await ov("2026-10"));
+const wb = CX.buildComptaWorkbook(ExcelJS, salesStub(finance), finance, await period(...OCT), null, await ov("2026-10"));
 const file = path.join(tmp, "k3.xlsx");
 await wb.xlsx.writeFile(file);
 const rb = new ExcelJS.Workbook(); await rb.xlsx.readFile(file);

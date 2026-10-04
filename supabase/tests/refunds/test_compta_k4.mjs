@@ -17,7 +17,7 @@ process.on("unhandledRejection", (e) => { console.log("ERROR:", e?.message, e?.w
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const REPO = path.resolve(ROOT, "..");
 const MIG = path.join(ROOT, "migrations");
-const migrations = fs.readdirSync(MIG).filter((f) => /^20261002(09|10|11|12|13|14|16|17|18)/.test(f)).sort().map((f) => path.join(MIG, f));
+const migrations = fs.readdirSync(MIG).filter((f) => /^(20261002(09|10|11|12|13|14|16|17|18)|20261004)/.test(f)).sort().map((f) => path.join(MIG, f));
 const F13 = migrations.find((f) => f.includes("_f13_"));
 
 let fails = 0, passes = 0;
@@ -104,8 +104,9 @@ async function revenue(amount, paidAt) {
 async function revenueInsert(amount, paidAt) {
   const c = (await one("select gen_random_uuid() id")).id;
   await q("insert into auth.users (id, email) values ($1, $2)", [c, `c${++orderN}@t.ch`]);
-  const o = await one(`insert into public.orders (lang, first_name, last_name, email, phone, total_amount, payment_status, paid_at, order_validation, customer_id, order_source)
-    values ('fr','Claire','Dupont','c@t.ch','000',$1,'paid',$2,'approved',$3,'website') returning id`, [amount, paidAt, c]);
+  const o = await one(`insert into public.orders (lang, first_name, last_name, email, phone, total_amount, payment_status, paid_at, order_validation, customer_id, order_source,
+      physical_validation, pickup_delivery_date)
+    values ('fr','Claire','Dupont','c@t.ch','000',$1,'paid',$2,'approved',$3,'website','approved',($2::timestamptz at time zone 'Europe/Zurich')::date) returning id`, [amount, paidAt, c]);
   await q("update public.orders set order_number=$2 where id=$1", [o.id, `ORD-K4-${orderN}`]);
   await q("insert into public.order_items (order_id, product, total, size) values ($1,'bento_cake',$2,'10cm')", [o.id, amount]);
 }
@@ -336,17 +337,18 @@ check("Libération explicite de 500 (bénéfice libre 1'000 = 5'600 − 4'000 �
 
 // ═══ Excel ═══
 const finance = (await invoke("finance-month", { month: "2027-01" })).body.data;
+const salesJan = (await call({ action: "sales_month", month: "2027-01" })).body.data;
 const periodJan = (await call({ action: "period", from: "2027-01-01", to: "2027-01-31" })).body.data;
-const wb = CX.buildComptaWorkbook(ExcelJS, finance, periodJan, (await call({ action: "salary_overview", month: "2027-01" })).body.data,
+const wb = CX.buildComptaWorkbook(ExcelJS, salesJan, finance, periodJan, (await call({ action: "salary_overview", month: "2027-01" })).body.data,
   (await call({ action: "advances_overview", month: "2027-01" })).body.data, await get("2027-01"));
 const file = path.join(tmp, "k4.xlsx");
 await wb.xlsx.writeFile(file);
 const rb = new ExcelJS.Workbook(); await rb.xlsx.readFile(file);
-check("Excel : 8 feuilles, « Décompte Mel-Eli et versements » en dernier (31 caractères max, « / » interdit)", rb.worksheets.length === 8 && rb.worksheets.at(-1).name === "Décompte Mel-Eli et versements", rb.worksheets.map((w) => w.name));
+check("Excel : 9 feuilles, « Décompte Mel-Eli et versements » en dernier (31 caractères max, « / » interdit)", rb.worksheets.length === 9 && rb.worksheets.at(-1).name === "Décompte Mel-Eli et versements", rb.worksheets.map((w) => w.name));
 const W = rb.worksheets.at(-1);
 const findRow = (ws, label) => { let row = null; ws.eachRow((y) => { if (String(y.getCell(1).value ?? "").startsWith(label)) row = y; }); return row; };
 const val = (c) => (c.value && typeof c.value === "object" && "result" in c.value ? c.value.result : c.value);
-check("Feuille décompte : à partager 900, Mel 540, Eli 360 (Eli = reste en formule)", val(findRow(W, "À partager").getCell(2)) === 900 && val(findRow(W, "Mel").getCell(2)) === 540 && val(findRow(W, "Eli").getCell(2)) === 360 && String(findRow(W, "Eli").getCell(2).value.formula).includes("-"));
+check("Feuille décompte : résultat à partager 900, Mel 540, Eli 360 (Eli = reste en formule)", val(findRow(W, "Résultat à partager").getCell(2)) === 900 && val(findRow(W, "Mel").getCell(2)) === 540 && val(findRow(W, "Eli").getCell(2)) === 360 && String(findRow(W, "Eli").getCell(2).value.formula).includes("-"));
 check("Feuille décompte : base, épargne supplémentaire et bénéfice conservé distincts", val(findRow(W, "Trésorerie de base").getCell(2)) === 4000 && val(findRow(W, "Épargne supplémentaire cumulée").getCell(2)) === 300 && val(findRow(W, "Bénéfice conservé cumulé").getCell(2)) === 5500);
 check("Feuille décompte : versements avec reste à verser (Eli 160)", val(findRow(W, "Reste à verser — Eli").getCell(2)) === 160);
 const S = rb.getWorksheet("Synthèse");
@@ -358,7 +360,7 @@ check("Synthèse : parts du mois et statut du décompte", /validé/.test(String(
 await call({ action: "salary_confirm", id: (await salMonth("2026-09")).id, net: "113.30" });
 const dl = (await get("2027-05")).detectedDeltas;
 await call({ action: "settlement_adjust", pin: PIN, sourceMonth: dl[0].month.slice(0, 7), amount: String(dl[0].delta), reason: "Avance Landi saisie après validation d'avril" });
-const wb2 = CX.buildComptaWorkbook(ExcelJS, finance, periodJan, (await call({ action: "salary_overview", month: "2027-01" })).body.data,
+const wb2 = CX.buildComptaWorkbook(ExcelJS, salesJan, finance, periodJan, (await call({ action: "salary_overview", month: "2027-01" })).body.data,
   (await call({ action: "advances_overview", month: "2027-01" })).body.data, await get("2027-01"));
 let complete = null; wb2.getWorksheet("Synthèse").eachRow((y) => { if (String(y.getCell(1).value ?? "").startsWith("COMPLET")) complete = y; });
 check("Plus aucun manque et décompte validé : dossier « COMPLET »", !!complete);

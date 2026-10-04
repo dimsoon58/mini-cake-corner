@@ -159,6 +159,26 @@ const figs = (await one("select public.settlement_month_figures('2026-10-01') f"
 check("Décompte : revenus = ventes maintenues du mois (plus les encaissements)", figs.revenueBasis === "sales" && num(figs.revenueNet) === num(c.net) && num(figs.collected) !== num(c.net), figs);
 check("Décompte de décembre : workshop maintenu (180 + 90)", num((await one("select public.settlement_month_figures('2026-12-01') f")).f.revenueNet) === 270);
 
+// ═══ Trésorerie : paiements pour commandes futures et sommes dues ═══════
+const tr = async (d, bal) => (await one("select public.treasury_at($1::date, $2) t", [d, bal])).t;
+const allLines = [...sep.lines, ...oct.lines, ...nov.lines, ...dec.lines];
+const val = (l) => Number(l.amount) - Number(l.gesture);
+const t930 = await tr("2026-09-30", 1000);
+check("30.09 : P1 payé en septembre pour octobre = paiement pour commande future (60), déduit du disponible", num(t930.customerPrepayments) === 60 && num(t930.available) === 940, t930);
+check("30.09 : rien d'encore dû par les clients", num(t930.customersOwe) === 0);
+const t1031 = await tr("2026-10-31", 5000);
+const future = allLines.filter((l) => l.state === "kept" && l.serviceDate > "2026-10-31" && l.paymentStatus !== "pending");
+const undatedPaid = 33;
+check("31.10 : commandes futures payées (novembre, décembre) + payée sans date = déduites", num(t1031.customerPrepayments) === num(sum(future, val) + undatedPaid)
+  && num(t1031.customerPrepaymentsUndated) === undatedPaid, { got: t1031.customerPrepayments, want: sum(future, val) + undatedPaid });
+check("31.10 : le disponible = solde − paiements de commandes futures (aucune autre dette ici)", num(t1031.available) === num(5000 - t1031.customerPrepayments), t1031);
+check("31.10 : encore dû par les clients = ventes d'octobre non payées (50), information seulement", num(t1031.customersOwe) === 50 && num(t1031.customersOwe) === num(oct.cards.toCollect));
+check("31.12 : plus aucun paiement « futur » sauf la commande sans date", num((await tr("2026-12-31", 0)).customerPrepayments) === undatedPaid);
+const t1014 = await tr("2026-10-14", 0);
+const want1014 = sum(allLines.filter((l) => l.state === "kept" && l.serviceDate > "2026-10-14" && l.paidAt && l.paidAt.slice(0, 10) <= "2026-10-14"), val) + undatedPaid;
+check("14.10 : seules les commandes déjà payées à cette date comptent (P2, payé le 15.10, exclu)", num(t1014.customerPrepayments) === num(want1014)
+  && !allLines.some((l) => l.orderId === P2.id && l.paidAt.slice(0, 10) <= "2026-10-14"), { got: t1014.customerPrepayments, want: want1014 });
+
 // ═══ Droits / relance ════════════════════════════════════════════════════
 check("Fonction fermée à anon / authenticated", (await one("select count(*)::int n from information_schema.routine_privileges where routine_name='admin_sales_month' and grantee in ('anon','authenticated','PUBLIC')")).n === 0);
 await db.exec(fs.readFileSync(F17, "utf8"));

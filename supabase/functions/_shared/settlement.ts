@@ -12,6 +12,12 @@
 //   Mel 60 % (arrondi au centime), Eli le reste exact ;
 //   choix explicites avant validation : conserver davantage, libérer du
 //   bénéfice conservé (motivé), sans toucher la base ni l'épargne.
+//
+// F17 : le résultat part des VENTES du mois (mois de réalisation). « À
+// partager » est donc un résultat comptable ; le « disponible à verser »
+// est la part de ce résultat couverte par la trésorerie (solde − dettes −
+// paiements reçus pour des commandes futures − base − épargne). Les sommes
+// encore dues par les clients ne sont jamais disponibles.
 
 export interface SettlementInputs {
   month: string; monthEnd: string; startMonth: string | null;
@@ -21,7 +27,7 @@ export interface SettlementInputs {
   prev: { id: string; month: string; retainedCum: number; baseConstituted: boolean; extraCum: number; lossOut: number } | null;
   prevMonthValidated: boolean;
   figures: {
-    revenueNet: number; collected: number; refunded: number; refundsUndatedCount: number; refundsToReviewCount: number;
+    revenueNet: number; salesToCollect?: number; collected: number; refunded: number; refundsUndatedCount: number; refundsToReviewCount: number;
     expensesKnown: number; expensesCount: number; expensesUnknown: { code: string }[]; expensesUndated: { code: string }[];
     investments: { code: string; chf_amount: number | null }[];
     salaryTotal: number; salaryLines: { code: string; confirmed: number | null }[]; salaryToConfirm: { code: string }[];
@@ -29,7 +35,8 @@ export interface SettlementInputs {
   adjustments: { id: string; sourceMonth: string; amount: number; reason: string }[];
   bankBalance: { id: string; date: string; amount: number } | null;
   treasury: { available: number; balance: number; invoicesToPay: number; invoicesUnknownCount: number; salaryRemaining: number;
-    advancesToRepay: number; advancesUnknownCount: number; sharesUnpaid: number } | null;
+    advancesToRepay: number; advancesUnknownCount: number; sharesUnpaid: number;
+    customerPrepayments?: number; customersOwe?: number } | null;
 }
 
 export interface SettlementChoices {
@@ -52,6 +59,10 @@ export interface SettlementDraft {
   retainedMonth: number; retainedCum: number; extraCumBefore: number; extraCum: number;
   toShare: number; melShare: number; eliShare: number; melPct: number;
   freeForShares: number | null;
+  /** Part du résultat encore due par les clients (ventes du mois non payées). */
+  toCollectInResult: number;
+  /** À partager couvert par la trésorerie de fin de mois, et le reste (dû, pas encore disponible). */
+  payableNow: number; notYetAvailable: number;
   flags: { baseBreach: boolean; cashShort: boolean; ackBaseBreach: boolean; ackCashShort: boolean; noBankBalance: boolean };
   needsBankBalance: boolean;
 }
@@ -142,6 +153,10 @@ export function computeSettlement(inp: SettlementInputs, ch: SettlementChoices =
     if (cashShort) warnings.push(`Trésorerie insuffisante pour les parts : ${freeForShares} disponibles pour ${toShare} à partager. Vous pouvez conserver davantage avant de valider.`);
     if (tr.invoicesUnknownCount || tr.advancesUnknownCount) warnings.push("Des factures ou avances au montant inconnu ne sont pas dans la vérification de trésorerie.");
   }
+  const toCollectInResult = r2(num(f.salesToCollect));
+  const payableNow = toShare > 0 && freeForShares != null ? r2(Math.min(toShare, Math.max(0, freeForShares))) : 0;
+  const notYetAvailable = r2(toShare - payableNow);
+  if (toCollectInResult > 0) warnings.push(`${toCollectInResult} du résultat est encore dû par les clients : compté dans les ventes, mais pas en banque.`);
   if (toShare > 0 && baseBreach && !ch.ackBaseBreach) blockReasons.push("Trésorerie de base entamée : confirmez-le avant tout partage.");
   if (toShare > 0 && cashShort && !ch.ackCashShort) blockReasons.push("Trésorerie insuffisante pour les parts : confirmez, ou conservez davantage.");
 
@@ -152,7 +167,7 @@ export function computeSettlement(inp: SettlementInputs, ch: SettlementChoices =
     baseBefore, baseConstituted, baseConfirmedNow, baseMissingInBank,
     retainedBefore, extraKept, explicitKeep, maxKeep, freeRetained, released, releaseReason: released > 0 ? String(ch.releaseReason ?? "").trim() : null,
     retainedMonth, retainedCum, extraCumBefore, extraCum,
-    toShare, melShare, eliShare, melPct, freeForShares,
+    toShare, melShare, eliShare, melPct, freeForShares, toCollectInResult, payableNow, notYetAvailable,
     flags: { baseBreach, cashShort, ackBaseBreach: !!ch.ackBaseBreach, ackCashShort: !!ch.ackCashShort, noBankBalance },
     needsBankBalance: toShare > 0 || (!baseBefore && retainedBefore + toBase >= target),
   };

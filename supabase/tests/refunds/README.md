@@ -380,3 +380,17 @@ annulée, commande sans e-mail refusés (avant toute modification) ; Resend en p
 annulé, e-mail non marqué, « Renvoyer » l'envoie une fois ; 409 Resend jamais pris pour un envoi
 (sauf « en cours », non marqué) ; **e-mail identique octet pour octet à la production (FR et EN)**
 et bloc du modèle repris mot pour mot ; production et étiquettes ; bloc « Annulation » du site.
+
+## Compta F17 — ventes du mois de réalisation, page finale
+
+`test_compta_sales.mjs` (F17 seule, base locale) : chaque article au mois de son retrait / sa
+livraison, chaque workshop au mois de sa séance ; plusieurs dates sans dupliquer le total ; frais et
+remises répartis au centime ; une ligne par gâteau ; annulations, refus et gestes commerciaux sans
+double déduction ; décompte Mel / Eli sur les ventes ; trésorerie : paiements reçus pour des
+commandes futures déduits du disponible, sommes dues par les clients en information.
+Résultat attendu : `36 PASS, 0 FAIL`.
+
+`test_compta_page.mjs` (vraie fonction `manage-expenses`, vrai export du site, vrai calcul du
+décompte) : « Tableau du mois (Excel) » = écran (une ligne par gâteau, totaux en formules égaux aux
+cartes, contrôles OK, même liste de manques) ; « résultat à partager » ≠ « disponible à verser ».
+Résultat attendu : `22 PASS, 0 FAIL`. Les tests K1–K5 utilisent la nouvelle signature de l'export.

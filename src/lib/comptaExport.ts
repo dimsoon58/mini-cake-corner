@@ -1,25 +1,28 @@
-import { buildFinanceWorkbook } from "@/lib/financeExport";
+import { addFinanceSheets } from "@/lib/financeExport";
 import type { FinanceMonth } from "@/lib/finance";
 import {
-  ADVANCE_STATE_LABELS, METHOD_LABELS, MISSING_LABELS, SALARY_STATUS_LABELS, STATUS_LABELS, fmtHours, inRange, receiptFileName,
-  comptaDossierIssues, settlementValues, type AdvancesOverview, type ExpensePeriod, type ReceiptFile, type SalaryOverview, type SettlementView,
+  ADVANCE_STATE_LABELS, METHOD_LABELS, MISSING_LABELS, SALARY_STATUS_LABELS, SALES_REASON_LABELS, SALES_STATE_LABELS, STATUS_LABELS, fmtHours, inRange,
+  receiptFileName, salesLineLabel, salesLineNet, salesLinePaid,
+  comptaDossierIssues, settlementValues, type AdvancesOverview, type ExpensePeriod, type ReceiptFile, type SalaryOverview, type SalesMonth, type SettlementView,
 } from "@/lib/compta";
 
-// Compta (lot K1) — dossier Excel du mois. Reprend TEL QUEL le classeur du
-// lot 3 (Synthèse, Commandes et articles, Encaissements, Remboursements avec
-// le bloc « À dater ») — même source finance-month, mêmes chiffres que le
-// tableau de bord — et y ajoute la feuille « Dépenses » et le bloc dépenses
-// de la synthèse, puis la feuille « Salaire » (lot K2) et la feuille
-// « Avances et remboursements » (lot K3) et « Décompte Mel - Eli et
-// versements » (lot K4 ; « / » est interdit dans un nom de feuille Excel).
+// Compta — « Tableau du mois (Excel) », aussi contenu dans le « Dossier pour
+// le fiduciaire ». Mêmes règles que la page (F17) :
+//   Synthèse          — résumé du mois : ventes maintenues, dépenses du mois,
+//                       salaire, restant à payer par les clients, puis les
+//                       blocs dépenses / salaire / avances / décompte ;
+//   Ventes du mois    — UNE LIGNE PAR GÂTEAU (quantité 2 = 2 lignes), au mois
+//                       de réalisation (retrait / livraison / séance), frais
+//                       et remises répartis, annulés et refusés visibles avec
+//                       leur état, gestes commerciaux déduits une seule fois ;
+//   Encaissements - résumé, Encaissements, Remboursements — détail
+//                       secondaire par date de paiement (lot 3, tableau de
+//                       bord), jamais additionné aux ventes ;
+//   Dépenses, Salaire, Avances et remboursements, Décompte Mel-Eli et
+//   versements (« / » est interdit dans un nom de feuille Excel).
 // Le dossier n'est « COMPLET » que si rien ne manque ET que le décompte du
-// mois est validé ; sinon il est marqué INCOMPLET avec la liste des manques.
-//
-// Lot K5 : la liste des manques vient d'UNE seule fonction
-// (comptaDossierIssues), utilisée aussi par le Résumé de la page, pour que la
-// page et le fichier disent toujours la même chose ; contrôles croisés entre
-// le décompte et les feuilles sources ; dossier complet en un seul ZIP
-// (Excel + justificatifs + index + LISEZMOI).
+// mois est validé ; la liste des manques vient de comptaDossierIssues, la
+// même que sur la page.
 //
 // Avances : chaque avance reste comptée une fois comme dépense (feuille
 // Dépenses) ; ses remboursements sont listés à part et ne sont jamais des
@@ -41,15 +44,22 @@ type ExcelJSModule = typeof import("exceljs");
 
 const MONEY = '#,##0.00';
 const DATE = "dd.mm.yyyy";
-const toDate = (d: string | null) => (d ? new Date(`${d}T00:00:00Z`) : null);
+const toDate = (d: string | null) => (d ? new Date(`${d.slice(0, 10)}T00:00:00Z`) : null);
+const zurichDay = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date(iso)) : null);
 const round = (n: number) => Math.round(n * 100) / 100;
+const HEAD_FILL = { type: "pattern" as const, pattern: "solid" as const, fgColor: { argb: "FFF3EEE6" } };
 
 const isCounted = (e: { counted?: boolean }) => e.counted !== false;
 
-export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMonth, expenses: ExpensePeriod, salary?: SalaryOverview | null,
+export function buildComptaWorkbook(ExcelJS: ExcelJSModule, sales: SalesMonth, finance: FinanceMonth, expenses: ExpensePeriod, salary?: SalaryOverview | null,
   advances?: AdvancesOverview | null, settlement?: SettlementView | null) {
-  const wb = buildFinanceWorkbook(ExcelJS, finance);
-  const { from, to } = { from: finance.from, to: finance.to };
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Bento Cake Studio — Admin";
+  wb.created = new Date();
+  const s = wb.addWorksheet("Synthèse");
+  const sv = addSalesSheet(wb, sales);
+  addFinanceSheets(wb, finance, { summaryName: "Encaissements - résumé", withLines: false });
+  const { from, to } = { from: sales.from, to: sales.to };
   const ws = wb.addWorksheet("Dépenses");
   ws.columns = [
     { header: "ID dépense", key: "code", width: 15 },
@@ -73,7 +83,7 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   ];
   const head = ws.getRow(1);
   head.font = { bold: true };
-  head.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EEE6" } };
+  head.fill = HEAD_FILL;
   head.alignment = { wrapText: true, vertical: "top" };
   ws.views = [{ state: "frozen", ySplit: 1 }];
 
@@ -107,8 +117,8 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   const first = 2, last = list.length + 1;
   const rng = (col: string) => `${col}${first}:${col}${Math.max(first, last)}`;
   const counted = list.filter(isCounted);
-  const engagedKnown = counted.filter((e) => inRange(e.purchase_date, from, to)).reduce((s, e) => s + (Number(e.chf_amount) || 0), 0);
-  const paidKnown = counted.filter((e) => e.status === "paid" && inRange(e.paid_at, from, to)).reduce((s, e) => s + (Number(e.chf_amount) || 0), 0);
+  const engagedKnown = counted.filter((e) => inRange(e.purchase_date, from, to)).reduce((s0, e) => s0 + (Number(e.chf_amount) || 0), 0);
+  const paidKnown = counted.filter((e) => e.status === "paid" && inRange(e.paid_at, from, to)).reduce((s0, e) => s0 + (Number(e.chf_amount) || 0), 0);
   const engagedUnknown = counted.filter((e) => inRange(e.purchase_date, from, to) && e.chf_amount == null).length;
   ws.addRow([]);
   const tot = (label: string, formula: string, result: number | string, fmt = MONEY) => {
@@ -123,15 +133,46 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   const rPaid = tot("Payé — date de paiement dans le mois (CHF connus)", list.length ? `SUMIFS(${rng("I")},${rng("O")},"Oui",${rng("Q")},"Oui")` : "0", round(paidKnown));
   const rUnknown = tot("Achats du mois au montant CHF inconnu (nombre)", list.length ? `COUNTIFS(${rng("N")},"Oui",${rng("I")},"",${rng("Q")},"Oui")` : "0", engagedUnknown, "0");
 
-  // ── Bloc dépenses de la synthèse ──
-  const s = wb.getWorksheet("Synthèse")!;
-  const t = expenses.totals;
+  // ── Synthèse : résumé du mois (mêmes chiffres que l'onglet « Ventes du mois ») ──
   const add = (cells: unknown[], bold = false) => { const r = s.addRow(cells); if (bold) r.font = { bold: true }; return r; };
   const m = (label: string, value: unknown, count?: number | null) => {
     const r = s.addRow([label, value, count ?? null]);
     r.getCell(2).numFmt = MONEY;
     return r.number;
   };
+  s.columns = [{ width: 62 }, { width: 18 }, { width: 12 }];
+  const monthLabel = new Intl.DateTimeFormat("fr-CH", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${sales.month}-01T12:00:00Z`));
+  add([`Compta — ${monthLabel}`]).font = { bold: true, size: 14 };
+  add([`Du ${from.split("-").reverse().join(".")} au ${to.split("-").reverse().join(".")} · ventes au mois de réalisation (retrait, livraison, séance) · commandes de test exclues`]);
+  add([]);
+  add(["Résumé du mois", "Montant (CHF)", "Nombre"], true);
+  const c = sales.cards;
+  const sNet = m("Ventes maintenues (après annulations et gestes commerciaux)", { formula: `'Ventes du mois'!M${sv.netRow}`, result: round(c.net) }, c.orders);
+  s.getRow(sNet).font = { bold: true };
+  m("Dépenses du mois (date d'achat, CHF connus)", { formula: `'Dépenses'!I${rEngaged}`, result: round(engagedKnown) }, expenses.totals.engaged.count);
+  const sal = salary?.totals;
+  add(["Salaire net confirmé du mois (jamais ajouté aux dépenses)", sal && sal.confirmedForMonth != null && !sal.toConfirmCount ? sal.confirmedForMonth : "montant à saisir"]).getCell(2).numFmt = MONEY;
+  m("Restant à payer par les clients (ventes du mois non payées)", { formula: `'Ventes du mois'!M${sv.toCollectRow}`, result: round(c.toCollect) }, c.toCollectOrders);
+  add([]);
+  add(["Ventes du mois — détail", "Montant (CHF)", "Nombre"], true);
+  m("Ventes du mois (vendues + annulées)", { formula: `'Ventes du mois'!J${sv.grossRow}`, result: round(c.gross) });
+  m("− Articles annulés (montrés à part, retirés des ventes)", { formula: `'Ventes du mois'!J${sv.cancelledRow}`, result: round(c.cancelled) }, c.cancelledCount);
+  m("− Gestes commerciaux (remboursements sans annulation)", { formula: `'Ventes du mois'!K${sv.gesturesRow}`, result: round(c.gestures) });
+  m("= Ventes maintenues", { formula: `'Ventes du mois'!M${sv.netRow}`, result: round(c.net) });
+  m("Remboursements d'annulation (information, déjà retirés avec l'article)", { formula: `'Ventes du mois'!L${sv.cancelRefundRow}`, result: round(c.cancellationRefunds) });
+  m("Annulés payés, encore à rembourser", round(c.cancellationsToRefund));
+  add([`${c.cakes} gâteau(x) / article(s) vendus · ${c.workshopSeats} place(s) de workshop${c.refusedCount ? ` · ${c.refusedCount} gâteau(x) refusé(s), jamais vendus` : ""}${c.toAcceptCount ? ` · ${c.toAcceptCount} commande(s) encore à accepter, non comptée(s)` : ""}`]);
+  if (c.undatedCount) add([`${c.undatedCount} ligne(s) vendue(s) sans date de réalisation (${round(c.undatedAmount)}) : hors de tout mois`]).font = { color: { argb: "FF8A5A00" } };
+  add(["Encaissements et remboursements par date de paiement : feuilles « Encaissements - résumé », « Encaissements », « Remboursements » (détail secondaire, jamais additionné aux ventes)."]).font = { italic: true, color: { argb: "FF666666" } };
+  add([]);
+  add(["Contrôles ventes"], true);
+  s.addRow(["Somme des lignes « Vente retenue » = ventes maintenues du serveur",
+    { formula: `IF(ABS('Ventes du mois'!M${sv.netRow}-${round(c.net)})<0.005,"OK","ÉCART")`, result: Math.abs(sv.netSum - c.net) < 0.005 ? "OK" : "ÉCART" }]);
+  s.addRow(["Ventes (vendues + annulées) = ventes du serveur",
+    { formula: `IF(ABS('Ventes du mois'!J${sv.grossRow}-${round(c.gross)})<0.005,"OK","ÉCART")`, result: Math.abs(sv.grossSum - c.gross) < 0.005 ? "OK" : "ÉCART" }]);
+
+  // ── Bloc dépenses de la synthèse ──
+  const t = expenses.totals;
   add([]);
   add(["Dépenses — deux lectures, à ne pas additionner entre elles"], true);
   const sEngaged = m("Engagé (date d'achat dans le mois, CHF connus)", { formula: `'Dépenses'!I${rEngaged}`, result: round(engagedKnown) }, t.engaged.count);
@@ -147,15 +188,13 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   if (t.salary?.toReconcileCount) add([`${t.salary.toReconcileCount} dépense(s) « Salaires » non rapprochée(s) : restent dans les dépenses, à vérifier pour éviter un double comptage`]);
 
   // ── Salaire (lot K2) ──
-  const salaryRef = salary ? addSalarySheet(wb, salary, finance.month, m, add) : null;
+  const salaryRef = salary ? addSalarySheet(wb, salary, sales.month, m, add) : null;
   // ── Avances et remboursements (lot K3) ──
-  if (advances) addAdvancesSheet(wb, advances, finance.month, m, add);
+  if (advances) addAdvancesSheet(wb, advances, sales.month, m, add);
   // ── Décompte Mel / Eli et versements (lot K4) + contrôles croisés (K5) ──
-  let netRow: number | null = null;
-  s.eachRow((row, i) => { if (String(row.getCell(1).value ?? "").startsWith("Net du mois")) netRow = i; });
   if (settlement) {
     addSettlementSheet(wb, settlement, m, add, {
-      revenueCell: netRow ? `'Synthèse'!B${netRow}` : null, revenueValue: Number(finance.cards.net) || 0,
+      revenueCell: `'Ventes du mois'!M${sv.netRow}`, revenueValue: round(Number(c.net) || 0),
       expensesCell: `'Dépenses'!I${rEngaged}`, expensesValue: round(engagedKnown),
       salaryCell: salaryRef?.confirmedCell ?? null, salaryValue: salaryRef?.confirmedValue ?? null,
     });
@@ -163,7 +202,7 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
 
   add([]);
   add(["État du dossier"], true);
-  const issues = comptaDossierIssues(finance, expenses, salary, advances, settlement);
+  const issues = comptaDossierIssues(sales, finance, expenses, salary, advances, settlement);
   const state = issues.length
     ? s.addRow([`INCOMPLET — ${issues.join(" · ")}`])
     : s.addRow([`COMPLET — rien ne manque et le décompte du mois est validé (${settlement?.validated?.validated_at ? new Date(settlement.validated.validated_at).toLocaleDateString("fr-CH", { timeZone: "Europe/Zurich" }) : ""})`]);
@@ -172,14 +211,101 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, finance: FinanceMont
   add([]);
   add(["Contenu du dossier"], true);
   for (const name of wb.worksheets.map((w) => w.name)) add([`• Feuille « ${name} »`]);
-  add([`• Justificatifs : ${receiptsZipName(finance.month)} (ou dossier « justificatifs » du ZIP complet), fichiers nommés avec l'ID de dépense ou de salaire`]);
+  add([`• Justificatifs : dossier « justificatifs » du ${dossierZipName(sales.month)}, fichiers nommés avec l'ID de dépense ou de salaire`]);
 
-  // Feuilles : Synthèse, Commandes et articles, Encaissements, Remboursements, Dépenses, Salaire, Avances et remboursements,
-  // Décompte Mel-Eli et versements.
+  wb.views = [{ x: 0, y: 0, width: 10000, height: 20000, firstSheet: 0, activeTab: 0, visibility: "visible" }];
   return wb;
 }
 
 type Workbook = import("exceljs").Workbook;
+
+/**
+ * Feuille « Ventes du mois » : une ligne par gâteau, au mois de réalisation.
+ * Colonne M « Vente retenue » = montant si vendu (0 si annulé / refusé) −
+ * geste commercial : sa somme = ventes maintenues (même calcul que l'écran).
+ */
+function addSalesSheet(wb: Workbook, o: SalesMonth) {
+  const ws = wb.addWorksheet("Ventes du mois");
+  ws.columns = [
+    { header: "Date de réalisation (retrait / livraison / séance)", key: "date", width: 14, style: { numFmt: DATE } },
+    { header: "N° commande", key: "order", width: 16 },
+    { header: "Origine", key: "origin", width: 9 },
+    { header: "Client", key: "customer", width: 22 },
+    { header: "Article (une ligne par gâteau)", key: "item", width: 44 },
+    { header: "État", key: "state", width: 14 },
+    { header: "Motif", key: "reason", width: 18 },
+    { header: "Prix de l'article", key: "base", width: 12, style: { numFmt: MONEY } },
+    { header: "Part des frais et remises", key: "adj", width: 12, style: { numFmt: MONEY } },
+    { header: "Montant", key: "amount", width: 12, style: { numFmt: MONEY } },
+    { header: "Geste commercial (déduit)", key: "gesture", width: 12, style: { numFmt: MONEY } },
+    { header: "Remboursement d'annulation (info, jamais déduit en plus)", key: "cref", width: 14, style: { numFmt: MONEY } },
+    { header: "Vente retenue", key: "net", width: 12, style: { numFmt: MONEY } },
+    { header: "Payée", key: "paid", width: 8 },
+    { header: "Payée le", key: "paidAt", width: 12, style: { numFmt: DATE } },
+  ];
+  const head = ws.getRow(1);
+  head.font = { bold: true };
+  head.fill = HEAD_FILL;
+  head.alignment = { wrapText: true, vertical: "top" };
+  ws.views = [{ state: "frozen", ySplit: 1 }];
+  for (const l of o.lines) {
+    const r = ws.addRow({
+      date: toDate(l.serviceDate),
+      order: l.orderNumber ?? l.orderId.slice(0, 8),
+      origin: l.origin === "manual" ? "Manuelle" : "Site",
+      customer: l.customer,
+      item: salesLineLabel(l),
+      state: SALES_STATE_LABELS[l.state],
+      reason: l.reason ? SALES_REASON_LABELS[l.reason] ?? l.reason : "",
+      base: Number(l.base),
+      adj: Number(l.adjustment),
+      gesture: Number(l.gesture),
+      cref: Number(l.cancellationRefund),
+      paid: salesLinePaid(l),
+      paidAt: toDate(zurichDay(l.paidAt)),
+    });
+    const i = r.number;
+    r.getCell("amount").value = { formula: `H${i}+I${i}`, result: round(Number(l.base) + Number(l.adjustment)) };
+    r.getCell("net").value = { formula: `IF(F${i}="${SALES_STATE_LABELS.kept}",J${i},0)-K${i}`, result: salesLineNet(l) };
+    if (l.state !== "kept") r.font = { color: { argb: "FF8A5A00" } };
+  }
+  const first = 2, last = Math.max(2, ws.rowCount);
+  const has = o.lines.length > 0;
+  const rg = (col: string) => `${col}${first}:${col}${last}`;
+  const sumIf = (col: string, state: string) => `SUMIFS(${rg(col)},${rg("F")},"${state}")`;
+  const lines = o.lines;
+  const sumOf = (f: (l: (typeof lines)[number]) => number) => round(lines.reduce((t, l) => t + f(l), 0));
+  ws.addRow([]);
+  const total = (label: string, col: string, formula: string, result: number) => {
+    const r = ws.addRow([]);
+    r.getCell(5).value = label;
+    r.getCell(col).value = has ? { formula, result } : 0;
+    r.getCell(col).numFmt = MONEY;
+    r.font = { bold: true };
+    return r.number;
+  };
+  const kept = SALES_STATE_LABELS.kept, cancelled = SALES_STATE_LABELS.cancelled;
+  const grossSum = sumOf((l) => (l.state === "refused" ? 0 : Number(l.amount)));
+  const netSum = sumOf(salesLineNet);
+  const grossRow = total("Ventes du mois (vendues + annulées)", "J", `${sumIf("J", kept)}+${sumIf("J", cancelled)}`, grossSum);
+  const cancelledRow = total("− Articles annulés", "J", sumIf("J", cancelled), sumOf((l) => (l.state === "cancelled" ? Number(l.amount) : 0)));
+  const gesturesRow = total("− Gestes commerciaux", "K", `SUM(${rg("K")})`, sumOf((l) => Number(l.gesture)));
+  const netRow = total("= Ventes maintenues", "M", `SUM(${rg("M")})`, netSum);
+  const toCollectRow = total("Restant à payer par les clients (vendues, commande non payée)", "M", `SUMIFS(${rg("M")},${rg("F")},"${kept}",${rg("N")},"Non")`,
+    sumOf((l) => (l.state === "kept" && salesLinePaid(l) === "Non" ? salesLineNet(l) : 0)));
+  const cancelRefundRow = total("Remboursements d'annulation (information)", "L", `SUM(${rg("L")})`, sumOf((l) => Number(l.cancellationRefund)));
+  ws.addRow([]);
+  ws.addRow(["Annulé = retiré des ventes (son remboursement n'est pas déduit une 2e fois). Refusé = gâteau d'une commande mixte jamais accepté, jamais une vente. Geste commercial = remboursement sans annulation, déduit dans le mois du gâteau concerné."]).font = { italic: true };
+  if (o.undated.length) {
+    ws.addRow([]);
+    ws.addRow(["Sans date de réalisation — hors de tout mois (non comptées ci-dessus)"]).font = { bold: true, color: { argb: "FF8A5A00" } };
+    for (const u of o.undated) {
+      const r = ws.addRow([null, u.orderNumber ?? u.orderId.slice(0, 8), null, u.customer, u.kind === "delivery" ? "Frais de livraison" : u.product ?? "", SALES_STATE_LABELS[u.state]]);
+      r.getCell(10).value = Number(u.amount); r.getCell(10).numFmt = MONEY;
+    }
+  }
+  return { grossRow, cancelledRow, gesturesRow, netRow, toCollectRow, cancelRefundRow, netSum, grossSum };
+}
 
 /** Feuille « Salaire » + bloc de synthèse. Renvoie la cellule du net confirmé du mois (contrôle croisé K5). */
 function addSalarySheet(wb: Workbook, o: SalaryOverview, month: string,
@@ -363,11 +489,13 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
     : `BROUILLON — non validé${x.blockReasons.length ? ` · bloqué : ${x.blockReasons.join(" ")}` : ""}`]);
   st.font = { bold: true, color: { argb: x.validated ? "FF1B5E20" : "FF8A5A00" } };
   if (!x.validated) issues.push("décompte Mel / Eli non validé");
-  ws.addRow(["Résultat = revenus nets − dépenses du mois (date d'achat) − salaire net confirmé. Remboursements d'avances, versements de salaire et parts versées ne sont jamais déduits."]);
+  ws.addRow(["Résultat = ventes maintenues du mois (mois de réalisation) − dépenses du mois (date d'achat) − salaire net confirmé. Remboursements d'avances, versements de salaire et parts versées ne sont jamais déduits."]);
+  ws.addRow(["« À partager » est un résultat ; seul le « disponible à verser » est couvert par la banque. Les sommes encore dues par les clients et les paiements reçus pour des commandes futures ne sont jamais disponibles."]);
   ws.addRow([]);
 
   title("Résultat du mois");
-  const rRev = line("Revenus nets (encaissé − remboursements clients)", x.revenueNet);
+  const rRev = line("Ventes maintenues du mois (mois de réalisation)", x.revenueNet);
+  if (x.toCollectInResult) line("dont encore dû par les clients (pas en banque)", x.toCollectInResult);
   const rExp = line("Dépenses du mois (date d'achat, chacune une fois)", x.expenses);
   const rSal = line("Salaire net confirmé du mois", x.salary);
   const rRes = line("Résultat du mois", f(`B${rRev}-B${rExp}-B${rSal}`, x.result));
@@ -387,7 +515,7 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
   const rKeep = line("Conservé en plus (choix explicite)", x.explicitKeep);
   const rRel = line(`Bénéfice conservé libéré (décision${x.releaseReason ? ` : ${x.releaseReason}` : ""})`, x.released);
   line("Conservé ce mois (bénéfice conservé)", x.retainedMonth);
-  const rShare = line("À partager", x.baseConstituted ? f(`B${rAvail}-B${rBase}-B${rExtra}-B${rKeep}+B${rRel}`, x.toShare) : x.toShare);
+  const rShare = line("Résultat à partager", x.baseConstituted ? f(`B${rAvail}-B${rBase}-B${rExtra}-B${rKeep}+B${rRel}`, x.toShare) : x.toShare);
   ws.getRow(rShare).font = { bold: true };
   const rMel = line(`Mel (${x.melPct} %, arrondi au centime)`, f(`ROUND(B${rShare}*${x.melPct}/100,2)`, x.melShare));
   line(`Eli (reste exact)`, f(`B${rShare}-B${rMel}`, x.eliShare));
@@ -411,10 +539,18 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
     const b2 = line("− salaire restant à verser", tr.salaryRemaining);
     const b3 = line("− avances restant à rembourser", tr.advancesToRepay);
     const b4 = line("− parts validées non versées", tr.sharesUnpaid);
-    const b5 = line("Trésorerie disponible", f(`B${b0}-B${b1}-B${b2}-B${b3}-B${b4}`, tr.available));
+    const b4b = line("− paiements reçus pour des commandes futures (ou sans date)", Number(tr.customerPrepayments ?? 0));
+    const b5 = line("Trésorerie disponible", f(`B${b0}-B${b1}-B${b2}-B${b3}-B${b4}-B${b4b}`, tr.available));
     ws.getRow(b5).font = { bold: true };
+    if (tr.customersOwe) line("Information : encore dû par les clients (ventes réalisées non payées, pas en banque, non comptées ci-dessus)", tr.customersOwe);
     if (x.baseConstituted) {
-      line("Libre pour les parts (disponible − base − épargne supplémentaire)", f(`B${b5}-${target}-${x.extraCum}`, tr.available - target - x.extraCum));
+      const rFree = line("Libre pour les parts (disponible − base − épargne supplémentaire)", f(`B${b5}-${target}-${x.extraCum}`, tr.available - target - x.extraCum));
+      ws.addRow([]);
+      title("À partager ≠ disponible à verser");
+      const rTs = line("Résultat à partager (Mel + Eli)", f(`B${rShare}`, x.toShare));
+      const rPay = line("Disponible à verser (couvert par la trésorerie)", f(`MIN(B${rTs},MAX(0,B${rFree}))`, x.payableNow ?? Math.min(x.toShare, Math.max(0, tr.available - target - x.extraCum))));
+      ws.getRow(rPay).font = { bold: true };
+      line("Pas encore disponible (reste dû, à verser plus tard)", f(`B${rTs}-B${rPay}`, x.notYetAvailable ?? x.toShare - Math.min(x.toShare, Math.max(0, tr.available - target - x.extraCum))));
     }
     if (x.flags?.baseBreach) { ws.addRow([`TRÉSORERIE DE BASE ENTAMÉE${x.flags.ackBaseBreach ? " — confirmé avant le partage" : ""}`]).font = { bold: true, color: { argb: "FFB71C1C" } }; }
     if (x.flags?.cashShort) { ws.addRow([`TRÉSORERIE INSUFFISANTE POUR LES PARTS${x.flags.ackCashShort ? " — confirmé" : ""}`]).font = { bold: true, color: { argb: "FFB71C1C" } }; }
@@ -456,7 +592,7 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
       const r = ws.addRow([label + frozen, formula ? { formula, result: ok || (b == null && a === 0) ? "OK" : "ÉCART" } : (b === a ? "OK" : "ÉCART")]);
       return r;
     };
-    chk("Revenus nets = Synthèse (lot 3)", `B${rRev}`, refs.revenueCell, x.revenueNet, refs.revenueValue);
+    chk("Ventes maintenues = feuille Ventes du mois", `B${rRev}`, refs.revenueCell, x.revenueNet, refs.revenueValue);
     chk("Dépenses du mois = feuille Dépenses (engagé)", `B${rExp}`, refs.expensesCell, x.expenses, refs.expensesValue);
     chk("Salaire = feuille Salaire (net confirmé du mois)", `B${rSal}`, refs.salaryCell, x.salary, refs.salaryValue ?? (refs.salaryCell ? null : 0));
     ws.addRow([`Résultat ajusté repris dans la synthèse : voir B${rResAdjRef}`]).font = { italic: true, color: { argb: "FF666666" } };
@@ -477,8 +613,9 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
   add([`Décompte Mel / Eli — ${x.validated ? "validé" : "brouillon, non validé"}`], true);
   m("Résultat du mois (après ajustements)", f(`'Décompte Mel-Eli et versements'!B${rResAdj}`, x.resultAdjusted));
   m("Conservé dans Bento ce mois", x.retainedMonth);
-  m("À partager", f(`'Décompte Mel-Eli et versements'!B${rShare}`, x.toShare));
+  m("Résultat à partager", f(`'Décompte Mel-Eli et versements'!B${rShare}`, x.toShare));
   m(`dont ${mel} / ${eli}`, `${x.melShare} / ${x.eliShare}`);
+  if (x.toShare > 0) m("Disponible à verser (couvert par la trésorerie de fin de mois)", x.payableNow ?? "voir le décompte");
   if (remMel > 0 || remEli > 0) add([`Reste à verser : ${mel} ${remMel} · ${eli} ${remEli}`]);
   return issues;
 }

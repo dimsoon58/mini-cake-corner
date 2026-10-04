@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Download, FileText, History, Loader2, Lock, Paperclip, Plus, Search, Settings, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Download, FileText, FolderArchive, History, Loader2, Lock, Paperclip, Plus, Search, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,29 +16,36 @@ import {
   type ComptaSettings, type Expense, type ExpenseCategory, type ExpensePayer, type ExpensePeriod, type ExpenseStatus,
   type HistoryEntry, type PayerKind, type ReceiptFile,
 } from "@/lib/compta";
-import { comptaDossierIssues, settlementValues, type AdvancesOverview, type SalaryOverview, type SettlementView } from "@/lib/compta";
+import {
+  SALES_REASON_LABELS, SALES_STATE_LABELS, comptaDossierIssues, salesLineLabel, salesLineNet, salesLinePaid,
+  type AdvancesOverview, type SalaryOverview, type SalesLine, type SalesMonth, type SettlementView,
+} from "@/lib/compta";
 import AdvancesTab from "@/components/admin/compta/AdvancesTab";
 import SettlementTab from "@/components/admin/compta/SettlementTab";
 import SalaryTab from "@/components/admin/compta/SalaryTab";
 import { cn } from "@/lib/utils";
 
-// Admin > Compta (lots K1 à K3). Mois + onglets : Résumé, Revenus, Dépenses,
-// Salaire, Avances, Décompte Mel / Eli. Les revenus viennent de finance-month (lot 3,
-// mêmes chiffres que le tableau de bord) ; les dépenses et le salaire de
-// manage-expenses. Aucun total ne mélange la date d'achat et la date de
-// paiement ; le salaire et les remboursements d'avances ne sont jamais
-// ajoutés aux dépenses. Le décompte Mel / Eli (lot K4) suit les règles
-// confirmées : logique B, trésorerie de base 4'000, +300 par mois, 60 / 40.
+// Admin > Compta. Mois + trois onglets :
+//   « Ventes du mois » — ventes au mois de RÉALISATION (retrait, livraison,
+//     séance ; F17, une ligne par gâteau), résumé du mois, annulés à part,
+//     encaissements par date de paiement en détail secondaire (finance-month,
+//     mêmes chiffres que le tableau de bord, jamais additionnés aux ventes) ;
+//   « Dépenses » — dépenses (date d'achat / de paiement) + salaire (K2),
+//     le salaire n'étant jamais ajouté aux dépenses ;
+//   « Mel / Eli » — décompte (K4 : logique B, base 4'000, +300, 60 / 40),
+//     en distinguant le résultat à partager du disponible à verser, puis
+//     les avances (K3).
+// Deux exports : « Tableau du mois (Excel) » et « Dossier pour le fiduciaire
+// (Excel + justificatifs) », construits avec les mêmes données que l'écran.
 
-type Tab = "summary" | "revenue" | "expenses" | "salary" | "advances" | "settlement";
+type Tab = "sales" | "expenses" | "partners";
 const TABS: { key: Tab; label: string }[] = [
-  { key: "summary", label: "Résumé" },
-  { key: "revenue", label: "Revenus" },
+  { key: "sales", label: "Ventes du mois" },
   { key: "expenses", label: "Dépenses" },
-  { key: "salary", label: "Salaire" },
-  { key: "advances", label: "Avances" },
-  { key: "settlement", label: "Décompte Mel / Eli" },
+  { key: "partners", label: "Mel / Eli" },
 ];
+// Anciens liens (?tab=…) : redirigés vers le nouvel onglet.
+const OLD_TABS: Record<string, Tab> = { summary: "sales", revenue: "sales", salary: "expenses", advances: "partners", settlement: "partners" };
 const zurichMonth = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
 const zurichToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date());
 
@@ -46,6 +53,7 @@ const Badge = ({ children, className, title }: { children: React.ReactNode; clas
   <span title={title} className={cn("inline-block px-1.5 py-0.5 text-[11px] leading-tight border whitespace-nowrap", className)}>{children}</span>
 );
 const WARN = "border-amber-400 bg-amber-50 text-amber-900";
+const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 function Stat({ label, value, hint, tone, strong }: { label: string; value: string; hint?: string; tone?: "warn"; strong?: boolean }) {
   return (
@@ -74,7 +82,8 @@ const AdminCompta = () => {
   const isAdmin = isAdminEmail(user?.email);
   const [params, setParams] = useSearchParams();
   const month = /^\d{4}-\d{2}$/.test(params.get("month") ?? "") ? params.get("month")! : zurichMonth();
-  const tab = (TABS.some((x) => x.key === params.get("tab")) ? params.get("tab") : "summary") as Tab;
+  const rawTab = params.get("tab") ?? "";
+  const tab: Tab = TABS.some((x) => x.key === rawTab) ? (rawTab as Tab) : OLD_TABS[rawTab] ?? "sales";
   const setParam = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams(params);
     for (const [k, v] of Object.entries(patch)) { if (v == null) p.delete(k); else p.set(k, v); }
@@ -82,6 +91,8 @@ const AdminCompta = () => {
   };
   const { from, to } = monthBounds(month);
 
+  const [sales, setSales] = useState<SalesMonth | null>(null);
+  const [salesError, setSalesError] = useState<string | null>(null);
   const [finance, setFinance] = useState<FinanceMonth | null>(null);
   const [financeError, setFinanceError] = useState<string | null>(null);
   const [period, setPeriod] = useState<ExpensePeriod | null>(null);
@@ -96,7 +107,7 @@ const AdminCompta = () => {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<Expense | "new" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [busyExport, setBusyExport] = useState<"xlsx" | "zip" | "dossier" | null>(null);
+  const [busyExport, setBusyExport] = useState<"xlsx" | "dossier" | null>(null);
 
   useEffect(() => {
     document.title = "Admin – Compta – Bento Cake Studio";
@@ -107,7 +118,8 @@ const AdminCompta = () => {
     setLoading(true);
     setError(null);
     setFinanceError(null);
-    const [f, p, s, sa, ad, st] = await Promise.allSettled([
+    const [sm, f, p, s, sa, ad, st] = await Promise.allSettled([
+      comptaApi<SalesMonth>({ action: "sales_month", month }),
       fetchFinanceMonth(month),
       comptaApi<ExpensePeriod>({ action: "period", from, to }),
       comptaApi<ComptaSettings>({ action: "settings" }),
@@ -115,26 +127,36 @@ const AdminCompta = () => {
       comptaApi<AdvancesOverview>({ action: "advances_overview", month }),
       comptaApi<SettlementView>({ action: "settlement_get", month: from }),
     ]);
+    if (sm.status === "fulfilled") { setSales(sm.value); setSalesError(null); }
+    else { setSales(null); setSalesError(errText(sm.reason)); }
     setSettlement(st.status === "fulfilled" ? st.value : null);
     if (ad.status === "fulfilled") { setAdvances(ad.value); setAdvancesError(null); }
-    else { setAdvances(null); setAdvancesError(ad.reason instanceof Error ? ad.reason.message : String(ad.reason)); }
+    else { setAdvances(null); setAdvancesError(errText(ad.reason)); }
     if (sa.status === "fulfilled") { setSalary(sa.value); setSalaryError(null); }
-    else { setSalary(null); setSalaryError(sa.reason instanceof Error ? sa.reason.message : String(sa.reason)); }
-    if (f.status === "fulfilled") setFinance(f.value); else { setFinance(null); setFinanceError(f.reason instanceof Error ? f.reason.message : String(f.reason)); }
-    if (p.status === "fulfilled") setPeriod(p.value); else { setPeriod(null); setError(p.reason instanceof Error ? p.reason.message : String(p.reason)); }
+    else { setSalary(null); setSalaryError(errText(sa.reason)); }
+    if (f.status === "fulfilled") setFinance(f.value); else { setFinance(null); setFinanceError(errText(f.reason)); }
+    if (p.status === "fulfilled") setPeriod(p.value); else { setPeriod(null); setError(errText(p.reason)); }
     if (s.status === "fulfilled") setSettings(s.value);
     setLoading(false);
   }, [month, from, to]);
   useEffect(() => { if (!authLoading && isAdmin) load(); }, [authLoading, isAdmin, load]);
 
+  const ready = !!sales && !!finance && !!period;
+  // Le décompte est relu juste avant l'export (un autre poste a pu le valider).
+  const buildExcel = async () => {
+    const [{ default: ExcelJS }, X] = await Promise.all([import("exceljs"), import("@/lib/comptaExport")]);
+    const fresh = await comptaApi<SettlementView>({ action: "settlement_get", month: from }).catch(() => settlement);
+    const wb = X.buildComptaWorkbook(ExcelJS, sales!, finance!, period!, salary, advances, fresh);
+    const blob = new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    return { X, blob, fresh };
+  };
   const downloadExcel = async () => {
-    if (!finance || !period || busyExport) return;
+    if (!ready || busyExport) return;
     setBusyExport("xlsx");
+    setNotice(null);
     try {
-      const [{ default: ExcelJS }, { buildComptaWorkbook, comptaFileName }] = await Promise.all([import("exceljs"), import("@/lib/comptaExport")]);
-      const fresh = await comptaApi<SettlementView>({ action: "settlement_get", month: from }).catch(() => settlement);
-      const wb = buildComptaWorkbook(ExcelJS, finance, period, salary, advances, fresh);
-      download(new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), comptaFileName(month));
+      const { X, blob } = await buildExcel();
+      download(blob, X.comptaFileName(month));
     } catch (e) {
       console.error("Compta export failed:", e);
       setError("Le fichier Excel n'a pas pu être créé. Réessayez.");
@@ -142,40 +164,15 @@ const AdminCompta = () => {
       setBusyExport(null);
     }
   };
-  const downloadReceipts = async () => {
-    if (busyExport) return;
-    setBusyExport("zip");
-    setNotice(null);
-    try {
-      const files = await comptaApi<ReceiptFile[]>({ action: "receipts_period", from, to });
-      if (!files.length) { setNotice("Aucun justificatif pour ce mois."); return; }
-      const { buildReceiptsZip, receiptsZipName } = await import("@/lib/comptaExport");
-      const { blob, failed } = await buildReceiptsZip(files, month, async (url) => {
-        const r = await fetch(url);
-        if (!r.ok) throw new Error(String(r.status));
-        return r.blob();
-      });
-      download(blob, receiptsZipName(month));
-      setNotice(failed.length ? `ZIP créé, mais ${failed.length} fichier(s) n'ont pas pu être récupérés : ${failed.join(", ")}` : `${files.length} justificatif(s) téléchargé(s).`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusyExport(null);
-    }
-  };
-
-  // Lot K5 : dossier complet en un seul ZIP (Excel + justificatifs + index + LISEZMOI).
+  // Dossier pour le fiduciaire : le même Excel + justificatifs + index + LISEZMOI, en un ZIP.
   const downloadDossier = async () => {
-    if (!finance || !period || busyExport) return;
+    if (!ready || busyExport) return;
     setBusyExport("dossier");
     setNotice(null);
     try {
-      const [{ default: ExcelJS }, X] = await Promise.all([import("exceljs"), import("@/lib/comptaExport")]);
-      const fresh = await comptaApi<SettlementView>({ action: "settlement_get", month: from }).catch(() => settlement);
-      const wb = X.buildComptaWorkbook(ExcelJS, finance, period, salary, advances, fresh);
-      const excel = new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const { X, blob: excel, fresh } = await buildExcel();
       const files = await comptaApi<ReceiptFile[]>({ action: "receipts_period", from, to });
-      const issues = comptaDossierIssues(finance, period, salary, advances, fresh);
+      const issues = comptaDossierIssues(sales, finance, period, salary, advances, fresh);
       const { blob, failed } = await X.buildDossierZip(excel, files, month, issues, async (url) => {
         const r = await fetch(url);
         if (!r.ok) throw new Error(String(r.status));
@@ -221,14 +218,11 @@ const AdminCompta = () => {
 
         <div className="flex flex-wrap gap-2">
           <Button className="rounded-none" onClick={() => setEditing("new")} disabled={!settings}><Plus className="w-4 h-4 mr-1" /> Ajouter une dépense</Button>
-          <Button variant="outline" className="rounded-none" onClick={downloadExcel} disabled={!finance || !period || !!busyExport}>
-            {busyExport === "xlsx" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />} Télécharger Excel
+          <Button variant="outline" className="rounded-none" onClick={downloadExcel} disabled={!ready || !!busyExport} data-testid="download-excel">
+            {busyExport === "xlsx" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />} Tableau du mois (Excel)
           </Button>
-          <Button variant="outline" className="rounded-none" onClick={downloadReceipts} disabled={!period || !!busyExport}>
-            {busyExport === "zip" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Paperclip className="w-4 h-4 mr-1" />} Télécharger les justificatifs
-          </Button>
-          <Button variant="outline" className="rounded-none" onClick={downloadDossier} disabled={!finance || !period || !!busyExport} data-testid="download-dossier">
-            {busyExport === "dossier" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />} Dossier complet (ZIP)
+          <Button variant="outline" className="rounded-none" onClick={downloadDossier} disabled={!ready || !!busyExport} data-testid="download-dossier">
+            {busyExport === "dossier" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FolderArchive className="w-4 h-4 mr-1" />} Dossier pour le fiduciaire (Excel + justificatifs)
           </Button>
         </div>
 
@@ -237,25 +231,42 @@ const AdminCompta = () => {
 
         <div className="flex overflow-x-auto border-b border-border [scrollbar-width:none]" role="tablist">
           {TABS.map((x) => (
-            <button key={x.key} type="button" role="tab" aria-selected={tab === x.key} onClick={() => setParam({ tab: x.key === "summary" ? null : x.key })}
+            <button key={x.key} type="button" role="tab" aria-selected={tab === x.key} onClick={() => setParam({ tab: x.key === "sales" ? null : x.key })}
               className={cn("px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px", tab === x.key ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground")}>
               {x.label}
             </button>
           ))}
         </div>
 
-        {tab === "summary" && <SummaryTab finance={finance} financeError={financeError} period={period} salary={salary} advances={advances} settlement={settlement} onTab={(k) => setParam({ tab: k })} />}
-        {tab === "revenue" && <RevenueTab finance={finance} financeError={financeError} />}
-        {tab === "expenses" && period && settings && (
-          <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)} />
+        {tab === "sales" && (
+          <SalesTab sales={sales} salesError={salesError} finance={finance} financeError={financeError} period={period} salary={salary}
+            advances={advances} settlement={settlement} onTab={(k) => setParam({ tab: k === "sales" ? null : k })} />
         )}
-        {tab === "salary" && (salary
-          ? <SalaryTab overview={salary} month={month} onChanged={load} onNotice={setNotice} onEditExpense={setEditing} />
-          : <p className="text-sm text-amber-800">{salaryError ?? "Chargement…"}</p>)}
-        {tab === "advances" && (advances
-          ? <AdvancesTab overview={advances} month={month} onChanged={load} onNotice={setNotice} />
-          : <p className="text-sm text-amber-800">{advancesError ?? "Chargement…"}</p>)}
-        {tab === "settlement" && <SettlementTab month={month} onNotice={setNotice} />}
+        {tab === "expenses" && (
+          <div className="space-y-10">
+            <ChargesSummary period={period} salary={salary} />
+            {period && settings
+              ? <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)} />
+              : <p className="text-sm text-amber-800">{error ?? "Chargement…"}</p>}
+            <section className="space-y-3 border-t border-border pt-6" id="salaire">
+              <h2 className="text-base font-semibold uppercase tracking-[0.08em]">Salaire</h2>
+              {salary
+                ? <SalaryTab overview={salary} month={month} onChanged={load} onNotice={setNotice} onEditExpense={setEditing} />
+                : <p className="text-sm text-amber-800">{salaryError ?? "Chargement…"}</p>}
+            </section>
+          </div>
+        )}
+        {tab === "partners" && (
+          <div className="space-y-10">
+            <SettlementTab month={month} onNotice={setNotice} />
+            <section className="space-y-3 border-t border-border pt-6" id="avances">
+              <h2 className="text-base font-semibold uppercase tracking-[0.08em]">Avances personnelles</h2>
+              {advances
+                ? <AdvancesTab overview={advances} month={month} onChanged={load} onNotice={setNotice} />
+                : <p className="text-sm text-amber-800">{advancesError ?? "Chargement…"}</p>}
+            </section>
+          </div>
+        )}
 
         {editing && settings && (
           <ExpenseDialog
@@ -272,12 +283,13 @@ const AdminCompta = () => {
   );
 };
 
-// ── Résumé ───────────────────────────────────────────────────────────────
-function SummaryTab({ finance, financeError, period, salary, advances, settlement, onTab }: { finance: FinanceMonth | null; financeError: string | null; period: ExpensePeriod | null; salary: SalaryOverview | null; advances: AdvancesOverview | null; settlement: SettlementView | null; onTab: (t: Tab) => void }) {
-  // Même liste de manques que l'Excel (lot K5).
-  const dossierIssues = comptaDossierIssues(finance, period, salary, advances, settlement);
-  const sv = settlement ? settlementValues(settlement) : null;
-  const c = finance?.cards;
+// ── Ventes du mois ───────────────────────────────────────────────────────
+function SalesTab({ sales, salesError, finance, financeError, period, salary, advances, settlement, onTab }: {
+  sales: SalesMonth | null; salesError: string | null; finance: FinanceMonth | null; financeError: string | null; period: ExpensePeriod | null;
+  salary: SalaryOverview | null; advances: AdvancesOverview | null; settlement: SettlementView | null; onTab: (t: Tab) => void;
+}) {
+  // Même liste de manques que l'Excel.
+  const dossierIssues = comptaDossierIssues(sales, finance, period, salary, advances, settlement);
   const tt = period?.totals;
   const issues: { text: string; tab?: Tab; href?: string }[] = [];
   if (tt?.incompleteCount) issues.push({ text: `${tt.incompleteCount} dépense(s) « À compléter »`, tab: "expenses" });
@@ -285,101 +297,79 @@ function SummaryTab({ finance, financeError, period, salary, advances, settlemen
   if (tt?.missingReceiptCount) issues.push({ text: `${tt.missingReceiptCount} justificatif(s) manquant(s)`, tab: "expenses" });
   if (tt?.undatedCount) issues.push({ text: `${tt.undatedCount} dépense(s) sans date d'achat`, tab: "expenses" });
   if (tt?.duplicateCount) issues.push({ text: `${tt.duplicateCount} doublon(s) possible(s) à vérifier`, tab: "expenses" });
-  if (tt?.salary?.toReconcileCount) issues.push({ text: `${tt.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher d'un versement (restent comptées dans les dépenses en attendant)`, tab: "salary" });
-  salary?.current.filter((x) => x.confirmed_net == null).forEach((x) => issues.push({ text: `${x.code} : net à confirmer (décompte de la fiduciaire)`, tab: "salary" }));
-  salary?.current.filter((x) => x.document_missing && (x.confirmed_net != null || x.paid > 0)).forEach((x) => issues.push({ text: `${x.code} : justificatif manquant (décompte)`, tab: "salary" }));
-  advances?.people.filter((x) => x.overpaid > 0).forEach((x) => issues.push({ text: `${x.name} : avance trop remboursée de ${money(x.overpaid)}`, tab: "advances" }));
-  if (c?.undatedCount) issues.push({ text: `${c.undatedCount} remboursement(s) client à dater (${money(c.undated)})`, href: "/admin/refunds" });
-  if (c?.toReviewCount) issues.push({ text: `${c.toReviewCount} remboursement(s) client à vérifier (${money(c.toReview)}) — non comptés`, href: "/admin/refunds?tab=review" });
+  if (tt?.salary?.toReconcileCount) issues.push({ text: `${tt.salary.toReconcileCount} dépense(s) « Salaires » à rapprocher d'un versement (restent comptées dans les dépenses en attendant)`, tab: "expenses" });
+  salary?.current.filter((x) => x.confirmed_net == null).forEach((x) => issues.push({ text: `${x.code} : net à confirmer (décompte de la fiduciaire)`, tab: "expenses" }));
+  salary?.current.filter((x) => x.document_missing && (x.confirmed_net != null || x.paid > 0)).forEach((x) => issues.push({ text: `${x.code} : justificatif manquant (décompte)`, tab: "expenses" }));
+  advances?.people.filter((x) => x.overpaid > 0).forEach((x) => issues.push({ text: `${x.name} : avance trop remboursée de ${money(x.overpaid)}`, tab: "partners" }));
+  if (sales?.cards.toAcceptCount) issues.push({ text: `${sales.cards.toAcceptCount} commande(s) du mois encore à accepter — pas encore des ventes`, href: "/admin/orders" });
+  if (sales?.cards.undatedCount) issues.push({ text: `${sales.cards.undatedCount} ligne(s) vendue(s) sans date de réalisation (${money(sales.cards.undatedAmount)}) — hors de tout mois` });
+  const fc = finance?.cards;
+  if (fc?.undatedCount) issues.push({ text: `${fc.undatedCount} remboursement(s) client à dater (${money(fc.undated)})`, href: "/admin/refunds" });
+  if (fc?.toReviewCount) issues.push({ text: `${fc.toReviewCount} remboursement(s) client à vérifier (${money(fc.toReview)}) — non comptés`, href: "/admin/refunds?tab=review" });
+
+  if (salesError) return <p className={cn("border px-3 py-2 text-sm", WARN)}>{salesError}</p>;
+  if (!sales) return <div className="py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>;
+  const c = sales.cards;
+  const sal = salary?.totals;
+  const kept = sales.lines.filter((l) => l.state === "kept");
+  const off = sales.lines.filter((l) => l.state !== "kept");
   return (
-    <div className="space-y-6" data-testid="summary">
+    <div className="space-y-6" data-testid="sales">
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Revenus</h2>
-        <p className="text-xs text-muted-foreground">Par date réelle d'encaissement et de remboursement · commandes de test exclues · mêmes chiffres que le tableau de bord.</p>
-        {financeError && <p className="text-sm text-amber-800">{financeError}</p>}
-        {c && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            <Stat label="Encaissé" value={money(c.collected)} hint={`${c.collectedCount} commande(s)`} />
-            <Stat label="Remboursements clients" value={money(c.refunded)} hint={`${c.refundedCount} remboursement(s)`} />
-            <Stat label="Revenus nets" value={money(c.net)} hint="encaissé − remboursements" strong />
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Dépenses</h2>
-        <p className="text-xs text-muted-foreground">
-          Deux lectures séparées, jamais additionnées entre elles : <strong>engagé</strong> = date d'achat dans le mois ; <strong>payé</strong> = date de paiement dans le mois.
-          Seuls les montants CHF connus sont additionnés.
-        </p>
-        {tt && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <Stat label="Engagé (date d'achat)" value={money(tt.engaged.known)} tone={tt.engaged.unknownCount ? "warn" : undefined}
-              hint={`${tt.engaged.count} dépense(s)${tt.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""}`} />
-            <Stat label="Payé (date de paiement)" value={money(tt.paid.known)} hint={`${tt.paid.count} paiement(s)${tt.paid.unknownCount ? ` · ${tt.paid.unknownCount} inconnu(s)` : ""}`} />
-            <Stat label="Avances personnelles" value={money(tt.engaged.advances)} hint={`${tt.engaged.advancesCount} achat(s) du mois payés par une personne${tt.engaged.advancesUnknownCount ? ` · ${tt.engaged.advancesUnknownCount} montant(s) inconnu(s) non compté(s)` : ""}`} tone={tt.engaged.advancesUnknownCount ? "warn" : undefined} />
-            <Stat label="Reste à payer (tous mois)" value={money(tt.toPayBalance.known)} hint={`Solde à ce jour · ${tt.toPayBalance.count} dépense(s)${tt.toPayBalance.unknownCount ? ` · ${tt.toPayBalance.unknownCount} inconnue(s)` : ""}`} />
-          </div>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {salary ? (
-            <button type="button" onClick={() => onTab("salary")} className="text-left">
-              <Stat label="Salaire (mois de salaire)"
-                value={salary.totals.confirmedForMonth != null && !salary.totals.toConfirmCount ? money(salary.totals.confirmedForMonth) : "montant à saisir"}
-                tone={salary.totals.toConfirmCount ? "warn" : undefined}
-                hint={`Net prévu ${salary.totals.plannedForMonth != null ? money(salary.totals.plannedForMonth) : "à saisir"} · versé ce mois ${money(salary.totals.paidInMonth)} · reste à payer ${money(salary.balances.remaining)} · jamais ajouté aux dépenses`} />
-            </button>
-          ) : (
-            <div className="border border-border/60 px-3 py-2 text-sm">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Salaire</p>
-              <p className="text-muted-foreground">Données de salaire indisponibles.</p>
-            </div>
-          )}
-          {advances && (
-            <button type="button" onClick={() => onTab("advances")} className="text-left">
-              <Stat label="Avances à rembourser (fin du mois)" value={money(advances.totals.openEnd)}
-                hint={`Remboursé ce mois ${money(advances.totals.repaidInMonth)} · un remboursement n'est jamais une dépense${advances.totals.unknownCount ? ` · ${advances.totals.unknownCount} montant(s) inconnu(s)` : ""}`} />
-            </button>
-          )}
-          {sv ? (
-            <button type="button" onClick={() => onTab("settlement")} className="text-left" data-testid="summary-result">
-              <Stat label={`Résultat du mois${sv.validated ? " — validé" : " — brouillon"}`} value={money(sv.resultAdjusted)} strong
-                tone={sv.validated ? undefined : "warn"}
-                hint={`revenus nets − dépenses (date d'achat) − salaire confirmé · conservé ${money(sv.retainedMonth)} · à partager ${money(sv.toShare)} (Mel ${money(sv.melShare)} / Eli ${money(sv.eliShare)}) · jamais le solde bancaire`} />
-            </button>
-          ) : (
-            <div className="border border-border/60 px-3 py-2 text-sm">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Résultat du mois</p>
-              <p className="text-muted-foreground">Décompte indisponible.</p>
-            </div>
-          )}
+        <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Résumé du mois</h2>
+        <p className="text-xs text-muted-foreground">Chaque gâteau compte dans le mois de son retrait ou de sa livraison, chaque workshop dans le mois de sa séance — quelle que soit la date du paiement. Commandes de test exclues.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Stat label="Ventes maintenues" value={money(c.net)} strong hint={`après annulations et gestes · ${c.cakes} gâteau(x) / article(s)${c.workshopSeats ? ` · ${c.workshopSeats} place(s) de workshop` : ""}`} />
+          <button type="button" className="text-left" onClick={() => onTab("expenses")}>
+            <Stat label="Dépenses du mois" value={tt ? money(tt.engaged.known) : "—"} tone={tt?.engaged.unknownCount ? "warn" : undefined}
+              hint={`date d'achat${tt?.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""}`} />
+          </button>
+          <button type="button" className="text-left" onClick={() => onTab("expenses")}>
+            <Stat label="Salaire net confirmé" value={sal && sal.confirmedForMonth != null && !sal.toConfirmCount ? money(sal.confirmedForMonth) : "montant à saisir"}
+              tone={sal?.toConfirmCount ? "warn" : undefined} hint="séparé des dépenses, compté une fois" />
+          </button>
+          <Stat label="Restant à payer par les clients" value={money(c.toCollect)} tone={c.toCollect ? "warn" : undefined}
+            hint={`${c.toCollectOrders} commande(s) du mois pas encore payée(s) — compté dans les ventes`} />
         </div>
+        <p className="text-sm tabular-nums" data-testid="sales-bridge">
+          Ventes {money(c.gross)} − annulés {money(c.cancelled)} ({c.cancelledCount}) − gestes commerciaux {money(c.gestures)} = <strong>ventes maintenues {money(c.net)}</strong>
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Un article annulé est retiré des ventes une fois : son remboursement ({money(c.cancellationRefunds)} ce mois) n'est jamais déduit en plus. Seul un geste commercial (remboursement sans annulation) est déduit.
+          {c.cancellationsToRefund > 0 && <> Annulés payés encore à rembourser : <strong>{money(c.cancellationsToRefund)}</strong>.</>}
+        </p>
       </section>
 
-      {tt && tt.engaged.byCategory.length > 0 && (
+      <SalesList title={`Vendu en ${monthTitle(sales.month)}`} lines={kept} empty="Aucune vente réalisée ce mois." testId="sales-kept" />
+      {off.length > 0 && <SalesList title="Annulés et refusés (retirés des ventes)" lines={off} empty="" testId="sales-cancelled" />}
+      {sales.undated.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Engagé par catégorie</h2>
-          <ul className="border border-border/60 divide-y divide-border/60 text-sm">
-            {tt.engaged.byCategory.map((x) => (
-              <li key={x.category} className="flex justify-between gap-2 px-3 py-1.5">
-                <span>{x.category} <span className="text-muted-foreground">({x.count})</span></span>
-                <span className="tabular-nums">{money(x.known)}{x.unknownCount ? <span className="text-amber-700"> + {x.unknownCount} inconnu(s)</span> : null}</span>
-              </li>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Sans date de réalisation — hors de tout mois</h2>
+          <ul className={cn("border divide-y text-sm", WARN)}>
+            {sales.undated.map((u, i) => (
+              <li key={`${u.orderId}-${i}`} className="px-3 py-1.5 flex gap-3"><span className="flex-1 min-w-0 truncate">{u.orderNumber ?? u.orderId.slice(0, 8)} · {u.customer} · {u.kind === "delivery" ? "Frais de livraison" : u.product}</span><span className="tabular-nums">{money(u.amount)}</span></li>
             ))}
           </ul>
         </section>
       )}
 
+      <details className="border border-border/60" data-testid="collections-details">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Encaissements par date de paiement (détail secondaire)</summary>
+        <div className="px-3 pb-3 pt-1">
+          <CollectionsDetail finance={finance} financeError={financeError} />
+        </div>
+      </details>
+
       <section className={cn("border px-4 py-3 text-sm", dossierIssues.length ? WARN : "border-emerald-300 bg-emerald-50 text-emerald-900")} data-testid="dossier-state">
         <p className="font-semibold">Dossier du mois : {dossierIssues.length ? "INCOMPLET" : "COMPLET"}</p>
         {dossierIssues.length
           ? <p>{dossierIssues.join(" · ")}</p>
-          : <p>Rien ne manque et le décompte du mois est validé. Le dossier téléchargé (Excel + justificatifs) est marqué COMPLET.</p>}
+          : <p>Rien ne manque et le décompte du mois est validé. Le dossier pour le fiduciaire est marqué COMPLET.</p>}
       </section>
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">Informations manquantes</h2>
-        {issues.length === 0 ? <p className="text-sm text-muted-foreground">Rien à signaler pour les dépenses et les revenus du mois.</p> : (
+      {issues.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">À compléter</h2>
           <ul className="space-y-1">
             {issues.map((x) => (
               <li key={x.text}>
@@ -389,20 +379,64 @@ function SummaryTab({ finance, financeError, period, salary, advances, settlemen
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }
 
-// ── Revenus ──────────────────────────────────────────────────────────────
-function RevenueTab({ finance, financeError }: { finance: FinanceMonth | null; financeError: string | null }) {
+function SalesList({ title, lines, empty, testId }: { title: string; lines: SalesLine[]; empty: string; testId: string }) {
+  const total = Math.round(lines.reduce((s, l) => s + salesLineNet(l), 0) * 100) / 100;
+  return (
+    <section className="space-y-2" data-testid={testId}>
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">{title} <span className="font-normal text-muted-foreground">({lines.length})</span></h2>
+        {lines.some((l) => l.state === "kept") && <span className="text-sm tabular-nums font-semibold">{money(total)}</span>}
+      </div>
+      {lines.length === 0 ? <p className="text-sm text-muted-foreground">{empty}</p> : (
+        <ul className="border border-border/60 divide-y divide-border/60 text-sm">
+          {lines.map((l, i) => {
+            const paid = salesLinePaid(l);
+            return (
+              <li key={`${l.orderId}-${l.itemId ?? l.kind}-${l.unitIndex}-${l.state}-${i}`} className="px-3 py-2 grid grid-cols-[44px_minmax(0,1fr)_auto] sm:grid-cols-[64px_minmax(0,1fr)_auto] gap-x-3 gap-y-0.5">
+                <span className="tabular-nums text-muted-foreground">{frDate(l.serviceDate).slice(0, 5)}</span>
+                <span className="min-w-0">
+                  <span className="block break-words">{salesLineLabel(l)}</span>
+                  <span className="block text-xs text-muted-foreground break-words">
+                    <strong className="text-foreground">{l.orderNumber ?? l.orderId.slice(0, 8)}</strong> · {l.customer}
+                    {Number(l.adjustment) ? ` · prix ${money(l.base)} ${Number(l.adjustment) > 0 ? "+" : "−"} frais/remises ${money(Math.abs(Number(l.adjustment)))}` : ""}
+                  </span>
+                </span>
+                <span className="text-right">
+                  <span className={cn("block tabular-nums font-semibold", l.state !== "kept" && "line-through text-muted-foreground font-normal")}>{money(l.amount)}</span>
+                  {Number(l.gesture) > 0 && <span className="block text-xs tabular-nums text-amber-800">geste −{money(l.gesture)}</span>}
+                </span>
+                <span className="col-start-2 col-span-2 flex flex-wrap gap-1">
+                  {l.state !== "kept" && <Badge className={WARN}>{SALES_STATE_LABELS[l.state]}{l.reason ? ` · ${SALES_REASON_LABELS[l.reason] ?? l.reason}` : ""}</Badge>}
+                  {l.state !== "kept" && Number(l.cancellationRefund) > 0 && <Badge className="border-border text-muted-foreground">remboursé {money(l.cancellationRefund)} (annulation)</Badge>}
+                  {l.state === "kept" && paid === "Non" && <Badge className="border-sky-300 bg-sky-50 text-sky-900">Restant à payer</Badge>}
+                  {l.state === "kept" && paid !== "Non" && l.paidAt && l.paidAt.slice(0, 7) !== l.serviceDate.slice(0, 7) && (
+                    <Badge className="border-border text-muted-foreground">payé le {frDate(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date(l.paidAt)))}</Badge>
+                  )}
+                  {l.origin === "manual" && <Badge className="border-border text-muted-foreground">manuelle</Badge>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// ── Encaissements par date de paiement (détail secondaire, finance-month) ──
+function CollectionsDetail({ finance, financeError }: { finance: FinanceMonth | null; financeError: string | null }) {
   if (financeError) return <p className="text-sm text-amber-800">{financeError}</p>;
-  if (!finance) return <div className="py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>;
+  if (!finance) return <div className="py-4 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" /></div>;
   const c = finance.cards;
   const table = (title: string, rows: { key: string; date: string | null; order: string; who: string; amount: number; extra?: string }[], empty: string) => (
     <section className="space-y-2">
-      <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">{title}</h2>
+      <h3 className="text-xs font-semibold uppercase tracking-[0.08em]">{title}</h3>
       {rows.length === 0 ? <p className="text-sm text-muted-foreground">{empty}</p> : (
         <ul className="border border-border/60 divide-y divide-border/60 text-sm">
           {rows.map((r) => (
@@ -418,20 +452,42 @@ function RevenueTab({ finance, financeError }: { finance: FinanceMonth | null; f
   );
   const zurich = (iso: string | null | undefined) => (iso ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date(iso)) : null);
   return (
-    <div className="space-y-6" data-testid="revenue">
+    <div className="space-y-4" data-testid="revenue">
+      <p className="text-xs text-muted-foreground">Argent reçu et rendu dans le mois, à sa date réelle (mêmes chiffres que le tableau de bord). Ce n'est pas le chiffre des ventes : une commande payée ce mois pour le mois prochain compte dans les ventes du mois prochain. Ne s'additionne jamais aux ventes.</p>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         <Stat label="Encaissé" value={money(c.collected)} hint={`Site ${money(c.byOrigin.website.collected)} · manuel ${money(c.byOrigin.manual.collected)}`} />
         <Stat label="Remboursements clients" value={money(c.refunded)} hint="à leur date réelle" />
-        <Stat label="Revenus nets" value={money(c.net)} strong />
-        <Stat label="À encaisser (tous mois)" value={money(c.toCollect)} hint={`${c.toCollectCount} commande(s) confirmée(s) non payée(s)`} />
-        <Stat label="Reste à rembourser (tous mois)" value={money(c.remainingToRefund)} hint={`${c.remainingCount} commande(s)`} />
-        <Stat label="À vérifier (non comptés)" value={money(c.toReview)} hint={`${c.toReviewCount} remboursement(s)`} tone={c.toReviewCount ? "warn" : undefined} />
+        <Stat label="Encaissé − remboursé" value={money(c.net)} />
       </div>
       {table("Encaissements du mois", finance.collections.map((x) => ({ key: x.orderId, date: zurich(x.paidAt), order: x.orderNumber ?? x.orderId.slice(0, 8), who: x.customer, amount: Number(x.amount) || 0, extra: x.origin === "manual" ? "manuelle" : "site" })), "Aucun encaissement ce mois.")}
       {table("Remboursements clients du mois", finance.refunds.map((x) => ({ key: x.id, date: zurich(x.refundedAt), order: x.orderNumber ?? x.orderId.slice(0, 8), who: x.customer, amount: Number(x.amount) || 0 })), "Aucun remboursement ce mois.")}
       {finance.undatedRefunds.length > 0 && table("À dater — hors de tout mois", finance.undatedRefunds.map((x) => ({ key: x.id, date: null, order: x.orderNumber ?? x.orderId.slice(0, 8), who: x.customer, amount: Number(x.amount) || 0 })), "")}
-      <p className="text-xs text-muted-foreground">Source unique : finance-month (lot 3). Les remboursements à vérifier ne sont pas comptés ; les remboursements à dater sont hors de tout mois.</p>
     </div>
+  );
+}
+
+// ── Dépenses + salaire : charges du mois, chacune comptée une fois ─────────
+function ChargesSummary({ period, salary }: { period: ExpensePeriod | null; salary: SalaryOverview | null }) {
+  const tt = period?.totals;
+  const sal = salary?.totals;
+  const salKnown = sal && sal.confirmedForMonth != null && !sal.toConfirmCount;
+  return (
+    <section className="space-y-2" data-testid="charges">
+      <p className="text-xs text-muted-foreground">
+        Deux lectures séparées des dépenses, jamais additionnées entre elles : <strong>engagé</strong> = date d'achat dans le mois (celle du résultat) ; <strong>payé</strong> = date de paiement.
+        Le salaire est suivi à part (plus bas) et n'est jamais ajouté aux dépenses ; une dépense « Salaires » rapprochée d'un versement sort des dépenses.
+      </p>
+      {tt && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Stat label="Dépenses du mois (date d'achat)" value={money(tt.engaged.known)} strong tone={tt.engaged.unknownCount ? "warn" : undefined}
+            hint={`${tt.engaged.count} dépense(s)${tt.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""} · dont avances ${money(tt.engaged.advances)}`} />
+          <Stat label="Salaire net confirmé" value={salKnown ? money(sal!.confirmedForMonth) : "montant à saisir"} tone={salKnown ? undefined : "warn"}
+            hint={sal ? `versé ce mois ${money(sal.paidInMonth)} · reste à payer ${money(salary!.balances.remaining)}` : undefined} />
+          <Stat label="Payé ce mois (date de paiement)" value={money(tt.paid.known)} hint={`${tt.paid.count} paiement(s)`} />
+          <Stat label="Factures encore à payer" value={money(tt.toPayBalance.known)} hint={`tous mois, à ce jour · ${tt.toPayBalance.count} dépense(s)`} />
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -546,7 +602,6 @@ function ExpensesTab({ period, settings, from, to, onEdit, onSettings }: {
   );
 }
 
-// ── Décompte Mel / Eli ──────────────────────────────────────────────────
 // ── Saisie d'une dépense ─────────────────────────────────────────────────
 interface Form {
   purchaseDate: string; supplier: string; description: string; categoryId: string; currency: string; customCurrency: string;

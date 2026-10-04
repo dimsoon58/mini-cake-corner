@@ -16,6 +16,11 @@ import { PasswordInput } from "@/components/ui/password-input";
 // saisis à la main avec vérification de trésorerie à la même date. Aucun
 // virement automatique. Valider, verser, annuler un versement et créer un
 // ajustement exigent le code PIN admin (vérifié par le serveur).
+//
+// F17 : le résultat part des ventes du mois de réalisation. « Résultat à
+// partager » (comptable) et « disponible à verser » (couvert par la banque)
+// sont montrés séparément : les sommes encore dues par les clients et les
+// paiements reçus pour des commandes futures ne sont jamais disponibles.
 
 const WARN = "border-amber-400 bg-amber-50 text-amber-900";
 const BAD = "border-red-300 bg-red-50 text-red-900";
@@ -45,6 +50,8 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [payFor, setPayFor] = useState<"mel" | "eli" | null>(null);
+  // Mois validé : vérification avec le dernier solde daté (au plus tôt la fin du mois).
+  const [latest, setLatest] = useState<Treasury | null>(null);
   // PIN : déverrouillé une fois pour la session (F16) ; sinon saisi ici, jamais conservé ailleurs.
   const [pin, setPin, pinBySession] = useSessionPin();
   const needPin = () => { if (!pin.trim()) { setErr("Saisissez d'abord le code PIN administrateur."); return true; } return false; };
@@ -59,6 +66,12 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
       setErr(null);
     } catch (e) { setErr(errText(e)); }
   };
+  const latestBalance = view?.validated ? view.bankBalances.filter((b) => b.date >= view.monthEnd).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null : null;
+  const latestId = latestBalance?.id ?? null;
+  useEffect(() => {
+    if (!latestId) { setLatest(null); return; }
+    comptaApi<Treasury>({ action: "treasury_check", balanceId: latestId }).then(setLatest).catch(() => setLatest(null));
+  }, [latestId]);
   useEffect(() => {
     const id = setTimeout(load, 250);
     return () => clearTimeout(id);
@@ -133,7 +146,8 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="border border-border/60 p-4 text-sm" data-testid="settlement-result">
           <h2 className="text-sm font-semibold uppercase tracking-[0.08em] mb-2">Résultat de {monthTitle(month)}</h2>
-          <Line label="Revenus nets" value={money(x.revenueNet)} hint="encaissé − remboursements clients, dates réelles" />
+          <Line label="Ventes maintenues du mois" value={money(x.revenueNet)}
+            hint={`mois de réalisation, après annulations et gestes${x.toCollectInResult ? ` · dont ${money(x.toCollectInResult)} encore dû par les clients` : ""}`} />
           <Line label="− Dépenses du mois" value={money(x.expenses)} hint="date d'achat, payées par Bento ou avancées, chacune une fois" />
           <Line label="− Salaire net confirmé" value={money(x.salary)} />
           <Line label="= Résultat du mois" value={money(x.result)} strong />
@@ -144,13 +158,13 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
             <Line label="Perte compensée ce mois (une seule fois)" value={money(x.lossCompensated)} />
             <Line label="Perte reportée en fin de mois" value={money(x.lossOut)} />
           </>}
-          <Line label="Disponible" value={money(x.available)} strong />
+          <Line label="Résultat après pertes reportées" value={money(x.available)} strong />
           <div className="border-t border-border/60 my-2" />
           <Line label="→ Vers la trésorerie de base" value={money(x.toBase)} />
           <Line label={`→ Épargne supplémentaire (${money(view.rules?.monthly_extra ?? 300)} si le surplus suffit)`} value={money(x.extraKept)} />
           {x.explicitKeep > 0 && <Line label="→ Conservé en plus (choix)" value={money(x.explicitKeep)} />}
           {x.released > 0 && <Line label="+ Bénéfice conservé libéré (décision)" value={money(x.released)} hint={x.releaseReason ?? undefined} />}
-          <Line label="= À partager" value={money(x.toShare)} strong />
+          <Line label="= Résultat à partager" value={money(x.toShare)} strong hint="résultat comptable : pas forcément déjà en banque" />
           <Line label={`${mel} (${x.melPct} %)`} value={money(x.melShare)} />
           <Line label={`${eli} (reste exact)`} value={money(x.eliShare)} />
         </section>
@@ -172,7 +186,10 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
               <Line label="− salaire restant à verser" value={money(tr.salaryRemaining)} />
               <Line label="− avances restant à rembourser" value={money(tr.advancesToRepay)} />
               <Line label="− parts validées non versées" value={money(tr.sharesUnpaid)} />
+              <Line label="− paiements reçus pour des commandes futures" value={money(tr.customerPrepayments ?? 0)}
+                hint={tr.customerPrepaymentsUndated ? `dont ${money(tr.customerPrepaymentsUndated)} pour des commandes sans date` : "en banque, mais ventes des mois suivants"} />
               <Line label="= Trésorerie disponible" value={money(tr.available)} strong />
+              {!!tr.customersOwe && <Line label="Encore dû par les clients (pas en banque)" value={money(tr.customersOwe)} hint="ventes réalisées non payées : information, jamais disponible" />}
               {x.baseConstituted && x.freeForShares != null && <Line label="Libre pour les parts (− base − épargne)" value={money(x.freeForShares)} />}
               {x.flags.baseBreach && <p className={cn("border px-2 py-1", BAD)}>Trésorerie de base entamée.</p>}
               {x.flags.cashShort && <p className={cn("border px-2 py-1", BAD)}>Trésorerie insuffisante pour les parts.</p>}
@@ -186,6 +203,8 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
           </div>
         </section>
       </div>
+
+      <PayableBox x={x} view={view} latest={latest} mel={mel} eli={eli} paid={paid} />
 
       {!x.validated && view.draft && (
         <section className="border border-border/60 p-4 text-sm space-y-3" data-testid="choices">
@@ -230,7 +249,7 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-muted-foreground">Les avances se remboursent à tout moment (onglet Avances ou dans un versement groupé) ; elles ne sont jamais une part ni une dépense supplémentaire.</p>
+        <p className="text-xs text-muted-foreground">Les avances se remboursent à tout moment (section « Avances personnelles » ci-dessous, ou dans un versement groupé) ; elles ne sont jamais une part ni une dépense supplémentaire.</p>
         {x.validated && (
           <div className="flex flex-wrap gap-2">
             <Button className="rounded-none" onClick={() => { if (!needPin()) setPayFor("mel"); }}>Enregistrer un versement à {mel}</Button>
@@ -306,6 +325,63 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
         <PayoutDialog view={view} who={payFor} pin={pin} onClose={() => setPayFor(null)} onSaved={async (msg) => { setPayFor(null); onNotice(msg); await load(); }} />
       )}
     </div>
+  );
+}
+
+/**
+ * « Résultat à partager » ≠ « disponible à verser ». Brouillon : couverture
+ * par la trésorerie de fin de mois (calcul serveur). Mois validé : reste à
+ * verser couvert par le dernier solde daté (dettes du même jour, base et
+ * épargne réservées).
+ */
+function PayableBox({ x, view, latest, mel, eli, paid }: {
+  x: ReturnType<typeof settlementValues>; view: SettlementView; latest: Treasury | null; mel: string; eli: string; paid: { mel: number; eli: number };
+}) {
+  const target = Number(view.rules?.base_target ?? 4000);
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  let owed: number, payable: number | null, asOf: Treasury | null, note: string;
+  if (x.validated) {
+    owed = r2(x.melShare + x.eliShare - paid.mel - paid.eli);
+    asOf = latest;
+    // treasury.available a déjà retiré TOUTES les parts validées non versées : on les rajoute pour voir ce qui peut les couvrir.
+    const free = latest ? r2(latest.available + latest.sharesUnpaid - (latest.baseConstituted ? target : 0) - Number(latest.extraCum ?? 0)) : null;
+    payable = free == null ? null : r2(Math.min(owed, Math.max(0, free)));
+    note = latest ? `au ${frDate(latest.date)} (dernier solde saisi)` : "ajoutez un solde bancaire récent (plus bas) pour le calculer";
+  } else {
+    owed = x.toShare;
+    asOf = x.treasury;
+    payable = x.treasury && x.baseConstituted ? (x.payableNow ?? r2(Math.min(x.toShare, Math.max(0, Number(x.freeForShares ?? 0))))) : x.toShare > 0 ? null : 0;
+    note = x.treasury ? `au ${frDate(x.treasury.date)} (solde de fin de mois)` : `solde au ${frDate(view.monthEnd)} à saisir`;
+  }
+  if (owed <= 0 && !x.toCollectInResult) return null;
+  const later = payable == null ? null : r2(owed - payable);
+  return (
+    <section className="border-2 border-primary/30 p-4 text-sm space-y-2" data-testid="payable">
+      <h2 className="text-sm font-semibold uppercase tracking-[0.08em]">À partager ≠ disponible à verser</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="border border-border/60 px-3 py-2">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{x.validated ? "Reste à verser (résultat validé)" : "Résultat à partager"}</p>
+          <p className="text-lg font-semibold tabular-nums">{money(owed)}</p>
+          <p className="text-[11px] text-muted-foreground">{mel} {money(x.validated ? x.melShare - paid.mel : x.melShare)} · {eli} {money(x.validated ? x.eliShare - paid.eli : x.eliShare)}</p>
+        </div>
+        <div className="border border-emerald-300 bg-emerald-50 px-3 py-2 text-emerald-950" data-testid="payable-now">
+          <p className="text-[11px] uppercase tracking-[0.08em]">Disponible à verser</p>
+          <p className="text-xl font-bold tabular-nums">{payable == null ? "—" : money(payable)}</p>
+          <p className="text-[11px]">{note}</p>
+        </div>
+        <div className={cn("border px-3 py-2", later ? WARN : "border-border/60")} data-testid="payable-later">
+          <p className="text-[11px] uppercase tracking-[0.08em]">Pas encore disponible</p>
+          <p className="text-lg font-semibold tabular-nums">{later == null ? "—" : money(later)}</p>
+          <p className="text-[11px]">reste dû, à verser quand la trésorerie le permet</p>
+        </div>
+      </div>
+      <ul className="text-xs text-muted-foreground space-y-0.5">
+        {!!x.toCollectInResult && <li>• {money(x.toCollectInResult)} des ventes du mois sont <strong>encore dus par les clients</strong> : comptés dans le résultat, pas en banque.</li>}
+        {!!asOf?.customerPrepayments && <li>• {money(asOf.customerPrepayments)} déjà reçus pour des <strong>commandes futures</strong> : en banque, mais retirés du disponible (ventes des mois suivants).</li>}
+        {!!asOf?.customersOwe && Math.abs(Number(asOf.customersOwe) - Number(x.toCollectInResult ?? 0)) >= 0.005 && <li>• {money(asOf.customersOwe)} encore dus par les clients à cette date (toutes ventes réalisées) : jamais disponibles avant paiement.</li>}
+        <li>• Disponible = solde − factures, salaire, avances et parts non versées − paiements pour commandes futures − trésorerie de base{x.baseConstituted ? "" : " (non constituée : aucun partage)"} − épargne. Aucun virement automatique.</li>
+      </ul>
+    </section>
   );
 }
 

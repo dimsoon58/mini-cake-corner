@@ -6,7 +6,7 @@
 //   cd supabase/tests/refunds
 //   npm install --no-save @electric-sql/pglite esbuild
 //   node test_compta_k1.mjs
-import { freshDb } from "./load.mjs";
+import { freshDb, salesStub } from "./load.mjs";
 import { build } from "esbuild";
 import fs from "fs";
 import path from "path";
@@ -251,16 +251,16 @@ check("Revenus via finance-month : encaissé 160, remboursé 25, net 135, test e
 
 // ═══ Excel du mois ═══
 p = await period(...OCT);
-const wb = CX.buildComptaWorkbook(ExcelJS, finance, p);
+const wb = CX.buildComptaWorkbook(ExcelJS, salesStub(finance), finance, p);
 const file = path.join(tmp, "compta.xlsx");
 await wb.xlsx.writeFile(file);
 const rb = new ExcelJS.Workbook();
 await rb.xlsx.readFile(file);
-check("Feuilles : Synthèse, Commandes et articles, Encaissements, Remboursements, Dépenses", rb.worksheets.map((w) => w.name).join("|") === "Synthèse|Commandes et articles|Encaissements|Remboursements|Dépenses", rb.worksheets.map((w) => w.name));
+check("Feuilles : Synthèse, Ventes du mois, Encaissements (résumé, détail), Remboursements, Dépenses", rb.worksheets.map((w) => w.name).join("|") === "Synthèse|Ventes du mois|Encaissements - résumé|Encaissements|Remboursements|Dépenses", rb.worksheets.map((w) => w.name));
 const S = rb.getWorksheet("Synthèse");
 const findRow = (ws, label) => { let row = null; ws.eachRow((r) => { if (String(r.getCell(1).value ?? "").startsWith(label)) row = r; }); return row; };
 const val = (c) => (c.value && typeof c.value === "object" && "result" in c.value ? c.value.result : c.value);
-check("Synthèse : revenus nets = tableau de bord (135)", near(val(findRow(S, "Net du mois").getCell(2)), 135));
+check("Encaissements (détail secondaire) : net = tableau de bord (135)", near(val(findRow(rb.getWorksheet("Encaissements - résumé"), "Net du mois").getCell(2)), 135));
 const D = rb.getWorksheet("Dépenses");
 const head = D.getRow(1).values.slice(1);
 check("Dépenses : colonnes catégorie, fournisseur, dates, devise, CHF, payé par, statut, justificatifs", ["ID dépense", "Date d'achat", "Date de paiement", "Fournisseur", "Catégorie", "Devise d'origine", "Payé en CHF", "Payé par", "Statut", "Justificatifs (fichiers du ZIP)"].every((h) => head.includes(h)), head);

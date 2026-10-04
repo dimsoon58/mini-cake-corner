@@ -37,24 +37,32 @@
 --   * Ventes maintenues = ventes − articles annulés − gestes commerciaux.
 --   * Restant à payer = articles maintenus du mois dont la commande n'est pas
 --     encore payée (commandes manuelles « en attente de paiement »).
+--
+-- Ajout (même lot, F17 pas encore appliquée) — « disponible à verser » :
+--   * public.sales_lines(p_include_tests) : les lignes de vente (une par
+--     gâteau) de TOUS les mois, source unique de admin_sales_month et de la
+--     trésorerie ci-dessous ;
+--   * public.treasury_at (F13) remplacée : la trésorerie disponible déduit
+--     aussi les PAIEMENTS DÉJÀ REÇUS POUR DES COMMANDES FUTURES (articles
+--     maintenus réalisés après la date du solde, ou sans date, dont la
+--     commande est payée à cette date) : cet argent est en banque mais n'est
+--     pas encore une vente. Les montants ENCORE DUS PAR LES CLIENTS (ventes
+--     réalisées, pas encore payées) sont donnés à titre d'information : ils
+--     comptent dans le résultat mais ne sont pas en banque, donc jamais
+--     disponibles. Aucune autre déduction de F13 n'est modifiée.
 
 begin;
 
-create or replace function public.admin_sales_month(p_month date, p_include_tests boolean default false)
-returns jsonb
-language plpgsql
+create or replace function public.sales_lines(p_include_tests boolean default false)
+returns table (
+  order_id uuid, item_id uuid, fulfillment_id uuid, kind text, product text, size text, shape text, flavors text[], design text,
+  workshop_type text, unit_index integer, unit_count integer, service_date date, created_at timestamptz, state text, reason text,
+  base numeric, adj numeric, amount numeric, seats integer, seq bigint, gesture_part numeric, cancel_refund_part numeric
+)
+language sql
 stable
 set search_path to ''
 as $$
-declare
-  v_from date := date_trunc('month', p_month)::date;
-  v_to date := (date_trunc('month', p_month) + interval '1 month - 1 day')::date;
-  v_result jsonb;
-begin
-  if p_month is null then
-    raise exception 'Mois obligatoire' using errcode = 'P0001';
-  end if;
-
   with
   ord as (
     select o.*,
@@ -72,12 +80,6 @@ begin
     where origin = 'manual'
        or physical_validation::text in ('approved', 'rejected')
        or (physical_validation::text = 'not_applicable' and order_validation::text in ('approved', 'cancelled'))
-  ),
-  awaiting as (
-    select * from ord
-    where origin = 'website' and id not in (select id from sold)
-      and order_validation::text not in ('cancelled')
-      and payment_status::text in ('pending', 'paid')
   ),
   it as (
     select s.id as order_id, oi.id as item_id, oi.product::text as product, oi.size, oi.shape, oi.flavors, oi.design,
@@ -237,15 +239,61 @@ begin
            case when c.gtot = 0 or c.gw = 0 then 0 else round(c.gesture * c.gcum / c.gtot, 2) - round(c.gesture * (c.gcum - c.gw) / c.gtot, 2) end as gesture_part,
            case when c.ctot = 0 or c.cw0 = 0 then 0 else round(c.cancel_refund * c.ccum / c.ctot, 2) - round(c.cancel_refund * (c.ccum - c.cw0) / c.ctot, 2) end as cancel_refund_part
     from lines_c c
+  )
+  select l.order_id, l.item_id, l.fulfillment_id, l.kind, l.product, l.size, l.shape, l.flavors, l.design,
+         l.workshop_type, l.unit_index::integer, l.unit_count::integer, l.service_date::date, l.created_at, l.state, l.reason,
+         l.base::numeric, l.adj::numeric, l.amount::numeric, l.seats::integer, l.seq, l.gesture_part::numeric, l.cancel_refund_part::numeric
+  from lines_final l;
+$$;
+
+create or replace function public.admin_sales_month(p_month date, p_include_tests boolean default false)
+returns jsonb
+language plpgsql
+stable
+set search_path to ''
+as $$
+declare
+  v_from date := date_trunc('month', p_month)::date;
+  v_to date := (date_trunc('month', p_month) + interval '1 month - 1 day')::date;
+  v_result jsonb;
+begin
+  if p_month is null then
+    raise exception 'Mois obligatoire' using errcode = 'P0001';
+  end if;
+
+  with
+  ord as (
+    select o.*,
+           public.order_origin(o.order_number, o.order_source) as origin,
+           trim(coalesce(o.first_name, '') || ' ' || coalesce(o.last_name, '')) as customer,
+           round(coalesce(o.paid_amount, o.total_amount), 2) as sale_amount
+    from public.orders o
+    where (p_include_tests or not o.is_test)
+      and not coalesce(o.is_draft, false)
+      and o.order_failure_reason is null
+      and o.order_validation::text <> 'rejected'
   ),
+  sold as (
+    select * from ord
+    where origin = 'manual'
+       or physical_validation::text in ('approved', 'rejected')
+       or (physical_validation::text = 'not_applicable' and order_validation::text in ('approved', 'cancelled'))
+  ),
+  awaiting as (
+    select * from ord
+    where origin = 'website' and id not in (select id from sold)
+      and order_validation::text not in ('cancelled')
+      and payment_status::text in ('pending', 'paid')
+  ),
+  lines as (select * from public.sales_lines(p_include_tests)),
   month_lines as (
     select l.*, s.order_number, s.origin, s.customer, s.is_test, s.payment_status::text as payment_status, s.paid_at,
            s.order_validation::text as order_validation, s.created_via
-    from lines_final l join sold s on s.id = l.order_id
+    from lines l join sold s on s.id = l.order_id
     where l.service_date between v_from and v_to
   ),
   undated as (
-    select l.*, s.order_number, s.customer from lines_final l join sold s on s.id = l.order_id where l.service_date is null
+    select l.*, s.order_number, s.customer from lines l join sold s on s.id = l.order_id where l.service_date is null
   )
   select jsonb_build_object(
     'month', to_char(v_from, 'YYYY-MM'), 'from', v_from, 'to', v_to, 'includeTests', p_include_tests,
@@ -326,5 +374,74 @@ returns jsonb language sql stable set search_path to '' as $$
     'salaryToConfirm', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'code', code)) from sal where confirmed_net is null), '[]'::jsonb)
   );
 $$;
+
+-- Trésorerie disponible à une date D (F13), avec un solde du MÊME jour D.
+-- Ajout F17 : − paiements reçus pour des commandes futures (ou sans date) ;
+-- « encore dû par les clients » en information (jamais en banque).
+create or replace function public.treasury_at(p_date date, p_balance numeric)
+returns jsonb language sql stable set search_path to '' as $$
+  with inv as (
+    select e.* from public.expenses e
+    where public.expense_counted(e) and not e.personal_advance and e.purchase_date <= p_date
+      and (e.status = 'to_pay' or e.paid_at > p_date)
+  ),
+  sal as (
+    select s.confirmed_net - coalesce((select sum(p.amount) from public.salary_payments p
+                                       where p.salary_month_id = s.id and p.deleted_at is null and p.paid_at <= p_date), 0) as remaining
+    from public.salary_months s where s.deleted_at is null and s.confirmed_net is not null and s.salary_month <= p_date
+  ),
+  adv as (
+    select e.chf_amount - public.advance_repaid(e.id, p_date) as remaining, e.chf_amount
+    from public.expenses e
+    where e.deleted_at is null and e.personal_advance and e.status = 'paid' and public.advance_date(e) <= p_date
+  ),
+  shares as (
+    select s.mel_share + s.eli_share - coalesce((select sum(p.share_amount) from public.settlement_payouts p
+                                                  where p.settlement_id = s.id and p.voided_at is null and p.paid_at <= p_date), 0) as remaining
+    from public.settlements s where (s.month + interval '1 month - 1 day')::date <= p_date
+  ),
+  last as (select * from public.settlements where (month + interval '1 month - 1 day')::date <= p_date order by month desc limit 1),
+  -- Ventes maintenues, payées ou non à la date D (paid_at, heure de Zurich).
+  sl as (
+    select l.service_date, l.amount - l.gesture_part as value,
+           (o.paid_at is not null and o.payment_status::text <> 'pending'
+            and (o.paid_at at time zone 'Europe/Zurich')::date <= p_date) as paid_by_date
+    from public.sales_lines(false) l
+    join public.orders o on o.id = l.order_id
+    where l.state = 'kept'
+  ),
+  pre as (select * from sl where paid_by_date and (service_date is null or service_date > p_date)),
+  owe as (select * from sl where not paid_by_date and service_date <= p_date),
+  t as (
+    select coalesce((select sum(chf_amount) from inv), 0) as inv,
+           coalesce((select sum(greatest(remaining, 0)) from sal), 0) as sal,
+           coalesce((select sum(greatest(remaining, 0)) from adv where chf_amount is not null), 0) as adv,
+           coalesce((select sum(greatest(remaining, 0)) from shares), 0) as shares,
+           coalesce((select round(sum(value), 2) from pre), 0) as pre
+  )
+  select jsonb_build_object(
+    'date', p_date,
+    'balance', p_balance,
+    'invoicesToPay', t.inv,
+    'invoicesUnknownCount', (select count(*) from inv where chf_amount is null),
+    'salaryRemaining', t.sal,
+    'advancesToRepay', t.adv,
+    'advancesUnknownCount', (select count(*) from adv where chf_amount is null),
+    'sharesUnpaid', t.shares,
+    'customerPrepayments', t.pre,
+    'customerPrepaymentsUndated', coalesce((select round(sum(value), 2) from pre where service_date is null), 0),
+    'customersOwe', coalesce((select round(sum(value), 2) from owe), 0),
+    'available', p_balance - t.inv - t.sal - t.adv - t.shares - t.pre,
+    'baseConstituted', coalesce((select base_constituted from last), false),
+    'extraCum', coalesce((select extra_cum from last), 0),
+    'retainedCum', coalesce((select retained_cum from last), 0)
+  )
+  from t;
+$$;
+
+revoke all on function public.sales_lines(boolean) from public, anon, authenticated;
+grant execute on function public.sales_lines(boolean) to service_role;
+revoke all on function public.treasury_at(date, numeric) from public, anon, authenticated;
+grant execute on function public.treasury_at(date, numeric) to service_role;
 
 commit;

@@ -6,7 +6,7 @@
 //   cd supabase/tests/refunds
 //   npm install --no-save @electric-sql/pglite esbuild
 //   node test_compta_k2.mjs
-import { freshDb } from "./load.mjs";
+import { freshDb, salesStub } from "./load.mjs";
 import { build } from "esbuild";
 import fs from "fs";
 import path from "path";
@@ -226,11 +226,11 @@ check("Versement supprimé (logiquement), total recalculé", r.status === 200 &&
 
 // ═══ Excel ═══
 const finance = (await invoke("finance-month", { month: "2026-10" })).body.data;
-const wb = CX.buildComptaWorkbook(ExcelJS, finance, await period(...OCT), await ov("2026-10"));
+const wb = CX.buildComptaWorkbook(ExcelJS, salesStub(finance), finance, await period(...OCT), await ov("2026-10"));
 const file = path.join(tmp, "k2.xlsx");
 await wb.xlsx.writeFile(file);
 const rb = new ExcelJS.Workbook(); await rb.xlsx.readFile(file);
-check("Excel : feuille « Salaire » après « Dépenses »", rb.worksheets.map((w) => w.name).join("|") === "Synthèse|Commandes et articles|Encaissements|Remboursements|Dépenses|Salaire");
+check("Excel : feuille « Salaire » après « Dépenses »", rb.worksheets.map((w) => w.name).join("|") === "Synthèse|Ventes du mois|Encaissements - résumé|Encaissements|Remboursements|Dépenses|Salaire");
 const findRow = (ws, label) => { let row = null; ws.eachRow((y) => { if (String(y.getCell(1).value ?? "").startsWith(label)) row = y; }); return row; };
 const val = (c) => (c.value && typeof c.value === "object" && "result" in c.value ? c.value.result : c.value);
 const W = rb.getWorksheet("Salaire");
@@ -242,10 +242,11 @@ check("Synthèse : versé en octobre 1113.30 = 1000 (25.10) + 113.30 (versement 
 check("Synthèse : prévu / confirmé affichés séparément du versé", findRow(S, "Net prévu pour le mois de salaire").getCell(2).value === 1700 && findRow(S, "Net confirmé").getCell(2).value === 1689.4);
 check("Synthèse : dépenses engagées = 250 (charges sociales), salaire non ajouté", val(findRow(S, "Engagé (date d'achat").getCell(2)) === 250);
 const finS = (await invoke("finance-month", { month: "2026-09" })).body.data;
-const wbS = CX.buildComptaWorkbook(ExcelJS, finS, await period("2026-09-01", "2026-09-30"), await ov("2026-09"));
+const wbS = CX.buildComptaWorkbook(ExcelJS, salesStub(finS), finS, await period("2026-09-01", "2026-09-30"), await ov("2026-09"));
 let reconciled = null; wbS.getWorksheet("Dépenses").eachRow((y) => { if (y.getCell(1).value === oldSal.code) reconciled = y; });
 check("Septembre : la dépense « Salaires » rapprochée est « Non — rapprochée » et hors du total", String(reconciled.getCell(17).value).startsWith("Non — rapprochée") && findRow(wbS.getWorksheet("Synthèse"), "Engagé (date d'achat").getCell(2).value.result === 113.3);
-check("Dossier INCOMPLET (net de novembre à confirmer pour un export de novembre)", /net à confirmer/.test(findRow(CX.buildComptaWorkbook(ExcelJS, (await invoke("finance-month", { month: "2026-11" })).body.data, await period("2026-11-01", "2026-11-30"), await ov("2026-11")).getWorksheet("Synthèse"), "INCOMPLET").getCell(1).value));
+const finN = (await invoke("finance-month", { month: "2026-11" })).body.data;
+check("Dossier INCOMPLET (net de novembre à confirmer pour un export de novembre)", /net à confirmer/.test(findRow(CX.buildComptaWorkbook(ExcelJS, salesStub(finN), finN, await period("2026-11-01", "2026-11-30"), await ov("2026-11")).getWorksheet("Synthèse"), "INCOMPLET").getCell(1).value));
 
 // ═══ ZIP ═══
 const rec = (await call({ action: "receipts_period", from: OCT[0], to: OCT[1] })).body.data;
