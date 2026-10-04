@@ -669,6 +669,16 @@ const AdminOrder = () => {
           <OrderCancellationPanel
             order={order}
             reservations={isCancelled ? [] : reservations}
+            items={items.map((it: any, idx: number) => ({
+              id: it.id,
+              product: it.product,
+              production_status: it.production_status ?? null,
+              cancellation_email_sent_at: it.cancellation_email_sent_at ?? null,
+              label: `${t(PRODUCT_LABELS[it.product]?.en, PRODUCT_LABELS[it.product]?.fr) || it.product} ${idx + 1}${
+                it.product === "workshop" ? ` — ${formatDateFromIso(it.workshop_date)}`
+                : isMultiDate ? ` — ${formatDateFromIso(fulfillmentById(it.fulfillment_id)?.pickup_delivery_date)}` : ""}${
+                it.product !== "workshop" && it.flavors?.length ? ` (${it.flavors.join(", ")})` : ""}`,
+            }))}
             canCancelOrder={!isCancelled && !order.is_draft && decisionState !== "rejected" && (isManual || decisionState === "approved")}
             labelFor={(itemId) => {
               const idx = items.findIndex((it: any) => it.id === itemId);

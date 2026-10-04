@@ -319,7 +319,7 @@ check("Sujets et textes de remboursement inchangés", ["Annulation de votre comm
 const page = src("src/pages/AdminOrder.tsx"), panel = src("src/components/admin/OrderCancellationPanel.tsx"), store = src("src/lib/adminSession.ts");
 check("Fiche commande : bloc « Annulation » (commande entière + places de workshop)", page.includes("<OrderCancellationPanel") && /invoke\(name/.test(panel) && panel.includes('"cancel-order"') && panel.includes('"cancel-workshop-seats"'));
 check("Commande du site à accepter : pas de bouton d'annulation (Refuser reste le chemin)", /canCancelOrder=\{!isCancelled && !order\.is_draft && decisionState !== "rejected" && \(isManual \|\| decisionState === "approved"\)\}/.test(page));
-check("Confirmation avant chaque annulation ; même clé réutilisée en cas de nouvelle tentative", (panel.match(/window\.confirm/g) ?? []).length === 2 && /prev && prev\.seats === n \? prev\.key/.test(panel));
+check("Confirmation avant chaque annulation ; même clé réutilisée en cas de nouvelle tentative", (panel.match(/window\.confirm/g) ?? []).length === 3 && /prev && prev\.seats === n \? prev\.key/.test(panel));
 check("Session PIN : les deux fonctions reçoivent l'autorisation (pas de ressaisie)", store.includes('"cancel-order"') && store.includes('"cancel-workshop-seats"') && /useSessionPin/.test(panel));
 const toml = src("supabase/config.toml");
 check("config.toml : cancel-order et cancel-workshop-seats sans JWT (comme en production, Make)", /\[functions\.cancel-order\]\s*verify_jwt = false/.test(toml) && /\[functions\.cancel-workshop-seats\]\s*verify_jwt = false/.test(toml));

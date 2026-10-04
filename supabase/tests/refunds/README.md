@@ -364,3 +364,19 @@ anti-doublon, nouvelle tentative et double clic sans second e-mail, dépassement
 à accepter refusée) ; Make (secret / PIN) inchangé ; gâteau annulé seul hors production et hors
 étiquettes ; aucun e-mail à l'enregistrement d'un remboursement ; modèles d'e-mail identiques ;
 bloc « Annulation » de la fiche commande ; config JWT.
+
+## Annulation d'UN article depuis l'admin
+
+`test_item_cancellation.mjs` : vraie fonction `cancel-order-item` (+ `admin-pin`, `get-production`,
+`get-orders-for-labels`) et la fonction de **production** `cancel-order-item-make` (export du
+2026-10-04, `fixtures/prod-cancel-order-item-make.ts`, exécutée sur une base simulée) pour comparer
+l'e-mail. Resend et PostFinance simulés. Résultat attendu : `35 PASS, 0 FAIL`.
+
+Couvert : accès (connexion admin + session PIN ; refus sans connexion, non admin, sans PIN) ;
+article annulé, autres articles et commande inchangés, e-mail existant « Annulation partielle »
+avec la clé Resend d'origine, aucun remboursement automatique ; nouvelle tentative et double clic
+sans second e-mail ; article workshop, dernier article actif, commande à accepter, commande
+annulée, commande sans e-mail refusés (avant toute modification) ; Resend en panne → article
+annulé, e-mail non marqué, « Renvoyer » l'envoie une fois ; 409 Resend jamais pris pour un envoi
+(sauf « en cours », non marqué) ; **e-mail identique octet pour octet à la production (FR et EN)**
+et bloc du modèle repris mot pour mot ; production et étiquettes ; bloc « Annulation » du site.
