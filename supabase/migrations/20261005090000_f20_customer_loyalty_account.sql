@@ -6,7 +6,9 @@
 --     profiles.reward_balance) : pas de deuxième système ; l'historique est
 --     LU à partir des registres existants ;
 --   * le crédit manuel est un lot « earned » de la cagnotte existante (même
---     calcul de solde, même envoi à Make → Notion), tracé dans
+--     calcul de solde ; le déclencheur existant des profils l'envoie au
+--     webhook Make comme tout changement de solde — le scénario Notion
+--     7131969 est DÉSACTIVÉ : Notion n'est pas mis à jour), tracé dans
 --     reward_manual_credits (qui, quand, motif, clé anti double clic) ;
 --   * newsletter : deux colonnes de date, remplies seulement à partir de
 --     maintenant (jamais inventées pour les anciens abonnés) ;

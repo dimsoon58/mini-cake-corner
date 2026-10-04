@@ -18,7 +18,8 @@ import { getSiteBaseUrl } from "../_shared/site-config.ts";
 // Nothing here changes an order's content, its payment or its historical
 // contact details. F20 (2026-10-05):
 //   - reward_credit adds a lot to the EXISTING reward system (same balance,
-//     same Make → Notion sync), once per idempotency key;
+//     same balance trigger; the Notion sync scenario is disabled, so Notion
+//     is NOT updated), once per idempotency key;
 //   - the account actions go through Supabase Auth: the invitation,
 //     activation and password-reset e-mails are the existing ones (Send
 //     Email Hook → send-auth-email); changing the login e-mail sends none.

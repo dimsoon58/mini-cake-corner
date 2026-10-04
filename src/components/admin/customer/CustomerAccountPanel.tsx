@@ -16,7 +16,8 @@ import { cn } from "@/lib/utils";
 // Fiche client (F20) : compte de connexion, cagnotte (historique + crédit
 // manuel), offre de bienvenue, newsletter. La cagnotte est celle du compte
 // client du site (aucun deuxième système) ; le crédit manuel ajoute un lot
-// valable un an, envoyé à Notion par Make comme tout changement de solde.
+// valable un an (en CHF, comme le solde). Notion n'est plus synchronisé
+// (scénario Make 7131969 désactivé) : la cagnotte de référence est celle-ci.
 // Les actions utilisent la session admin et le PIN déjà validé (ou le PIN
 // saisi plus haut) ; chaque action est journalisée avec son résultat.
 
@@ -236,7 +237,7 @@ function CreditDialog({ detail, write, onClose }: { detail: CustomerDetail; writ
       <DialogContent className="max-w-md rounded-none">
         <DialogHeader>
           <DialogTitle>{t("Credit the reward balance", "Créditer la cagnotte")}</DialogTitle>
-          <DialogDescription>{t("Adds a lot valid one year to the customer's existing balance (synced to Notion by Make, like any balance change).", "Ajoute un lot valable un an à la cagnotte existante du client (envoyé à Notion par Make, comme tout changement de solde).")}</DialogDescription>
+          <DialogDescription>{t("Adds a lot in CHF, valid one year, to the customer's existing balance (the one shown in their account on the site). Notion is not updated.", "Ajoute un lot en CHF, valable un an, à la cagnotte existante du client (celle affichée dans son compte sur le site). Notion n'est pas mis à jour.")}</DialogDescription>
         </DialogHeader>
         {!confirm ? (
           <div className="space-y-3">
