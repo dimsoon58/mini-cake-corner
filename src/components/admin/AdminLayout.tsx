@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { cn } from "@/lib/utils";
 import { AdminPinGate } from "@/components/admin/AdminPinGate";
+import { NewVersionBanner } from "@/components/admin/NewVersionBanner";
 import { installAdminSessionTransport } from "@/lib/adminSession";
 
 // The admin PIN session token travels with every admin function call (F16).
@@ -46,6 +47,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
 
   return (
     <Layout>
+      <NewVersionBanner />
       <AdminPinGate>
       <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-2 lg:px-4 pb-20 lg:pb-0">
         {/* Side menu (large screens) */}

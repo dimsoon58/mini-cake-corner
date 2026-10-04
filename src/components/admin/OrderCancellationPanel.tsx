@@ -38,6 +38,7 @@ export type WorkshopReservation = {
 };
 
 const box = "border border-border/60 bg-background p-4 space-y-3";
+const CAKES = new Set(["bento_cake", "rectangle_cake", "dot_cakes"]);
 
 async function call(name: "cancel-order" | "cancel-workshop-seats" | "cancel-order-item", body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke(name, { body });
@@ -187,15 +188,30 @@ export const OrderCancellationPanel = ({
         <PasswordInput value={pin} onChange={(e) => setPin(e.target.value)} placeholder={t("Admin PIN", "Code PIN administrateur")} className="max-w-xs rounded-none" />
       )}
 
-      {itemsToCancel.map((it) => (
-        <div key={it.id} className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="min-w-0">{it.label}</span>
-          <Button variant="outline" size="sm" className="rounded-none" disabled={!!busy} onClick={() => cancelItem(it)}>
-            {busy === it.id && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
-            {t("Cancel this item", "Annuler cet article")}
-          </Button>
+      {/* Un bouton par gâteau / article, bien visible ; l'autre reste confirmé. */}
+      {itemsToCancel.length > 0 && (
+        <div className="space-y-2" data-testid="cancel-items">
+          <p className="text-sm font-medium">{t("Cancel one item only", "Annuler un seul gâteau / article")}</p>
+          <ul className="space-y-2">
+            {itemsToCancel.map((it) => (
+              <li key={it.id} className="flex flex-col sm:flex-row sm:items-center gap-2 border border-border/60 px-3 py-2" data-testid="cancel-item-row">
+                <span className="flex-1 min-w-0 text-sm break-words">{it.label}</span>
+                <Button variant="outline" className="rounded-none border-destructive/60 text-destructive hover:bg-destructive/10 hover:text-destructive w-full sm:w-auto"
+                  disabled={!!busy} onClick={() => cancelItem(it)} data-testid="cancel-item">
+                  {busy === it.id && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {CAKES.has(it.product) ? t("Cancel this cake", "Annuler ce gâteau") : t("Cancel this item", "Annuler cet article")}
+                </Button>
+              </li>
+            ))}
+          </ul>
         </div>
-      ))}
+      )}
+      {/* Un seul article encore actif : le dire, plutôt que rien. */}
+      {canCancelOrder && activeItems.length === 1 && (
+        <p className="text-xs text-muted-foreground" data-testid="single-item-note">
+          {t("Only one item is still active: cancel the whole order to cancel it.", "Un seul article est encore actif : pour l'annuler, annulez toute la commande.")}
+        </p>
+      )}
 
       {emailToResend.map((it) => (
         <div key={it.id} className="flex flex-wrap items-center gap-2 text-sm">
@@ -225,10 +241,12 @@ export const OrderCancellationPanel = ({
       })}
 
       {canCancelOrder && (
-        <Button variant="destructive" className="rounded-none" disabled={!!busy} onClick={cancelOrder}>
-          {busy === "order" && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {t("Cancel the whole order", "Annuler toute la commande")}
-        </Button>
+        <div className={itemsToCancel.length > 0 || active.length > 0 ? "border-t border-border/60 pt-3" : undefined}>
+          <Button variant="destructive" className="rounded-none w-full sm:w-auto" disabled={!!busy} onClick={cancelOrder} data-testid="cancel-order">
+            {busy === "order" && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {t("Cancel the whole order", "Annuler toute la commande")}
+          </Button>
+        </div>
       )}
 
       {message && (
