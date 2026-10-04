@@ -63,6 +63,8 @@ const oAband = await order({ email: "zoe@test.ch", first: "Zoé", last: "Abandon
 const oManualOld = await order({ email: "marc@test.ch", first: "Marc", last: "Rossi", manual: true, status: "pending", phone: "" });
 
 await db.exec(fs.readFileSync(F8, "utf8"));
+// La fonction manage-customers actuelle s'appuie aussi sur F20 / F21 (fiche client, modification d'adresse).
+for (const f of fs.readdirSync(MIG).filter((f) => /_f2[01]_/.test(f)).sort()) await db.exec(fs.readFileSync(path.join(MIG, f), "utf8"));
 
 // ═══ Reprise ═══
 const cA = await custOf(oA1);
@@ -167,7 +169,9 @@ const oldOrder = await one("select first_name, last_name, phone, email from publ
 check("Les anciennes commandes gardent leurs coordonnées", oldOrder.last_name === "Weber" && oldOrder.phone === "076 333 33 33");
 check("Historique des modifications conservé", (await get(cN)).events.some((e) => e.kind === "updated" && e.detail.before.last_name === "Weber"));
 r = await W("save", { customerId: cN, firstName: "Nina", lastName: "Weber-Roth", email: "bob@test.ch" });
-check("Email déjà utilisé par une autre fiche → 409 avec la fiche existante", r.status === 409 && r.body.reason === "email_exists" && r.body.existingId === (await custOf(oB)), r.body);
+// F21 : l'email d'une fiche existante ne change plus par « Enregistrer » (→ « Modifier l'adresse email »).
+check("Email changé par « Enregistrer » → 409 use_email_change, fiche inchangée", r.status === 409 && r.body.reason === "use_email_change"
+  && (await one("select email from public.customers where id=$1", [cN])).email === "nina@test.ch", r.body);
 
 // ═══ Ajouter un client ═══
 r = await W("save", { firstName: "Léa", lastName: "Nouveau", phone: "078 777 77 77" });

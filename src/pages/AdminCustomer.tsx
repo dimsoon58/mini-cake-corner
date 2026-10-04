@@ -16,6 +16,7 @@ import {
   customersApi, CustomersError, fullName, type CustomerDetail, type CustomerOrder,
 } from "@/lib/customers";
 import { AccountBox, BenefitsBox, RewardHistoryBox } from "@/components/admin/customer/CustomerAccountPanel";
+import { EmailChangeDialog } from "@/components/admin/customer/EmailChangeDialog";
 import { cn } from "@/lib/utils";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -43,6 +44,7 @@ const AdminCustomer = () => {
   const [pin, setPin, pinBySession] = useSessionPin();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [mergeWith, setMergeWith] = useState<string | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -190,11 +192,11 @@ const AdminCustomer = () => {
                 onMerged={(keepId) => { setMergeWith(null); setMsg({ ok: true, text: t("Records merged.", "Fiches fusionnées.") }); if (keepId !== c.id) navigate(`/admin/customers/${keepId}`); else load(); }} />}
 
               <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-4">
-                <ContactForm detail={data} disabled={!!c.mergedInto}
+                <ContactForm detail={data} disabled={!!c.mergedInto} onChangeEmail={() => setEmailOpen(true)}
                   onSave={(f) => write({ action: "save", customerId: c.id, ...f }, t("Customer saved. Past orders keep their own details.", "Fiche enregistrée. Les anciennes commandes gardent leurs propres coordonnées."))} />
 
                 <div className="space-y-4">
-                  <AccountBox detail={data} write={writeResult} />
+                  <AccountBox detail={data} write={writeResult} onChangeEmail={() => setEmailOpen(true)} />
                   <BenefitsBox detail={data} write={writeResult} />
 
                   {data.possibleDuplicates.length > 0 && !c.mergedInto && (
@@ -216,6 +218,8 @@ const AdminCustomer = () => {
                 </div>
               </div>
 
+              {emailOpen && !c.mergedInto && <EmailChangeDialog detail={data} pin={pin} onClose={() => setEmailOpen(false)} onChanged={load} />}
+
               {data.account?.rewards && <RewardHistoryBox history={data.account.rewards} />}
 
               {/* Orders */}
@@ -233,7 +237,7 @@ const AdminCustomer = () => {
                   <h2 className={h2}>{t("Record history", "Historique de la fiche")}</h2>
                   <ul className="text-xs text-muted-foreground space-y-0.5">
                     {data.events.map((e, i) => (
-                      <li key={i}>{formatDay(e.at, l)} · {eventLabel(e.kind, l)}{e.by ? ` · ${e.by}` : ""}</li>
+                      <li key={i}>{formatDay(e.at, l)} · {eventLabel(e.kind, l)}{e.by ? ` · ${e.by}` : ""}{e.kind === "email_change" && e.detail ? emailChangeLine(e.detail, l) : ""}</li>
                     ))}
                   </ul>
                 </section>
@@ -257,7 +261,15 @@ const eventLabel = (k: string, l: "fr" | "en") => ({
   account_resend: { fr: "activation renvoyée", en: "activation resent" },
   password_reset: { fr: "lien de réinitialisation envoyé", en: "password reset link sent" },
   login_email_change: { fr: "email de connexion changé", en: "login email changed" },
+  email_change: { fr: "adresse email modifiée", en: "email address changed" },
 }[k]?.[l] ?? k);
+
+// F21 : ancienne → nouvelle adresse et résultat (le détail des étapes est dans le panneau du compte).
+const emailChangeLine = (d: Record<string, unknown>, l: "fr" | "en") => {
+  const from = [...new Set([d.from_contact, d.from_login].filter(Boolean))].join(" / ") || "—";
+  const res = d.status === "completed" ? { fr: "fait", en: "done" } : d.status === "partial" ? { fr: "non terminé", en: "not finished" } : { fr: "rien modifié", en: "nothing changed" };
+  return ` · ${from} → ${String(d.to ?? "")} · ${res[l]}`;
+};
 
 const OrderRow = ({ o, currentName }: { o: CustomerOrder; currentName: string }) => {
   const { t, lang } = useLang();
@@ -290,7 +302,7 @@ const OrderRow = ({ o, currentName }: { o: CustomerOrder; currentName: string })
   );
 };
 
-const ContactForm = ({ detail, disabled, onSave }: { detail: CustomerDetail; disabled: boolean; onSave: (f: Record<string, string>) => Promise<boolean> }) => {
+const ContactForm = ({ detail, disabled, onSave, onChangeEmail }: { detail: CustomerDetail; disabled: boolean; onSave: (f: Record<string, string>) => Promise<boolean>; onChangeEmail: () => void }) => {
   const { t } = useLang();
   const c = detail.customer;
   const initial = { firstName: c.firstName ?? "", lastName: c.lastName ?? "", email: c.email ?? "", phone: c.phone ?? "", company: c.company ?? "", address: c.address ?? "", notes: c.notes ?? "" };
@@ -298,10 +310,18 @@ const ContactForm = ({ detail, disabled, onSave }: { detail: CustomerDetail; dis
   const [busy, setBusy] = useState(false);
   useEffect(() => { setF(initial); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [c.updatedAt]);
   const dirty = JSON.stringify(f) !== JSON.stringify(initial);
+  // F21 : une adresse existante (ou un compte) ne se change que par « Modifier l'adresse email ».
+  const emailLocked = !!c.email || !!detail.account;
   const field = (k: keyof typeof f, label: string, type = "text") => (
     <div className="space-y-1">
       <Label htmlFor={`cf-${k}`} className="text-xs text-muted-foreground">{label}</Label>
-      <Input id={`cf-${k}`} type={type} value={f[k]} disabled={disabled} onChange={(e) => setF({ ...f, [k]: e.target.value })} className="rounded-none" />
+      <Input id={`cf-${k}`} type={type} value={f[k]} disabled={disabled || (k === "email" && emailLocked)} readOnly={k === "email" && emailLocked}
+        onChange={(e) => setF({ ...f, [k]: e.target.value })} className="rounded-none" />
+      {k === "email" && emailLocked && !disabled && (
+        <button type="button" className="text-[11px] underline text-muted-foreground" onClick={onChangeEmail} data-testid="contact-email-change">
+          {t("To change it: « Change the email address » (record, account and Brevo together)", "Pour la changer : « Modifier l'adresse email » (fiche, compte et Brevo ensemble)")}
+        </button>
+      )}
     </div>
   );
   return (

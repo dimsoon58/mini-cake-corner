@@ -223,18 +223,11 @@ r = await call({ action: "password_reset", customerId: cAlice, pin: PIN });
 check("Double clic (< 60 s) : refusé, pas de second e-mail", r.status === 409 && authCalls.filter((c) => c.fn === "resetPasswordForEmail").length === 1);
 check("Activation renvoyée refusée pour un compte actif", (await call({ action: "account_resend", customerId: cAlice, pin: PIN })).status === 400);
 
-// Changer l'email de connexion : Auth + profil, l'email de contact ne change pas, aucun e-mail.
+// F21 : « Changer l'email de connexion » seul est remplacé par « Modifier l'adresse email » (test_customer_email_change.mjs).
 const contactBefore = (await one("select email from public.customers where id=$1", [cAlice])).email;
-const sentBefore = authCalls.filter((c) => ["resetPasswordForEmail", "resend", "inviteUserByEmail"].includes(c.fn)).length;
 r = await call({ action: "login_email_change", customerId: cAlice, email: "alice.new@test.ch", pin: PIN });
-check("Email de connexion changé (Auth + compte), contact inchangé, aucun e-mail", r.status === 200 && authUsers.get(alice.id).email === "alice.new@test.ch"
-  && (await one("select email from public.profiles where id=$1", [alice.id])).email === "alice.new@test.ch"
-  && (await one("select email from public.customers where id=$1", [cAlice])).email === contactBefore
-  && authCalls.filter((c) => ["resetPasswordForEmail", "resend", "inviteUserByEmail"].includes(c.fn)).length === sentBefore, r.body);
-const other = await addAuthUser("taken@test.ch", { email_confirmed_at: new Date().toISOString() });
-r = await call({ action: "login_email_change", customerId: cAlice, email: "taken@test.ch", pin: PIN });
-check("Email déjà utilisé par un autre compte : refusé, résultat journalisé", r.status === 409 && /autre compte/.test(r.body.error)
-  && (await get(cAlice)).events.some((e) => e.kind === "login_email_change" && e.detail.result === "error"));
+check("Email de connexion seul : refusé (→ « Modifier l'adresse email »), rien ne change", r.status === 409 && r.body.reason === "use_email_change"
+  && authUsers.get(alice.id).email === "alice@test.ch" && (await one("select email from public.customers where id=$1", [cAlice])).email === contactBefore, r.body);
 
 // Inviter un client sans compte (noms différents du compte créé : la fiche reste la bonne).
 const cGuest = (await one(`insert into public.customers (first_name, last_name, email, phone, source, created_by) values ('Carla','Rossi','carla@test.ch','079','admin','test') returning id`)).id;

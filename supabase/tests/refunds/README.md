@@ -407,6 +407,24 @@ réel) : historique de la cagnotte lu dans les registres existants (gain, utilis
 remboursement partiel une seule fois, commande remboursée en entier), écart de solde signalé jamais
 corrigé ; crédit manuel (motif obligatoire, plafond, double clic → un seul crédit, un seul envoi à Make) ;
 droits (sans connexion, non admin, sans PIN, PIN faux) ; dates newsletter (jamais inventées) et lecture
-Brevo ; état de l'offre de bienvenue ; invitation, renvoi d'activation, réinitialisation, changement de
-l'email de connexion (email de contact inchangé), garde 60 s anti double e-mail, erreurs journalisées ;
-source de la première commande. Résultat attendu : `54 PASS, 0 FAIL`.
+Brevo ; état de l'offre de bienvenue ; invitation, renvoi d'activation, réinitialisation, garde 60 s
+anti double e-mail, erreurs journalisées ; source de la première commande ; depuis F21, le changement
+isolé de l'email de connexion est refusé (→ « Modifier l'adresse email »). Résultat attendu :
+`53 PASS, 0 FAIL`.
+
+## Clients F21 — « Modifier l'adresse email »
+
+`test_customer_email_change.mjs` (schéma de production + F1–F21, vraie fonction `manage-customers`,
+Supabase Auth ET Brevo SIMULÉS : aucun e-mail réel, aucun client réel) : aperçu en lecture seule
+(email de contact, email de connexion, nouvelle adresse, conflits, état Brevo) ; droits (identité
+non confirmée, sans PIN, non admin ; Eli autorisée) ; client avec compte → même compte, même fiche,
+même cagnotte, Auth + profil + fiche + contact Brevo renommé (listes conservées), aucun e-mail ;
+désinscrit / désinscrit de tout (blacklist) → jamais réinscrit ; sans compte → aucun compte créé,
+aucun contact Brevo créé ; contact ≠ connexion ; conflits (autre fiche, autre compte, contact Brevo
+existant, deux contacts Brevo, Brevo indisponible) → rien modifié, aucune fusion ; double clic et
+deux onglets → une seule opération ; échecs partiels (Brevo refuse, Brevo tombe pendant l'étape,
+Auth en échec, fiche concurrente) → message exact « fait / reste à faire », reprise sans doublon ;
+champ email ordinaire et ancien changement isolé refusés ; commandes émises inchangées ;
+historique (anciennes / nouvelle adresse, auteur, date, étapes) ; relance de F21.
+Résultat attendu : `63 PASS, 0 FAIL`.
+

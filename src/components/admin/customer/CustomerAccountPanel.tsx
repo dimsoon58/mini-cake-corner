@@ -38,7 +38,7 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
 );
 
 // ── Compte de connexion ─────────────────────────────────────────────────
-export function AccountBox({ detail, write }: { detail: CustomerDetail; write: Write }) {
+export function AccountBox({ detail, write, onChangeEmail }: { detail: CustomerDetail; write: Write; onChangeEmail: () => void }) {
   const { t, lang } = useLang();
   const l = lang === "en" ? "en" : "fr";
   const c = detail.customer;
@@ -47,14 +47,13 @@ export function AccountBox({ detail, write }: { detail: CustomerDetail; write: W
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [inviteEmail, setInviteEmail] = useState(c.email ?? "");
-  const [newLogin, setNewLogin] = useState<string | null>(null);
 
   const loadStatus = async () => {
     try { setStatus(await customersApi<AccountStatus>({ action: "account_status", customerId: c.id })); setErr(null); }
     catch (e) { setErr(errText(e)); }
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadStatus(); }, [c.id, detail.account?.profileId]);
+  useEffect(() => { loadStatus(); }, [c.id, detail.account?.profileId, detail.account?.email, c.email]);
 
   const run = async (action: string, confirmText: string, extra: Record<string, unknown> = {}) => {
     if (busy || !window.confirm(confirmText)) return;
@@ -73,7 +72,10 @@ export function AccountBox({ detail, write }: { detail: CustomerDetail; write: W
     active: { en: "Active", fr: "Actif", tone: "bg-emerald-100 text-emerald-900" },
   };
   const s = status?.state ?? (detail.account ? null : "none");
-  const history = detail.events.filter((e) => ["account_invite", "account_resend", "password_reset", "login_email_change"].includes(e.kind));
+  const history = detail.events.filter((e) => ["account_invite", "account_resend", "password_reset", "login_email_change", "email_change"].includes(e.kind));
+  // F21 : dernière modification d'adresse non terminée → reprise proposée.
+  const lastChange = detail.events.find((e) => e.kind === "email_change");
+  const unfinished = (lastChange?.detail as { status?: string } | null)?.status === "partial";
   const disabled = !!c.mergedInto;
 
   return (
@@ -120,29 +122,28 @@ export function AccountBox({ detail, write }: { detail: CustomerDetail; write: W
               {busy === "password_reset" && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}{t("Send a password reset link", "Envoyer un lien de réinitialisation")}
             </Button>
           )}
-          {detail.account && s !== "missing" && (newLogin === null ? (
-            <Button variant="ghost" className="rounded-none w-full" disabled={!!busy} onClick={() => setNewLogin("")} data-testid="login-email-open">
-              {t("Change the login email", "Changer l'email de connexion")}
-            </Button>
-          ) : (
-            <div className="space-y-1">
-              <Label htmlFor="new-login" className="text-xs text-muted-foreground">{t("New login email", "Nouvel email de connexion")}</Label>
-              <div className="flex gap-2">
-                <Input id="new-login" type="email" value={newLogin} onChange={(e) => setNewLogin(e.target.value)} className="rounded-none h-9" />
-                <Button className="rounded-none h-9 shrink-0" disabled={!!busy || !newLogin.trim()} data-testid="login-email-save"
-                  onClick={async () => { await run("login_email_change", t(`Change the login email to ${newLogin}? The contact email does not change. No email is sent.`, `Changer l'email de connexion en ${newLogin} ? L'email de contact ne change pas. Aucun e-mail n'est envoyé.`), { email: newLogin }); setNewLogin(null); }}>
-                  {t("Change", "Changer")}
-                </Button>
-              </div>
-            </div>
-          ))}
+          {unfinished && (
+            <p className="text-xs border border-amber-300 bg-amber-50 text-amber-900 px-2 py-1" data-testid="email-change-unfinished">
+              {t("An email change is not finished: open « Change the email address » to see what remains and resume.",
+                "Une modification d'adresse n'est pas terminée : ouvrez « Modifier l'adresse email » pour voir ce qui reste et reprendre.")}
+            </p>
+          )}
+          <Button variant="outline" className="rounded-none w-full" disabled={!!busy} onClick={onChangeEmail} data-testid="email-change-open">
+            {t("Change the email address", "Modifier l'adresse email")}
+          </Button>
         </div>
       )}
       {result && <p role="status" className={cn("mt-2 text-sm px-2 py-1 border", result.ok ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-red-50 border-red-200 text-red-800")} data-testid="account-result">{result.text}</p>}
       {history.length > 0 && (
         <ul className="mt-3 text-xs text-muted-foreground space-y-0.5" data-testid="account-history">
           {history.map((e, i) => {
-            const d = (e.detail ?? {}) as { result?: string; message?: string; email?: string };
+            const d = (e.detail ?? {}) as { result?: string; message?: string; email?: string; from_contact?: string; from_login?: string; to?: string; status?: string };
+            if (e.kind === "email_change") return (
+              <li key={i} data-kind="email_change">{formatDay(e.at, l)} · {t("email", "adresse")} {[...new Set([d.from_contact, d.from_login].filter(Boolean))].join(" / ") || "—"} → {d.to}{e.by ? ` · ${e.by}` : ""} ·{" "}
+                <span className={d.status === "completed" ? "text-emerald-800" : "text-red-700"}>{d.status === "completed" ? t("done", "fait") : d.status === "partial" ? t("not finished", "non terminé") : t("nothing changed", "rien modifié")}</span>
+                {d.status !== "completed" && d.message && <span className="block pl-3">{d.message}</span>}
+              </li>
+            );
             return <li key={i}>{formatDay(e.at, l)} · {ACCOUNT_EVENT[e.kind]?.[l] ?? e.kind}{e.by ? ` · ${e.by}` : ""} · <span className={d.result === "error" ? "text-red-700" : d.result === "ok" ? "text-emerald-800" : ""}>{d.result === "ok" ? t("done", "fait") : d.result === "error" ? `${t("failed", "échec")} — ${d.message ?? ""}` : t("in progress", "en cours")}</span></li>;
           })}
         </ul>

@@ -48,17 +48,17 @@ export interface CustomerDetail {
 }
 
 export class CustomersError extends Error {
-  constructor(message: string, public reason: string | null, public existingId: string | null = null) { super(message); }
+  constructor(message: string, public reason: string | null, public existingId: string | null = null, public data: unknown = null) { super(message); }
 }
 
 export async function customersApi<T = unknown>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("manage-customers", { body });
   if (error) {
     const ctx = (error as { context?: Response }).context;
-    let j: { error?: string; reason?: string; existingId?: string } | null = null;
+    let j: { error?: string; reason?: string; existingId?: string; data?: unknown } | null = null;
     try { j = await ctx?.json(); } catch { /* not JSON */ }
     if (ctx?.status === 404 && !j?.reason) throw new CustomersError("La fonction manage-customers n'est pas encore déployée.", "not_deployed");
-    throw new CustomersError(j?.error || "Erreur inattendue. Réessayez.", j?.reason ?? null, j?.existingId ?? null);
+    throw new CustomersError(j?.error || "Erreur inattendue. Réessayez.", j?.reason ?? null, j?.existingId ?? null, j?.data ?? null);
   }
   if (data?.error) throw new CustomersError(String(data.error), data.reason ?? null);
   return (data?.data ?? null) as T;
@@ -141,3 +141,27 @@ export function welcomeState(a: NonNullable<CustomerDetail["account"]>, now = ne
   if (a.welcomeAvailable) return "available";
   return "inactive";
 }
+
+// ── F21 : « Modifier l'adresse email » ──────────────────────────────────
+export type EmailChangeStep = "ok" | "error" | "not_needed" | "pending";
+export interface EmailChangeOp {
+  id: string; new_email: string; old_contact_email: string | null; old_login_email: string | null;
+  status: "in_progress" | "completed" | "partial" | "blocked"; message: string | null; key: string;
+  steps: Record<string, string>; created_by: string; created_at: string;
+}
+export interface EmailChangePreview {
+  contactEmail: string | null; loginEmail: string | null; profileEmail: string | null; hasAccount: boolean; newEmail: string | null;
+  conflicts: { otherCustomer: { id: string; name: string } | null; otherAccount: boolean } | null;
+  brevoOld: { email: string; status: number; state: string | null }[];
+  brevoNew: { status: number; state: string | null } | null;
+  latest: EmailChangeOp | null;
+}
+export interface EmailChangeResult {
+  status: "completed" | "partial" | "blocked"; message: string; steps: Record<string, string>;
+  operationId: string; newEmail: string; done?: string[]; skipped?: string[]; remaining?: string[]; resumed?: boolean;
+}
+export const EMAIL_STEP_LABELS: Record<string, { en: string; fr: string }> = {
+  auth: { en: "Login email (account)", fr: "Email de connexion (compte)" },
+  db: { en: "Contact email (record) and account profile", fr: "Email de contact (fiche) et profil du compte" },
+  brevo: { en: "Brevo contact", fr: "Contact Brevo" },
+};
