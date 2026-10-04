@@ -188,6 +188,8 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
               <Line label="− parts validées non versées" value={money(tr.sharesUnpaid)} />
               <Line label="− paiements reçus pour des commandes futures" value={money(tr.customerPrepayments ?? 0)}
                 hint={tr.customerPrepaymentsUndated ? `dont ${money(tr.customerPrepaymentsUndated)} pour des commandes sans date` : "en banque, mais ventes des mois suivants"} />
+              <Line label="− remboursements clients encore dus" value={money(tr.customerRefundsOwed ?? 0)}
+                hint={tr.customerRefundsOwedCount ? `${tr.customerRefundsOwedCount} commande(s) : annulations ou remboursements décidés, pas encore faits` : "annulations ou remboursements décidés, pas encore faits"} />
               <Line label="= Trésorerie disponible" value={money(tr.available)} strong />
               {!!tr.customersOwe && <Line label="Encore dû par les clients (pas en banque)" value={money(tr.customersOwe)} hint="ventes réalisées non payées : information, jamais disponible" />}
               {x.baseConstituted && x.freeForShares != null && <Line label="Libre pour les parts (− base − épargne)" value={money(x.freeForShares)} />}
@@ -377,9 +379,10 @@ function PayableBox({ x, view, latest, mel, eli, paid }: {
       </div>
       <ul className="text-xs text-muted-foreground space-y-0.5">
         {!!x.toCollectInResult && <li>• {money(x.toCollectInResult)} des ventes du mois sont <strong>encore dus par les clients</strong> : comptés dans le résultat, pas en banque.</li>}
+        {!!asOf?.customerRefundsOwed && <li>• {money(asOf.customerRefundsOwed)} de <strong>remboursements clients encore dus</strong> : en banque, mais à rendre — retirés du disponible.</li>}
         {!!asOf?.customerPrepayments && <li>• {money(asOf.customerPrepayments)} déjà reçus pour des <strong>commandes futures</strong> : en banque, mais retirés du disponible (ventes des mois suivants).</li>}
         {!!asOf?.customersOwe && Math.abs(Number(asOf.customersOwe) - Number(x.toCollectInResult ?? 0)) >= 0.005 && <li>• {money(asOf.customersOwe)} encore dus par les clients à cette date (toutes ventes réalisées) : jamais disponibles avant paiement.</li>}
-        <li>• Disponible = solde − factures, salaire, avances et parts non versées − paiements pour commandes futures − trésorerie de base{x.baseConstituted ? "" : " (non constituée : aucun partage)"} − épargne. Aucun virement automatique.</li>
+        <li>• Disponible = solde − factures, salaire, avances et parts non versées − paiements pour commandes futures − remboursements clients encore dus (jamais comptés deux fois pour une même commande) − trésorerie de base{x.baseConstituted ? "" : " (non constituée : aucun partage)"} − épargne. Aucun virement automatique.</li>
       </ul>
     </section>
   );

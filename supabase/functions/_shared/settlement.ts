@@ -16,7 +16,8 @@
 // F17 : le résultat part des VENTES du mois (mois de réalisation). « À
 // partager » est donc un résultat comptable ; le « disponible à verser »
 // est la part de ce résultat couverte par la trésorerie (solde − dettes −
-// paiements reçus pour des commandes futures − base − épargne). Les sommes
+// paiements reçus pour des commandes futures − remboursements clients encore
+// dus (F18) − base − épargne). Les sommes
 // encore dues par les clients ne sont jamais disponibles.
 
 export interface SettlementInputs {
@@ -36,7 +37,7 @@ export interface SettlementInputs {
   bankBalance: { id: string; date: string; amount: number } | null;
   treasury: { available: number; balance: number; invoicesToPay: number; invoicesUnknownCount: number; salaryRemaining: number;
     advancesToRepay: number; advancesUnknownCount: number; sharesUnpaid: number;
-    customerPrepayments?: number; customersOwe?: number } | null;
+    customerPrepayments?: number; customerRefundsOwed?: number; customersOwe?: number } | null;
 }
 
 export interface SettlementChoices {

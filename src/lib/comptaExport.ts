@@ -490,7 +490,7 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
   st.font = { bold: true, color: { argb: x.validated ? "FF1B5E20" : "FF8A5A00" } };
   if (!x.validated) issues.push("décompte Mel / Eli non validé");
   ws.addRow(["Résultat = ventes maintenues du mois (mois de réalisation) − dépenses du mois (date d'achat) − salaire net confirmé. Remboursements d'avances, versements de salaire et parts versées ne sont jamais déduits."]);
-  ws.addRow(["« À partager » est un résultat ; seul le « disponible à verser » est couvert par la banque. Les sommes encore dues par les clients et les paiements reçus pour des commandes futures ne sont jamais disponibles."]);
+  ws.addRow(["« À partager » est un résultat ; seul le « disponible à verser » est couvert par la banque. Les sommes encore dues par les clients, les paiements reçus pour des commandes futures et les remboursements clients encore dus ne sont jamais disponibles."]);
   ws.addRow([]);
 
   title("Résultat du mois");
@@ -540,7 +540,8 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
     const b3 = line("− avances restant à rembourser", tr.advancesToRepay);
     const b4 = line("− parts validées non versées", tr.sharesUnpaid);
     const b4b = line("− paiements reçus pour des commandes futures (ou sans date)", Number(tr.customerPrepayments ?? 0));
-    const b5 = line("Trésorerie disponible", f(`B${b0}-B${b1}-B${b2}-B${b3}-B${b4}-B${b4b}`, tr.available));
+    const b4c = line("− remboursements clients encore dus (annulations ou remboursements décidés, pas encore faits)", Number(tr.customerRefundsOwed ?? 0));
+    const b5 = line("Trésorerie disponible", f(`B${b0}-B${b1}-B${b2}-B${b3}-B${b4}-B${b4b}-B${b4c}`, tr.available));
     ws.getRow(b5).font = { bold: true };
     if (tr.customersOwe) line("Information : encore dû par les clients (ventes réalisées non payées, pas en banque, non comptées ci-dessus)", tr.customersOwe);
     if (x.baseConstituted) {

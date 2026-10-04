@@ -171,13 +171,42 @@ const future = allLines.filter((l) => l.state === "kept" && l.serviceDate > "202
 const undatedPaid = 33;
 check("31.10 : commandes futures payées (novembre, décembre) + payée sans date = déduites", num(t1031.customerPrepayments) === num(sum(future, val) + undatedPaid)
   && num(t1031.customerPrepaymentsUndated) === undatedPaid, { got: t1031.customerPrepayments, want: sum(future, val) + undatedPaid });
-check("31.10 : le disponible = solde − paiements de commandes futures (aucune autre dette ici)", num(t1031.available) === num(5000 - t1031.customerPrepayments), t1031);
+check("31.10 (F18) : place de workshop annulée, payée, pas encore remboursée (90) = remboursement client encore dû", num(t1031.customerRefundsOwed) === 90 && t1031.customerRefundsOwedCount === 1, t1031);
+check("31.10 : disponible = solde − paiements de commandes futures − remboursements encore dus", num(t1031.available) === num(5000 - t1031.customerPrepayments - t1031.customerRefundsOwed), t1031);
 check("31.10 : encore dû par les clients = ventes d'octobre non payées (50), information seulement", num(t1031.customersOwe) === 50 && num(t1031.customersOwe) === num(oct.cards.toCollect));
 check("31.12 : plus aucun paiement « futur » sauf la commande sans date", num((await tr("2026-12-31", 0)).customerPrepayments) === undatedPaid);
 const t1014 = await tr("2026-10-14", 0);
 const want1014 = sum(allLines.filter((l) => l.state === "kept" && l.serviceDate > "2026-10-14" && l.paidAt && l.paidAt.slice(0, 10) <= "2026-10-14"), val) + undatedPaid;
 check("14.10 : seules les commandes déjà payées à cette date comptent (P2, payé le 15.10, exclu)", num(t1014.customerPrepayments) === num(want1014)
   && !allLines.some((l) => l.orderId === P2.id && l.paidAt.slice(0, 10) <= "2026-10-14"), { got: t1014.customerPrepayments, want: want1014 });
+
+// ═══ F18 : remboursements clients encore dus, sans double comptage ══════
+const tq = async (d) => (await tr(d, 0));
+const X0 = 90; // place de workshop annulée de ORD-X, toujours due (jamais remboursée dans ce scénario)
+// a) Article annulé, payé, pas encore remboursé : dû jusqu'au remboursement.
+const A = await order({ num: "ORD-F18A", paidAt: "2027-01-05T09:00:00Z", items: [{ total: 50, date: "2027-01-10" }, { total: 30, date: "2027-01-10" }] });
+await q("update public.order_items set production_status='cancelled' where id=$1", [A.items[1]]);
+const a1 = await tq("2027-01-15");
+check("F18 : article annulé payé non remboursé (30) déduit", num(a1.customerRefundsOwed) === X0 + 30, a1);
+await refund(A, 30, "2027-01-20 12:00 Europe/Zurich", [A.items[1]]);
+check("F18 : une fois remboursé (20.01), plus rien de dû ; avant cette date toujours dû", num((await tq("2027-01-21")).customerRefundsOwed) === X0 && num((await tq("2027-01-15")).customerRefundsOwed) === X0 + 30);
+// b) Décision de remboursement pour l'article annulé : jamais comptée deux fois.
+const B = await order({ num: "ORD-F18B", paidAt: "2027-02-01T09:00:00Z", items: [{ total: 60, date: "2027-02-03" }, { total: 40, date: "2027-02-03" }] });
+await q("update public.order_items set production_status='cancelled' where id=$1", [B.items[1]]);
+await q("select public.record_refund_decision(p_order_id=>$1, p_amount=>40, p_reason=>'annulation', p_source=>'admin_cancel', p_idempotency_key=>'f18b')", [B.id]);
+check("F18 : annulation (40) + décision de 40 pour la même annulation = 40 dû, pas 80", num((await tq("2027-02-10")).customerRefundsOwed) === X0 + 40);
+// c) Geste décidé sur un gâteau FUTUR déjà payé : futur + dû = argent reçu (100), jamais 130.
+const C = await order({ num: "ORD-F18C", paidAt: "2027-03-01T09:00:00Z", items: [{ total: 100, date: "2027-04-15" }] });
+await q("select public.record_refund_decision(p_order_id=>$1, p_amount=>30, p_reason=>'geste', p_source=>'admin_gesture', p_idempotency_key=>'f18c')", [C.id]);
+const c1 = await tq("2027-03-10");
+check("F18 : geste décidé (30) sur une commande future payée (100) : 30 dû + 70 futur = 100, aucun double comptage",
+  num(c1.customerRefundsOwed) === X0 + 40 + 30 && num(c1.customerPrepayments) === num(70 + undatedPaid) && num(-c1.available) === num(X0 + 40 + 100 + undatedPaid), c1);
+// d) Commande non payée avec article annulé : rien n'est en banque, rien n'est déduit.
+const Dn = await order({ num: "ORDM-F18D", manual: true, pay: "pending", items: [{ total: 45, date: "2027-03-05" }, { total: 25, date: "2027-03-05" }] });
+await q("update public.order_items set production_status='cancelled' where id=$1", [Dn.items[1]]);
+check("F18 : commande non payée : aucun remboursement dû déduit", num((await tq("2027-03-10")).customerRefundsOwed) === X0 + 40 + 30);
+// e) Décision prise APRÈS la date du solde : pas encore due à cette date.
+check("F18 : décision du geste prise après la date du solde : non comptée à cette date", num((await tq("2027-02-28")).customerRefundsOwed) === X0 + 40);
 
 // ═══ Droits / relance ════════════════════════════════════════════════════
 check("Fonction fermée à anon / authenticated", (await one("select count(*)::int n from information_schema.routine_privileges where routine_name='admin_sales_month' and grantee in ('anon','authenticated','PUBLIC')")).n === 0);

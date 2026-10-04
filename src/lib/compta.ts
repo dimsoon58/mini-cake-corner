@@ -247,6 +247,8 @@ export interface Treasury {
   advancesUnknownCount: number; sharesUnpaid: number; available: number; baseConstituted?: boolean; extraCum?: number; retainedCum?: number;
   // F17 : paiements reçus pour des commandes futures (déduits) ; sommes dues par les clients (information, jamais en banque)
   customerPrepayments?: number; customerPrepaymentsUndated?: number; customersOwe?: number;
+  // F18 : remboursements clients encore dus sur de l'argent déjà encaissé (déduits)
+  customerRefundsOwed?: number; customerRefundsOwedCount?: number;
 }
 /** Ligne figée d'un décompte validé (colonnes de la table settlements). */
 export interface SettlementRow {

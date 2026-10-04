@@ -388,9 +388,12 @@ livraison, chaque workshop au mois de sa séance ; plusieurs dates sans duplique
 remises répartis au centime ; une ligne par gâteau ; annulations, refus et gestes commerciaux sans
 double déduction ; décompte Mel / Eli sur les ventes ; trésorerie : paiements reçus pour des
 commandes futures déduits du disponible, sommes dues par les clients en information.
-Résultat attendu : `36 PASS, 0 FAIL`.
+Avec F18 : remboursements clients encore dus déduits du disponible (article annulé payé non
+remboursé, décision de remboursement, sans double comptage avec une décision pour la même annulation
+ni avec les paiements de commandes futures ; rien pour une commande non payée).
+Résultat attendu : `43 PASS, 0 FAIL`.
 
 `test_compta_page.mjs` (vraie fonction `manage-expenses`, vrai export du site, vrai calcul du
 décompte) : « Tableau du mois (Excel) » = écran (une ligne par gâteau, totaux en formules égaux aux
 cartes, contrôles OK, même liste de manques) ; « résultat à partager » ≠ « disponible à verser ».
-Résultat attendu : `22 PASS, 0 FAIL`. Les tests K1–K5 utilisent la nouvelle signature de l'export.
+Résultat attendu : `24 PASS, 0 FAIL`. Les tests K1–K5 utilisent la nouvelle signature de l'export.

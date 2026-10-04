@@ -170,9 +170,19 @@ const bal = (await one("select id from public.bank_balances where balance_date='
 const tr = (await call({ action: "treasury_check", balanceId: bal })).body.data;
 check("Trésorerie au 31.10 : paiement reçu pour novembre (45) déduit du disponible", num(tr.customerPrepayments) === 45 && num(tr.available) === num(1000 - 45 - tr.invoicesToPay - tr.salaryRemaining - tr.advancesToRepay - tr.sharesUnpaid), tr);
 check("Trésorerie au 31.10 : encore dû par les clients (50) en information, jamais ajouté au disponible", num(tr.customersOwe) === 50);
+check("Trésorerie au 31.10 (F18) : l'article annulé déjà remboursé n'est plus dû (0)", num(tr.customerRefundsOwed) === 0);
 const st = (await call({ action: "settlement_get", month: from })).body.data;
 check("Décompte d'octobre : ventes du mois, dont 50 encore dus (avertissement)", num(st.figures.revenueNet) === 240 && num(st.draft.toCollectInResult) === 50 && st.draft.warnings.some((w) => /encore dû par les clients/.test(w)), st.draft);
 
+{
+  const wb2 = CX.buildComptaWorkbook(ExcelJS, d.sales, d.finance, d.period, d.salary, d.advances, st);
+  const f2 = path.join(tmp, "page2.xlsx"); await wb2.xlsx.writeFile(f2);
+  const rb2 = new ExcelJS.Workbook(); await rb2.xlsx.readFile(f2);
+  const D2 = rb2.getWorksheet("Décompte Mel-Eli et versements");
+  const ro = findRow(D2, "− remboursements clients encore dus"), av = findRow(D2, "Trésorerie disponible");
+  check("Excel : ligne « remboursements clients encore dus » et trésorerie disponible en formule qui la déduit",
+    !!ro && String(av.getCell(2).value.formula).includes(`-B${ro.number}`) && num(val(av.getCell(2))) === num(tr.available), av?.getCell(2).value);
+}
 // Calcul pur : base constituée, 1'000 à partager.
 const base = {
   month: "2027-03-01", monthEnd: "2027-03-31", startMonth: "2026-10-01",
