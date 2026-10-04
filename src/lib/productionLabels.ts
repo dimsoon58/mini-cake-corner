@@ -1,5 +1,5 @@
-import { allFlavors, baseColors, ribbonColors, butterflyColors, glitterColors, glitterCherriesColors } from "@/data/customization";
-import { colourFr, textStyleFr } from "@/data/catalogLabelsFr";
+import { allFlavors, baseColors, extras as catalogExtras, ribbonColors, butterflyColors, glitterColors, glitterCherriesColors } from "@/data/customization";
+import { colourFr, extraNameFr, textStyleFr } from "@/data/catalogLabelsFr";
 import { PRODUCT_LABELS, designLabel, flavorLabel, formatDateCH, shapeLabel, sizeLabel, splitComment } from "@/lib/orderLabels";
 
 // Admin > Étiquettes de production — contenu et mise en page, sans DOM.
@@ -57,7 +57,8 @@ export interface CakeLabel {
   flavour: string | null;
   base: string | null;
   design: string | null;
-  colours: string | null;
+  decoType: string | null;   // décorations choisies (cerises, perles, paillettes…), catalogue
+  colours: string | null;    // couleurs du design et des décorations
   cakeText: string | null;
   textColour: string | null;
   textStyle: string | null;
@@ -119,6 +120,28 @@ function glitterColours(extra: string | null): string[] {
   return out;
 }
 
+// Type de déco : les décorations du catalogue présentes dans order_items.extra
+// (site : « Gold leaves, Pearl border (each), Ribbon: Baby Pink » ; commande
+// manuelle : « Scattered Pearls × 3 »). Noms reconnus sans tenir compte des
+// majuscules, comptés, en français ; les parties « Ribbon: … », « Glitter: … »
+// sont des couleurs (ligne « Couleur déco »), le reste inconnu est ignoré.
+function decoTypes(extra: string | null): string | null {
+  const v = clean(extra);
+  if (!v) return null;
+  const byName = new Map(catalogExtras.map((e) => [e.name.toLowerCase(), e]));
+  const counts = new Map<string, { id: string; name: string; n: number }>();
+  for (const raw of v.split(",").map((p) => p.trim()).filter(Boolean)) {
+    if (raw.includes(":")) continue;
+    const m = raw.match(/^(.*?)(?:\s*×\s*(\d+))?$/);
+    const e = byName.get((m?.[1] ?? raw).trim().toLowerCase());
+    if (!e) continue;
+    const cur = counts.get(e.id) ?? { id: e.id, name: extraNameFr[e.id] ?? e.name, n: 0 };
+    cur.n += m?.[2] ? Number(m[2]) : 1;
+    counts.set(e.id, cur);
+  }
+  return counts.size ? [...counts.values()].map((c) => (c.n > 1 ? `${c.name} ×${c.n}` : c.name)).join(", ") : null;
+}
+
 function flavourLine(flavors: string[] | null): string | null {
   const names = (flavors ?? []).map((f) => clean(f)).filter(Boolean).map((f) => {
     const byId = allFlavors.find((x) => x.id === f);
@@ -161,7 +184,8 @@ export function cakeLabelsFor(item: LabelSourceItem): CakeLabel[] {
     ...glitterColours(item.extra),
   ];
   const style = clean(item.text_style);
-  const styleName = style === "uppercase" ? "UPPERCASE" : style === "cursive" ? "Cursive" : style && style !== "normal" ? style : "";
+  // Style d'écriture affiché dès qu'il y a un texte (« Normal » compris).
+  const styleName = style === "uppercase" ? "UPPERCASE" : style === "cursive" ? "Cursive" : style === "normal" || (!style && item.cake_text?.trim()) ? "Normal" : style;
   const cakeText = item.cake_text && item.cake_text.trim() ? item.cake_text : null;   // exact : jamais retouché
   const flavour = flavourLine(item.flavors);
 
@@ -188,7 +212,9 @@ export function cakeLabelsFor(item: LabelSourceItem): CakeLabel[] {
     flavour,
     base: clean(item.base_color) ? colourLabel(clean(item.base_color)) : null,
     design,
-    colours: colours.length ? colours.join(" · ") : null,
+    decoType: decoTypes(item.extra),
+    // espace insécable avant « : » : « Paillettes : Or » ne se coupe jamais avant les deux-points
+    colours: colours.length ? colours.join(" · ").replace(/ : /g, "\u00a0: ") : null,
     cakeText,
     textColour: clean(item.text_color) ? colourLabel(clean(item.text_color)) : null,
     textStyle: styleName ? (textStyleFr[styleName] ?? styleName) : null,
@@ -318,7 +344,8 @@ function bodyUnits(c: CakeLabel, measure: Measure): Unit[] {
   const b: Unit[] = [];
   if (c.base) b.push(...kvUnits("Base", c.base, measure));
   if (c.design) b.push(...kvUnits("Design", c.design, measure));
-  if (c.colours) b.push(...kvUnits("Couleurs", c.colours, measure));
+  if (c.decoType) b.push(...kvUnits("Déco", c.decoType, measure));
+  if (c.colours) b.push(...kvUnits("Couleur déco", c.colours, measure));
   if (b.length) blocks.push(b);
   const t: Unit[] = [];
   if (c.cakeText) {
@@ -326,7 +353,7 @@ function bodyUnits(c: CakeLabel, measure: Measure): Unit[] {
     t.push(...paraUnits(c.cakeText, F.cakeText, measure).map((u, k) => (k > 0 ? { ...u, cont: "TEXTE À ÉCRIRE (suite)" } : u)));
   }
   if (c.textColour) t.push(...kvUnits("Couleur texte", c.textColour, measure));
-  if (c.textStyle) t.push(...kvUnits("Écriture", c.textStyle, measure));
+  if (c.textStyle) t.push(...kvUnits("Style texte", c.textStyle, measure));
   if (t.length) blocks.push(t);
   return blocks.flatMap((bl, i) => (i === 0 ? bl : [ruleUnit(), ...bl]));
 }
@@ -423,8 +450,8 @@ export const pageText = (p: LabelPage) => p.ops.filter((o): o is Extract<DrawOp,
 
 // ── Lignes pour l'app NIIMBOT (source de données Excel) ──────────────────
 export const NIIMBOT_COLUMNS = [
-  "Date", "Client", "Commande", "Repère", "Statut", "Produit", "Goût", "Base", "Design", "Couleurs",
-  "Texte", "Couleur texte", "Écriture", "Détails",
+  "Date", "Client", "Commande", "Repère", "Statut", "Produit", "Goût", "Base", "Design", "Déco", "Couleur déco",
+  "Texte", "Couleur texte", "Style texte", "Détails",
 ] as const;
 
 /** Une ligne par gâteau. « Détails » regroupe les champs remplis (un par
@@ -436,14 +463,15 @@ export function niimbotRow(c: CakeLabel): Record<(typeof NIIMBOT_COLUMNS)[number
     c.flavour ? `Goût : ${c.flavour}` : "",
     c.base ? `Base : ${c.base}` : "",
     c.design ? `Design : ${c.design}` : "",
-    c.colours ? `Couleurs : ${c.colours}` : "",
+    c.decoType ? `Déco : ${c.decoType}` : "",
+    c.colours ? `Couleur déco : ${c.colours}` : "",
     c.cakeText ? `Texte : ${c.cakeText}` : "",
     c.textColour ? `Couleur texte : ${c.textColour}` : "",
-    c.textStyle ? `Écriture : ${c.textStyle}` : "",
+    c.textStyle ? `Style texte : ${c.textStyle}` : "",
   ].filter(Boolean).join("\n");
   return {
     Date: c.dateText, Client: c.customer, Commande: c.orderNumber ?? "", Repère: c.marker ?? "", Statut: c.badge === "to_accept" ? "À ACCEPTER" : "",
-    Produit: c.productLine, Goût: c.flavour ?? "", Base: c.base ?? "", Design: c.design ?? "", Couleurs: c.colours ?? "",
-    Texte: c.cakeText ?? "", "Couleur texte": c.textColour ?? "", Écriture: c.textStyle ?? "", Détails: details,
+    Produit: c.productLine, Goût: c.flavour ?? "", Base: c.base ?? "", Design: c.design ?? "", Déco: c.decoType ?? "", "Couleur déco": c.colours ?? "",
+    Texte: c.cakeText ?? "", "Couleur texte": c.textColour ?? "", "Style texte": c.textStyle ?? "", Détails: details,
   };
 }

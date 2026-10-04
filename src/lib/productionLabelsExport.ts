@@ -164,7 +164,7 @@ export async function exportNiimbotXlsx(cakes: CakeLabel[], name: string) {
   const { default: ExcelJS } = await import("exceljs");
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Etiquettes");
-  ws.columns = NIIMBOT_COLUMNS.map((h) => ({ header: h, key: h, width: h === "Détails" ? 60 : h === "Texte" || h === "Couleurs" ? 36 : 18, style: { numFmt: "@" } }));
+  ws.columns = NIIMBOT_COLUMNS.map((h) => ({ header: h, key: h, width: h === "Détails" ? 60 : h === "Texte" || h === "Couleur déco" || h === "Déco" ? 36 : 18, style: { numFmt: "@" } }));
   for (const c of cakes) ws.addRow(niimbotRow(c));
   ws.getColumn("Détails").alignment = { wrapText: true, vertical: "top" };
   ws.getRow(1).font = { bold: true };

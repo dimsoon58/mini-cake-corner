@@ -173,7 +173,7 @@ import bentoGallery14 from "@/assets/bento-gallery-14.jpg";
 import bentoGallery15 from "@/assets/bento-gallery-15.jpg";
 import bentoGallery16 from "@/assets/bento-gallery-16.jpg";
 import bentoGallery17 from "@/assets/bento-gallery-17.jpg";
-import { colourFr, textStyleFr } from "@/data/catalogLabelsFr";
+import { colourFr, extraNameFr, textStyleFr } from "@/data/catalogLabelsFr";
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -956,22 +956,6 @@ const flavorNameFr: Record<string, string> = {
   "tiramisu-gf": "Tiramisu Gluten-free",
   "passion-fruit-gf": "Passion Fruit Gluten-free",
   "praline-gf": "Praline Gluten-free",
-};
-const extraNameFr: Record<string, string> = {
-  "gold-leaves": "Feuilles d'or",
-  "cherries": "Cerises",
-  "glitter-cherries": "Cerises pailletées",
-  "glitter": "Paillettes",
-  "glitter-base": "Glitter Base",
-  "glitter-in-the-air": "Paillettes dans l'air",
-  "scattered-pearl": "Perles éparpillées",
-  "pearl-border": "Bordure de perles (chacune)",
-  "retro": "Rétro",
-  "ribbons": "Rubans",
-  "pearl-number": "Pearl Number",
-  "butterfly": "Papillon",
-  "sprinkles": "Vermicelles",
-  "printed-picture": "Printed Picture",
 };
 const groupLabelFr: Record<string, string> = {
   "Decorations": "Décorations",

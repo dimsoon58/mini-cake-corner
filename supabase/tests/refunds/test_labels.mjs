@@ -194,19 +194,22 @@ const s = cake(iSimple);
 check("Simple : date, client, commande", s.dateText === "12.10.2026" && s.customer === "Élodie Müller" && s.orderNumber === "ORD-261012-0001");
 check("Simple : produit · taille · forme sur une ligne", s.productLine === "Bento Cake · Bento · Rond", s.productLine);
 check("Simple : goût, base en français, design lisible avec la photo choisie", s.flavour === "Vanilla" && s.base === "Rose Pastel" && s.design === "Heart Bomb — photo 2", s);
-check("Simple : couleurs du design et des décorations (déco, rubans, paillettes)", s.colours === "Blanc, Or · Rubans : Rose Bébé · Paillettes : Or", s.colours);
+const nb = (t) => t?.replace(/\u00a0/g, " ");
+check("Simple : couleurs du design et des décorations (déco, rubans, paillettes)", nb(s.colours) === "Blanc, Or · Rubans : Rose Bébé · Paillettes : Or", s.colours);
+check("« Paillettes : Or » jamais coupé avant les deux-points", !L.layoutCake(s, measure).flatMap(L.pageText).some((l) => l.trim().startsWith(":")));
 check("Simple : texte exact (accents, majuscules, ponctuation), couleur et écriture", s.cakeText === "Joyeux anniversaire Zoé !" && s.textColour === "Rouge" && s.textStyle === "Cursive");
 const st = textOf(s).join(" | ");
-check("Simple : 1 étiquette, rien d'interdit (créneau, extras, bougies, notes, prix, retrait)", L.layoutCake(s, measure).length === 1
-  && !/14:00|Cherries|Cerises|bougie|spiral|Merci beaucoup|Note client|CHF|Retrait|Livraison|45/i.test(st), st);
+check("Simple : 1 étiquette, rien d'interdit (créneau, bougies, notes, prix, retrait)", L.layoutCake(s, measure).length === 1
+  && !/14:00|bougie|spiral|Merci beaucoup|Note client|CHF|Retrait|Livraison|45/i.test(st), st);
+check("Simple : type de déco (Cerises) et lignes « Déco », « Couleur déco », « Style texte »", s.decoType === "Cerises" && st.includes("Déco : ") && st.includes("Couleur déco : ") && st.includes("Style texte : "), st);
 check("Simple : ordre date → client → commande en tête", st.indexOf("12.10.2026") < st.indexOf("Élodie Müller") && st.indexOf("Élodie Müller") < st.indexOf("ORD-261012-0001"));
 
 const m = cake(iManual);
 check("Manuelle : ids traduits (Red Velvet, Crème, Roses Please, roses bordeaux), taille et forme", m.orderNumber === "ORDM-261012-0001" && m.flavour === "Red Velvet" && m.base === "Crème"
-  && m.design === "Roses Please" && m.colours === "Rose · Roses : Bordeaux" && m.productLine === "Bento Cake · Medium · Cœur", m);
+  && m.design === "Roses Please" && nb(m.colours) === "Rose · Roses : Bordeaux" && m.productLine === "Bento Cake · Medium · Cœur", m);
 
 const a = cake(iMultiA), dc = cake(iMultiB);
-check("Plusieurs gâteaux : chaque étiquette garde ses propres détails", a.flavour === "Chocolate" && a.colours === "Paillettes : Rose" && dc.flavour === "Red Velvet ×2, Vanilla"
+check("Plusieurs gâteaux : chaque étiquette garde ses propres détails", a.flavour === "Chocolate" && nb(a.colours) === "Paillettes : Rose" && dc.flavour === "Red Velvet ×2, Vanilla"
   && dc.productLine === "Dot Cakes 12 pièces" && !textOf(a).join(" ").includes("Red Velvet") && !textOf(dc).join(" ").includes("Chocolate"), { a, dc });
 const q1 = cake(iQty, 0), q2 = cake(iQty, 1);
 check("Quantité 2 : deux étiquettes « 1/2 » et « 2/2 », identiques sinon", q1.marker === "1/2" && q2.marker === "2/2" && q1.productLine === q2.productLine && textOf(q1).includes("1/2") && textOf(q2).includes("2/2"));
@@ -225,7 +228,7 @@ const words = (t) => t.split(/\s+/).filter(Boolean);
 const printed = words(lp.flatMap((p) => L.pageText(p)).join(" "));
 check("Texte long : chaque mot du texte imprimé, dans l'ordre, sans perte", (() => { let k = 0; for (const w of words(longText)) { k = printed.indexOf(w, k); if (k < 0) return false; k++; } return true; })());
 check("Décoration longue : toutes les couleurs présentes", ["Rose", "Lavande", "Jaune Pastel", "Vert Pastel", "Bleu Ciel", "Blanc", "Or", "Roses : Rose Foncé", "Intérieur : Rose", "Papillons : Or", "Cerises pailletées : Rouge", "Paillettes : Blanc"]
-  .every((w) => lg.colours.includes(w)), lg.colours);
+  .every((w) => nb(lg.colours).includes(w)), lg.colours);
 const inBounds = pages.every((p) => p.ops.every((o) => o.type !== "text" || (o.x >= 16 && o.y >= 0 && o.y + o.font.size * 1.2 <= L.LABEL_H - 18 + 0.5
   && (o.align === "right" ? o.x - measure(o.text, o.font) >= 16 - 0.5 : o.x + measure(o.text, o.font) <= L.LABEL_W - 16 + 0.5))));
 check("Toutes les étiquettes : texte dans les marges (2 mm), rien hors format", inBounds);
@@ -236,9 +239,19 @@ check("Police jamais réduite : 20 points minimum (≈ 2,5 mm) même pour un tex
 
 const e = cake(iEmpty);
 const et = textOf(e).join(" | ");
-check("Champs vides : masqués (ni Base, ni Design, ni Couleurs, ni Texte)", !/Base :|Design :|Couleurs :|TEXTE|Couleur texte|Écriture/.test(et) && e.missing.length === 0, et);
+check("Champs vides : masqués (ni Base, ni Design, ni Couleurs, ni Texte)", !/Base :|Design :|Déco :|Couleur déco|TEXTE|Couleur texte|Style texte/.test(et) && e.missing.length === 0, et);
 const noFlavour = L.cakeLabelsFor({ ...items.find((i) => i.id === iEmpty), flavors: [], cake_text: "Bravo", text_color: null, order: { ...items.find((i) => i.id === iEmpty).order, first_name: "", last_name: "" } })[0];
 check("Informations essentielles manquantes signalées (goût, client, couleur du texte), rien d'inventé", ["goût", "nom du client", "couleur du texte"].every((x) => noFlavour.missing.includes(x)) && noFlavour.flavour === null && noFlavour.textColour === null);
+
+// Type de déco : noms du site (minuscules, répétés), quantités des commandes manuelles, couleurs à part.
+const base0 = items.find((i) => i.id === iEmpty);
+const deco = (extra) => L.cakeLabelsFor({ ...base0, extra })[0].decoType;
+check("Déco du site : noms en minuscules, répétitions comptées, couleurs ignorées", deco("Gold leaves, Pearl border (each), Pearl border (each), Ribbon: Pink, Glitter: Gold") === "Feuilles d'or, Bordure de perles (chacune) ×2", deco("Gold leaves, Pearl border (each), Pearl border (each), Ribbon: Pink, Glitter: Gold"));
+check("Déco d'une commande manuelle : « Scattered Pearls × 3 » → Perles éparpillées ×3", deco("Scattered Pearls × 3, Sprinkles") === "Perles éparpillées ×3, Vermicelles");
+check("Déco inconnue ou kit (poches à douille) : rien d'inventé", deco("3 Piping Bags: Sky Blue, Pink, Pastel Orange") === null && deco(null) === null);
+check("Style « Normal » affiché quand il y a un texte", L.cakeLabelsFor({ ...base0, cake_text: "Bravo", text_style: "normal" })[0].textStyle === "Normal"
+  && L.cakeLabelsFor({ ...base0, cake_text: "Bravo", text_style: null })[0].textStyle === "Normal" && L.cakeLabelsFor({ ...base0, cake_text: null, text_style: null })[0].textStyle === null);
+check("Majuscules : « MAJUSCULES »", lg.textStyle === "MAJUSCULES", lg.textStyle);
 
 const rows = cakes.map(L.niimbotRow);
 check("Excel NIIMBOT : une ligne par gâteau (quantité comprise), colonnes fixes", rows.length === cakes.length && Object.keys(rows[0]).join() === L.NIIMBOT_COLUMNS.join());
