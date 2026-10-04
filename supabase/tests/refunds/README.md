@@ -399,3 +399,14 @@ Résultat attendu : `51 PASS, 0 FAIL`.
 décompte) : « Tableau du mois (Excel) » = écran (une ligne par gâteau, totaux en formules égaux aux
 cartes, contrôles OK, même liste de manques) ; « résultat à partager » ≠ « disponible à verser ».
 Résultat attendu : `24 PASS, 0 FAIL`. Les tests K1–K5 utilisent la nouvelle signature de l'export.
+
+## Clients F20 — cagnotte, compte, newsletter, bienvenue, source
+
+`test_customer_loyalty.mjs` (vraie fonction `manage-customers`, Supabase Auth SIMULÉ : aucun e-mail
+réel) : historique de la cagnotte lu dans les registres existants (gain, utilisation, retrait après
+remboursement partiel une seule fois, commande remboursée en entier), écart de solde signalé jamais
+corrigé ; crédit manuel (motif obligatoire, plafond, double clic → un seul crédit, un seul envoi à Make) ;
+droits (sans connexion, non admin, sans PIN, PIN faux) ; dates newsletter (jamais inventées) et lecture
+Brevo ; état de l'offre de bienvenue ; invitation, renvoi d'activation, réinitialisation, changement de
+l'email de connexion (email de contact inchangé), garde 60 s anti double e-mail, erreurs journalisées ;
+source de la première commande. Résultat attendu : `54 PASS, 0 FAIL`.

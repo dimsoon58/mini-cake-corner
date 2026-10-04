@@ -12,9 +12,10 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { PRODUCT_LABELS, sizeLabel } from "@/lib/orderLabels";
 import { chf, formatDay } from "@/lib/refunds";
 import {
-  ALERT_LABELS, PAYMENT_LABELS, SOURCE_LABELS, VALIDATION_LABELS,
+  ALERT_LABELS, FIRST_ORDER_SOURCE_LABELS, PAYMENT_LABELS, SOURCE_LABELS, VALIDATION_LABELS,
   customersApi, CustomersError, fullName, type CustomerDetail, type CustomerOrder,
 } from "@/lib/customers";
+import { AccountBox, BenefitsBox, RewardHistoryBox } from "@/components/admin/customer/CustomerAccountPanel";
 import { cn } from "@/lib/utils";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -24,7 +25,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 // its own historical copy. Figures: lot 1–3 registers, test orders excluded.
 // Reward balance and welcome offer are read from the existing account
 // (profiles), never recomputed here. Merge is manual, with a side-by-side
-// preview; nothing is deleted.
+// preview; nothing is deleted. F20: login account actions, reward history
+// and manual credit, newsletter dates, first-order source.
 
 const box = "border border-border/60 bg-background p-4";
 const h2 = "font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground";
@@ -69,6 +71,22 @@ const AdminCustomer = () => {
     }
   };
 
+  // Actions F20 : même PIN (session ou saisi), résultat renvoyé au panneau.
+  const writeResult = async (body: Record<string, unknown>, ok?: string) => {
+    if (!pin.trim()) {
+      const text = t("Enter the admin PIN first.", "Saisissez d'abord le code PIN administrateur.");
+      setMsg({ ok: false, text }); return { ok: false, error: text };
+    }
+    try {
+      const d = await customersApi({ ...body, pin });
+      if (ok) setMsg({ ok: true, text: ok });
+      await load();
+      return { ok: true, data: d };
+    } catch (e) {
+      return { ok: false, error: (e as CustomersError).message };
+    }
+  };
+
   if (authLoading) return <AdminLayout><main className="py-16 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" /></main></AdminLayout>;
   if (!user || !isAdmin) {
     return (
@@ -101,6 +119,13 @@ const AdminCustomer = () => {
                   <p className="text-sm text-muted-foreground">
                     {data.account ? t("Has a customer account", "A un compte client") : t("No account (guest or manual orders)", "Sans compte (commandes invité ou manuelles)")}
                     {" · "}{t("record created", "fiche créée le")} {formatDay(c.createdAt, l)}
+                  </p>
+                  <p className="text-sm text-muted-foreground" data-testid="first-order-source">
+                    {t("First order source", "Source de la première commande")} :{" "}
+                    {data.firstOrder?.source
+                      ? <span className="text-foreground">{FIRST_ORDER_SOURCE_LABELS[data.firstOrder.source]?.[l] ?? data.firstOrder.source}</span>
+                      : t("unknown", "inconnue")}
+                    {data.firstOrder?.orderNumber ? ` (${data.firstOrder.orderNumber})` : ""}
                   </p>
                 </div>
                 {!c.mergedInto && (
@@ -169,19 +194,8 @@ const AdminCustomer = () => {
                   onSave={(f) => write({ action: "save", customerId: c.id, ...f }, t("Customer saved. Past orders keep their own details.", "Fiche enregistrée. Les anciennes commandes gardent leurs propres coordonnées."))} />
 
                 <div className="space-y-4">
-                  <section className={box} data-testid="customer-account">
-                    <h2 className={cn(h2, "mb-2")}>{t("Account & benefits", "Compte et avantages")}</h2>
-                    {data.account ? (
-                      <dl className="text-sm space-y-1">
-                        <div className="flex justify-between"><dt className="text-muted-foreground">{t("Account email", "Email du compte")}</dt><dd className="truncate ml-2">{data.account.email}</dd></div>
-                        <div className="flex justify-between"><dt className="text-muted-foreground">{t("Reward balance", "Cagnotte")}</dt><dd className="font-semibold tabular-nums">{chf(data.account.rewardBalance)}</dd></div>
-                        <div className="flex justify-between"><dt className="text-muted-foreground">{t("Welcome offer", "Offre de bienvenue")}</dt>
-                          <dd>{data.account.welcomeUsedAt ? `${t("used on", "utilisée le")} ${formatDay(data.account.welcomeUsedAt, l)}` : data.account.welcomeAvailable ? t("available", "disponible") : t("not available", "non disponible")}</dd></div>
-                        <div className="flex justify-between"><dt className="text-muted-foreground">Newsletter</dt><dd>{data.account.newsletter ? t("yes", "oui") : t("no", "non")}</dd></div>
-                        <p className="text-xs text-muted-foreground pt-1">{t("Read only — managed by the existing reward system.", "Lecture seule — géré par le système de cagnotte existant.")}</p>
-                      </dl>
-                    ) : <p className="text-sm text-muted-foreground">{t("No customer account: no reward balance.", "Pas de compte client : pas de cagnotte.")}</p>}
-                  </section>
+                  <AccountBox detail={data} write={writeResult} />
+                  <BenefitsBox detail={data} write={writeResult} />
 
                   {data.possibleDuplicates.length > 0 && !c.mergedInto && (
                     <section className={box} data-testid="customer-duplicates">
@@ -201,6 +215,8 @@ const AdminCustomer = () => {
                   )}
                 </div>
               </div>
+
+              {data.account?.rewards && <RewardHistoryBox history={data.account.rewards} />}
 
               {/* Orders */}
               <section className="space-y-2">
@@ -236,6 +252,11 @@ const eventLabel = (k: string, l: "fr" | "en") => ({
   absorbed: { fr: "une autre fiche a été fusionnée ici", en: "another record merged in" },
   merged_into: { fr: "fusionnée dans une autre fiche", en: "merged into another record" },
   order_relinked: { fr: "commande rattachée manuellement", en: "order relinked" },
+  reward_credit: { fr: "cagnotte créditée", en: "reward balance credited" },
+  account_invite: { fr: "invitation au compte", en: "account invitation" },
+  account_resend: { fr: "activation renvoyée", en: "activation resent" },
+  password_reset: { fr: "lien de réinitialisation envoyé", en: "password reset link sent" },
+  login_email_change: { fr: "email de connexion changé", en: "login email changed" },
 }[k]?.[l] ?? k);
 
 const OrderRow = ({ o, currentName }: { o: CustomerOrder; currentName: string }) => {

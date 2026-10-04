@@ -35,7 +35,12 @@ export interface CustomerDetail {
   account: null | {
     profileId: string; email: string | null; rewardBalance: number; welcomeAvailable: boolean;
     welcomeUsedAt: string | null; welcomeExpiresAt: string | null; newsletter: boolean; createdAt: string;
+    // F20 (absents tant que la migration n'est pas appliquée)
+    welcomeReservedAt?: string | null; welcomeUsedOrder?: string | null;
+    newsletterSubscribedAt?: string | null; newsletterUnsubscribedAt?: string | null;
+    rewards?: RewardHistory;
   };
+  firstOrder?: { orderId: string; orderNumber: string | null; createdAt: string; source: string | null } | null;
   orders: CustomerOrder[];
   alerts: { id: number; kind: string; detail: string | null; createdAt: string; orderId: string | null; otherCustomerId: string | null }[];
   possibleDuplicates: { id: string; firstName: string | null; lastName: string | null; email: string | null; phone: string | null; hasAccount: boolean; reasons: string[] }[];
@@ -89,3 +94,50 @@ export const VALIDATION_LABELS: Record<string, { en: string; fr: string }> = {
   rejected: { en: "Refused", fr: "Refusée" },
   cancelled: { en: "Cancelled", fr: "Annulée" },
 };
+
+// ── F20 : cagnotte, compte, offre de bienvenue, source ───────────────────
+export type RewardEventKind = "earned" | "restored_workshop" | "restored_refund" | "manual_credit" | "other_credit" | "spent" | "reserved"
+  | "refund_adjustment" | "refund_cancelled" | "expired" | "raw_expired" | "raw_adjustment";
+export interface RewardEvent {
+  at: string | null; kind: RewardEventKind; amount: number; orderId: string | null; orderNumber: string | null;
+  reason: string | null; by: string | null; expiresAt: string | null;
+}
+export interface RewardHistory { balance: number | null; computedBalance: number; nextExpiry: string | null; events: RewardEvent[] }
+export const REWARD_EVENT_LABELS: Record<RewardEventKind, { en: string; fr: string }> = {
+  earned: { en: "Earned (3.5 %)", fr: "Gagné (3,5 %)" },
+  restored_workshop: { en: "Given back — workshop seats cancelled", fr: "Rendu — places de workshop annulées" },
+  restored_refund: { en: "Given back — order refunded", fr: "Rendu — commande remboursée" },
+  manual_credit: { en: "Manual credit", fr: "Crédit manuel" },
+  other_credit: { en: "Credit (before the admin)", fr: "Crédit (avant l'admin)" },
+  spent: { en: "Used", fr: "Utilisé" },
+  reserved: { en: "Reserved (payment in progress)", fr: "Réservé (paiement en cours)" },
+  refund_adjustment: { en: "Removed after a refund", fr: "Retiré après remboursement" },
+  refund_cancelled: { en: "Removed — order fully refunded", fr: "Retiré — commande remboursée en entier" },
+  expired: { en: "Expired", fr: "Expiré" },
+  raw_expired: { en: "Expired (record)", fr: "Expiré (mouvement)" },
+  raw_adjustment: { en: "Adjustment", fr: "Ajustement" },
+};
+export const FIRST_ORDER_SOURCE_LABELS: Record<string, { en: string; fr: string }> = {
+  website: { en: "Website", fr: "Site" },
+  instagram: { en: "Instagram", fr: "Instagram" },
+  whatsapp: { en: "WhatsApp", fr: "WhatsApp" },
+  phone: { en: "Phone", fr: "Téléphone" },
+  in_person: { en: "In person", fr: "En personne" },
+  email: { en: "Email", fr: "Email" },
+  other: { en: "Other", fr: "Autre" },
+};
+export type AccountState = "none" | "missing" | "invited" | "unconfirmed" | "active";
+export interface AccountStatus {
+  state: AccountState; contactEmail: string | null; loginEmail?: string | null; confirmedAt?: string | null; invitedAt?: string | null;
+  lastSignInAt?: string | null; createdAt?: string | null; pendingNewEmail?: string | null;
+}
+export type WelcomeState = "available" | "used" | "expired" | "reserved" | "inactive";
+/** Même règle que le site : utilisée > réservée > expirée > disponible ; sinon non activée (pas d'abonnement newsletter). */
+export function welcomeState(a: NonNullable<CustomerDetail["account"]>, now = new Date()): WelcomeState {
+  if (a.welcomeUsedAt) return "used";
+  const expired = !!a.welcomeExpiresAt && new Date(a.welcomeExpiresAt) <= now;
+  if (expired) return "expired";
+  if (a.welcomeReservedAt && a.welcomeAvailable) return "reserved";
+  if (a.welcomeAvailable) return "available";
+  return "inactive";
+}
