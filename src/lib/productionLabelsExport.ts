@@ -23,13 +23,19 @@ export const canvasMeasure: Measure = (text: string, font: FontSpec) => {
   return measureCtx!.measureText(text).width;
 };
 
-/** Dessine une étiquette (1 point = 1 pixel), noir et blanc pur. Si une
- *  cible est donnée (aperçu), l'image hors page y est recopiée telle quelle. */
-export function renderPage(page: LabelPage, target?: HTMLCanvasElement): HTMLCanvasElement {
+/** Dessine une étiquette. Par défaut 1 point = 1 pixel, noir et blanc pur :
+ *  exactement ce que l'imprimante thermique (203 dpi) imprimera. Avec
+ *  { scale, mono: false } (PDF de contrôle), même mise en page dessinée en
+ *  plus haute définition et lissée, pour un texte net à l'écran et à
+ *  l'impression. Si une cible est donnée (aperçu), l'image y est recopiée. */
+export function renderPage(page: LabelPage, target?: HTMLCanvasElement, opts: { scale?: number; mono?: boolean } = {}): HTMLCanvasElement {
+  const scale = opts.scale ?? 1;
+  const mono = opts.mono ?? true;
   const canvas = document.createElement("canvas");
-  canvas.width = LABEL_W;
-  canvas.height = LABEL_H;
+  canvas.width = LABEL_W * scale;
+  canvas.height = LABEL_H * scale;
   const ctx = canvas.getContext("2d")!;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, LABEL_W, LABEL_H);
   ctx.fillStyle = "#000";
@@ -60,17 +66,19 @@ export function renderPage(page: LabelPage, target?: HTMLCanvasElement): HTMLCan
     }
   }
   // Seuil 1 bit : ce qui sera réellement imprimé (pas de gris en thermique).
-  const img = ctx.getImageData(0, 0, LABEL_W, LABEL_H);
-  const d = img.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const v = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000 < 150 ? 0 : 255;
-    d[i] = d[i + 1] = d[i + 2] = v;
-    d[i + 3] = 255;
+  if (mono) {
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000 < 150 ? 0 : 255;
+      d[i] = d[i + 1] = d[i + 2] = v;
+      d[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
   }
-  ctx.putImageData(img, 0, 0);
   if (!target) return canvas;
-  target.width = LABEL_W;
-  target.height = LABEL_H;
+  target.width = canvas.width;
+  target.height = canvas.height;
   target.getContext("2d")!.drawImage(canvas, 0, 0);
   return target;
 }
@@ -133,6 +141,10 @@ export async function exportOnePng(page: LabelPage) {
 }
 
 // ── PDF 50 × 80 mm, une page par étiquette (images JPEG, sans dépendance) ─
+// Pages dessinées en 4× (1536 × 2560) et lissées : le texte reste net quand
+// on zoome ou qu'on imprime le PDF (avant : image 384 × 640 en noir et blanc
+// pur, crénelée et tachée par la compression JPEG). Mise en page identique.
+const PDF_SCALE = 4;
 const MM = 72 / 25.4;
 export async function exportPdf(pages: LabelPage[], name: string) {
   const enc = new TextEncoder();
@@ -152,12 +164,12 @@ export async function exportPdf(pages: LabelPage[], name: string) {
   obj(2, () => put(`<< /Type /Pages /Count ${n} /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] >>`));
   for (let i = 0; i < n; i++) {
     const [pid, cid, iid] = [3 + i * 3, 4 + i * 3, 5 + i * 3];
-    const jpeg = new Uint8Array(await (await toBlob(renderPage(pages[i]), "image/jpeg", 0.95)).arrayBuffer());
+    const jpeg = new Uint8Array(await (await toBlob(renderPage(pages[i], undefined, { scale: PDF_SCALE, mono: false }), "image/jpeg", 0.92)).arrayBuffer());
     const content = `q ${imgW.toFixed(3)} 0 0 ${pageH.toFixed(3)} ${imgX.toFixed(3)} 0 cm /Im0 Do Q`;
     obj(pid, () => put(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW.toFixed(3)} ${pageH.toFixed(3)}] /Resources << /XObject << /Im0 ${iid} 0 R >> >> /Contents ${cid} 0 R >>`));
     obj(cid, () => { put(`<< /Length ${content.length} >>\nstream\n`); put(content); put("\nendstream"); });
     obj(iid, () => {
-      put(`<< /Type /XObject /Subtype /Image /Width ${LABEL_W} /Height ${LABEL_H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`);
+      put(`<< /Type /XObject /Subtype /Image /Width ${LABEL_W * PDF_SCALE} /Height ${LABEL_H * PDF_SCALE} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`);
       put(jpeg); put("\nendstream");
     });
   }
