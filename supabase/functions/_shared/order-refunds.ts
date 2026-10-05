@@ -19,6 +19,7 @@
 // the workshop part stays paid) leaves payment_status exactly as it was,
 // preserving the existing invariant that 'refunded' means "the whole
 // order's money is back".
+import { notionSyncEnabled } from "./notion-sync.ts";
 const MAKE_STATUS_WEBHOOK_URL = "https://hook.eu1.make.com/dmmtxutu1pwcu3w3al8c25gifbspag7r";
 
 export interface ApplyOrderRefundResult {
@@ -62,7 +63,8 @@ export async function applyOrderRefund(
   if (error) throw new Error(`applyOrderRefund: failed to update order ${orderId}: ${error.message}`);
 
   const matched = Array.isArray(rows) ? rows.length : 0;
-  if (matched > 0) {
+  // F24 : pas d'envoi quand la synchronisation Notion est désactivée.
+  if (matched > 0 && await notionSyncEnabled(supabase)) {
     // Best-effort — scenario may be inactive, never fails the caller.
     try {
       await fetch(MAKE_STATUS_WEBHOOK_URL, {
@@ -225,7 +227,7 @@ export async function recordSuccessfulOrderRefund(
   }
 
   let makeNotified = !!refundRow.make_notified_at;
-  if (!makeNotified) {
+  if (!makeNotified && await notionSyncEnabled(supabase)) {
     // order_number may not have been fetched above (row was already synced)
     // — Make's payload still wants it for a friendly order_id, best-effort.
     let orderNumber: string | null = refundRow.orderNumber ?? null;

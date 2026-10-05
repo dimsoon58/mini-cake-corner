@@ -40,6 +40,7 @@ import {
 } from "./admin-alert.ts";
 import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "./postfinance.ts";
 import { generateInvoicePdf } from "./invoice-pdf.ts";
+import { notionSyncEnabled } from "./notion-sync.ts";
 
 // Main production Make webhook ("Commandes & Paiements" + Agenda). Make writes
 // orders.notion_sync_status = 'synced' | 'error'.
@@ -401,8 +402,10 @@ export async function areSideEffectsComplete(supabase: any, orderId: string): Pr
     if (o.side_effects_done_at) return true;
     const { hasPhysical, hasWorkshop } = await orderItemKinds(supabase, orderId);
     const isWorkshopOnly = hasWorkshop && !hasPhysical;
-    return (!hasPhysical || !!o.make_notified_at)
-      && (!hasWorkshop || !!o.workshop_make_notified_at)
+    // F24 : synchronisation Notion désactivée → la confirmation de Make n'est plus attendue.
+    const notion = await notionSyncEnabled(supabase);
+    return (!notion || !hasPhysical || !!o.make_notified_at)
+      && (!notion || !hasWorkshop || !!o.workshop_make_notified_at)
       // Workshop-only: the invoice is generated here (step 0b) so it is part of
       // "side-effects done". Mixed: the workshop part must be confirmed, but the
       // invoice is a later admin-decision artefact, NOT a side-effect.
@@ -522,7 +525,15 @@ async function postMakeMain(order: any, physicalItems: any[]): Promise<{ ok: boo
 // Fire every side-effect whose durable marker is still NULL. Callers must hold
 // the claim_side_effect_retry lease. Returns whether the order is now fully
 // delivered. A DB read error → { complete: false } (never proceeds blindly).
-export async function runSideEffects(supabase: any, orderId: string): Promise<{ complete: boolean }> {
+// opts.physicalInvoiceRetry (vrai par défaut) : étape 0c ci-dessous. La reprise
+// planifiée (retry-order-side-effects) la désactive pour garder exactement le
+// comportement de sa version en production (F24, phase 0 : « rien ne change ») ;
+// son activation dans la reprise sera un lot séparé.
+export async function runSideEffects(
+  supabase: any,
+  orderId: string,
+  opts: { physicalInvoiceRetry?: boolean } = {},
+): Promise<{ complete: boolean }> {
   let { data: o, error: orderErr } = await supabase
     .from("orders").select("*").eq("id", orderId).maybeSingle();
   if (orderErr) {
@@ -577,7 +588,7 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
   //     invoice PDF now. Same retry-until-stored contract as 0b above; see
   //     ensurePhysicalOrderInvoice's own header comment. No-ops (done: true)
   //     for a still-pending/declined order or a workshop-only one.
-  if (hasPhysical && o.order_validation === "approved" && !o.invoice_path) {
+  if (opts.physicalInvoiceRetry !== false && hasPhysical && o.order_validation === "approved" && !o.invoice_path) {
     const { done } = await ensurePhysicalOrderInvoice(supabase, orderId);
     if (done) {
       const reread = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
@@ -585,9 +596,12 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
     }
   }
 
+  // F24 : rien n'est envoyé vers Make / Notion quand la synchronisation est désactivée.
+  const notion = await notionSyncEnabled(supabase);
+
   // 1. Production Make ("Commandes & Paiements" + Agenda) — physical items.
   //    The durable ACK is orders.notion_sync_status = 'synced', NOT HTTP 2xx.
-  if (hasPhysical && !o.make_notified_at) {
+  if (notion && hasPhysical && !o.make_notified_at) {
     const physical = rows.filter((it: any) => it.product !== "workshop");
     const status = String(o.notion_sync_status ?? "").toLowerCase();
     if (status === "synced") {
@@ -623,7 +637,7 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
   //    (allWorkshopReservationsSynced), never from a locally-tracked boolean.
   //    A missing MAKE_WORKSHOP_WEBHOOK_URL is a configuration error, NOT a
   //    valid "skipped = done".
-  if (hasWorkshop && !o.workshop_make_notified_at) {
+  if (notion && hasWorkshop && !o.workshop_make_notified_at) {
     const { data: reservations, error: resErr } = await supabase
       .from("workshop_reservations").select("id").eq("order_id", orderId);
     if (resErr) {

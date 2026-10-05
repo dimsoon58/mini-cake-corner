@@ -456,6 +456,33 @@ solde par les règles existantes, en attente / approuvé / refusé / annulé, ch
 Eli ou Mel, historique, aucun solde inventé sans contrat ; désactivation ; accès lié au compte ;
 relance de F23. Résultat attendu : `83 PASS, 0 FAIL`.
 
+## Sortie de Notion / Make F24 — interrupteur, rapport quotidien, sessions workshop
+
+`test_notion_exit.mjs` (schéma de production + F1–F24, vrai code partagé order-side-effects /
+workshop-make / order-refunds et vraies fonctions daily-health-report, manage-workshop-sessions ;
+Make, Resend et fonctions d'e-mail simulés) : synchronisation Notion ACTIVE par défaut et rapport
+Supabase INACTIF par défaut ; alerte « SYNCHRO_NOTION » seulement quand Notion est actif ;
+déclencheurs make_* coupés et rétablis ; commande du site terminée sans Make quand Notion est
+désactivé, un seul e-mail admin et client, aucun appel Make, rien de renvoyé à la reprise ;
+workshops et remboursements sans appel Make ; rapport : secret, désactivé, avant 8 h, un seul
+e-mail le jour même (clé d'idempotence), rien après 10 h, aucun e-mail sans anomalie, reprise après
+échec, aperçu admin ; sessions : liste avec places, création, doublon refusé, capacité sous les places
+occupées refusée, type figé, date / heure avec confirmation, prix des réservations conservé,
+fermeture, aucune suppression, historique, PIN, droits ; relance de F24. Résultat attendu :
+`81 PASS, 0 FAIL` (dont : reprise des factures gâteau et CORS de confirm-workshop-refund identiques
+à la production ; retour en arrière en trois cas : jamais envoyée → premier envoi, confirmée pendant
+la coupure → aucun envoi, envoyée sans confirmation → étape 3a réparation seule si la fiche Notion
+existe, étape 3b premier envoi unique si elle est absente, sur listes d'ID explicites).
+
+`test_f24_shared_diffs.mjs` (esbuild seul, sans base) : écarts d'invoice-pdf.ts et d'email-darkmode.ts
+pour postfinance-webhook, retry-order-side-effects et confirm-workshop-refund. Code réellement
+embarqué (aucun gabarit ni style d'e-mail client, email-darkmode seulement pour les alertes admin,
+postfinance-webhook et confirm-workshop-refund sans facture) ; adminDarkModeStyle et
+DARKMODE_META_TAGS identiques à toutes les versions depuis le 16.09 (fixtures/email-darkmode-history) ;
+facture identique à la version d'avant d0d6b83 (fixtures/invoice-pdf-before-d0d6b83.ts) pour toutes
+les commandes du site, la ligne « Remise / Supplément » n'apparaissant qu'avec un ajustement admin.
+Résultat attendu : `32 PASS, 0 FAIL`.
+
 
 ## Tableau de bord — ce qu'il faut gérer, sans chiffres financiers
 
