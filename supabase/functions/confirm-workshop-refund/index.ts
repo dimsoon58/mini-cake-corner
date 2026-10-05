@@ -1,7 +1,14 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+// F24 phase 0 : en-têtes CORS identiques à la version en production
+// (« * », comme avant le 17.09). Aucun appel depuis le navigateur dans le
+// site ; l'alignement sur _shared/cors.ts (liste d'origines) sera un lot séparé.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+const corsHeaders = (_req: Request) => CORS_HEADERS;
 
 // Records a workshop cash refund that a human has ALREADY done BY HAND in
 // PostFinance. Bento Cake Studio never refunds PostFinance automatically —

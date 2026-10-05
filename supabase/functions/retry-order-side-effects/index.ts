@@ -82,7 +82,9 @@ serve(async (req) => {
       const { data: seClaimed } = await supabase.rpc("claim_side_effect_retry", { p_order_id: id });
       if (seClaimed === true) {
         attempted += 1;
-        const { complete } = await runSideEffects(supabase, id);
+        // F24 phase 0 : sans la reprise des factures gâteau (étape 0c), comme la
+        // version en production — activation prévue dans un lot séparé.
+        const { complete } = await runSideEffects(supabase, id, { physicalInvoiceRetry: false });
         if (complete) completed += 1;
       } else if (await areSideEffectsComplete(supabase, id)) {
         completed += 1;

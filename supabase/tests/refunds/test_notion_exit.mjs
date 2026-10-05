@@ -95,7 +95,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (u.includes("make.com") || u.includes("make.test")) return new Response("Accepted", { status: 200 });
   throw new Error("réseau inattendu " + u);
 };
-const ENV = { SUPABASE_URL: "x", SUPABASE_SERVICE_ROLE_KEY: "x", ADMIN_ORDER_PIN: "1234", RESEND_API_KEY: "re_test", DAILY_REPORT_SECRET: "daily-secret",
+const ENV = { RETRY_SWEEP_SECRET: "retry-secret", SUPABASE_URL: "x", SUPABASE_SERVICE_ROLE_KEY: "x", ADMIN_ORDER_PIN: "1234", RESEND_API_KEY: "re_test", DAILY_REPORT_SECRET: "daily-secret",
   MAKE_WORKSHOP_WEBHOOK_URL: "https://hook.make.test/workshops", MAKE_REPAIR_WEBHOOK_URL: "https://hook.make.test/repair", MAKE_REPAIR_TOKEN: "t", SITE_BASE_URL: "https://site.test" };
 globalThis.Deno = { env: { get: (k) => ENV[k] } };
 
@@ -118,7 +118,7 @@ fs.writeFileSync(path.join(tmp, "entry.ts"), [
 await build({ entryPoints: [path.join(tmp, "entry.ts")], bundle: true, format: "esm", platform: "node", outfile: path.join(tmp, "shared.mjs"), logLevel: "error", plugins });
 const S = await import(path.join(tmp, "shared.mjs"));
 const fns = {};
-for (const name of ["daily-health-report", "manage-workshop-sessions"]) {
+for (const name of ["daily-health-report", "manage-workshop-sessions", "retry-order-side-effects", "confirm-workshop-refund"]) {
   await build({ entryPoints: [path.join(ROOT, `functions/${name}/index.ts`)], bundle: true, format: "esm", platform: "node", outfile: path.join(tmp, `${name}.mjs`), logLevel: "error", plugins });
   await import(path.join(tmp, `${name}.mjs`));
   fns[name] = globalThis.__handler;
@@ -233,6 +233,60 @@ m0 = makeCalls();
 await S.applyOrderRefund(globalThis.__supa, rf, { reference: "REF-1", isFullRefund: false });
 check("Notion désactivé : remboursement enregistré, aucun appel Make", (await one("select refund_status from public.orders where id=$1", [rf])).refund_status === "refunded" && makeCalls() === m0);
 await setNotion(true);
+
+// ═══ 4b. Écarts avec la production séparés du lot (phase 0) ═════════════
+// Reprise des factures gâteau (étape 0c) : absente de la reprise planifiée en production.
+await setNotion(false);
+const inv1 = await webOrder({ paid: true });
+await q("update public.orders set order_validation='approved', physical_validation='approved' where id=$1", [inv1]);
+let rc = rpcCalls.length;
+await S.runSideEffects(globalThis.__supa, inv1, { physicalInvoiceRetry: false });
+check("Reprise planifiée (option désactivée) : aucune tentative de facture gâteau", !rpcCalls.slice(rc).includes("claim_technical_alert")
+  && !(await one("select invoice_path from public.orders where id=$1", [inv1])).invoice_path);
+const inv2 = await webOrder({ paid: true });
+await q("update public.orders set order_validation='approved', physical_validation='approved' where id=$1", [inv2]);
+rc = rpcCalls.length;
+await S.runSideEffects(globalThis.__supa, inv2);
+check("Paiement / webhook (par défaut) : la tentative de facture gâteau existe toujours, comme en production", rpcCalls.slice(rc).includes("claim_technical_alert"));
+const inv3 = await webOrder({ paid: true });
+await q("update public.orders set order_validation='approved', physical_validation='approved' where id=$1", [inv3]);
+rc = rpcCalls.length;
+r = await fns["retry-order-side-effects"](new Request("http://x/?s=retry-secret", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }));
+check("Vraie fonction retry-order-side-effects : passe les commandes, sans tentative de facture gâteau", r.status === 200 && rpcCalls.slice(rc).includes("claim_side_effect_retry")
+  && !rpcCalls.slice(rc).includes("claim_technical_alert") && !(await one("select invoice_path from public.orders where id=$1", [inv3])).invoice_path, r.status);
+await setNotion(true);
+// CORS de confirm-workshop-refund : identiques à la production (« * »).
+for (const origin of [null, "https://dimsoon58.github.io", "https://autre-origine.example"]) {
+  const rr = await fns["confirm-workshop-refund"](new Request("http://x/", { method: "OPTIONS", headers: origin ? { Origin: origin } : {} }));
+  check(`confirm-workshop-refund OPTIONS (origine ${origin ?? "aucune"}) : « * » comme en production`, rr.headers.get("Access-Control-Allow-Origin") === "*");
+}
+const cr = await fns["confirm-workshop-refund"](new Request("http://x/", { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://autre-origine.example" }, body: "{}" }));
+check("confirm-workshop-refund sans PIN : toujours refusé (CORS sans effet sur la sécurité)", cr.status >= 400 && cr.headers.get("Access-Control-Allow-Origin") === "*", cr.status);
+
+// ═══ 4c. Retour en arrière : les commandes terminées pendant la coupure ═══
+// La reprise ne prend que les commandes sans « terminée » : celles finalisées pendant la coupure
+// doivent être remises explicitement en file (requête de la checklist, phase 4).
+await setNotion(false);
+const cut = await webOrder();
+await S.runSideEffects(globalThis.__supa, cut);
+check("Pendant la coupure : commande terminée, jamais envoyée à Notion", !!(await one("select side_effects_done_at from public.orders where id=$1", [cut])).side_effects_done_at
+  && !(await one("select make_webhook_dispatched_at from public.orders where id=$1", [cut])).make_webhook_dispatched_at);
+await setNotion(true);
+const pick = async () => (await q(`select id from public.orders where finalized_at is not null and side_effects_done_at is null and order_failure_reason is null`)).map((x) => x.id);
+check("Après réactivation, SANS remise en file : la reprise ne la reprend pas (d'où la requête de la checklist)", !(await pick()).includes(cut));
+const ROLLBACK_SELECT = fs.readFileSync(path.join(import.meta.dirname, "fixtures/f24-rollback-select.sql"), "utf8");
+const ROLLBACK_UPDATE = fs.readFileSync(path.join(import.meta.dirname, "fixtures/f24-rollback-requeue.sql"), "utf8");
+const listed = (await q(ROLLBACK_SELECT)).map((x) => x.id);
+const listedRows = await q(`select o.id, o.make_notified_at, exists (select 1 from public.order_items oi where oi.order_id = o.id and oi.product <> 'workshop') phys
+  from public.orders o where o.id = any($1::uuid[])`, [listed]);
+check("Requête de contrôle : liste la commande de la coupure, seulement des commandes avec gâteau jamais synchronisées", listed.includes(cut)
+  && listedRows.every((x) => x.phys && !x.make_notified_at), listed);
+m0 = makeCalls(); i0 = invokes.length;
+await db.exec(ROLLBACK_UPDATE);
+check("Requête de remise en file : la reprise la sélectionne de nouveau", (await pick()).includes(cut));
+const rr2 = await S.runSideEffects(globalThis.__supa, cut);
+check("Reprise après remise en file : envoi vers Notion (7026183), AUCUN e-mail renvoyé", makeCalls() === m0 + 1 && invokes.length === i0 && rr2.complete === false);
+check("Workshops : resynchronisés automatiquement après réactivation (aucune requête nécessaire)", (await q("select id from public.workshop_reservations where make_synced_updated_at is null or make_synced_updated_at < updated_at")).length > 0);
 
 // ═══ 5. Rapport quotidien Supabase ═══════════════════════════════════════
 const emails = () => fetches.filter((f) => f.url.includes("api.resend.com"));

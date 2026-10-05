@@ -525,7 +525,15 @@ async function postMakeMain(order: any, physicalItems: any[]): Promise<{ ok: boo
 // Fire every side-effect whose durable marker is still NULL. Callers must hold
 // the claim_side_effect_retry lease. Returns whether the order is now fully
 // delivered. A DB read error → { complete: false } (never proceeds blindly).
-export async function runSideEffects(supabase: any, orderId: string): Promise<{ complete: boolean }> {
+// opts.physicalInvoiceRetry (vrai par défaut) : étape 0c ci-dessous. La reprise
+// planifiée (retry-order-side-effects) la désactive pour garder exactement le
+// comportement de sa version en production (F24, phase 0 : « rien ne change ») ;
+// son activation dans la reprise sera un lot séparé.
+export async function runSideEffects(
+  supabase: any,
+  orderId: string,
+  opts: { physicalInvoiceRetry?: boolean } = {},
+): Promise<{ complete: boolean }> {
   let { data: o, error: orderErr } = await supabase
     .from("orders").select("*").eq("id", orderId).maybeSingle();
   if (orderErr) {
@@ -580,7 +588,7 @@ export async function runSideEffects(supabase: any, orderId: string): Promise<{ 
   //     invoice PDF now. Same retry-until-stored contract as 0b above; see
   //     ensurePhysicalOrderInvoice's own header comment. No-ops (done: true)
   //     for a still-pending/declined order or a workshop-only one.
-  if (hasPhysical && o.order_validation === "approved" && !o.invoice_path) {
+  if (opts.physicalInvoiceRetry !== false && hasPhysical && o.order_validation === "approved" && !o.invoice_path) {
     const { done } = await ensurePhysicalOrderInvoice(supabase, orderId);
     if (done) {
       const reread = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();

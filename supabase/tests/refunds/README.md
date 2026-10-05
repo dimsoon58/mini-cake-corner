@@ -469,5 +469,5 @@ e-mail le jour même (clé d'idempotence), rien après 10 h, aucun e-mail sans a
 échec, aperçu admin ; sessions : liste avec places, création, doublon refusé, capacité sous les places
 occupées refusée, type figé, date / heure avec confirmation, prix des réservations conservé,
 fermeture, aucune suppression, historique, PIN, droits ; relance de F24. Résultat attendu :
-`52 PASS, 0 FAIL`.
+`65 PASS, 0 FAIL` (dont : reprise des factures gâteau et CORS de confirm-workshop-refund identiques à la production, retour en arrière avec remise en file).
 
