@@ -156,7 +156,11 @@ const WorkshopBooking = () => {
       </h2>
       {sessions.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          {t("No upcoming sessions available. Please check back soon.", "Aucune session à venir disponible. Revenez bientôt.")}
+          {!availRows && availLoading
+            ? t("Loading dates…", "Chargement des dates…")
+            : !availRows && availError
+              ? t("Dates are temporarily unavailable. Please try again in a moment.", "Les dates sont momentanément indisponibles. Réessayez dans un instant.")
+              : t("No upcoming sessions available. Please check back soon.", "Aucune session à venir disponible. Revenez bientôt.")}
         </p>
       ) : (
         <div className="space-y-3">

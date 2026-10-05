@@ -497,3 +497,10 @@ alerte, employée sans « today.view ») ; page sans aucun chiffre financier, li
 décision réservés aux administratrices, liens vers commande / production / planning / jour ;
 encaissements par date de paiement toujours dans le détail replié de la Compta. Résultat
 attendu : `36 PASS, 0 FAIL`.
+
+## Page « Réserver » — sessions proposées (F24)
+
+`test_workshop_sessions_site.mjs` (vrai code src/data/workshopSessions.ts, sans base) : seulement les
+sessions de la base, à venir et ouvertes, triées, par type ; une session fermée dans Admin >
+Workshops disparaît du site ; prix et heure lus dans la base ; pendant le chargement, aucune session
+(jamais l'ancienne liste écrite dans le code). Résultat attendu : `8 PASS, 0 FAIL`.
