@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Lock, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Lock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,13 +20,21 @@ import { cn } from "@/lib/utils";
 // d'heure confirmé quand des personnes sont inscrites (personne n'est
 // prévenu automatiquement), pas de suppression (fermer la session). Un prix
 // modifié ne vaut que pour les nouvelles réservations.
+// « Participants » : qui vient, avec contact, places, mineur, génoises et
+// commentaire (remplace la base Notion des réservations).
 
 type WType = "signature" | "paint";
 interface Session {
   id: string; type: WType; date: string; time: string; unitPrice: number; capacity: number; isOpen: boolean; updatedAt: string;
   occupied: number; remaining: number; reservations: number; cancelledSeats: number;
 }
+interface Participant {
+  reservationId: string; reference: string; orderId: string; orderNumber: string | null; name: string; email: string | null; phone: string | null;
+  isTest: boolean; paymentStatus: string | null; purchased: number; cancelled: number; active: number; hasMinor: boolean; minorConsent: boolean;
+  comment: string | null; status: string; refunded: number; sponges: { vanilla: number; chocolate: number };
+}
 const TYPE_LABEL: Record<WType, string> = { signature: "Signature", paint: "Peinture" };
+const RES_STATUS: Record<string, string> = { pending: "En attente", confirmed: "Confirmée", partially_cancelled: "Partiellement annulée", cancelled: "Annulée", rejected: "Refusée" };
 const box = "border border-border/60 bg-background";
 const h2 = "text-sm font-semibold uppercase tracking-[0.08em]";
 const chf = (n: number) => `CHF ${Number(n).toFixed(2)}`;
@@ -135,6 +143,75 @@ function SessionRow({ s, onEdit, past }: { s: Session; onEdit: () => void; past?
         </span>
         <Button size="sm" variant="outline" className="rounded-none h-8" onClick={onEdit}>Modifier</Button>
       </span>
+      {s.reservations > 0 && <Participants sessionId={s.id} />}
+    </li>
+  );
+}
+
+function Participants({ sessionId }: { sessionId: string }) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<Participant[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      setErr(null);
+      try { setRows(await sessionsApi<Participant[]>({ action: "participants", id: sessionId })); } catch (e) { setErr((e as Error).message); }
+    }
+  };
+  const active = (rows ?? []).filter((r) => r.active > 0);
+  const gone = (rows ?? []).filter((r) => r.active <= 0);
+  const emails = [...new Set(active.map((r) => r.email).filter(Boolean))] as string[];
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(emails.join(", ")); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* presse-papiers refusé */ }
+  };
+  return (
+    <div className="col-span-2" data-testid="ws-participants">
+      <button type="button" onClick={toggle} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" aria-expanded={open}>
+        {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />} Participants
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          {err && <p className="text-xs text-red-800" role="alert">{err}</p>}
+          {!rows && !err && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+          {rows && (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>{active.reduce((n, r) => n + r.active, 0)} place(s) active(s) · {active.length} réservation(s)</span>
+                {emails.length > 0 && <Button size="sm" variant="outline" className="rounded-none h-7 text-xs" onClick={copy}>{copied ? "E-mails copiés" : "Copier les e-mails"}</Button>}
+              </div>
+              <ul className="space-y-1.5">
+                {[...active, ...gone].map((r) => <ParticipantRow key={r.reservationId} r={r} />)}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ParticipantRow({ r }: { r: Participant }) {
+  const sponges = [r.sponges.vanilla ? `${r.sponges.vanilla} vanille` : "", r.sponges.chocolate ? `${r.sponges.chocolate} chocolat` : ""].filter(Boolean).join(", ");
+  return (
+    <li className={cn("border border-border/60 px-2 py-1.5 text-xs space-y-0.5", r.active <= 0 && "opacity-60")} data-reservation={r.reservationId}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Link to={`/admin/order/${r.orderId}`} className="font-semibold underline underline-offset-2">{r.name}</Link>
+        <span className="text-muted-foreground">{r.orderNumber ?? r.reference}</span>
+        <span>{r.active} place(s){r.cancelled ? ` · ${r.cancelled} annulée(s)` : ""}</span>
+        <span className="px-1 py-0.5 bg-secondary text-[11px]">{RES_STATUS[r.status] ?? r.status}</span>
+        {r.isTest && <span className="px-1 py-0.5 bg-amber-100 text-amber-900 text-[11px]">Test</span>}
+      </div>
+      <div className="flex flex-wrap gap-x-3 text-muted-foreground">
+        {r.phone && <a href={`tel:${r.phone.replace(/\s+/g, "")}`} className="underline underline-offset-2">{r.phone}</a>}
+        {r.email && <a href={`mailto:${r.email}`} className="underline underline-offset-2 break-all">{r.email}</a>}
+        {sponges && <span>Génoises : {sponges}</span>}
+        {r.hasMinor && <span className={r.minorConsent ? "" : "text-red-800"}>Mineur · accord {r.minorConsent ? "confirmé" : "MANQUANT"}</span>}
+        {r.refunded > 0 && <span>Remboursé {chf(r.refunded)}</span>}
+      </div>
+      {r.comment && <p className="whitespace-pre-wrap">« {r.comment} »</p>}
     </li>
   );
 }

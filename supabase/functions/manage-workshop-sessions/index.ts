@@ -13,6 +13,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 // Le prix modifié ne s'applique qu'aux nouvelles réservations : chaque
 // réservation existante garde le prix enregistré sur sa commande.
 // N'envoie aucun e-mail, ne touche à aucune commande ni réservation.
+// « participants » : liste des réservations d'une session (lecture seule).
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -39,6 +40,47 @@ serve(async (req) => {
       const id = String(body.id ?? "");
       if (!id) return json(cors, { error: "Session invalide", reason: "input" }, 400);
       return json(cors, { data: await rpc("admin_workshop_session_history", { p_id: id }) });
+    }
+    // Participants d'une session (remplace la base Notion des réservations,
+    // alimentée par Make 7319889) : une ligne par réservation, avec le
+    // contact du client. Lecture seule, sans PIN.
+    if (action === "participants") {
+      const id = String(body.id ?? "");
+      if (!id) return json(cors, { error: "Session invalide", reason: "input" }, 400);
+      const { data: res, error: rErr } = await supabase.from("workshop_reservations")
+        .select("id, workshop_reference, order_id, order_item_id, purchased_seats, cancelled_seats, active_seats, has_minor, minor_consent_confirmed, item_comment, status, refunded_amount, created_at")
+        .eq("workshop_session_id", id).order("created_at", { ascending: true });
+      if (rErr) throw Object.assign(new Error("sql"), { sql: rErr });
+      const orderIds = [...new Set((res ?? []).map((r: { order_id: string }) => r.order_id))];
+      const itemIds = (res ?? []).map((r: { order_item_id: string }) => r.order_item_id);
+      const { data: orders, error: oErr } = orderIds.length
+        ? await supabase.from("orders").select("id, order_number, first_name, last_name, email, phone, is_test, payment_status, order_validation").in("id", orderIds)
+        : { data: [], error: null };
+      if (oErr) throw Object.assign(new Error("sql"), { sql: oErr });
+      const { data: items, error: iErr } = itemIds.length
+        ? await supabase.from("order_items").select("id, workshop_sponge_choices").in("id", itemIds)
+        : { data: [], error: null };
+      if (iErr) throw Object.assign(new Error("sql"), { sql: iErr });
+      // deno-lint-ignore no-explicit-any
+      const oById = new Map((orders ?? []).map((o: any) => [o.id, o]));
+      // deno-lint-ignore no-explicit-any
+      const iById = new Map((items ?? []).map((i: any) => [i.id, i]));
+      // deno-lint-ignore no-explicit-any
+      const rows = (res ?? []).map((r: any) => {
+        // deno-lint-ignore no-explicit-any
+        const o: any = oById.get(r.order_id) ?? {};
+        const sponges: string[] = Array.isArray(iById.get(r.order_item_id)?.workshop_sponge_choices) ? iById.get(r.order_item_id).workshop_sponge_choices : [];
+        return {
+          reservationId: r.id, reference: r.workshop_reference, orderId: r.order_id, orderNumber: o.order_number ?? null,
+          name: [o.first_name, o.last_name].filter(Boolean).join(" ") || "—", email: o.email ?? null, phone: o.phone ?? null,
+          isTest: o.is_test === true, paymentStatus: o.payment_status ?? null,
+          purchased: Number(r.purchased_seats) || 0, cancelled: Number(r.cancelled_seats) || 0, active: Number(r.active_seats) || 0,
+          hasMinor: !!r.has_minor, minorConsent: !!r.minor_consent_confirmed, comment: r.item_comment ?? null,
+          status: r.status, refunded: Number(r.refunded_amount) || 0,
+          sponges: { vanilla: sponges.filter((s) => s === "vanilla").length, chocolate: sponges.filter((s) => s === "chocolate").length },
+        };
+      });
+      return json(cors, { data: rows });
     }
     if (action === "save") {
       if (!adminPinOk(admin, body?.pin)) return json(cors, { error: "Code PIN incorrect", reason: "pin" }, 403);
