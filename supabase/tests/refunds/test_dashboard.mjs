@@ -210,8 +210,14 @@ check("Sans connexion : 401 ; client : 401", (await call(body, null)).status ===
 const e = await call(body, "emp-jwt");
 check("Employée (today.view) : 200, mêmes gâteaux et passages", e.status === 200 && JSON.stringify(L.cakeDays(e.body.days)) === JSON.stringify(L.cakeDays(days))
   && L.handovers(e.body.days).length === hv.length, e.body);
-const txt = JSON.stringify(e.body);
-check("Employée : aucun montant (total, prix, paiement…) dans la réponse", !/"total"|amount|price|fee|refund/i.test(txt), txt.slice(0, 300));
+// Noms de champs (pas le texte : un identifiant hexadécimal peut contenir « fee »).
+const keys = new Set();
+const walkKeys = (v) => { if (Array.isArray(v)) v.forEach(walkKeys); else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) { keys.add(k); walkKeys(x); } };
+walkKeys(e.body);
+const moneyKeys = [...keys].filter((k) => /total|amount|price|fee|refund|paid|payment|invoice|discount/i.test(k));
+check("Employée : aucun champ de montant (total, prix, paiement…) dans la réponse", moneyKeys.length === 0 && keys.has("orderNumber"), moneyKeys);
+const adminKeys = new Set(); (function w(v) { if (Array.isArray(v)) v.forEach(w); else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) { adminKeys.add(k); w(x); } })(r.body);
+check("Contrôle du test : la réponse administratrice, elle, contient les totaux", adminKeys.has("total"));
 check("Employée : aucune alerte", Array.isArray(e.body.alerts) && e.body.alerts.length === 0);
 await q("update public.staff_access set permissions='{production.view}' where member_id=$1", [nahya]);
 check("Employée sans « today.view » : refusée", (await call(body, "emp-jwt")).status === 401);
