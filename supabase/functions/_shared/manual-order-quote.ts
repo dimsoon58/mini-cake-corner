@@ -350,7 +350,7 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
           itemIndexes: idxs,
         },
         expressEligibleTotal,
-        { minLeadDays: 0, allowClosedDays: true, shortNoticeExpress: true },
+        { minLeadDays: 0, allowClosedDays: true, allowAnySlot: true, shortNoticeExpress: true },
       );
       fulfillmentResults.push({
         ...base,

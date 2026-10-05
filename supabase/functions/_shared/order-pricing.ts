@@ -71,6 +71,15 @@ export function isClosedDayISO(dateISO: string): boolean {
   return d.getUTCDay() === 0;
 }
 
+// Saturday: the website offers a single slot, 11:00 – 12:00, for pick-up and
+// delivery alike (src/lib/orderDates.ts SATURDAY_SLOT — same string, en dash).
+// The Admin manual-order flow keeps every slot.
+export const SATURDAY_SLOT = "11:00 – 12:00";
+export function isSaturdayISO(dateISO: string): boolean {
+  const d = new Date(Date.UTC(+dateISO.slice(0, 4), +dateISO.slice(5, 7) - 1, +dateISO.slice(8, 10)));
+  return d.getUTCDay() === 6;
+}
+
 // Today's calendar date in Europe/Zurich as "YYYY-MM-DD" — avoids the UTC
 // off-by-one when deciding whether an order is "express" / too soon.
 export function zurichTodayISO(): string {
@@ -127,11 +136,12 @@ export function expressSurchargeRate(
 //   minLeadDays: 0 so an order taken by phone can be for today or tomorrow
 //                (default ORDER_LEAD_DAYS);
 //   allowClosedDays: a Sunday is accepted as an exception (default: refused);
+//   allowAnySlot: any slot on a Saturday (default: SATURDAY_SLOT only);
 //   shortNoticeExpress: J+0 / J+1 carry SHORT_NOTICE_RATE (default: 0).
 export async function resolveOneFulfillment(
   input: FulfillmentInput,
   expressEligibleTotal: number,
-  options: { minLeadDays?: number; allowClosedDays?: boolean; shortNoticeExpress?: boolean } = {},
+  options: { minLeadDays?: number; allowClosedDays?: boolean; allowAnySlot?: boolean; shortNoticeExpress?: boolean } = {},
 ): Promise<ResolvedFulfillment> {
   const minLeadDays = options.minLeadDays ?? ORDER_LEAD_DAYS;
   const date = String(input.date ?? "").slice(0, 10);
@@ -157,6 +167,9 @@ export async function resolveOneFulfillment(
 
   if (!options.allowClosedDays && isClosedDayISO(date)) {
     throw new Error(`CLOSED_DAY: fulfillment ${date} — we are closed on Sundays. Please choose another date (for example the Saturday before).`);
+  }
+  if (!options.allowAnySlot && isSaturdayISO(date) && input.slot && input.slot !== SATURDAY_SLOT) {
+    throw new Error(`SATURDAY_SLOT: fulfillment ${date} — on Saturdays only the ${SATURDAY_SLOT} slot is available.`);
   }
 
   const resolved: ResolvedFulfillment = {

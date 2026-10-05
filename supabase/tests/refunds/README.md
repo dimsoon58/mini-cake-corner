@@ -515,3 +515,11 @@ Planning ; avec `includeTests: true`, elles reviennent et les commandes réelles
 booléen `true` les affiche ; lecture seule (aucune écriture, seules les lectures du stock F15) ;
 la case « Afficher les tests » (?tests=1) sur le Tableau de bord, Aujourd'hui, Production et Planning,
 envoyée à la fonction et rechargée quand elle change. Résultat attendu : `31 PASS, 0 FAIL`.
+
+## Samedi : un seul créneau (11:00 – 12:00)
+
+`test_saturday_slot.mjs` (vrai code serveur `_shared/order-pricing.ts` et vrai code du site
+`src/lib/orderDates.ts`, sans base ni réseau) : même créneau des deux côtés ; un samedi, 11:00 – 12:00
+accepté, tout autre créneau refusé (`SATURDAY_SLOT`) en retrait comme en livraison ; la semaine
+inchangée ; commandes manuelles libres (`allowAnySlot`) ; les 4 listes de la page de paiement filtrées,
+pas celles de l'admin. Résultat attendu : `12 PASS, 0 FAIL`.
