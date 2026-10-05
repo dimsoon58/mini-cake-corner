@@ -17,7 +17,7 @@ const chf = (v: number) => `CHF ${v.toLocaleString("fr-CH", { minimumFractionDig
 
 const productName = (r: Ranked) => {
   if (r.product === "bento_cake" || r.product === "rectangle_cake" || r.product === "dot_cakes") {
-    return [r.size ? sizeLabel(r.size, "fr") : PRODUCT_LABELS[r.product]?.fr, r.shape ? shapeLabel(r.shape, "fr") : null].filter(Boolean).join(" · ");
+    return [r.size ? sizeLabel(r.size, "fr") : PRODUCT_LABELS[r.product]?.fr, r.shape && r.size !== "rectangle" ? shapeLabel(r.shape, "fr") : null].filter(Boolean).join(" · ");
   }
   return PRODUCT_LABELS[r.product ?? ""]?.fr ?? r.product ?? "—";
 };

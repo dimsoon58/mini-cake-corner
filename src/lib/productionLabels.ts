@@ -164,7 +164,8 @@ function flavourLine(flavors: string[] | null): string | null {
 function productLine(item: LabelSourceItem): string {
   const product = item.product ? (PRODUCT_LABELS[item.product]?.fr ?? item.product) : "";
   const size = item.size ? sizeLabel(item.size, "fr") : "";
-  const shape = item.shape ? shapeLabel(item.shape, "fr") : "";
+  // Rectangle : « Gâteau Rectangle » suffit, pas de forme en plus.
+  const shape = item.shape && item.size !== "rectangle" ? shapeLabel(item.shape, "fr") : "";
   const low = (s: string) => s.toLowerCase();
   let head: string[];
   // « Dot Cakes 12 pièces » contient déjà le produit ; « Bento Kit » / « Bento

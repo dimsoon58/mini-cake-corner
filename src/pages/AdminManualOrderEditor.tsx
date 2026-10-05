@@ -618,7 +618,7 @@ const AdminManualOrderEditor = () => {
                         <ul className="mt-0.5 mb-1.5 pl-3 border-l border-border space-y-0.5 text-xs">
                           {qi.breakdown.map((line, li) => (
                             <li key={li} className="flex justify-between gap-2">
-                              <span className="text-muted-foreground">{labelBreakdownLine(line, catalog, lang === "en" ? "en" : "fr")}</span>
+                              <span className="text-muted-foreground">{labelBreakdownLine(line, catalog, lang === "en" ? "en" : "fr", it.size)}</span>
                               <span className={line.amount === 0 ? "text-muted-foreground" : ""}>{line.amount === 0 ? t("incl.", "inclus") : `+${line.amount.toFixed(2)}`}</span>
                             </li>
                           ))}

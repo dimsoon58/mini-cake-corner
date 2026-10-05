@@ -2179,7 +2179,7 @@ const Checkout = () => {
                               single confusing price instead of two amounts. */}
                           {item.shapeName && item.product !== "dot_cakes" && item.product !== "diy_kit" && item.product !== "edible_printing" && (
                             <div className="flex justify-between">
-                              <span>{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang)}</span>
+                              <span>{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang, item.size)}</span>
                               <span>{shapeExtra > 0 ? `+ CHF ${formatChf(shapeExtra)}` : t("included", "inclus")}</span>
                             </div>
                           )}

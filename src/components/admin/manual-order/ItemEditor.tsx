@@ -232,7 +232,13 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
             </select>
           </div>
         )}
-        {(isCake || item.product === "diy_kit") && shapes.length > 0 && (
+        {item.product === "rectangle_cake" && (
+          <div>
+            <label className={label}>{t("Shape", "Forme")}</label>
+            <div className={cn(field, "flex items-center text-muted-foreground")} data-testid="shape-rectangle">Rectangle</div>
+          </div>
+        )}
+        {(isCake || item.product === "diy_kit") && item.product !== "rectangle_cake" && shapes.length > 0 && (
           <div>
             <label className={label}>{t("Shape", "Forme")}</label>
             <select value={item.shape ?? ""} onChange={(e) => set({ shape: e.target.value })} className={field}>

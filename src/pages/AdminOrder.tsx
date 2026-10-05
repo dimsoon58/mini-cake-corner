@@ -557,7 +557,7 @@ const AdminOrder = () => {
                           <DetailRow label={t("Date", "Date")} value={formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date)} />
                         )}
                         {item.size && <DetailRow label={t("Size", "Taille")} value={sizeLabel(item.size)} />}
-                        {item.shape && <DetailRow label={t("Shape", "Forme")} value={shapeLabel(item.shape)} />}
+                        {item.shape && <DetailRow label={t("Shape", "Forme")} value={shapeLabel(item.shape, "en", item.size)} />}
                         <DetailRow label={t("Flavour", "Parfum")} value={(item.flavors || []).join(", ")} />
                         {item.design && (
                           <DetailRow

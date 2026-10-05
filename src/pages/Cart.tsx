@@ -1042,13 +1042,13 @@ const CartItemSummary = ({ item }: { item: any }) => {
             which read as a single confusing price rather than two amounts. */}
         {item.shapeName && shapeExtra > 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang)}</span>
+            <span className="text-muted-foreground">{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang, item.size)}</span>
             <span className="text-foreground">+ CHF {formatChf(shapeExtra)}</span>
           </div>
         )}
         {item.shapeName && shapeExtra === 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang)}</span>
+            <span className="text-muted-foreground">{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang, item.size)}</span>
             <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
           </div>
         )}

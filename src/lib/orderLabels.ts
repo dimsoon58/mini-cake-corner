@@ -73,7 +73,10 @@ export function sizeLabel(sizeId: string, lang: "en" | "fr" = "en"): string {
   return known || prettifyId(sizeId);
 }
 
-export function shapeLabel(shapeId: string, lang: "en" | "fr" = "en"): string {
+export function shapeLabel(shapeId: string, lang: "en" | "fr" = "en", size?: string | null): string {
+  // Un gâteau rectangle est enregistré avec la forme technique « round »
+  // (prix 0, comme sur le site) : on affiche toujours « Rectangle ».
+  if (size === "rectangle") return "Rectangle";
   if (lang === "fr" && SHAPE_LABELS_FR[shapeId]) return SHAPE_LABELS_FR[shapeId];
   return shapes.find((s) => s.id === shapeId)?.name || prettifyId(shapeId);
 }

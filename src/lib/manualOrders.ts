@@ -136,7 +136,7 @@ export const ADJUSTMENT_REASONS: { id: string; en: string; fr: string }[] = [
 
 // ── Display names (existing site labels) ─────────────────────────────────
 export const labelSize = (id: string, lang: "en" | "fr") => sizeLabel(id, lang);
-export const labelShape = (id: string, lang: "en" | "fr") => shapeLabel(id, lang);
+export const labelShape = (id: string, lang: "en" | "fr", size?: string | null) => shapeLabel(id, lang, size);
 export const labelDesign = (id: string) => designLabel(id);
 export const labelExtra = (id: string) => extrasCatalogue.find((e) => e.id === id)?.name ?? id;
 export const labelCandle = (id: string, lang: "en" | "fr") =>
@@ -186,12 +186,12 @@ export const DELIVERY_TIME_SLOTS = [
 export const slotsFor = (method: "pickup" | "delivery") => (method === "delivery" ? DELIVERY_TIME_SLOTS : PICKUP_TIME_SLOTS);
 
 // Display name of one line of the server's price detail.
-export function labelBreakdownLine(line: QuoteBreakdownLine, catalog: ManualOrderCatalog | null, lang: "en" | "fr"): string {
+export function labelBreakdownLine(line: QuoteBreakdownLine, catalog: ManualOrderCatalog | null, lang: "en" | "fr", size?: string | null): string {
   const fr = lang === "fr";
   const qty = line.quantity && line.quantity > 1 ? ` × ${line.quantity}` : "";
   switch (line.kind) {
     case "size": return `${fr ? "Taille" : "Size"} ${labelSize(line.id, lang)}`;
-    case "shape": return `${fr ? "Forme" : "Shape"} ${labelShape(line.id, lang)}`;
+    case "shape": return `${fr ? "Forme" : "Shape"} ${labelShape(line.id, lang, size)}`;
     case "flavour": {
       const all = catalog ? [...Object.values(catalog.cake.flavours).flat(), ...catalog.kit.flavours, ...catalog.dotCakes.flavours] : [];
       const name = all.find((f) => f.id === line.id)?.name ?? line.id;
