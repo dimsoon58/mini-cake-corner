@@ -188,6 +188,9 @@ const panelSrc = fs.readFileSync(path.join(SRC, "components/admin/refunds/OrderR
 check("Fiche : « Payé par le client », « Montant total décidé » (+ explication), « Déjà remboursé », « Reste à rembourser », « Historique des décisions »",
   ['"Payé par le client"', '"Montant total décidé"', '"Montant prévu au total, y compris les remboursements déjà effectués."', '"Déjà remboursé"', '"Reste à rembourser"', '"Historique des décisions"'].every((x) => panelSrc.includes(x))
   && !panelSrc.includes('"À rembourser"') && !panelSrc.includes('"Décisions"'));
+const listSrc = fs.readFileSync(path.join(SRC, "pages/AdminRefunds.tsx"), "utf8");
+check("Page Remboursements : lignes « Montant total décidé CHF… » (plus « À rembourser CHF… »)",
+  listSrc.includes('{t("Total amount decided", "Montant total décidé")} {chf(r.decided)}') && !listSrc.includes('"À rembourser")} {chf(r.decided)}'));
 check("Fiche : « Remboursement terminé » dès que le décidé est remboursé (même sous le payé) ; plus de « Partiellement remboursée »",
   panelSrc.includes('"Remboursement terminé"') && /finished = decided > 0 && remaining <= 0/.test(panelSrc) && !panelSrc.includes("Partiellement remboursée"));
 check("Fiche : « Montant non remboursé » avec le motif saisi (ou « motif non précisé »), jamais « frais » ajouté d'office",
