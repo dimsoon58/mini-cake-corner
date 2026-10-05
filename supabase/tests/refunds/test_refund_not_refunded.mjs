@@ -185,8 +185,9 @@ check("T : commande de test exclue de la Compta d'octobre (non remboursé = A 1 
 // P. Pages (libellés choisis, aucun « frais de paiement » supposé).
 const SRC = path.resolve(ROOT, "../src");
 const panelSrc = fs.readFileSync(path.join(SRC, "components/admin/refunds/OrderRefundsPanel.tsx"), "utf8");
-check("Fiche : « Payé par le client », « À rembourser », « Déjà remboursé », « Reste à rembourser »",
-  ['"Payé par le client"', '"À rembourser"', '"Déjà remboursé"', '"Reste à rembourser"'].every((x) => panelSrc.includes(x)));
+check("Fiche : « Payé par le client », « Montant total décidé » (+ explication), « Déjà remboursé », « Reste à rembourser », « Historique des décisions »",
+  ['"Payé par le client"', '"Montant total décidé"', '"Montant prévu au total, y compris les remboursements déjà effectués."', '"Déjà remboursé"', '"Reste à rembourser"', '"Historique des décisions"'].every((x) => panelSrc.includes(x))
+  && !panelSrc.includes('"À rembourser"') && !panelSrc.includes('"Décisions"'));
 check("Fiche : « Remboursement terminé » dès que le décidé est remboursé (même sous le payé) ; plus de « Partiellement remboursée »",
   panelSrc.includes('"Remboursement terminé"') && /finished = decided > 0 && remaining <= 0/.test(panelSrc) && !panelSrc.includes("Partiellement remboursée"));
 check("Fiche : « Montant non remboursé » avec le motif saisi (ou « motif non précisé »), jamais « frais » ajouté d'office",

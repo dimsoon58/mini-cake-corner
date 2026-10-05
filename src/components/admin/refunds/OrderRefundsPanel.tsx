@@ -127,13 +127,15 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2" data-testid="refund-summary">
         {[
           { k: "collected", label: t("Paid by the customer", "Payé par le client"), v: collected },
-          { k: "decided", label: t("To refund", "À rembourser"), v: decided },
+          { k: "decided", label: t("Total amount decided", "Montant total décidé"), v: decided,
+            hint: t("Total planned amount, including refunds already made.", "Montant prévu au total, y compris les remboursements déjà effectués.") },
           { k: "refunded", label: t("Already refunded", "Déjà remboursé"), v: num(s.refunded) },
           { k: "remaining", label: t("Left to refund", "Reste à rembourser"), v: remaining, strong: remaining > 0 },
         ].map((c) => (
           <div key={c.k} data-k={c.k} className={cn("px-3 py-2 border", c.strong ? "border-amber-300 bg-amber-50" : "border-border/60 bg-secondary/20")}>
             <dt className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{c.label}</dt>
             <dd className="text-base font-semibold tabular-nums">{chf(c.v)}</dd>
+            {"hint" in c && c.hint && <dd className="text-[11px] leading-snug text-muted-foreground mt-0.5" data-testid="decided-hint">{c.hint}</dd>}
           </div>
         ))}
       </dl>
@@ -243,7 +245,7 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t("Decisions", "Décisions")} ({data.decisions.length})</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t("Decision history", "Historique des décisions")} ({data.decisions.length})</h4>
         {data.decisions.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("None.", "Aucune.")}</p>
         ) : (
