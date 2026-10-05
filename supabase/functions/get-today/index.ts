@@ -4,6 +4,7 @@ import { forCaller, requireStaff } from "../_shared/staff-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { zurichTodayISO } from "../_shared/order-pricing.ts";
 import { isAwaitingDecision, orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
+import { includeTestsFrom, isTestOrder } from "../_shared/test-orders.ts";
 
 // Admin > Aujourd'hui — read-only. One call returns what the day needs:
 //   - toDecide: paid website orders whose cakes still await Accept/Refuse
@@ -19,6 +20,8 @@ import { isAwaitingDecision, orderStatus, type ProdOrder } from "../_shared/prod
 // Period: optional body { from, to } (YYYY-MM-DD, Europe/Zurich calendar
 // dates, both inclusive, at most MAX_RANGE_DAYS days). Without it: today and
 // tomorrow, as before.
+// Test orders (orders.is_test) are left out everywhere (lists, days,
+// alerts) unless the body says { includeTests: true } — « Afficher les tests ».
 // Never writes anything. Same admin-only gate as get-production.
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
@@ -80,6 +83,8 @@ serve(async (req) => {
       from = body.from;
       to = body.to;
     }
+    const includeTests = includeTestsFrom(body);
+    const shown = (o: unknown) => includeTests || !isTestOrder(o);
     const dates: string[] = [];
     for (let d = from; d <= to; d = addDays(d, 1)) {
       dates.push(d);
@@ -112,10 +117,10 @@ serve(async (req) => {
       .is("order_failure_reason", null);
     if (dErr) throw new Error(`Failed to load orders to decide: ${dErr.message}`);
     // Même définition que l'agenda et les étiquettes (production-stats).
-    const pendingDecision = (decisionCandidates ?? []).filter((o) => isAwaitingDecision(o as Order));
+    const pendingDecision = (decisionCandidates ?? []).filter((o) => shown(o) && isAwaitingDecision(o as Order));
 
     // ── To collect: confirmed Admin orders awaiting payment ───────────────
-    const { data: awaitingPayment, error: pErr } = await supabase
+    const { data: awaitingPaymentAll, error: pErr } = await supabase
       .from("orders")
       .select("*")
       .eq("created_via", "admin")
@@ -124,11 +129,12 @@ serve(async (req) => {
       .neq("order_validation", "cancelled")
       .is("order_failure_reason", null);
     if (pErr) throw new Error(`Failed to load orders awaiting payment: ${pErr.message}`);
+    const awaitingPayment = (awaitingPaymentAll ?? []).filter(shown);
 
-    for (const o of [...pendingDecision, ...(awaitingPayment ?? [])]) ordersById.set(o.id, o as Order);
+    for (const o of [...pendingDecision, ...awaitingPayment]) ordersById.set(o.id, o as Order);
 
     // First date of each listed order (for sorting and display).
-    const listedIds = [...pendingDecision, ...(awaitingPayment ?? [])].map((o) => o.id);
+    const listedIds = [...pendingDecision, ...awaitingPayment].map((o) => o.id);
     const firstDateByOrder = new Map<string, string>();
     if (listedIds.length > 0) {
       const { data: fs, error } = await supabase
@@ -150,7 +156,7 @@ serve(async (req) => {
     const toDecide = pendingDecision
       .map((o) => ({ orderId: o.id, orderNumber: o.order_number, customerName: customerName(o as Order), total: Number(o.total_amount) || 0, date: firstDate(o as Order), receivedAt: (o.created_at as string | null) ?? null }))
       .sort(byDate);
-    const toCollect = (awaitingPayment ?? [])
+    const toCollect = awaitingPayment
       .map((o) => ({ orderId: o.id, orderNumber: o.order_number, customerName: customerName(o as Order), total: Number(o.total_amount) || 0, date: firstDate(o as Order) }))
       .sort(byDate);
 
@@ -209,7 +215,7 @@ serve(async (req) => {
       if (iErr) throw new Error(`Failed to load order items: ${iErr.message}`);
       for (const it of items ?? []) {
         const o = ordersById.get(it.order_id);
-        if (!o) continue;
+        if (!o || !shown(o)) continue;
         const f = it.fulfillment_id ? fById.get(it.fulfillment_id) : null;
         const date = f ? f.pickup_delivery_date : (o.pickup_delivery_date ?? null);
         if (!date || !(date in days)) continue;
@@ -254,7 +260,7 @@ serve(async (req) => {
       const resByItem = new Map((reservations ?? []).map((r) => [r.order_item_id, r]));
       for (const w of wsItems!) {
         const o = ordersById.get(w.order_id);
-        if (!o || !(w.workshop_date in days)) continue;
+        if (!o || !shown(o) || !(w.workshop_date in days)) continue;
         const st = orderStatus(o, false);
         if (!st.include) continue;
         const r = resByItem.get(w.id);
@@ -307,17 +313,27 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(50);
     if (aErr) throw new Error(`Failed to load alerts: ${aErr.message}`);
+    // The view itself ignores is_test: alerts about a test order are dropped here.
+    let alertRows = anomalies ?? [];
+    const alertOrderIds = Array.from(new Set(alertRows.map((a) => a.order_id).filter(Boolean)));
+    if (!includeTests && alertOrderIds.length > 0) {
+      const { data: testRows, error: tErr } = await supabase.from("orders").select("id").in("id", alertOrderIds).eq("is_test", true);
+      if (tErr) throw new Error(`Failed to load test flags: ${tErr.message}`);
+      const testIds = new Set((testRows ?? []).map((o) => o.id));
+      alertRows = alertRows.filter((a) => !testIds.has(a.order_id));
+    }
 
     return json(cors, forCaller(caller, {
       today,
       tomorrow,
       from,
       to,
+      includeTests,
       toDecide,
       toCollect,
       days,
       // Les alertes (écarts de paiement…) restent réservées aux administratrices.
-      alerts: caller.role === "employee" ? [] : (anomalies ?? []).map((a) => ({
+      alerts: caller.role === "employee" ? [] : alertRows.map((a) => ({
         orderId: a.order_id,
         orderNumber: a.order_number,
         issueType: a.issue_type,

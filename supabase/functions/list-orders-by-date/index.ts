@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { forCaller, requireStaff } from "../_shared/staff-auth.ts";
 import { isAwaitingDecision, type ProdOrder } from "../_shared/production-stats.ts";
+import { includeTestsFrom } from "../_shared/test-orders.ts";
 
 // Calendar view for /admin/calendar — every physical order ITEM and
 // workshop booking scheduled within a given month, grouped by day. A
@@ -40,6 +41,9 @@ import { isAwaitingDecision, type ProdOrder } from "../_shared/production-stats.
 // seat left). The Planning hides cancelled orders and cancelled articles
 // (no longer to do); the entries themselves are still returned, so the
 // dashboard figures built on this endpoint do not change.
+//
+// 2026-10-05: test orders (orders.is_test) are left out unless the body says
+// { includeTests: true } — the Planning's « Afficher les tests » box.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -84,6 +88,7 @@ serve(async (req) => {
     const month = Number.isFinite(body?.month) && body.month >= 1 && body.month <= 12
       ? Math.floor(body.month)
       : now.getUTCMonth() + 1;
+    const includeTests = includeTestsFrom(body);
 
     const startDate = `${year}-${pad2(month)}-01`;
     const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -227,7 +232,7 @@ serve(async (req) => {
     if (cakeOrderIds.length > 0) {
       const { data: cakeOrders, error: cakeErr } = await supabase
         .from("orders")
-        .select("id, order_number, order_source, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, is_draft, pickup_delivery_date, pickup_delivery_slot, delivery_method, payment_status, refund_status, delivery_fee, express_surcharge_amount, welcome_discount_amount, partner_discount_amount, reward_amount_used")
+        .select("id, order_number, order_source, first_name, last_name, order_validation, physical_validation, fulfillment_type, order_failure_reason, is_draft, pickup_delivery_date, pickup_delivery_slot, delivery_method, payment_status, refund_status, delivery_fee, express_surcharge_amount, welcome_discount_amount, partner_discount_amount, reward_amount_used, is_test")
         .in("id", cakeOrderIds);
       if (cakeErr) throw new Error(`Failed to load cake orders: ${cakeErr.message}`);
       cakeOrdersById = new Map((cakeOrders ?? []).map((o) => [o.id, o]));
@@ -250,6 +255,7 @@ serve(async (req) => {
     for (const [orderId, items] of cakeItemsByOrder) {
       const o = cakeOrdersById.get(orderId);
       if (!o) continue;
+      if (!includeTests && o.is_test === true) continue;
       const isCancelled = o.order_validation === "cancelled" || !!o.order_failure_reason;
       const isWorkshopOnly = o.fulfillment_type === "workshop_only";
       const status = classifyState(isWorkshopOnly ? o.order_validation : o.physical_validation, isCancelled);
@@ -354,11 +360,11 @@ serve(async (req) => {
     }
 
     const workshopOrderIds = Array.from(new Set((workshopItems ?? []).map((it) => it.order_id).filter(Boolean)));
-    let workshopOrdersById = new Map<string, { first_name: string | null; last_name: string | null; order_number: string | null; order_source: string | null; order_validation: string | null; order_failure_reason: string | null; payment_status: string | null; refund_status: string | null; delivery_fee: number | null; express_surcharge_amount: number | null; welcome_discount_amount: number | null; partner_discount_amount: number | null; reward_amount_used: number | null }>();
+    let workshopOrdersById = new Map<string, { first_name: string | null; last_name: string | null; order_number: string | null; order_source: string | null; order_validation: string | null; order_failure_reason: string | null; payment_status: string | null; refund_status: string | null; delivery_fee: number | null; express_surcharge_amount: number | null; welcome_discount_amount: number | null; partner_discount_amount: number | null; reward_amount_used: number | null; is_test: boolean | null }>();
     if (workshopOrderIds.length > 0) {
       const { data: wsOrders, error: wsOrdersErr } = await supabase
         .from("orders")
-        .select("id, order_number, order_source, first_name, last_name, order_validation, order_failure_reason, payment_status, refund_status, delivery_fee, express_surcharge_amount, welcome_discount_amount, partner_discount_amount, reward_amount_used")
+        .select("id, order_number, order_source, first_name, last_name, order_validation, order_failure_reason, payment_status, refund_status, delivery_fee, express_surcharge_amount, welcome_discount_amount, partner_discount_amount, reward_amount_used, is_test")
         .in("id", workshopOrderIds);
       if (wsOrdersErr) throw new Error(`Failed to load workshop orders: ${wsOrdersErr.message}`);
       workshopOrdersById = new Map((wsOrders ?? []).map((o) => [o.id, o]));
@@ -366,6 +372,7 @@ serve(async (req) => {
 
     for (const it of workshopItems ?? []) {
       const parent = workshopOrdersById.get(it.order_id);
+      if (!includeTests && parent?.is_test === true) continue;
       const isCancelled = parent?.order_validation === "cancelled" || !!parent?.order_failure_reason;
       pushEntry(it.workshop_date, {
         type: "workshop",
@@ -454,7 +461,7 @@ serve(async (req) => {
     const days: Record<string, DayEntry[]> = {};
     for (const [date, entries] of byDate) days[date] = entries;
 
-    return new Response(JSON.stringify(forCaller(caller, { year, month, days })), {
+    return new Response(JSON.stringify(forCaller(caller, { year, month, includeTests, days })), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

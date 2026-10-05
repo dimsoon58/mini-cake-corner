@@ -8,6 +8,7 @@ import {
   type ProdOrder,
   type ProdWorkshopItem,
 } from "../_shared/production-stats.ts";
+import { includeTestsFrom, isTestOrder } from "../_shared/test-orders.ts";
 
 // Admin > Production — read-only. For a period [from, to], loads every order
 // item scheduled in it (by the item's OWN date: order_fulfillments via
@@ -15,6 +16,9 @@ import {
 // workshops by order_items.workshop_date) plus the manual stock, and returns
 // the production sheet computed by _shared/production-stats.ts. Never writes
 // anything. Same admin-only gate as list-orders-by-date.
+// Test orders (orders.is_test) are left out unless the body says
+// { includeTests: true } — « Afficher les tests ». The stock blocks (to decide,
+// movements) stay complete: they are real stock.
 
 const MAX_DAYS = 93;
 // « Fait » (same list as the admin ProductionCheck box).
@@ -47,6 +51,7 @@ serve(async (req) => {
     const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
     if (days > MAX_DAYS) return json(cors, { error: `Period too long (max ${MAX_DAYS} days)` }, 400);
     const inRange = (d: string | null | undefined) => !!d && d >= from && d <= to;
+    const includeTests = includeTestsFrom(body);
 
     // ── Cakes / kits / Dot Cakes ─────────────────────────────────────────
     // Candidate orders: those with a fulfillment in range, plus legacy
@@ -178,7 +183,8 @@ serve(async (req) => {
     if (sErr) throw new Error(`Failed to load production stock: ${sErr.message}`);
 
     const result = computeProduction({
-      orders: Array.from(ordersById.values()),
+      // An item whose order is not passed is skipped by computeProduction.
+      orders: Array.from(ordersById.values()).filter((o) => includeTests || !isTestOrder(o)),
       cakeItems,
       workshopItems,
       cancelledItemIds,
@@ -193,7 +199,7 @@ serve(async (req) => {
     if (!stockLinked) console.warn("get-production: stock link (F15) not available:", prErr?.message ?? mvErr?.message);
 
     return json(cors, forCaller(caller, {
-      from, to, ...result, stockRows: stock ?? [],
+      from, to, includeTests, ...result, stockRows: stock ?? [],
       stockLinked,
       pendingReuse: stockLinked ? pendingReuse ?? [] : [],
       movements: stockLinked ? movements ?? [] : [],

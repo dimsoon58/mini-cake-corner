@@ -6,6 +6,7 @@ import { AlertTriangle, Calculator, ChevronRight, LayoutDashboard, Loader2, Lock
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { ShowTestsToggle, useShowTests } from "@/components/admin/ShowTestsToggle";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -23,6 +24,7 @@ import { cn } from "@/lib/utils";
 // get_workshop_availability pour les places des sessions. L'employée (droit
 // « today.view ») voit la même page sans le bloc de décision ni la Compta ;
 // le serveur ne lui renvoie de toute façon aucun montant.
+// Commandes de test masquées sauf avec « Afficher les tests » (get-today).
 
 const HORIZON_DAYS = 7; // aujourd'hui + 6 jours (get-today accepte jusqu'à 31)
 
@@ -67,6 +69,7 @@ const AdminDashboard = () => {
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [includeTests, setIncludeTests] = useShowTests();
 
   useEffect(() => {
     document.title = "Admin – Tableau de bord – Bento Cake Studio";
@@ -78,7 +81,7 @@ const AdminDashboard = () => {
     setError(null);
     const from = zurichTodayISO();
     try {
-      const { data: res, error: fnError } = await supabase.functions.invoke("get-today", { body: { from, to: addDays(from, HORIZON_DAYS - 1) } });
+      const { data: res, error: fnError } = await supabase.functions.invoke("get-today", { body: { from, to: addDays(from, HORIZON_DAYS - 1), includeTests } });
       if (fnError || res?.error) {
         const reason = fnError ? await extractFunctionErrorMessage(fnError, "") : String(res.error);
         console.error("get-today failed:", reason);
@@ -92,7 +95,7 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, includeTests]);
 
   useEffect(() => {
     if (!authLoading && !staff.loading && allowed) load();
@@ -149,7 +152,8 @@ const AdminDashboard = () => {
             <LayoutDashboard className="w-5 h-5 text-primary" strokeWidth={1.5} />
             {t("Dashboard", "Tableau de bord")}
           </h1>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <ShowTestsToggle checked={includeTests} onChange={setIncludeTests} className="mr-1" />
             <Button variant="outline" onClick={load} disabled={loading} className="rounded-none" aria-label={t("Refresh", "Actualiser")}>
               <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
             </Button>

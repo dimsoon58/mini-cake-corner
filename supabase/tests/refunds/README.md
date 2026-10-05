@@ -504,3 +504,14 @@ attendu : `36 PASS, 0 FAIL`.
 sessions de la base, à venir et ouvertes, triées, par type ; une session fermée dans Admin >
 Workshops disparaît du site ; prix et heure lus dans la base ; pendant le chargement, aucune session
 (jamais l'ancienne liste écrite dans le code). Résultat attendu : `8 PASS, 0 FAIL`.
+
+## Commandes de test masquées par défaut (« Afficher les tests »)
+
+`test_hide_tests.mjs` (schéma de production + F1–F14, vraies fonctions get-today, get-production et
+list-orders-by-date) : chaque cas existe en vrai et en test (gâteau accepté, commande à accepter,
+workshop manuel à encaisser, commande sans article qui déclenche une alerte). Par défaut, aucune
+commande de test dans la journée, « à décider », « à encaisser », les alertes, la Production ni le
+Planning ; avec `includeTests: true`, elles reviennent et les commandes réelles restent ; seul le
+booléen `true` les affiche ; lecture seule (aucune écriture, seules les lectures du stock F15) ;
+la case « Afficher les tests » (?tests=1) sur le Tableau de bord, Aujourd'hui, Production et Planning,
+envoyée à la fonction et rechargée quand elle change. Résultat attendu : `31 PASS, 0 FAIL`.

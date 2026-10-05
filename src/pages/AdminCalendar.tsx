@@ -9,6 +9,7 @@ import { Loader2, Lock, CalendarDays, ChevronLeft, ChevronRight, Tag } from "luc
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { ShowTestsToggle, useShowTests } from "@/components/admin/ShowTestsToggle";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -67,6 +68,8 @@ const AdminCalendar = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // Commandes de test masquées sauf avec « Afficher les tests » (list-orders-by-date).
+  const [includeTests, setIncludeTests] = useShowTests();
 
   useEffect(() => {
     document.title = "Admin – Calendar – Bento Cake Studio";
@@ -80,7 +83,7 @@ const AdminCalendar = () => {
       setLoading(true);
       setLoadError(null);
       const { data, error } = await supabase.functions.invoke("list-orders-by-date", {
-        body: { year: monthCursor.getFullYear(), month: monthCursor.getMonth() + 1 },
+        body: { year: monthCursor.getFullYear(), month: monthCursor.getMonth() + 1, includeTests },
       });
       if (cancelled) return;
       if (error) {
@@ -105,7 +108,7 @@ const AdminCalendar = () => {
     };
     fetchMonth();
     return () => { cancelled = true; };
-  }, [monthCursor, authLoading, isAdmin, t, staff.loading]);
+  }, [monthCursor, includeTests, authLoading, isAdmin, t, staff.loading]);
 
   if (authLoading || staff.loading) {
     return (
@@ -196,7 +199,8 @@ const AdminCalendar = () => {
   return (
     <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-5xl">
-        <div className="flex justify-end mb-2">
+        <div className="flex flex-wrap items-center justify-end gap-4 mb-2">
+          <ShowTestsToggle checked={includeTests} onChange={setIncludeTests} />
           {!employee && <Link to="/admin/labels" className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground hover:text-foreground">{t("Production labels", "Étiquettes de production")}</Link>}
         </div>
         <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8 text-center font-semibold flex items-center justify-center gap-3">

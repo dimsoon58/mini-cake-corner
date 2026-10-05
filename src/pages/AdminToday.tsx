@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { ShowTestsToggle, useShowTests } from "@/components/admin/ShowTestsToggle";
 import { ProductionCheck, isProductionDone } from "@/components/admin/ProductionCheck";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -85,6 +86,8 @@ const AdminToday = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  // Commandes de test masquées sauf avec « Afficher les tests » (get-today).
+  const [includeTests, setIncludeTests] = useShowTests();
 
   // Period kept in the URL (?from=&to=) so a reload shows the same days.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -126,7 +129,7 @@ const AdminToday = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data: res, error: fnError } = await supabase.functions.invoke("get-today", { body: { from, to } });
+      const { data: res, error: fnError } = await supabase.functions.invoke("get-today", { body: { from, to, includeTests } });
       if (fnError || res?.error) {
         const status = (fnError as { context?: Response } | null)?.context?.status;
         const reason = fnError ? await extractFunctionErrorMessage(fnError, "") : String(res.error);
@@ -143,7 +146,7 @@ const AdminToday = () => {
     } finally {
       setLoading(false);
     }
-  }, [t, from, to, rangeError]);
+  }, [t, from, to, includeTests, rangeError]);
 
   useEffect(() => {
     if (!authLoading && !staff.loading && isAdmin) load();
@@ -354,6 +357,7 @@ const AdminToday = () => {
           <Button variant="outline" onClick={() => setPeriod(null)} className="rounded-none">
             {t("Today + 2 days", "Aujourd'hui + 2 jours")}
           </Button>
+          <ShowTestsToggle checked={includeTests} onChange={setIncludeTests} className="pb-2" />
         </div>
         {rangeError && (
           <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-2">

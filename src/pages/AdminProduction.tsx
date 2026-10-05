@@ -5,6 +5,7 @@ import { AlertTriangle, CakeSlice, ChevronDown, ChevronRight, Loader2, Lock, Plu
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { ShowTestsToggle, useShowTests } from "@/components/admin/ShowTestsToggle";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -213,6 +214,8 @@ const AdminProduction = () => {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [stockError, setStockError] = useState<string | null>(null);
   const [addingIn, setAddingIn] = useState<SpongeBase | null>(null);
+  // Commandes de test masquées sauf avec « Afficher les tests » (get-production).
+  const [includeTests, setIncludeTests] = useShowTests();
 
   useEffect(() => {
     document.title = "Admin – Production – Bento Cake Studio";
@@ -223,7 +226,7 @@ const AdminProduction = () => {
     if (!from || !to || from > to) return;
     setLoading(true);
     setLoadError(null);
-    const { data: res, error } = await supabase.functions.invoke("get-production", { body: { from, to } });
+    const { data: res, error } = await supabase.functions.invoke("get-production", { body: { from, to, includeTests } });
     if (error || res?.error) {
       const reason = error ? await extractFunctionErrorMessage(error, "") : String(res.error);
       console.error("get-production failed:", reason || error);
@@ -238,7 +241,7 @@ const AdminProduction = () => {
       setData(res as ProductionData);
     }
     setLoading(false);
-  }, [from, to, t]);
+  }, [from, to, includeTests, t]);
 
   useEffect(() => {
     if (authLoading || staff.loading || !isAdmin) { setLoading(authLoading || staff.loading); return; }
@@ -389,7 +392,8 @@ const AdminProduction = () => {
             <CakeSlice className="w-5 h-5 text-primary" strokeWidth={1.5} />
             {t("Production", "Production")}
           </h1>
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <ShowTestsToggle checked={includeTests} onChange={setIncludeTests} className="mr-2" />
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label={t("Start date", "Date de début")}
               className="border border-input bg-background px-2 py-1 rounded-none" />
             <span className="text-muted-foreground">→</span>
