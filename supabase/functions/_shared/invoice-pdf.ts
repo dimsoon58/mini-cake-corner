@@ -236,7 +236,7 @@ export async function generateInvoicePdf(
     console.error("Invoice logo could not be embedded:", logoErr);
   }
 
-  page.drawText(tr("PAID INVOICE", "FACTURE AQUITÉE"), { x: margin, y, size: 15, font: fontBold, color: textDark });
+  page.drawText(tr("PAID INVOICE", "FACTURE ACQUITTÉE"), { x: margin, y, size: 15, font: fontBold, color: textDark });
   y -= 34;
 
   const leftStartY = y;

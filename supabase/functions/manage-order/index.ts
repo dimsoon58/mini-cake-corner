@@ -298,7 +298,7 @@ ${brandDarkModeStyle()}
 
 // ── Invoice PDF generation ──────────────────────────────────────────
 // Redrawn to match the "modele facture.pdf" reference template: cream
-// background, maroon table header, FACTURE AQUITÉE title, and a table that
+// background, maroon table header, FACTURE ACQUITTÉE title, and a table that
 // grows to however many rows the real order needs (one row per order_item,
 // plus a "Livraison" row when delivery_fee > 0, plus a bold TOTAL row) —
 // paginating onto additional A4 pages, with the table header repeated, if
@@ -451,7 +451,7 @@ async function generateInvoicePdf(
   }
 
   // ── Title ────────────────────────────────────────────────────────
-  page.drawText(tr("PAID INVOICE", "FACTURE AQUITÉE"), { x: margin, y, size: 15, font: fontBold, color: textDark });
+  page.drawText(tr("PAID INVOICE", "FACTURE ACQUITTÉE"), { x: margin, y, size: 15, font: fontBold, color: textDark });
   y -= 34;
 
   // ── Company block (left) + facture info block (right) ─────────────

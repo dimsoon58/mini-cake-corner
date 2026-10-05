@@ -86,9 +86,10 @@ console.error = () => {}; // « logo could not be embedded » attendu (pas de r�
 const OLD = await loadInvoice(path.join(FIX, "invoice-pdf-before-d0d6b83.ts"), "inv-old");
 const NEW = await loadInvoice(path.join(SHARED, "invoice-pdf.ts"), "inv-new");
 // Adresse de la société changée le 05.10.2026 (Rue Prévost-Martin 8, 1205 Genève) : l'ancienne copie
-// porte encore l'ancienne adresse ; on la remplace dans son rendu pour ne comparer que le reste.
+// porte encore l'ancienne adresse et le titre « FACTURE AQUITÉE » (corrigé en ACQUITTÉE) ; on les remplace
+// dans son rendu pour ne comparer que le reste.
 const ADDR_OLD = /58 Chemin de la Gradelle, 1224 (Genève|Geneva)/g;
-const render = async (mod, order, items, opts) => { drawn.length = 0; await mod.generateInvoicePdf(order, items, opts); return drawn.map((d) => d.join(" ").replace(ADDR_OLD, (_m, c) => `Rue Prévost-Martin 8, 1205 ${c}`)); };
+const render = async (mod, order, items, opts) => { drawn.length = 0; await mod.generateInvoicePdf(order, items, opts); return drawn.map((d) => d.join(" ").replace(ADDR_OLD, (_m, c) => `Rue Prévost-Martin 8, 1205 ${c}`).replace("FACTURE AQUITÉE", "FACTURE ACQUITTÉE")); };
 const base = { lang: "fr", first_name: "Test", last_name: "Client", email: "t@example.com", invoice_number: "INV-2026-0001", created_at: "2026-10-01T10:00:00Z",
   total_amount: 90, delivery_fee: 0, express_surcharge_amount: 0, reward_amount_used: 0, welcome_discount_amount: 0, partner_discount_amount: 0 };
 const cake = [{ product: "bento_cake", total: 90, quantity: 1, size: "10cm", flavors: ["vanilla"] }];
@@ -104,10 +105,10 @@ for (const [name, order, items, opts] of cases) {
   const a = await render(OLD, order, items, opts), b = await render(NEW, order, items, opts);
   check(`Facture identique avant / après d0d6b83 : ${name}`, a.length > 10 && JSON.stringify(a) === JSON.stringify(b), { a: a.length, b: b.length });
 }
-check("Nouvelle adresse sur la facture (FR et EN), plus aucune trace de l'ancienne",
+check("Nouvelle adresse sur la facture (FR et EN) et titre « FACTURE ACQUITTÉE », plus aucune trace des anciens",
   fs.readFileSync(path.join(SHARED, "invoice-pdf.ts"), "utf8").includes('tr("Rue Prévost-Martin 8, 1205 Geneva", "Rue Prévost-Martin 8, 1205 Genève")')
   && fs.readFileSync(path.join(ROOT, "functions/manage-order/index.ts"), "utf8").includes('tr("Rue Prévost-Martin 8, 1205 Geneva", "Rue Prévost-Martin 8, 1205 Genève")')
-  && !/Gradelle/.test(fs.readFileSync(path.join(SHARED, "invoice-pdf.ts"), "utf8") + fs.readFileSync(path.join(ROOT, "functions/manage-order/index.ts"), "utf8")));
+  && !/Gradelle|AQUITÉE/.test(fs.readFileSync(path.join(SHARED, "invoice-pdf.ts"), "utf8") + fs.readFileSync(path.join(ROOT, "functions/manage-order/index.ts"), "utf8")));
 // Seul cas différent : un ajustement de prix ≠ 0, posé uniquement par l'éditeur des commandes admin.
 const adj = { ...base, total_amount: 80, price_adjustment_amount: -10 };
 const a = await render(OLD, adj, cake), b = await render(NEW, adj, cake);
