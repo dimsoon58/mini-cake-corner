@@ -59,7 +59,7 @@ verify_jwt = false
 [functions.daily-health-report]
 verify_jwt = false
 
-# Make (scénario 7425367) uniquement — garde d'appelant dans le code : « Verify JWT » DOIT rester activé.
+# Make (scénario 7425367) uniquement — authentification par secret dédié ou clé service_role exacte (dans le code).
 [functions.cancel-order-item-make]
 verify_jwt = true
 

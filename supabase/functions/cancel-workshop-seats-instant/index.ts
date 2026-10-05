@@ -1,5 +1,5 @@
 // Copie de production récupérée le 05.10.2026 (retour-production-F26.zip), identique au code
-// déployé sauf la « Garde d'appelant ». Destinée au seul scénario Make 7425367 ; à supprimer
+// déployé sauf « Authentification de Make ». Destinée au seul scénario Make 7425367 ; à supprimer
 // le jour de l'arrêt de 7425367.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
@@ -13,40 +13,37 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   headers: { ...corsHeaders, "Content-Type": "application/json" },
 });
 
-// ── Garde d'appelant (audit 05.10.2026) ─────────────────────────────────
-// Fonction appelée UNIQUEMENT par Make (scénario 7425367). « Verify JWT » doit
-// rester ACTIVÉ : la passerelle Supabase a donc déjà vérifié la signature du
-// jeton, et on peut lire son rôle sans le revérifier.
-//   - « authenticated » (un client ou une admin connectés au site) : REFUSÉ —
-//     l'admin passe par cancel-order-item / cancel-workshop-seats, jamais ici ;
-//   - « service_role » (ou clé secrète sb_secret_) : accepté ;
-//   - « anon » (ancienne clé anon) : accepté tant que MAKE_CALLER_STRICT n'est
-//     pas « true », pour ne pas casser Make avant d'avoir confirmé, dans les
-//     journaux, la clé utilisée par sa connexion. Chaque appel journalise le
-//     rôle (jamais la clé).
-function callerRole(req: Request): string {
-  const bearer = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
-  const token = bearer || (req.headers.get("apikey") ?? "").trim();
-  if (!token) return "none";
-  if (token.startsWith("sb_secret_")) return "service_role";
-  if (token.startsWith("sb_publishable_")) return "anon";
-  const part = token.split(".")[1];
-  if (!part) return "unknown";
-  try {
-    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
-    const payload = JSON.parse(atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, "=")));
-    return typeof payload?.role === "string" ? payload.role : "unknown";
-  } catch {
-    return "unknown";
-  }
+// ── Authentification de Make (audit 05.10.2026, v2) ─────────────────────
+// Fonction appelée UNIQUEMENT par Make (scénario 7425367). Deux preuves
+// seulement, comparées à temps constant à des valeurs gardées côté serveur :
+//   1. en-tête « x-make-function-secret » = secret dédié MAKE_FUNCTIONS_SECRET
+//      (au moins 32 caractères ; ajouté dans les modules Make lors de la
+//      transition coordonnée) ;
+//   2. clé service_role EXACTE du projet (Authorization: Bearer … ou apikey)
+//      = SUPABASE_SERVICE_ROLE_KEY.
+// Tout le reste est refusé (403) avant de lire la requête : clé publique
+// (sb_publishable_…, ancienne clé anon), jeton d'une personne connectée,
+// clé « sb_secret_… » quelconque, jeton se disant « service_role » mais
+// différent de la clé du projet. Le préfixe ou le rôle d'un jeton ne sont
+// jamais une preuve. Les journaux indiquent la preuve utilisée, jamais la clé.
+function makeSafeEqual(a: string, b: string): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
-function callerRefusal(req: Request, fn: string): Response | null {
-  const role = callerRole(req);
-  const strict = (Deno.env.get("MAKE_CALLER_STRICT") ?? "") === "true";
-  const allowed = role === "service_role" || (!strict && role === "anon");
-  console.log(`[${fn}] caller_role=${role} strict=${strict} allowed=${allowed}`);
-  if (allowed) return null;
-  return new Response(JSON.stringify({ error: "Caller not allowed", reason: "caller_role" }), {
+function makeCallerRefusal(req: Request, fn: string): Response | null {
+  const dedicated = Deno.env.get("MAKE_FUNCTIONS_SECRET") ?? "";
+  const given = req.headers.get("x-make-function-secret") ?? "";
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const bearer = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  const apikey = (req.headers.get("apikey") ?? "").trim();
+  let via = "refused";
+  if (dedicated.length >= 32 && makeSafeEqual(given, dedicated)) via = "dedicated_secret";
+  else if (serviceKey && (makeSafeEqual(bearer, serviceKey) || makeSafeEqual(apikey, serviceKey))) via = "service_role_key";
+  console.log(`[${fn}] make_auth=${via}`);
+  if (via !== "refused") return null;
+  return new Response(JSON.stringify({ error: "Caller not allowed", reason: "make_auth" }), {
     status: 403, headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
   });
 }
@@ -54,7 +51,7 @@ function callerRefusal(req: Request, fn: string): Response | null {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  const refused = callerRefusal(req, "cancel-workshop-seats-instant");
+  const refused = makeCallerRefusal(req, "cancel-workshop-seats-instant");
   if (refused) return refused;
 
   const adminPin = Deno.env.get("ADMIN_ORDER_PIN") ?? "";

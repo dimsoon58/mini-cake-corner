@@ -548,10 +548,12 @@ remboursement à l'annulation, remboursement partiel sans décision, annulation 
 commande non payée, aucune erreur) ; « Le mois en chiffres » du tableau de bord = Compta ; lien des
 conditions au checkout. Résultat attendu : `62 PASS, 0 FAIL` (détail : `audit-compta-resultats.json`).
 
-## Garde d'appelant des fonctions Make (cancel-order-item-make, cancel-workshop-seats-instant)
+## Authentification de Make (cancel-order-item-make, cancel-workshop-seats-instant)
 
-`test_make_caller_guard.mjs` (code de production récupéré le 05.10 + garde, réseau simulé) : un
-client ou une admin connectés (jeton « authenticated ») et un appel sans jeton sont refusés avant
-toute lecture ; service_role / clé secrète acceptés ; ancienne clé anon acceptée en mode normal (Make
-pas cassé), refusée avec MAKE_CALLER_STRICT=true ; aucun appel à Resend ; Verify JWT activé dans
-config.toml. Résultat attendu : `22 PASS, 0 FAIL`.
+`test_make_caller_guard.mjs` (code de production récupéré le 05.10 + authentification, réseau simulé
+qui renvoie un article / une réservation VALIDES) : toute clé publique (sb_publishable_, ancienne clé
+anon, en Authorization ou apikey), un jeton de personne connectée, l'absence de clé, une clé
+« sb_secret_ » quelconque, un faux jeton « service_role », un mauvais secret dédié ou un secret
+tronqué sont refusés (403) AVANT tout appel ; seules la clé service_role exacte du projet et le
+secret dédié MAKE_FUNCTIONS_SECRET (≥ 32 caractères) passent ; contrôle du jeu de données (une preuve
+valide irait jusqu'à l'annulation et l'e-mail simulés). Résultat attendu : `33 PASS, 0 FAIL`.
