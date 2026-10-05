@@ -166,7 +166,7 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
           {x.released > 0 && <Line label="+ Bénéfice conservé libéré (décision)" value={money(x.released)} hint={x.releaseReason ?? undefined} />}
           <Line label="= Résultat à partager" value={money(x.toShare)} strong hint="résultat comptable : pas forcément déjà en banque" />
           <Line label={`${mel} (${x.melPct} %)`} value={money(x.melShare)} />
-          <Line label={`${eli} (reste exact)`} value={money(x.eliShare)} />
+          <Line label={`${eli} (${100 - x.melPct} %)`} value={money(x.eliShare)} />
         </section>
 
         <section className="border border-border/60 p-4 text-sm space-y-3">

@@ -518,7 +518,7 @@ function addSettlementSheet(wb: Workbook, v: SettlementView, m: (label: string, 
   const rShare = line("Résultat à partager", x.baseConstituted ? f(`B${rAvail}-B${rBase}-B${rExtra}-B${rKeep}+B${rRel}`, x.toShare) : x.toShare);
   ws.getRow(rShare).font = { bold: true };
   const rMel = line(`Mel (${x.melPct} %, arrondi au centime)`, f(`ROUND(B${rShare}*${x.melPct}/100,2)`, x.melShare));
-  line(`Eli (reste exact)`, f(`B${rShare}-B${rMel}`, x.eliShare));
+  line(`Eli (${100 - x.melPct} %)`, f(`B${rShare}-B${rMel}`, x.eliShare));
   ws.addRow([]);
 
   title("Trésorerie de base, épargne et bénéfice conservé (à la fin du mois)");
