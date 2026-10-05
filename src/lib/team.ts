@@ -39,7 +39,25 @@ export interface TeamMember {
   currentWeek?: WeekSummary | null;
   leave?: LeaveBalance[]; leaveDays?: LeaveDay[];
 }
-export interface TeamData { today: string; from: string; to: string; members: TeamMember[]; holidays: { holiday_date: string; label: string }[] }
+export type EventKind = "kitchen_unavailable" | "appointment" | "supplier_delivery" | "event" | "other";
+// F27 : événement de l'équipe (organisation interne, jamais lié au site ni aux commandes).
+export interface TeamEvent {
+  id: string; title: string; kind: EventKind; start_date: string; end_date: string;
+  start_time: string | null; end_time: string | null; note: string | null; visible_to_staff: boolean;
+}
+export const EVENT_KIND_LABELS: Record<EventKind, string> = {
+  kitchen_unavailable: "Cuisine indisponible", appointment: "Rendez-vous", supplier_delivery: "Livraison fournisseur", event: "Salon / événement", other: "Autre",
+};
+export const EVENT_KIND_STYLE: Record<EventKind, string> = {
+  kitchen_unavailable: "border-red-300 bg-red-50 text-red-900",
+  appointment: "border-blue-300 bg-blue-50 text-blue-900",
+  supplier_delivery: "border-teal-300 bg-teal-50 text-teal-900",
+  event: "border-orange-300 bg-orange-50 text-orange-900",
+  other: "border-stone-300 bg-stone-50 text-stone-800",
+};
+export const eventWhen = (e: TeamEvent) =>
+  `${e.start_time && e.end_time ? `${e.start_time}–${e.end_time}` : "Journée entière"}${e.end_date !== e.start_date ? ` · ${longDate(e.start_date)} → ${longDate(e.end_date)}` : ""}`;
+export interface TeamData { today: string; from: string; to: string; members: TeamMember[]; holidays: { holiday_date: string; label: string }[]; events?: TeamEvent[] }
 export interface AbsencePreview {
   errors: string[]; warnings: string[]; days: LeaveDay[]; deductionMin: number;
   balanceBefore: LeaveBalance[] | null; balanceAfter: LeaveBalance[] | null; creditMin: number; slotConflicts: string[];
@@ -148,6 +166,6 @@ export interface MyBalance extends LeaveBalance { pendingMin: number; remainingI
 export interface MyTeamData {
   today: string; from: string; to: string; member: { id: string; name: string; color: string };
   holidays: { holiday_date: string; label: string }[]; permissions: string[];
-  slots?: TimeRange[]; days?: DayInfo[]; absences?: Absence[];
+  slots?: TimeRange[]; days?: DayInfo[]; absences?: Absence[]; events?: TeamEvent[];
   leave?: { tracked: boolean; balances: MyBalance[]; vacations: Absence[]; requests: LeaveRequest[] };
 }

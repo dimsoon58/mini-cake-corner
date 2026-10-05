@@ -8,7 +8,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useStaffRole } from "@/lib/staff";
 import {
-  KIND_LABELS, LEAVE_STATUS_LABELS, PORTION_LABELS, addMonths, dayLabel, fmtMin, hhmm, longDate, monthEnd, monthLabel, monthStart, netMinutes, teamApi,
+  EVENT_KIND_LABELS, EVENT_KIND_STYLE, KIND_LABELS, LEAVE_STATUS_LABELS, eventWhen, PORTION_LABELS, addMonths, dayLabel, fmtMin, hhmm, longDate, monthEnd, monthLabel, monthStart, netMinutes, teamApi,
   type AbsencePreview, type MyTeamData, type Portion,
 } from "@/lib/team";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 // l'admin ; jamais inventé sans contrat) et ses demandes de congés. Une
 // demande reste « en attente » jusqu'à la décision de Mel ou Eli. Toujours
 // pour sa propre personne (le serveur prend l'identité de son accès).
+// F27 : les événements de l'équipe que Mel ou Eli ont rendus visibles.
 
 const box = "border border-border/60 bg-background";
 const h2 = "text-sm font-semibold uppercase tracking-[0.08em]";
@@ -88,6 +89,20 @@ const AdminMe = () => {
                   </li>
                 ))}
               </ul>
+            )}
+            {(data.events ?? []).length > 0 && (
+              <div className="space-y-1" data-testid="my-events">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Événements de l'équipe</h3>
+                <ul className={cn(box, "divide-y divide-border/60 text-sm")}>
+                  {data.events!.map((e) => (
+                    <li key={e.id} className="px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className={cn("px-1.5 py-0.5 text-[11px] border", EVENT_KIND_STYLE[e.kind])}>{EVENT_KIND_LABELS[e.kind]}</span>
+                      <span className="flex-1 min-w-[180px]">{dayLabel(e.start_date)} · {e.title}<span className="text-muted-foreground"> · {eventWhen(e)}</span>
+                        {e.note && <span className="block text-xs text-muted-foreground">{e.note}</span>}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
             {absences.length > 0 && (
               <p className="text-xs text-muted-foreground">Absences ce mois : {absences.map((a) => `${KIND_LABELS[a.kind]} ${longDate(a.start_date)}${a.end_date !== a.start_date ? ` → ${longDate(a.end_date)}` : ""}${a.portion !== "full" ? ` (${PORTION_LABELS[a.portion].toLowerCase()})` : ""}`).join(" · ")}</p>

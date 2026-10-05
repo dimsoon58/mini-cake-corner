@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CalendarPlus, ChevronLeft, ChevronRight, Copy, Download, History, Loader2, Lock, Pencil, Plus, Settings, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarPlus, ChevronLeft, ChevronRight, Copy, Download, Eye, EyeOff, History, Loader2, Lock, Pencil, Plus, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +11,10 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import {
-  CREDIT_BASIS_LABELS, DOW_FR, DOW_SHORT_FR, KIND_LABELS, KIND_SHORT, PORTION_LABELS, REASON_LABELS, STATUS_LABELS,
+  CREDIT_BASIS_LABELS, DOW_FR, DOW_SHORT_FR, EVENT_KIND_LABELS, EVENT_KIND_STYLE, KIND_LABELS, KIND_SHORT, PORTION_LABELS, REASON_LABELS, STATUS_LABELS,
   addDays, addMonths, balanceLabel, dayLabel, eachDay, fmtMin, fmtSigned, hhmm, isoDow, longDate, mondayOf, monthEnd,
-  monthLabel, monthStart, netMinutes, shortDate, teamApi,
-  type AbsenceKind, type AbsencePreview, type Contract, type HistoryEntry, type Portion,
+  monthLabel, monthStart, netMinutes, shortDate, teamApi, eventWhen,
+  type AbsenceKind, type EventKind, type TeamEvent, type AbsencePreview, type Contract, type HistoryEntry, type Portion,
   type TeamData, type TeamMember, type TimeRange, type WeekSummary,
 } from "@/lib/team";
 import { cn } from "@/lib/utils";
@@ -23,9 +23,15 @@ import { cn } from "@/lib/utils";
 // absences de Nahya, Eli et Melodie. Compteurs en haut, calendrier dessous,
 // formulaires simples au clic sur un jour. Tous les calculs viennent du
 // serveur (team-planning). Aucune donnée de commande ou de paiement.
+// F27 : événements de l'équipe (cuisine indisponible, rendez-vous…) pour
+// l'organisation ; case « Visible par Nahya » cochée par Mel ou Eli.
 
 type View = "week" | "month";
 type AbsenceDraft = { id?: string; memberId: string; kind: AbsenceKind; start: string; end: string; portion: Portion; note: string };
+type EventDraft = { id?: string; title: string; kind: EventKind; start: string; end: string; allDay: boolean; startTime: string; endTime: string; note: string; visibleToStaff: boolean };
+const newEvent = (d: string): EventDraft => ({ title: "", kind: "kitchen_unavailable", start: d, end: d, allDay: true, startTime: "09:00", endTime: "12:00", note: "", visibleToStaff: false });
+const eventDraft = (e: TeamEvent): EventDraft => ({ id: e.id, title: e.title, kind: e.kind, start: e.start_date, end: e.end_date, allDay: !e.start_time,
+  startTime: e.start_time ?? "09:00", endTime: e.end_time ?? "12:00", note: e.note ?? "", visibleToStaff: e.visible_to_staff });
 
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
   <span className={cn("inline-block px-1.5 py-0.5 text-[11px] leading-tight border", className)}>{children}</span>
@@ -63,6 +69,7 @@ const AdminTeam = () => {
   const [notice, setNotice] = useState<string | null>(null);
   const [day, setDay] = useState<string | null>(null);
   const [absence, setAbsence] = useState<AbsenceDraft | null>(null);
+  const [event, setEvent] = useState<EventDraft | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -146,6 +153,9 @@ const AdminTeam = () => {
             <Button className="rounded-none" onClick={() => data && setAbsence({ memberId: nahya?.id ?? data.members[0].id, kind: "vacation", start: today, end: today, portion: "full", note: "" })} disabled={!data}>
               <CalendarPlus className="w-4 h-4 mr-1" /> Ajouter des vacances
             </Button>
+            <Button variant="outline" className="rounded-none" onClick={() => setEvent(newEvent(today))} disabled={!data} data-testid="add-event">
+              <Plus className="w-4 h-4 mr-1" /> Événement
+            </Button>
             <Button variant="outline" className="rounded-none" onClick={downloadPlanning} disabled={!data || exporting}>
               {exporting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />} Planning (Excel)
             </Button>
@@ -208,6 +218,14 @@ const AdminTeam = () => {
             onClose={() => setDay(null)}
             onChanged={load}
             onAbsence={(d) => { setDay(null); setAbsence(d); }}
+            onEvent={(d) => { setDay(null); setEvent(d); }}
+          />
+        )}
+        {event && (
+          <EventDialog
+            draft={event}
+            onClose={() => setEvent(null)}
+            onSaved={(msg) => { setEvent(null); setNotice(msg); load(); }}
           />
         )}
         {absence && data && (
@@ -330,14 +348,15 @@ function dayContent(data: TeamData, d: string) {
   const logs = (nahya?.logs ?? []).filter((s) => s.work_date === d).sort((a, b) => a.start_time.localeCompare(b.start_time));
   const absences = data.members.flatMap((m) => m.absences.filter((a) => d >= a.start_date && d <= a.end_date).map((a) => ({ m, a })));
   const holiday = data.holidays.find((h) => h.holiday_date === d) ?? null;
-  return { nahya, info, slots, logs, absences, holiday };
+  const events = (data.events ?? []).filter((e) => d >= e.start_date && d <= e.end_date);
+  return { nahya, info, slots, logs, absences, holiday, events };
 }
 
 function WeekView({ data, days, onDay }: { data: TeamData; days: string[]; onDay: (d: string) => void }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-7 border border-border/60 divide-y md:divide-y-0 md:divide-x divide-border/60" data-testid="week-view">
       {days.map((d) => {
-        const { nahya, info, slots, logs, absences, holiday } = dayContent(data, d);
+        const { nahya, info, slots, logs, absences, holiday, events } = dayContent(data, d);
         return (
           <button
             key={d}
@@ -352,6 +371,11 @@ function WeekView({ data, days, onDay }: { data: TeamData; days: string[]; onDay
               {info && info.status !== "rest" && info.status !== "outside" && <Badge className={STATUS_STYLE[info.status]}>{STATUS_LABELS[info.status]}</Badge>}
             </div>
             {holiday && <p className="text-xs text-violet-800">Férié : {holiday.label}</p>}
+            {events.map((e) => (
+              <p key={e.id} className={cn("text-xs px-1.5 py-0.5 border truncate", EVENT_KIND_STYLE[e.kind])} title={`${EVENT_KIND_LABELS[e.kind]} · ${eventWhen(e)}`}>
+                {!e.visible_to_staff && <EyeOff className="inline w-3 h-3 mr-0.5 -mt-0.5" aria-label="Non visible par Nahya" />}{e.start_time ? `${e.start_time} ` : ""}{e.title}
+              </p>
+            ))}
             {absences.map(({ m, a }) => (
               <p key={a.id} className="text-xs px-1.5 py-0.5 text-white truncate" style={{ background: m.color }}>
                 {m.name} · {KIND_SHORT[a.kind]}{a.portion !== "full" ? ` (${PORTION_LABELS[a.portion].toLowerCase()})` : ""}
@@ -384,7 +408,7 @@ function MonthView({ data, anchor, from, to, onDay }: { data: TeamData; anchor: 
       </div>
       <div className="grid grid-cols-7 divide-x divide-y divide-border/60 border-t border-border/60">
         {eachDay(from, to).map((d) => {
-          const { nahya, info, slots, logs, absences, holiday } = dayContent(data, d);
+          const { nahya, info, slots, logs, absences, holiday, events } = dayContent(data, d);
           return (
             <button key={d} type="button" onClick={() => onDay(d)} data-date={d}
               className={cn("min-h-[64px] sm:min-h-[92px] p-1 text-left align-top space-y-0.5 hover:bg-secondary/40 min-w-0",
@@ -392,6 +416,11 @@ function MonthView({ data, anchor, from, to, onDay }: { data: TeamData; anchor: 
             >
               <span className={cn("block text-xs", d === data.today && "text-primary font-semibold")}>{+d.slice(8, 10)}</span>
               {holiday && <span className="block h-1.5 bg-violet-300" title={holiday.label} />}
+              {events.map((e) => (
+                <span key={e.id} className={cn("block text-[10px] leading-tight px-0.5 border truncate", EVENT_KIND_STYLE[e.kind])} title={`${e.title} · ${EVENT_KIND_LABELS[e.kind]} · ${eventWhen(e)}`}>
+                  {e.title}
+                </span>
+              ))}
               {absences.map(({ m, a }) => (
                 <span key={a.id} className="block text-[10px] leading-tight px-0.5 text-white truncate" style={{ background: m.color }} title={`${m.name} · ${KIND_LABELS[a.kind]}`}>
                   <span className="sm:hidden">{m.name.slice(0, 1)}</span><span className="hidden sm:inline">{m.name} · {KIND_SHORT[a.kind]}</span>
@@ -413,10 +442,10 @@ function MonthView({ data, anchor, from, to, onDay }: { data: TeamData; anchor: 
 }
 
 // ── Jour ─────────────────────────────────────────────────────────────────
-function DayDialog({ date, data, onClose, onChanged, onAbsence }: {
-  date: string; data: TeamData; onClose: () => void; onChanged: () => Promise<void> | void; onAbsence: (d: AbsenceDraft) => void;
+function DayDialog({ date, data, onClose, onChanged, onAbsence, onEvent }: {
+  date: string; data: TeamData; onClose: () => void; onChanged: () => Promise<void> | void; onAbsence: (d: AbsenceDraft) => void; onEvent: (d: EventDraft) => void;
 }) {
-  const { nahya, info, slots, logs, absences, holiday } = dayContent(data, date);
+  const { nahya, info, slots, logs, absences, holiday, events } = dayContent(data, date);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [editSlot, setEditSlot] = useState<Partial<TimeRange> | null>(null);
@@ -454,8 +483,26 @@ function DayDialog({ date, data, onClose, onChanged, onAbsence }: {
           <ul className="text-sm text-amber-800 space-y-0.5">{info.conflicts.map((c) => <li key={c} className="flex gap-1.5"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />{c}</li>)}</ul>
         )}
 
+        {/* Événements (F27) */}
+        <section className="space-y-1.5" data-testid="day-events">
+          <h3 className="text-sm font-semibold">Événements</h3>
+          {events.length === 0 && <p className="text-sm text-muted-foreground">Aucun.</p>}
+          {events.map((e) => (
+            <div key={e.id} className="flex items-center gap-2 text-sm">
+              <span className={cn("px-1.5 py-0.5 text-[11px] border shrink-0", EVENT_KIND_STYLE[e.kind])}>{EVENT_KIND_LABELS[e.kind]}</span>
+              <span className="flex-1 min-w-0">{e.title}<span className="text-muted-foreground"> · {eventWhen(e)}</span>
+                {e.note && <span className="block text-xs text-muted-foreground">{e.note}</span>}</span>
+              {e.visible_to_staff ? <Eye className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-label="Visible par Nahya" /> : <EyeOff className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-label="Non visible par Nahya" />}
+              <Button size="sm" variant="ghost" className="h-7 px-2" aria-label="Modifier l'événement" onClick={() => onEvent(eventDraft(e))}><Pencil className="w-3.5 h-3.5" /></Button>
+            </div>
+          ))}
+          <Button size="sm" variant="outline" className="rounded-none" onClick={() => onEvent(newEvent(date))}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Ajouter un événement
+          </Button>
+        </section>
+
         {/* Absences */}
-        <section className="space-y-1.5">
+        <section className="space-y-1.5 border-t border-border/60 pt-3">
           <h3 className="text-sm font-semibold">Absences</h3>
           {absences.length === 0 && <p className="text-sm text-muted-foreground">Aucune.</p>}
           {absences.map(({ m, a }) => (
@@ -701,6 +748,104 @@ function AbsenceDialog({ draft, data, onClose, onSaved }: { draft: AbsenceDraft;
           <span className="flex-1" />
           <Button variant="outline" className="rounded-none" onClick={onClose}>Annuler</Button>
           <Button className="rounded-none" onClick={save} disabled={busy || previewing || !preview || preview.errors.length > 0}>Enregistrer</Button>
+        </div>
+        {history && <HistoryList entries={history} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Événements (F27) ─────────────────────────────────────────────────────
+function EventDialog({ draft, onClose, onSaved }: { draft: EventDraft; onClose: () => void; onSaved: (msg: string) => void }) {
+  const [v, setV] = useState<EventDraft>(draft);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[] | null>(null);
+  const multiDay = v.end !== v.start;
+  const save = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await teamApi({ action: "save_event", id: v.id ?? null, title: v.title, kind: v.kind, start: v.start, end: v.allDay ? v.end : v.start,
+        allDay: v.allDay, startTime: v.startTime, endTime: v.endTime, note: v.note, visibleToStaff: v.visibleToStaff });
+      onSaved(`Événement « ${v.title.trim()} » enregistré.`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    if (!v.id || !window.confirm("Supprimer cet événement ?")) return;
+    setBusy(true);
+    try {
+      await teamApi({ action: "delete_event", id: v.id });
+      onSaved("Événement supprimé.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-none" data-testid="event-dialog">
+        <DialogHeader>
+          <DialogTitle>{v.id ? "Modifier l'événement" : "Ajouter un événement"}</DialogTitle>
+          <DialogDescription>Pour l'organisation de l'équipe seulement : le site et les commandes ne changent pas.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1 col-span-2">
+            <Label htmlFor="ev-title" className="text-xs">Titre</Label>
+            <Input id="ev-title" value={v.title} maxLength={120} onChange={(e) => setV({ ...v, title: e.target.value })} placeholder="Ex. Pas d'accès à la cuisine" className="rounded-none h-9" />
+          </div>
+          <div className="space-y-1 col-span-2">
+            <Label htmlFor="ev-kind" className="text-xs">Type</Label>
+            <select id="ev-kind" value={v.kind} onChange={(e) => setV({ ...v, kind: e.target.value as EventKind })} className="h-9 w-full border border-input bg-background px-2 text-sm">
+              {(Object.keys(EVENT_KIND_LABELS) as EventKind[]).map((k) => <option key={k} value={k}>{EVENT_KIND_LABELS[k]}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ev-start" className="text-xs">Du</Label>
+            <Input id="ev-start" type="date" value={v.start} onChange={(e) => setV({ ...v, start: e.target.value, end: e.target.value > v.end ? e.target.value : v.end })} className="rounded-none h-9" />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ev-end" className="text-xs">Au (inclus)</Label>
+            <Input id="ev-end" type="date" value={v.allDay ? v.end : v.start} min={v.start} disabled={!v.allDay} onChange={(e) => setV({ ...v, end: e.target.value })} className="rounded-none h-9" />
+          </div>
+          <div className="space-y-1 col-span-2">
+            <div className="flex border border-input w-fit">
+              {[true, false].map((all) => (
+                <button key={String(all)} type="button" disabled={!all && multiDay} onClick={() => setV({ ...v, allDay: all })}
+                  className={cn("px-3 h-9 text-sm disabled:opacity-50", v.allDay === all ? "bg-primary text-primary-foreground" : "bg-background")}>
+                  {all ? "Journée entière" : "Heures précises"}
+                </button>
+              ))}
+            </div>
+            {multiDay && <p className="text-[11px] text-muted-foreground">Sur plusieurs jours : journée entière seulement.</p>}
+          </div>
+          {!v.allDay && (
+            <>
+              <div className="space-y-1"><Label htmlFor="ev-st" className="text-xs">De</Label><Input id="ev-st" type="time" value={v.startTime} onChange={(e) => setV({ ...v, startTime: e.target.value })} className="rounded-none h-9" /></div>
+              <div className="space-y-1"><Label htmlFor="ev-et" className="text-xs">À</Label><Input id="ev-et" type="time" value={v.endTime} onChange={(e) => setV({ ...v, endTime: e.target.value })} className="rounded-none h-9" /></div>
+            </>
+          )}
+          <div className="space-y-1 col-span-2">
+            <Label htmlFor="ev-note" className="text-xs">Note (facultatif)</Label>
+            <Input id="ev-note" value={v.note} onChange={(e) => setV({ ...v, note: e.target.value })} className="rounded-none h-9" />
+          </div>
+          <label className="col-span-2 flex items-start gap-2 text-sm">
+            <input type="checkbox" className="w-4 h-4 mt-0.5" checked={v.visibleToStaff} onChange={(e) => setV({ ...v, visibleToStaff: e.target.checked })} data-testid="event-visible" />
+            <span>Visible par Nahya<span className="block text-xs text-muted-foreground">Elle le voit dans « Mon planning et congés », sans pouvoir le modifier. Non coché : seules Mel et Eli le voient.</span></span>
+          </label>
+        </div>
+        {err && <p className="border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">{err}</p>}
+        <div className="flex flex-wrap items-center gap-2">
+          {v.id && <Button variant="ghost" size="sm" className="text-red-700" onClick={remove} disabled={busy}><Trash2 className="w-4 h-4 mr-1" /> Supprimer</Button>}
+          {v.id && <Button variant="ghost" size="sm" onClick={async () => setHistory(await teamApi<HistoryEntry[]>({ action: "history", table: "team_events", id: v.id }))}><History className="w-4 h-4 mr-1" /> Historique</Button>}
+          <span className="flex-1" />
+          <Button variant="outline" className="rounded-none" onClick={onClose} disabled={busy}>Annuler</Button>
+          <Button className="rounded-none" onClick={save} disabled={busy || !v.title.trim() || !v.start}>{busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}Enregistrer</Button>
         </div>
         {history && <HistoryList entries={history} />}
       </DialogContent>

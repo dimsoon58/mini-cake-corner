@@ -22,6 +22,11 @@ import {
 // approuvent ou refusent (« leave_requests », « decide_leave ») : une demande
 // approuvée devient l'absence « vacances » habituelle. Ne touche ni aux commandes, ni aux paiements, ni
 // aux remboursements, et n'envoie aucun e-mail.
+//
+// F27 : événements de l'équipe (cuisine indisponible, rendez-vous…), pour
+// l'organisation seulement — jamais liés au site ni aux commandes. Mel et Eli
+// les gèrent (« save_event », « delete_event ») ; l'employée ne reçoit dans
+// « me » QUE ceux cochés « visible par l'employée » (filtré en SQL).
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -49,6 +54,7 @@ const mins = (v: unknown, field: string, max = 100_000): number => {
   if (!Number.isInteger(n) || n < 0 || n > max) throw new InputError(`${field} invalide`);
   return n;
 };
+const EVENT_KINDS = ["kitchen_unavailable", "appointment", "supplier_delivery", "event", "other"];
 const text = (v: unknown, max = 500): string | null => {
   if (v == null) return null;
   const s = String(v).trim();
@@ -113,6 +119,14 @@ serve(async (req) => {
       return data;
     };
     const load = async (from: string, to: string) => (await rpc("team_planning_data", { p_from: from, p_to: to })) as Raw;
+    // F27 : si la migration n'est pas encore appliquée (fonction absente), la
+    // page Équipe continue de fonctionner, simplement sans événements.
+    const events = async (from: string, to: string, staffOnly: boolean) => {
+      const { data, error } = await supabase.rpc("team_events_between", { p_from: from, p_to: to, p_staff_only: staffOnly });
+      if (!error) return data ?? [];
+      if (error.code === "42883" || error.code === "PGRST202") return [];
+      throw Object.assign(new Error("sql"), { sql: error });
+    };
 
     let data: unknown;
     // ── Employée : seulement ses propres données (F23) ──
@@ -136,6 +150,8 @@ serve(async (req) => {
             out.slots = m.slots.filter((x) => x.work_date >= from && x.work_date <= to);
             out.days = mb.tracks_hours ? eachDay(from, to).map((d) => dayInfo(m, d)) : [];
             out.absences = m.absences.filter((a) => a.end_date >= from && a.start_date <= to);
+            // F27 : seulement les événements cochés « visible par l'employée ».
+            out.events = await events(from, to, true);
           }
           if (can("leave.self")) {
             const requests = (await rpc("leave_requests_list", { p_member: me })) as { status: string; start_date: string; end_date: string; portion: Absence["portion"] }[];
@@ -229,7 +245,7 @@ serve(async (req) => {
           }
           return out;
         });
-        data = { today, from, to, members, holidays: raw.holidays };
+        data = { today, from, to, members, holidays: raw.holidays, events: await events(from, to, false) };
         break;
       }
       case "preview_absence": {
@@ -309,6 +325,22 @@ serve(async (req) => {
         await rpc("team_delete_row", { p_table: "team_day_marks", p_id: uuid(body.id, "Marque"), p_by: by });
         data = { ok: true };
         break;
+      case "save_event": {
+        const kind = String(body.kind ?? "other");
+        if (!EVENT_KINDS.includes(kind)) throw new InputError("Type d'événement inconnu");
+        const allDay = body.allDay !== false;
+        data = { id: await rpc("team_save_event", {
+          p_id: optUuid(body.id, "Événement"), p_title: text(body.title, 120) ?? "", p_kind: kind,
+          p_start: date(body.start, "Début"), p_end: date(body.end, "Fin"),
+          p_start_time: allDay ? null : time(body.startTime, "Heure de début"), p_end_time: allDay ? null : time(body.endTime, "Heure de fin"),
+          p_note: text(body.note, 1000), p_visible: body.visibleToStaff === true, p_by: by,
+        }) };
+        break;
+      }
+      case "delete_event":
+        await rpc("team_delete_event", { p_id: uuid(body.id, "Événement"), p_by: by });
+        data = { ok: true };
+        break;
       case "save_contract": {
         const ref = body.reference ?? {};
         const reference: Record<string, number> = {};
@@ -338,7 +370,7 @@ serve(async (req) => {
       }
       case "history": {
         const table = String(body.table);
-        if (!["team_contracts", "team_schedule_slots", "team_work_logs", "team_absences", "team_day_marks"].includes(table)) throw new InputError("Table inconnue");
+        if (!["team_contracts", "team_schedule_slots", "team_work_logs", "team_absences", "team_day_marks", "team_events"].includes(table)) throw new InputError("Table inconnue");
         data = await rpc("team_history", { p_table: table, p_row: uuid(body.id, "Élément") });
         break;
       }
