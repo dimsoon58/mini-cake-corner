@@ -536,3 +536,14 @@ jamais réactivée (et réactivation système conservée) ; commandes de test ex
 relance de F25 identique ; droits fermés ; libellés de la fiche, du formulaire, de la Compta et de la
 liste. Résultat attendu : `40 PASS, 0 FAIL`. Attention : relancer F17 ou F19 APRÈS F25 remettrait
 les anciennes versions des fonctions.
+
+## Audit avant ouverture (05.10.2026) : un jeu chiffré dans toutes les lectures de la Compta
+
+`test_audit_compta.mjs` (schéma de production + F1–F26) : 12 commandes (site, manuelles, plusieurs
+dates, livraison, bienvenue, express, cagnotte, remise partenaire, ajustement, montant payé différent,
+workshop avec places annulées, annulation complète et partielle, deux remboursements, geste commercial,
+refusée, paiement échoué, test, à accepter) passées dans les encaissements, les ventes, les commandes
+du mois, le décompte et la trésorerie, avec montants attendus et obtenus ; cas F26 (proposition de
+remboursement à l'annulation, remboursement partiel sans décision, annulation sans remboursement,
+commande non payée, aucune erreur) ; « Le mois en chiffres » du tableau de bord = Compta ; lien des
+conditions au checkout. Résultat attendu : `62 PASS, 0 FAIL` (détail : `audit-compta-resultats.json`).

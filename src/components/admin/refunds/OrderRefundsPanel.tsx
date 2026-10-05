@@ -365,10 +365,10 @@ const DecisionRow = ({ d, busy, run }: {
         {off && <Badge className="ml-auto bg-slate-200 text-slate-700">{t("Cancelled", "Annulée")}</Badge>}
       </div>
       {d.reason && <p className="text-xs text-muted-foreground">{d.reason}</p>}
-      {!off && d.source === "workshop_cancel" && (
+      {!off && (d.source === "workshop_cancel" || d.source === "admin_cancel") && (
         <p className="text-xs text-muted-foreground" data-testid="workshop-decision-hint">
-          {t("Amount proposed automatically. To keep fees: cancel this decision, then decide the amount to refund.",
-            "Montant proposé automatiquement. Pour garder des frais : annulez cette décision, puis décidez le montant à rembourser.")}
+          {t("Amount proposed automatically. To keep fees: cancel this decision (with the reason), then decide the amount to refund. To refund nothing: cancel it with the reason.",
+            "Montant proposé automatiquement. Pour garder des frais : annulez cette décision (avec le motif), puis décidez le montant à rembourser. Pour ne rien rembourser : annulez-la avec le motif.")}
         </p>
       )}
       {d.items.length > 0 && <p className="text-xs text-muted-foreground">{d.items.map((it) => itemLabel(it, l)).join(", ")}</p>}

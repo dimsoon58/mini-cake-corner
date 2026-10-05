@@ -2357,17 +2357,25 @@ const Checkout = () => {
                   onCheckedChange={(checked) => setAcceptPrivacyPolicy(checked === true)}
                   className="mt-0.5"
                 />
-                <Label htmlFor="privacyPolicy" className="text-sm cursor-pointer leading-relaxed">
-                  {t("I have read and accept the", "J'ai lu et j'accepte les")}{" "}
-                  <Link
-                    to="/privacy-policy"
-                    className="text-primary underline hover:text-primary/80"
-                  >
-                    {t("Terms & Conditions and Privacy Policy", "Conditions Générales de Vente et la Politique de confidentialité")}
-                  </Link>
+                {/* The links sit OUTSIDE the <Label>: a click on them used to tick the
+                    box instead of opening the page. They open in a new tab so the
+                    checkout (cart, address, slot) is never lost. */}
+                <p className="text-sm leading-relaxed">
+                  <Label htmlFor="privacyPolicy" className="cursor-pointer">
+                    {t("I have read and accept the", "J'ai lu et j'accepte les")}
+                  </Label>{" "}
+                  <a href={`${import.meta.env.BASE_URL}terms-and-conditions`} target="_blank" rel="noopener noreferrer"
+                    className="text-primary underline hover:text-primary/80" data-testid="terms-link">
+                    {t("Terms & Conditions", "Conditions Générales de Vente")}
+                  </a>{" "}
+                  {t("and the", "et la")}{" "}
+                  <a href={`${import.meta.env.BASE_URL}privacy-policy`} target="_blank" rel="noopener noreferrer"
+                    className="text-primary underline hover:text-primary/80" data-testid="privacy-link">
+                    {t("Privacy Policy", "Politique de confidentialité")}
+                  </a>
                   {"."}
                   <span className="text-destructive ml-1">*</span>
-                </Label>
+                </p>
               </div>
 
               {/* Newsletter Checkbox - Optional. Hidden for a logged-in

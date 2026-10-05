@@ -6,6 +6,7 @@ import { AlertTriangle, Calculator, ChevronRight, LayoutDashboard, Loader2, Lock
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { DashboardMonthSummary } from "@/components/admin/DashboardMonthSummary";
 import { ShowTestsToggle, useShowTests } from "@/components/admin/ShowTestsToggle";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -16,8 +17,9 @@ import { useWorkshopAvailability } from "@/hooks/useWorkshopAvailability";
 import { cakeDays, handovers, nextSessions, toDecideFirst, type TodayItem, type ToDecideOrder } from "@/lib/dashboard";
 import { cn } from "@/lib/utils";
 
-// Admin > Tableau de bord — ce qu'il faut gérer, sans aucun chiffre financier
-// (les chiffres sont dans la Compta). Quatre blocs, chacun mène à la commande
+// Admin > Tableau de bord — ce qu'il faut gérer. Les administratrices voient
+// en plus « Le mois en chiffres » (DashboardMonthSummary : mêmes appels et
+// mêmes chiffres que la Compta) ; l'employée ne voit aucun montant. Quatre blocs, chacun mène à la commande
 // ou à l'écran concerné : commandes à accepter ou refuser, gâteaux à préparer,
 // retraits et livraisons à venir, prochains workshops. Données : get-today
 // (même règle que Production et Aujourd'hui) sur aujourd'hui + 6 jours, et
@@ -173,6 +175,8 @@ const AdminDashboard = () => {
         {loading && !data && !error && (
           <div className="py-16 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" /></div>
         )}
+
+        {admin && <DashboardMonthSummary />}
 
         {data && (
           <>

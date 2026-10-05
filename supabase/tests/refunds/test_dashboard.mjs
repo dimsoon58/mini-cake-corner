@@ -225,7 +225,9 @@ check("Lecture seule : aucune écriture", writes === 0);
 
 // ═══ Page ═══════════════════════════════════════════════════════════════
 const page = fs.readFileSync(path.join(REPO, "src/pages/AdminDashboard.tsx"), "utf8");
-check("Page : plus aucun chiffre financier ni export (Argent, Encaissé, Remboursé, Net, À encaisser, Reste à rembourser, canal, Excel)",
+// Audit 05.10 : les chiffres d'argent sont dans un bloc séparé (DashboardMonthSummary), réservé aux administratrices.
+check("Page : « Le mois en chiffres » affiché seulement pour les administratrices", /\{admin && <DashboardMonthSummary \/>\}/.test(page));
+check("Page (hors bloc du mois) : aucun chiffre financier ni export (Argent, Encaissé, Remboursé, Net, À encaisser, Reste à rembourser, canal, Excel)",
   !/finance|Argent|Encaissé|Remboursé|"Net"|Reste à rembourser|par canal|Excel|formatChf|CHF/.test(page.replace(/\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "")));
 check("Page : lien « Ouvrir la Compta » réservé aux administratrices", /\{admin && \(\s*<Button asChild[^]*?to="\/admin\/compta"/.test(page) && page.includes("Ouvrir la Compta"));
 check("Page : bloc « À accepter ou refuser » réservé aux administratrices", /\{admin && \(\s*<Block id="a-decider"/.test(page));
