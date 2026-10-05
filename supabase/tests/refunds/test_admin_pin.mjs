@@ -252,7 +252,9 @@ const listed = new Set([...store.matchAll(/"([a-z0-9-]+)"/g)].map((m) => m[1]));
 const missing = [...invoked].filter((n) => !listed.has(n));
 check("Toutes les fonctions appelées par le dashboard reçoivent l'autorisation", missing.length === 0, missing);
 const raw = fs.readdirSync(path.join(ROOT, "functions")).filter((d) => fs.existsSync(path.join(ROOT, "functions", d, "index.ts")))
-  .filter((d) => /Deno\.env\.get\("ADMIN_ORDER_PIN"\)/.test(fs.readFileSync(path.join(ROOT, "functions", d, "index.ts"), "utf8")) && !["admin-pin", "cancel-workshop-seats", "confirm-workshop-refund"].includes(d));
+  .filter((d) => /Deno\.env\.get\("ADMIN_ORDER_PIN"\)/.test(fs.readFileSync(path.join(ROOT, "functions", d, "index.ts"), "utf8")) && !["admin-pin", "cancel-workshop-seats", "confirm-workshop-refund",
+    // Make seulement (7425367) : ne compare pas le PIN, il l'injecte vers cancel-workshop-seats ; protégée par la garde d'appelant.
+    "cancel-workshop-seats-instant"].includes(d));
 check("Fonctions du dashboard : plus de comparaison directe du PIN (toutes via adminPinOk)", raw.length === 0, raw);
 check("Champs PIN masqués une fois déverrouillé (9 écrans)", ["src/components/admin/compta/SettlementTab.tsx", "src/components/admin/manual-order/ManualOrderPanel.tsx", "src/components/admin/partners/PartnerForm.tsx",
   "src/components/admin/refunds/OrderRefundsPanel.tsx", "src/pages/AdminCustomer.tsx", "src/pages/AdminCustomers.tsx", "src/pages/AdminOrder.tsx", "src/pages/AdminPartner.tsx", "src/pages/AdminRefunds.tsx"]

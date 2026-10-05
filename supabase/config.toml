@@ -58,3 +58,10 @@ verify_jwt = false
 # F24 : rapport quotidien appelé par pg_cron avec ?s=DAILY_REPORT_SECRET (sans JWT).
 [functions.daily-health-report]
 verify_jwt = false
+
+# Make (scénario 7425367) uniquement — garde d'appelant dans le code : « Verify JWT » DOIT rester activé.
+[functions.cancel-order-item-make]
+verify_jwt = true
+
+[functions.cancel-workshop-seats-instant]
+verify_jwt = true

@@ -547,3 +547,11 @@ du mois, le décompte et la trésorerie, avec montants attendus et obtenus ; cas
 remboursement à l'annulation, remboursement partiel sans décision, annulation sans remboursement,
 commande non payée, aucune erreur) ; « Le mois en chiffres » du tableau de bord = Compta ; lien des
 conditions au checkout. Résultat attendu : `62 PASS, 0 FAIL` (détail : `audit-compta-resultats.json`).
+
+## Garde d'appelant des fonctions Make (cancel-order-item-make, cancel-workshop-seats-instant)
+
+`test_make_caller_guard.mjs` (code de production récupéré le 05.10 + garde, réseau simulé) : un
+client ou une admin connectés (jeton « authenticated ») et un appel sans jeton sont refusés avant
+toute lecture ; service_role / clé secrète acceptés ; ancienne clé anon acceptée en mode normal (Make
+pas cassé), refusée avec MAKE_CALLER_STRICT=true ; aucun appel à Resend ; Verify JWT activé dans
+config.toml. Résultat attendu : `22 PASS, 0 FAIL`.
