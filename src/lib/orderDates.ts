@@ -55,6 +55,21 @@ export function isClosedDay(date: Date): boolean {
   return date.getDay() === 0;
 }
 
+// Saturday: a single slot, 11:00 – 12:00, for pick-up and delivery alike
+// (website checkout only; Admin manual orders keep every slot).
+export const SATURDAY_SLOT = "11:00 – 12:00";
+const isSaturday = (date: Date | string) => (typeof date === "string" ? new Date(`${date}T00:00:00`) : date).getDay() === 6;
+
+/** Slots offered for a date: all of them, except on Saturday (11:00 – 12:00 only). */
+export function slotsForDate(slots: readonly string[], date: Date | string | null | undefined): string[] {
+  return date && isSaturday(date) ? slots.filter((s) => s === SATURDAY_SLOT) : [...slots];
+}
+
+export const SATURDAY_SLOT_COPY = {
+  en: "On Saturdays, one slot only: 11:00 – 12:00.",
+  fr: "Le samedi, un seul créneau : 11:00 – 12:00.",
+} as const;
+
 export const CLOSED_DAY_COPY = {
   en: "We are closed on Sundays. You can order for Saturday.",
   fr: "Nous sommes fermés le dimanche. Vous pouvez commander pour le samedi.",

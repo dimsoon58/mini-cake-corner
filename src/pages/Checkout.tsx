@@ -53,7 +53,7 @@ import DeliveryAddressAutocomplete, { type AddressSelection } from "@/components
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { isOrderDateDisabled, isClosedDay, CLOSED_DAY_COPY, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
+import { isOrderDateDisabled, isClosedDay, CLOSED_DAY_COPY, SATURDAY_SLOT_COPY, slotsForDate, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
 import { cartItemTitle, flavorLabel, shapeLabel } from "@/lib/orderLabels";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
@@ -501,6 +501,15 @@ const Checkout = () => {
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [pickupTime, setPickupTime] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
+  // Saturday: 11:00 – 12:00 only. A slot chosen before switching to a
+  // Saturday no longer exists, so it is cleared (the customer picks again).
+  const pickupSlots = slotsForDate(PICKUP_TIME_SLOTS, deliveryDate);
+  const deliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate);
+  const isSaturdayDate = !!deliveryDate && deliveryDate.getDay() === 6;
+  useEffect(() => {
+    if (pickupTime && !slotsForDate(PICKUP_TIME_SLOTS, deliveryDate).includes(pickupTime)) setPickupTime("");
+    if (deliveryTime && !slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate).includes(deliveryTime)) setDeliveryTime("");
+  }, [deliveryDate, pickupTime, deliveryTime]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
   const [checkoutPayload, setCheckoutPayload] = useState<any>(null);
@@ -1087,7 +1096,7 @@ const Checkout = () => {
         return;
       }
 
-      if (hasPhysical && deliveryOption === "pickup" && !pickupTime) {
+      if (hasPhysical && deliveryOption === "pickup" && !pickupSlots.includes(pickupTime)) {
         toast({
           title: t("Pick-up Time required", "Heure de retrait requise"),
           description: t("Please select a pick-up time slot.", "Veuillez sélectionner un créneau de retrait."),
@@ -1096,7 +1105,7 @@ const Checkout = () => {
         return;
       }
 
-      if (hasPhysical && deliveryOption === "delivery" && (!deliveryTime || !deliveryComment.trim())) {
+      if (hasPhysical && deliveryOption === "delivery" && (!deliverySlots.includes(deliveryTime) || !deliveryComment.trim())) {
         toast({
           title: t("Delivery information required", "Informations de livraison requises"),
           description: t("Please select a delivery time slot and add a comment with the necessary delivery information.", "Veuillez sélectionner un créneau de livraison et ajouter un commentaire avec les informations nécessaires."),
@@ -1158,14 +1167,14 @@ const Checkout = () => {
           });
           return;
         }
-        if (d.deliveryOption === "pickup" && !d.pickupTime) {
+        if (d.deliveryOption === "pickup" && !slotsForDate(PICKUP_TIME_SLOTS, group.date).includes(d.pickupTime)) {
           toast({
             title: t(`Pick-up time required for ${dateLabel}`, `Heure de retrait requise pour le ${dateLabel}`),
             variant: "destructive",
           });
           return;
         }
-        if (d.deliveryOption === "delivery" && !d.deliveryTime) {
+        if (d.deliveryOption === "delivery" && !slotsForDate(DELIVERY_TIME_SLOTS, group.date).includes(d.deliveryTime)) {
           toast({
             title: t(`Delivery time slot required for ${dateLabel}`, `Créneau de livraison requis pour le ${dateLabel}`),
             variant: "destructive",
@@ -1792,18 +1801,19 @@ const Checkout = () => {
             {deliveryOption === "pickup" && (
               <div className="space-y-2">
                 <Label>{t("Pick-up Time", "Heure de retrait")} <span className="text-destructive">*</span></Label>
-                <Select value={pickupTime} onValueChange={setPickupTime}>
+                <Select value={pickupSlots.includes(pickupTime) ? pickupTime : ""} onValueChange={setPickupTime}>
                   <SelectTrigger className="w-full rounded-none">
                     <SelectValue placeholder={t("Select a pickup time", "Choisir une heure de retrait")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {PICKUP_TIME_SLOTS.map((slot) => (
+                    {pickupSlots.map((slot) => (
                       <SelectItem key={slot} value={slot}>
                         {slot}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {isSaturdayDate && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
               </div>
             )}
 
@@ -1863,18 +1873,19 @@ const Checkout = () => {
                 {/* Delivery Time Slot */}
                 <div className="space-y-2">
                   <Label>{t("Delivery Time Slot", "Créneau de livraison")} <span className="text-destructive">*</span></Label>
-                  <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                  <Select value={deliverySlots.includes(deliveryTime) ? deliveryTime : ""} onValueChange={setDeliveryTime}>
                     <SelectTrigger className="w-full rounded-none">
                       <SelectValue placeholder={t("Select a delivery time slot", "Choisir un créneau de livraison")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {DELIVERY_TIME_SLOTS.map((slot) => (
+                      {deliverySlots.map((slot) => (
                         <SelectItem key={slot} value={slot}>
                           {slot}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {isSaturdayDate && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
                 </div>
 
                 {/* Delivery Comment - Required */}
@@ -1942,6 +1953,9 @@ const Checkout = () => {
 
                 {physicalDateGroups.map((group) => {
                   const draft = getFulfillmentDraft(group.date);
+                  const groupPickupSlots = slotsForDate(PICKUP_TIME_SLOTS, group.date);
+                  const groupDeliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, group.date);
+                  const groupSaturday = groupPickupSlots.length < PICKUP_TIME_SLOTS.length;
                   const groupDate = new Date(group.date + "T00:00:00");
                   const groupLabel = formatDisplayDate(groupDate);
                   const groupTotal = sumChf(...group.items.map((i) => i.total));
@@ -1991,18 +2005,19 @@ const Checkout = () => {
                         <div className="space-y-2">
                           <Label>{t("Pick-up Time", "Heure de retrait")} <span className="text-destructive">*</span></Label>
                           <Select
-                            value={draft.pickupTime}
+                            value={groupPickupSlots.includes(draft.pickupTime) ? draft.pickupTime : ""}
                             onValueChange={(v) => patchFulfillmentDraft(group.date, { pickupTime: v })}
                           >
                             <SelectTrigger className="w-full rounded-none">
                               <SelectValue placeholder={t("Select a pickup time", "Choisir une heure de retrait")} />
                             </SelectTrigger>
                             <SelectContent>
-                              {PICKUP_TIME_SLOTS.map((slot) => (
+                              {groupPickupSlots.map((slot) => (
                                 <SelectItem key={slot} value={slot}>{slot}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                          {groupSaturday && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
                         </div>
                       )}
 
@@ -2034,18 +2049,19 @@ const Checkout = () => {
                           <div className="space-y-2">
                             <Label>{t("Delivery Time Slot", "Créneau de livraison")} <span className="text-destructive">*</span></Label>
                             <Select
-                              value={draft.deliveryTime}
+                              value={groupDeliverySlots.includes(draft.deliveryTime) ? draft.deliveryTime : ""}
                               onValueChange={(v) => patchFulfillmentDraft(group.date, { deliveryTime: v })}
                             >
                               <SelectTrigger className="w-full rounded-none">
                                 <SelectValue placeholder={t("Select a delivery time slot", "Choisir un créneau de livraison")} />
                               </SelectTrigger>
                               <SelectContent>
-                                {DELIVERY_TIME_SLOTS.map((slot) => (
+                                {groupDeliverySlots.map((slot) => (
                                   <SelectItem key={slot} value={slot}>{slot}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                            {groupSaturday && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
                           </div>
                           {/* NOTE (rollout report): there is deliberately no per-date
                               delivery-comment field here yet — order_fulfillments has
