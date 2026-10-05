@@ -24,6 +24,7 @@ import {
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { claimAndSendTechnicalAlert, ALERT_COOLDOWN_SECONDS } from "../_shared/admin-alert.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
+import { notionSyncEnabled } from "../_shared/notion-sync.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
 import { applyOrderRefund } from "../_shared/order-refunds.ts";
@@ -1338,7 +1339,8 @@ serve(async (req) => {
     // now "refused" (the whole order, workshop included) — "refused_physical"
     // no longer applies since there is no more independent "workshop stays
     // confirmed" outcome under Option A.
-    if (hasPhysicalItem) {
+    // F24 : pas d'envoi quand la synchronisation Notion est désactivée.
+    if (hasPhysicalItem && await notionSyncEnabled(supabase)) {
       try {
         const webhookOrderId = order.order_number || order.id;
         const statusValue = effectiveAction === "approve" ? "accepted" : "refused";

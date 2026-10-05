@@ -23,7 +23,7 @@ const ADMIN_FUNCTIONS = new Set([
   "admin-pin", "cancel-order", "cancel-order-item", "cancel-workshop-seats", "finance-month", "get-order-detail", "get-orders-for-labels", "get-production", "get-today",
   "list-manual-orders", "list-orders", "list-orders-by-date", "manage-customers", "manage-expenses",
   "manage-manual-order", "manage-order", "manage-partners", "manage-refunds", "quote-manual-order",
-  "staff-access", "team-planning", "update-production-status", "update-production-stock",
+  "daily-health-report", "manage-workshop-sessions", "staff-access", "team-planning", "update-production-status", "update-production-stock",
 ]);
 
 type Stored = { userId: string; token: string; expiresAt: string };

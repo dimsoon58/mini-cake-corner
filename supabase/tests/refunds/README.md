@@ -456,3 +456,18 @@ solde par les règles existantes, en attente / approuvé / refusé / annulé, ch
 Eli ou Mel, historique, aucun solde inventé sans contrat ; désactivation ; accès lié au compte ;
 relance de F23. Résultat attendu : `83 PASS, 0 FAIL`.
 
+## Sortie de Notion / Make F24 — interrupteur, rapport quotidien, sessions workshop
+
+`test_notion_exit.mjs` (schéma de production + F1–F24, vrai code partagé order-side-effects /
+workshop-make / order-refunds et vraies fonctions daily-health-report, manage-workshop-sessions ;
+Make, Resend et fonctions d'e-mail simulés) : synchronisation Notion ACTIVE par défaut et rapport
+Supabase INACTIF par défaut ; alerte « SYNCHRO_NOTION » seulement quand Notion est actif ;
+déclencheurs make_* coupés et rétablis ; commande du site terminée sans Make quand Notion est
+désactivé, un seul e-mail admin et client, aucun appel Make, rien de renvoyé à la reprise ;
+workshops et remboursements sans appel Make ; rapport : secret, désactivé, avant 8 h, un seul
+e-mail le jour même (clé d'idempotence), rien après 10 h, aucun e-mail sans anomalie, reprise après
+échec, aperçu admin ; sessions : liste avec places, création, doublon refusé, capacité sous les places
+occupées refusée, type figé, date / heure avec confirmation, prix des réservations conservé,
+fermeture, aucune suppression, historique, PIN, droits ; relance de F24. Résultat attendu :
+`52 PASS, 0 FAIL`.
+

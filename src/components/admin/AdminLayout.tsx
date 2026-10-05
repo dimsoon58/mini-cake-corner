@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BarChart3, Calculator, CakeSlice, CalendarCheck, CalendarDays, ClipboardList, Handshake, PencilLine, RotateCcw, Sun, UserRoundCog, Users } from "lucide-react";
+import { BarChart3, Calculator, CakeSlice, CalendarCheck, CalendarDays, ClipboardList, Handshake, Palette, PencilLine, RotateCcw, Sun, UserRoundCog, Users } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -27,6 +27,7 @@ const ITEMS = [
   { to: "/admin/customers", en: "Customers", fr: "Clients", short: { en: "Clients", fr: "Clients" }, icon: Users },
   { to: "/admin/manual-orders", en: "Manual orders", fr: "Commandes manuelles", short: { en: "Manual", fr: "Manu." }, icon: PencilLine },
   { to: "/admin/calendar", en: "Planning", fr: "Planning", short: { en: "Plan.", fr: "Plan." }, icon: CalendarDays, also: ["/admin/labels"] },
+  { to: "/admin/workshops", en: "Workshops", fr: "Workshops", short: { en: "Wksp.", fr: "Wksp." }, icon: Palette },
   { to: "/admin/team", en: "Team", fr: "Équipe", short: { en: "Team", fr: "Équipe" }, icon: UserRoundCog },
   { to: "/admin/production", en: "Production", fr: "Production", short: { en: "Prod.", fr: "Prod." }, icon: CakeSlice },
   { to: "/admin/refunds", en: "Refunds", fr: "Remboursements", short: { en: "Refunds", fr: "Remb." }, icon: RotateCcw },

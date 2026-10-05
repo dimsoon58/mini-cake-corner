@@ -11,7 +11,8 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, designLabel } from "@/lib/orderLabels";
-import { workshopSessions } from "@/data/workshopSessions";
+import { workshopSessions, sessionFromRow } from "@/data/workshopSessions";
+import { useWorkshopAvailability } from "@/hooks/useWorkshopAvailability";
 import { fetchFinanceMonth, type FinanceMonth } from "@/lib/finance";
 
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
@@ -79,6 +80,8 @@ const statusBadgeClass = (status: OrderState) =>
 
 const AdminDashboard = () => {
   const { t, lang } = useLang();
+  // F24 : sessions de la base (Admin > Workshops).
+  const { rows: availRows } = useWorkshopAvailability();
   const { user, loading: authLoading } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
   const dfLocale = lang === "fr" ? { locale: dateFnsFr } : undefined;
@@ -277,7 +280,7 @@ const AdminDashboard = () => {
   // Past/Upcoming below, independent of which month is currently browsed.
   const now = new Date();
   const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const sessionsThisMonth = workshopSessions
+  const sessionsThisMonth = (availRows ? availRows.map(sessionFromRow) : workshopSessions)
     .filter((s) => {
       const [y, m] = s.date.split("-").map(Number);
       return y === cursorYear && m === cursorMonth;

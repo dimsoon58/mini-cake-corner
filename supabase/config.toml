@@ -54,3 +54,7 @@ verify_jwt = false
 
 [functions.cancel-workshop-seats]
 verify_jwt = false
+
+# F24 : rapport quotidien appelé par pg_cron avec ?s=DAILY_REPORT_SECRET (sans JWT).
+[functions.daily-health-report]
+verify_jwt = false

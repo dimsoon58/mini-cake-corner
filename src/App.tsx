@@ -33,6 +33,7 @@ import AdminRefunds from "./pages/AdminRefunds";
 import AdminCustomers from "./pages/AdminCustomers";
 import AdminTeam from "./pages/AdminTeam";
 import AdminMe from "./pages/AdminMe";
+import AdminWorkshops from "./pages/AdminWorkshops";
 import AdminCompta from "./pages/AdminCompta";
 import AdminPartners from "./pages/AdminPartners";
 import AdminPartner from "./pages/AdminPartner";
@@ -149,6 +150,7 @@ const App = () => (
             <Route path="/admin/customers/:id" element={<AdminCustomer />} />
             <Route path="/admin/team" element={<AdminTeam />} />
             <Route path="/admin/me" element={<AdminMe />} />
+            <Route path="/admin/workshops" element={<AdminWorkshops />} />
             <Route path="/admin/compta" element={<AdminCompta />} />
             <Route path="/admin/partners" element={<AdminPartners />} />
             <Route path="/admin/partners/:id" element={<AdminPartner />} />

@@ -5,7 +5,8 @@ import { Check, Calendar, Mail, ArrowRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/context/LanguageContext";
-import { workshopInfo, workshopSessions, formatSessionDate, WorkshopType } from "@/data/workshopSessions";
+import { workshopInfo, workshopSessions, formatSessionDate, sessionFromRow, WorkshopType } from "@/data/workshopSessions";
+import { useWorkshopAvailability } from "@/hooks/useWorkshopAvailability";
 
 const BookingConfirmation = () => {
   const { t, lang } = useLang();
@@ -18,7 +19,9 @@ const BookingConfirmation = () => {
   const email = searchParams.get("email") ?? "";
 
   const info = workshopInfo[workshopType];
-  const session = workshopSessions.find(s => s.id === sessionId);
+  // F24 : session lue dans la base (Admin > Workshops), liste de remplacement sinon.
+  const { bySession } = useWorkshopAvailability();
+  const session = bySession[sessionId] ? sessionFromRow(bySession[sessionId]) : workshopSessions.find(s => s.id === sessionId);
   const total = session ? session.pricePerPerson * participants : info.pricePerPerson * participants;
 
   useEffect(() => {
