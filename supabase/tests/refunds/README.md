@@ -456,3 +456,17 @@ solde par les règles existantes, en attente / approuvé / refusé / annulé, ch
 Eli ou Mel, historique, aucun solde inventé sans contrat ; désactivation ; accès lié au compte ;
 relance de F23. Résultat attendu : `83 PASS, 0 FAIL`.
 
+
+## Tableau de bord — ce qu'il faut gérer, sans chiffres financiers
+
+`test_dashboard.mjs` (schéma de production + F1–F23, vraie fonction get-today sur aujourd'hui + 6
+jours, vraie fonction SQL get_workshop_availability, vrai code de regroupement src/lib/dashboard.ts) :
+commande à 3 gâteaux sur 2 dates (livraison puis retrait, ligne « × 2 », un gâteau prêt) ;
+annulation partielle (gâteau annulé, gâteau annulé par remboursement) et totale ; refus, gâteau
+refusé d'une commande mixte ; « à accepter » montré à part, jamais dans la production ; commande
+manuelle à encaisser ; hors période ; workshops (places annulées, réservation annulée, session
+fermée, sessions passées exclues) ; droits (sans connexion, client, employée sans montant ni
+alerte, employée sans « today.view ») ; page sans aucun chiffre financier, lien Compta et bloc de
+décision réservés aux administratrices, liens vers commande / production / planning / jour ;
+encaissements par date de paiement toujours dans le détail replié de la Compta. Résultat
+attendu : `35 PASS, 0 FAIL`.

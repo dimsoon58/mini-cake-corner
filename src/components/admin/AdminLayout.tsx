@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BarChart3, Calculator, CakeSlice, CalendarCheck, CalendarDays, ClipboardList, Handshake, PencilLine, RotateCcw, Sun, UserRoundCog, Users } from "lucide-react";
+import { Calculator, CakeSlice, CalendarCheck, CalendarDays, ClipboardList, Handshake, LayoutDashboard, PencilLine, RotateCcw, Sun, UserRoundCog, Users } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -32,7 +32,7 @@ const ITEMS = [
   { to: "/admin/refunds", en: "Refunds", fr: "Remboursements", short: { en: "Refunds", fr: "Remb." }, icon: RotateCcw },
   { to: "/admin/compta", en: "Accounting", fr: "Compta", short: { en: "Acct.", fr: "Compta" }, icon: Calculator },
   { to: "/admin/partners", en: "Partners", fr: "Partenaires", short: { en: "Partners", fr: "Part." }, icon: Handshake },
-  { to: "/admin/dashboard", en: "Dashboard", fr: "Tableau de bord", short: { en: "Stats", fr: "Stats" }, icon: BarChart3 },
+  { to: "/admin/dashboard", en: "Dashboard", fr: "Tableau de bord", short: { en: "Board", fr: "Bord" }, icon: LayoutDashboard },
 ];
 
 // F23 : sections de l'employée (aucune donnée financière, aucune gestion).

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
 import { AlertTriangle, Loader2, Lock, Plus, RefreshCw } from "lucide-react";
@@ -148,6 +148,15 @@ const AdminToday = () => {
   useEffect(() => {
     if (!authLoading && !staff.loading && isAdmin) load();
   }, [authLoading, staff.loading, isAdmin, load]);
+
+  // Arrivée depuis le tableau de bord (#production, #workshops, #a-faire) :
+  // descendre jusqu'à la section une fois les données affichées.
+  const { hash } = useLocation();
+  const hasData = !!data;
+  useEffect(() => {
+    if (!hasData || !hash) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
+  }, [hasData, hash]);
 
   if (authLoading || staff.loading) {
     return (
