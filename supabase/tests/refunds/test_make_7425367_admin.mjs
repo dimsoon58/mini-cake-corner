@@ -308,6 +308,17 @@ const rows = await q("select amount, source from public.order_manual_refunds whe
 check("Registre : un remboursement « admin » de 39", rows.length === 1 && Number(rows[0].amount) === 39 && rows[0].source === "admin", rows);
 check("Aucune erreur d'intégration de remboursement", (await one("select count(*)::int n from public.refund_ingest_errors")).n === 0);
 
+// ═══ Couleurs des options (comme le checkout) ═════════════════════════════
+r = await call("manage-manual-order", { action: "save", mode: "draft", customer, fulfillments: [pickup("2026-11-12", [0])], items: [{
+  ...cakeItem("vanilla"), size: "medium", extras: ["ribbons", "glitter"], design: "gender-reveal",
+  extra: "Ribbons, Glitter, Ribbon: Baby Pink, Glitter: Gold", extra_type: "Decorations", extra_color: "Baby Pink, Gold",
+  ribbon_color: "Baby Pink", butterfly_color: null, inside_color: "Rose" }] });
+const colRow = await one("select extra, extra_color, ribbon_color, butterfly_color, inside_color from public.order_items where order_id=$1", [r.body.orderId]);
+check("Couleurs enregistrées comme le site : extra, extra_color, ribbon_color, inside_color",
+  r.status === 200 && colRow.extra === "Ribbons, Glitter, Ribbon: Baby Pink, Glitter: Gold" && colRow.extra_color === "Baby Pink, Gold" && colRow.ribbon_color === "Baby Pink" && colRow.butterfly_color === null && colRow.inside_color === "Rose", { status: r.status, colRow, body: r.body });
+const got = await call("manage-manual-order", { action: "get", orderId: r.body.orderId });
+check("Relecture : l'éditeur reçoit extra (paillettes), ribbon_color et inside_color", got.status === 200 && got.body.items[0].extra.includes("Glitter: Gold") && got.body.items[0].ribbon_color === "Baby Pink" && got.body.items[0].inside_color === "Rose", got.body.items?.[0]);
+
 // ═══ Bilan ════════════════════════════════════════════════════════════════
 check("Total : exactement 5 e-mails, tous vers l'adresse de test (1 confirmation T1, 1 gâteau, 1 places, 1 confirmation T2, 1 annulation T2)",
   delivered().length === 5 && delivered().every((c) => c.body.to.includes(EMAIL)), delivered().map((c) => c.body.subject));

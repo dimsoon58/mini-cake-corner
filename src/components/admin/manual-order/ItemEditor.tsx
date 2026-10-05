@@ -3,8 +3,16 @@ import { AlertTriangle, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react
 import { supabase } from "@/integrations/supabase/client";
 import { useLang } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
+import { colourFr } from "@/data/catalogLabelsFr";
 import {
+  BUTTERFLY_COLOURS,
   COLOURS,
+  type ColourOption,
+  colourNeeds,
+  GLITTER_CHERRIES_COLOURS,
+  glitterChoices,
+  INSIDE_COLOURS,
+  RIBBON_COLOURS,
   type DateGroup,
   type EditorItem,
   emptyItem,
@@ -192,6 +200,29 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
     );
   };
 
+  // Couleur d'une option ou d'un design : mêmes listes que le site, une seule
+  // couleur ; valeur = nom du catalogue (comme le checkout). Recliquer efface.
+  const needs = colourNeeds(item);
+  const renderOptionColours = (title: string, options: ColourOption[], value: string, onPick: (v: string) => void, required: boolean, valueOf: (c: ColourOption) => string = (c) => c.name) => (
+    <div className="md:col-span-2" data-testid="option-colour">
+      <label className={label}>{title}{required && <span className="text-destructive"> *</span>}</label>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((c) => {
+          const v = valueOf(c);
+          const on = value === v;
+          return (
+            <button key={c.id} type="button" aria-pressed={on} onClick={() => onPick(on ? "" : v)}
+              className={cn("inline-flex items-center gap-1.5 border px-2 py-1 text-xs", on ? "border-primary bg-primary/10 font-semibold" : "border-input bg-background hover:border-primary/50")}>
+              <span className="w-3.5 h-3.5 rounded-full border border-border/70 shrink-0" style={{ backgroundColor: c.color }} />
+              {l === "fr" ? colourFr[c.name] ?? c.name : c.name}
+            </button>
+          );
+        })}
+      </div>
+      {required && !value && <p className="text-[11px] text-amber-800 mt-1">{t("Choose a colour (required, as on the website).", "Choisissez une couleur (obligatoire, comme sur le site).")}</p>}
+    </div>
+  );
+
   const renderColourSelect = (id: string, value: string, onPick: (v: string) => void) => (
     <select id={id} value={value} onChange={(e) => onPick(e.target.value)} className={field}>
       <option value="">{t("—", "—")}</option>
@@ -308,6 +339,11 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
             </div>
           </div>
         )}
+        {isCake && needs.ribbon && renderOptionColours(t("Ribbon colour", "Couleur des rubans"), RIBBON_COLOURS, item.ribbon_color, (v) => set({ ribbon_color: v }), true)}
+        {isCake && needs.butterfly && renderOptionColours(t("Butterfly colour", "Couleur du papillon"), BUTTERFLY_COLOURS, item.butterfly_color, (v) => set({ butterfly_color: v }), true)}
+        {isCake && needs.glitter && renderOptionColours(t("Glitter colour", "Couleur des paillettes"), glitterChoices(needs), item.glitter_color, (v) => set({ glitter_color: v }), true)}
+        {isCake && needs.glitterCherries && renderOptionColours(t("Glitter cherries colour", "Couleur des cerises pailletées"), GLITTER_CHERRIES_COLOURS, item.glitter_cherries_color, (v) => set({ glitter_cherries_color: v }), false)}
+        {isCake && needs.inside && renderOptionColours(t("Inside colour", "Couleur intérieure"), INSIDE_COLOURS, item.inside_color, (v) => set({ inside_color: v }), true, (c) => c.id)}
         {isCake && (
           <>
             <div>

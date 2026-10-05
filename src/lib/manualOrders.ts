@@ -3,7 +3,9 @@
 // pricing engine (quote-manual-order { catalog: true }) and every amount
 // from quote-manual-order itself. Only DISPLAY names are resolved here, from
 // the site's existing label sources.
-import { baseColors, candles as candleCatalogue, extraGroups, extras as extrasCatalogue } from "@/data/customization";
+import {
+  baseColors, butterflyColors, candles as candleCatalogue, extraGroups, extras as extrasCatalogue, glitterCherriesColors, glitterColors, ribbonColors,
+} from "@/data/customization";
 import { designLabel, shapeLabel, sizeLabel } from "@/lib/orderLabels";
 
 export type ProductId = "bento_cake" | "rectangle_cake" | "diy_kit" | "dot_cakes" | "edible_printing" | "candles" | "workshop";
@@ -38,6 +40,13 @@ export interface EditorItem {
   cake_text: string;
   text_color: string;
   text_style: string;
+  // Couleurs propres à une option ou à un design, comme sur le site (noms du
+  // catalogue : « Baby Pink », « Gold »… ; intérieur Gender Reveal : « Rose » / « Bleu »).
+  ribbon_color: string;
+  butterfly_color: string;
+  glitter_color: string;          // gardée dans order_items.extra (« Glitter: Gold »), comme le site
+  glitter_cherries_color: string; // idem (« Glitter Cherries: Pink »)
+  inside_color: string;
 }
 
 export interface DateGroup {
@@ -112,7 +121,56 @@ export const emptyItem = (product: ProductId = "bento_cake"): EditorItem => ({
   cake_text: "",
   text_color: "",
   text_style: "normal",
+  ribbon_color: "",
+  butterfly_color: "",
+  glitter_color: "",
+  glitter_cherries_color: "",
+  inside_color: "",
 });
+
+// ── Couleurs par option / design : mêmes règles et mêmes listes que le site (Catalog.tsx) ──
+export type ColourOption = { id: string; name: string; color: string };
+export interface ColourNeeds {
+  ribbon: boolean; butterfly: boolean; glitter: boolean; glitterPinkOnly: boolean; glitterCherries: boolean; inside: boolean;
+}
+export function colourNeeds(item: Pick<EditorItem, "product" | "extras" | "design">): ColourNeeds {
+  const cake = item.product === "bento_cake" || item.product === "rectangle_cake";
+  const has = (id: string) => cake && item.extras.includes(id);
+  const d = cake ? item.design ?? "" : "";
+  return {
+    ribbon: has("ribbons") || d === "retro-ribbons" || d === "retro-ribbons-glitter",
+    butterfly: has("butterfly") || d === "butterfly-garden",
+    glitter: has("glitter") || has("glitter-base") || has("glitter-in-the-air") || d === "retro-glitter-cake" || d === "retro-ribbons-glitter",
+    glitterPinkOnly: has("glitter-in-the-air") || d === "retro-ribbons-glitter",
+    glitterCherries: has("glitter-cherries") || d === "glitter-cherries-retro",
+    inside: d === "gender-reveal",
+  };
+}
+export const RIBBON_COLOURS: ColourOption[] = ribbonColors;
+export const BUTTERFLY_COLOURS: ColourOption[] = butterflyColors;
+export const GLITTER_COLOURS: ColourOption[] = glitterColors;
+export const GLITTER_CHERRIES_COLOURS: ColourOption[] = glitterCherriesColors;
+export const INSIDE_COLOURS: ColourOption[] = [{ id: "Rose", name: "Pink", color: "#F9A8D4" }, { id: "Bleu", name: "Blue", color: "#93C5FD" }];
+export const glitterChoices = (needs: ColourNeeds) => (needs.glitterPinkOnly ? GLITTER_COLOURS.filter((c) => c.id === "pink") : GLITTER_COLOURS);
+
+/** Couleurs obligatoires encore à choisir (le site les exige avec « * » ; cerises pailletées facultatives). */
+export function missingColours(item: EditorItem, lang: "en" | "fr"): string[] {
+  const n = colourNeeds(item);
+  const fr = lang === "fr";
+  const out: string[] = [];
+  if (n.ribbon && !item.ribbon_color) out.push(fr ? "couleur des rubans" : "ribbon colour");
+  if (n.butterfly && !item.butterfly_color) out.push(fr ? "couleur du papillon" : "butterfly colour");
+  if (n.glitter && !glitterChoices(n).some((c) => c.name === item.glitter_color)) out.push(fr ? "couleur des paillettes" : "glitter colour");
+  if (n.inside && !item.inside_color) out.push(fr ? "couleur intérieure" : "inside colour");
+  return out;
+}
+
+/** Relit les couleurs de paillettes gardées dans order_items.extra (« …, Glitter: Gold, Glitter Cherries: Pink »). */
+export function coloursFromExtra(extra: string | null | undefined): { glitter_color: string; glitter_cherries_color: string } {
+  const parts = String(extra ?? "").split(",").map((p) => p.trim());
+  const pick = (prefix: string) => parts.find((p) => p.startsWith(prefix))?.slice(prefix.length).trim() ?? "";
+  return { glitter_color: pick("Glitter: "), glitter_cherries_color: pick("Glitter Cherries: ") };
+}
 
 export const PRODUCT_OPTIONS: { id: ProductId; en: string; fr: string }[] = [
   { id: "bento_cake", en: "Bento / Retro / Medium / Large cake", fr: "Gâteau Bento / Retro / Medium / Large" },
@@ -151,18 +209,40 @@ export const MAX_EXTRA_QUANTITY = 10;
 // Readable extras for order_items.extra / extra_type, like the checkout's
 // buildExtraFields (English catalogue names, no ids):
 // "Gold Leaves, Scattered Pearls × 3" / "Toppings, Pearls".
-export function extraFields(item: EditorItem): { extra: string | null; extra_type: string | null } {
+// Les couleurs d'options sont ajoutées comme au checkout (« Ribbon: Pink »,
+// « Glitter: Gold »…) ; extra_color = les couleurs seules ; ribbon_color /
+// butterfly_color / inside_color dans leurs colonnes. Une couleur dont
+// l'option n'est plus choisie n'est jamais envoyée.
+type ExtraFields = {
+  extra: string | null; extra_type: string | null; extra_color: string | null;
+  ribbon_color: string | null; butterfly_color: string | null; inside_color: string | null;
+};
+export function extraFields(item: EditorItem): ExtraFields {
+  const none = { extra_color: null, ribbon_color: null, butterfly_color: null, inside_color: null };
   if (item.product === "diy_kit") {
-    return { extra: item.extras[0] ? labelPiping(item.extras[0], "en") : null, extra_type: null };
+    return { extra: item.extras[0] ? labelPiping(item.extras[0], "en") : null, extra_type: null, ...none };
   }
-  if (item.product !== "bento_cake" && item.product !== "rectangle_cake") return { extra: null, extra_type: null };
+  if (item.product !== "bento_cake" && item.product !== "rectangle_cake") return { extra: null, extra_type: null, ...none };
+  const n = colourNeeds(item);
+  const ribbon = n.ribbon ? item.ribbon_color || "" : "";
+  const butterfly = n.butterfly ? item.butterfly_color || "" : "";
+  const glitter = n.glitter && glitterChoices(n).some((c) => c.name === item.glitter_color) ? item.glitter_color : "";
+  const cherries = n.glitterCherries ? item.glitter_cherries_color || "" : "";
   const ids = Array.from(new Set(item.extras));
   const parts = ids.map((id) => {
     const n = item.extras.filter((x) => x === id).length;
     return n > 1 ? `${labelExtra(id)} × ${n}` : labelExtra(id);
   });
+  if (ribbon) parts.push(`Ribbon: ${ribbon}`);
+  if (butterfly) parts.push(`Butterfly: ${butterfly}`);
+  if (glitter) parts.push(`Glitter: ${glitter}`);
+  if (cherries) parts.push(`Glitter Cherries: ${cherries}`);
   const groups = Array.from(new Set(ids.map((id) => extraGroups.find((g) => g.ids.includes(id))?.label).filter(Boolean)));
-  return { extra: parts.join(", ") || null, extra_type: groups.join(", ") || null };
+  const colours = [ribbon, butterfly, glitter, cherries].filter(Boolean);
+  return {
+    extra: parts.join(", ") || null, extra_type: groups.join(", ") || null, extra_color: colours.join(", ") || null,
+    ribbon_color: ribbon || null, butterfly_color: butterfly || null, inside_color: n.inside ? item.inside_color || null : null,
+  };
 }
 
 export const COLOURS = baseColors.map((c) => ({ id: c.id, name: c.name, color: c.color }));

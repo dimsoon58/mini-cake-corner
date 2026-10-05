@@ -23,7 +23,9 @@ import {
   type DateGroup,
   type EditorItem,
   emptyItem,
+  coloursFromExtra,
   extraFields,
+  missingColours,
   friendlyMessage,
   type ManualOrderCatalog,
   newKey,
@@ -195,9 +197,10 @@ const AdminManualOrderEditor = () => {
         const groupOfItem = new Map<number, string>();
         (o.fulfillments ?? []).forEach((f: { itemIndexes: number[] }, gi: number) => f.itemIndexes.forEach((ii) => groupOfItem.set(ii, loadedGroups[gi].key)));
         setGroups(loadedGroups.length > 0 ? loadedGroups : [emptyGroup()]);
-        setItems((o.items ?? []).map((it: Partial<EditorItem> & { product: EditorItem["product"] }, ii: number) => ({
+        setItems((o.items ?? []).map((it: Partial<EditorItem> & { product: EditorItem["product"]; extra?: string | null }, ii: number) => ({
           ...emptyItem(it.product),
-          ...Object.fromEntries(Object.entries(it).filter(([, v]) => v !== null && v !== undefined)),
+          ...coloursFromExtra(it.extra),
+          ...Object.fromEntries(Object.entries(it).filter(([k, v]) => v !== null && v !== undefined && k !== "extra")),
           key: newKey(),
           dateKey: groupOfItem.get(ii) ?? null,
           workshop_sponge_choices: it.workshop_sponge_choices ?? (it.product === "workshop" ? Array.from({ length: it.workshop_participants ?? 1 }, () => "vanilla") : []),
@@ -296,6 +299,7 @@ const AdminManualOrderEditor = () => {
     const physical = items.some((it) => it.product !== "workshop");
     if (physical && groups.some((g) => !g.date)) out.push(t("The date (section 3)", "La date (section 3)"));
     quote?.items.forEach((r, i) => { if (r.error) out.push(`${t("Product", "Produit")} ${i + 1} : ${friendlyMessage(r.error, l)}`); });
+    items.forEach((it, i) => missingColours(it, l).forEach((c) => out.push(`${t("Product", "Produit")} ${i + 1} : ${c}`)));
     quote?.errors.forEach((e) => out.push(friendlyMessage(e, l)));
     return Array.from(new Set(out));
   }, [customer, items, groups, quote, lang, t]);
