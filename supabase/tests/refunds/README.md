@@ -469,4 +469,4 @@ fermée, sessions passées exclues) ; droits (sans connexion, client, employée 
 alerte, employée sans « today.view ») ; page sans aucun chiffre financier, lien Compta et bloc de
 décision réservés aux administratrices, liens vers commande / production / planning / jour ;
 encaissements par date de paiement toujours dans le détail replié de la Compta. Résultat
-attendu : `35 PASS, 0 FAIL`.
+attendu : `36 PASS, 0 FAIL`.
