@@ -373,5 +373,11 @@ await db.exec(fs.readFileSync(F13, "utf8"));
 const after = await one("select (select count(*) from public.settlements) s, (select count(*) from public.settlement_rules) r, (select count(*) from public.settlement_payouts) p, (select count(*) from public.bank_balances) b");
 check("Relance de F13 : rien n'est modifié", JSON.stringify(before) === JSON.stringify(after), { before, after });
 
+// Libellés : Eli affichée avec son pourcentage (40 %), même si sa part est calculée comme le reste exact.
+const REPO_K4 = path.resolve(import.meta.dirname, "../../..");
+const tabSrc = fs.readFileSync(path.join(REPO_K4, "src/components/admin/compta/SettlementTab.tsx"), "utf8");
+const expSrc = fs.readFileSync(path.join(REPO_K4, "src/lib/comptaExport.ts"), "utf8");
+check("Libellé Mel / Eli : « Eli (40 %) » à l'écran et dans l'Excel, plus « reste exact »",
+  tabSrc.includes("${eli} (${100 - x.melPct} %)") && expSrc.includes("Eli (${100 - x.melPct} %)") && !/reste exact/.test(tabSrc + expSrc) && 100 - Number(rules.mel_pct) === 40);
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);
