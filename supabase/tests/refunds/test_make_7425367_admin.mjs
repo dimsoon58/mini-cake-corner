@@ -324,5 +324,42 @@ check("Total : exactement 5 e-mails, tous vers l'adresse de test (1 confirmation
   delivered().length === 5 && delivered().every((c) => c.body.to.includes(EMAIL)), delivered().map((c) => c.body.subject));
 check("Aucun appel à Make", !net.some((c) => /make\.com|hook\./.test(c.url)));
 
+
+// ═══ « Déjà payée » à la création (éditeur) : confirmer, puis le même mark_paid ═══
+// Le corps de la demande et les messages viennent du vrai module du site (src/lib/manualOrderPayment.ts).
+await build({ entryPoints: [path.resolve(ROOT, "../src/lib/manualOrderPayment.ts")], bundle: true, format: "esm", platform: "node", outfile: path.join(tmp, "pay.mjs"), logLevel: "error" });
+const P = await import(path.join(tmp, "pay.mjs"));
+const tr = (_en, fr) => fr;
+const mails0 = mailsTo().length;
+check("Formulaire : PIN manquant (sans session) et date future signalés avant tout envoi",
+  JSON.stringify(P.paymentProblems({ method: "cash", paidOn: "2026-12-31", note: "", sendConfirmation: true }, "", false, "2026-10-05", tr))
+    === JSON.stringify(["La date du paiement ne peut pas être dans le futur", "Code PIN administrateur (paiement)"])
+  && P.paymentProblems({ method: "cash", paidOn: "2026-10-05", note: "", sendConfirmation: true }, "", true, "2026-10-05", tr).length === 0);
+const draftPay = { method: "cash", paidOn: "2026-10-05", note: "Payé au comptoir", sendConfirmation: true };
+r = await call("manage-manual-order", { action: "save", mode: "confirm", customer, items: [cakeItem("vanilla"), wsItem("ws-test-open", 1)], fulfillments: [pickup("2026-11-12", [0])] });
+const T6 = r.body.orderId;
+const seatsBefore = await occupied("ws-test-open");
+r = await call("manage-manual-order", { ...P.markPaidBody(T6, draftPay, "__session__"), _adminSession: T });
+o = await one("select payment_status, payment_method, payment_note, paid_at, manual_confirmation_status from public.orders where id=$1", [T6]);
+check("Déjà payée : confirmée puis payée d'un coup — espèces, note, date du 05.10, 1 place réservée",
+  r.status === 200 && o.payment_status === "paid" && o.payment_method === "cash" && o.payment_note === "Payé au comptoir"
+  && new Date(o.paid_at).toISOString() === "2026-10-05T10:00:00.000Z" && (await occupied("ws-test-open")) === seatsBefore + 1, { r: r.body, o });
+check("Déjà payée : 1 seul e-mail (confirmation + facture), message « Paiement enregistré et confirmation envoyée »",
+  mailsTo().length === mails0 + 1 && o.manual_confirmation_status === "sent" && P.markPaidSuccess(r.body, tr).text === "Paiement enregistré et confirmation envoyée au client.");
+r = await call("manage-manual-order", { action: "save", mode: "confirm", customer, items: [cakeItem("chocolate")], fulfillments: [pickup("2026-11-12", [0])] });
+const T7 = r.body.orderId;
+r = await call("manage-manual-order", { ...P.markPaidBody(T7, { ...draftPay, sendConfirmation: false }, "__session__"), _adminSession: T });
+check("Déjà payée, case décochée : payée, aucun e-mail, message « Aucun email envoyé »",
+  r.status === 200 && (await one("select payment_status from public.orders where id=$1", [T7])).payment_status === "paid"
+  && mailsTo().length === mails0 + 1 && P.markPaidSuccess(r.body, tr).text === "Paiement enregistré. Aucun email envoyé.");
+r = await call("manage-manual-order", { action: "save", mode: "confirm", customer, items: [wsItem("ws-test-closed", 1)], fulfillments: [] });
+const T8 = r.body.orderId;
+r = await call("manage-manual-order", { ...P.markPaidBody(T8, draftPay, "__session__"), _adminSession: T });
+check("Déjà payée sur une session fermée : refus, la commande reste confirmée « en attente de paiement », message clair, aucun e-mail",
+  r.status === 409 && (await one("select payment_status, is_draft from public.orders where id=$1", [T8])).payment_status === "pending"
+  && P.markPaidErrorText(r.body, tr) === "Une session de workshop est fermée : rien n'a été modifié." && mailsTo().length === mails0 + 1, r.body);
+r = await call("manage-manual-order", P.markPaidBody(T8, draftPay, "0000"));
+check("PIN faux : « Code PIN incorrect. », rien modifié", r.status === 403 && P.markPaidErrorText(r.body, tr) === "Code PIN incorrect.");
+
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);

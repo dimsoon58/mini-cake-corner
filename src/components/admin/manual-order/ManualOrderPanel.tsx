@@ -15,6 +15,7 @@ import {
   PAYMENT_METHODS,
 } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
+import { markPaidBody, markPaidErrorText, markPaidSuccess } from "@/lib/manualOrderPayment";
 import { PasswordInput } from "@/components/ui/password-input";
 
 // Admin order page — block shown only for orders created from the Admin
@@ -73,33 +74,16 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
     setBusy("pay");
     setMessage(null);
     const { data, error } = await supabase.functions.invoke("manage-manual-order", {
-      body: { action: "mark_paid", orderId: order.id, paymentMethod: method, paymentNote: paymentNote.trim() || null, paidOn, pin, sendConfirmation },
+      body: markPaidBody(order.id, { method, paidOn, note: paymentNote, sendConfirmation }, pin),
     });
     setBusy(null);
     if (error || data?.error) {
-      const detail = await readError(error, data);
-      const text =
-        detail?.error === "Invalid PIN" ? t("Invalid PIN.", "Code PIN incorrect.")
-        : detail?.reason === "session_full" ? t("A workshop session is full: nothing was changed, the order is still awaiting payment.", "Une session de workshop est complète : rien n'a été modifié, la commande reste en attente de paiement.")
-        : detail?.reason === "session_closed" ? t("A workshop session is closed: nothing was changed.", "Une session de workshop est fermée : rien n'a été modifié.")
-        : detail?.reason === "minor_consent_missing" ? t("A minor is declared without the legal representative's consent: nothing was changed.", "Un mineur est déclaré sans l'accord du représentant légal : rien n'a été modifié.")
-        : detail?.reason === "not_awaiting_payment" ? t("This order is not awaiting payment any more.", "Cette commande n'est plus en attente de paiement.")
-        : t("The payment could not be recorded: nothing was changed.", "Le paiement n'a pas pu être enregistré : rien n'a été modifié.");
-      setMessage({ type: "error", text });
+      setMessage({ type: "error", text: markPaidErrorText(await readError(error, data), t) });
       return;
     }
     setPayOpen(false);
     setPin("");
-    if (data.email?.requested && !data.email.sent) {
-      setMessage({ type: "warning", text: t(
-        `Payment recorded. The confirmation email could not be sent (${data.email.error ?? "unknown error"}) — use "Send the confirmation".`,
-        `Paiement enregistré. L'email de confirmation n'a pas pu être envoyé (${data.email.error ?? "erreur inconnue"}) — utilisez « Envoyer la confirmation ».`,
-      ) });
-    } else {
-      setMessage({ type: "success", text: data.email?.sent
-        ? t("Payment recorded and confirmation sent to the customer.", "Paiement enregistré et confirmation envoyée au client.")
-        : t("Payment recorded. No email sent.", "Paiement enregistré. Aucun email envoyé.") });
-    }
+    setMessage(markPaidSuccess(data, t));
     onChanged();
   };
 

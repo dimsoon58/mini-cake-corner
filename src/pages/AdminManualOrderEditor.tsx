@@ -17,6 +17,9 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { customersApi, type CustomerDetail } from "@/lib/customers";
 import { cn } from "@/lib/utils";
+import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
+import { markPaidBody, markPaidErrorText, markPaidSuccess, type PaymentDraft, paymentProblems } from "@/lib/manualOrderPayment";
 import {
   ADJUSTMENT_REASONS,
   type AdjustmentMode,
@@ -34,6 +37,7 @@ import {
   formatChf,
   labelBreakdownLine,
   MANUAL_STATUS_LABELS,
+  PAYMENT_METHODS,
   slotsFor,
 } from "@/lib/manualOrders";
 
@@ -41,6 +45,10 @@ import {
 // are never computed here: every change is sent to quote-manual-order (the
 // checkout's own engine) and the result is displayed; saving recomputes it
 // again on the server (manage-manual-order).
+// « Déjà payée » : « Confirmer et enregistrer le paiement » enchaîne la
+// confirmation puis le même mark_paid que la fiche commande (places de
+// workshop, e-mail et facture si la case est cochée). Si le paiement est
+// refusé, la commande reste confirmée « en attente de paiement ».
 
 const field = "w-full border border-input bg-background px-2 py-1.5 text-sm rounded-none";
 const label = "block text-xs font-bold uppercase tracking-[0.08em] text-foreground mb-1.5";
@@ -135,6 +143,11 @@ const AdminManualOrderEditor = () => {
   const [quoteFailed, setQuoteFailed] = useState(false);
   const [saving, setSaving] = useState<"draft" | "confirm" | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
+  // Paiement à la création (« Déjà payée »)
+  const zurichToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date());
+  const [payNow, setPayNow] = useState(false);
+  const [pay, setPay] = useState<PaymentDraft>(() => ({ method: "twint", paidOn: zurichToday(), note: "", sendConfirmation: true }));
+  const [pin, setPin, pinBySession] = useSessionPin();
 
   useEffect(() => {
     document.title = "Admin – Commande manuelle – Bento Cake Studio";
@@ -306,8 +319,10 @@ const AdminManualOrderEditor = () => {
 
   // ── Save ──────────────────────────────────────────────────────────────
   const save = async (mode: "draft" | "confirm") => {
-    if (mode === "confirm" && missing.length > 0) {
-      setProblems(missing);
+    const withPayment = mode === "confirm" && payNow;
+    const payMissing = withPayment ? paymentProblems(pay, pin, pinBySession, zurichToday(), t) : [];
+    if (mode === "confirm" && (missing.length > 0 || payMissing.length > 0)) {
+      setProblems([...missing, ...payMissing]);
       toast.error(t("Some information is missing", "Des informations manquent"));
       return;
     }
@@ -358,9 +373,32 @@ const AdminManualOrderEditor = () => {
     setOrderId(data.orderId);
     setOrderNumber(data.orderNumber);
     setIsDraft(data.isDraft);
-    toast.success(mode === "draft"
+    if (!withPayment) toast.success(mode === "draft"
       ? t(`Draft ${data.orderNumber ?? ""} saved`, `Brouillon ${data.orderNumber ?? ""} enregistré`)
       : t(`${data.orderNumber ?? "Order"} confirmed — awaiting payment`, `${data.orderNumber ?? "Commande"} confirmée — en attente de paiement`));
+    if (mode === "confirm" && withPayment) {
+      // Étape 2 : le même « Marquer comme payée » que sur la fiche commande.
+      setSaving("confirm");
+      let paid: { data: { error?: string; reason?: string; email?: { requested?: boolean; sent?: boolean; error?: string | null } } | null; error: unknown } | null = null;
+      try {
+        paid = await supabase.functions.invoke("manage-manual-order", { body: markPaidBody(data.orderId, pay, pin) });
+      } catch (e) {
+        console.error("mark_paid after confirm failed:", e);
+      }
+      setSaving(null);
+      if (!paid || paid.error || paid.data?.error) {
+        let detail = paid?.data ?? null;
+        if (paid?.error) { try { detail = await (paid.error as { context?: Response }).context?.json(); } catch { /* ignore */ } }
+        toast.error(`${t(`${data.orderNumber ?? "The order"} is confirmed but NOT marked as paid.`, `${data.orderNumber ?? "La commande"} est confirmée mais PAS marquée comme payée.`)} ${markPaidErrorText(detail, t)} ${t("Record the payment from the order page.", "Enregistrez le paiement depuis la fiche de la commande.")}`, { duration: 15000 });
+      } else {
+        setPin("");
+        const r = markPaidSuccess(paid.data, t);
+        if (r.type === "warning") toast.warning(`${data.orderNumber ?? ""} — ${r.text}`, { duration: 15000 });
+        else toast.success(`${data.orderNumber ?? ""} — ${r.text}`);
+      }
+      navigate(`/admin/order/${data.orderId}`);
+      return;
+    }
     if (mode === "confirm") navigate("/admin/manual-orders");
     else if (!id) navigate(`/admin/manual-orders/${data.orderId}/edit`, { replace: true });
   };
@@ -707,6 +745,50 @@ const AdminManualOrderEditor = () => {
               )}
 
               {!readOnly && (
+                <fieldset className="border border-border p-3 space-y-2" data-testid="pay-now">
+                  <legend className="px-1 text-xs font-bold uppercase tracking-[0.08em]">{t("Payment", "Paiement")}</legend>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="pay-now" checked={!payNow} onChange={() => setPayNow(false)} />
+                    {t("Not paid yet", "Pas encore payée")}
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="pay-now" checked={payNow} onChange={() => setPayNow(true)} />
+                    {t("Already paid", "Déjà payée")}
+                  </label>
+                  {payNow && (
+                    <div className="space-y-2 pt-1">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs mb-1" htmlFor="pay-method">{t("Payment method", "Moyen de paiement")}</label>
+                          <select id="pay-method" value={pay.method} onChange={(e) => setPay({ ...pay, method: e.target.value })} className={field}>
+                            {PAYMENT_METHODS.map((m) => <option key={m.id} value={m.id}>{t(m.en, m.fr)}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1" htmlFor="pay-date">{t("Payment date", "Date du paiement")}</label>
+                          <input id="pay-date" type="date" value={pay.paidOn} max={zurichToday()} onChange={(e) => setPay({ ...pay, paidOn: e.target.value })} className={field} />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1" htmlFor="pay-note">{t("Payment note (optional)", "Note sur le paiement (optionnel)")}</label>
+                        <textarea id="pay-note" rows={2} value={pay.note} onChange={(e) => setPay({ ...pay, note: e.target.value })} className={field}
+                          placeholder={t("e.g. TWINT received from her mother, deposit of CHF 50…", "ex. TWINT reçu de sa maman, acompte de 50 CHF…")} />
+                      </div>
+                      {!pinBySession && (
+                        <div>
+                          <label className="block text-xs mb-1" htmlFor="pay-pin">{t("Admin PIN", "Code PIN administrateur")}</label>
+                          <PasswordInput id="pay-pin" value={pin} onChange={(e) => setPin(e.target.value)} className={field} autoComplete="off" />
+                        </div>
+                      )}
+                      <label className="flex items-start gap-2 text-sm">
+                        <input type="checkbox" className="mt-0.5" checked={pay.sendConfirmation} onChange={(e) => setPay({ ...pay, sendConfirmation: e.target.checked })} />
+                        {t("Send the confirmation and the invoice to the customer", "Envoyer la confirmation et la facture au client")}
+                      </label>
+                    </div>
+                  )}
+                </fieldset>
+              )}
+              {!readOnly && (
                 <div className="space-y-2 pt-1">
                   <Button onClick={() => save("draft")} disabled={!!saving} variant="outline" className="w-full rounded-none">
                     {saving === "draft" && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
@@ -714,10 +796,14 @@ const AdminManualOrderEditor = () => {
                   </Button>
                   <Button onClick={() => save("confirm")} disabled={!!saving} className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground">
                     {saving === "confirm" && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                    {t("Confirm — awaiting payment", "Confirmer — en attente de paiement")}
+                    {payNow ? t("Confirm and record the payment", "Confirmer et enregistrer le paiement") : t("Confirm — awaiting payment", "Confirmer — en attente de paiement")}
                   </Button>
                   <p className="text-[11px] text-muted-foreground">
-                    {t("No email is sent and no workshop seat is reserved at this stage.", "Aucun email n'est envoyé et aucune place workshop n'est réservée à ce stade.")}
+                    {payNow
+                      ? (pay.sendConfirmation
+                        ? t("The workshop seats are reserved and the confirmation + invoice are sent to the customer.", "Les places de workshop sont réservées, puis la confirmation et la facture partent au client.")
+                        : t("The workshop seats are reserved. No email is sent.", "Les places de workshop sont réservées. Aucun email n'est envoyé."))
+                      : t("No email is sent and no workshop seat is reserved at this stage.", "Aucun email n'est envoyé et aucune place workshop n'est réservée à ce stade.")}
                   </p>
                 </div>
               )}
