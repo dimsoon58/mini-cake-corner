@@ -275,13 +275,17 @@ const col = async (id, c) => (await one(`select ${c} v from public.orders where 
 const cutC = await webOrder();
 await S.runSideEffects(globalThis.__supa, cutC);
 await q("update public.orders set make_webhook_dispatched_at = now() - interval '20 minutes' where id=$1", [cutC]);
+// C2 : même situation, mais Make est mort AVANT de créer la fiche Notion (fiche absente).
+const cutC2 = await webOrder();
+await S.runSideEffects(globalThis.__supa, cutC2);
+await q("update public.orders set make_webhook_dispatched_at = now() - interval '20 minutes', notion_sync_status = 'processing' where id=$1", [cutC2]);
 const cutB = await webOrder();
 await S.runSideEffects(globalThis.__supa, cutB);
 const legacy = await webOrder();
 await q("update public.orders set side_effects_done_at = now() - interval '30 days' where id=$1", [legacy]);
 await setNotion(false);
 const cutA = await webOrder();
-for (const id of [cutA, cutB, cutC]) await S.runSideEffects(globalThis.__supa, id);
+for (const id of [cutA, cutB, cutC, cutC2]) await S.runSideEffects(globalThis.__supa, id);
 await q("update public.orders set notion_sync_status='synced' where id=$1", [cutB]);
 check("Pendant la coupure : A, B et C terminées, aucune confirmation Notion notée",
   (await Promise.all([cutA, cutB, cutC].map((id) => col(id, "side_effects_done_at")))).every(Boolean)
@@ -295,29 +299,46 @@ const listed = await q(fx("f24-rollback-select.sql"));
 const cas = Object.fromEntries(listed.map((x) => [x.id, x.cas]));
 check("Étape 1 (lecture seule) : A, B et C listées avec le bon cas — y compris C finalisée AVANT la coupure",
   cas[cutA] === "A_jamais_envoyee" && cas[cutB] === "B_confirmee_entre_temps" && cas[cutC] === "C_envoyee_sans_confirmation", cas);
-check("Étape 1 : rien d'autre (ancienne commande terminée hors coupure exclue)", listed.length === 3 && !cas[legacy], listed.map((x) => x.order_number));
+check("Étape 1 : C2 (fiche absente) aussi en cas C", cas[cutC2] === "C_envoyee_sans_confirmation");
+check("Étape 1 : rien d'autre (ancienne commande terminée hors coupure exclue)", listed.length === 4 && !cas[legacy], listed.map((x) => x.order_number));
 m0 = makeCalls(); i0 = invokes.length; let mc0 = mainCalls(), rp0 = repairCalls();
 await db.exec(fx("f24-rollback-requeue.sql"));
 let picked = await pick();
-check("Étape 2 : A et B remises en file, C NON", picked.includes(cutA) && picked.includes(cutB) && !picked.includes(cutC));
+check("Étape 2 : A et B remises en file, C NON", picked.includes(cutA) && picked.includes(cutB) && !picked.includes(cutC) && !picked.includes(cutC2));
 for (const id of [cutA, cutB]) await S.runSideEffects(globalThis.__supa, id);
 check("A : un seul premier envoi (7026183), aucun e-mail renvoyé", mainCalls() === mc0 + 1 && repairCalls() === rp0 && invokes.length === i0);
 check("B : aucun envoi, confirmation notée, terminée", !!(await col(cutB, "make_notified_at")) && !!(await col(cutB, "side_effects_done_at")) && makeCalls() === m0 + 1);
 await S.runSideEffects(globalThis.__supa, cutA);
 check("A, passage suivant : rien de renvoyé en attendant la confirmation", makeCalls() === m0 + 1);
-await db.exec(fx("f24-rollback-requeue-repair.sql"));
+// Étapes 3a / 3b : listes d'ID explicites, vérifiées dans Notion par l'ID Supabase.
+const withIds = (sql, ids) => sql.replace("('00000000-0000-0000-0000-000000000000'::uuid)", ids.map((id) => `('${id}'::uuid)`).join(", "));
+const noop3a = await q(fx("f24-rollback-requeue-repair.sql"));
+const noop3b = await q(fx("f24-rollback-resend-absent.sql"));
+check("Étapes 3a / 3b avec la liste d'exemple : aucune ligne modifiée", noop3a.length === 0 && noop3b.length === 0 && !(await pick()).includes(cutC));
+const up3a = await q(withIds(fx("f24-rollback-requeue-repair.sql"), [cutC, cutB, legacy]));
 picked = await pick();
-check("Étape 3 : C remise en file", picked.includes(cutC));
+check("Étape 3a (fiche présente) : seule la commande C listée est remise en file (B, ancienne et C2 ignorées)",
+  up3a.length === 1 && up3a[0].id === cutC && picked.includes(cutC) && !picked.includes(cutC2), up3a);
 await S.runSideEffects(globalThis.__supa, cutC);
-check("C : réparation seule (7323863), JAMAIS de second premier envoi, aucun e-mail", repairCalls() === rp0 + 1 && mainCalls() === mc0 + 1 && invokes.length === i0
+check("C (fiche présente) : réparation seule (7323863), JAMAIS de second premier envoi, aucun e-mail", repairCalls() === rp0 + 1 && mainCalls() === mc0 + 1 && invokes.length === i0
   && fetches.at(-1).body?.orderId === cutC);
 await S.runSideEffects(globalThis.__supa, cutC);
 check("C, passage suivant : pas de seconde réparation dans les 10 minutes", repairCalls() === rp0 + 1);
 await q("update public.orders set notion_sync_status='error' where id=$1", [cutC]);
 await S.runSideEffects(globalThis.__supa, cutC);
 check("C en erreur Notion : encore la réparation seule, jamais le premier envoi", repairCalls() === rp0 + 2 && mainCalls() === mc0 + 1);
+const up3b = await q(withIds(fx("f24-rollback-resend-absent.sql"), [cutC2, cutB, cutA]));
+check("Étape 3b (fiche absente) : seule C2 est rendue « jamais envoyée » (A et B refusées)", up3b.length === 1 && up3b[0].id === cutC2, up3b);
+check("Étape 3b : C2 de nouveau en attente Notion, sans trace d'envoi", (await col(cutC2, "notion_sync_status")) === "pending" && !(await col(cutC2, "make_webhook_dispatched_at")) && (await pick()).includes(cutC2));
+const rp1 = repairCalls();
+await S.runSideEffects(globalThis.__supa, cutC2);
+check("C2 (fiche absente) : un seul PREMIER envoi vers 7026183, aucune réparation, aucun e-mail", mainCalls() === mc0 + 2 && repairCalls() === rp1 && invokes.length === i0
+  && fetches.at(-1).url === S.MAKE_WEBHOOK_URL);
+await S.runSideEffects(globalThis.__supa, cutC2);
+check("C2, passage suivant : rien de renvoyé en attendant la confirmation", mainCalls() === mc0 + 2 && repairCalls() === rp1);
+check("C2 : déjà terminée ou relancée, l'étape 3b ne la reprend plus", (await q(withIds(fx("f24-rollback-resend-absent.sql"), [cutC2]))).length === 0);
 check("Commandes manuelles jamais concernées (pas de finalized_at : ni la reprise ni les requêtes ne les prennent)",
-  /o\.finalized_at is not null/.test(fx("f24-rollback-select.sql")) && /o\.finalized_at is not null/.test(fx("f24-rollback-requeue.sql")) && /o\.finalized_at is not null/.test(fx("f24-rollback-requeue-repair.sql")));
+  /o\.finalized_at is not null/.test(fx("f24-rollback-select.sql")) && /o\.finalized_at is not null/.test(fx("f24-rollback-requeue.sql")) && /o\.finalized_at is not null/.test(fx("f24-rollback-requeue-repair.sql")) && /o\.finalized_at is not null/.test(fx("f24-rollback-resend-absent.sql")));
 check("Workshops : resynchronisés automatiquement après réactivation (aucune requête nécessaire)", (await q("select id from public.workshop_reservations where make_synced_updated_at is null or make_synced_updated_at < updated_at")).length > 0);
 
 // ═══ 5. Rapport quotidien Supabase ═══════════════════════════════════════

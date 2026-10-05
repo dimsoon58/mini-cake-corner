@@ -1,18 +1,21 @@
--- F24 — retour en arrière, ÉTAPE 3 (écriture) : cas C, envoyées avant la coupure sans
--- confirmation Notion. La reprise ne leur renvoie JAMAIS le premier envoi : seulement la
--- réparation 7323863 (orderId + jeton ; le scénario relit la commande dans Supabase).
--- Uniquement si l'étape 1, relancée après le vidage de la file de 7026183, en liste encore,
--- ET si l'une des deux conditions est remplie :
---   • il est vérifié dans Make que 7323863 met à jour la fiche Notion existante sans en créer
---     une seconde ;
---   • chaque commande listée a été cherchée dans Notion par son numéro et en est absente.
+-- F24 — retour en arrière, ÉTAPE 3a (écriture) : cas C dont la fiche Notion EXISTE.
+-- 7323863 cherche la fiche par l'ID Supabase (orders.id) et la met à jour (module 49) : ce
+-- chemin n'est sûr QUE si la fiche existe. Pour une fiche absente, utiliser l'étape 3b.
+-- Remplacer la liste ci-dessous par les ID (colonne `id` de l'étape 1) dont la fiche a été
+-- trouvée dans Notion par l'ID Supabase. Liste laissée telle quelle : aucune ligne modifiée.
+with liste(id) as (values
+  ('00000000-0000-0000-0000-000000000000'::uuid)
+)
 update public.orders o
    set side_effects_done_at = null
- where o.finalized_at is not null
+  from liste
+ where o.id = liste.id
+   and o.finalized_at is not null
    and o.order_failure_reason is null
    and o.make_notified_at is null
    and o.make_webhook_dispatched_at is not null
    and o.notion_sync_status is distinct from 'synced'
    and o.side_effects_done_at >= (select max(a.created_at) from public.app_settings_audit a
                                   where a.key = 'notion_sync_enabled' and a.after = 'false'::jsonb)
-   and exists (select 1 from public.order_items oi where oi.order_id = o.id and oi.product <> 'workshop');
+   and exists (select 1 from public.order_items oi where oi.order_id = o.id and oi.product <> 'workshop')
+returning o.id, o.order_number;

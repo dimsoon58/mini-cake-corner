@@ -5,8 +5,9 @@
 --   A_jamais_envoyee            aucun envoi : la reprise fera le PREMIER envoi (7026183).
 --   B_confirmee_entre_temps     Notion a confirmé (synced) : la reprise note seulement la
 --                               confirmation, AUCUN envoi.
---   C_envoyee_sans_confirmation envoi fait avant la coupure, sans confirmation : la reprise
---                               n'utilise QUE la réparation (7323863), jamais le premier envoi.
+--   C_envoyee_sans_confirmation envoi fait avant la coupure, sans confirmation : chercher la
+--                               fiche dans Notion par son ID Supabase (colonne id) → étape 3a
+--                               si elle existe, étape 3b si elle est absente.
 -- À lancer APRÈS la réactivation des scénarios, une fois la file de 7026183 vidée, et APRÈS
 -- notion_sync_enabled = true. Relancer juste avant les étapes 2 et 3.
 select o.id, o.order_number, o.finalized_at, o.side_effects_done_at,

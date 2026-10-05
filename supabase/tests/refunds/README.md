@@ -469,9 +469,10 @@ e-mail le jour même (clé d'idempotence), rien après 10 h, aucun e-mail sans a
 échec, aperçu admin ; sessions : liste avec places, création, doublon refusé, capacité sous les places
 occupées refusée, type figé, date / heure avec confirmation, prix des réservations conservé,
 fermeture, aucune suppression, historique, PIN, droits ; relance de F24. Résultat attendu :
-`74 PASS, 0 FAIL` (dont : reprise des factures gâteau et CORS de confirm-workshop-refund identiques
+`81 PASS, 0 FAIL` (dont : reprise des factures gâteau et CORS de confirm-workshop-refund identiques
 à la production ; retour en arrière en trois cas : jamais envoyée → premier envoi, confirmée pendant
-la coupure → aucun envoi, envoyée sans confirmation → réparation seule, jamais de second premier envoi).
+la coupure → aucun envoi, envoyée sans confirmation → étape 3a réparation seule si la fiche Notion
+existe, étape 3b premier envoi unique si elle est absente, sur listes d'ID explicites).
 
 `test_f24_shared_diffs.mjs` (esbuild seul, sans base) : écarts d'invoice-pdf.ts et d'email-darkmode.ts
 pour postfinance-webhook, retry-order-side-effects et confirm-workshop-refund. Code réellement
