@@ -207,12 +207,14 @@ export interface SalesLine {
   design: string | null; workshopType: string | null; seats: number | null; unitIndex: number; unitCount: number;
   serviceDate: string; state: SalesState; reason: string | null;
   base: number; adjustment: number; amount: number; gesture: number; cancellationRefund: number;
+  // F25 : montant décidé pour un article annulé (null = pas de décision) et écart avec son prix.
+  due?: number | null; notRefunded?: number;
 }
 export interface SalesMonth {
   month: string; from: string; to: string; includeTests: boolean;
   cards: {
     gross: number; cancelled: number; cancelledCount: number; kept: number; gestures: number; net: number;
-    cancellationRefunds: number; cancellationsToRefund: number; toCollect: number; toCollectOrders: number;
+    cancellationRefunds: number; cancellationsToRefund: number; notRefunded?: number; toCollect: number; toCollectOrders: number;
     orders: number; cakes: number; workshopSeats: number; refusedCount: number; toAcceptCount: number;
     undatedCount: number; undatedAmount: number;
   };

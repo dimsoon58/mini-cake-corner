@@ -50,7 +50,11 @@ export function MonthTotals({ sales, finance, orders, treasury }: {
         <Total testId="t-to-collect" label="Reste à encaisser" value={money(c.toCollect)} tone={c.toCollect ? "warn" : undefined}
           explain={`Ventes de ce mois pas encore payées (${c.toCollectOrders} commande(s)) — déjà comptées dans les ventes.`} />
         <Total testId="t-to-refund" label="Remboursements restant à effectuer" value={money(c.cancellationsToRefund)} tone={c.cancellationsToRefund ? "warn" : undefined}
-          explain={`Articles annulés de ce mois, déjà payés, pas encore remboursés.${treasury?.customerRefundsOwed != null ? ` Toutes commandes au ${frDate(treasury.date)} : ${money(treasury.customerRefundsOwed)}.` : ""}`} />
+          explain={`Articles annulés de ce mois, déjà payés, pas encore remboursés (montant décidé, sinon prix de l'article).${treasury?.customerRefundsOwed != null ? ` Toutes commandes au ${frDate(treasury.date)} : ${money(treasury.customerRefundsOwed)}.` : ""}`} />
+        {c.notRefunded != null && (
+          <Total testId="t-not-refunded" label="Montant non remboursé" value={money(c.notRefunded)}
+            explain="Articles annulés de ce mois : différence entre leur prix et le montant décidé à rembourser (motif dans chaque commande). Hors ventes." />
+        )}
       </div>
       {!!orders?.unpaidBefore.count && (
         <p className={cn("flex gap-2 border px-3 py-2 text-sm", WARN)} data-testid="unpaid-before">
@@ -135,6 +139,7 @@ function OrderBlock({ lines, order, month }: { lines: SalesLine[]; order: SalesO
               {l.state !== "kept" && <> <Badge className={STATE_TONE[l.state]}>{SALES_STATE_LABELS[l.state]}{l.reason ? ` · ${SALES_REASON_LABELS[l.reason] ?? l.reason}` : ""}</Badge></>}
               {Number(l.adjustment) !== 0 && <span className="block text-xs text-muted-foreground">prix {money(l.base)} {Number(l.adjustment) > 0 ? "+" : "−"} {split ? "part des" : ""} frais / remises de la commande {money(Math.abs(Number(l.adjustment)))}{split ? " (au prorata)" : ""}</span>}
               {Number(l.cancellationRefund) > 0 && <span className="block text-xs text-muted-foreground">remboursé {money(l.cancellationRefund)} (annulation)</span>}
+              {Number(l.notRefunded) > 0 && <span className="block text-xs text-muted-foreground">non remboursé {money(l.notRefunded)}</span>}
             </span>
             <span className="text-right">
               <span className={cn("block tabular-nums", l.state !== "kept" && "line-through text-muted-foreground")}>{money(l.amount)}</span>

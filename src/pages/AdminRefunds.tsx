@@ -250,7 +250,7 @@ const AdminRefunds = () => {
                       {r.toReviewCount > 0 && <span className="block text-xs text-amber-800">{r.toReviewCount} {t("to check", "à vérifier")}</span>}
                     </span>
                     <span className="text-xs text-muted-foreground tabular-nums">
-                      {t("Collected", "Encaissé")} {chf(r.collected)} · {t("Decided", "Décidé")} {chf(r.decided)} · {t("Refunded", "Remboursé")} {chf(r.refunded)}
+                      {t("Paid by the customer", "Payé par le client")} {chf(r.collected)} · {t("To refund", "À rembourser")} {chf(r.decided)} · {t("Already refunded", "Déjà remboursé")} {chf(r.refunded)}
                     </span>
                     <span className="ml-auto font-semibold tabular-nums text-amber-900">{chf(r.remaining)}</span>
                   </li>

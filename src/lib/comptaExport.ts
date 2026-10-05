@@ -161,6 +161,7 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, sales: SalesMonth, f
   m("= Ventes maintenues", { formula: `'Ventes du mois'!M${sv.netRow}`, result: round(c.net) });
   m("Remboursements d'annulation (information, déjà retirés avec l'article)", { formula: `'Ventes du mois'!L${sv.cancelRefundRow}`, result: round(c.cancellationRefunds) });
   m("Annulés payés, encore à rembourser", round(c.cancellationsToRefund));
+  if (c.notRefunded != null) m("Montant non remboursé sur annulations (hors ventes)", round(c.notRefunded));
   add([`${c.cakes} gâteau(x) / article(s) vendus · ${c.workshopSeats} place(s) de workshop${c.refusedCount ? ` · ${c.refusedCount} gâteau(x) refusé(s), jamais vendus` : ""}${c.toAcceptCount ? ` · ${c.toAcceptCount} commande(s) encore à accepter, non comptée(s)` : ""}`]);
   if (c.undatedCount) add([`${c.undatedCount} ligne(s) vendue(s) sans date de réalisation (${round(c.undatedAmount)}) : hors de tout mois`]).font = { color: { argb: "FF8A5A00" } };
   add(["Encaissements et remboursements par date de paiement : feuilles « Encaissements - résumé », « Encaissements », « Remboursements » (détail secondaire, jamais additionné aux ventes)."]).font = { italic: true, color: { argb: "FF666666" } };

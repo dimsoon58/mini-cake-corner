@@ -523,3 +523,16 @@ envoyée à la fonction et rechargée quand elle change. Résultat attendu : `31
 accepté, tout autre créneau refusé (`SATURDAY_SLOT`) en retrait comme en livraison ; la semaine
 inchangée ; commandes manuelles libres (`allowAnySlot`) ; les 4 listes de la page de paiement filtrées,
 pas celles de l'admin. Résultat attendu : `12 PASS, 0 FAIL`.
+
+## Montant non remboursé : le montant décidé fait foi (F25)
+
+`test_refund_not_refunded.mjs` (schéma de production + F1–F19 + F25) : commande payée 103, annulée,
+décidé 102 « frais de paiement gardés » → Compta et trésorerie doivent 102 (plus 103), puis 0 une fois
+remboursé ; montant non remboursé 1.00 avec son motif, hors ventes ; article annulé couvert par une
+décision vs non couvert (jamais additionnés deux fois) ; geste sur commande maintenue et décision sans
+article sur commande partiellement annulée inchangés (F19) ; décision supérieure au prix ; décision
+datée après la trésorerie ; workshop : décision automatique gardée, annulée à la main puis remplacée,
+jamais réactivée (et réactivation système conservée) ; commandes de test exclues de la Compta ;
+relance de F25 identique ; droits fermés ; libellés de la fiche, du formulaire, de la Compta et de la
+liste. Résultat attendu : `40 PASS, 0 FAIL`. Attention : relancer F17 ou F19 APRÈS F25 remettrait
+les anciennes versions des fonctions.
