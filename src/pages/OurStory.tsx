@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import imgFirstYears from "@/assets/story-first-years.jpeg";
 import img2021 from "@/assets/story-2021.jpg";
 import img2026 from "@/assets/story-2026.webp";
+import imgHero from "@/assets/story-hero.webp";
 import archive1 from "@/assets/archive-1.jpg";
 import archive2 from "@/assets/archive-2.jpg";
 import archive3 from "@/assets/archive-3.jpg";
@@ -221,7 +222,13 @@ const OurStory = () => {
           </h1>
         </div>
         <div className="container mx-auto px-4 mt-8 md:mt-10">
-          <PhotoSlot className="aspect-[16/7] md:aspect-[24/7] max-h-[380px]" label={t("HERO PHOTO", "PHOTO PRINCIPALE")} />
+          {/* Photo verticale : cadre 4:5 sur téléphone, 16:9 sur ordinateur, centré sur l'enseigne et les fondatrices. */}
+          <img
+            src={imgHero}
+            alt={t("Melodie and Eli in front of the Bento Cake Studio shop window, Rue Prévost-Martin 8 in Geneva", "Melodie et Eli devant la vitrine de Bento Cake Studio, rue Prévost-Martin 8 à Genève")}
+            className="w-full max-w-5xl mx-auto aspect-[4/5] md:aspect-[16/9] object-cover object-[50%_72%] md:object-[50%_66%]"
+            data-testid="story-hero"
+          />
         </div>
       </section>
 
