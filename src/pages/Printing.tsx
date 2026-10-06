@@ -10,6 +10,7 @@ import printingGallery3 from "@/assets/printing-gallery-3.jpg";
 import printingGallery4 from "@/assets/printing-gallery-4.jpg";
 import printingGallery5 from "@/assets/printing-gallery-5.jpg";
 import printingGallery6 from "@/assets/printing-gallery-6.jpg";
+import printingIntro from "@/assets/printing-intro.png";
 
 const printingGallery = [
   printingGallery1, printingGallery2, printingGallery3,
@@ -24,7 +25,7 @@ import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
 
-/* ─── Adjust the price of an edible print here (CHF) ─── */
+/* ─── Price ─── */
 const PRINTING_PRICE = 15;
 
 const Printing = () => {
@@ -36,14 +37,24 @@ const Printing = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [comment, setComment] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
+  // Controls whether the ordering form is visible (DotCakes-style flow)
+  const [formVisible, setFormVisible] = useState(false);
 
   useEffect(() => {
     document.title = t("Printing – Bento Cake Studio", "Impression – Bento Cake Studio");
-    return () => {
-      document.title = "Bento Cake Studio Geneva";
-    };
+    return () => { document.title = "Bento Cake Studio Geneva"; };
   }, [t]);
+
+  // Scroll to form when it opens
+  useEffect(() => {
+    if (formVisible && formRef.current) {
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [formVisible]);
 
   const handleAddToCart = () => {
     if (!orderDate) {
@@ -105,14 +116,13 @@ const Printing = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12 max-w-3xl">
-        {/* Same title style as the other product pages. md:-mx-16 lets it use a
-            little more than this page's narrow (max-w-3xl) column on desktop,
-            so "IMPRESSION COMESTIBLE" fits on one line like the English title. */}
+
+        {/* Title */}
         <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold md:-mx-16">
           {t("Edible Printing", "Impression Comestible")}
         </h1>
-        {/* Intro — makes clear up front that the print can be ordered on its
-            own (no cake), and points cake customers to the cake options. */}
+
+        {/* ── INTRO TEXT ───────────────────────────────────────────────────── */}
         <div className="text-center max-w-2xl mx-auto space-y-4 mb-10">
           <p className="text-foreground font-medium">
             {t(
@@ -139,7 +149,7 @@ const Printing = () => {
           </p>
         </div>
 
-        {/* "Print only" block — discreet, bordered like the rest of the site */}
+        {/* "Print only" block */}
         <div className="border border-foreground/20 px-6 py-5 mb-10 text-center space-y-2">
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
             {t("Print only", "Impression seule")}
@@ -161,137 +171,144 @@ const Printing = () => {
           </p>
         </div>
 
-        {/* How it works — in a row on desktop, stacked on mobile */}
-        <div className="mb-12">
-          <h2 className="text-center text-sm font-semibold uppercase tracking-[0.14em] text-foreground mb-6">
-            {t("How does it work?", "Comment ça marche ?")}
-          </h2>
-          <ol className="grid grid-cols-1 md:grid-cols-4 gap-5 md:gap-6">
-            {[
-              t("Upload your image.", "Envoyez votre image"),
-              t("Choose your pick-up date.", "Choisissez la date"),
-              t("We print it on an edible sugar sheet.", "Nous l'imprimons"),
-              t("Collect it and place it on your own cake.", "Récupérez-la"),
-            ].map((step, i) => (
-              <li key={i} className="flex md:flex-col items-center md:text-center gap-3 md:gap-2">
-                <span className="shrink-0 w-7 h-7 flex items-center justify-center border border-primary text-primary text-xs font-semibold">
-                  {i + 1}
-                </span>
-                <span className="text-sm text-muted-foreground leading-snug">{step}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        <div className="space-y-8">
-          {/* Date */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              {t("Pick-up Date", "Date de retrait")} <span className="text-destructive">*</span>
-            </label>
-            <Popover open={calOpen} onOpenChange={setCalOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal rounded-none",
-                    !orderDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {orderDate ? format(orderDate, "dd.MM.yyyy") : t("Select a date", "Choisir une date")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={orderDate}
-                  onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
-                  disabled={(date) => isOrderDateDisabled(date)}
-                  initialFocus
-                  className="p-3 pointer-events-auto"
-                  {...expressCalendarProps}
-                />
-              </PopoverContent>
-            </Popover>
-            <p className="text-xs text-muted-foreground">{t("Minimum 2 days' notice.", "Minimum 2 jours à l'avance.")}</p>
-            <ExpressDateNotice date={orderDate} />
-          </div>
-
-          {/* Upload */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              {t("Your image to print", "Votre image à imprimer")} <span className="text-destructive">*</span>
-            </label>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "Upload the photo, logo or drawing you would like printed on an edible sheet (JPG, PNG, WEBP).",
-                "La photo, le logo ou le dessin à imprimer (JPG, PNG, WEBP)."
-              )}
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const picked = Array.from(e.target.files || []);
-                setFiles((prev) => [...prev, ...picked].slice(0, 5));
-                e.target.value = "";
-              }}
-            />
+        {/* ── CTA — visible only before form opens ─────────────────────────── */}
+        {!formVisible && (
+          <div className="flex flex-col items-center gap-8 mb-2">
             <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full border-2 border-dashed border-border p-6 flex flex-col items-center gap-2 hover:border-primary/50 transition-colors"
+              onClick={() => setFormVisible(true)}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-semibold uppercase tracking-[0.18em] rounded-none px-10 py-3.5 transition-colors"
             >
-              <Upload className="w-6 h-6 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{t("Click to upload your image", "Cliquez pour importer votre image")}</span>
+              {t("Order your print →", "Commander mon impression →")}
             </button>
-            {files.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                {files.map((file, i) => (
-                  <div key={i} className="relative aspect-square border border-border bg-muted/20 overflow-hidden">
-                    <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setFiles(files.filter((_, idx) => idx !== i))}
-                      className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-none p-0.5 hover:bg-destructive/80"
-                      aria-label={t("Remove image", "Supprimer l'image")}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Product photo — below the CTA button */}
+            <div className="w-full max-w-xs mx-auto">
+              <img
+                src={printingIntro}
+                alt={t("Edible print in protective sleeve", "Impression comestible dans sa pochette")}
+                className="w-full h-auto object-contain"
+              />
+            </div>
           </div>
+        )}
 
-          {/* Comment */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">{t("Special instructions (optional)", "Instructions particulières (optionnel)")}</label>
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={3}
-              placeholder={t("Desired size, cropping, placement, colours or any other detail about your print…", "Taille souhaitée, recadrage, emplacement, couleurs ou autre précision concernant votre impression…")}
-              className="w-full border border-input bg-background px-3 py-2 text-sm rounded-none focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
+        {/* ── ORDERING FORM — shown after CTA click ────────────────────────── */}
+        <div
+          ref={formRef}
+          className={formVisible
+            ? "transition-all duration-500 ease-out opacity-100 translate-y-0"
+            : "pointer-events-none select-none opacity-0 translate-y-4 h-0 overflow-hidden"}
+          aria-hidden={!formVisible}
+        >
+          <div className="space-y-8 pt-4">
+            {/* Date */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                {t("Pick-up Date", "Date de retrait")} <span className="text-destructive">*</span>
+              </label>
+              <Popover open={calOpen} onOpenChange={setCalOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal rounded-none normal-case",
+                      !orderDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {orderDate ? format(orderDate, "dd.MM.yyyy") : t("Select a date", "Choisir une date")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={orderDate}
+                    onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
+                    disabled={(date) => isOrderDateDisabled(date)}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                    {...expressCalendarProps}
+                  />
+                </PopoverContent>
+              </Popover>
+              <p className="text-xs text-muted-foreground">{t("Minimum 2 days' notice.", "Minimum 2 jours à l'avance.")}</p>
+              <ExpressDateNotice date={orderDate} />
+            </div>
 
-          {/* Total + add */}
-          <div className="flex items-center justify-between border-t border-border pt-5">
-            <span className="text-sm uppercase tracking-[0.105em] text-foreground">{t("Total", "Total")}</span>
-            <span className="text-xl font-bold text-primary">CHF {PRINTING_PRICE}</span>
+            {/* Upload */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                {t("Your image to print", "Votre image à imprimer")} <span className="text-destructive">*</span>
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "Upload the photo, logo or drawing you would like printed on an edible sheet (JPG, PNG, WEBP).",
+                  "La photo, le logo ou le dessin à imprimer (JPG, PNG, WEBP)."
+                )}
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const picked = Array.from(e.target.files || []);
+                  setFiles((prev) => [...prev, ...picked].slice(0, 5));
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-border p-6 flex flex-col items-center gap-2 hover:border-primary/50 transition-colors"
+              >
+                <Upload className="w-6 h-6 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{t("Click to upload your image", "Cliquez pour importer votre image")}</span>
+              </button>
+              {files.length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  {files.map((file, i) => (
+                    <div key={i} className="relative aspect-square border border-border bg-muted/20 overflow-hidden">
+                      <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setFiles(files.filter((_, idx) => idx !== i))}
+                        className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-none p-0.5 hover:bg-destructive/80"
+                        aria-label={t("Remove image", "Supprimer l'image")}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Comment */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">{t("Special instructions (optional)", "Instructions particulières (optionnel)")}</label>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={3}
+                placeholder={t("Desired size, cropping, placement, colours or any other detail about your print…", "Taille souhaitée, recadrage, emplacement, couleurs ou autre précision concernant votre impression…")}
+                className="w-full border border-input bg-background px-3 py-2 text-sm rounded-none focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            {/* Total + add */}
+            <div className="flex items-center justify-between border-t border-border pt-5">
+              <span className="text-sm uppercase tracking-[0.105em] text-foreground">{t("Total", "Total")}</span>
+              <span className="text-xl font-bold text-primary">CHF {PRINTING_PRICE}</span>
+            </div>
+            <Button
+              onClick={handleAddToCart}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
+            >
+              {t("Add to Cart", "Ajouter au panier")}
+            </Button>
           </div>
-          <Button
-            onClick={handleAddToCart}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 text-[14px] font-medium uppercase tracking-[0.105em] rounded-none"
-          >
-            {t("Add to Cart", "Ajouter au panier")}
-          </Button>
         </div>
       </div>
 
