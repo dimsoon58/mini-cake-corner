@@ -37,7 +37,8 @@ const AdminCustomers = () => {
   const sort = (SORTS.some((s) => s.key === params.get("sort")) ? params.get("sort") : "last_order") as string;
   const desc = params.get("dir") !== "asc";
   const page = Math.max(1, Number(params.get("page")) || 1);
-  const includeTests = params.get("tests") === "1";
+  // « Afficher les tests » retiré (06.10.2026) : les tests restent toujours masqués.
+  const includeTests = false;
   const setParam = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams(params);
     for (const [k, v] of Object.entries(patch)) {
@@ -122,10 +123,6 @@ const AdminCustomers = () => {
               </Button>
             </div>
           </div>
-          <label className="flex items-center gap-2 text-sm pb-2">
-            <input type="checkbox" className="w-4 h-4" checked={includeTests} onChange={(e) => setParam({ tests: e.target.checked ? "1" : null, page: null })} />
-            {t("Show tests", "Afficher les tests")}
-          </label>
         </div>
 
         {error && <p className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error}</p>}

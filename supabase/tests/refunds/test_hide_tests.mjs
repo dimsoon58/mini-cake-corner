@@ -154,7 +154,13 @@ check("Lecture seule : seules les lectures du stock sont appelées (production_p
 // ═══ Pages ══════════════════════════════════════════════════════════════
 const SRC = path.resolve(ROOT, "../src");
 const toggle = fs.readFileSync(path.join(SRC, "components/admin/ShowTestsToggle.tsx"), "utf8");
-check("Case : libellé « Afficher les tests », état dans l'URL (?tests=1)", toggle.includes('"Afficher les tests"') && toggle.includes('p.set("tests", "1")') && toggle.includes('params.get("tests") === "1"'));
+// 06.10.2026 : case « Afficher les tests » retirée de l'admin — les tests restent toujours masqués,
+// même avec un ancien lien « ?tests=1 » (Clients et Remboursements compris).
+const custSrc = fs.readFileSync(path.join(SRC, "pages/AdminCustomers.tsx"), "utf8");
+const refSrc = fs.readFileSync(path.join(SRC, "pages/AdminRefunds.tsx"), "utf8");
+check("Case « Afficher les tests » retirée : jamais affichée, tests toujours masqués (Clients et Remboursements compris)",
+  toggle.includes("return [false, () => {}];") && toggle.includes("return null;") && !toggle.includes('params.get("tests")') && custSrc.includes("const includeTests = false;") && refSrc.includes("const includeTests = false;")
+  && !custSrc.includes('{t("Show tests", "Afficher les tests")}') && !refSrc.includes('{t("Show tests", "Afficher les tests")}'));
 for (const [file, fn] of [["AdminDashboard.tsx", "get-today"], ["AdminToday.tsx", "get-today"], ["AdminProduction.tsx", "get-production"], ["AdminCalendar.tsx", "list-orders-by-date"]]) {
   const page = fs.readFileSync(path.join(SRC, "pages", file), "utf8");
   const call = page.slice(page.indexOf(`invoke("${fn}"`), page.indexOf(`invoke("${fn}"`) + 200);

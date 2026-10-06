@@ -23,7 +23,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 //   À effectuer — orders with an amount decided but not yet refunded;
 //   À vérifier  — possible duplicates / over the amount collected (never
 //                 counted until checked on the order page) and anomalies.
-// Test orders are hidden unless « Afficher les tests » is ticked.
+// Test orders are always hidden (« Afficher les tests » removed on 2026-10-06).
 
 type Tab = "done" | "todo" | "review";
 type Origin = "website" | "manual";
@@ -51,7 +51,8 @@ const AdminRefunds = () => {
   const thisMonth = zurichToday().slice(0, 7);
   const from = params.get("from") ?? monthBounds(thisMonth).from;
   const to = params.get("to") ?? monthBounds(thisMonth).to;
-  const includeTests = params.get("tests") === "1";
+  // « Afficher les tests » retiré (06.10.2026) : les tests restent toujours masqués.
+  const includeTests = false;
   const setParam = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams(params);
     for (const [k, v] of Object.entries(patch)) {
@@ -191,10 +192,6 @@ const AdminRefunds = () => {
               </div>
             </>
           )}
-          <label className="flex items-center gap-2 text-sm pb-2">
-            <input type="checkbox" className="w-4 h-4" checked={includeTests} onChange={(e) => setParam({ tests: e.target.checked ? "1" : null })} />
-            {t("Show tests", "Afficher les tests")}
-          </label>
           {tab === "review" && !pinBySession && (
             <div className="space-y-1 ml-auto">
               <Label className="text-xs text-muted-foreground">{t("Admin PIN", "Code PIN administrateur")}</Label>
