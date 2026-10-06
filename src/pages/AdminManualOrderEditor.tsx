@@ -299,6 +299,9 @@ const AdminManualOrderEditor = () => {
     return () => clearTimeout(handle);
   }, [catalog, payload, adjustment, items.length]);
 
+  // Au moins un produit physique (gâteau, kit, dots…) : sinon pas de date de retrait / livraison.
+  const hasPhysicalItem = items.some((it) => it.product !== "workshop");
+
   // ── What is still missing to confirm (shown live, checked on confirm) ──
   // Same rules as the server's confirm check; the server re-checks anyway.
   const missing = useMemo(() => {
@@ -530,6 +533,14 @@ const AdminManualOrderEditor = () => {
             {/* 3. Dates */}
             <section className="border border-border/60 bg-background">
               <h2 className={sectionTitle}>3. {t("Dates / delivery", "Dates / livraison")}</h2>
+              {/* Que des workshops : pas de date de retrait ni de livraison (date et heure de la
+                  session). La section revient dès qu'un gâteau ou un autre produit est ajouté. */}
+              {!hasPhysicalItem ? (
+                <p className="p-4 text-sm text-muted-foreground" data-testid="dates-workshop-only">
+                  {t("No pick-up or delivery date: workshops take place on the date and time of their session. This section opens as soon as a cake or another product is added.",
+                    "Pas de date de retrait ni de livraison : les workshops ont lieu à la date et à l'heure de leur session. Cette section s'ouvre dès qu'un gâteau ou un autre produit est ajouté.")}
+                </p>
+              ) : (
               <div className="p-4 space-y-4">
                 <p className="text-xs text-muted-foreground">
                   {t("One group per day. Assign each product to its date in the product block. Workshops use their session date.",
@@ -623,6 +634,7 @@ const AdminManualOrderEditor = () => {
                   <Plus className="w-4 h-4" /> {t("Add a date", "Ajouter une date")}
                 </button>
               </div>
+              )}
             </section>
 
             {/* 4. Notes */}

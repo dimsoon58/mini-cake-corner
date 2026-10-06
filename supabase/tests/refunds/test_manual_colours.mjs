@@ -73,5 +73,15 @@ check("Gender Reveal : inside_color « Rose » (comme le checkout)", f.inside_co
 check("Relecture d'une commande : paillettes retrouvées depuis extra", JSON.stringify(M.coloursFromExtra("Glitter, Glitter Cherries, Glitter: Gold, Glitter Cherries: Pink")) === JSON.stringify({ glitter_color: "Gold", glitter_cherries_color: "Pink" })
   && JSON.stringify(M.coloursFromExtra(null)) === JSON.stringify({ glitter_color: "", glitter_cherries_color: "" }));
 
+// ── 5. Dates : rien à choisir pour une commande de workshops seuls ──────
+const editor = fs.readFileSync(path.join(REPO, "src/pages/AdminManualOrderEditor.tsx"), "utf8");
+check("Éditeur : section Dates masquée tant qu'il n'y a que des workshops, rouverte dès un produit physique",
+  /const hasPhysicalItem = items\.some\(\(it\) => it\.product !== "workshop"\)/.test(editor)
+  && /\{!hasPhysicalItem \? \(\s*<p[^>]*data-testid="dates-workshop-only"/.test(editor));
+check("Éditeur : la date n'est exigée pour confirmer que s'il y a un produit physique",
+  /if \(physical && groups\.some\(\(g\) => !g\.date\)\)/.test(editor));
+check("Éditeur : seules les dates qui portent un produit physique sont envoyées au serveur",
+  /itemIndexes: items\.map\(\(it, i\) => \(it\.product !== "workshop"/.test(editor) && /\.filter\(\(f\) => f\.itemIndexes\.length > 0\)/.test(editor));
+
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);
