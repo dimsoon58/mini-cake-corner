@@ -97,6 +97,7 @@ serve(async (req) => {
       seats_to_cancel,
       idempotency_key = null,
       pin,
+      sponges = null,
     } = body ?? {};
 
     const supabase = createClient(
@@ -174,6 +175,51 @@ serve(async (req) => {
     // ── 1+2. Seats cancelled atomically (cash due recorded, never refunded
     //    here) + reward restoration — shared with cancel-order
     //    (_shared/workshop-cancel.ts, cancel_workshop_seats_atomic RPC).
+    // F28 — génoise des places annulées (production et stock des workshops).
+    // Admin : obligatoire quand la réservation mélange encore vanille et
+    // chocolat (sauf si toutes les places restantes sont annulées) ; déduite
+    // quand il ne reste qu'une génoise. Appel de Make (PIN) : jamais bloqué,
+    // la place reste « à confirmer » en production. Sans F28 : ignoré.
+    let spongePlan: { vanilla: number; chocolate: number } | null = null;
+    {
+      const { data: item } = await supabase.from("order_items").select("workshop_sponge_choices").eq("id", reservationBefore.order_item_id).maybeSingle();
+      const choices: string[] = Array.isArray(item?.workshop_sponge_choices) ? item.workshop_sponge_choices : [];
+      const purchased = Number(reservationBefore.purchased_seats) || 0;
+      const alreadyCancelled = Number(reservationBefore.cancelled_seats) || 0;
+      const valid = choices.length === purchased && choices.every((c) => c === "vanilla" || c === "chocolate");
+      const { data: rec, error: recErr } = await supabase.rpc("workshop_cancelled_sponges", { p_reservations: [reservationBefore.id] });
+      if (valid && !recErr) {
+        const r = (rec ?? {})[reservationBefore.id] ?? { vanilla: 0, chocolate: 0 };
+        const remV = choices.filter((c) => c === "vanilla").length - (Number(r.vanilla) || 0);
+        const remC = choices.filter((c) => c === "chocolate").length - (Number(r.chocolate) || 0);
+        const unrecorded = Math.max(0, alreadyCancelled - (Number(r.vanilla) || 0) - (Number(r.chocolate) || 0));
+        const activeNow = purchased - alreadyCancelled;
+        const asked = sponges && typeof sponges === "object"
+          ? { vanilla: Number((sponges as Record<string, unknown>).vanilla ?? 0), chocolate: Number((sponges as Record<string, unknown>).chocolate ?? 0) }
+          : null;
+        if (asked) {
+          if (![asked.vanilla, asked.chocolate].every((n) => Number.isInteger(n) && n >= 0) || asked.vanilla + asked.chocolate !== seats
+            || asked.vanilla > remV || asked.chocolate > remC) {
+            return new Response(JSON.stringify({
+              error: `Génoises des places annulées incorrectes : ${seats} au total, au plus ${remV} vanille et ${remC} chocolat.`,
+              reason: "sponges_invalid",
+            }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 400 });
+          }
+          spongePlan = asked;
+        } else if (remV > 0 && remC > 0) {
+          if (seats === activeNow && unrecorded === 0) spongePlan = { vanilla: remV, chocolate: remC };
+          else if (admin) {
+            return new Response(JSON.stringify({
+              error: "Cette réservation mélange vanille et chocolat : indiquez la génoise des places annulées.",
+              reason: "sponges_required", remaining: { vanilla: remV, chocolate: remC },
+            }), { headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 400 });
+          }
+        } else if (remV > 0 || remC > 0) {
+          spongePlan = remV > 0 ? { vanilla: seats, chocolate: 0 } : { vanilla: 0, chocolate: seats };
+        }
+      }
+    }
+
     const cancellation = await cancelReservationSeats(supabase, {
       reservationId: reservationBefore.id,
       seats,
@@ -190,6 +236,14 @@ serve(async (req) => {
     const rewardRestored = cancellation.rewardRestored;
 
     // ── Re-read reservation for fresh seat counts ─────────────────────────
+    if (spongePlan && spongePlan.vanilla + spongePlan.chocolate > 0) {
+      const { error: spErr } = await supabase.rpc("workshop_record_cancelled_sponges", {
+        p_reservation: reservationBefore.id, p_key: idemKey, p_vanilla: spongePlan.vanilla, p_chocolate: spongePlan.chocolate,
+        p_by: admin?.email ?? "make",
+      });
+      if (spErr) console.error("cancel-workshop-seats: cancelled sponges not recorded:", spErr.message);
+    }
+
     const { data: reservation, error: rereadErr } = await supabase
       .from("workshop_reservations").select("*").eq("id", reservationBefore.id).single();
     if (rereadErr || !reservation) throw new Error("Failed to re-read reservation after cancellation");

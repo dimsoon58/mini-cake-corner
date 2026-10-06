@@ -14,6 +14,7 @@ import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { flavorDescMap } from "@/data/flavorDesc";
 import { cn } from "@/lib/utils";
 import { BASE_LABELS, CATEGORY_LABELS, CATEGORY_ORDER, genoiseLabel, type Category, type SpongeBase, type StockUnits } from "@/lib/production";
+import { WorkshopSessionsPanel, type WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
 
 // Admin > Production — production sheet for a period, computed server-side
 // by get-production (_shared/production-stats.ts holds every counting rule).
@@ -34,11 +35,12 @@ interface ProdLine {
   flavourId: string | null;
   flavourLabel: string | null;
   units: number;
-  source: "website" | "manual";
+  source: "website" | "manual" | "workshop";
   channel: string | null;
   badge: Badge | null;
   done?: boolean;
   reason?: string;
+  sessionId?: string;        // F28 : ligne d'une session de workshop
 }
 
 interface ProdRow {
@@ -62,6 +64,8 @@ interface ProductionData {
   flavours: { flavourId: string; label: string; units: number }[];
   ingredients: { ingredient: string; units: number }[];
   stockLinked?: boolean;
+  stockRows?: { sponge_base: string; product_category: string; quantity: number }[];
+  workshopSessions?: WorkshopSession[];   // F28
   pendingReuse?: PendingReuse[];
   movements?: Movement[];
 }
@@ -74,7 +78,7 @@ interface PendingReuse {
 }
 interface Movement {
   id: string; created_at: string; created_by: string | null; sponge_base: SpongeBase; product_category: Category;
-  delta: number; quantity_after: number; kind: "order_use" | "return_uncheck" | "return_cancelled" | "inventory"; note: string | null; order_number: string | null;
+  delta: number; quantity_after: number; kind: "order_use" | "return_uncheck" | "return_cancelled" | "inventory"; note: string | null; order_number: string | null; workshop_session_id?: string | null;
 }
 const MOVEMENT_LABELS: Record<Movement["kind"], { en: string; fr: string }> = {
   order_use: { en: "Used for an order", fr: "Utilisée pour une commande" },
@@ -350,7 +354,9 @@ const AdminProduction = () => {
           {lines.map((l, i) => (
             <tr key={`${l.orderId}-${i}`} className="border-t border-border/50 align-top">
               <td className="py-1.5 pr-3 whitespace-nowrap">
-                <Link to={`/admin/order/${l.orderId}`} className="text-primary hover:underline">{l.orderNumber || l.orderId.slice(0, 8)}</Link>
+                {l.sessionId
+                  ? <Link to="/admin/workshops" className="text-primary hover:underline">{t("Session", "Session")}</Link>
+                  : <Link to={`/admin/order/${l.orderId}`} className="text-primary hover:underline">{l.orderNumber || l.orderId.slice(0, 8)}</Link>}
               </td>
               <td className="py-1.5 pr-3">{l.customerName || "—"}</td>
               <td className="py-1.5 pr-3 whitespace-nowrap">{fmtDate(l.date)}</td>
@@ -367,7 +373,7 @@ const AdminProduction = () => {
                   <span className="text-amber-800">{REASON_LABELS[l.reason] ? tr(REASON_LABELS[l.reason]) : l.reason}</span>
                 ) : (
                   <span className="flex flex-wrap gap-1 items-center">
-                    <span>{l.source === "manual" ? t("Manual", "Manuel") : t("Website", "Site")}{l.channel && l.source === "manual" ? ` · ${l.channel}` : ""}</span>
+                    <span>{l.source === "workshop" ? t("Workshop session", "Session de workshop") : l.source === "manual" ? t("Manual", "Manuel") : t("Website", "Site")}{l.channel && l.source === "manual" ? ` · ${l.channel}` : ""}</span>
                     {l.done && <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">{t("Done", "Fait")}</span>}
                     {l.badge === "awaiting_payment" && <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">{t("Awaiting payment", "En attente de paiement")}</span>}
                     {l.badge === "to_accept" && <span className="bg-blue-600 text-white font-semibold px-1.5 py-0.5 text-[10px] uppercase tracking-wide">{t("To accept · not counted", "À accepter · non compté")}</span>}
@@ -443,6 +449,10 @@ const AdminProduction = () => {
                 <p className="text-3xl font-bold text-primary">{s.toMake}</p>
               </div>
             </div>
+
+            {/* F28 : gâteaux des workshops, par session (préparation partielle, stock, surplus). */}
+            <WorkshopSessionsPanel sessions={data.workshopSessions ?? []} stockRows={data.stockRows ?? []} includeTests={includeTests}
+              canDecideSurplus={!employee} onChanged={load} />
 
             {!employee && (data.pendingReuse ?? []).length > 0 && (
               <section className="border border-amber-400 bg-background" data-testid="pending-reuse">
@@ -589,7 +599,7 @@ const AdminProduction = () => {
                             <td className="py-1.5 pr-3">{genoiseLabel({ base: m.sponge_base, category: m.product_category }, lang)}</td>
                             <td className={cn("py-1.5 pr-3 text-right font-semibold", m.delta < 0 ? "text-red-700" : "text-emerald-700")}>{m.delta > 0 ? `+${m.delta}` : m.delta}</td>
                             <td className="py-1.5 pr-3 text-right">{m.quantity_after}</td>
-                            <td className="py-1.5 pr-3">{tr(MOVEMENT_LABELS[m.kind])}{m.order_number ? ` · ${m.order_number}` : ""}{m.note ? ` · ${m.note}` : ""}</td>
+                            <td className="py-1.5 pr-3">{m.workshop_session_id && m.kind === "order_use" ? t("Used for a workshop", "Utilisée pour un workshop") : tr(MOVEMENT_LABELS[m.kind])}{m.order_number ? ` · ${m.order_number}` : ""}{m.workshop_session_id ? ` · ${m.workshop_session_id}` : ""}{m.note ? ` · ${m.note}` : ""}</td>
                             <td className="py-1.5 text-muted-foreground">{m.created_by ?? "—"}</td>
                           </tr>
                         ))}

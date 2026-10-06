@@ -9,6 +9,7 @@ import {
   type ProdWorkshopItem,
 } from "../_shared/production-stats.ts";
 import { includeTestsFrom, isTestOrder } from "../_shared/test-orders.ts";
+import { loadWorkshopProduction } from "../_shared/workshop-production-load.ts";
 
 // Admin > Production — read-only. For a period [from, to], loads every order
 // item scheduled in it (by the item's OWN date: order_fulfillments via
@@ -128,40 +129,10 @@ serve(async (req) => {
       }
     }
 
-    // ── Workshops ────────────────────────────────────────────────────────
-    const { data: wsItems, error: wErr } = await supabase
-      .from("order_items")
-      .select("id, order_id, workshop_date, workshop_time, workshop_type, workshop_participants, workshop_sponge_choices")
-      .eq("product", "workshop")
-      .gte("workshop_date", from)
-      .lte("workshop_date", to);
-    if (wErr) throw new Error(`Failed to load workshop items: ${wErr.message}`);
-
-    const workshopItems: ProdWorkshopItem[] = [];
-    if ((wsItems ?? []).length > 0) {
-      await loadOrders(Array.from(new Set(wsItems!.map((w) => w.order_id))));
-      const { data: reservations, error: rErr } = await supabase
-        .from("workshop_reservations")
-        .select("order_item_id, status, active_seats, purchased_seats")
-        .in("order_item_id", wsItems!.map((w) => w.id));
-      if (rErr) throw new Error(`Failed to load workshop reservations: ${rErr.message}`);
-      const resByItem = new Map((reservations ?? []).map((r) => [r.order_item_id, r]));
-      for (const w of wsItems!) {
-        const r = resByItem.get(w.id);
-        workshopItems.push({
-          id: w.id,
-          order_id: w.order_id,
-          workshop_date: w.workshop_date,
-          workshop_time: w.workshop_time,
-          workshop_type: w.workshop_type,
-          workshop_participants: w.workshop_participants,
-          workshop_sponge_choices: w.workshop_sponge_choices,
-          reservation: r
-            ? { status: r.status, active_seats: Number(r.active_seats) || 0, purchased_seats: Number(r.purchased_seats) || 0 }
-            : null,
-        });
-      }
-    }
+    // ── Workshops (F28 : par session, avec lots préparés et réglages) ──────
+    const ws = await loadWorkshopProduction(supabase, { from, to });
+    const workshopItems: ProdWorkshopItem[] = ws.items;
+    if (ws.orderIds.length > 0) await loadOrders(ws.orderIds);
 
     // ── Items actually cancelled (manual refund marked cancels_item) ──────
     const itemIds = [...cakeItems.map((i) => i.id), ...workshopItems.map((i) => i.id)];
@@ -189,6 +160,7 @@ serve(async (req) => {
       workshopItems,
       cancelledItemIds,
       stock: stock ?? [],
+      workshopState: ws.state,
     });
 
     // Stock ↔ production (F15) : gâteaux préparés puis annulés (à décider) et
@@ -201,6 +173,7 @@ serve(async (req) => {
     return json(cors, forCaller(caller, {
       from, to, includeTests, ...result, stockRows: stock ?? [],
       stockLinked,
+      workshopLinked: ws.linked,
       pendingReuse: stockLinked ? pendingReuse ?? [] : [],
       movements: stockLinked ? movements ?? [] : [],
     }));

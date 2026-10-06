@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { ShowTestsToggle, useShowTests } from "@/components/admin/ShowTestsToggle";
+import { WorkshopSessionsPanel, type WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
 import { ProductionCheck, isProductionDone } from "@/components/admin/ProductionCheck";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -88,6 +89,8 @@ const AdminToday = () => {
   const [filter, setFilter] = useState<Filter>("all");
   // Commandes de test masquées sauf avec « Afficher les tests » (get-today).
   const [includeTests, setIncludeTests] = useShowTests();
+  // F28 : gâteaux des workshops de la période, par session (même calcul que Production).
+  const [ws, setWs] = useState<{ sessions: WorkshopSession[]; stockRows: { sponge_base: string; product_category: string; quantity: number }[] } | null>(null);
 
   // Period kept in the URL (?from=&to=) so a reload shows the same days.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -140,6 +143,11 @@ const AdminToday = () => {
         return;
       }
       setData(res as TodayData);
+      // Sessions de workshop (get-production) : sans accès ou pas encore déployé → bloc absent.
+      try {
+        const { data: prod, error: pErr } = await supabase.functions.invoke("get-production", { body: { from, to, includeTests } });
+        setWs(!pErr && !prod?.error ? { sessions: prod?.workshopSessions ?? [], stockRows: prod?.stockRows ?? [] } : null);
+      } catch { setWs(null); }
     } catch (e) {
       console.error("get-today threw:", e);
       setError(t("Could not load today's overview. Please try again.", "Impossible de charger l'aperçu du jour. Réessayez."));
@@ -496,6 +504,11 @@ const AdminToday = () => {
               <h2 className={sectionTitle}>
                 {t("Workshops", "Workshops")} ({allItems.filter((i) => i.type === "workshop").length})
               </h2>
+              {ws && ws.sessions.length > 0 && (
+                <div className="mb-3">
+                  <WorkshopSessionsPanel sessions={ws.sessions} stockRows={ws.stockRows} includeTests={includeTests} canDecideSurplus={!employee} onChanged={load} />
+                </div>
+              )}
               {workshopDates.length === 0 ? (
                 <div className={box}><p className="px-4 py-5 text-sm text-muted-foreground">{t("No workshop in this period.", "Aucun workshop sur la période.")}</p></div>
               ) : (

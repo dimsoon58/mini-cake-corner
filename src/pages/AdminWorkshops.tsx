@@ -120,6 +120,9 @@ const AdminWorkshops = () => {
           </section>
         )}
 
+        {/* F28 : gâteaux à préparer par participant, par type d'atelier (production et stock). */}
+        <ProductionSettings pin={pin} />
+
         {editing && (
           <SessionDialog session={editing === "new" ? null : editing} pin={pin} onClose={() => setEditing(null)}
             onSaved={(m) => { setEditing(null); setNotice(m); load(); }} />
@@ -213,6 +216,65 @@ function ParticipantRow({ r }: { r: Participant }) {
       </div>
       {r.comment && <p className="whitespace-pre-wrap">« {r.comment} »</p>}
     </li>
+  );
+}
+
+const CAKE_CATEGORIES: { id: string; fr: string }[] = [
+  { id: "bento_round", fr: "Bento rond" }, { id: "bento_heart", fr: "Bento cœur" },
+  { id: "medium_round", fr: "Medium rond" }, { id: "medium_heart", fr: "Medium cœur" },
+  { id: "large_round", fr: "Large rond" }, { id: "large_heart", fr: "Large cœur" },
+];
+type ProdSetting = { workshop_type: WType; cakes_per_participant: number; product_category: string; updated_at: string; updated_by: string | null };
+
+function ProductionSettings({ pin }: { pin: string }) {
+  const [rows, setRows] = useState<ProdSetting[] | null>(null);
+  const [draft, setDraft] = useState<Record<string, { cakes: string; category: string }>>({});
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    try {
+      const r = await sessionsApi<ProdSetting[]>({ action: "production_settings" });
+      setRows(r);
+      setDraft(Object.fromEntries(r.map((x) => [x.workshop_type, { cakes: String(x.cakes_per_participant), category: x.product_category }])));
+    } catch (e) { setRows([]); setMsg({ ok: false, text: (e as Error).message }); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const save = async (type: WType) => {
+    if (!pin.trim()) { setMsg({ ok: false, text: "Saisissez d'abord le code PIN administrateur." }); return; }
+    setBusy(type); setMsg(null);
+    try {
+      await sessionsApi({ action: "save_production_setting", type, cakesPerParticipant: Number(draft[type]?.cakes), category: draft[type]?.category, pin });
+      setMsg({ ok: true, text: `Réglage ${TYPE_LABEL[type]} enregistré : les quantités de production sont recalculées.` });
+      load();
+    } catch (e) { setMsg({ ok: false, text: (e as Error).message }); }
+    setBusy(null);
+  };
+  if (rows && rows.length === 0 && !msg) return null;
+  return (
+    <section className="space-y-2" data-testid="ws-production-settings">
+      <h2 className={h2}>Production — gâteaux par participant</h2>
+      <p className="text-xs text-muted-foreground">Utilisé par Production, Aujourd'hui et le Calendrier : gâteaux à préparer = places confirmées × ce nombre, avec la génoise choisie par chaque participant.</p>
+      {!rows ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : (
+        <ul className={cn(box, "divide-y divide-border/60 text-sm")}>
+          {rows.map((r) => (
+            <li key={r.workshop_type} className="px-3 py-2 flex flex-wrap items-center gap-2">
+              <b className="min-w-[90px]">{TYPE_LABEL[r.workshop_type]}</b>
+              <Input type="number" min={0} max={10} value={draft[r.workshop_type]?.cakes ?? ""} className="w-16 rounded-none h-8"
+                onChange={(e) => setDraft((d) => ({ ...d, [r.workshop_type]: { ...d[r.workshop_type], cakes: e.target.value } }))} aria-label="Gâteaux par participant" />
+              <select value={draft[r.workshop_type]?.category ?? "bento_round"} className="border border-input bg-background h-8 px-2 text-sm rounded-none"
+                onChange={(e) => setDraft((d) => ({ ...d, [r.workshop_type]: { ...d[r.workshop_type], category: e.target.value } }))} aria-label="Gâteau">
+                {CAKE_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.fr}</option>)}
+              </select>
+              <span className="text-xs text-muted-foreground">par participant</span>
+              <Button size="sm" variant="outline" className="rounded-none h-8 ml-auto" disabled={busy === r.workshop_type} onClick={() => save(r.workshop_type)}>
+                {busy === r.workshop_type && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}Enregistrer
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {msg && <p className={cn("text-xs", msg.ok ? "text-emerald-800" : "text-red-800")} role={msg.ok ? "status" : "alert"}>{msg.text}</p>}
+    </section>
   );
 }
 

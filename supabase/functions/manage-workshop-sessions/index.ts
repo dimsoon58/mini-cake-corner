@@ -14,6 +14,8 @@ import { corsHeaders } from "../_shared/cors.ts";
 // réservation existante garde le prix enregistré sur sa commande.
 // N'envoie aucun e-mail, ne touche à aucune commande ni réservation.
 // « participants » : liste des réservations d'une session (lecture seule).
+// F28 : « production_settings » (lecture) et « save_production_setting »
+// (PIN) — gâteaux par participant et catégorie, par type d'atelier.
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -81,6 +83,23 @@ serve(async (req) => {
         };
       });
       return json(cors, { data: rows });
+    }
+    if (action === "production_settings") {
+      const { data, error } = await supabase.from("workshop_production_settings").select("workshop_type, cakes_per_participant, product_category, updated_at, updated_by");
+      if (error) return json(cors, { error: "La migration F28 n'est pas encore appliquée.", reason: "not_ready" }, 409);
+      return json(cors, { data });
+    }
+    if (action === "save_production_setting") {
+      if (!adminPinOk(admin, body?.pin)) return json(cors, { error: "Code PIN incorrect", reason: "pin" }, 403);
+      const type = String(body.type ?? "");
+      const cakes = Number(body.cakesPerParticipant);
+      const category = String(body.category ?? "");
+      if (!["signature", "paint"].includes(type)) return json(cors, { error: "Type de workshop inconnu", reason: "input" }, 400);
+      if (!Number.isInteger(cakes) || cakes < 0 || cakes > 10) return json(cors, { error: "Nombre de gâteaux invalide (0 à 10)", reason: "input" }, 400);
+      if (!["bento_round", "bento_heart", "medium_round", "medium_heart", "large_round", "large_heart"].includes(category)) {
+        return json(cors, { error: "Catégorie de gâteau invalide", reason: "input" }, 400);
+      }
+      return json(cors, { data: await rpc("workshop_production_setting_save", { p_type: type, p_cakes: cakes, p_category: category, p_by: admin.email }) });
     }
     if (action === "save") {
       if (!adminPinOk(admin, body?.pin)) return json(cors, { error: "Code PIN incorrect", reason: "pin" }, 403);

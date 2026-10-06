@@ -157,7 +157,10 @@ const AdminOrder = () => {
         setOrder(data.order);
         setItems(data.items || []);
         setFulfillments(data.fulfillments || []);
-        setReservations(data.workshopReservations || []);
+        // F28 : génoises choisies par participant, pour l'annulation de places.
+        setReservations((data.workshopReservations || []).map((r: WorkshopReservation) => ({
+          ...r, spongeChoices: (data.items || []).find((i: { id: string }) => i.id === r.order_item_id)?.workshop_sponge_choices ?? null,
+        })));
         if (data.actionToken) setFetchedToken(data.actionToken);
         setInvoiceUrl(data.invoiceUrl ?? null);
         setInvoiceUrlError(data.invoiceUrlError ?? null);

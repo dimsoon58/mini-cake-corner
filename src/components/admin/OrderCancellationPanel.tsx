@@ -35,6 +35,7 @@ export type WorkshopReservation = {
   purchased_seats: number;
   cancelled_seats: number;
   status: string;
+  spongeChoices?: string[] | null;   // F28 : génoise de chaque participant
 };
 
 const box = "border border-border/60 bg-background p-4 space-y-3";
@@ -66,6 +67,9 @@ export const OrderCancellationPanel = ({
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [seats, setSeats] = useState<Record<string, string>>({});
+  // F28 : génoise des places annulées quand la réservation mélange vanille et chocolat.
+  const [sponges, setSponges] = useState<Record<string, { vanilla: string; chocolate: string }>>({});
+  const isMixed = (r: WorkshopReservation) => !!r.spongeChoices?.includes("vanilla") && !!r.spongeChoices?.includes("chocolate");
   // Same key for the same pending cancellation (retry after an error / double
   // click) — the server then returns the first result, never a second one.
   const [keys, setKeys] = useState<Record<string, { seats: number; key: string }>>({});
@@ -153,6 +157,13 @@ export const OrderCancellationPanel = ({
       setMessage({ type: "error", text: t(`Choose between 1 and ${max} seat(s).`, `Choisissez entre 1 et ${max} place(s).`) });
       return;
     }
+    const sp = sponges[res.id];
+    const v = Number(sp?.vanilla || 0), c = Number(sp?.chocolate || 0);
+    const spongeGiven = !!sp && (sp.vanilla !== "" || sp.chocolate !== "");
+    if (isMixed(res) && n < max && (!spongeGiven || v + c !== n || v < 0 || c < 0)) {
+      setMessage({ type: "error", text: t(`Say which sponges are cancelled: vanilla + chocolate = ${n}.`, `Indiquez les génoises annulées : vanille + chocolat = ${n}.`) });
+      return;
+    }
     if (!window.confirm(t(
       `Cancel ${n} seat(s) of ${res.workshop_reference}? The customer receives the workshop cancellation email. No refund is made automatically.`,
       `Annuler ${n} place(s) de ${res.workshop_reference} ? Le client reçoit l'e-mail d'annulation du workshop. Aucun remboursement automatique.`,
@@ -161,7 +172,10 @@ export const OrderCancellationPanel = ({
     const key = prev && prev.seats === n ? prev.key : `admin-${newKey()}`;
     setKeys((k) => ({ ...k, [res.id]: { seats: n, key } }));
     setBusy(res.id); setMessage(null);
-    const r = await call("cancel-workshop-seats", { reservation_id: res.id, seats_to_cancel: n, idempotency_key: key, pin });
+    const r = await call("cancel-workshop-seats", {
+      reservation_id: res.id, seats_to_cancel: n, idempotency_key: key, pin,
+      ...(spongeGiven && v + c === n ? { sponges: { vanilla: v, chocolate: c } } : {}),
+    });
     setBusy(null);
     if (!r.ok) { setMessage({ type: "error", text: reasonText(r.reason, r.error) }); return; }
     setKeys((k) => { const next = { ...k }; delete next[res.id]; return next; });
@@ -236,6 +250,20 @@ export const OrderCancellationPanel = ({
               {busy === res.id && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
               {t("Cancel seat(s)", "Annuler les places")}
             </Button>
+            {isMixed(res) && (
+              <span className="w-full flex flex-wrap items-center gap-2 text-xs" data-testid="cancel-sponges">
+                <span className="text-muted-foreground">{t("Sponges of the cancelled seats:", "Génoises des places annulées :")}</span>
+                {(["vanilla", "chocolate"] as const).map((b) => (
+                  <label key={b} className="inline-flex items-center gap-1">
+                    <Input type="number" min={0} max={max} value={sponges[res.id]?.[b] ?? ""} placeholder="0"
+                      onChange={(e) => setSponges((s) => ({ ...s, [res.id]: { vanilla: s[res.id]?.vanilla ?? "", chocolate: s[res.id]?.chocolate ?? "", [b]: e.target.value } }))}
+                      className="w-16 rounded-none h-7" aria-label={b === "vanilla" ? t("Vanilla", "Vanille") : t("Chocolate", "Chocolat")} />
+                    {b === "vanilla" ? t("vanilla", "vanille") : t("chocolate", "chocolat")}
+                  </label>
+                ))}
+                <span className="text-muted-foreground">{t("(needed for production; not needed when all seats are cancelled)", "(nécessaire pour la production ; inutile si toutes les places sont annulées)")}</span>
+              </span>
+            )}
           </div>
         );
       })}

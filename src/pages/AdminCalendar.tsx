@@ -19,6 +19,8 @@ import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, flavorLabel } from "@/lib/orderLabels";
 import { cn } from "@/lib/utils";
 import { planningDays } from "@/lib/planning";
+import { BASE_LABELS, CATEGORY_LABELS } from "@/lib/production";
+import type { WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
 
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
 type DayEntry = {
@@ -70,6 +72,8 @@ const AdminCalendar = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   // Commandes de test masquées sauf avec « Afficher les tests » (list-orders-by-date).
   const [includeTests, setIncludeTests] = useShowTests();
+  // F28 : sessions de workshop du mois avec les gâteaux à préparer (get-production).
+  const [wsByDate, setWsByDate] = useState<Record<string, WorkshopSession[]>>({});
 
   useEffect(() => {
     document.title = "Admin – Calendar – Bento Cake Studio";
@@ -100,6 +104,14 @@ const AdminCalendar = () => {
       } else {
         // Annulations (entières ou partielles) : plus à faire, plus affichées.
         setDays(planningDays<DayEntry>(data.days ?? {}));
+        try {
+          const first = format(startOfMonth(monthCursor), "yyyy-MM-dd");
+          const last = format(endOfMonth(monthCursor), "yyyy-MM-dd");
+          const { data: prod, error: pErr } = await supabase.functions.invoke("get-production", { body: { from: first, to: last, includeTests } });
+          const map: Record<string, WorkshopSession[]> = {};
+          if (!pErr && !prod?.error) for (const ws of (prod?.workshopSessions ?? []) as WorkshopSession[]) (map[ws.date] ??= []).push(ws);
+          if (!cancelled) setWsByDate(map);
+        } catch { if (!cancelled) setWsByDate({}); }
         // A newly selected date from a previous month wouldn't exist in
         // this month's data — clear it rather than showing a stale list.
         setSelectedDate(null);
@@ -288,6 +300,26 @@ const AdminCalendar = () => {
                       ({selectedEntries.length})
                     </span>
                   </h2>
+                  {(wsByDate[selectedDate] ?? []).length > 0 && (
+                    <ul className="mb-3 space-y-1.5" data-testid="calendar-workshop-sessions">
+                      {wsByDate[selectedDate].map((ws) => {
+                        const total = ws.bases.reduce((n, b) => n + b.needed, 0);
+                        const left = ws.bases.reduce((n, b) => n + b.remaining, 0);
+                        const cake = CATEGORY_LABELS[ws.category]?.[lang === "en" ? "en" : "fr"] ?? ws.category;
+                        return (
+                          <li key={ws.sessionId} className="border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                            <b>{ws.type === "paint" ? t("Painting workshop", "Workshop Peinture") : t("Signature workshop", "Workshop Signature")}{ws.time ? ` · ${ws.time}` : ""}</b>
+                            {" — "}{t(`${ws.seats} seat(s)`, `${ws.seats} place(s)`)} · {total} {cake.toLowerCase()}
+                            {" ("}{ws.bases.map((b) => `${b.needed} ${BASE_LABELS[b.base][lang === "en" ? "en" : "fr"].toLowerCase()}`).join(", ")}{")"}
+                            <span className={cn("ml-1 font-semibold", left > 0 ? "text-amber-800" : "text-emerald-800")}>
+                              · {left > 0 ? t(`${left} to prepare`, `${left} à préparer`) : t("all prepared", "tout préparé")}
+                            </span>
+                            {" · "}<Link to="/admin/production" className="text-primary underline underline-offset-2">{t("Production", "Production")}</Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                   <div className="flex items-center justify-between mb-3">
                     <Link
                       to={`/admin/labels?date=${selectedDate}`}
