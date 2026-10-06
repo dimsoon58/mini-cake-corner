@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import imgFirstYears from "@/assets/story-first-years.jpeg";
 import img2021 from "@/assets/story-2021.jpg";
 import img2026 from "@/assets/story-2026.webp";
-import imgHero from "@/assets/story-hero.webp";
+import imgHero from "@/assets/story-storefront.jpg";
 import img2025 from "@/assets/story-2025.jpg";
 import archive1 from "@/assets/archive-1.jpg";
 import archive2 from "@/assets/archive-2.jpg";
@@ -227,7 +227,7 @@ const OurStory = () => {
           <img
             src={imgHero}
             alt={t("Melodie and Eli in front of the Bento Cake Studio shop window, Rue Prévost-Martin 8 in Geneva", "Melodie et Eli devant la vitrine de Bento Cake Studio, rue Prévost-Martin 8 à Genève")}
-            className="w-full max-w-5xl mx-auto aspect-[4/5] md:aspect-[16/9] object-cover object-[50%_72%] md:object-[50%_70%]"
+            className="w-full max-w-5xl mx-auto aspect-[4/5] md:aspect-[16/9] object-cover object-[50%_85%] md:object-[50%_90%]"
             data-testid="story-hero"
           />
         </div>
