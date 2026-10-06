@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import imgFirstYears from "@/assets/story-first-years.jpeg";
 import img2021 from "@/assets/story-2021.jpg";
+import img2026 from "@/assets/story-2026.webp";
 import archive1 from "@/assets/archive-1.jpg";
 import archive2 from "@/assets/archive-2.jpg";
 import archive3 from "@/assets/archive-3.jpg";
@@ -244,7 +245,7 @@ const OurStory = () => {
               </div>
             </div>
             <div className="order-2">
-              <PhotoSlot className="aspect-[4/3] max-w-[420px] mx-auto" label="2026" light />
+              <img src={img2026} alt={t("The Bento Cake Studio shop window, Rue Prévost-Martin 8 in Geneva", "La vitrine de Bento Cake Studio, rue Prévost-Martin 8 à Genève")} loading="lazy" className="aspect-[4/3] max-w-[420px] mx-auto w-full object-cover" />
             </div>
           </div>
         </div>
