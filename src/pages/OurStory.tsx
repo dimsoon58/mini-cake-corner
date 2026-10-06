@@ -3,6 +3,7 @@ import imgFirstYears from "@/assets/story-first-years.jpeg";
 import img2021 from "@/assets/story-2021.jpg";
 import img2026 from "@/assets/story-2026.webp";
 import imgHero from "@/assets/story-hero.webp";
+import img2025 from "@/assets/story-2025.jpg";
 import archive1 from "@/assets/archive-1.jpg";
 import archive2 from "@/assets/archive-2.jpg";
 import archive3 from "@/assets/archive-3.jpg";
@@ -285,6 +286,10 @@ const OurStory = () => {
                     <img src={imgFirstYears} alt={t("The first years", "Les premières années")} className="aspect-[4/3] max-w-[420px] mx-auto w-full object-cover" />
                   ) : chapter.id === "2021" ? (
                     <img src={img2021} alt="2021" className="max-w-[560px] mx-auto w-full" />
+                  ) : chapter.id === "2025" ? (
+                    // Photo verticale : affichée en entier (3:4), sans recadrage.
+                    <img src={img2025} loading="lazy" alt={t("Melodie and Elizabeth with the cake for the 160th anniversary of the Russian Church", "Melodie et Elizabeth avec le gâteau des 160 ans de l'Église russe")}
+                      className="aspect-[3/4] max-w-[340px] mx-auto w-full object-cover" />
                   ) : (
                     <PhotoSlot className="aspect-[4/3] max-w-[420px] mx-auto" label={chapter.id} />
                   )}
