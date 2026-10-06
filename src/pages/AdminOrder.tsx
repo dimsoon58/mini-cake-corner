@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft, Printer } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft, Printer, Copy } from "lucide-react";
+import { paymentRefs } from "@/lib/paymentRefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +37,18 @@ const decisionStateLabel = (state: string, t: (en: string, fr: string) => string
   const pair = DECISION_STATE_LABEL[state];
   return pair ? t(pair[0], pair[1]) : state.toUpperCase();
 };
+
+// Référence copiable (un clic sur le bouton la copie ; le texte se sélectionne aussi d'un clic).
+const CopyRow = ({ label, value, copyLabel, testId }: { label: string; value: string; copyLabel: string; testId: string }) => (
+  <div className="flex gap-2 text-sm items-center" data-testid={testId}>
+    <span className="text-muted-foreground min-w-[96px] sm:min-w-[140px] shrink-0">{label}:</span>
+    <span className="text-foreground font-mono select-all break-all">{value}</span>
+    <button type="button" aria-label={copyLabel} title={copyLabel} className="text-muted-foreground hover:text-foreground shrink-0"
+      onClick={() => { navigator.clipboard?.writeText(value).catch(() => { /* copie refusée : le texte reste sélectionnable */ }); }}>
+      <Copy className="w-3.5 h-3.5" />
+    </button>
+  </div>
+);
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
   if (!value) return null;
@@ -663,6 +676,16 @@ const AdminOrder = () => {
                   ? t("Authorization voided — nothing charged", "Autorisation annulée — rien prélevé")
                   : t("Authorized, not yet captured", "Autorisé, pas encore encaissé")
             } />
+            {(() => {
+              const refs = paymentRefs(order);
+              return (
+                <>
+                  {refs.reference && <CopyRow testId="payment-reference" label={t("Payment reference", "Référence de paiement")} value={refs.reference} copyLabel={t("Copy", "Copier")} />}
+                  {refs.transactionId && <CopyRow testId="postfinance-transaction" label={t("PostFinance transaction", "Transaction PostFinance")} value={refs.transactionId} copyLabel={t("Copy", "Copier")} />}
+                  {refs.rewardOnly && <DetailRow label={t("PostFinance transaction", "Transaction PostFinance")} value={t("None — paid entirely with the reward balance", "Aucune — payée entièrement avec la cagnotte")} />}
+                </>
+              );
+            })()}
             <DetailRow label={t("Status", "Statut")} value={
               isAdminManual ? t(MANUAL_STATUS_LABELS[manualStatusOf(order)].en, MANUAL_STATUS_LABELS[manualStatusOf(order)].fr) :
               decisionState === "pending" ? t("Pending your decision", "En attente de votre décision") :
