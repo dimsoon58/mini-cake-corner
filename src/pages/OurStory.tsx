@@ -227,7 +227,7 @@ const OurStory = () => {
           <img
             src={imgHero}
             alt={t("Melodie and Eli in front of the Bento Cake Studio shop window, Rue Prévost-Martin 8 in Geneva", "Melodie et Eli devant la vitrine de Bento Cake Studio, rue Prévost-Martin 8 à Genève")}
-            className="w-full max-w-5xl mx-auto aspect-[4/5] md:aspect-[16/9] object-cover object-[50%_72%] md:object-[50%_66%]"
+            className="w-full max-w-5xl mx-auto aspect-[4/5] md:aspect-[16/9] object-cover object-[50%_72%] md:object-[50%_70%]"
             data-testid="story-hero"
           />
         </div>
