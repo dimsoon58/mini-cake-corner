@@ -243,7 +243,9 @@ const AdminOrders = () => {
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder={t("Search by order number (ORD-... / ORDM-...)", "Rechercher par numéro de commande (ORD-... / ORDM-...)")}
+              placeholder={employee
+                ? t("Search by order number (ORD-... / ORDM-...)", "Rechercher par numéro de commande (ORD-... / ORDM-...)")
+                : t("Order number, PAY-... reference or transaction number", "N° de commande, référence PAY-... ou n° de transaction")}
               className="rounded-none pl-9"
             />
           </div>
