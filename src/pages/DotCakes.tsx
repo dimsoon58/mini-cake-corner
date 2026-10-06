@@ -34,11 +34,11 @@ import dotGallery8 from "@/assets/dot-gallery-8.jpg";
 import dotGallery9 from "@/assets/dot-gallery-9.jpg";
 
 const packs = [
-  { size: 4, flavours: 2, price: 35 },
-  { size: 6, flavours: 3, price: 51 },
-  { size: 9, flavours: 3, price: 75 },
-  { size: 12, flavours: 4, price: 99 },
-  { size: 20, flavours: 5, price: 160 },
+  { size: 4, flavours: 2, price: 28 },
+  { size: 6, flavours: 3, price: 40 },
+  { size: 9, flavours: 3, price: 58 },
+  { size: 12, flavours: 4, price: 75 },
+  { size: 20, flavours: 5, price: 120 },
 ];
 
 const tierByCategory: Record<string, { label: string; surcharge: number; note: string }> = {

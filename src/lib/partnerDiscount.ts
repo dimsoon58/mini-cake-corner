@@ -16,11 +16,11 @@ const PARTNER_BASE_CAKE_PRICE: Record<string, Record<string, number>> = {
   bento_cake: { bento: 40, retro: 40, medium: 85, large: 165 },
   rectangle_cake: { rectangle: 450 },
   dot_cakes: {
-    "dot-cakes-4": 35,
-    "dot-cakes-6": 51,
-    "dot-cakes-9": 75,
-    "dot-cakes-12": 99,
-    "dot-cakes-20": 160,
+    "dot-cakes-4": 28,
+    "dot-cakes-6": 40,
+    "dot-cakes-9": 58,
+    "dot-cakes-12": 75,
+    "dot-cakes-20": 120,
   },
 };
 
