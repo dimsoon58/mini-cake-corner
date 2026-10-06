@@ -218,6 +218,9 @@ check("Excel : date d'encaissement au jour de Zurich (01.10 pour 30.09 22:30 UTC
 const empty = await month("2025-01");
 const wb0 = buildFinanceWorkbook(ExcelJS, empty);
 const buf0 = await wb0.xlsx.writeBuffer();
+const adjC = rowsOf(lines).find((r) => val(r.getCell(1)) === "ORDM-C" && val(r.getCell(5)) === "Ajustements");
+check("Excel : la ligne d'ajustements explique tout son montant (−15 ajustement, −10 écart payé/total = −25)",
+  adjC && near(val(adjC.getCell(10)), -25) && /ajustement manuel −15\.00/.test(val(adjC.getCell(6))) && /écart encaissé \/ total de la commande −10\.00/.test(val(adjC.getCell(6))), adjC && val(adjC.getCell(6)));
 check("Mois vide : chiffres à 0 et fichier Excel valide", near(empty.cards.collected, 0) && buf0.byteLength > 2000);
 fs.copyFileSync(file, path.join(os.tmpdir(), "bento-test-oct-2026.xlsx"));
 

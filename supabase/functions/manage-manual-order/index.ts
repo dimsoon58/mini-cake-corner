@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   quoteManualOrder,
@@ -64,6 +64,8 @@ interface EditorItem extends QuoteItemInput {
   butterfly_color?: string | null;
   extra?: string | null;              // readable extras, e.g. "Gold Leaves, Scattered Pearls × 3"
   extra_type?: string | null;         // their catalogue groups, e.g. "Toppings, Pearls"
+  extra_color?: string | null;        // option colours alone, e.g. "Pink, Gold" (as the checkout)
+  inside_color?: string | null;       // Gender Reveal inside colour, "Rose" / "Bleu" (as the checkout)
   workshop_sponge_choices?: string[] | null;
   workshop_has_minor?: boolean;
   workshop_minor_consent_confirmed?: boolean;
@@ -193,6 +195,9 @@ serve(async (req) => {
           text_style: it.text_style,
           ribbon_color: it.ribbon_color,
           butterfly_color: it.butterfly_color,
+          inside_color: it.inside_color,
+          // Couleurs des paillettes : relues dans ce texte par l'éditeur (« Glitter: Gold »).
+          extra: it.extra,
         };
       });
       const edit = editableState(o);
@@ -435,6 +440,8 @@ serve(async (req) => {
             // price below comes from the engine's own tables.
             extra: isWorkshop ? null : strOrNull(it.extra),
             extra_type: isWorkshop ? null : strOrNull(it.extra_type),
+            extra_color: isWorkshop ? null : strOrNull(it.extra_color),
+            inside_color: isWorkshop ? null : strOrNull(it.inside_color),
             extras_price: isWorkshop ? 0 : extrasPrice(it),
             butterfly_color: strOrNull(it.butterfly_color),
             workshop_type: ws?.type ?? null,
@@ -496,8 +503,8 @@ serve(async (req) => {
     // changes. Only after the payment is committed is the confirmation
     // email sent (if requested) — an email failure never undoes a payment.
     if (action === "mark_paid") {
-      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
-      if (!adminPin || String(body?.pin ?? "") !== adminPin) return json(cors, { error: "Invalid PIN" }, 403);
+      // PIN validé pour la session (F16) ou saisi avec la demande.
+      if (!adminPinOk(admin, body?.pin)) return json(cors, { error: "Invalid PIN" }, 403);
 
       const orderId = String(body?.orderId ?? "");
       const method = String(body?.paymentMethod ?? "");

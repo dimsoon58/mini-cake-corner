@@ -404,11 +404,11 @@ export const DIY_KIT_FLAVORS: Record<string, number> = {
 // every flavour selectable there.
 
 export const DOT_CAKES_PACKS: Record<string, { size: number; flavours: number; price: number }> = {
-  "dot-cakes-4": { size: 4, flavours: 2, price: 35 },
-  "dot-cakes-6": { size: 6, flavours: 3, price: 51 },
-  "dot-cakes-9": { size: 9, flavours: 3, price: 75 },
-  "dot-cakes-12": { size: 12, flavours: 4, price: 99 },
-  "dot-cakes-20": { size: 20, flavours: 5, price: 160 },
+  "dot-cakes-4": { size: 4, flavours: 2, price: 28 },
+  "dot-cakes-6": { size: 6, flavours: 3, price: 40 },
+  "dot-cakes-9": { size: 9, flavours: 3, price: 58 },
+  "dot-cakes-12": { size: 12, flavours: 4, price: 75 },
+  "dot-cakes-20": { size: 20, flavours: 5, price: 120 },
 };
 
 export const DOT_CAKES_FLAVOR_TIER: Record<string, number> = {

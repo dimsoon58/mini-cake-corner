@@ -15,7 +15,7 @@ import {
   WorkshopType,
   WorkshopSession,
   workshopInfo,
-  getSessionsForType,
+  upcomingSessions,
   spotsLeft,
   formatSessionDate,
 } from "@/data/workshopSessions";
@@ -70,11 +70,13 @@ const WorkshopBooking = () => {
   const typeParam = searchParams.get("type") as WorkshopType | null;
   const workshopType: WorkshopType = typeParam === "paint" ? "paint" : "signature";
   const info = workshopInfo[workshopType];
-  const sessions = getSessionsForType(workshopType);
-
   // Server-authoritative availability. Re-read on mount and again right before
   // Add to cart; the payment step revalidates server-side once more.
-  const { bySession, loading: availLoading, error: availError, refresh: refreshAvailability } = useWorkshopAvailability();
+  const { rows: availRows, bySession, loading: availLoading, error: availError, refresh: refreshAvailability } = useWorkshopAvailability();
+  // F24 : les sessions proposées viennent de la base (Admin > Workshops).
+  const sessions = upcomingSessions(workshopType, availRows);
+  // « À partir de » : le prix le plus bas des sessions à venir (base), sinon le prix habituel.
+  const fromPrice = sessions.length ? Math.min(...sessions.map((s) => s.pricePerPerson)) : info.pricePerPerson;
 
   const [step, setStep] = useState(0);
   const [selectedSession, setSelectedSession] = useState<WorkshopSession | null>(null);
@@ -154,7 +156,11 @@ const WorkshopBooking = () => {
       </h2>
       {sessions.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          {t("No upcoming sessions available. Please check back soon.", "Aucune session à venir disponible. Revenez bientôt.")}
+          {!availRows && availLoading
+            ? t("Loading dates…", "Chargement des dates…")
+            : !availRows && availError
+              ? t("Dates are temporarily unavailable. Please try again in a moment.", "Les dates sont momentanément indisponibles. Réessayez dans un instant.")
+              : t("No upcoming sessions available. Please check back soon.", "Aucune session à venir disponible. Revenez bientôt.")}
         </p>
       ) : (
         <div className="space-y-3">
@@ -591,7 +597,7 @@ const WorkshopBooking = () => {
                 </div>
                 <div className="border-t border-border pt-4 mt-4">
                   <p className="text-xs text-muted-foreground">{t("From", "À partir de")}</p>
-                  <p className="text-2xl font-light text-foreground">{info.pricePerPerson} <span className="text-sm">{info.currency}</span></p>
+                  <p className="text-2xl font-light text-foreground">{fromPrice} <span className="text-sm">{info.currency}</span></p>
                   <p className="text-xs text-muted-foreground">{t("per person", "par personne")}</p>
                 </div>
               </div>

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { lockAdminSession } from "@/lib/adminSession";
 
 export type Profile = Tables<"profiles">;
 
@@ -135,6 +136,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    // Admin : l'autorisation PIN de la session est révoquée avant la déconnexion (F16).
+    await lockAdminSession();
     await supabase.auth.signOut();
   };
 

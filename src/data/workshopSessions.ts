@@ -112,6 +112,31 @@ export const workshopSessions: WorkshopSession[] = [
   { id: "paint-2026-10-14", workshopType: "paint",     date: "2026-10-14", time: "14:00", capacity: WORKSHOP_MAX_PARTICIPANTS.paint,     booked: 0, pricePerPerson: WORKSHOP_PRICE_PER_PERSON.paint,     currency: "CHF" },
 ];
 
+// F24 (2026-10-05) : les sessions viennent de la base (public.workshop_sessions,
+// gérées dans Admin > Workshops) via get_workshop_availability(). La liste
+// ci-dessus ne sert plus que de remplacement pendant le chargement ou si la
+// base ne répond pas.
+export interface SessionRow { id: string; workshop_type: string; workshop_date: string; workshop_time: string; unit_price: number; max_capacity: number; active_reserved_seats?: number; is_open?: boolean }
+export function sessionFromRow(r: SessionRow): WorkshopSession {
+  return { id: r.id, workshopType: r.workshop_type as WorkshopType, date: String(r.workshop_date).slice(0, 10), time: r.workshop_time,
+    capacity: Number(r.max_capacity), booked: Number(r.active_reserved_seats ?? 0), pricePerPerson: Number(r.unit_price), currency: "CHF" };
+}
+/**
+ * Sessions proposées sur le site pour un type : uniquement celles de la base,
+ * à venir et ouvertes. Une session fermée dans Admin > Workshops disparaît du
+ * site (ses réservations restent valables). Tant que la base n'a pas répondu :
+ * aucune session (la page affiche « Chargement des dates »), jamais l'ancienne
+ * liste écrite ci-dessus, qui pourrait montrer des dates retirées.
+ */
+export function upcomingSessions(type: WorkshopType, rows: SessionRow[] | null): WorkshopSession[] {
+  if (!rows) return [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return rows.filter((r) => r.is_open !== false).map(sessionFromRow)
+    .filter((s) => s.workshopType === type && new Date(`${s.date}T00:00:00`) >= today)
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+}
+
 export function getSessionsForType(type: WorkshopType): WorkshopSession[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);

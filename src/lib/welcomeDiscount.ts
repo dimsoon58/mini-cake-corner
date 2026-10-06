@@ -25,11 +25,11 @@ export const WELCOME_VOUCHER_BASE: Record<string, Record<string, number>> = {
   diy_kit: { "kit-bento": 40 },
   edible_printing: { printing: 15 },
   dot_cakes: {
-    "dot-cakes-4": 35,
-    "dot-cakes-6": 51,
-    "dot-cakes-9": 75,
-    "dot-cakes-12": 99,
-    "dot-cakes-20": 160,
+    "dot-cakes-4": 28,
+    "dot-cakes-6": 40,
+    "dot-cakes-9": 58,
+    "dot-cakes-12": 75,
+    "dot-cakes-20": 120,
   },
 };
 

@@ -8,6 +8,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 
 type OrderSummary = {
@@ -64,6 +65,8 @@ const paymentBadge = (o: OrderSummary, t: (en: string, fr: string) => string): {
   if (o.payment_status === "paid") return { label: t("Paid", "Payée"), className: "bg-emerald-100 text-emerald-800" };
   if (o.payment_status === "pending") return { label: t("Payment pending", "Paiement en attente"), className: "bg-amber-100 text-amber-800" };
   if (o.payment_status === "cancelled") return { label: t("Payment cancelled", "Paiement annulé"), className: "bg-red-100 text-red-800" };
+  // F23 : l'employée reçoit seulement « payé / non payé ».
+  if (o.payment_status === "unpaid") return { label: t("Not paid", "Non payée"), className: "bg-amber-100 text-amber-800" };
   return { label: (o.payment_status ?? "—").toUpperCase(), className: "bg-secondary text-secondary-foreground" };
 };
 
@@ -114,7 +117,10 @@ const decisionBadge = (o: OrderSummary, t: (en: string, fr: string) => string): 
 const AdminOrders = () => {
   const { t } = useLang();
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = isAdminEmail(user?.email);
+  // F23 : l'employée consulte la liste sans montants (le serveur ne les envoie pas).
+  const staff = useStaffRole();
+  const employee = staff.isEmployee;
+  const isAdmin = isAdminEmail(user?.email) || staff.can("orders.view");
 
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [page, setPage] = useState(0);
@@ -130,7 +136,7 @@ const AdminOrders = () => {
   }, []);
 
   useEffect(() => {
-    if (authLoading || !isAdmin) { setLoading(authLoading); return; }
+    if (authLoading || staff.loading || !isAdmin) { setLoading(authLoading || staff.loading); return; }
     let cancelled = false;
     const fetchOrders = async () => {
       setLoading(true);
@@ -156,7 +162,7 @@ const AdminOrders = () => {
     };
     fetchOrders();
     return () => { cancelled = true; };
-  }, [page, search, authLoading, isAdmin, t]);
+  }, [page, search, authLoading, isAdmin, t, staff.loading]);
 
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -170,7 +176,7 @@ const AdminOrders = () => {
     setPage(0);
   };
 
-  if (authLoading) {
+  if (authLoading || staff.loading) {
     return (
       <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
@@ -237,7 +243,9 @@ const AdminOrders = () => {
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder={t("Search by order number (ORD-... / ORDM-...)", "Rechercher par numéro de commande (ORD-... / ORDM-...)")}
+              placeholder={employee
+                ? t("Search by order number (ORD-... / ORDM-...)", "Rechercher par numéro de commande (ORD-... / ORDM-...)")
+                : t("Order number, PAY-... reference or transaction number", "N° de commande, référence PAY-... ou n° de transaction")}
               className="rounded-none pl-9"
             />
           </div>
@@ -311,9 +319,11 @@ const AdminOrders = () => {
                         {customerName || o.email} · {formatDateTime(o.created_at)}
                       </p>
                     </div>
-                    <span className="font-bold text-foreground shrink-0">
-                      CHF {o.total_amount != null ? Number(o.total_amount).toFixed(2) : "—"}
-                    </span>
+                    {!employee && (
+                      <span className="font-bold text-foreground shrink-0">
+                        CHF {o.total_amount != null ? Number(o.total_amount).toFixed(2) : "—"}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

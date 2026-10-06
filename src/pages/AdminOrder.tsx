@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft, Printer } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft, Printer, Copy } from "lucide-react";
+import { paymentRefs } from "@/lib/paymentRefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
@@ -16,7 +18,10 @@ import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPan
 import { ReferencePhotos } from "@/components/ReferencePhotos";
 import { ProductionCheck } from "@/components/admin/ProductionCheck";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
+import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
 import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
+import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // pending/approved/rejected/cancelled -> the French/English label actually
 // shown for the header decision badge. Same lookup as AdminOrders.tsx's own
@@ -32,6 +37,18 @@ const decisionStateLabel = (state: string, t: (en: string, fr: string) => string
   const pair = DECISION_STATE_LABEL[state];
   return pair ? t(pair[0], pair[1]) : state.toUpperCase();
 };
+
+// Référence copiable (un clic sur le bouton la copie ; le texte se sélectionne aussi d'un clic).
+const CopyRow = ({ label, value, copyLabel, testId }: { label: string; value: string; copyLabel: string; testId: string }) => (
+  <div className="flex gap-2 text-sm items-center" data-testid={testId}>
+    <span className="text-muted-foreground min-w-[96px] sm:min-w-[140px] shrink-0">{label}:</span>
+    <span className="text-foreground font-mono select-all break-all">{value}</span>
+    <button type="button" aria-label={copyLabel} title={copyLabel} className="text-muted-foreground hover:text-foreground shrink-0"
+      onClick={() => { navigator.clipboard?.writeText(value).catch(() => { /* copie refusée : le texte reste sélectionnable */ }); }}>
+      <Copy className="w-3.5 h-3.5" />
+    </button>
+  </div>
+);
 
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
   if (!value) return null;
@@ -56,11 +73,15 @@ const AdminOrder = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = isAdminEmail(user?.email);
+  // F23 : l'employée consulte en lecture seule, sans aucun montant (le serveur ne les envoie pas).
+  const staff = useStaffRole();
+  const employee = staff.isEmployee;
+  const isAdmin = isAdminEmail(user?.email) || staff.can("orders.view");
 
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [fulfillments, setFulfillments] = useState<any[]>([]);
+  const [reservations, setReservations] = useState<WorkshopReservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Filled from get-order-detail's response when the URL had no token (the
@@ -81,7 +102,7 @@ const AdminOrder = () => {
   // visible on this page instead of only in Edge Function logs. Null in
   // every other case (invoiceUrl present, or invoice_path never set at all).
   const [invoiceUrlError, setInvoiceUrlError] = useState<string | null>(null);
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   // Bumped after a manual-order action (mark as paid, send confirmation) to reload the order.
   const [reloadKey, setReloadKey] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -104,7 +125,7 @@ const AdminOrder = () => {
     // Wait for auth to resolve, and never even attempt the lookup for a
     // non-admin — the real enforcement is server-side (get-order-detail now
     // requires a verified admin session), this just avoids a doomed request.
-    if (authLoading || !isAdmin) { setLoading(authLoading); return; }
+    if (authLoading || staff.loading || !isAdmin) { setLoading(authLoading || staff.loading); return; }
     const fetchOrder = async () => {
       if (!id) { setLoading(false); return; }
       // A token is no longer required to load — a verified admin session
@@ -136,6 +157,10 @@ const AdminOrder = () => {
         setOrder(data.order);
         setItems(data.items || []);
         setFulfillments(data.fulfillments || []);
+        // F28 : génoises choisies par participant, pour l'annulation de places.
+        setReservations((data.workshopReservations || []).map((r: WorkshopReservation) => ({
+          ...r, spongeChoices: (data.items || []).find((i: { id: string }) => i.id === r.order_item_id)?.workshop_sponge_choices ?? null,
+        })));
         if (data.actionToken) setFetchedToken(data.actionToken);
         setInvoiceUrl(data.invoiceUrl ?? null);
         setInvoiceUrlError(data.invoiceUrlError ?? null);
@@ -143,13 +168,17 @@ const AdminOrder = () => {
       setLoading(false);
     };
     fetchOrder();
-  }, [id, token, t, authLoading, isAdmin, reloadKey]);
+  }, [id, token, t, authLoading, isAdmin, reloadKey, staff.loading]);
 
   const handleAction = async (action: "approve" | "reject") => {
     if (!pin.trim()) {
       setResult({ type: "error", message: t("Please enter the admin PIN", "Veuillez saisir le code PIN administrateur") });
       return;
     }
+    // PIN de session (F16) : confirmation simple à la place de la ressaisie.
+    if (pinBySession && !window.confirm(action === "approve"
+      ? t("Accept this order? The payment will be captured.", "Accepter cette commande ? Le paiement sera encaissé.")
+      : t("Refuse this order? The payment will be released or refunded.", "Refuser cette commande ? Le paiement sera libéré ou remboursé."))) return;
     if (!effectiveToken) {
       setResult({ type: "error", message: t("No action token available for this order yet. Please reload the page.", "Aucun jeton d'action disponible pour cette commande pour le moment. Merci de recharger la page.") });
       return;
@@ -201,7 +230,7 @@ const AdminOrder = () => {
   // is the matching frontend gate, so a signed-out visitor or a non-admin
   // account never even sees the order fetch attempted, just a clear sign-in
   // prompt or an access-denied message.
-  if (authLoading) {
+  if (authLoading || staff.loading) {
     return (
       <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
@@ -395,7 +424,7 @@ const AdminOrder = () => {
             </div>
           </div>
 
-          {order.created_via === "admin" && (
+          {order.created_via === "admin" && !employee && (
             <ManualOrderPanel order={order} items={items} invoiceUrl={invoiceUrl} onChanged={() => setReloadKey((k) => k + 1)} />
           )}
 
@@ -403,7 +432,7 @@ const AdminOrder = () => {
               no order_action_tokens row at all (neither the URL nor
               get-order-detail's own lookup found one), so Accept/Refuse has
               nothing to authorise itself with. Viewing is unaffected. */}
-          {!effectiveToken && !isResolved && (
+          {!employee && !effectiveToken && !isResolved && (
             <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200">
               <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
               <div className="text-sm text-amber-800">
@@ -489,12 +518,12 @@ const AdminOrder = () => {
                         <span className="font-medium text-sm">
                           {item.workshop_type === "paint" ? t("Paint Workshop", "Workshop Peinture") : t("Signature Workshop", "Workshop Signature")}
                         </span>
-                        <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                        {!employee && <span className="font-semibold text-sm text-primary">CHF {item.total}</span>}
                       </div>
                       <DetailRow label={t("Date", "Date")} value={formatDateFromIso(item.workshop_date)} />
                       <DetailRow label={t("Time", "Heure")} value={item.workshop_time} />
                       <DetailRow label={t("Participants", "Participants")} value={item.workshop_participants != null ? String(item.workshop_participants) : null} />
-                      <DetailRow label={t("Unit price", "Prix unitaire")} value={item.workshop_unit_price != null ? `CHF ${item.workshop_unit_price}` : null} />
+                      {!employee && <DetailRow label={t("Unit price", "Prix unitaire")} value={item.workshop_unit_price != null ? `CHF ${item.workshop_unit_price}` : null} />}
                       <DetailRow label={t("Notes", "Notes")} value={item.item_comment} />
                     </div>
                   );
@@ -538,13 +567,13 @@ const AdminOrder = () => {
                             )}
                             <span className="font-medium text-sm">{productLabel} {i + 1}</span>
                           </span>
-                          <span className="font-semibold text-sm text-primary">CHF {item.total}</span>
+                          {!employee && <span className="font-semibold text-sm text-primary">CHF {item.total}</span>}
                         </div>
                         {isMultiDate && (
                           <DetailRow label={t("Date", "Date")} value={formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date)} />
                         )}
                         {item.size && <DetailRow label={t("Size", "Taille")} value={sizeLabel(item.size)} />}
-                        {item.shape && <DetailRow label={t("Shape", "Forme")} value={shapeLabel(item.shape)} />}
+                        {item.shape && <DetailRow label={t("Shape", "Forme")} value={shapeLabel(item.shape, "en", item.size)} />}
                         <DetailRow label={t("Flavour", "Parfum")} value={(item.flavors || []).join(", ")} />
                         {item.design && (
                           <DetailRow
@@ -565,16 +594,15 @@ const AdminOrder = () => {
                         )}
                         {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
                         <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
-<<<<<<< HEAD
+                        {!employee && (
                         <div className="pt-2">
-                          <Link to={`/admin/labels?date=${fulfillmentById(item.fulfillment_id)?.pickup_delivery_date ?? order?.pickup_delivery_date ?? ""}`} className="text-[11px] text-primary hover:underline flex items-center gap-1">
+                          <Link to={`/admin/labels?order=${order?.id ?? ""}&item=${item.id}`} className="text-[11px] text-primary hover:underline flex items-center gap-1">
                             <Printer className="w-3 h-3" />
-                            {t("Print label", "Étiquette de production")}
+                            {t("Production label", "Étiquette de production")}
                           </Link>
                         </div>
-=======
+                        )}
                         <ReferencePhotos urls={item.reference_images} />
->>>>>>> 89b8f09610f569ff945ce7358166f8bdb26a6efd
                       </div>
                     </div>
                   </div>
@@ -583,7 +611,26 @@ const AdminOrder = () => {
             </div>
           )}
 
+          {/* Employée (F23) : seulement « payé / non payé » et le statut, sans montant ni facture. */}
+          {employee && (
+            <div className="border border-border/60 bg-background p-4 space-y-1" data-testid="employee-payment">
+              <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground mb-3 flex items-center gap-2">
+                <CreditCard className="w-3.5 h-3.5 text-primary" strokeWidth={1.5} />
+                {t("Status", "Statut")}
+              </h3>
+              <DetailRow label={t("Payment", "Paiement")} value={order.payment_status === "paid" ? t("Paid", "Payé") : t("Not paid", "Non payé")} />
+              <DetailRow label={t("Order", "Commande")} value={
+                isCancelled ? t("Cancelled", "Annulée") :
+                decisionState === "pending" ? t("To accept", "À accepter") :
+                decisionState === "approved" ? t("Accepted", "Acceptée") :
+                decisionState === "rejected" ? t("Refused", "Refusée") : decisionState
+              } />
+              <p className="text-xs text-muted-foreground pt-1">{t("Read only.", "Consultation seulement.")}</p>
+            </div>
+          )}
+
           {/* Payment Summary */}
+          {!employee && (<>
           <div className="border border-border/60 bg-background p-4 space-y-1">
             <h3 className="font-sans text-[12px] tracking-[0.105em] font-semibold uppercase text-foreground mb-3 flex items-center gap-2">
               <CreditCard className="w-3.5 h-3.5 text-primary" strokeWidth={1.5} />
@@ -616,6 +663,12 @@ const AdminOrder = () => {
                 </div>
               </div>
             ) : null}
+            {order.customer_ref_id && (
+              <div className="flex gap-2 text-sm">
+                <span className="text-muted-foreground min-w-[96px] sm:min-w-[140px] shrink-0">{t("Customer", "Client")}:</span>
+                <Link to={`/admin/customers/${order.customer_ref_id}`} className="underline underline-offset-2">{t("Open the customer record", "Ouvrir la fiche client")}</Link>
+              </div>
+            )}
             <DetailRow label={t("Total", "Total")} value={`CHF ${order.total_amount}`} />
             <DetailRow label={t("Payment", "Paiement")} value={
               order.payment_status === "paid"
@@ -626,6 +679,16 @@ const AdminOrder = () => {
                   ? t("Authorization voided — nothing charged", "Autorisation annulée — rien prélevé")
                   : t("Authorized, not yet captured", "Autorisé, pas encore encaissé")
             } />
+            {(() => {
+              const refs = paymentRefs(order);
+              return (
+                <>
+                  {refs.reference && <CopyRow testId="payment-reference" label={t("Payment reference", "Référence de paiement")} value={refs.reference} copyLabel={t("Copy", "Copier")} />}
+                  {refs.transactionId && <CopyRow testId="postfinance-transaction" label={t("PostFinance transaction", "Transaction PostFinance")} value={refs.transactionId} copyLabel={t("Copy", "Copier")} />}
+                  {refs.rewardOnly && <DetailRow label={t("PostFinance transaction", "Transaction PostFinance")} value={t("None — paid entirely with the reward balance", "Aucune — payée entièrement avec la cagnotte")} />}
+                </>
+              );
+            })()}
             <DetailRow label={t("Status", "Statut")} value={
               isAdminManual ? t(MANUAL_STATUS_LABELS[manualStatusOf(order)].en, MANUAL_STATUS_LABELS[manualStatusOf(order)].fr) :
               decisionState === "pending" ? t("Pending your decision", "En attente de votre décision") :
@@ -651,20 +714,48 @@ const AdminOrder = () => {
             })}
           />
 
+          {/* Annulation (2026-10-04) : commande entière ou places de workshop,
+              avec les e-mails existants — remplace les actions Notion. Une
+              commande du site encore à accepter se refuse (bloc ci-dessous). */}
+          <OrderCancellationPanel
+            order={order}
+            reservations={isCancelled ? [] : reservations}
+            items={items.map((it: any, idx: number) => ({
+              id: it.id,
+              product: it.product,
+              production_status: it.production_status ?? null,
+              cancellation_email_sent_at: it.cancellation_email_sent_at ?? null,
+              label: `${t(PRODUCT_LABELS[it.product]?.en, PRODUCT_LABELS[it.product]?.fr) || it.product} ${idx + 1}${
+                it.product === "workshop" ? ` — ${formatDateFromIso(it.workshop_date)}`
+                : isMultiDate ? ` — ${formatDateFromIso(fulfillmentById(it.fulfillment_id)?.pickup_delivery_date)}` : ""}${
+                it.product !== "workshop" && it.flavors?.length ? ` (${it.flavors.join(", ")})` : ""}`,
+            }))}
+            canCancelOrder={!isCancelled && !order.is_draft && decisionState !== "rejected" && (isManual || decisionState === "approved")}
+            labelFor={(itemId) => {
+              const idx = items.findIndex((it: any) => it.id === itemId);
+              const it = idx >= 0 ? items[idx] : null;
+              return it ? `${t(PRODUCT_LABELS[it.product]?.en, PRODUCT_LABELS[it.product]?.fr) || it.product} ${idx + 1} — ${formatDateFromIso(it.workshop_date)}` : t("Workshop", "Workshop");
+            }}
+            onChanged={() => setReloadKey((k) => k + 1)}
+          />
+          </>)}
+
           {/* Admin Actions */}
-          {!isResolved ? (
+          {employee ? null : !isResolved ? (
             <div className="border-t border-border pt-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="pin">{t("Admin PIN", "Code PIN administrateur")}</Label>
-                <Input
-                  id="pin"
-                  type="password"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder={t("Enter your admin PIN", "Saisissez votre code PIN administrateur")}
-                  className="max-w-xs"
-                />
-              </div>
+              {!pinBySession && (
+                <div className="space-y-2">
+                  <Label htmlFor="pin">{t("Admin PIN", "Code PIN administrateur")}</Label>
+                  <PasswordInput
+                    id="pin"
+                   
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    placeholder={t("Enter your admin PIN", "Saisissez votre code PIN administrateur")}
+                    className="max-w-xs"
+                  />
+                </div>
+              )}
 
               {result && (
                 <div className={`p-3 text-sm border ${

@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { forCaller, requireStaff } from "../_shared/staff-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { zurichTodayISO } from "../_shared/order-pricing.ts";
-import { isManualOrder, orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
+import { isAwaitingDecision, orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
+import { includeTestsFrom, isTestOrder } from "../_shared/test-orders.ts";
 
 // Admin > Aujourd'hui — read-only. One call returns what the day needs:
 //   - toDecide: paid website orders whose cakes still await Accept/Refuse
@@ -19,6 +20,8 @@ import { isManualOrder, orderStatus, type ProdOrder } from "../_shared/productio
 // Period: optional body { from, to } (YYYY-MM-DD, Europe/Zurich calendar
 // dates, both inclusive, at most MAX_RANGE_DAYS days). Without it: today and
 // tomorrow, as before.
+// Test orders (orders.is_test) are left out everywhere (lists, days,
+// alerts) unless the body says { includeTests: true } — « Afficher les tests ».
 // Never writes anything. Same admin-only gate as get-production.
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
@@ -63,8 +66,9 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    const admin = await requireAdmin(req, supabase);
-    if (!admin) return json(cors, { error: "Admin sign-in required" }, 401);
+    // Administratrices comme avant ; employée avec « today.view », sans aucun montant (F23).
+    const caller = await requireStaff(req, supabase, "today.view");
+    if (!caller) return json(cors, { error: "Admin sign-in required" }, 401);
 
     const today = zurichTodayISO();
     const tomorrow = addDays(today, 1);
@@ -79,6 +83,8 @@ serve(async (req) => {
       from = body.from;
       to = body.to;
     }
+    const includeTests = includeTestsFrom(body);
+    const shown = (o: unknown) => includeTests || !isTestOrder(o);
     const dates: string[] = [];
     for (let d = from; d <= to; d = addDays(d, 1)) {
       dates.push(d);
@@ -96,18 +102,25 @@ serve(async (req) => {
       for (const o of data ?? []) ordersById.set(o.id, o as Order);
     };
 
-    // ── To decide: paid website orders, cakes not yet accepted/refused ────
-    const { data: pendingDecision, error: dErr } = await supabase
+    // ── To decide: website orders waiting for Accept / Refuse ─────────────
+    // Deferred capture (2026-09-15): a website order row only exists once its
+    // payment is AUTHORIZED, and stays payment_status = 'pending' until the
+    // admin Accepts it (the capture then sets 'paid'). Older orders, from the
+    // immediate-capture period, may wait as 'paid'. Both are listed. The
+    // decision is physical_validation for an order with a cake, and
+    // order_validation for a workshop-only order ('not_applicable').
+    const { data: decisionCandidates, error: dErr } = await supabase
       .from("orders")
       .select("*")
-      .eq("payment_status", "paid")
-      .eq("physical_validation", "pending")
-      .not("order_validation", "in", "(cancelled,rejected)")
+      .in("payment_status", ["pending", "paid"])
+      .in("physical_validation", ["pending", "not_applicable"])
       .is("order_failure_reason", null);
     if (dErr) throw new Error(`Failed to load orders to decide: ${dErr.message}`);
+    // Même définition que l'agenda et les étiquettes (production-stats).
+    const pendingDecision = (decisionCandidates ?? []).filter((o) => shown(o) && isAwaitingDecision(o as Order));
 
     // ── To collect: confirmed Admin orders awaiting payment ───────────────
-    const { data: awaitingPayment, error: pErr } = await supabase
+    const { data: awaitingPaymentAll, error: pErr } = await supabase
       .from("orders")
       .select("*")
       .eq("created_via", "admin")
@@ -116,11 +129,12 @@ serve(async (req) => {
       .neq("order_validation", "cancelled")
       .is("order_failure_reason", null);
     if (pErr) throw new Error(`Failed to load orders awaiting payment: ${pErr.message}`);
+    const awaitingPayment = (awaitingPaymentAll ?? []).filter(shown);
 
-    for (const o of [...(pendingDecision ?? []), ...(awaitingPayment ?? [])]) ordersById.set(o.id, o as Order);
+    for (const o of [...pendingDecision, ...awaitingPayment]) ordersById.set(o.id, o as Order);
 
     // First date of each listed order (for sorting and display).
-    const listedIds = [...(pendingDecision ?? []), ...(awaitingPayment ?? [])].map((o) => o.id);
+    const listedIds = [...pendingDecision, ...awaitingPayment].map((o) => o.id);
     const firstDateByOrder = new Map<string, string>();
     if (listedIds.length > 0) {
       const { data: fs, error } = await supabase
@@ -137,11 +151,12 @@ serve(async (req) => {
     const byDate = (a: { date: string | null }, b: { date: string | null }) =>
       (a.date ?? "9999-12-31").localeCompare(b.date ?? "9999-12-31");
 
-    const toDecide = (pendingDecision ?? [])
-      .filter((o) => !isManualOrder(o as Order) && (o as Order).fulfillment_type !== "workshop_only")
-      .map((o) => ({ orderId: o.id, orderNumber: o.order_number, customerName: customerName(o as Order), total: Number(o.total_amount) || 0, date: firstDate(o as Order) }))
+    // receivedAt: since when the order waits (oldest first is not the sort —
+    // the closest pickup date is — but the page shows how long each waits).
+    const toDecide = pendingDecision
+      .map((o) => ({ orderId: o.id, orderNumber: o.order_number, customerName: customerName(o as Order), total: Number(o.total_amount) || 0, date: firstDate(o as Order), receivedAt: (o.created_at as string | null) ?? null }))
       .sort(byDate);
-    const toCollect = (awaitingPayment ?? [])
+    const toCollect = awaitingPayment
       .map((o) => ({ orderId: o.id, orderNumber: o.order_number, customerName: customerName(o as Order), total: Number(o.total_amount) || 0, date: firstDate(o as Order) }))
       .sort(byDate);
 
@@ -180,6 +195,7 @@ serve(async (req) => {
       deliveryCity: string | null;
       productionStatus: string | null;
       badge: "to_accept" | "awaiting_payment" | null;
+      quantity?: number; // cakes on this line (order_items.quantity, 1 by default)
     };
     const days: Record<string, DayItem[]> = Object.fromEntries(dates.map((d) => [d, [] as DayItem[]]));
 
@@ -193,13 +209,13 @@ serve(async (req) => {
       const fById = new Map((allF ?? []).map((f) => [f.id, f]));
       const { data: items, error: iErr } = await supabase
         .from("order_items")
-        .select("id, order_id, fulfillment_id, product, size, shape, flavors, production_status")
+        .select("id, order_id, fulfillment_id, product, size, shape, flavors, production_status, quantity")
         .in("order_id", cakeOrderIds)
         .neq("product", "workshop");
       if (iErr) throw new Error(`Failed to load order items: ${iErr.message}`);
       for (const it of items ?? []) {
         const o = ordersById.get(it.order_id);
-        if (!o) continue;
+        if (!o || !shown(o)) continue;
         const f = it.fulfillment_id ? fById.get(it.fulfillment_id) : null;
         const date = f ? f.pickup_delivery_date : (o.pickup_delivery_date ?? null);
         if (!date || !(date in days)) continue;
@@ -222,6 +238,7 @@ serve(async (req) => {
           deliveryCity: f ? f.delivery_city : (o.delivery_city ?? null),
           productionStatus: it.production_status,
           badge: st.badge,
+          quantity: Number.isInteger(it.quantity) && it.quantity > 1 ? it.quantity : 1,
         });
       }
     }
@@ -243,7 +260,7 @@ serve(async (req) => {
       const resByItem = new Map((reservations ?? []).map((r) => [r.order_item_id, r]));
       for (const w of wsItems!) {
         const o = ordersById.get(w.order_id);
-        if (!o || !(w.workshop_date in days)) continue;
+        if (!o || !shown(o) || !(w.workshop_date in days)) continue;
         const st = orderStatus(o, false);
         if (!st.include) continue;
         const r = resByItem.get(w.id);
@@ -296,23 +313,34 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(50);
     if (aErr) throw new Error(`Failed to load alerts: ${aErr.message}`);
+    // The view itself ignores is_test: alerts about a test order are dropped here.
+    let alertRows = anomalies ?? [];
+    const alertOrderIds = Array.from(new Set(alertRows.map((a) => a.order_id).filter(Boolean)));
+    if (!includeTests && alertOrderIds.length > 0) {
+      const { data: testRows, error: tErr } = await supabase.from("orders").select("id").in("id", alertOrderIds).eq("is_test", true);
+      if (tErr) throw new Error(`Failed to load test flags: ${tErr.message}`);
+      const testIds = new Set((testRows ?? []).map((o) => o.id));
+      alertRows = alertRows.filter((a) => !testIds.has(a.order_id));
+    }
 
-    return json(cors, {
+    return json(cors, forCaller(caller, {
       today,
       tomorrow,
       from,
       to,
+      includeTests,
       toDecide,
       toCollect,
       days,
-      alerts: (anomalies ?? []).map((a) => ({
+      // Les alertes (écarts de paiement…) restent réservées aux administratrices.
+      alerts: caller.role === "employee" ? [] : alertRows.map((a) => ({
         orderId: a.order_id,
         orderNumber: a.order_number,
         issueType: a.issue_type,
         detail: a.detail,
         createdAt: a.created_at,
       })),
-    });
+    }));
   } catch (error) {
     console.error("get-today error:", error);
     return json(cors, { error: error instanceof Error ? error.message : "Unknown error" }, 500);

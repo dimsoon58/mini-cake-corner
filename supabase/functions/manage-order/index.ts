@@ -24,8 +24,9 @@ import {
 import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { claimAndSendTechnicalAlert, ALERT_COOLDOWN_SECONDS } from "../_shared/admin-alert.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
+import { notionSyncEnabled } from "../_shared/notion-sync.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
 import { applyOrderRefund } from "../_shared/order-refunds.ts";
 
 // 2026-09-15: deferred capture restored (pre-04a6199 model, reused almost
@@ -297,7 +298,7 @@ ${brandDarkModeStyle()}
 
 // ── Invoice PDF generation ──────────────────────────────────────────
 // Redrawn to match the "modele facture.pdf" reference template: cream
-// background, maroon table header, FACTURE AQUITÉE title, and a table that
+// background, maroon table header, FACTURE ACQUITTÉE title, and a table that
 // grows to however many rows the real order needs (one row per order_item,
 // plus a "Livraison" row when delivery_fee > 0, plus a bold TOTAL row) —
 // paginating onto additional A4 pages, with the table header repeated, if
@@ -450,14 +451,14 @@ async function generateInvoicePdf(
   }
 
   // ── Title ────────────────────────────────────────────────────────
-  page.drawText(tr("PAID INVOICE", "FACTURE AQUITÉE"), { x: margin, y, size: 15, font: fontBold, color: textDark });
+  page.drawText(tr("PAID INVOICE", "FACTURE ACQUITTÉE"), { x: margin, y, size: 15, font: fontBold, color: textDark });
   y -= 34;
 
   // ── Company block (left) + facture info block (right) ─────────────
   const leftStartY = y;
   drawLabelValue("BENTO CAKE STUDIO SNC", "", margin, y, 11);
   y -= 18;
-  drawLabelValue(tr("ADDRESS: ", "ADRESSE : "), tr("58 Chemin de la Gradelle, 1224 Geneva", "58 Chemin de la Gradelle, 1224 Genève"), margin, y);
+  drawLabelValue(tr("ADDRESS: ", "ADRESSE : "), tr("Rue Prévost-Martin 8, 1205 Geneva", "Rue Prévost-Martin 8, 1205 Genève"), margin, y);
   y -= 15;
   drawLabelValue(tr("PHONE: ", "TÉLÉPHONE : "), "+41 78 337 95 00", margin, y);
   y -= 15;
@@ -832,7 +833,9 @@ serve(async (req) => {
   }
 
   try {
-    const { orderId, action: rawAction, pin, token, refundReference, refundAmount, refundNote, refundOrderItemId } = await req.json();
+    // Corps lu une seule fois ; transmis à requireAdmin pour le jeton PIN (_adminSession).
+    const body = await req.json();
+    const { orderId, action: rawAction, pin, token, refundReference, refundAmount, refundNote, refundOrderItemId } = body ?? {};
 
     if (!orderId || !rawAction) {
       throw new Error("Missing required fields: orderId, action");
@@ -861,14 +864,14 @@ serve(async (req) => {
     if (action === "mark_refunded") {
       // 2026-09-17 (real auth guard): a valid admin session is now required
       // in addition to the PIN — see _shared/admin-auth.ts.
-      const admin = await requireAdmin(req, supabase);
+      const admin = await requireAdmin(req, supabase, { body });
       if (!admin) {
         return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 401,
         });
       }
-      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
-      if (!adminPin || pin !== adminPin) {
+      // PIN validé pour la session (F16) ou saisi avec la demande.
+      if (!adminPinOk(admin, pin)) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {
           headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 403,
         });
@@ -907,14 +910,14 @@ serve(async (req) => {
     //    order_manual_refunds migration's own header for why this is an
     //    append-only log rather than a single running-total column.
     if (action === "record_manual_refund") {
-      const admin = await requireAdmin(req, supabase);
+      const admin = await requireAdmin(req, supabase, { body });
       if (!admin) {
         return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 401,
         });
       }
-      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
-      if (!adminPin || pin !== adminPin) {
+      // PIN validé pour la session (F16) ou saisi avec la demande.
+      if (!adminPinOk(admin, pin)) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {
           headers: { ...corsHeaders(req), "Content-Type": "application/json" }, status: 403,
         });
@@ -973,15 +976,15 @@ serve(async (req) => {
     // unchanged, no admin session required, so the one-click Accept/Refuse
     // links in the notification e-mail keep working exactly as before.
     if (pin) {
-      const admin = await requireAdmin(req, supabase);
+      const admin = await requireAdmin(req, supabase, { body });
       if (!admin) {
         return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
           status: 401,
         });
       }
-      const adminPin = Deno.env.get("ADMIN_ORDER_PIN");
-      if (!adminPin || pin !== adminPin) {
+      // PIN validé pour la session (F16) ou saisi avec la demande.
+      if (!adminPinOk(admin, pin)) {
         return new Response(JSON.stringify({ error: "Invalid PIN" }), {
           headers: { ...corsHeaders(req), "Content-Type": "application/json" },
           status: 403,
@@ -1336,7 +1339,8 @@ serve(async (req) => {
     // now "refused" (the whole order, workshop included) — "refused_physical"
     // no longer applies since there is no more independent "workshop stays
     // confirmed" outcome under Option A.
-    if (hasPhysicalItem) {
+    // F24 : pas d'envoi quand la synchronisation Notion est désactivée.
+    if (hasPhysicalItem && await notionSyncEnabled(supabase)) {
       try {
         const webhookOrderId = order.order_number || order.id;
         const statusValue = effectiveAction === "approve" ? "accepted" : "refused";

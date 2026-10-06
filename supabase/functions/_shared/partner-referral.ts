@@ -46,11 +46,14 @@ export async function resolvePartnerReferral(
 
     const discountRate = Number(data.customer_discount_rate);
     const commissionRate = Number(data.commission_rate);
-    // Sanity bounds — a rate must be a genuine fraction (0 < rate < 1).
+    // Sanity bounds — a rate must be a genuine fraction (0 <= rate < 1).
     // Refusing anything outside that range is a deliberate fail-safe: a
     // corrupt/misconfigured row must never silently give away 100%+ off or
-    // charge a nonsensical commission.
-    if (!Number.isFinite(discountRate) || discountRate <= 0 || discountRate >= 1) return null;
+    // charge a nonsensical commission. A 0 discount is valid (2026-10-03):
+    // a commission-only partner — the order is attributed to the partner
+    // with its commission, the customer gets no partner discount and keeps
+    // the welcome discount if eligible (see partnerGivesDiscount).
+    if (!Number.isFinite(discountRate) || discountRate < 0 || discountRate >= 1) return null;
     if (!Number.isFinite(commissionRate) || commissionRate < 0 || commissionRate >= 1) return null;
     if (!data.id || typeof data.name !== "string" || typeof data.slug !== "string") return null;
 
@@ -65,6 +68,14 @@ export async function resolvePartnerReferral(
     console.error("resolvePartnerReferral threw (proceeding without a partner):", e);
     return null;
   }
+}
+
+// True only when the partner actually gives the customer a discount. The
+// partner discount and the welcome discount never stack (never -20%), so
+// only such a partner suppresses the welcome discount; a commission-only
+// partner (0 %) leaves it untouched.
+export function partnerGivesDiscount(partner: ResolvedPartner | null): boolean {
+  return !!partner && partner.discountRate > 0;
 }
 
 // Fixed business rule for every partner (never partner-specific): only cake
@@ -104,10 +115,13 @@ export function computePartnerLineAmounts(
     };
   }
 
+  // Commission-only partner (0 %): no discount line at all — base and
+  // amount 0 — while the commission is still computed on the base price.
+  const gives = partnerGivesDiscount(partner);
   return {
     baseCakePrice: base,
-    partnerDiscountBase: base,
-    partnerDiscountAmount: roundToCents(base * partner!.discountRate),
+    partnerDiscountBase: gives ? base : 0,
+    partnerDiscountAmount: gives ? roundToCents(base * partner!.discountRate) : 0,
     partnerCommissionBase: base,
     partnerCommissionAmount: roundToCents(base * partner!.commissionRate),
   };

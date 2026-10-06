@@ -4,6 +4,26 @@ import { getLogoEmailUrl } from "../_shared/site-config.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
+import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
+import { isAwaitingDecision, type ProdOrder } from "../_shared/production-stats.ts";
+import { cancelReservationSeats } from "../_shared/workshop-cancel.ts";
+
+// Whole-order cancellation + the existing cancellation email (Resend).
+//
+// Two callers:
+//   - Make (Notion), header x-make-secret = MAKE_CANCEL_SECRET — unchanged;
+//   - the admin dashboard (2026-10-04): admin sign-in + PIN session (F16) or
+//     PIN typed with the request. Website orders still awaiting the
+//     Accept/Refuse decision, refused orders and drafts are refused here
+//     (« Refuser » is the existing path for an undecided order). Every
+//     still-active workshop seat of the order is released first (shared
+//     cancel_workshop_seats_atomic step, idempotency key per order, no
+//     workshop email: the order cancellation email is the only one).
+// Never refunds anything: a paid order becomes refund_status 'to_refund';
+// the refund is done by hand and recorded afterwards in the admin, with no
+// email. One email per order: cancellation_status lock + Resend
+// Idempotency-Key; a second call returns alreadyCancelled.
+// Deployed with verify_jwt = false (Make calls without a Supabase JWT).
 
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) => new Response(JSON.stringify(body), {
@@ -142,8 +162,12 @@ serve(async (req) => {
   const cors = corsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   if (req.method !== "POST") return json(cors, { error: "Method not allowed" }, 405);
-  if (!Deno.env.get("MAKE_CANCEL_SECRET")) return json(cors, { error: "Server cancellation secret is not configured" }, 503);
-  if (!isAuthorized(req)) return json(cors, { error: "Unauthorized" }, 401);
+  // Make sends x-make-secret; the admin dashboard sends its sign-in instead.
+  const viaMake = req.headers.has("x-make-secret");
+  if (viaMake) {
+    if (!Deno.env.get("MAKE_CANCEL_SECRET")) return json(cors, { error: "Server cancellation secret is not configured" }, 503);
+    if (!isAuthorized(req)) return json(cors, { error: "Unauthorized" }, 401);
+  }
 
   let supabase: any = null;
   let orderId = "";
@@ -160,6 +184,12 @@ serve(async (req) => {
       getServerKey(),
       { auth: { persistSession: false } },
     );
+
+    if (!viaMake) {
+      const admin = await requireAdmin(req, supabase, { body });
+      if (!admin) return json(cors, { error: "Admin sign-in required" }, 401);
+      if (!adminPinOk(admin, body?.pin)) return json(cors, { error: "Invalid PIN" }, 403);
+    }
 
     const { data: initialOrder, error: initialError } = await supabase
       .from("orders")
@@ -194,6 +224,23 @@ serve(async (req) => {
       });
     }
 
+    if (!viaMake) {
+      // Admin dashboard: only an order that was really confirmed can be
+      // cancelled here, and only if the email can be sent.
+      if (initialOrder.is_draft === true) {
+        return json(cors, { error: "This is a draft: there is nothing to cancel.", reason: "draft" }, 409);
+      }
+      if (initialOrder.order_validation === "rejected" || initialOrder.order_failure_reason) {
+        return json(cors, { error: "This order was already refused.", reason: "refused" }, 409);
+      }
+      if (isAwaitingDecision(initialOrder as ProdOrder)) {
+        return json(cors, { error: "This order is still awaiting your decision: use « Refuse » instead.", reason: "awaiting_decision" }, 409);
+      }
+      if (!initialOrder.email) {
+        return json(cors, { error: "This order has no customer email: the cancellation email cannot be sent.", reason: "no_email" }, 409);
+      }
+    }
+
     const { data: lockRows, error: lockError } = await supabase
       .from("orders")
       .update({ cancellation_status: "processing" })
@@ -225,6 +272,34 @@ serve(async (req) => {
     const now = new Date().toISOString();
     const originalPaymentStatus = order.payment_status;
     const originalRefundStatus = order.refund_status ?? "none";
+    // Admin dashboard: release every still-active workshop seat first (the
+    // atomic seat step requires the order to still be confirmed). Same
+    // idempotency key per order, so a retry never cancels twice.
+    let seatsReleased = 0;
+    if (!viaMake) {
+      const { data: reservations, error: resErr } = await supabase
+        .from("workshop_reservations")
+        .select("id, workshop_session_id, purchased_seats, cancelled_seats, status")
+        .eq("order_id", orderId);
+      if (resErr) throw new Error(`Failed to load workshop reservations: ${resErr.message}`);
+      for (const r of reservations ?? []) {
+        const active = Number(r.purchased_seats) - Number(r.cancelled_seats);
+        if (!["confirmed", "partially_cancelled"].includes(r.status) || active <= 0) continue;
+        const { data: session, error: sessErr } = await supabase
+          .from("workshop_sessions").select("workshop_date").eq("id", r.workshop_session_id).single();
+        if (sessErr || !session) throw new Error("Workshop session not found");
+        await cancelReservationSeats(supabase, {
+          reservationId: r.id,
+          seats: active,
+          idempotencyKey: `order-cancel-${orderId}`,
+          workshopDate: String(session.workshop_date),
+          customerId: order.customer_id ?? null,
+          orderId,
+        });
+        seatsReleased += active;
+      }
+    }
+
     const resultingPaymentStatus = (originalPaymentStatus === "paid" || originalPaymentStatus === "refunded")
       ? originalPaymentStatus
       : "cancelled";
@@ -292,6 +367,7 @@ serve(async (req) => {
       refundStatus: resultingRefundStatus,
       orderValidation: "cancelled",
       itemsCancelled: cancelledItems?.length || 0,
+      seatsReleased,
       cancelledAt: order.cancelled_at || now,
       emailId: email?.id || null,
     });

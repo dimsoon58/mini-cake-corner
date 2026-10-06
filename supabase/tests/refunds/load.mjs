@@ -28,3 +28,10 @@ if (process.argv[2] === "smoke") {
   const r = await db.query("select count(*) from information_schema.tables where table_schema='public'");
   console.log("public tables:", r.rows[0]);
 }
+
+/** Ventes du mois vides (lots sans F17) : pour appeler l'export Compta dans les anciens tests. */
+export function salesStub(finance) {
+  const z = { gross: 0, cancelled: 0, cancelledCount: 0, kept: 0, gestures: 0, net: 0, cancellationRefunds: 0, cancellationsToRefund: 0, toCollect: 0,
+    toCollectOrders: 0, orders: 0, cakes: 0, workshopSeats: 0, refusedCount: 0, toAcceptCount: 0, undatedCount: 0, undatedAmount: 0 };
+  return { month: finance.month, from: finance.from, to: finance.to, includeTests: false, cards: z, lines: [], undated: [] };
+}

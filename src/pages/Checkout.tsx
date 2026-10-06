@@ -53,7 +53,7 @@ import DeliveryAddressAutocomplete, { type AddressSelection } from "@/components
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { isOrderDateDisabled, isClosedDay, CLOSED_DAY_COPY, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
+import { isOrderDateDisabled, isClosedDay, CLOSED_DAY_COPY, SATURDAY_SLOT_COPY, slotsForDate, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
 import { cartItemTitle, flavorLabel, shapeLabel } from "@/lib/orderLabels";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
@@ -62,6 +62,7 @@ import { onOrderCompleted } from "@/lib/orderCompletionChannel";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { getWelcomeDiscountEligibility, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
 import { computePartnerEligibleBase, computePartnerDiscountAmount } from "@/lib/partnerDiscount";
+import { partnerGivesDiscount } from "@/lib/partnerReferral";
 import { sumChf, roundChf, formatChf } from "@/lib/money";
 
 // Anti double-payment guard. Set when the customer is handed to PostFinance,
@@ -500,6 +501,15 @@ const Checkout = () => {
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [pickupTime, setPickupTime] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
+  // Saturday: 11:00 – 12:00 only. A slot chosen before switching to a
+  // Saturday no longer exists, so it is cleared (the customer picks again).
+  const pickupSlots = slotsForDate(PICKUP_TIME_SLOTS, deliveryDate);
+  const deliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate);
+  const isSaturdayDate = !!deliveryDate && deliveryDate.getDay() === 6;
+  useEffect(() => {
+    if (pickupTime && !slotsForDate(PICKUP_TIME_SLOTS, deliveryDate).includes(pickupTime)) setPickupTime("");
+    if (deliveryTime && !slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate).includes(deliveryTime)) setDeliveryTime("");
+  }, [deliveryDate, pickupTime, deliveryTime]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
   const [checkoutPayload, setCheckoutPayload] = useState<any>(null);
@@ -852,7 +862,9 @@ const Checkout = () => {
   // the welcome-discount checkbox/offer is suppressed entirely here —
   // matching create-postfinance-payment exactly (it never even claims the
   // voucher when a partner referral is active, so it stays fully unspent).
-  const canUseWelcomeDiscountNow = !partnerReferral && (welcomeVoucherEligible || justSubscribingNow);
+  // A commission-only partner (0 %) gives no discount: the welcome offer
+  // stays available.
+  const canUseWelcomeDiscountNow = !partnerGivesDiscount(partnerReferral) && (welcomeVoucherEligible || justSubscribingNow);
 
   // Display-only, for the newsletter checkbox copy below — never used for
   // pricing/eligibility itself (canUseWelcomeDiscountNow, untouched, still
@@ -864,7 +876,7 @@ const Checkout = () => {
   // (welcomeVoucherEligible) — a customer who used the discount, whose
   // voucher expired, or who is mid-way through a reservation for another
   // order sees the plain newsletter copy instead of a false 10% promise.
-  const newsletterWouldGrantWelcomeDiscount = !partnerReferral && (welcomeVoucherEligible || (
+  const newsletterWouldGrantWelcomeDiscount = !partnerGivesDiscount(partnerReferral) && (welcomeVoucherEligible || (
     baseWelcomeDiscountEligible
     && profile?.newsletter_subscription !== true
     && (!profile?.welcome_discount_expires_at || new Date(profile.welcome_discount_expires_at) > new Date())
@@ -1084,7 +1096,7 @@ const Checkout = () => {
         return;
       }
 
-      if (hasPhysical && deliveryOption === "pickup" && !pickupTime) {
+      if (hasPhysical && deliveryOption === "pickup" && !pickupSlots.includes(pickupTime)) {
         toast({
           title: t("Pick-up Time required", "Heure de retrait requise"),
           description: t("Please select a pick-up time slot.", "Veuillez sélectionner un créneau de retrait."),
@@ -1093,7 +1105,7 @@ const Checkout = () => {
         return;
       }
 
-      if (hasPhysical && deliveryOption === "delivery" && (!deliveryTime || !deliveryComment.trim())) {
+      if (hasPhysical && deliveryOption === "delivery" && (!deliverySlots.includes(deliveryTime) || !deliveryComment.trim())) {
         toast({
           title: t("Delivery information required", "Informations de livraison requises"),
           description: t("Please select a delivery time slot and add a comment with the necessary delivery information.", "Veuillez sélectionner un créneau de livraison et ajouter un commentaire avec les informations nécessaires."),
@@ -1155,14 +1167,14 @@ const Checkout = () => {
           });
           return;
         }
-        if (d.deliveryOption === "pickup" && !d.pickupTime) {
+        if (d.deliveryOption === "pickup" && !slotsForDate(PICKUP_TIME_SLOTS, group.date).includes(d.pickupTime)) {
           toast({
             title: t(`Pick-up time required for ${dateLabel}`, `Heure de retrait requise pour le ${dateLabel}`),
             variant: "destructive",
           });
           return;
         }
-        if (d.deliveryOption === "delivery" && !d.deliveryTime) {
+        if (d.deliveryOption === "delivery" && !slotsForDate(DELIVERY_TIME_SLOTS, group.date).includes(d.deliveryTime)) {
           toast({
             title: t(`Delivery time slot required for ${dateLabel}`, `Créneau de livraison requis pour le ${dateLabel}`),
             variant: "destructive",
@@ -1789,18 +1801,19 @@ const Checkout = () => {
             {deliveryOption === "pickup" && (
               <div className="space-y-2">
                 <Label>{t("Pick-up Time", "Heure de retrait")} <span className="text-destructive">*</span></Label>
-                <Select value={pickupTime} onValueChange={setPickupTime}>
+                <Select value={pickupSlots.includes(pickupTime) ? pickupTime : ""} onValueChange={setPickupTime}>
                   <SelectTrigger className="w-full rounded-none">
                     <SelectValue placeholder={t("Select a pickup time", "Choisir une heure de retrait")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {PICKUP_TIME_SLOTS.map((slot) => (
+                    {pickupSlots.map((slot) => (
                       <SelectItem key={slot} value={slot}>
                         {slot}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {isSaturdayDate && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
               </div>
             )}
 
@@ -1860,18 +1873,19 @@ const Checkout = () => {
                 {/* Delivery Time Slot */}
                 <div className="space-y-2">
                   <Label>{t("Delivery Time Slot", "Créneau de livraison")} <span className="text-destructive">*</span></Label>
-                  <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                  <Select value={deliverySlots.includes(deliveryTime) ? deliveryTime : ""} onValueChange={setDeliveryTime}>
                     <SelectTrigger className="w-full rounded-none">
                       <SelectValue placeholder={t("Select a delivery time slot", "Choisir un créneau de livraison")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {DELIVERY_TIME_SLOTS.map((slot) => (
+                      {deliverySlots.map((slot) => (
                         <SelectItem key={slot} value={slot}>
                           {slot}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {isSaturdayDate && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
                 </div>
 
                 {/* Delivery Comment - Required */}
@@ -1939,6 +1953,9 @@ const Checkout = () => {
 
                 {physicalDateGroups.map((group) => {
                   const draft = getFulfillmentDraft(group.date);
+                  const groupPickupSlots = slotsForDate(PICKUP_TIME_SLOTS, group.date);
+                  const groupDeliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, group.date);
+                  const groupSaturday = groupPickupSlots.length < PICKUP_TIME_SLOTS.length;
                   const groupDate = new Date(group.date + "T00:00:00");
                   const groupLabel = formatDisplayDate(groupDate);
                   const groupTotal = sumChf(...group.items.map((i) => i.total));
@@ -1988,18 +2005,19 @@ const Checkout = () => {
                         <div className="space-y-2">
                           <Label>{t("Pick-up Time", "Heure de retrait")} <span className="text-destructive">*</span></Label>
                           <Select
-                            value={draft.pickupTime}
+                            value={groupPickupSlots.includes(draft.pickupTime) ? draft.pickupTime : ""}
                             onValueChange={(v) => patchFulfillmentDraft(group.date, { pickupTime: v })}
                           >
                             <SelectTrigger className="w-full rounded-none">
                               <SelectValue placeholder={t("Select a pickup time", "Choisir une heure de retrait")} />
                             </SelectTrigger>
                             <SelectContent>
-                              {PICKUP_TIME_SLOTS.map((slot) => (
+                              {groupPickupSlots.map((slot) => (
                                 <SelectItem key={slot} value={slot}>{slot}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                          {groupSaturday && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
                         </div>
                       )}
 
@@ -2031,18 +2049,19 @@ const Checkout = () => {
                           <div className="space-y-2">
                             <Label>{t("Delivery Time Slot", "Créneau de livraison")} <span className="text-destructive">*</span></Label>
                             <Select
-                              value={draft.deliveryTime}
+                              value={groupDeliverySlots.includes(draft.deliveryTime) ? draft.deliveryTime : ""}
                               onValueChange={(v) => patchFulfillmentDraft(group.date, { deliveryTime: v })}
                             >
                               <SelectTrigger className="w-full rounded-none">
                                 <SelectValue placeholder={t("Select a delivery time slot", "Choisir un créneau de livraison")} />
                               </SelectTrigger>
                               <SelectContent>
-                                {DELIVERY_TIME_SLOTS.map((slot) => (
+                                {groupDeliverySlots.map((slot) => (
                                   <SelectItem key={slot} value={slot}>{slot}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                            {groupSaturday && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
                           </div>
                           {/* NOTE (rollout report): there is deliberately no per-date
                               delivery-comment field here yet — order_fulfillments has
@@ -2160,7 +2179,7 @@ const Checkout = () => {
                               single confusing price instead of two amounts. */}
                           {item.shapeName && item.product !== "dot_cakes" && item.product !== "diy_kit" && item.product !== "edible_printing" && (
                             <div className="flex justify-between">
-                              <span>{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang)}</span>
+                              <span>{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang, item.size)}</span>
                               <span>{shapeExtra > 0 ? `+ CHF ${formatChf(shapeExtra)}` : t("included", "inclus")}</span>
                             </div>
                           )}
@@ -2338,17 +2357,25 @@ const Checkout = () => {
                   onCheckedChange={(checked) => setAcceptPrivacyPolicy(checked === true)}
                   className="mt-0.5"
                 />
-                <Label htmlFor="privacyPolicy" className="text-sm cursor-pointer leading-relaxed">
-                  {t("I have read and accept the", "J'ai lu et j'accepte les")}{" "}
-                  <Link
-                    to="/privacy-policy"
-                    className="text-primary underline hover:text-primary/80"
-                  >
-                    {t("Terms & Conditions and Privacy Policy", "Conditions Générales de Vente et la Politique de confidentialité")}
-                  </Link>
+                {/* The links sit OUTSIDE the <Label>: a click on them used to tick the
+                    box instead of opening the page. They open in a new tab so the
+                    checkout (cart, address, slot) is never lost. */}
+                <p className="text-sm leading-relaxed">
+                  <Label htmlFor="privacyPolicy" className="cursor-pointer">
+                    {t("I have read and accept the", "J'ai lu et j'accepte les")}
+                  </Label>{" "}
+                  <a href={`${import.meta.env.BASE_URL}terms-and-conditions`} target="_blank" rel="noopener noreferrer"
+                    className="text-primary underline hover:text-primary/80" data-testid="terms-link">
+                    {t("Terms & Conditions", "Conditions Générales de Vente")}
+                  </a>{" "}
+                  {t("and the", "et la")}{" "}
+                  <a href={`${import.meta.env.BASE_URL}privacy-policy`} target="_blank" rel="noopener noreferrer"
+                    className="text-primary underline hover:text-primary/80" data-testid="privacy-link">
+                    {t("Privacy Policy", "Politique de confidentialité")}
+                  </a>
                   {"."}
                   <span className="text-destructive ml-1">*</span>
-                </Label>
+                </p>
               </div>
 
               {/* Newsletter Checkbox - Optional. Hidden for a logged-in

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
 import { AlertTriangle, Loader2, Lock, Plus, RefreshCw } from "lucide-react";
@@ -7,10 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { ShowTestsToggle, useShowTests } from "@/components/admin/ShowTestsToggle";
+import { WorkshopSessionsPanel, type WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
 import { ProductionCheck, isProductionDone } from "@/components/admin/ProductionCheck";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, flavorLabel, shapeLabel, sizeLabel } from "@/lib/orderLabels";
 import { formatChf } from "@/lib/manualOrders";
@@ -24,7 +27,7 @@ import { cn } from "@/lib/utils";
 // from order_health_anomalies. Each item is listed under its own
 // pickup/delivery date, even when it is prepared earlier.
 
-type ListedOrder = { orderId: string; orderNumber: string | null; customerName: string; total: number; date: string | null };
+type ListedOrder = { orderId: string; orderNumber: string | null; customerName: string; total: number; date: string | null; receivedAt?: string | null };
 type DayItem = {
   type: "cake" | "workshop";
   orderId: string;
@@ -42,6 +45,7 @@ type DayItem = {
   deliveryCity: string | null;
   productionStatus: string | null;
   badge: "to_accept" | "awaiting_payment" | null;
+  quantity?: number;
 };
 type Alert = { orderId: string; orderNumber: string | null; issueType: string; detail: string | null; createdAt: string };
 type TodayData = { today: string; tomorrow: string; from?: string; to?: string; toDecide: ListedOrder[]; toCollect: ListedOrder[]; days: Record<string, DayItem[]>; alerts: Alert[] };
@@ -74,12 +78,19 @@ const AdminToday = () => {
   const { t, lang } = useLang();
   const l = lang === "en" ? "en" : "fr";
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = isAdminEmail(user?.email);
+  // F23 : l'employée voit la production, sans montants ni tâches de gestion (décider, encaisser, alertes).
+  const staff = useStaffRole();
+  const employee = staff.isEmployee;
+  const isAdmin = isAdminEmail(user?.email) || staff.can("today.view");
 
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  // Commandes de test masquées sauf avec « Afficher les tests » (get-today).
+  const [includeTests, setIncludeTests] = useShowTests();
+  // F28 : gâteaux des workshops de la période, par session (même calcul que Production).
+  const [ws, setWs] = useState<{ sessions: WorkshopSession[]; stockRows: { sponge_base: string; product_category: string; quantity: number }[] } | null>(null);
 
   // Period kept in the URL (?from=&to=) so a reload shows the same days.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -121,7 +132,7 @@ const AdminToday = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data: res, error: fnError } = await supabase.functions.invoke("get-today", { body: { from, to } });
+      const { data: res, error: fnError } = await supabase.functions.invoke("get-today", { body: { from, to, includeTests } });
       if (fnError || res?.error) {
         const status = (fnError as { context?: Response } | null)?.context?.status;
         const reason = fnError ? await extractFunctionErrorMessage(fnError, "") : String(res.error);
@@ -132,19 +143,33 @@ const AdminToday = () => {
         return;
       }
       setData(res as TodayData);
+      // Sessions de workshop (get-production) : sans accès ou pas encore déployé → bloc absent.
+      try {
+        const { data: prod, error: pErr } = await supabase.functions.invoke("get-production", { body: { from, to, includeTests } });
+        setWs(!pErr && !prod?.error ? { sessions: prod?.workshopSessions ?? [], stockRows: prod?.stockRows ?? [] } : null);
+      } catch { setWs(null); }
     } catch (e) {
       console.error("get-today threw:", e);
       setError(t("Could not load today's overview. Please try again.", "Impossible de charger l'aperçu du jour. Réessayez."));
     } finally {
       setLoading(false);
     }
-  }, [t, from, to, rangeError]);
+  }, [t, from, to, includeTests, rangeError]);
 
   useEffect(() => {
-    if (!authLoading && isAdmin) load();
-  }, [authLoading, isAdmin, load]);
+    if (!authLoading && !staff.loading && isAdmin) load();
+  }, [authLoading, staff.loading, isAdmin, load]);
 
-  if (authLoading) {
+  // Arrivée depuis le tableau de bord (#production, #workshops, #a-faire) :
+  // descendre jusqu'à la section une fois les données affichées.
+  const { hash } = useLocation();
+  const hasData = !!data;
+  useEffect(() => {
+    if (!hasData || !hash) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
+  }, [hasData, hash]);
+
+  if (authLoading || staff.loading) {
     return (
       <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
@@ -176,6 +201,15 @@ const AdminToday = () => {
       return format(parseISO(iso), l === "fr" ? "EEEE d MMMM" : "EEEE, MMMM d", l === "fr" ? { locale: frLocale } : undefined);
     } catch { return iso; }
   };
+  // How long an order has been waiting for Accept / Refuse.
+  const waitingFor = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const hours = Math.max(0, (Date.now() - new Date(iso).getTime()) / 3_600_000);
+    if (hours < 1) return { text: t("received < 1 h ago", "reçue il y a moins d'1 h"), late: false };
+    if (hours < 24) return { text: t(`received ${Math.floor(hours)} h ago`, `reçue il y a ${Math.floor(hours)} h`), late: false };
+    const days = Math.floor(hours / 24);
+    return { text: t(`waiting for ${days} day${days > 1 ? "s" : ""}`, `en attente depuis ${days} jour${days > 1 ? "s" : ""}`), late: true };
+  };
   const shortDate = (iso: string | null) => {
     if (!iso) return t("no date", "sans date");
     try { return format(parseISO(iso), l === "fr" ? "EEE d MMM" : "EEE, MMM d", l === "fr" ? { locale: frLocale } : undefined); } catch { return iso; }
@@ -191,7 +225,7 @@ const AdminToday = () => {
     if (it.size && it.product !== "diy_kit" && it.product !== "edible_printing") parts.push(sizeLabel(it.size, l));
     if (it.shape && it.shape !== "round") parts.push(shapeLabel(it.shape, l));
     if (it.flavors?.length) parts.push(flavorLabel(it.flavors.join(",")));
-    return parts.join(" · ");
+    return `${it.quantity && it.quantity > 1 ? `${it.quantity} × ` : ""}${parts.join(" · ")}`;
   };
   const methodLabel = (it: DayItem) =>
     it.type === "workshop"
@@ -206,9 +240,14 @@ const AdminToday = () => {
   const periodSupported = !!data?.from;
   const periodDates = data ? Object.keys(data.days).sort() : [];
   const allItems = periodDates.flatMap((d) => data!.days[d]);
-  const periodCakes = allItems.filter((i) => i.type === "cake");
-  const readyCount = periodCakes.filter((i) => isProductionDone(i.productionStatus)).length;
-  const counts: Record<Filter, number> = { all: periodCakes.length, todo: periodCakes.length - readyCount, ready: readyCount };
+  // Les gâteaux « À accepter » sont listés mais pas comptés comme confirmés.
+  // Un gâteau = une unité de quantité (une ligne « × 2 » compte pour 2).
+  const qtyOf = (i: DayItem) => (i.quantity && i.quantity > 1 ? i.quantity : 1);
+  const sumQty = (list: DayItem[]) => list.reduce((s, i) => s + qtyOf(i), 0);
+  const periodCakes = allItems.filter((i) => i.type === "cake" && i.badge !== "to_accept");
+  const toAcceptCakes = sumQty(allItems.filter((i) => i.type === "cake" && i.badge === "to_accept"));
+  const readyCount = sumQty(periodCakes.filter((i) => isProductionDone(i.productionStatus)));
+  const counts: Record<Filter, number> = { all: sumQty(periodCakes), todo: sumQty(periodCakes) - readyCount, ready: readyCount };
   const workshopDates = periodDates.filter((d) => data!.days[d].some((i) => i.type === "workshop"));
 
   const itemLink = (it: DayItem, done: boolean) => (
@@ -221,7 +260,7 @@ const AdminToday = () => {
         </span>
       </span>
       <span className="flex flex-wrap gap-1.5">
-        {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To accept", "À accepter")}</span>}
+        {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-blue-600 text-white">{t("To accept", "À accepter")}</span>}
         {it.badge === "awaiting_payment" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To collect", "À encaisser")}</span>}
         {done && <span className="px-2 py-0.5 text-[11px] bg-emerald-100 text-emerald-800">{t("Done", "Fait")}</span>}
       </span>
@@ -306,9 +345,11 @@ const AdminToday = () => {
             <Button variant="outline" onClick={load} disabled={loading} className="rounded-none" aria-label={t("Refresh", "Actualiser")}>
               <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
             </Button>
-            <Button asChild className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Link to="/admin/manual-orders/new"><Plus className="w-4 h-4 mr-1" /> {t("New order", "Nouvelle commande")}</Link>
-            </Button>
+            {!employee && (
+              <Button asChild className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Link to="/admin/manual-orders/new"><Plus className="w-4 h-4 mr-1" /> {t("New order", "Nouvelle commande")}</Link>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -324,6 +365,7 @@ const AdminToday = () => {
           <Button variant="outline" onClick={() => setPeriod(null)} className="rounded-none">
             {t("Today + 2 days", "Aujourd'hui + 2 jours")}
           </Button>
+          <ShowTestsToggle checked={includeTests} onChange={setIncludeTests} className="pb-2" />
         </div>
         {rangeError && (
           <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-2">
@@ -343,13 +385,32 @@ const AdminToday = () => {
 
         {data && !rangeError && (
           <>
+            {/* Orders waiting for Accept / Refuse — never let one wait unnoticed */}
+            {!employee && data.toDecide.length > 0 && (() => {
+              const oldest = data.toDecide.reduce<string | null>((m, o) => (o.receivedAt && (!m || o.receivedAt < m) ? o.receivedAt : m), null);
+              const w = waitingFor(oldest);
+              return (
+                <a href="#a-faire" className="flex items-start gap-2 border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-950" data-testid="pending-banner">
+                  <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
+                  <span>
+                    <b>{data.toDecide.length} {t(data.toDecide.length > 1 ? "orders waiting for validation" : "order waiting for validation", data.toDecide.length > 1 ? "commandes en attente de validation" : "commande en attente de validation")}</b>
+                    {w && <> · {t("oldest", "la plus ancienne")} {w.text}</>}
+                    <span className="block text-xs">{t("Accept or refuse them below.", "Acceptez-les ou refusez-les ci-dessous.")}</span>
+                  </span>
+                </a>
+              );
+            })()}
+
             {/* Counters */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: t("To decide", "À décider"), value: data.toDecide.length, warn: data.toDecide.length > 0, href: "#a-faire" },
-                { label: t("To collect", "À encaisser"), value: data.toCollect.length, warn: false, href: "#a-faire" },
-                { label: t("Cakes in the period", "Gâteaux sur la période"), value: counts.all, warn: false, href: "#production" },
-                { label: t("Alerts", "Alertes"), value: data.alerts.length, danger: data.alerts.length > 0, href: "#alertes" },
+                ...(employee ? [] : [
+                  { label: t("To decide", "À décider"), value: data.toDecide.length, warn: data.toDecide.length > 0, href: "#a-faire" },
+                  { label: t("To collect", "À encaisser"), value: data.toCollect.length, warn: false, href: "#a-faire" },
+                ]),
+                { label: t("Cakes in the period", "Gâteaux sur la période"), value: counts.all, warn: false, href: "#production",
+                  note: toAcceptCakes > 0 ? t(`+ ${toAcceptCakes} to accept`, `+ ${toAcceptCakes} à accepter`) : null },
+                ...(employee ? [] : [{ label: t("Alerts", "Alertes"), value: data.alerts.length, danger: data.alerts.length > 0, href: "#alertes" }]),
               ].map((c) => (
                 <a
                   key={c.label}
@@ -361,11 +422,13 @@ const AdminToday = () => {
                 >
                   <span className="block text-xs font-semibold uppercase tracking-[0.08em] opacity-80">{c.label}</span>
                   <span className="block text-3xl font-semibold tabular-nums">{c.value}</span>
+                  {"note" in c && c.note && <span className="block text-xs font-semibold text-blue-800">{c.note}</span>}
                 </a>
               ))}
             </div>
 
             {/* To do now */}
+            {!employee && (
             <section id="a-faire">
               <h2 className={sectionTitle}>{t("To do now", "À faire maintenant")}</h2>
               <div className={box}>
@@ -378,6 +441,7 @@ const AdminToday = () => {
                         <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To decide", "À décider")}</span>
                         <span className="flex-1 min-w-[180px] text-sm">
                           <span className="font-medium">{o.orderNumber}</span> · {o.customerName} · {shortDate(o.date)} · {formatChf(o.total)}
+                          {(() => { const w = waitingFor(o.receivedAt); return w ? <span className={cn("block text-xs", w.late ? "text-red-700 font-semibold" : "text-muted-foreground")}>{w.text}</span> : null; })()}
                         </span>
                         <Button asChild variant="outline" size="sm" className="rounded-none">
                           <Link to={`/admin/order/${o.orderId}`}>{t("Accept or refuse", "Accepter ou refuser")}</Link>
@@ -399,6 +463,7 @@ const AdminToday = () => {
                 )}
               </div>
             </section>
+            )}
 
             {/* Production of the period, by pickup/delivery date */}
             <section id="production" className="space-y-3">
@@ -439,6 +504,11 @@ const AdminToday = () => {
               <h2 className={sectionTitle}>
                 {t("Workshops", "Workshops")} ({allItems.filter((i) => i.type === "workshop").length})
               </h2>
+              {ws && ws.sessions.length > 0 && (
+                <div className="mb-3">
+                  <WorkshopSessionsPanel sessions={ws.sessions} stockRows={ws.stockRows} includeTests={includeTests} canDecideSurplus={!employee} onChanged={load} />
+                </div>
+              )}
               {workshopDates.length === 0 ? (
                 <div className={box}><p className="px-4 py-5 text-sm text-muted-foreground">{t("No workshop in this period.", "Aucun workshop sur la période.")}</p></div>
               ) : (
@@ -461,6 +531,7 @@ const AdminToday = () => {
             </section>
 
             {/* Alerts */}
+            {!employee && (
             <section id="alertes">
               <h2 className={sectionTitle}>{t("Alerts", "Alertes")}</h2>
               {data.alerts.length === 0 ? (
@@ -482,6 +553,7 @@ const AdminToday = () => {
                 </ul>
               )}
             </section>
+            )}
           </>
         )}
       </main>

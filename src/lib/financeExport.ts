@@ -51,6 +51,7 @@ export const lineDescription = (l: FinanceLine): string => {
     add("partenaire", d.partnerDiscount, -1);
     add("cagnotte", d.rewardUsed, -1);
     add("ajustement manuel", d.priceAdjustment);
+    add("écart encaissé / total de la commande", d.paidVsTotal);
     return parts.length ? parts.join(", ") : "frais, remises et ajustements";
   }
   if (l.product === "workshop") {
@@ -86,41 +87,58 @@ export function buildFinanceWorkbook(ExcelJS: ExcelJSModule, data: FinanceMonth)
   const wb = new ExcelJS.Workbook();
   wb.creator = "Bento Cake Studio — Admin";
   wb.created = new Date();
+  addFinanceSheets(wb, data);
+  wb.views = [{ x: 0, y: 0, width: 10000, height: 20000, firstSheet: 0, activeTab: 0, visibility: "visible" }];
+  return wb;
+}
+
+/**
+ * Feuilles du lot 3 ajoutées à un classeur existant. Par défaut (tableau de
+ * bord) : Synthèse, Commandes et articles, Encaissements, Remboursements.
+ * La Compta (F17) les reprend en détail secondaire, sous un autre nom de
+ * synthèse et sans « Commandes et articles » (lignes par date de paiement) :
+ * ses lignes de vente sont celles du mois de réalisation.
+ */
+export function addFinanceSheets(wb: import("exceljs").Workbook, data: FinanceMonth, opts: { summaryName?: string; withLines?: boolean } = {}) {
+  const withLines = opts.withLines ?? true;
   const monthLabel = new Intl.DateTimeFormat("fr-CH", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${data.month}-01T12:00:00Z`));
 
-  const summary = wb.addWorksheet("Synthèse");
-  const lines = wb.addWorksheet("Commandes et articles");
+  const summary = wb.addWorksheet(opts.summaryName ?? "Synthèse");
+  const lines = withLines ? wb.addWorksheet("Commandes et articles") : null;
   const coll = wb.addWorksheet("Encaissements");
   const refs = wb.addWorksheet("Remboursements");
 
   // ── Commandes et articles ──
-  lines.columns = [
-    { header: "N° commande", key: "order", width: 18 },
-    { header: "Origine", key: "origin", width: 10 },
-    { header: "Client", key: "customer", width: 24 },
-    { header: "Encaissée le", key: "paid", width: 13, style: { numFmt: DATE } },
-    { header: "Ligne", key: "type", width: 14 },
-    { header: "Article / détail", key: "desc", width: 46 },
-    { header: "Date retrait / livraison / atelier", key: "service", width: 16, style: { numFmt: DATE } },
-    { header: "Quantité", key: "qty", width: 9 },
-    { header: "Préparation", key: "prod", width: 12 },
-    { header: "Montant encaissé (CHF)", key: "amount", width: 16, style: { numFmt: MONEY } },
-  ];
-  styleHeader(lines);
-  data.lines.forEach((l) => lines.addRow({
-    order: l.orderNumber ?? l.orderId.slice(0, 8),
-    origin: originFr(l.origin),
-    customer: l.customer,
-    paid: zurichDate(l.paidAt),
-    type: l.lineType === "adjustment" ? "Ajustements" : "Article",
-    desc: lineDescription(l),
-    service: zurichDate(l.serviceDate),
-    qty: l.lineType === "item" ? l.quantity ?? 1 : null,
-    prod: l.productionStatus ? PRODUCTION_FR[l.productionStatus] ?? l.productionStatus : null,
-    amount: Number(l.amount) || 0,
-  }));
-  const linesTotal = data.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
-  const linesTotalRow = totalRow(lines, "Total encaissé (lignes)", 6, "J", 2, data.lines.length + 1, linesTotal);
+  let linesTotal = 0, linesTotalRow = 0;
+  if (lines) {
+    lines.columns = [
+      { header: "N° commande", key: "order", width: 18 },
+      { header: "Origine", key: "origin", width: 10 },
+      { header: "Client", key: "customer", width: 24 },
+      { header: "Encaissée le", key: "paid", width: 13, style: { numFmt: DATE } },
+      { header: "Ligne", key: "type", width: 14 },
+      { header: "Article / détail", key: "desc", width: 46 },
+      { header: "Date retrait / livraison / atelier", key: "service", width: 16, style: { numFmt: DATE } },
+      { header: "Quantité", key: "qty", width: 9 },
+      { header: "Préparation", key: "prod", width: 12 },
+      { header: "Montant encaissé (CHF)", key: "amount", width: 16, style: { numFmt: MONEY } },
+    ];
+    styleHeader(lines);
+    data.lines.forEach((l) => lines.addRow({
+      order: l.orderNumber ?? l.orderId.slice(0, 8),
+      origin: originFr(l.origin),
+      customer: l.customer,
+      paid: zurichDate(l.paidAt),
+      type: l.lineType === "adjustment" ? "Ajustements" : "Article",
+      desc: lineDescription(l),
+      service: zurichDate(l.serviceDate),
+      qty: l.lineType === "item" ? l.quantity ?? 1 : null,
+      prod: l.productionStatus ? PRODUCTION_FR[l.productionStatus] ?? l.productionStatus : null,
+      amount: Number(l.amount) || 0,
+    }));
+    linesTotal = data.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+    linesTotalRow = totalRow(lines, "Total encaissé (lignes)", 6, "J", 2, data.lines.length + 1, linesTotal);
+  }
 
   // ── Encaissements ──
   coll.columns = [
@@ -224,15 +242,13 @@ export function buildFinanceWorkbook(ExcelJS: ExcelJSModule, data: FinanceMonth)
     return row.number;
   };
   check("Encaissements = Encaissé", `'Encaissements'!F${collTotalRow}`, `B${rCollected}`, true);
-  check("Commandes et articles = Encaissé", `'Commandes et articles'!J${linesTotalRow}`, `B${rCollected}`, Math.abs(linesTotal - collTotal) < 0.005);
+  if (lines) check("Commandes et articles = Encaissé", `'Commandes et articles'!J${linesTotalRow}`, `B${rCollected}`, Math.abs(linesTotal - collTotal) < 0.005);
   check("Remboursements = Remboursé", `'Remboursements'!K${refTotalRow}`, `B${rRefunded}`, true);
   summary.addRow([]);
   summary.addRow(["Encaissé site / manuel"]).font = { bold: true };
   money("Site", Number(c.byOrigin.website.collected) || 0, c.byOrigin.website.count);
   money("Commandes manuelles", Number(c.byOrigin.manual.collected) || 0, c.byOrigin.manual.count);
-
-  wb.views = [{ x: 0, y: 0, width: 10000, height: 20000, firstSheet: 0, activeTab: 0, visibility: "visible" }];
-  return wb;
+  return { summary, netRow: rNet };
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;

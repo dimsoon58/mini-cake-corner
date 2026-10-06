@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { forCaller, requireStaff } from "../_shared/staff-auth.ts";
 
 // Read-only order lookup for the admin "Voir le détail complet de la
 // commande" link (notify-order's reviewUrl, /admin/order/:id?token=...).
@@ -55,7 +55,9 @@ serve(async (req) => {
   }
 
   try {
-    const { orderId, token } = await req.json();
+    // Corps lu une seule fois ; transmis à requireAdmin pour le jeton PIN (_adminSession).
+    const body = await req.json();
+    const { orderId, token } = body ?? {};
     if (!orderId) {
       throw new Error("Missing required field: orderId");
     }
@@ -72,8 +74,11 @@ serve(async (req) => {
     // token was the ONLY gate; a leaked/guessed order id + token pair could
     // read a customer's name/e-mail/phone/address with no login at all).
     // Same pattern as list-orders/list-orders-by-date.
-    const admin = await requireAdmin(req, supabase);
-    if (!admin) {
+    // Administratrices comme avant ; employée avec « orders.view » : lecture seule, sans
+    // aucun montant, ni facture, ni remboursement, ni jeton Accepter / Refuser (F23).
+    const caller = await requireStaff(req, supabase, "orders.view", { body });
+    const employee = caller?.role === "employee";
+    if (!caller) {
       return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         status: 401,
@@ -138,13 +143,21 @@ serve(async (req) => {
       .from("order_manual_refunds").select("*").eq("order_id", orderId).order("created_at", { ascending: false });
     if (manualRefundsErr) throw new Error(`Failed to load manual refunds: ${manualRefundsErr.message}`);
 
+    // Workshop reservations (seats bought / cancelled / still active) — for
+    // the admin « cancel seats » action on AdminOrder.tsx.
+    const { data: workshopReservations, error: reservationsErr } = await supabase
+      .from("workshop_reservations")
+      .select("id, order_item_id, workshop_reference, workshop_session_id, purchased_seats, cancelled_seats, status")
+      .eq("order_id", orderId);
+    if (reservationsErr) throw new Error(`Failed to load workshop reservations: ${reservationsErr.message}`);
+
     // When the caller didn't already supply their own token (the dashboard
     // flow), resolve this order's own existing order_action_tokens row (if
     // any) so Accept/Refuse from AdminOrder.tsx still has one to use —
     // same tolerant `used`-ignoring lookup as above, just not restricted to
     // one specific token value. Most recent row wins if more than one exists.
     let actionToken: string | null = null;
-    if (!token) {
+    if (!token && !employee) {
       const { data: ownToken, error: ownTokenErr } = await supabase
         .from("order_action_tokens")
         .select("token")
@@ -174,7 +187,7 @@ serve(async (req) => {
     // access to). Never affects anything else: invoiceUrl/order/items/
     // fulfillments/actionToken are all completely unchanged either way.
     let invoiceUrlError: string | null = null;
-    if (order.invoice_path) {
+    if (order.invoice_path && !employee) {
       const { data: signed, error: signErr } = await supabase.storage
         .from("invoice")
         .createSignedUrl(order.invoice_path, 60 * 10);
@@ -191,15 +204,29 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({
-      order,
-      items: items ?? [],
-      fulfillments: fulfillments ?? [],
-      manualRefunds: manualRefunds ?? [],
-      actionToken,
-      invoiceUrl,
-      invoiceUrlError,
-    }), {
+    const payload = employee
+      ? {
+          order: { ...order, internal_notes: undefined },
+          items: items ?? [],
+          fulfillments: fulfillments ?? [],
+          manualRefunds: [],
+          workshopReservations: workshopReservations ?? [],
+          actionToken: null,
+          invoiceUrl: null,
+          invoiceUrlError: null,
+          readOnly: true,
+        }
+      : {
+          order,
+          items: items ?? [],
+          fulfillments: fulfillments ?? [],
+          manualRefunds: manualRefunds ?? [],
+          workshopReservations: workshopReservations ?? [],
+          actionToken,
+          invoiceUrl,
+          invoiceUrlError,
+        };
+    return new Response(JSON.stringify(forCaller(caller, payload)), {
       headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       status: 200,
     });

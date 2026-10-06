@@ -18,7 +18,7 @@ import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { ORDER_CLIENT_FIELDS, ORDER_ITEM_CLIENT_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
 import { priceOrderItem, roundToCents, type CandleInput, type PricingInput } from "../_shared/pricing.ts";
-import { resolvePartnerReferral, computePartnerLineAmounts, type ResolvedPartner } from "../_shared/partner-referral.ts";
+import { resolvePartnerReferral, computePartnerLineAmounts, partnerGivesDiscount, type ResolvedPartner } from "../_shared/partner-referral.ts";
 import {
   expressSurchargeRate,
   resolveOneFulfillment,
@@ -57,11 +57,11 @@ const WELCOME_VOUCHER_BASE: Record<string, Record<string, number>> = {
   diy_kit: { "kit-bento": 40 },
   edible_printing: { printing: 15 },
   dot_cakes: {
-    "dot-cakes-4": 35,
-    "dot-cakes-6": 51,
-    "dot-cakes-9": 75,
-    "dot-cakes-12": 99,
-    "dot-cakes-20": 160,
+    "dot-cakes-4": 28,
+    "dot-cakes-6": 40,
+    "dot-cakes-9": 58,
+    "dot-cakes-12": 75,
+    "dot-cakes-20": 120,
   },
 };
 
@@ -1301,8 +1301,11 @@ serve(async (req) => {
     // the welcome-discount RPC is never even called, so the voucher is
     // never reserved/consumed by this order and stays fully available for a
     // future one — not merely "not applied on top", genuinely untouched.
+    // Exception (2026-10-03): a commission-only partner (0 % discount) gives
+    // the customer nothing, so the welcome discount applies as usual — see
+    // partnerGivesDiscount.
     let welcomeDiscountClaimed = false;
-    if (!partner && useWelcomeDiscount && authenticatedUser?.email_confirmed_at) {
+    if (!partnerGivesDiscount(partner) && useWelcomeDiscount && authenticatedUser?.email_confirmed_at) {
       const { data: claimed, error: claimError } = await supabase.rpc("claim_welcome_discount", {
         p_customer_id: authenticatedUser.id,
         p_order_id: orderId,
@@ -1334,6 +1337,12 @@ serve(async (req) => {
     const partnerDiscountBaseTotal = roundToCents(
       orderItems.reduce((sum, item) => sum + (item.partner_discount_base ?? 0), 0),
     );
+    // Same as the discount base for a partner with a discount; for a
+    // commission-only partner (0 %) the discount base is 0, the commission
+    // base is not.
+    const partnerCommissionBaseTotal = roundToCents(
+      orderItems.reduce((sum, item) => sum + (item.partner_commission_base ?? 0), 0),
+    );
 
     if (partner) {
       order.partner_id = partner.id;
@@ -1343,7 +1352,7 @@ serve(async (req) => {
       order.partner_discount_base = partnerDiscountBaseTotal;
       order.partner_discount_amount = partnerDiscountAmount;
       order.partner_commission_rate = partner.commissionRate;
-      order.partner_commission_base = partnerDiscountBaseTotal;
+      order.partner_commission_base = partnerCommissionBaseTotal;
       order.partner_commission_amount = partnerCommissionAmount;
       // "pending" = commission owed, not yet paid out. "none" = a partner
       // was resolved but the eligible base was 0 (e.g. workshop-only cart).
@@ -1537,10 +1546,12 @@ serve(async (req) => {
       // discounted line (no invented discount line type — none is
       // confirmed in PostFinance/Wallee docs). The partner discount is
       // subtracted the same way, per eligible line (item.partner_discount_
-      // amount, 0 for every ineligible line) — welcome and partner are
-      // mutually exclusive for the whole order (see welcomeDiscountClaimed
-      // above), so at most one of the two subtractions is ever non-zero for
-      // any given item; adding both terms unconditionally is safe.
+      // amount, 0 for every ineligible line) — welcome and a partner
+      // DISCOUNT are mutually exclusive for the whole order (see
+      // welcomeDiscountClaimed above; a commission-only partner has
+      // partner_discount_amount 0 everywhere), so at most one of the two
+      // subtractions is ever non-zero for any given item; adding both terms
+      // unconditionally is safe.
       const quantity = isWorkshop ? participants : 1;
       const lineAmount = isWorkshop
         ? roundToCents(Number(item.workshop_unit_price) * participants)

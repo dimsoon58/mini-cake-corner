@@ -61,11 +61,17 @@ serve(async (req) => {
     const ids = (orders ?? []).map((o) => o.id);
     const datesByOrder = new Map<string, Set<string>>();
     const itemCountByOrder = new Map<string, number>();
+    // Which item goes with which date: one group per date (or « sans date »),
+    // items in creation order — a manual order can have several cakes on one
+    // date, or several cakes on several dates.
+    type ScheduleItem = { product: string; size: string | null; shape: string | null; flavors: string[]; quantity: number; participants: number | null };
+    const scheduleByOrder = new Map<string, Map<string, ScheduleItem[]>>();
     if (ids.length > 0) {
       const { data: items, error: iErr } = await supabase
         .from("order_items")
-        .select("order_id, product, fulfillment_id, workshop_date")
-        .in("order_id", ids);
+        .select("order_id, product, size, shape, flavors, quantity, workshop_participants, fulfillment_id, workshop_date, created_at")
+        .in("order_id", ids)
+        .order("created_at", { ascending: true });
       if (iErr) throw new Error(`Failed to load order items: ${iErr.message}`);
       const { data: fulfillments, error: fErr } = await supabase
         .from("order_fulfillments")
@@ -83,6 +89,18 @@ serve(async (req) => {
           if (!datesByOrder.has(it.order_id)) datesByOrder.set(it.order_id, new Set());
           datesByOrder.get(it.order_id)!.add(String(d).slice(0, 10));
         }
+        const key = d ? String(d).slice(0, 10) : "";
+        if (!scheduleByOrder.has(it.order_id)) scheduleByOrder.set(it.order_id, new Map());
+        const byDate = scheduleByOrder.get(it.order_id)!;
+        if (!byDate.has(key)) byDate.set(key, []);
+        byDate.get(key)!.push({
+          product: it.product,
+          size: it.size ?? null,
+          shape: it.shape ?? null,
+          flavors: Array.isArray(it.flavors) ? it.flavors : [],
+          quantity: Number.isInteger(it.quantity) && it.quantity > 1 ? it.quantity : 1,
+          participants: it.product === "workshop" ? (it.workshop_participants ?? null) : null,
+        });
       }
     }
 
@@ -102,6 +120,10 @@ serve(async (req) => {
         status,
         paymentStatus: o.payment_status,
         dates,
+        // [{ date: "YYYY-MM-DD" | null, items: [...] }], dates in order, « sans date » last
+        schedule: Array.from(scheduleByOrder.get(o.id) ?? new Map<string, ScheduleItem[]>())
+          .sort(([a], [b]) => (a || "9999").localeCompare(b || "9999"))
+          .map(([date, items]) => ({ date: date || null, items })),
         itemsCount: itemCountByOrder.get(o.id) ?? 0,
         calculatedAmount: o.calculated_amount != null ? Number(o.calculated_amount) : null,
         adjustmentAmount: Number(o.price_adjustment_amount) || 0,

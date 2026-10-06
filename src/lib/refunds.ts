@@ -90,6 +90,11 @@ export interface OrderRefunds {
   refunds: RefundEntry[];
   decisions: RefundDecision[];
   anomalies: RefundAnomaly[];
+  // F25 (absent tant que la migration n'est pas appliquée) : prix des articles
+  // annulés − montant décidé, motifs des décisions d'annulation, articles annulés.
+  notRefunded?: number | string;
+  notRefundedReasons?: string[];
+  cancelledItemIds?: string[];
 }
 
 export class RefundsError extends Error {

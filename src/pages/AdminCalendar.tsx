@@ -9,13 +9,18 @@ import { Loader2, Lock, CalendarDays, ChevronLeft, ChevronRight, Tag } from "luc
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { ShowTestsToggle, useShowTests } from "@/components/admin/ShowTestsToggle";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { PRODUCT_LABELS, sizeLabel, shapeLabel, flavorLabel } from "@/lib/orderLabels";
 import { cn } from "@/lib/utils";
+import { planningDays } from "@/lib/planning";
+import { BASE_LABELS, CATEGORY_LABELS } from "@/lib/production";
+import type { WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
 
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
 type DayEntry = {
@@ -25,6 +30,7 @@ type DayEntry = {
   orderNumber: string | null;
   customerName: string;
   status: OrderState;
+  awaitingDecision?: boolean;
   product: string;
   size: string | null;
   shape: string | null;
@@ -37,7 +43,10 @@ type DayEntry = {
   pickupDeliverySlot: string | null;
   deliveryMethod: string | null;
   total: number | null;
+  // Article annulé seul (gâteau annulé, places de workshop toutes annulées).
+  itemCancelled?: boolean;
 };
+
 
 const dateKey = (d: Date) => format(d, "yyyy-MM-dd");
 
@@ -50,7 +59,10 @@ const statusBadgeClass = (status: OrderState) =>
 const AdminCalendar = () => {
   const { t, lang } = useLang();
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = isAdminEmail(user?.email);
+  // F23 : l'employée voit le planning des commandes sans montants (le serveur ne les envoie pas).
+  const staff = useStaffRole();
+  const employee = staff.isEmployee;
+  const isAdmin = isAdminEmail(user?.email) || staff.can("planning.view");
   const dfLocale = lang === "fr" ? { locale: dateFnsFr } : undefined;
 
   const [monthCursor, setMonthCursor] = useState(() => new Date());
@@ -58,6 +70,10 @@ const AdminCalendar = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // Commandes de test masquées sauf avec « Afficher les tests » (list-orders-by-date).
+  const [includeTests, setIncludeTests] = useShowTests();
+  // F28 : sessions de workshop du mois avec les gâteaux à préparer (get-production).
+  const [wsByDate, setWsByDate] = useState<Record<string, WorkshopSession[]>>({});
 
   useEffect(() => {
     document.title = "Admin – Calendar – Bento Cake Studio";
@@ -65,13 +81,13 @@ const AdminCalendar = () => {
   }, []);
 
   useEffect(() => {
-    if (authLoading || !isAdmin) { setLoading(authLoading); return; }
+    if (authLoading || staff.loading || !isAdmin) { setLoading(authLoading || staff.loading); return; }
     let cancelled = false;
     const fetchMonth = async () => {
       setLoading(true);
       setLoadError(null);
       const { data, error } = await supabase.functions.invoke("list-orders-by-date", {
-        body: { year: monthCursor.getFullYear(), month: monthCursor.getMonth() + 1 },
+        body: { year: monthCursor.getFullYear(), month: monthCursor.getMonth() + 1, includeTests },
       });
       if (cancelled) return;
       if (error) {
@@ -86,7 +102,16 @@ const AdminCalendar = () => {
         console.error("list-orders-by-date failed:", data.error);
         setLoadError(t("Could not load the calendar. Please try again.", "Impossible de charger le calendrier. Merci de réessayer."));
       } else {
-        setDays(data.days ?? {});
+        // Annulations (entières ou partielles) : plus à faire, plus affichées.
+        setDays(planningDays<DayEntry>(data.days ?? {}));
+        try {
+          const first = format(startOfMonth(monthCursor), "yyyy-MM-dd");
+          const last = format(endOfMonth(monthCursor), "yyyy-MM-dd");
+          const { data: prod, error: pErr } = await supabase.functions.invoke("get-production", { body: { from: first, to: last, includeTests } });
+          const map: Record<string, WorkshopSession[]> = {};
+          if (!pErr && !prod?.error) for (const ws of (prod?.workshopSessions ?? []) as WorkshopSession[]) (map[ws.date] ??= []).push(ws);
+          if (!cancelled) setWsByDate(map);
+        } catch { if (!cancelled) setWsByDate({}); }
         // A newly selected date from a previous month wouldn't exist in
         // this month's data — clear it rather than showing a stale list.
         setSelectedDate(null);
@@ -95,9 +120,9 @@ const AdminCalendar = () => {
     };
     fetchMonth();
     return () => { cancelled = true; };
-  }, [monthCursor, authLoading, isAdmin, t]);
+  }, [monthCursor, includeTests, authLoading, isAdmin, t, staff.loading]);
 
-  if (authLoading) {
+  if (authLoading || staff.loading) {
     return (
       <AdminLayout>
         <main className="container mx-auto px-4 py-16 text-center">
@@ -186,17 +211,10 @@ const AdminCalendar = () => {
   return (
     <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-5xl">
-<<<<<<< HEAD
-        <div className="flex items-center justify-center gap-4 mb-4 text-[11px] uppercase tracking-[0.105em]">
-          <Link to="/admin/orders" className="text-muted-foreground hover:text-foreground">{t("Orders", "Commandes")}</Link>
-          <Link to="/admin/manual-orders" className="text-muted-foreground hover:text-foreground">{t("Manual orders", "Commandes manuelles")}</Link>
-          <span className="text-foreground font-semibold">{t("Calendar", "Calendrier")}</span>
-          <Link to="/admin/dashboard" className="text-muted-foreground hover:text-foreground">{t("Dashboard", "Tableau de bord")}</Link>
-          <Link to="/admin/production" className="text-muted-foreground hover:text-foreground">{t("Production", "Production")}</Link>
-          <Link to="/admin/labels" className="text-muted-foreground hover:text-foreground">{t("Labels", "Étiquettes")}</Link>
+        <div className="flex flex-wrap items-center justify-end gap-4 mb-2">
+          <ShowTestsToggle checked={includeTests} onChange={setIncludeTests} />
+          {!employee && <Link to="/admin/labels" className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground hover:text-foreground">{t("Production labels", "Étiquettes de production")}</Link>}
         </div>
-=======
->>>>>>> 89b8f09610f569ff945ce7358166f8bdb26a6efd
         <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8 text-center font-semibold flex items-center justify-center gap-3">
           <CalendarDays className="w-6 h-6 text-primary" strokeWidth={1.5} />
           {t("Order Calendar", "Calendrier des commandes")}
@@ -282,6 +300,26 @@ const AdminCalendar = () => {
                       ({selectedEntries.length})
                     </span>
                   </h2>
+                  {(wsByDate[selectedDate] ?? []).length > 0 && (
+                    <ul className="mb-3 space-y-1.5" data-testid="calendar-workshop-sessions">
+                      {wsByDate[selectedDate].map((ws) => {
+                        const total = ws.bases.reduce((n, b) => n + b.needed, 0);
+                        const left = ws.bases.reduce((n, b) => n + b.remaining, 0);
+                        const cake = CATEGORY_LABELS[ws.category]?.[lang === "en" ? "en" : "fr"] ?? ws.category;
+                        return (
+                          <li key={ws.sessionId} className="border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                            <b>{ws.type === "paint" ? t("Painting workshop", "Workshop Peinture") : t("Signature workshop", "Workshop Signature")}{ws.time ? ` · ${ws.time}` : ""}</b>
+                            {" — "}{t(`${ws.seats} seat(s)`, `${ws.seats} place(s)`)} · {total} {cake.toLowerCase()}
+                            {" ("}{ws.bases.map((b) => `${b.needed} ${BASE_LABELS[b.base][lang === "en" ? "en" : "fr"].toLowerCase()}`).join(", ")}{")"}
+                            <span className={cn("ml-1 font-semibold", left > 0 ? "text-amber-800" : "text-emerald-800")}>
+                              · {left > 0 ? t(`${left} to prepare`, `${left} à préparer`) : t("all prepared", "tout préparé")}
+                            </span>
+                            {" · "}<Link to="/admin/production" className="text-primary underline underline-offset-2">{t("Production", "Production")}</Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                   <div className="flex items-center justify-between mb-3">
                     <Link
                       to={`/admin/labels?date=${selectedDate}`}
@@ -317,9 +355,13 @@ const AdminCalendar = () => {
                             <span className="text-[10px] font-sans tracking-[0.105em] font-medium uppercase text-foreground/70">
                               {e.orderNumber || `#${e.orderId.slice(0, 8).toUpperCase()}`}
                             </span>
-                            <span className={cn("text-[10px] uppercase tracking-[0.105em] px-1.5 py-0.5", statusBadgeClass(e.status))}>
-                              {e.type === "workshop" ? "WORKSHOP · " : ""}{e.status}
-                            </span>
+                            {e.awaitingDecision ? (
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.105em] px-1.5 py-0.5 bg-blue-600 text-white">{t("To accept", "À accepter")}</span>
+                            ) : (
+                              <span className={cn("text-[10px] uppercase tracking-[0.105em] px-1.5 py-0.5", statusBadgeClass(e.status))}>
+                                {e.type === "workshop" ? "WORKSHOP · " : ""}{e.status}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </Link>

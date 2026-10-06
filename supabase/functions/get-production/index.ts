@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { forCaller, requireStaff } from "../_shared/staff-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   computeProduction,
@@ -8,6 +8,8 @@ import {
   type ProdOrder,
   type ProdWorkshopItem,
 } from "../_shared/production-stats.ts";
+import { includeTestsFrom, isTestOrder } from "../_shared/test-orders.ts";
+import { loadWorkshopProduction } from "../_shared/workshop-production-load.ts";
 
 // Admin > Production — read-only. For a period [from, to], loads every order
 // item scheduled in it (by the item's OWN date: order_fulfillments via
@@ -15,8 +17,13 @@ import {
 // workshops by order_items.workshop_date) plus the manual stock, and returns
 // the production sheet computed by _shared/production-stats.ts. Never writes
 // anything. Same admin-only gate as list-orders-by-date.
+// Test orders (orders.is_test) are left out unless the body says
+// { includeTests: true } — « Afficher les tests ». The stock blocks (to decide,
+// movements) stay complete: they are real stock.
 
 const MAX_DAYS = 93;
+// « Fait » (same list as the admin ProductionCheck box).
+const DONE_STATUSES = new Set(["completed", "ready_for_pickup", "delivered", "picked_up"]);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
@@ -33,8 +40,9 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    const admin = await requireAdmin(req, supabase);
-    if (!admin) return json(cors, { error: "Admin sign-in required" }, 401);
+    // Administratrices comme avant ; employée avec « production.view », sans aucun montant (F23).
+    const caller = await requireStaff(req, supabase, "production.view");
+    if (!caller) return json(cors, { error: "Admin sign-in required" }, 401);
 
     const body = await req.json().catch(() => ({}));
     const from = String(body?.from ?? "");
@@ -44,6 +52,7 @@ serve(async (req) => {
     const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
     if (days > MAX_DAYS) return json(cors, { error: `Period too long (max ${MAX_DAYS} days)` }, 400);
     const inRange = (d: string | null | undefined) => !!d && d >= from && d <= to;
+    const includeTests = includeTestsFrom(body);
 
     // ── Cakes / kits / Dot Cakes ─────────────────────────────────────────
     // Candidate orders: those with a fulfillment in range, plus legacy
@@ -92,7 +101,7 @@ serve(async (req) => {
 
       const { data: items, error: iErr } = await supabase
         .from("order_items")
-        .select("id, order_id, fulfillment_id, product, size, shape, flavors")
+        .select("id, order_id, fulfillment_id, product, size, shape, flavors, quantity, production_status")
         .in("order_id", cakeOrderIds)
         .neq("product", "workshop");
       if (iErr) throw new Error(`Failed to load order items: ${iErr.message}`);
@@ -103,6 +112,8 @@ serve(async (req) => {
         const f = it.fulfillment_id ? fulfillmentById.get(it.fulfillment_id) : null;
         const date = f ? f.pickup_delivery_date : (o.pickup_delivery_date ?? null);
         if (!inRange(date)) continue;
+        // Gâteau annulé (annulation d'article ou de commande) : hors production.
+        if (it.production_status === "cancelled") continue;
         cakeItems.push({
           id: it.id,
           order_id: it.order_id,
@@ -110,46 +121,18 @@ serve(async (req) => {
           size: it.size,
           shape: it.shape,
           flavors: it.flavors,
+          quantity: it.quantity,
+          done: DONE_STATUSES.has(it.production_status),
           date: date!,
           slot: f ? f.pickup_delivery_slot : (o.pickup_delivery_slot ?? null),
         });
       }
     }
 
-    // ── Workshops ────────────────────────────────────────────────────────
-    const { data: wsItems, error: wErr } = await supabase
-      .from("order_items")
-      .select("id, order_id, workshop_date, workshop_time, workshop_type, workshop_participants, workshop_sponge_choices")
-      .eq("product", "workshop")
-      .gte("workshop_date", from)
-      .lte("workshop_date", to);
-    if (wErr) throw new Error(`Failed to load workshop items: ${wErr.message}`);
-
-    const workshopItems: ProdWorkshopItem[] = [];
-    if ((wsItems ?? []).length > 0) {
-      await loadOrders(Array.from(new Set(wsItems!.map((w) => w.order_id))));
-      const { data: reservations, error: rErr } = await supabase
-        .from("workshop_reservations")
-        .select("order_item_id, status, active_seats, purchased_seats")
-        .in("order_item_id", wsItems!.map((w) => w.id));
-      if (rErr) throw new Error(`Failed to load workshop reservations: ${rErr.message}`);
-      const resByItem = new Map((reservations ?? []).map((r) => [r.order_item_id, r]));
-      for (const w of wsItems!) {
-        const r = resByItem.get(w.id);
-        workshopItems.push({
-          id: w.id,
-          order_id: w.order_id,
-          workshop_date: w.workshop_date,
-          workshop_time: w.workshop_time,
-          workshop_type: w.workshop_type,
-          workshop_participants: w.workshop_participants,
-          workshop_sponge_choices: w.workshop_sponge_choices,
-          reservation: r
-            ? { status: r.status, active_seats: Number(r.active_seats) || 0, purchased_seats: Number(r.purchased_seats) || 0 }
-            : null,
-        });
-      }
-    }
+    // ── Workshops (F28 : par session, avec lots préparés et réglages) ──────
+    const ws = await loadWorkshopProduction(supabase, { from, to });
+    const workshopItems: ProdWorkshopItem[] = ws.items;
+    if (ws.orderIds.length > 0) await loadOrders(ws.orderIds);
 
     // ── Items actually cancelled (manual refund marked cancels_item) ──────
     const itemIds = [...cakeItems.map((i) => i.id), ...workshopItems.map((i) => i.id)];
@@ -171,14 +154,29 @@ serve(async (req) => {
     if (sErr) throw new Error(`Failed to load production stock: ${sErr.message}`);
 
     const result = computeProduction({
-      orders: Array.from(ordersById.values()),
+      // An item whose order is not passed is skipped by computeProduction.
+      orders: Array.from(ordersById.values()).filter((o) => includeTests || !isTestOrder(o)),
       cakeItems,
       workshopItems,
       cancelledItemIds,
       stock: stock ?? [],
+      workshopState: ws.state,
     });
 
-    return json(cors, { from, to, ...result, stockRows: stock ?? [] });
+    // Stock ↔ production (F15) : gâteaux préparés puis annulés (à décider) et
+    // journal des mouvements. Absents tant que F15 n'est pas appliquée.
+    const { data: pendingReuse, error: prErr } = await supabase.rpc("production_pending_reuse");
+    const { data: movements, error: mvErr } = await supabase.rpc("production_recent_movements", { p_limit: 30 });
+    const stockLinked = !prErr && !mvErr;
+    if (!stockLinked) console.warn("get-production: stock link (F15) not available:", prErr?.message ?? mvErr?.message);
+
+    return json(cors, forCaller(caller, {
+      from, to, includeTests, ...result, stockRows: stock ?? [],
+      stockLinked,
+      workshopLinked: ws.linked,
+      pendingReuse: stockLinked ? pendingReuse ?? [] : [],
+      movements: stockLinked ? movements ?? [] : [],
+    }));
   } catch (error) {
     console.error("get-production error:", error);
     return json(cors, { error: error instanceof Error ? error.message : "Unknown error" }, 500);

@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { isWelcomeDiscountSelectedForAttempt, pickWelcomeDiscountItem, computeWelcomeDiscountAmount } from "@/lib/welcomeDiscount";
 import { computePartnerEligibleBase, computePartnerDiscountAmount } from "@/lib/partnerDiscount";
+import { partnerGivesDiscount } from "@/lib/partnerReferral";
 import { sumChf, roundChf, formatChf } from "@/lib/money";
 import { useToast } from "@/hooks/use-toast";
 import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItemsValue } from "@/lib/analytics";
@@ -153,13 +154,14 @@ const Cart = () => {
   // partner referral takes priority and the welcome discount preview is
   // suppressed below, matching what create-postfinance-payment actually
   // does (it never even claims the welcome voucher when a partner is
-  // active), so this preview is never misleading.
+  // active), so this preview is never misleading. A commission-only
+  // partner (0 %) gives no discount and leaves the welcome discount as is.
   const partnerEligibleBase = partnerReferral ? computePartnerEligibleBase(items) : 0;
   const partnerDiscountAmount = (partnerReferral && partnerEligibleBase > 0)
     ? roundChf(computePartnerDiscountAmount(partnerEligibleBase, partnerReferral.discountRate))
     : 0;
 
-  const welcomeDiscountSelected = !partnerReferral && isWelcomeDiscountSelectedForAttempt(profile, getStoredOrderId());
+  const welcomeDiscountSelected = !partnerGivesDiscount(partnerReferral) && isWelcomeDiscountSelectedForAttempt(profile, getStoredOrderId());
   const { item: welcomeDiscountItem, base: welcomeDiscountBase } = pickWelcomeDiscountItem(items);
   const welcomeDiscountAmount = (welcomeDiscountSelected && welcomeDiscountItem)
     ? roundChf(computeWelcomeDiscountAmount(welcomeDiscountBase))
@@ -1040,13 +1042,13 @@ const CartItemSummary = ({ item }: { item: any }) => {
             which read as a single confusing price rather than two amounts. */}
         {item.shapeName && shapeExtra > 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang)}</span>
+            <span className="text-muted-foreground">{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang, item.size)}</span>
             <span className="text-foreground">+ CHF {formatChf(shapeExtra)}</span>
           </div>
         )}
         {item.shapeName && shapeExtra === 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang)}</span>
+            <span className="text-muted-foreground">{t("Shape:", "Forme :")} {shapeLabel(item.shape, lang, item.size)}</span>
             <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>
           </div>
         )}

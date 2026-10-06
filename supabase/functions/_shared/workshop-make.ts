@@ -9,6 +9,7 @@
 // / sendWorkshopMakeWebhookChecked), so importing back from it here would
 // create a circular module dependency. admin-alert.ts has no dependency on
 // either file, so this keeps the graph one-directional.
+import { notionSyncEnabled } from "./notion-sync.ts";
 import {
   claimAndSendTechnicalAlert,
   ALERT_COOLDOWN_SECONDS,
@@ -404,6 +405,8 @@ export async function claimAndDispatchWorkshopReservationSync(
   supabase: any,
   reservationId: string,
 ): Promise<{ dispatched: boolean; skipped: boolean; claimed: boolean }> {
+  // F24 : synchronisation Notion désactivée → aucun envoi, rien à réclamer.
+  if (!(await notionSyncEnabled(supabase))) return { dispatched: false, skipped: false, claimed: false };
   const { data: claims, error } = await supabase.rpc("claim_workshop_reservation_make_sync", {
     p_reservation_ids: [reservationId],
     p_lease_seconds: MAKE_SYNC_LEASE_SECONDS,
@@ -455,6 +458,7 @@ export async function retryPendingWorkshopReservationSync(
   supabase: any,
   limit = 25,
 ): Promise<{ scanned: number; dispatched: number }> {
+  if (!(await notionSyncEnabled(supabase))) return { scanned: 0, dispatched: 0 };
   const { data: claims, error } = await supabase.rpc("claim_workshop_reservation_make_sync", {
     p_reservation_ids: null,
     p_limit: limit,

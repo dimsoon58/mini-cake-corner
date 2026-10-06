@@ -12,9 +12,15 @@ import {
   type OrderRefunds, type RefundDecision, type RefundEntry, type RefundMethod,
 } from "@/lib/refunds";
 import { cn } from "@/lib/utils";
+import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
-// Order page block (lot 2): what was collected, decided and actually
-// refunded, the remaining amount, and the history. Two separate actions:
+// Order page block (lot 2): what the customer paid, what is to be refunded
+// (decided), what was actually refunded, the remaining amount, and the
+// history. F25: « Remboursement terminé » as soon as the decided amount is
+// fully refunded, even below what was paid; the difference is shown as
+// « Montant non remboursé » with the reason typed in the decision (never
+// assumed to be a payment fee). Two separate actions:
 //   - « Décider un montant à rembourser » (a goodwill decision, no money moves);
 //   - « Enregistrer un remboursement effectué » (money already returned by
 //     hand, e.g. in PostFinance — only recorded here).
@@ -35,7 +41,7 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
   const [data, setData] = useState<OrderRefunds | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   const [open, setOpen] = useState<null | "refund" | "decision">(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
@@ -64,6 +70,8 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
       setMessage({ type: "error", text: t("Enter the admin PIN first.", "Saisissez d'abord le code PIN administrateur.") });
       return false;
     }
+    // PIN de session (F16) : confirmation simple à la place de la ressaisie.
+    if (pinBySession && !window.confirm(t("Confirm this refund action?", "Confirmer cette opération de remboursement ?"))) return false;
     setBusy(tag);
     setMessage(null);
     try {
@@ -97,10 +105,14 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
   const s = data.summary;
   const collected = num(s.collected);
   const remaining = num(s.remaining);
-  const stateBadge =
-    s.refund_state === "full" ? <Badge className="bg-slate-200 text-slate-800">{t("Fully refunded", "Totalement remboursée")}</Badge>
-      : s.refund_state === "partial" ? <Badge className="bg-sky-100 text-sky-900">{t("Partially refunded", "Partiellement remboursée")}</Badge>
-        : null;
+  const decided = num(s.decided);
+  const notRefunded = num(data.notRefunded ?? 0);
+  const reasons = (data.notRefundedReasons ?? []).filter(Boolean);
+  // Terminé = tout le montant décidé est remboursé, rien à vérifier — même s'il est inférieur au montant payé.
+  const finished = decided > 0 && remaining <= 0 && num(s.refunded) > 0 && num(s.to_review_count) === 0;
+  const stateBadge = finished
+    ? <Badge className="bg-emerald-100 text-emerald-900">{t("Refund completed", "Remboursement terminé")}</Badge>
+    : null;
 
   return (
     <div className={cn(box, "p-4 space-y-4")} data-testid="order-refunds">
@@ -114,17 +126,28 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
       {/* Summary */}
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2" data-testid="refund-summary">
         {[
-          { k: "collected", label: t("Collected", "Encaissé"), v: collected },
-          { k: "decided", label: t("Decided", "Décidé"), v: num(s.decided) },
-          { k: "refunded", label: t("Refunded", "Remboursé"), v: num(s.refunded) },
+          { k: "collected", label: t("Paid by the customer", "Payé par le client"), v: collected },
+          { k: "decided", label: t("Total amount decided", "Montant total décidé"), v: decided,
+            hint: t("Total planned amount, including refunds already made.", "Montant prévu au total, y compris les remboursements déjà effectués.") },
+          { k: "refunded", label: t("Already refunded", "Déjà remboursé"), v: num(s.refunded) },
           { k: "remaining", label: t("Left to refund", "Reste à rembourser"), v: remaining, strong: remaining > 0 },
         ].map((c) => (
           <div key={c.k} data-k={c.k} className={cn("px-3 py-2 border", c.strong ? "border-amber-300 bg-amber-50" : "border-border/60 bg-secondary/20")}>
             <dt className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{c.label}</dt>
             <dd className="text-base font-semibold tabular-nums">{chf(c.v)}</dd>
+            {"hint" in c && c.hint && <dd className="text-[11px] leading-snug text-muted-foreground mt-0.5" data-testid="decided-hint">{c.hint}</dd>}
           </div>
         ))}
       </dl>
+      {notRefunded > 0 && (
+        <p className="text-sm px-3 py-2 border border-border/60 bg-secondary/20" data-testid="not-refunded">
+          <span className="font-medium">{t("Amount not refunded", "Montant non remboursé")} : <span className="tabular-nums">{chf(notRefunded)}</span></span>
+          {" — "}
+          <span className="text-muted-foreground">
+            {reasons.length > 0 ? `${t("reason", "motif")} : ${reasons.join(" · ")}` : t("no reason given", "motif non précisé")}
+          </span>
+        </p>
+      )}
 
       {/* Things to look at */}
       <div className="space-y-1.5">
@@ -157,10 +180,12 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
 
       {/* Actions */}
       <div className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1">
-          <Label htmlFor="refund-panel-pin" className={smallLabel}>{t("Admin PIN", "Code PIN administrateur")}</Label>
-          <Input id="refund-panel-pin" type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
-        </div>
+        {!pinBySession && (
+          <div className="space-y-1">
+            <Label htmlFor="refund-panel-pin" className={smallLabel}>{t("Admin PIN", "Code PIN administrateur")}</Label>
+            <PasswordInput id="refund-panel-pin" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
+          </div>
+        )}
         <Button variant="outline" className="rounded-none" disabled={collected <= 0} onClick={() => { setOpen(open === "refund" ? null : "refund"); setMessage(null); }}>
           <Plus className="w-4 h-4 mr-1" /> {t("Record a refund made", "Enregistrer un remboursement effectué")}
         </Button>
@@ -191,6 +216,9 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
         <DecisionForm
           key="decision"
           items={items}
+          cancelledItemIds={data.cancelledItemIds ?? []}
+          collected={collected}
+          decided={decided}
           max={Math.max(collected - num(s.decided), 0)}
           busy={busy === "record_decision"}
           onCancel={() => setOpen(null)}
@@ -217,7 +245,7 @@ export const OrderRefundsPanel = ({ orderId, items }: { orderId: string; items: 
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t("Decisions", "Décisions")} ({data.decisions.length})</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t("Decision history", "Historique des décisions")} ({data.decisions.length})</h4>
         {data.decisions.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("None.", "Aucune.")}</p>
         ) : (
@@ -339,6 +367,12 @@ const DecisionRow = ({ d, busy, run }: {
         {off && <Badge className="ml-auto bg-slate-200 text-slate-700">{t("Cancelled", "Annulée")}</Badge>}
       </div>
       {d.reason && <p className="text-xs text-muted-foreground">{d.reason}</p>}
+      {!off && (d.source === "workshop_cancel" || d.source === "admin_cancel") && (
+        <p className="text-xs text-muted-foreground" data-testid="workshop-decision-hint">
+          {t("Amount proposed automatically. To keep fees: cancel this decision (with the reason), then decide the amount to refund. To refund nothing: cancel it with the reason.",
+            "Montant proposé automatiquement. Pour garder des frais : annulez cette décision (avec le motif), puis décidez le montant à rembourser. Pour ne rien rembourser : annulez-la avec le motif.")}
+        </p>
+      )}
       {d.items.length > 0 && <p className="text-xs text-muted-foreground">{d.items.map((it) => itemLabel(it, l)).join(", ")}</p>}
       {off && d.voidReason && <p className="text-xs text-muted-foreground">{d.voidReason}</p>}
       {!off && d.source !== "auto_from_refund" && (
@@ -491,8 +525,14 @@ const RefundForm = ({ data, items, busy, onCancel, onSubmit }: {
   );
 };
 
-const DecisionForm = ({ items, max, busy, onCancel, onSubmit }: {
+// Motif rapide (F25) : à choisir seulement quand c'est bien la raison de l'écart.
+const FEE_KEPT_REASON = "Annulation — frais de paiement gardés";
+
+const DecisionForm = ({ items, cancelledItemIds, collected, decided, max, busy, onCancel, onSubmit }: {
   items: OrderItemOption[];
+  cancelledItemIds: string[];
+  collected: number;
+  decided: number;
   max: number;
   busy: boolean;
   onCancel: () => void;
@@ -505,6 +545,7 @@ const DecisionForm = ({ items, max, busy, onCancel, onSubmit }: {
   const [idempotencyKey] = useState(newKey);
   const a = parseAmount(amount);
   const valid = Number.isFinite(a) && a > 0 && a <= max + 0.004 && !!reason.trim();
+  const cancelled = items.filter((it) => cancelledItemIds.includes(it.id)).map((it) => it.id);
   return (
     <form
       className="border border-primary/30 bg-primary/5 p-3 space-y-3"
@@ -524,9 +565,25 @@ const DecisionForm = ({ items, max, busy, onCancel, onSubmit }: {
         <div className="space-y-1 flex-1 min-w-[200px]">
           <Label htmlFor="dc-reason" className={smallLabel}>{t("Reason (required)", "Motif (obligatoire)")}</Label>
           <Input id="dc-reason" value={reason} onChange={(e) => setReason(e.target.value)} className="rounded-none" placeholder={t("e.g. goodwill gesture", "ex. geste commercial")} />
+          <button type="button" className="text-xs underline text-muted-foreground hover:text-foreground" data-testid="fee-kept-reason"
+            onClick={() => { setReason(FEE_KEPT_REASON); if (cancelled.length) setItemIds(cancelled); }}>
+            {t("Reason: cancellation, payment fees kept", "Motif : annulation, frais de paiement gardés")}
+          </button>
         </div>
       </div>
+      {Number.isFinite(a) && a > 0 && (
+        <p className="text-xs text-muted-foreground tabular-nums" data-testid="decision-recap">
+          {t(`After this decision: ${chf(decided + a)} to refund out of ${chf(collected)} paid by the customer.`,
+            `Après cette décision : ${chf(decided + a)} à rembourser sur ${chf(collected)} payés par le client.`)}
+        </p>
+      )}
       <ItemChoice items={items} value={itemIds} onChange={setItemIds} />
+      {cancelled.length > 0 && itemIds.length === 0 && (
+        <p className="text-xs text-amber-800" data-testid="tick-cancelled-hint">
+          {t("To refund a cancelled item, tick it (the quick reason does it for you). Without a ticked item, the decision covers the whole order: a cancellation refund if everything is cancelled, otherwise a goodwill gesture.",
+            "Pour rembourser un article annulé, cochez-le (le motif rapide le fait pour vous). Sans article coché, la décision vaut pour toute la commande : remboursement d'annulation si tout est annulé, sinon geste commercial.")}
+        </p>
+      )}
       <div className="flex gap-2">
         <Button type="submit" className="rounded-none" disabled={!valid || busy}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}{t("Save decision", "Enregistrer la décision")}
@@ -546,7 +603,7 @@ const LegacyRefundForm = ({ orderId }: { orderId: string }) => {
   const { t } = useLang();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const a = parseAmount(amount);
@@ -556,6 +613,7 @@ const LegacyRefundForm = ({ orderId }: { orderId: string }) => {
       onSubmit={async (e) => {
         e.preventDefault();
         if (busy || !(a > 0) || !pin.trim()) return;
+        if (pinBySession && !window.confirm(t("Record this refund?", "Enregistrer ce remboursement ?"))) return;
         setBusy(true);
         setMsg(null);
         try {
@@ -586,10 +644,12 @@ const LegacyRefundForm = ({ orderId }: { orderId: string }) => {
           <Label className={smallLabel}>{t("Note (optional)", "Note (facultatif)")}</Label>
           <Input value={note} onChange={(e) => setNote(e.target.value)} className="rounded-none" />
         </div>
-        <div className="space-y-1">
-          <Label className={smallLabel}>{t("Admin PIN", "Code PIN administrateur")}</Label>
-          <Input type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-28 rounded-none" />
-        </div>
+        {!pinBySession && (
+          <div className="space-y-1">
+            <Label className={smallLabel}>{t("Admin PIN", "Code PIN administrateur")}</Label>
+            <PasswordInput autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-28 rounded-none" />
+          </div>
+        )}
         <Button type="submit" variant="outline" className="rounded-none" disabled={busy || !(a > 0) || !pin.trim()}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}{t("Record", "Enregistrer")}
         </Button>

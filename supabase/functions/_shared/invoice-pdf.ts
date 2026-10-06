@@ -236,13 +236,13 @@ export async function generateInvoicePdf(
     console.error("Invoice logo could not be embedded:", logoErr);
   }
 
-  page.drawText(tr("PAID INVOICE", "FACTURE AQUITÉE"), { x: margin, y, size: 15, font: fontBold, color: textDark });
+  page.drawText(tr("PAID INVOICE", "FACTURE ACQUITTÉE"), { x: margin, y, size: 15, font: fontBold, color: textDark });
   y -= 34;
 
   const leftStartY = y;
   drawLabelValue("BENTO CAKE STUDIO SNC", "", margin, y, 11);
   y -= 18;
-  drawLabelValue(tr("ADDRESS: ", "ADRESSE : "), tr("58 Chemin de la Gradelle, 1224 Geneva", "58 Chemin de la Gradelle, 1224 Genève"), margin, y);
+  drawLabelValue(tr("ADDRESS: ", "ADRESSE : "), tr("Rue Prévost-Martin 8, 1205 Geneva", "Rue Prévost-Martin 8, 1205 Genève"), margin, y);
   y -= 15;
   drawLabelValue(tr("PHONE: ", "TÉLÉPHONE : "), "+41 78 337 95 00", margin, y);
   y -= 15;

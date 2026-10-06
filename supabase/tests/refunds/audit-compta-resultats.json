@@ -1,0 +1,348 @@
+[
+ {
+  "name": "F26 : annulation payée → proposition automatique « admin_cancel » de 103",
+  "ok": true
+ },
+ {
+  "name": "F26 : annulation d'UN gâteau payé → proposition de 35 (son prix), visible dans « À rembourser »",
+  "ok": true
+ },
+ {
+  "name": "F26 : la commande apparaît dans l'onglet « À rembourser » (reste 35)",
+  "ok": true
+ },
+ {
+  "name": "F26 : premier remboursement (20) accepté sans « geste commercial »",
+  "ok": true
+ },
+ {
+  "name": "Encaissé septembre = C1",
+  "expected": 60,
+  "obtained": 60,
+  "ok": true
+ },
+ {
+  "name": "Encaissé octobre = C3 132 + C4 270 + C5 103 + C6 75 + C7 80 + C12 70 (payé)",
+  "expected": 730,
+  "obtained": 730,
+  "ok": true
+ },
+ {
+  "name": "Remboursé octobre = C6 20 + C7 20",
+  "expected": 40,
+  "obtained": 40,
+  "ok": true
+ },
+ {
+  "name": "Remboursé novembre = C5 102 + C6 15",
+  "expected": 117,
+  "obtained": 117,
+  "ok": true
+ },
+ {
+  "name": "Remboursé décembre = C4 88",
+  "expected": 88,
+  "obtained": 88,
+  "ok": true
+ },
+ {
+  "name": "Net octobre = 730 − 40",
+  "expected": 690,
+  "obtained": 690,
+  "ok": true
+ },
+ {
+  "name": "Annulation ≠ remboursement : C5 annulée le 04.10 n'apparaît en remboursé qu'à la date du remboursement (novembre)",
+  "ok": true
+ },
+ {
+  "name": "Non payées, refusées, échouées, à accepter, test : jamais encaissées",
+  "ok": true
+ },
+ {
+  "name": "C3 : lignes d'octobre + novembre = total de la commande (132), frais et remises comptés une fois",
+  "expected": 132,
+  "obtained": 132,
+  "ok": true
+ },
+ {
+  "name": "C3 : livraison d'octobre (10) dans octobre",
+  "expected": 10,
+  "obtained": 10,
+  "ok": true
+ },
+ {
+  "name": "C3 : livraison de novembre (15) dans novembre",
+  "expected": 15,
+  "obtained": 15,
+  "ok": true
+ },
+ {
+  "name": "C3 : remises et express répartis : −10 + 6 − 5 − 4 = −13 sur les gâteaux",
+  "expected": -13,
+  "obtained": -13,
+  "ok": true
+ },
+ {
+  "name": "C1 : payé en septembre, vendu en octobre (60) ; rien en septembre",
+  "expected": 60,
+  "obtained": 60,
+  "ok": true
+ },
+ {
+  "name": "C2 : manuelle non payée comptée en vente (50) et en reste à encaisser",
+  "expected": 50,
+  "obtained": 50,
+  "ok": true
+ },
+ {
+  "name": "C12 : manuelle payée 70 (au lieu de 72) → vente 70",
+  "expected": 70,
+  "obtained": 70,
+  "ok": true
+ },
+ {
+  "name": "C5 : annulée → retirée des ventes (0 vendu), montrée en annulé 103",
+  "expected": 103,
+  "obtained": 103,
+  "ok": true
+ },
+ {
+  "name": "C6 : 40 vendu, 35 annulé ; deux remboursements = annulation, jamais déduits une 2e fois",
+  "expected": 40,
+  "obtained": 40,
+  "ok": true
+ },
+ {
+  "name": "C7 : geste commercial déduit des ventes du mois de réalisation (80 − 20)",
+  "expected": 60,
+  "obtained": 60,
+  "ok": true
+ },
+ {
+  "name": "C4 : workshop décembre : 2 places vendues 180, 1 annulée 90",
+  "expected": 180,
+  "obtained": 180,
+  "ok": true
+ },
+ {
+  "name": "Ventes nettes octobre = C1 60 + C2 50 + C3 (part d'octobre) + C6 40 + C7 60 + C12 70",
+  "expected": 352.42,
+  "obtained": 352.42,
+  "ok": true
+ },
+ {
+  "name": "Gestes commerciaux octobre = C7 20",
+  "expected": 20,
+  "obtained": 20,
+  "ok": true
+ },
+ {
+  "name": "Annulés octobre = C5 103 + C6 35",
+  "expected": 138,
+  "obtained": 138,
+  "ok": true
+ },
+ {
+  "name": "Reste à rembourser octobre (articles annulés du mois) = C5 0 + C6 0",
+  "expected": 0,
+  "obtained": 0,
+  "ok": true
+ },
+ {
+  "name": "Montant non remboursé octobre = C5 1",
+  "expected": 1,
+  "obtained": 1,
+  "ok": true
+ },
+ {
+  "name": "Montant non remboursé décembre = C4 2",
+  "expected": 2,
+  "obtained": 2,
+  "ok": true
+ },
+ {
+  "name": "Reste à rembourser décembre = C4 0 (décidé 88, remboursé 88)",
+  "expected": 0,
+  "obtained": 0,
+  "ok": true
+ },
+ {
+  "name": "Refusée, échouée, test, à accepter : jamais des ventes",
+  "ok": true
+ },
+ {
+  "name": "Commande à accepter signalée à part (C11)",
+  "expected": 1,
+  "obtained": 1,
+  "ok": true
+ },
+ {
+  "name": "Avec « Afficher les tests » : la commande de test (500) revient dans les ventes",
+  "expected": 852.42,
+  "obtained": 852.42,
+  "ok": true
+ },
+ {
+  "name": "C1 : somme des lignes (vendues + annulées) = montant de la commande",
+  "expected": 60,
+  "obtained": 60,
+  "ok": true
+ },
+ {
+  "name": "C3 : somme des lignes (vendues + annulées) = montant de la commande",
+  "expected": 132,
+  "obtained": 132,
+  "ok": true
+ },
+ {
+  "name": "C5 : somme des lignes (vendues + annulées) = montant de la commande",
+  "expected": 103,
+  "obtained": 103,
+  "ok": true
+ },
+ {
+  "name": "C6 : somme des lignes (vendues + annulées) = montant de la commande",
+  "expected": 75,
+  "obtained": 75,
+  "ok": true
+ },
+ {
+  "name": "C7 : somme des lignes (vendues + annulées) = montant de la commande",
+  "expected": 80,
+  "obtained": 80,
+  "ok": true
+ },
+ {
+  "name": "ORDM-C12 : somme des lignes (vendues + annulées) = montant de la commande",
+  "expected": 70,
+  "obtained": 70,
+  "ok": true
+ },
+ {
+  "name": "Commandes du mois d'octobre : chaque commande une seule fois",
+  "ok": true
+ },
+ {
+  "name": "Décompte : revenus nets = ventes nettes d'octobre",
+  "expected": 352.42,
+  "obtained": 352.42,
+  "ok": true
+ },
+ {
+  "name": "Décompte : encaissements donnés pour information = encaissé d'octobre",
+  "expected": 730,
+  "obtained": 730,
+  "ok": true
+ },
+ {
+  "name": "Trésorerie : remboursements clients dus au 31.10 = C4 88 + C5 102 + C6 15",
+  "expected": 205,
+  "obtained": 205,
+  "ok": true
+ },
+ {
+  "name": "Trésorerie : paiements de commandes futures = C3 novembre + C4 180",
+  "expected": 239.58,
+  "obtained": 239.58,
+  "ok": true
+ },
+ {
+  "name": "Trésorerie : encore dû par les clients = C2 50 (vendu, non payé)",
+  "expected": 50,
+  "obtained": 50,
+  "ok": true
+ },
+ {
+  "name": "Trésorerie : disponible = 1 000 − dus − commandes futures (aucune dépense ni salaire)",
+  "expected": 555.42,
+  "obtained": 555.42,
+  "ok": true
+ },
+ {
+  "name": "Tableau de bord octobre : encaissé = Compta (encaissements) = 730",
+  "expected": 730,
+  "obtained": 730,
+  "ok": true
+ },
+ {
+  "name": "Tableau de bord octobre : remboursements effectués = Compta = 40",
+  "expected": 40,
+  "obtained": 40,
+  "ok": true
+ },
+ {
+  "name": "Tableau de bord octobre : encaissements nets = Compta = 690",
+  "expected": 690,
+  "obtained": 690,
+  "ok": true
+ },
+ {
+  "name": "Tableau de bord octobre : commandes vendues = C1, C2, C3, C6, C7, C12 (une fois chacune, annulées exclues)",
+  "expected": 6,
+  "obtained": 6,
+  "ok": true
+ },
+ {
+  "name": "Tableau de bord octobre : gâteaux vendus = 1 + 1 + 2 + 1 + 1 + 1 (annulés exclus, geste sans effet)",
+  "expected": 7,
+  "obtained": 7,
+  "ok": true
+ },
+ {
+  "name": "Tableau de bord : designs les plus vendus = classic 3, heart 3 (C3 compté pour ses deux gâteaux)",
+  "ok": true
+ },
+ {
+  "name": "Tableau de bord décembre : 2 places de workshop vendues (Signature), 1 annulée",
+  "expected": 2,
+  "obtained": 2,
+  "ok": true
+ },
+ {
+  "name": "Tableau de bord décembre : places annulées",
+  "expected": 1,
+  "obtained": 1,
+  "ok": true
+ },
+ {
+  "name": "Tableau de bord décembre : remboursé = Compta (C4 88)",
+  "expected": 88,
+  "obtained": 88,
+  "ok": true
+ },
+ {
+  "name": "Tableau de bord = mêmes cartes que l'export Excel (même réponse sales_month / finance-month)",
+  "ok": true
+ },
+ {
+  "name": "R1 (régression F25 corrigée) : 35 annulés, 20 remboursés sans décision → 15 encore dus",
+  "expected": 15,
+  "obtained": 15,
+  "ok": true
+ },
+ {
+  "name": "R2 : rien à rembourser, montant non remboursé 50 avec le motif saisi",
+  "ok": true
+ },
+ {
+  "name": "R3 : manuelle non payée annulée → aucune proposition de remboursement",
+  "expected": 0,
+  "obtained": 0,
+  "ok": true
+ },
+ {
+  "name": "R4 : aucune erreur notée par le déclencheur",
+  "expected": 0,
+  "obtained": 0,
+  "ok": true
+ },
+ {
+  "name": "Checkout : les liens CGV / confidentialité ne sont plus dans l'étiquette de la case (un clic ouvre la page, ne coche pas)",
+  "ok": true
+ },
+ {
+  "name": "Checkout : liens vers /terms-and-conditions et /privacy-policy, dans un nouvel onglet (panier conservé)",
+  "ok": true
+ }
+]

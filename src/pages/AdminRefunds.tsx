@@ -13,6 +13,8 @@ import {
   type RefundAnomaly, type RefundItem, type RefundMethod,
 } from "@/lib/refunds";
 import { cn } from "@/lib/utils";
+import { useSessionPin } from "@/lib/adminSession";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Admin > Remboursements (lot 2). Three tabs:
 //   Effectués   — refunds actually made in the chosen period (by their real
@@ -21,7 +23,7 @@ import { cn } from "@/lib/utils";
 //   À effectuer — orders with an amount decided but not yet refunded;
 //   À vérifier  — possible duplicates / over the amount collected (never
 //                 counted until checked on the order page) and anomalies.
-// Test orders are hidden unless « Afficher les tests » is ticked.
+// Test orders are always hidden (« Afficher les tests » removed on 2026-10-06).
 
 type Tab = "done" | "todo" | "review";
 type Origin = "website" | "manual";
@@ -49,7 +51,8 @@ const AdminRefunds = () => {
   const thisMonth = zurichToday().slice(0, 7);
   const from = params.get("from") ?? monthBounds(thisMonth).from;
   const to = params.get("to") ?? monthBounds(thisMonth).to;
-  const includeTests = params.get("tests") === "1";
+  // « Afficher les tests » retiré (06.10.2026) : les tests restent toujours masqués.
+  const includeTests = false;
   const setParam = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams(params);
     for (const [k, v] of Object.entries(patch)) {
@@ -65,7 +68,7 @@ const AdminRefunds = () => {
   const [counts, setCounts] = useState<{ todo: number | null; review: number | null }>({ todo: null, review: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pin, setPin] = useState("");
+  const [pin, setPin, pinBySession] = useSessionPin();
   const [busy, setBusy] = useState<number | null>(null);
 
   useEffect(() => {
@@ -189,14 +192,10 @@ const AdminRefunds = () => {
               </div>
             </>
           )}
-          <label className="flex items-center gap-2 text-sm pb-2">
-            <input type="checkbox" className="w-4 h-4" checked={includeTests} onChange={(e) => setParam({ tests: e.target.checked ? "1" : null })} />
-            {t("Show tests", "Afficher les tests")}
-          </label>
-          {tab === "review" && (
+          {tab === "review" && !pinBySession && (
             <div className="space-y-1 ml-auto">
               <Label className="text-xs text-muted-foreground">{t("Admin PIN", "Code PIN administrateur")}</Label>
-              <Input type="password" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
+              <PasswordInput autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} className="w-32 rounded-none" />
             </div>
           )}
         </div>
@@ -248,7 +247,7 @@ const AdminRefunds = () => {
                       {r.toReviewCount > 0 && <span className="block text-xs text-amber-800">{r.toReviewCount} {t("to check", "à vérifier")}</span>}
                     </span>
                     <span className="text-xs text-muted-foreground tabular-nums">
-                      {t("Collected", "Encaissé")} {chf(r.collected)} · {t("Decided", "Décidé")} {chf(r.decided)} · {t("Refunded", "Remboursé")} {chf(r.refunded)}
+                      {t("Paid by the customer", "Payé par le client")} {chf(r.collected)} · {t("Total amount decided", "Montant total décidé")} {chf(r.decided)} · {t("Already refunded", "Déjà remboursé")} {chf(r.refunded)}
                     </span>
                     <span className="ml-auto font-semibold tabular-nums text-amber-900">{chf(r.remaining)}</span>
                   </li>

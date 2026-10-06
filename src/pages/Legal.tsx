@@ -34,8 +34,8 @@ const articles: Article[] = [
     titleFr: "Article 1 – Mentions légales",
     blocks: [
       {
-        p: "Bento Cake Studio SNC\n58 chemin de la Gradelle\n1224 Chêne-Bougeries, Switzerland\nEmail: contact@bentocakestudio.ch",
-        pFr: "Bento Cake Studio SNC\n58 chemin de la Gradelle\n1224 Chêne-Bougeries, Suisse\nEmail : contact@bentocakestudio.ch",
+        p: "Bento Cake Studio SNC\nContact address: Rue Prévost-Martin 8, 1205 Geneva, Switzerland\nEmail: contact@bentocakestudio.ch",
+        pFr: "Bento Cake Studio SNC\nAdresse de contact : Rue Prévost-Martin 8, 1205 Genève, Suisse\nEmail : contact@bentocakestudio.ch",
       },
       {
         p: "The website is published and operated by Bento Cake Studio SNC.",

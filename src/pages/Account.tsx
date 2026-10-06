@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
+import { useStaffRole } from "@/lib/staff";
 import { supabase } from "@/integrations/supabase/client";
 import {
   COUNTRY_CODES,
@@ -36,6 +37,8 @@ const Account = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, profile, loading, profileError, refreshProfile } = useAuth();
+  // F23 : lien vers l'espace équipe pour l'employée (rien d'autre ne change).
+  const staff = useStaffRole();
 
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -354,6 +357,16 @@ const Account = () => {
             Edge Function enforces server-side (see _shared/admin-auth.ts).
             Purely a convenience link; hiding it for everyone else is not
             itself the security boundary. */}
+        {staff.isEmployee && (
+          <section className="mt-4">
+            <Button asChild variant="outline" className="w-full rounded-none border-primary text-primary hover:bg-primary/5 uppercase tracking-[0.105em] text-[12px] font-medium">
+              <Link to="/admin">
+                <ClipboardList className="w-4 h-4 mr-2" strokeWidth={1.5} />
+                {t("Team area", "Espace équipe")}
+              </Link>
+            </Button>
+          </section>
+        )}
         {isAdminEmail(user?.email) && (
           <section className="mt-4 space-y-2">
             <Button asChild variant="outline" className="w-full rounded-none border-primary text-primary hover:bg-primary/5 uppercase tracking-[0.105em] text-[12px] font-medium">

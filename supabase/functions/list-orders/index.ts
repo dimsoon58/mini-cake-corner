@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireAdmin } from "../_shared/admin-auth.ts";
+import { forCaller, requireStaff } from "../_shared/staff-auth.ts";
 
 // Read-only order list for the /admin/orders dashboard — the one entry point
 // that lets an admin browse every order without already holding a specific
@@ -33,8 +33,9 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    const admin = await requireAdmin(req, supabase);
-    if (!admin) {
+    // Administratrices comme avant ; employée avec « orders.view », sans aucun montant (F23).
+    const caller = await requireStaff(req, supabase, "orders.view");
+    if (!caller) {
       return new Response(JSON.stringify({ error: "Admin sign-in required" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
@@ -44,10 +45,14 @@ serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const page = Number.isFinite(body?.page) && body.page > 0 ? Math.floor(body.page) : 0;
     const from = page * PAGE_SIZE;
-    // Search by order_number only, as requested — a plain substring match
-    // (ILIKE) already covers both ORD-... (website) and ORDM-... (manual)
-    // numbers with the same single field, no prefix special-casing needed.
+    // Search: a plain substring match (ILIKE) on the order number (ORD-... /
+    // ORDM-...). 2026-10-06: administrators can also search by the
+    // PostFinance payment reference (PAY-...) and the PostFinance
+    // transaction number; the employee keeps the order number only (no
+    // payment data, F23). Only letters, digits and dashes are kept, so the
+    // term can never alter the PostgREST « or » filter.
     const search = typeof body?.search === "string" ? body.search.trim() : "";
+    const term = search.replace(/[^A-Za-z0-9-]/g, "").slice(0, 40);
 
     // Summary columns only — full order detail (items, fulfillments, every
     // column) stays behind get-order-detail, opened per-order from the list.
@@ -67,7 +72,17 @@ serve(async (req) => {
       )
       .order("created_at", { ascending: false })
       .range(from, from + PAGE_SIZE);
-    if (search) query = query.ilike("order_number", `%${search}%`);
+    if (search && !term) {
+      return new Response(JSON.stringify(forCaller(caller, { orders: [], page, pageSize: PAGE_SIZE, hasMore: false })), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+    if (term) {
+      query = caller.role === "admin"
+        ? query.or(`order_number.ilike.%${term}%,payment_reference.ilike.%${term}%,postfinance_transaction_id.ilike.%${term}%`)
+        : query.ilike("order_number", `%${term}%`);
+    }
 
     const { data, error } = await query;
 
@@ -96,12 +111,12 @@ serve(async (req) => {
     }
     const orders = pageRows.map((o) => ({ ...o, hasWorkshopItem: workshopOrderIds.has(o.id) }));
 
-    return new Response(JSON.stringify({
+    return new Response(JSON.stringify(forCaller(caller, {
       orders,
       page,
       pageSize: PAGE_SIZE,
       hasMore,
-    }), {
+    })), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

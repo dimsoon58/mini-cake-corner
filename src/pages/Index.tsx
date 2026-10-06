@@ -10,7 +10,10 @@ import homeCatDiy from "@/assets/home-cat-diy.jpg";
 import homeCatWorkshops from "@/assets/home-cat-workshops.jpg";
 import homeCatRectangle from "@/assets/home-cat-rectangle.jpg";
 import heroPoster from "@/assets/hero-poster.jpg";
-import heroVideo from "@/assets/hero-video.mp4";
+// Vidéo d'accueil : le gâteau rose en cœur découpé (horizontale pour ordinateur,
+// verticale pour téléphone). L'image d'attente vient de la même vidéo.
+import heroVideo from "@/assets/hero-video-coeur.mp4";
+import heroVideoMobile from "@/assets/hero-video-coeur-mobile.mp4";
 import featureCake from "@/assets/feature-cake.png";
 import featurePipingBag from "@/assets/feature-piping-bag.png";
 import featureWhisk from "@/assets/feature-whisk.png";
@@ -286,7 +289,7 @@ const Index = () => {
           playsInline
           preload="metadata"
         >
-          <source src={heroVideo} type="video/mp4" />
+          <source src={heroVideoMobile} type="video/mp4" />
         </video>
         {/* Desktop video */}
         <video
