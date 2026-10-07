@@ -156,9 +156,13 @@ const App = () => (
             <Route path="/admin/partners/:id" element={<AdminPartner />} />
             <Route path="/order-action" element={<OrderAction />} />
             <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/legal" element={<Legal />} />
-            <Route path="/terms-and-conditions" element={<Legal />} />
-            <Route path="/privacy-policy" element={<Legal />} />
+            <Route path="/mentions-legales" element={<Legal doc="notice" />} />
+            <Route path="/cgv" element={<Legal doc="gtc" />} />
+            <Route path="/politique-de-confidentialite" element={<Legal doc="privacy" />} />
+            {/* Anciennes adresses (liens déjà envoyés) : même contenu. */}
+            <Route path="/legal" element={<Legal doc="notice" />} />
+            <Route path="/terms-and-conditions" element={<Legal doc="gtc" />} />
+            <Route path="/privacy-policy" element={<Legal doc="privacy" />} />
             <Route path="/account/orders" element={<MyOrders />} />
             <Route path="/account/rewards" element={<LoyaltyRewards />} />
             <Route path="/account" element={<Account />} />

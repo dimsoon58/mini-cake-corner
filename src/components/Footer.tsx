@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { useLang } from "@/context/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import logoCream from "@/assets/logo-cream.png";
+import { COMPANY, LEGAL_PATHS } from "@/lib/company";
 
-const CONTACT_EMAIL = "contact@bentocakestudio.ch";
+const CONTACT_EMAIL = COMPANY.email;
 
 const FooterNewsletter = () => {
   const { t } = useLang();
@@ -96,10 +97,13 @@ const Footer = () => {
             <a href={`mailto:${CONTACT_EMAIL}`} className="block text-sm opacity-90 hover:opacity-100 transition-opacity mb-3 break-all">
               {CONTACT_EMAIL}
             </a>
+            <a href={COMPANY.phoneHref} className="block text-sm opacity-90 hover:opacity-100 transition-opacity mb-3">
+              {COMPANY.phone}
+            </a>
             <p className="text-sm opacity-90 leading-relaxed">
-              Rue Prévost-Martin 8
+              {COMPANY.street}
               <br />
-              1205 Genève
+              {COMPANY.city}
             </p>
           </div>
 
@@ -144,8 +148,14 @@ const Footer = () => {
             <Link to="/faq" className={linkClass}>
               {t("FAQ", "FAQ")}
             </Link>
-            <Link to="/legal" className={linkClass}>
-              {t("Terms and Conditions & Privacy Policy", "Conditions générales et confidentialité")}
+            <Link to={LEGAL_PATHS.notice} className={linkClass}>
+              {t("Legal notice", "Mentions légales")}
+            </Link>
+            <Link to={LEGAL_PATHS.gtc} className={linkClass}>
+              {t("Terms and Conditions", "CGV")}
+            </Link>
+            <Link to={LEGAL_PATHS.privacy} className={linkClass}>
+              {t("Privacy Policy", "Politique de confidentialité")}
             </Link>
             <button
               type="button"

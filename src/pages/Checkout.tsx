@@ -497,7 +497,7 @@ const Checkout = () => {
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
   const [deliveryQuoteStatus, setDeliveryQuoteStatus] = useState<DeliveryQuoteStatus>("idle");
   const [deliveryComment, setDeliveryComment] = useState("");
-  const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [pickupTime, setPickupTime] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
@@ -996,10 +996,10 @@ const Checkout = () => {
       return;
     }
 
-    if (!acceptPrivacyPolicy) {
+    if (!acceptTerms) {
       toast({
-        title: t("Privacy Policy required", "Politique de confidentialité requise"),
-        description: t("Please accept the privacy policy to continue.", "Veuillez accepter la politique de confidentialité pour continuer."),
+        title: t("Terms and Conditions required", "CGV requises"),
+        description: t("Please accept the Terms and Conditions of Sale to continue.", "Veuillez accepter les Conditions générales de vente pour continuer."),
         variant: "destructive",
       });
       return;
@@ -2345,38 +2345,45 @@ const Checkout = () => {
               </div>
             </div>
 
-            {/* Privacy Policy & Newsletter */}
+            {/* CGV (obligatoire, non cochée) + information confidentialité & newsletter.
+                Même étape pour les gâteaux et les ateliers (un seul paiement). */}
             <div className="space-y-4 border-t border-border pt-6">
-              <h3 className="font-medium text-foreground">{t("Privacy Policy", "Politique de confidentialité")}</h3>
-              
-              {/* Privacy Policy Checkbox - Required */}
+              <h3 className="font-medium text-foreground">{t("Terms and Conditions", "Conditions générales de vente")}</h3>
+
+              {/* CGV Checkbox - Required, never pre-ticked */}
               <div className="flex items-start space-x-3">
                 <Checkbox
-                  id="privacyPolicy"
-                  checked={acceptPrivacyPolicy}
-                  onCheckedChange={(checked) => setAcceptPrivacyPolicy(checked === true)}
+                  id="acceptTerms"
+                  checked={acceptTerms}
+                  onCheckedChange={(checked) => setAcceptTerms(checked === true)}
                   className="mt-0.5"
+                  aria-required="true"
+                  data-testid="accept-terms"
                 />
-                {/* The links sit OUTSIDE the <Label>: a click on them used to tick the
-                    box instead of opening the page. They open in a new tab so the
+                {/* The link sits OUTSIDE the <Label>: a click on it used to tick the
+                    box instead of opening the page. It opens in a new tab so the
                     checkout (cart, address, slot) is never lost. */}
                 <p className="text-sm leading-relaxed">
-                  <Label htmlFor="privacyPolicy" className="cursor-pointer">
+                  <Label htmlFor="acceptTerms" className="cursor-pointer">
                     {t("I have read and accept the", "J'ai lu et j'accepte les")}
                   </Label>{" "}
-                  <a href={`${import.meta.env.BASE_URL}terms-and-conditions`} target="_blank" rel="noopener noreferrer"
+                  <a href={`${import.meta.env.BASE_URL}cgv`} target="_blank" rel="noopener noreferrer"
                     className="text-primary underline hover:text-primary/80" data-testid="terms-link">
-                    {t("Terms & Conditions", "Conditions Générales de Vente")}
-                  </a>{" "}
-                  {t("and the", "et la")}{" "}
-                  <a href={`${import.meta.env.BASE_URL}privacy-policy`} target="_blank" rel="noopener noreferrer"
-                    className="text-primary underline hover:text-primary/80" data-testid="privacy-link">
-                    {t("Privacy Policy", "Politique de confidentialité")}
+                    {t("General Terms and Conditions of Sale", "Conditions générales de vente (CGV)")}
                   </a>
                   {"."}
                   <span className="text-destructive ml-1">*</span>
                 </p>
               </div>
+
+              <p className="text-xs text-muted-foreground leading-relaxed pl-7">
+                {t("Your personal data is processed in accordance with our ", "Vos données personnelles sont traitées conformément à notre ")}
+                <a href={`${import.meta.env.BASE_URL}politique-de-confidentialite`} target="_blank" rel="noopener noreferrer"
+                  className="text-primary underline hover:text-primary/80" data-testid="privacy-link">
+                  {t("Privacy Policy", "Politique de confidentialité")}
+                </a>
+                {"."}
+              </p>
 
               {/* Newsletter Checkbox - Optional. Hidden for a logged-in
                   customer already subscribed — nothing left to offer them. */}
@@ -2422,7 +2429,7 @@ const Checkout = () => {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={!acceptPrivacyPolicy || isSubmitting || items.length === 0 || showEmbeddedCheckout || !deliveryReady}
+              disabled={!acceptTerms || isSubmitting || items.length === 0 || showEmbeddedCheckout || !deliveryReady}
             >
               {items.length === 0
                 ? t("Empty cart", "Panier vide")

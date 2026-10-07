@@ -8,7 +8,7 @@ import { test, expect, type Page } from "@playwright/test";
 // logic, prices, copy, or specific UI content — that would need constant
 // upkeep as the site evolves and isn't what this suite is for. A real
 // regression in wording/pricing/flow should be caught by review, not by
-// this file. Kept to exactly the 9 priority routes named for this rollout.
+// this file. The 9 priority routes of the rollout + the 3 legal pages.
 const ROUTES = [
   "/",
   "/catalog",
@@ -19,6 +19,10 @@ const ROUTES = [
   "/checkout",
   "/printing",
   "/inspiration",
+  // 2026-10-07 : pages légales demandées par PostFinance.
+  "/mentions-legales",
+  "/cgv",
+  "/politique-de-confidentialite",
 ];
 
 // index.html loads two third-party scripts directly (Cookiebot consent

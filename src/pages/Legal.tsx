@@ -5,7 +5,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { useLang } from "@/context/LanguageContext";
+import { COMPANY, LEGAL_PATHS, LEGAL_UPDATED } from "@/lib/company";
 
 // Source of truth: the two final legal documents provided by Bento Cake
 // Studio (FR + EN versions of "Mentions légales, Conditions générales de
@@ -13,6 +16,10 @@ import { useLang } from "@/context/LanguageContext";
 // legal wording below is reproduced verbatim from those documents; only
 // web-display structure (headings, paragraphs, spacing) is applied here.
 // FR is shown when the site language is "fr", EN otherwise.
+// 07.10.2026 (demande PostFinance) : trois pages séparées (mentions légales,
+// CGV, confidentialité) ; identité complète (téléphone, IDE) ; articles 4 et 7
+// alignés sur le paiement réel (autorisation, débit à l'acceptation) ;
+// responsable du traitement, données collectées et prestataires (art. 20, 22).
 
 type Block =
   | { p: string; pFr: string }
@@ -30,12 +37,12 @@ const articles: Article[] = [
   {
     id: "1",
     part: "gtc",
-    title: "Article 1 – Legal Notice",
-    titleFr: "Article 1 – Mentions légales",
+    title: "Article 1 – Seller Identification",
+    titleFr: "Article 1 – Identité du vendeur",
     blocks: [
       {
-        p: "Bento Cake Studio SNC\nContact address: Rue Prévost-Martin 8, 1205 Geneva, Switzerland\nEmail: contact@bentocakestudio.ch",
-        pFr: "Bento Cake Studio SNC\nAdresse de contact : Rue Prévost-Martin 8, 1205 Genève, Suisse\nEmail : contact@bentocakestudio.ch",
+        p: `${COMPANY.name}\nAddress: ${COMPANY.street}, ${COMPANY.cityEn}, Switzerland\nPhone: ${COMPANY.phone}\nEmail: ${COMPANY.email}\nCompany identification number (UID): ${COMPANY.ide}`,
+        pFr: `${COMPANY.name}\nAdresse : ${COMPANY.street}, ${COMPANY.city}, Suisse\nTéléphone : ${COMPANY.phone}\nE-mail : ${COMPANY.email}\nNuméro IDE : ${COMPANY.ide}`,
       },
       {
         p: "The website is published and operated by Bento Cake Studio SNC.",
@@ -114,12 +121,12 @@ const articles: Article[] = [
         pFr: "Les informations et présentations figurant sur le site ne constituent pas une offre juridiquement contraignante.",
       },
       {
-        p: "The order is considered final once the payment has been validated and confirmed. A confirmation email is sent to the Customer.",
-        pFr: "La commande est considérée comme définitive après validation et confirmation du paiement. Un e-mail de confirmation est adressé au Client.",
+        p: "When an order is placed on the website, the amount is authorised on the Customer's payment method: it is reserved but not yet charged. An email acknowledging receipt of the order is sent to the Customer.",
+        pFr: "Lors de la validation d'une commande sur le site, le montant est autorisé sur le moyen de paiement du Client : il est réservé, mais pas encore débité. Un e-mail accusant réception de la commande est adressé au Client.",
       },
       {
-        p: "An order placed through the website is considered definitively confirmed only once payment has been validated and the Customer has received a confirmation email from Bento Cake Studio SNC.",
-        pFr: "Une commande passée sur le site n'est considérée comme définitivement confirmée qu'après validation du paiement et réception par le Client d'un e-mail de confirmation de Bento Cake Studio SNC.",
+        p: "Bento Cake Studio SNC then reviews the order (availability, feasibility, chosen date). If the order is accepted, the amount is charged and a confirmation email is sent to the Customer: the order is then definitively confirmed. If the order is refused, the authorisation is cancelled and no amount is charged. The time needed for the reserved amount to be released depends on the institution that issued the payment method.",
+        pFr: "Bento Cake Studio SNC vérifie ensuite la commande (disponibilité, faisabilité, date choisie). En cas d'acceptation, le montant est débité et un e-mail de confirmation est adressé au Client : la commande est alors définitivement confirmée. En cas de refus, l'autorisation est annulée et aucun montant n'est débité. Le délai de libération du montant réservé dépend de l'établissement émetteur du moyen de paiement.",
       },
       {
         p: "If no confirmation email is received, the Customer is invited to contact Bento Cake Studio SNC to verify that the order has been correctly registered. If a payment appears to have been charged without any order confirmation being received, the Customer is requested to contact Bento Cake Studio SNC before placing another order.",
@@ -214,8 +221,8 @@ const articles: Article[] = [
         pFr: "Les moyens de paiement acceptés sur le site sont les cartes bancaires ainsi que TWINT. Les transactions sont traitées de manière sécurisée via la plateforme de PostFinance Checkout.",
       },
       {
-        p: "The order is considered final only once payment has been confirmed.",
-        pFr: "La commande n'est considérée comme définitive qu'après confirmation du paiement.",
+        p: "The order is considered final only once it has been accepted by Bento Cake Studio SNC and the payment has been charged, as described in Article 4.",
+        pFr: "La commande n'est considérée comme définitive qu'après son acceptation par Bento Cake Studio SNC et le débit du paiement, conformément à l'article 4.",
       },
       {
         p: "Bento Cake Studio SNC does not store any banking or card details. Payment information is processed directly by the payment service provider in accordance with its own terms and security policies.",
@@ -664,9 +671,20 @@ const articles: Article[] = [
   {
     id: "20",
     part: "privacy",
-    title: "Article 20 – Personal Data, Purposes of Processing and Rights",
-    titleFr: "Article 20 – Données personnelles, finalités du traitement et droits",
+    title: "Article 1 – Personal Data, Purposes of Processing and Rights",
+    titleFr: "Article 1 – Données personnelles, finalités du traitement et droits",
     blocks: [
+      { h: "Data Controller", hFr: "Responsable du traitement" },
+      {
+        p: `${COMPANY.name}, ${COMPANY.street}, ${COMPANY.cityEn}, Switzerland — ${COMPANY.email} — ${COMPANY.phone}`,
+        pFr: `${COMPANY.name}, ${COMPANY.street}, ${COMPANY.city}, Suisse — ${COMPANY.email} — ${COMPANY.phone}`,
+      },
+      { h: "Data Collected", hFr: "Données collectées" },
+      {
+        p: "Depending on the services used: first name, last name, email address, telephone number, delivery address, order details (products, options, personalised messages, pick-up or delivery date), workshop booking details (participants, minors and legal representative's consent), customer account and loyalty data, and technical data needed for the website to function. Payment card details are entered directly with the payment provider and are never received by Bento Cake Studio SNC.",
+        pFr: "Selon les services utilisés : prénom, nom, adresse e-mail, numéro de téléphone, adresse de livraison, détails de la commande (produits, options, messages personnalisés, date de retrait ou de livraison), informations de réservation des ateliers (participants, mineurs et accord du représentant légal), données du compte client et du programme de fidélité, ainsi que les données techniques nécessaires au fonctionnement du site. Les données de carte de paiement sont saisies directement auprès du prestataire de paiement et ne sont jamais reçues par Bento Cake Studio SNC.",
+      },
+      { h: "Purposes", hFr: "Finalités" },
       {
         p: "Personal data collected is used, in particular, for creating and managing customer accounts, identifying users, managing and tracking orders, maintaining purchase history, communicating with Customers and organising pick-up or delivery.",
         pFr: "Les données personnelles collectées sont utilisées notamment pour la création et la gestion du compte client, l'identification de l'utilisateur, la gestion et le suivi des commandes, l'historique des achats, la communication avec le Client, ainsi que l'organisation du retrait ou de la livraison.",
@@ -696,8 +714,8 @@ const articles: Article[] = [
         pFr: "Conformément à la réglementation applicable, le Client peut notamment demander l'accès à ses données personnelles, leur rectification ou leur suppression, ainsi que s'opposer à certains traitements, sous réserve des obligations légales de conservation applicables.",
       },
       {
-        p: "Any request may be sent to contact@bentocakestudio.ch.",
-        pFr: "Toute demande peut être adressée à contact@bentocakestudio.ch.",
+        p: "Any request may be sent to contact@bentocakestudio.ch. The Customer may also contact the Federal Data Protection and Information Commissioner (FDPIC).",
+        pFr: "Toute demande peut être adressée à contact@bentocakestudio.ch. Le Client peut également s'adresser au Préposé fédéral à la protection des données et à la transparence (PFPDT).",
       },
       {
         p: "Email communications are not encrypted and may present security risks inherent to this method of transmission.",
@@ -708,8 +726,8 @@ const articles: Article[] = [
   {
     id: "21",
     part: "privacy",
-    title: "Article 21 – Data Retention",
-    titleFr: "Article 21 – Durée de conservation",
+    title: "Article 2 – Data Retention",
+    titleFr: "Article 2 – Durée de conservation",
     blocks: [
       {
         p: "Personal data is retained only for as long as necessary for the purposes for which it was collected.",
@@ -724,8 +742,8 @@ const articles: Article[] = [
   {
     id: "22",
     part: "privacy",
-    title: "Article 22 – Service Providers and Data Transfers",
-    titleFr: "Article 22 – Prestataires et transmission des données",
+    title: "Article 3 – Service Providers and Data Transfers",
+    titleFr: "Article 3 – Prestataires et transmission des données",
     blocks: [
       {
         p: "Certain personal data may be processed by or transferred to service providers acting on behalf of Bento Cake Studio SNC, particularly in connection with the operation of the website, payment processing, delivery, administrative and accounting management and the sending of communications.",
@@ -743,13 +761,23 @@ const articles: Article[] = [
         p: "Personal data is not sold to third parties or transferred to third parties for their own independent commercial purposes.",
         pFr: "Les données personnelles ne sont pas vendues à des tiers ni transmises à des tiers à des fins commerciales indépendantes.",
       },
+      { h: "Main Service Providers", hFr: "Principaux prestataires" },
+      {
+        p: "• PostFinance Ltd (Switzerland) — payment processing (PostFinance Checkout)\n• Supabase — hosting of the website's database and customer accounts\n• GitHub (United States) — hosting of the website\n• Resend (United States) — sending of emails relating to orders and customer accounts\n• Brevo (France) — newsletter\n• Google (United States) — Google Analytics audience measurement (only with consent) and Google Maps (address entry and delivery distance calculation)\n• Cookiebot / Usercentrics (Denmark) — cookie consent management\n• Make (European Union) — automation of certain administrative tasks\n• Delivery partners — delivery of orders",
+        pFr: "• PostFinance SA (Suisse) — traitement des paiements (PostFinance Checkout)\n• Supabase — hébergement de la base de données du site et des comptes clients\n• GitHub (États-Unis) — hébergement du site\n• Resend (États-Unis) — envoi des e-mails liés aux commandes et au compte client\n• Brevo (France) — newsletter\n• Google (États-Unis) — mesure d'audience Google Analytics (uniquement avec consentement) et Google Maps (saisie d'adresse et calcul de la distance de livraison)\n• Cookiebot / Usercentrics (Danemark) — gestion du consentement aux cookies\n• Make (Union européenne) — automatisation de certaines tâches administratives\n• Prestataires de livraison — livraison des commandes",
+      },
+      { h: "Disclosure Abroad", hFr: "Communication à l'étranger" },
+      {
+        p: "Some of these service providers process data outside Switzerland, in particular in the European Union and in the United States. Where the destination country does not provide an adequate level of data protection within the meaning of Swiss law, the disclosure relies on appropriate safeguards, in particular the standard contractual clauses recognised by the Federal Data Protection and Information Commissioner (FDPIC), or on a certification under the Swiss-US Data Privacy Framework.",
+        pFr: "Certains de ces prestataires traitent des données hors de Suisse, notamment dans l'Union européenne et aux États-Unis. Lorsque le pays de destination n'offre pas un niveau de protection adéquat au sens du droit suisse, la communication repose sur des garanties appropriées, notamment les clauses contractuelles types reconnues par le Préposé fédéral à la protection des données et à la transparence (PFPDT), ou sur une certification au titre du Swiss-US Data Privacy Framework.",
+      },
     ],
   },
   {
     id: "23",
     part: "privacy",
-    title: "Article 23 – Cookies and Audience Measurement",
-    titleFr: "Article 23 – Cookies et mesure d'audience",
+    title: "Article 4 – Cookies and Audience Measurement",
+    titleFr: "Article 4 – Cookies et mesure d'audience",
     blocks: [
       {
         p: "The website uses cookies and similar technologies necessary for its proper operation, including for managing authentication and user sessions, securing account access and remembering certain preferences.",
@@ -772,8 +800,8 @@ const articles: Article[] = [
   {
     id: "24",
     part: "privacy",
-    title: "Article 24 – Hosting and Data Security",
-    titleFr: "Article 24 – Hébergement et sécurité des données",
+    title: "Article 5 – Hosting and Data Security",
+    titleFr: "Article 5 – Hébergement et sécurité des données",
     blocks: [
       {
         p: "The website and the data required for its operation are hosted and processed by specialised technical service providers.",
@@ -792,8 +820,8 @@ const articles: Article[] = [
   {
     id: "25",
     part: "privacy",
-    title: "Article 25 – Amendments to the Privacy Policy",
-    titleFr: "Article 25 – Modification de la politique de confidentialité",
+    title: "Article 6 – Amendments to the Privacy Policy",
+    titleFr: "Article 6 – Modification de la politique de confidentialité",
     blocks: [
       {
         p: "Bento Cake Studio SNC reserves the right to amend this Privacy Policy in order to reflect, in particular, changes to its services, technical tools or applicable regulations.",
@@ -803,15 +831,13 @@ const articles: Article[] = [
         p: "The version currently in force is the version published on the website at the time of consultation.",
         pFr: "La version en vigueur est celle publiée sur le site au moment de la consultation.",
       },
-      {
-        p: "Last updated: 08.09.2026",
-        pFr: "Dernière mise à jour : 08.09.2026",
-      },
     ],
   },
 ];
 
-const Legal = () => {
+export type LegalDoc = "notice" | "gtc" | "privacy";
+
+const Legal = ({ doc }: { doc: LegalDoc }) => {
   const { t } = useLang();
 
   const renderArticle = (article: Article) => (
@@ -837,33 +863,58 @@ const Legal = () => {
     </AccordionItem>
   );
 
-  const sectionHeadingClass =
-    "font-sans uppercase tracking-[0.105em] text-lg md:text-xl text-foreground mb-4 font-semibold";
+  const title =
+    doc === "notice" ? t("Legal Notice", "Mentions légales")
+    : doc === "gtc" ? t("General Terms and Conditions of Sale", "Conditions générales de vente")
+    : t("Privacy Policy", "Politique de confidentialité");
+
+  const linkClass = "text-primary underline hover:text-primary/80";
+  const row = (label: string, value: ReactNode) => (
+    <div className="grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-x-4 gap-y-1 py-3 border-b border-border">
+      <dt className="font-medium text-foreground">{label}</dt>
+      <dd className="text-muted-foreground">{value}</dd>
+    </div>
+  );
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-16 max-w-3xl">
         <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-4xl text-center text-foreground mb-2 font-semibold">
-          {t(
-            "Legal Notice, General Terms and Conditions of Sale and Privacy Policy",
-            "Mentions légales, Conditions générales de vente et Politique de confidentialité",
-          )}
+          {title}
         </h1>
-        <p className="text-center text-muted-foreground mb-10">Bento Cake Studio SNC</p>
+        <p className="text-center text-muted-foreground mb-10">{COMPANY.name}</p>
 
-        <h2 className={sectionHeadingClass}>
-          {t("I. General Terms and Conditions of Sale", "I. Conditions générales de vente")}
-        </h2>
-        <Accordion type="multiple" className="w-full mb-12">
-          {articles.filter((a) => a.part === "gtc").map(renderArticle)}
-        </Accordion>
+        {doc === "notice" && (
+          <div data-testid="legal-notice">
+            <dl className="mb-10">
+              {row(t("Company name", "Raison sociale"), COMPANY.name)}
+              {row(t("Address", "Adresse"), <>{COMPANY.street}<br />{t(COMPANY.cityEn, COMPANY.city)}, {t("Switzerland", "Suisse")}</>)}
+              {row(t("Phone", "Téléphone"), <a href={COMPANY.phoneHref} className={linkClass}>{COMPANY.phone}</a>)}
+              {row(t("Email", "E-mail"), <a href={`mailto:${COMPANY.email}`} className={linkClass}>{COMPANY.email}</a>)}
+              {row(t("Company identification number (UID)", "Numéro IDE"), COMPANY.ide)}
+              {row(t("VAT", "TVA"), t("Not subject to VAT", "Non assujettie à la TVA"))}
+              {row(t("Website publisher", "Édition du site"), COMPANY.name)}
+              {row(t("Website hosting", "Hébergement du site"), t("GitHub Pages (GitHub, Inc., United States)", "GitHub Pages (GitHub, Inc., États-Unis)"))}
+            </dl>
+            <p className="text-muted-foreground leading-relaxed">
+              {t("See also our ", "Consultez également nos ")}
+              <Link to={LEGAL_PATHS.gtc} className={linkClass}>{t("General Terms and Conditions of Sale", "Conditions générales de vente")}</Link>
+              {t(" and our ", " et notre ")}
+              <Link to={LEGAL_PATHS.privacy} className={linkClass}>{t("Privacy Policy", "Politique de confidentialité")}</Link>.
+            </p>
+          </div>
+        )}
 
-        <h2 className={sectionHeadingClass}>
-          {t("II. Privacy Policy", "II. Politique de confidentialité")}
-        </h2>
-        <Accordion type="multiple" className="w-full">
-          {articles.filter((a) => a.part === "privacy").map(renderArticle)}
-        </Accordion>
+        {doc !== "notice" && (
+          <>
+            <Accordion type="multiple" className="w-full" data-testid={doc === "gtc" ? "legal-gtc" : "legal-privacy"}>
+              {articles.filter((a) => a.part === doc).map(renderArticle)}
+            </Accordion>
+            <p className="text-sm text-muted-foreground mt-8">
+              {t(`Last updated: ${LEGAL_UPDATED}`, `Dernière mise à jour : ${LEGAL_UPDATED}`)}
+            </p>
+          </>
+        )}
       </div>
     </Layout>
   );

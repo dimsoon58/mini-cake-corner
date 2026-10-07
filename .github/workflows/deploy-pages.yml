@@ -54,6 +54,14 @@ jobs:
         run: perl -pi -e 's|</head>|<meta name="robots" content="noindex, nofollow" />\n</head>|' dist/index.html
       - name: SPA fallback for deep links
         run: cp dist/index.html dist/404.html
+      # 2026-10-07 (contrôle PostFinance) : le 404.html affiche bien la page,
+      # mais avec un statut HTTP 404. Une copie de index.html par adresse
+      # importante la sert avec un vrai statut 200 (pages légales + commande).
+      - name: Real 200 pages for legal and order routes
+        run: |
+          for r in mentions-legales cgv politique-de-confidentialite legal terms-and-conditions privacy-policy catalog cart checkout workshop workshop-booking contact; do
+            mkdir -p "dist/$r" && cp dist/index.html "dist/$r/index.html"
+          done
 
       - uses: actions/upload-pages-artifact@v3
         with:
