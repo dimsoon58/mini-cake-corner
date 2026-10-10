@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
+import { itemPrepFlavours, itemStockNeeds, orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
 import { productionCategory } from "../_shared/production-catalog.ts";
 
 // Admin > Étiquettes de production — read-only. Returns the physical cakes
@@ -26,6 +26,12 @@ import { productionCategory } from "../_shared/production-catalog.ts";
 //                   ineligible cakes come back with `excluded` set so the
 //                   page can say why instead of silently hiding them.
 // Never writes anything, never sends anything.
+//
+// 2026-10-10 — fiche de mise en place : chaque gâteau porte aussi `prep`,
+// ses génoises (goût × taille/forme) et ses goûts reconnus POUR UNE UNITÉ
+// (un pack pour les Dot Cakes), calculés avec les règles de la page
+// Production (itemStockNeeds / itemPrepFlavours) ; la page multiplie par le
+// nombre d'étiquettes cochées.
 
 const MAX_DAYS = 31;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -138,6 +144,11 @@ serve(async (req) => {
       out.push({
         ...fields,
         reference_photos: customerPhotoCount(reference_images, design_image_url),
+        prep: (() => {
+          const unit = { product: it.product, size: it.size, shape: it.shape, flavors: it.flavors, quantity: 1 };
+          const { needs, unknownUnits } = itemStockNeeds(unit);
+          return { genoises: needs, unknownUnits, flavours: itemPrepFlavours(unit) };
+        })(),
         date,
         excluded,
         badge: status.include ? status.badge : null,

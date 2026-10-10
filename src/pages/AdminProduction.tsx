@@ -13,7 +13,7 @@ import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { flavorDescMap } from "@/data/flavorDesc";
 import { cn } from "@/lib/utils";
-import { BASE_LABELS, CATEGORY_LABELS, CATEGORY_ORDER, genoiseLabel, type Category, type SpongeBase, type StockUnits } from "@/lib/production";
+import { BASE_LABELS, CATEGORY_LABELS, CATEGORY_ORDER, INGREDIENT_LABELS, genoiseLabel, type Category, type SpongeBase, type StockUnits } from "@/lib/production";
 import { WorkshopSessionsPanel, type WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
 
 // Admin > Production — production sheet for a period, computed server-side
@@ -85,19 +85,6 @@ const MOVEMENT_LABELS: Record<Movement["kind"], { en: string; fr: string }> = {
   return_uncheck: { en: "Put back (« Done » undone)", fr: "Remise en stock (« Fait » décoché)" },
   return_cancelled: { en: "Put back (cancelled, reusable)", fr: "Remise en stock (annulé, réutilisable)" },
   inventory: { en: "Stock entered by hand", fr: "Saisie manuelle du stock" },
-};
-
-const INGREDIENT_LABELS: Record<string, { en: string; fr: string }> = {
-  raspberry: { en: "Raspberry", fr: "Framboise" },
-  ganache: { en: "Chocolate ganache", fr: "Ganache chocolat" },
-  salted_caramel: { en: "Salted butter caramel", fr: "Caramel beurre salé" },
-  lemon: { en: "Lemon", fr: "Citron" },
-  coffee: { en: "Coffee", fr: "Café" },
-  praline: { en: "Praline", fr: "Praliné" },
-  pistachio: { en: "Pistachio", fr: "Pistache" },
-  passion_fruit: { en: "Passion fruit", fr: "Fruit de la passion" },
-  orange_blossom: { en: "Orange blossom", fr: "Fleur d'oranger" },
-  cream_cheese: { en: "Cream cheese", fr: "Cream cheese" },
 };
 
 const REASON_LABELS: Record<string, { en: string; fr: string }> = {

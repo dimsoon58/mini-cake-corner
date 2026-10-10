@@ -324,9 +324,49 @@ check("Excel NIIMBOT : texte exact et « Détails » sans ligne vide", rl.Texte 
 // ═══ Site ═══════════════════════════════════════════════════════════════
 const src = (f) => fs.readFileSync(path.join(REPO, f), "utf8");
 check("Page : aucun bouton « Imprimer directement »", !/Imprimer directement|Print directly|window\.print/.test(src("src/pages/AdminLabels.tsx")));
-check("Page : appelle seulement get-orders-for-labels (lecture), aucun e-mail", (src("src/pages/AdminLabels.tsx").match(/functions\.invoke\("([^"]+)"/g) ?? []).join() === 'functions.invoke("get-orders-for-labels"' && !/email|send-/.test(src("src/lib/productionLabelsExport.ts")));
+// 2026-10-10 : la fiche de mise en place lit aussi get-production (workshops, lecture seule).
+check("Page : appelle seulement get-production et get-orders-for-labels (lecture), aucun e-mail", (src("src/pages/AdminLabels.tsx").match(/functions\.invoke\("([^"]+)"/g) ?? []).sort().join() === 'functions.invoke("get-orders-for-labels",functions.invoke("get-production"' && !/email|send-/.test(src("src/lib/productionLabelsExport.ts")));
 check("Fiche commande : lien vers l'étiquette de ce gâteau", /\/admin\/labels\?order=\$\{order\?\.id \?\? ""\}&item=\$\{item\.id\}/.test(src("src/pages/AdminOrder.tsx")));
 check("Agenda : lien « Étiquettes de production » conservé", src("src/pages/AdminCalendar.tsx").includes('to="/admin/labels"'));
+
+
+// ═══ Fiche de mise en place (2026-10-10) ════════════════════════════════
+await build({ entryPoints: [path.join(REPO, "src/lib/prepSheet.ts")], bundle: true, format: "esm", platform: "node", outfile: path.join(tmp, "prep.mjs"), logLevel: "error",
+  plugins: [{ name: "alias", setup(b) {
+    b.onResolve({ filter: /^@\// }, (a) => {
+      const base = path.join(REPO, "src", a.path.slice(2));
+      for (const ext of ["", ".ts", ".tsx", "/index.ts"]) if (fs.existsSync(base + ext) && fs.statSync(base + ext).isFile()) return { path: base + ext };
+      return { path: base };
+    });
+    b.onLoad({ filter: /\.(png|jpe?g|webp|svg|gif)$/ }, (a) => ({ contents: `export default ${JSON.stringify(path.basename(a.path))};`, loader: "js" }));
+  } }] });
+const P = await import(path.join(tmp, "prep.mjs"));
+const byId = new Map(items.map((i) => [i.id, i]));
+const pSimple = byId.get(iSimple).prep, pDot = byId.get(iMultiB).prep, pQty = byId.get(iQty).prep;
+check("Prep : gâteau simple = 1 génoise vanille Bento rond, goût Vanilla", JSON.stringify(pSimple.genoises) === JSON.stringify([{ base: "vanilla", category: "bento_round", units: 1 }]) && pSimple.flavours.map((f) => `${f.label}:${f.units}`).join() === "Vanilla:1" && pSimple.unknownUnits === 0, pSimple);
+// Pack de 12 = 4 goûts × 3 pièces ; 3 goûts choisis → 3 pièces « à confirmer », comme la page Production.
+check("Prep : Dot Cakes 12 (RV ×2, Vanilla) = 6 pièces red velvet + 3 vanille + 3 à confirmer", pDot.genoises.map((g) => `${g.base}|${g.category}|${g.units}`).sort().join() === "red_velvet|dot_cake|6,vanilla|dot_cake|3" && pDot.unknownUnits === 3, pDot);
+check("Prep : calculé pour UNE unité (ligne de quantité 2 → 1)", pQty.genoises[0]?.units === 1 && pQty.flavours[0]?.units === 1, pQty);
+const sel = [cake(iSimple), cake(iManual), cake(iMultiB), cake(iQty, 0), cake(iQty, 1)];
+const sessionsFx = [
+  { sessionId: "s1", type: "paint", date: "2026-10-14", time: "18:00:00", category: "bento_round", unknownUnits: 0, bases: [{ base: "vanilla", needed: 2, done: 0 }, { base: "chocolate", needed: 1, done: 0 }] },
+  { sessionId: "s2", type: "signature", date: "2026-10-17", time: "15:00:00", category: "bento_round", unknownUnits: 1, bases: [{ base: "vanilla", needed: 2, done: 0 }] },
+];
+const sh = P.buildPrepSheet(sel, byId, sessionsFx);
+const boxesOf = (x) => Object.fromEntries(x.boxes.map((b) => [b.label, b.units]));
+check("Fiche : boîtes = taille du gâteau, Dot en pièces, Peinture → Bento, Signature → Retro Box", JSON.stringify(boxesOf(sh)) === JSON.stringify({ Bento: 6, "Retro Box": 3, Medium: 1, Dot: 12 }), sh.boxes);
+const gen = Object.fromEntries(sh.genoises.map((g) => [g.base, `${g.total}:${g.rows.map((r) => `${r.label}=${r.units}`).join("/")}`]));
+check("Fiche : génoises par goût puis forme (gâteaux + workshops)", gen.vanilla === "10:Bento rond=7/Dot Cake (pièces)=3" && gen.chocolate === "1:Bento rond=1" && gen.red_velvet === "7:Medium cœur=1/Dot Cake (pièces)=6", gen);
+const fl = Object.fromEntries(sh.flavours.map((f) => [f.label, f.units]));
+check("Fiche : goûts des gâteaux (pas des workshops)", fl.Vanilla === 4 && fl["Red Velvet"] === 7 && fl["Lemon Curd"] === 2, sh.flavours);
+const ing = Object.fromEntries(sh.ingredients.map((f) => [f.label, f.units]));
+check("Fiche : garnitures (cream cheese 7, citron 2)", ing["Cream cheese"] === 7 && ing.Citron === 2 && Object.keys(ing).length === 2, sh.ingredients);
+check("Fiche : goût Dot manquant et génoise de workshop à confirmer → « À vérifier », jamais devinés", sh.toCheck.length === 2 && /ORD-261013-0002/.test(sh.toCheck[0].who) && sh.toCheck[0].units === 3 && /Signature/.test(sh.toCheck[1].who) && sh.toCheck[1].units === 1, sh.toCheck);
+check("Fiche : compteurs (5 gâteaux, 6 de workshop)", sh.cakes === 5 && sh.workshopCakes === 6);
+const sh0 = P.buildPrepSheet([cake(iSimple)], new Map([[iSimple, { ...byId.get(iSimple), size: null, prep: undefined }]]), []);
+check("Fiche : taille inconnue ou prep absent (fonction pas redéployée) → « À vérifier »", sh0.boxes.length === 0 && sh0.genoises.length === 0 && sh0.toCheck.length === 2, sh0.toCheck);
+const html = P.prepSheetHtml(sh, "du 12.10.2026 au 13.10.2026");
+check("Fiche A4 : sections et échappement HTML", ["Boîtes", "Génoises", "Goûts", "Garnitures", "À vérifier", "Dot (pièces)", "size: A4"].every((x) => html.includes(x)) && !P.prepSheetHtml({ ...sh, flavours: [{ label: "<b>x", units: 1 }] }, "p").includes("<b>x"));
 
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);
