@@ -2,6 +2,7 @@ import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
 
 // Shared confirmation-email renderer for a "cake / product" order at its
 import { getLogoEmailUrl } from "./site-config.ts";
+import { type ConfirmationOpts, moneyRowsHtml, paymentDueSentence } from "./confirmation-money.ts";
 import {
   EMAIL_SECTION_TITLE_STYLE, EMAIL_PRODUCT_NAME_STYLE, EMAIL_CARD_STYLE,
   EMAIL_ACCENT_COLOR, EMAIL_FONT_STACK, EMAIL_BODY_SIZE,
@@ -179,10 +180,14 @@ export interface RenderedEmail {
 // order-level pickup_delivery_date/slot/delivery_method/delivery_address
 // columns, so a caller that never populates order_fulfillments (e.g. a
 // manually-created order) still renders correctly with zero extra work.
+// opts (2026-10-13, admin « Envoyer / Renvoyer la confirmation » only):
+// paymentDue and/or money — see _shared/confirmation-money.ts. Omitted by
+// every automatic sender, which then gets exactly the e-mail it always had.
 export function renderCakeOrderConfirmationEmail(
   order: any,
   items: any[],
   fulfillments: any[] = [],
+  opts: ConfirmationOpts = {},
 ): RenderedEmail {
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
@@ -490,7 +495,7 @@ ${brandDarkModeStyle()}
             : tr(
                 `Your order <strong>#${orderNumber}</strong> is now confirmed.`,
                 `Votre commande <strong>n° ${orderNumber}</strong> est maintenant confirmée.`
-              )}
+              )}${opts.paymentDue ? ` ${paymentDueSentence(opts, tr)}` : ""}
         </p>
 
         ${pickupDeliveryBlock}
@@ -536,12 +541,12 @@ ${brandDarkModeStyle()}
           </tbody>
           <tfoot>
             <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
-              <td class="bcs-accent-text bcs-row-label bcs-row-price-label" style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total", "Total")}</td>
-              <td class="bcs-accent-text bcs-row-value bcs-row-price-value" style="padding:10px 14px;font-size:15px;font-weight:700;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>
+              <td class="bcs-accent-text bcs-row-label bcs-row-price-label" style="padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${opts.money?.afterCancellation ? tr("Total after cancellation", "Total après annulation") : tr("Total", "Total")}</td>
+              <td class="bcs-accent-text bcs-row-value bcs-row-price-value" style="padding:10px 14px;font-size:15px;font-weight:700;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${opts.money ? opts.money.total.toFixed(2) : order.total_amount}</td>
             </tr>
           </tfoot>
         </table>
-
+${moneyRowsHtml(opts, tr)}
         <p class="bcs-text" style="color:#351E13;font-size:13px;line-height:1.7;margin:0 0 20px;border-top:1px solid #78020C;padding-top:20px;">
           ${tr(
             "If any of these details are incorrect or if you need to make a small change, please contact us as soon as possible.",

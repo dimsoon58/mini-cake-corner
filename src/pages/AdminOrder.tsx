@@ -19,6 +19,7 @@ import { ReferencePhotos } from "@/components/ReferencePhotos";
 import { ProductionCheck } from "@/components/admin/ProductionCheck";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
 import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
+import { OrderConfirmationPanel } from "@/components/admin/OrderConfirmationPanel";
 import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -459,6 +460,9 @@ const AdminOrder = () => {
               <DetailRow label={t("Source", "Source")} value={order.order_source} />
             )}
           </div>
+
+          {/* Confirmation (F29) : e-mail de la commande, correction, envoi / renvoi — administratrices seulement */}
+          {isAdminEmail(user?.email) && <OrderConfirmationPanel orderId={order.id} onChanged={() => setReloadKey((k) => k + 1)} />}
 
           {/* Pickup / Delivery — physical products only */}
           {isMultiDate ? (
