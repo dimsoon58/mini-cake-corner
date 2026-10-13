@@ -10,10 +10,8 @@ import homeCatDiy from "@/assets/home-cat-diy.jpg";
 import homeCatWorkshops from "@/assets/home-cat-workshops.jpg";
 import homeCatRectangle from "@/assets/home-cat-rectangle.jpg";
 import heroPoster from "@/assets/hero-poster.jpg";
-// Vidéo d'accueil : le gâteau rose en cœur découpé (horizontale pour ordinateur,
-// verticale pour téléphone). L'image d'attente vient de la même vidéo.
+// Vidéo d'accueil : le gâteau rose en cœur découpé — même fichier pour bureau et téléphone.
 import heroVideo from "@/assets/hero-video-coeur.mp4";
-import heroVideoMobile from "@/assets/hero-video-coeur-mobile.mp4";
 import featureCake from "@/assets/feature-cake.png";
 import featurePipingBag from "@/assets/feature-piping-bag.png";
 import featureWhisk from "@/assets/feature-whisk.png";
@@ -223,13 +221,13 @@ const PhotoCarousel = ({ photos, altPrefix, contain = false }: { photos: string[
 
 const Index = () => {
   const discoverRef = useRef<HTMLDivElement>(null);
-  const mobileVideoRef = useRef<HTMLVideoElement>(null);
+  const heroVideoRef = useRef<HTMLVideoElement>(null);
   const { t, lang } = useLang();
 
   // iOS Safari ignores the `autoplay` HTML attribute unless we also call
   // .play() programmatically after mount with muted=true already set.
   useEffect(() => {
-    const v = mobileVideoRef.current;
+    const v = heroVideoRef.current;
     if (!v) return;
     v.muted = true;
     v.play().catch(() => {/* autoplay blocked by browser/device policy, silent */});
@@ -278,30 +276,19 @@ const Index = () => {
     <Layout overlayHero>
       {/* Hero Section */}
       <section className="relative text-primary-foreground overflow-hidden min-h-[65vh] md:min-h-0 md:aspect-video flex items-center justify-center">
-        {/* Mobile video */}
+        {/* Hero video — même fichier pour bureau et téléphone */}
         <video
-          ref={mobileVideoRef}
-          className="absolute inset-0 w-full h-full object-cover scale-[1.01] block md:hidden"
-          poster={heroPoster}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-        >
-          <source src={heroVideoMobile} type="video/mp4" />
-        </video>
-        {/* Desktop video */}
-        <video
-          className="absolute inset-0 w-full h-full object-cover scale-[1.01] hidden md:block"
-          src={heroVideo}
+          ref={heroVideoRef}
+          className="absolute inset-0 w-full h-full object-cover scale-[1.01]"
           poster={heroPoster}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
-        />
+        >
+          <source src={heroVideo} type="video/mp4" />
+        </video>
         <div className="absolute inset-0 bg-foreground/15" />
         <div className="relative container mx-auto px-4 py-20 md:py-0 text-center text-cream">
           {/* Brand spec: Agrandir Bold 50px, Montserrat stands in until the Agrandir font file is provided */}
