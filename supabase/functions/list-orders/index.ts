@@ -70,6 +70,9 @@ serve(async (req) => {
       .select(
         "id, order_number, order_source, first_name, last_name, email, total_amount, payment_status, order_validation, physical_validation, fulfillment_type, order_failure_reason, pickup_delivery_date, delivery_method, created_at",
       )
+      // Brouillons de commandes manuelles (13.10.2026) : visibles seulement dans
+      // « Commandes manuelles », jusqu'à leur confirmation.
+      .not("is_draft", "is", true)
       .order("created_at", { ascending: false })
       .range(from, from + PAGE_SIZE);
     if (search && !term) {
