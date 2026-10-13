@@ -266,7 +266,7 @@ Deno.serve(async (req: Request) => {
   <div style="max-width:600px;margin:0 auto;">
     <div style="background:#FDF8E1;margin:0 20px;">
       <div style="padding:36px 40px 0;text-align:center;">
-        <img src="https://dimsoon58.github.io/mini-cake-corner/logo-red-email.png" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
+        <img src="https://bentocakestudio.ch/logo-red-email.png" alt="Bento Cake Studio" style="width:240px;height:auto;display:block;margin:0 auto 28px;" />
       </div>
       <div style="padding:0 40px 36px;">
         <p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;">${esc(greeting)}</p>

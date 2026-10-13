@@ -43,7 +43,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SITE_URL = "https://dimsoon58.github.io/mini-cake-corner";
+const SITE_URL = "https://bentocakestudio.ch";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);

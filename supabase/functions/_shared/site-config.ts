@@ -8,7 +8,7 @@
 // The GitHub Pages fallback is kept so that the test environment (where the
 // secret is not yet set) keeps working without any change.
 export function getSiteBaseUrl(): string {
-  return Deno.env.get("SITE_BASE_URL") ?? "https://dimsoon58.github.io/mini-cake-corner";
+  return Deno.env.get("SITE_BASE_URL") ?? "https://bentocakestudio.ch";
 }
 
 export function getLogoEmailUrl(): string {

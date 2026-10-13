@@ -4,10 +4,14 @@ name: CI & Deploy to GitHub Pages
 # build/smoke-test checks (see docs/CI.md) — a push to `main` still always
 # succeeds (no branch protection, nothing here rejects the push itself), but
 # a broken push no longer reaches production: `deploy` only runs if `checks`
-# passes in full. The SAME dist/ build (built once, with the real
-# --base=/mini-cake-corner/ GitHub Pages needs) is what gets smoke-tested
-# AND published — never a second, separately-built artifact for smoke
-# testing alone.
+# passes in full. The SAME dist/ build (built once, with base=/) is what gets
+# smoke-tested AND published — never a second, separately-built artifact for
+# smoke testing alone.
+#
+# 2026-10-13: migrated to custom domain bentocakestudio.ch (root base path).
+# - Build base changed from /mini-cake-corner/ to /
+# - noindex injection removed (site is now public and should be indexed)
+# - SMOKE_BASE_PATH removed (tests run at root)
 on:
   push:
     branches: [main]
@@ -47,11 +51,9 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
-      - name: Build (GitHub Pages base path)
-        run: npx vite build --base=/mini-cake-corner/
+      - name: Build (root base path for custom domain)
+        run: npx vite build --base=/
 
-      - name: Keep preview out of search engines (noindex only on Pages)
-        run: perl -pi -e 's|</head>|<meta name="robots" content="noindex, nofollow" />\n</head>|' dist/index.html
       - name: SPA fallback for deep links
         run: cp dist/index.html dist/404.html
       # 2026-10-07 (contrôle PostFinance) : le 404.html affiche bien la page,
@@ -70,10 +72,8 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: Smoke test priority routes (same dist/ as above, same base path)
+      - name: Smoke test priority routes
         run: npm run test:smoke
-        env:
-          SMOKE_BASE_PATH: /mini-cake-corner
 
       - name: Upload Playwright report on failure
         if: failure()
