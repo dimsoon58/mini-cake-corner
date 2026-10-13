@@ -614,7 +614,8 @@ const AdminOrder = () => {
                           </Link>
                         </div>
                         )}
-                        <ReferencePhotos urls={item.reference_images} />
+                        <ReferencePhotos urls={item.reference_images}
+                          printedFirst={item.design === "printed-picture" || (Array.isArray(item.extras) && item.extras.includes("printed-picture"))} />
                       </div>
                     </div>
                   </div>

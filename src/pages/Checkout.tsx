@@ -996,6 +996,23 @@ const Checkout = () => {
       return;
     }
 
+    // Image à imprimer : le panier ne garde pas les fichiers après un
+    // rechargement de page. Un gâteau « Printed picture » sans son image ne
+    // part jamais au paiement (13.10.2026).
+    const printedWithoutImage = items.find((it) =>
+      (it.style === "printed-picture" || (it.extras ?? []).includes("printed-picture")) && (it.imageFiles ?? []).length === 0);
+    if (printedWithoutImage) {
+      toast({
+        title: t("Image to print missing", "Image à imprimer manquante"),
+        description: t(
+          "The image to print on your cake was lost (the page was reloaded). Please remove this cake from your cart and add it again with its image.",
+          "L'image à imprimer sur votre gâteau a été perdue (la page a été rechargée). Merci de retirer ce gâteau du panier puis de l'ajouter à nouveau avec son image.",
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!acceptTerms) {
       toast({
         title: t("Terms and Conditions required", "CGV requises"),
