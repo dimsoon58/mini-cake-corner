@@ -310,12 +310,12 @@ const AdminManualOrderEditor = () => {
   const missing = useMemo(() => {
     const l = lang === "en" ? "en" : "fr";
     const out: string[] = [];
-    if (!customer.first_name.trim()) out.push(t("First name", "Prénom"));
-    if (!customer.last_name.trim()) out.push(t("Last name", "Nom"));
     // F31 : téléphone, e-mail et Instagram facultatifs — au moins un pour une commande normale.
     if (customer.email.trim() !== "" && !EMAIL_RE.test(customer.email.trim())) out.push(t("A valid email", "Un email valide"));
     if (customer.instagram.trim() !== "" && !/^@?[A-Za-z0-9._]{1,30}$/.test(customer.instagram.trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/[/?#].*$/, ""))) out.push(t("A valid Instagram handle", "Un pseudo Instagram valide"));
-    if (!historical && !customer.phone.trim() && !customer.email.trim() && !customer.instagram.trim()) out.push(t("A contact: phone, email or Instagram", "Un contact : téléphone, e-mail ou Instagram"));
+    if (![customer.first_name, customer.last_name, customer.phone, customer.email, customer.instagram].some((v) => v.trim())) {
+      out.push(t("A name or a contact: name, phone, email or Instagram", "Un nom ou un contact : nom, téléphone, e-mail ou Instagram"));
+    }
     if (items.length === 0) out.push(t("At least one product", "Au moins un produit"));
     const physical = items.some((it) => it.product !== "workshop");
     if (physical && groups.some((g) => !g.date)) out.push(t("The date (section 3)", "La date (section 3)"));
@@ -489,15 +489,15 @@ const AdminManualOrderEditor = () => {
               </label>
               <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {([
-                  ["first_name", t("First name", "Prénom")],
-                  ["last_name", t("Last name", "Nom")],
+                  ["first_name", t("First name (optional)", "Prénom (facultatif)")],
+                  ["last_name", t("Last name (optional)", "Nom (facultatif)")],
                   ["phone", t("Phone (optional)", "Téléphone (facultatif)")],
                   ["email", t("Email (optional)", "Email (facultatif)")],
                   ["instagram", t("Instagram handle (optional)", "Pseudo Instagram (facultatif)")],
                   ["company", t("Company (optional)", "Entreprise (optionnel)")],
                 ] as const).map(([k, lab]) => (
                   <div key={k}>
-                    <label className={label}>{lab}{(k === "first_name" || k === "last_name") && <span className="text-destructive"> *</span>}</label>
+                    <label className={label}>{lab}</label>
                     <input
                       type={k === "email" ? "email" : k === "phone" ? "tel" : "text"}
                       placeholder={k === "instagram" ? "@pseudo" : undefined}
@@ -509,8 +509,8 @@ const AdminManualOrderEditor = () => {
                   </div>
                 ))}
                 <p className="sm:col-span-2 text-xs text-muted-foreground -mt-1">
-                  {t("Phone, email and Instagram are optional: give at least one (none needed for a historical order). Without an email, no email is ever sent.",
-                    "Téléphone, e-mail et Instagram sont facultatifs : indiquez-en au moins un (aucun pour une commande historique). Sans e-mail, aucun e-mail n'est jamais envoyé.")}
+                  {t("Name, phone, email and Instagram are all optional: give at least one, and choose the order channel. Without an email, no email is ever sent.",
+                    "Nom, téléphone, e-mail et Instagram sont tous facultatifs : indiquez-en au moins un, et choisissez le canal de commande. Sans e-mail, aucun e-mail n'est jamais envoyé.")}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>

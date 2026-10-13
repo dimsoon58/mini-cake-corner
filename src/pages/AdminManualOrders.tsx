@@ -230,7 +230,7 @@ const AdminManualOrders = () => {
                       </span>
                     </td>
                     <td className="py-2 px-3 min-w-[180px]">
-                      {o.customerName || "—"}
+                      {o.customerName || <span className="text-muted-foreground">{t("No name", "Sans nom")}</span>}
                       {o.company && <span className="block text-[11px] text-muted-foreground">{o.company}</span>}
                       {o.phone && <span className="block text-[11px] text-muted-foreground whitespace-nowrap">{o.phone}</span>}
                       {o.instagram && <span className="block text-[11px] text-muted-foreground whitespace-nowrap">Instagram {o.instagram}</span>}

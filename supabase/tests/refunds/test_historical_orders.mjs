@@ -258,8 +258,8 @@ r = await call("manage-manual-order", { action: "save", mode: "confirm", ...N1bo
 const N1 = r.body.orderId;
 o = await one("select is_historical, phone, email from public.orders where id=$1", [N1]);
 // F31 : téléphone et e-mail sont devenus facultatifs, mais une commande normale garde au moins un contact.
-check("Commande normale : non historique, au moins un contact obligatoire", o.is_historical === false
-  && (await call("manage-manual-order", { action: "save", mode: "confirm", ...N1body, customer: { ...customer, phone: "", email: "" }, ...S })).status === 422);
+check("Commande normale : non historique, au moins un nom ou un contact obligatoire", o.is_historical === false
+  && (await call("manage-manual-order", { action: "save", mode: "confirm", ...N1body, customer: { ...customer, first_name: "", last_name: "", phone: "", email: "" }, ...S })).status === 422);
 r = await call("manage-manual-order", { action: "save", mode: "confirm", ...N1body, fulfillments: [pickup(PAST, [0])], ...S });
 check("Commande normale : date passée toujours refusée", r.status === 422);
 r = await call("manage-manual-order", { action: "mark_paid", orderId: N1, paymentMethod: "cash", sendConfirmation: true, ...S });

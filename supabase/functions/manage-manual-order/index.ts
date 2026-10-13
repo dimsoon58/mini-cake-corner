@@ -31,8 +31,9 @@ import { CAKE_EXTRAS, DIY_KIT_PIPING, roundToCents } from "../_shared/pricing.ts
 //                 Admin order through send-manual-order-confirmation.
 // Cancellation and editing a paid order are later actions.
 //
-// F31 (13.10.2026) — contact: phone, email and Instagram handle are each
-// optional; a confirmed (non-historical) order needs at least one of them.
+// F31 (13.10.2026) — contact: name, phone, email and Instagram handle are
+// each optional; a confirmed order needs at least ONE of them (a name alone,
+// with the order channel, is enough — e.g. an order taken in person).
 // No email address → no email is ever attempted (mark_paid skips it,
 // send_confirmation is refused); the order and the accounts are unaffected.
 //
@@ -307,13 +308,14 @@ serve(async (req) => {
 
       if (mode === "confirm") {
         const problems: string[] = [];
-        if (!customer.first_name) problems.push("First name is required");
-        if (!customer.last_name) problems.push("Last name is required");
-        // F31 : téléphone, e-mail et Instagram facultatifs ; au moins un moyen de
-        // contact pour une commande normale (aucun pour une commande historique).
+        // F31 : prénom et nom facultatifs (une commande peut n'avoir qu'un téléphone ou un pseudo).
+        // F31 : nom, téléphone, e-mail et Instagram facultatifs ; au moins l'un des quatre
+        // (commande normale comme historique) pour savoir à qui est la commande.
         if (customer.email !== "" && !EMAIL_RE.test(customer.email)) problems.push("A valid email is required");
         if (customer.instagram?.startsWith("invalid:")) problems.push("The Instagram handle is not valid");
-        if (!historical && !customer.phone && !customer.email && !customer.instagram) problems.push("Give at least one contact: phone, email or Instagram");
+        if (!customer.first_name && !customer.last_name && !customer.phone && !customer.email && !customer.instagram) {
+          problems.push("Give at least a name or a contact: name, phone, email or Instagram");
+        }
         if (!quote.ok) {
           problems.push(...quote.errors);
           quote.items.forEach((r) => r.error && problems.push(`Item ${r.index + 1}: ${r.error}`));

@@ -190,8 +190,23 @@ const save = (customer, items, fulfillments, extra = {}) => call("manage-manual-
 const orderOf = (id) => one("select * from public.orders where id=$1", [id]);
 
 // ═══ Coordonnées ═════════════════════════════════════════════════════════
-let r = await save({ ...base, phone: "", email: "", channel: "instagram" }, [cakeItem("vanilla")], [pickup(D1, [0])]);
-check("Aucun contact (ni téléphone, ni e-mail, ni Instagram) → refusée, message clair", r.status === 422 && (r.body.problems ?? []).some((p) => /at least one contact/i.test(p)), r.body);
+const noName = { first_name: "", last_name: "", lang: "fr" };
+let r = await save({ ...noName, phone: "", email: "", channel: "instagram" }, [cakeItem("vanilla")], [pickup(D1, [0])]);
+check("Rien du tout (ni nom, ni téléphone, ni e-mail, ni Instagram) → refusée, message clair", r.status === 422 && (r.body.problems ?? []).some((p) => /at least a name or a contact/i.test(p)), r.body);
+r = await call("manage-manual-order", { action: "save", mode: "confirm", customer: { ...noName, phone: "", email: "", channel: "in_person" }, items: [cakeItem("vanilla")], fulfillments: [pickup(D1, [0])], historical: true, ...S });
+check("Même règle pour une commande historique (au moins un nom ou un contact)", r.status === 422);
+const b0 = resendN();
+r = await save({ first_name: "Léa", last_name: "", lang: "fr", phone: "", email: "", channel: "in_person" }, [cakeItem("vanilla")], [pickup(D1, [0])]);
+const NM = r.body.orderId;
+let o0 = await orderOf(NM);
+check("Seulement un prénom + canal « en personne » : commande enregistrée", r.status === 200 && o0.first_name === "Léa" && o0.last_name === "" && o0.phone === "" && o0.email === "" && o0.customer_instagram === null && o0.order_channel === "in_person", r.body);
+r = await call("manage-manual-order", { action: "mark_paid", orderId: NM, paymentMethod: "cash", sendConfirmation: true, ...S });
+check("Nom seul : paiement enregistré, aucun e-mail tenté", r.status === 200 && r.body.paid === true && r.body.email?.noEmail === true && resendN() === b0, r.body);
+r = await save({ ...noName, phone: "+41 78 111 22 33", email: "", channel: "whatsapp" }, [cakeItem("vanilla")], [pickup(D1, [0])]);
+check("Seulement un téléphone, sans nom : commande enregistrée", r.status === 200 && (await orderOf(r.body.orderId)).first_name === "", r.body);
+r = await save({ ...noName, phone: "", email: "", instagram: "@lea.bakes", channel: "instagram" }, [cakeItem("vanilla")], [pickup(D1, [0])]);
+check("Seulement un pseudo Instagram, sans nom : commande enregistrée", r.status === 200 && (await orderOf(r.body.orderId)).customer_instagram === "@lea.bakes", r.body);
+check("Fiche client créée sans nom ni e-mail, sans bloquer la commande", (await one("select count(*)::int n from public.customer_alerts where kind = 'link_error'")).n === 0);
 r = await save({ ...base, phone: "", email: "pas-une-adresse", channel: "email" }, [cakeItem("vanilla")], [pickup(D1, [0])]);
 check("E-mail mal écrit → refusé", r.status === 422 && r.body.problems.some((p) => /valid email/.test(p)));
 r = await save({ ...base, phone: "", email: "", instagram: "claire cakes!", channel: "instagram" }, [cakeItem("vanilla")], [pickup(D1, [0])]);
