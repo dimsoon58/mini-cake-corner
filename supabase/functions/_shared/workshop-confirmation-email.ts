@@ -9,6 +9,7 @@ import {
   EMAIL_LABEL_COLOR,
   EMAIL_SMALL_SIZE,
 } from "./email-styles.ts";
+import { type ConfirmationOpts, moneyRowsHtml, paymentDueSentence } from "./confirmation-money.ts";
 
 
 // Shared workshop confirmation-email renderer — the exact same visual
@@ -88,11 +89,15 @@ export interface RenderedEmail {
 // confirmed: true once the workshop part is genuinely confirmed (payment
 // captured + reservation confirmed) — false for the pre-confirmation
 // "booking received, pending validation" stage.
+// paymentDue / money (2026-10-13): admin « Envoyer / Renvoyer la
+// confirmation » only — see _shared/confirmation-money.ts. Omitted by the
+// automatic senders, which get exactly the e-mail they always had.
 export function renderWorkshopConfirmationEmail(
   order: any,
   workshopItems: WorkshopItem[],
-  { confirmed }: { confirmed: boolean },
+  { confirmed, paymentDue, money }: { confirmed: boolean } & ConfirmationOpts,
 ): RenderedEmail {
+  const opts: ConfirmationOpts = { paymentDue, money };
   const lang = getCustomerLang(order);
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
 
@@ -195,7 +200,7 @@ ${brandDarkModeStyle()}
           ${tr("Your workshop booking is confirmed!", "Votre réservation d'atelier est confirmée !")}
         </p>
         <p style="color:#351E13;font-size:15px;line-height:1.7;margin:0 0 20px;">
-          ${tr(
+          ${paymentDue ? paymentDueSentence(opts, tr) : tr(
             "Your payment has been received and your place is reserved.",
             "Votre paiement a bien été reçu et votre place est réservée.",
           )}
@@ -216,13 +221,15 @@ ${brandDarkModeStyle()}
           <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
             <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${
               !confirmed ? tr("Workshops total", "Total ateliers")
+                : money?.afterCancellation ? tr("Total after cancellation", "Total après annulation")
+                : paymentDue ? tr("Amount to pay on site", "Montant à régler sur place")
                 : isMixed ? tr("Workshop amount", "Montant atelier")
                 : tr("Amount paid", "Montant payé")
             }</td>
-            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:15px;font-weight:700;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${confirmed ? amountPaid : chf(workshopSubtotal)}</td>
+            <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:15px;font-weight:700;text-align:right;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${confirmed ? (money ? money.total.toFixed(2) : amountPaid) : chf(workshopSubtotal)}</td>
           </tr>
         </table>
-
+${confirmed ? moneyRowsHtml(opts, tr) : ""}
         ${confirmed ? `
         <p style="color:#351E13;font-size:15px;line-height:1.7;margin:20px 0 0;">
           ${tr(
