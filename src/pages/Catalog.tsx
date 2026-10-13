@@ -2670,7 +2670,10 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                {/* Printed Picture Upload - for printed-picture style or extra */}
               {(selectedCake?.styleId === "printed-picture" || selections.extras.includes("printed-picture")) && (
                 <div className="space-y-3">
-                  <label className="text-[14px] font-semibold text-foreground">{t("Upload your image", "Téléchargez votre image")}</label>
+                  <label className="text-[14px] font-semibold text-foreground">
+                    {t("Upload your image", "Téléchargez votre image")}
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
                   <p className="text-xs text-muted-foreground">
                     {t("Upload the image or logo you want printed on your cake (JPG, PNG, WEBP)", "Téléchargez l'image ou le logo que vous souhaitez faire imprimer sur votre gâteau (JPG, PNG, WEBP)")}
                   </p>
