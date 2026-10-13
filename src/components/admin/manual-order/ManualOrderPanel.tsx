@@ -48,6 +48,9 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
   const status = manualStatusOf(order);
   // F30 : commande historique (réalisée avant le site) — aucun e-mail, jamais.
   const historical = order.is_historical === true;
+  // F31 : sans adresse e-mail, aucun envoi n'est proposé ni tenté.
+  const noEmail = !String(order.email ?? "").trim();
+  const emailOff = historical || noEmail;
 
   const [payOpen, setPayOpen] = useState(false);
   const [method, setMethod] = useState("twint");
@@ -76,7 +79,7 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
     setBusy("pay");
     setMessage(null);
     const { data, error } = await supabase.functions.invoke("manage-manual-order", {
-      body: markPaidBody(order.id, { method, paidOn, note: paymentNote, sendConfirmation: historical ? false : sendConfirmation }, pin),
+      body: markPaidBody(order.id, { method, paidOn, note: paymentNote, sendConfirmation: emailOff ? false : sendConfirmation }, pin),
     });
     setBusy(null);
     if (error || data?.error) {
@@ -113,6 +116,8 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
     emailStatus === "sent" ? t(`Sent ${order.manual_confirmation_sent_at ? format(new Date(order.manual_confirmation_sent_at), "dd.MM.yyyy HH:mm") : ""}`, `Envoyée ${order.manual_confirmation_sent_at ? `le ${format(new Date(order.manual_confirmation_sent_at), "dd.MM.yyyy à HH:mm")}` : ""}`)
     : emailStatus === "error" ? t("Sending failed", "Échec de l'envoi")
     : emailStatus === "sending" ? t("Being sent…", "Envoi en cours…")
+    : historical ? t("None (historical order)", "Aucun (commande historique)")
+    : noEmail ? t("None (no email address)", "Aucun (pas d'adresse e-mail)")
     : t("Not sent", "Pas encore envoyée");
 
   return (
@@ -204,7 +209,7 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
             <CreditCard className="w-4 h-4 mr-1" /> {t("Mark as paid", "Marquer comme payée")}
           </Button>
         )}
-        {status === "paid" && !historical && emailStatus !== "sent" && emailStatus !== "sending" && (
+        {status === "paid" && !emailOff && emailStatus !== "sent" && emailStatus !== "sending" && (
           <Button onClick={sendEmail} disabled={busy === "email"} className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground">
             {busy === "email" ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Mail className="w-4 h-4 mr-1" />}
             {t("Send the confirmation", "Envoyer la confirmation")}
@@ -250,8 +255,10 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
               </div>
             )}
           </div>
-          {historical ? (
-            <p className="text-xs text-amber-900">{t("Historical order: no email is sent.", "Commande historique : aucun e-mail n'est envoyé.")}</p>
+          {emailOff ? (
+            <p className="text-xs text-amber-900">{historical
+              ? t("Historical order: no email is sent.", "Commande historique : aucun e-mail n'est envoyé.")
+              : t("No email address: no email is sent.", "Pas d'adresse e-mail : aucun e-mail n'est envoyé.")}</p>
           ) : (
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" checked={sendConfirmation} onChange={(e) => setSendConfirmation(e.target.checked)} className="mt-0.5" />

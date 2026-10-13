@@ -257,8 +257,9 @@ const N1body = { customer, items: [cakeItem("vanilla")], fulfillments: [pickup(F
 r = await call("manage-manual-order", { action: "save", mode: "confirm", ...N1body, ...S });
 const N1 = r.body.orderId;
 o = await one("select is_historical, phone, email from public.orders where id=$1", [N1]);
-check("Commande normale : non historique, téléphone et e-mail toujours obligatoires", o.is_historical === false
-  && (await call("manage-manual-order", { action: "save", mode: "confirm", ...N1body, customer: { ...customer, phone: "" }, ...S })).status === 422);
+// F31 : téléphone et e-mail sont devenus facultatifs, mais une commande normale garde au moins un contact.
+check("Commande normale : non historique, au moins un contact obligatoire", o.is_historical === false
+  && (await call("manage-manual-order", { action: "save", mode: "confirm", ...N1body, customer: { ...customer, phone: "", email: "" }, ...S })).status === 422);
 r = await call("manage-manual-order", { action: "save", mode: "confirm", ...N1body, fulfillments: [pickup(PAST, [0])], ...S });
 check("Commande normale : date passée toujours refusée", r.status === 422);
 r = await call("manage-manual-order", { action: "mark_paid", orderId: N1, paymentMethod: "cash", sendConfirmation: true, ...S });
@@ -269,9 +270,9 @@ check("Bloc Confirmation : afficher l'état n'envoie rien (seul le bouton envoie
 
 // Site : l'option dans l'éditeur, sans case « envoyer »
 const ed = fs.readFileSync(path.join(REPO, "src/pages/AdminManualOrderEditor.tsx"), "utf8");
-check("Éditeur : option « Commande historique — sans email », dates passées permises, e-mail forcé à non", ed.includes("Commande historique — sans email") && ed.includes("allowPast={historical}") && /historical \? \{ \.\.\.pay, sendConfirmation: false \}/.test(ed));
+check("Éditeur : option « Commande historique — sans email », dates passées permises, e-mail forcé à non", ed.includes("Commande historique — sans email") && ed.includes("allowPast={historical}") && /historical \|\| !customer\.email\.trim\(\) \? \{ \.\.\.pay, sendConfirmation: false \}/.test(ed));
 const pn = fs.readFileSync(path.join(REPO, "src/components/admin/manual-order/ManualOrderPanel.tsx"), "utf8");
-check("Fiche commande : pas de bouton ni de case d'e-mail pour une historique", /status === "paid" && !historical/.test(pn) && /sendConfirmation: historical \? false/.test(pn));
+check("Fiche commande : pas de bouton ni de case d'e-mail pour une historique", /status === "paid" && !emailOff/.test(pn) && /sendConfirmation: emailOff \? false/.test(pn) && /const emailOff = historical \|\| noEmail/.test(pn));
 
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);

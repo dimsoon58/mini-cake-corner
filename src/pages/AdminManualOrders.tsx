@@ -26,6 +26,7 @@ interface ManualOrderRow {
   customerName: string;
   phone: string | null;
   email: string | null;
+  instagram?: string | null;   // F31
   company: string | null;
   channel: string | null;
   createdVia: string | null;
@@ -179,7 +180,7 @@ const AdminManualOrders = () => {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("Search: ORDM, name, phone, email", "Rechercher : ORDM, nom, téléphone, email")}
+              placeholder={t("Search: ORDM, name, phone, email, Instagram", "Rechercher : ORDM, nom, téléphone, email, Instagram")}
               className="w-full border border-input bg-background pl-8 pr-3 py-1.5 rounded-none"
             />
           </div>
@@ -232,6 +233,7 @@ const AdminManualOrders = () => {
                       {o.customerName || "—"}
                       {o.company && <span className="block text-[11px] text-muted-foreground">{o.company}</span>}
                       {o.phone && <span className="block text-[11px] text-muted-foreground whitespace-nowrap">{o.phone}</span>}
+                      {o.instagram && <span className="block text-[11px] text-muted-foreground whitespace-nowrap">Instagram {o.instagram}</span>}
                     </td>
                     <td className="py-2 px-3 min-w-[220px]" data-testid="manual-schedule">
                       {o.schedule && o.schedule.length > 0 ? (

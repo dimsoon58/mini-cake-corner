@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
-import { isAwaitingDecision, type ProdOrder } from "../_shared/production-stats.ts";
+import { isAwaitingDecision, isManualOrder, type ProdOrder } from "../_shared/production-stats.ts";
 import { buildOrderItemCancellationEmail, itemCancellationIdempotencyKey } from "../_shared/order-item-cancellation-email.ts";
 
 // Admin > cancel ONE cake / article of an order (2026-10-04) — what Notion did
@@ -57,6 +57,12 @@ serve(async (req) => {
     if (orderErr) throw new Error(`Failed to load order: ${orderErr.message}`);
     if (!order) return json({ error: "Parent order not found" }, 404);
 
+    // F31 (13.10.2026) : commande MANUELLE sans e-mail ou commande historique →
+    // annulée sans e-mail. Une commande du site sans e-mail reste refusée (anomalie).
+    const hasEmail = !!String(order.email ?? "").trim();
+    const canEmail = hasEmail && order.is_historical !== true;
+    const noEmailRefused = !hasEmail && order.is_historical !== true && !isManualOrder(order as ProdOrder);
+
     // Already done (double click / retry after success): nothing more.
     if (item.production_status === "cancelled" && item.cancellation_email_sent_at) {
       return json({ success: true, alreadyCancelled: true, emailAlreadySent: true, orderItemId, emailId: item.cancellation_email_id ?? null });
@@ -72,7 +78,8 @@ serve(async (req) => {
       if (isAwaitingDecision(order as ProdOrder)) {
         return json({ error: "This order is still awaiting your decision.", reason: "awaiting_decision" }, 409);
       }
-      if (!String(order.email ?? "").trim()) return json({ error: "Parent order has no customer email", reason: "no_email" }, 409);
+      // F31 : sans e-mail (commande manuelle) ou historique, l'article s'annule quand même, sans envoi.
+      if (noEmailRefused) return json({ error: "Parent order has no customer email", reason: "no_email" }, 409);
 
       // Last active article → whole-order cancellation (same rule as before).
       // A workshop article counts as active while it still has seats.
@@ -95,9 +102,14 @@ serve(async (req) => {
         .neq("production_status", "cancelled")
         .select("id");
       if (cErr) throw new Error(`Failed to cancel the item: ${cErr.message}`);
-    } else if (!String(order.email ?? "").trim()) {
+    } else if (noEmailRefused) {
       return json({ error: "Parent order has no customer email", reason: "no_email" }, 409);
+    } else if (!canEmail) {
+      return json({ success: true, alreadyCancelled: true, emailSkipped: true, orderItemId });
     }
+
+    // F31 : aucun e-mail possible ou voulu → annulé, aucun envoi tenté.
+    if (!canEmail) return json({ success: true, cancelled: true, emailSkipped: true, orderItemId });
 
     // ── Existing email (verbatim template), one per item ─────────────────
     let fulfillment: Record<string, unknown> | null = null;

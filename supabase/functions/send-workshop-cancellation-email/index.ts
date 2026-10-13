@@ -210,6 +210,14 @@ serve(async (req) => {
       .from("orders").select("*").eq("id", reservation.order_id).single();
     if (orderErr || !order) throw new Error("Order not found");
 
+    // F31 (13.10.2026) : commande sans e-mail ou historique → aucun envoi tenté.
+    if (!String(order.email ?? "").trim() || order.is_historical === true) {
+      return new Response(JSON.stringify({ success: true, skipped: true }), {
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) throw new Error("RESEND_API_KEY not configured");
 

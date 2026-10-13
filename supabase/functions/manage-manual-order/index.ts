@@ -31,6 +31,11 @@ import { CAKE_EXTRAS, DIY_KIT_PIPING, roundToCents } from "../_shared/pricing.ts
 //                 Admin order through send-manual-order-confirmation.
 // Cancellation and editing a paid order are later actions.
 //
+// F31 (13.10.2026) — contact: phone, email and Instagram handle are each
+// optional; a confirmed (non-historical) order needs at least one of them.
+// No email address → no email is ever attempted (mark_paid skips it,
+// send_confirmation is refused); the order and the accounts are unaffected.
+//
 // F30 (13.10.2026) — « Commande historique — sans email » (orders.is_historical):
 // an order already made before the website, entered only for the accounts.
 // Past dates allowed, no express surcharge, no workshop; phone / email
@@ -57,6 +62,15 @@ function extrasPrice(it: EditorItem): number {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// F31 (13.10.2026) — pseudo Instagram : lettres, chiffres, point, tiret bas ;
+// stocké avec « @ » devant. Une valeur qui ne ressemble pas à un pseudo est refusée.
+const INSTAGRAM_RE = /^[A-Za-z0-9._]{1,30}$/;
+export function normaliseInstagram(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  let h = v.trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/[/?#].*$/, "").replace(/^@+/, "");
+  if (!h) return null;
+  return INSTAGRAM_RE.test(h) ? `@${h}` : `invalid:${h}`;
+}
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CHANNELS = ["phone", "instagram", "whatsapp", "email", "in_person", "other"];
 const REASONS = ["goodwill", "loyal_customer", "agreed_price", "b2b", "partner", "custom_supplement", "other"];
@@ -220,7 +234,7 @@ serve(async (req) => {
         editable: edit.ok,
         notEditableReason: edit.reason ?? null,
         customer: {
-          first_name: o.first_name, last_name: o.last_name, phone: o.phone, email: o.email,
+          first_name: o.first_name, last_name: o.last_name, phone: o.phone, email: o.email, instagram: o.customer_instagram ?? "",
           company: o.customer_company, lang: o.lang === "en" ? "en" : "fr", channel: o.order_channel,
         },
         internal_notes: o.internal_notes,
@@ -265,6 +279,7 @@ serve(async (req) => {
       const c = b.customer ?? {};
       const customer = {
         first_name: str(c.first_name), last_name: str(c.last_name), phone: str(c.phone), email: str(c.email).toLowerCase(),
+        instagram: normaliseInstagram(c.instagram),
         company: strOrNull(c.company), lang: c.lang === "en" ? "en" : "fr",
         channel: c.channel && CHANNELS.includes(c.channel) ? c.channel : null,
       };
@@ -294,9 +309,11 @@ serve(async (req) => {
         const problems: string[] = [];
         if (!customer.first_name) problems.push("First name is required");
         if (!customer.last_name) problems.push("Last name is required");
-        // Commande historique : aucun e-mail ne part, téléphone et e-mail facultatifs.
-        if (!customer.phone && !historical) problems.push("Phone is required");
-        if (historical ? customer.email !== "" && !EMAIL_RE.test(customer.email) : !EMAIL_RE.test(customer.email)) problems.push("A valid email is required");
+        // F31 : téléphone, e-mail et Instagram facultatifs ; au moins un moyen de
+        // contact pour une commande normale (aucun pour une commande historique).
+        if (customer.email !== "" && !EMAIL_RE.test(customer.email)) problems.push("A valid email is required");
+        if (customer.instagram?.startsWith("invalid:")) problems.push("The Instagram handle is not valid");
+        if (!historical && !customer.phone && !customer.email && !customer.instagram) problems.push("Give at least one contact: phone, email or Instagram");
         if (!quote.ok) {
           problems.push(...quote.errors);
           quote.items.forEach((r) => r.error && problems.push(`Item ${r.index + 1}: ${r.error}`));
@@ -340,6 +357,7 @@ serve(async (req) => {
         last_name: customer.last_name,
         phone: customer.phone,
         email: customer.email,
+        customer_instagram: customer.instagram?.startsWith("invalid:") ? null : customer.instagram,
         customer_company: customer.company,
         lang: customer.lang,
         internal_notes: strOrNull(b.internal_notes),
@@ -565,10 +583,12 @@ serve(async (req) => {
         return json(cors, { error: payErr.message, reason, paid: false }, 409);
       }
 
-      let email: { requested: boolean; sent: boolean; alreadySent?: boolean; error?: string | null; historical?: boolean } = { requested: false, sent: false };
+      let email: { requested: boolean; sent: boolean; alreadySent?: boolean; error?: string | null; historical?: boolean; noEmail?: boolean } = { requested: false, sent: false };
       // F30 : commande historique → jamais d'e-mail, même si la case arrivait cochée.
-      const { data: hist } = await supabase.from("orders").select("is_historical").eq("id", orderId).maybeSingle();
+      const { data: hist } = await supabase.from("orders").select("is_historical, email").eq("id", orderId).maybeSingle();
       if (hist?.is_historical === true) email = { requested: false, sent: false, historical: true };
+      // F31 : pas d'adresse → aucun envoi tenté (le paiement reste enregistré normalement).
+      else if (!String(hist?.email ?? "").trim()) email = { requested: false, sent: false, noEmail: true };
       else if (body?.sendConfirmation === true) {
         email = { requested: true, ...(await sendManualConfirmation(supabase, orderId)) };
       }
@@ -578,9 +598,10 @@ serve(async (req) => {
     // ── send_confirmation (manual, e.g. after an email failure) ────────
     if (action === "send_confirmation") {
       const orderId = String(body?.orderId ?? "");
-      const { data: o } = await supabase.from("orders").select("created_via, payment_status, is_historical").eq("id", orderId).maybeSingle();
+      const { data: o } = await supabase.from("orders").select("created_via, payment_status, is_historical, email").eq("id", orderId).maybeSingle();
       if (!o) return json(cors, { error: "Order not found" }, 404);
       if (o.is_historical === true) return json(cors, { error: "Historical order: no email is ever sent", reason: "historical" }, 409);
+      if (!String(o.email ?? "").trim()) return json(cors, { error: "This order has no email address", reason: "no_email" }, 409);
       if (o.created_via !== "admin") return json(cors, { error: "Only orders created from the Admin are handled here" }, 409);
       if (o.payment_status !== "paid") return json(cors, { error: "The order must be paid before the confirmation is sent" }, 409);
       const result = await sendManualConfirmation(supabase, orderId);

@@ -127,7 +127,7 @@ const AdminManualOrderEditor = () => {
   const [isDraft, setIsDraft] = useState(true);
   const [notEditable, setNotEditable] = useState<string | null>(null);
 
-  const [customer, setCustomer] = useState({ first_name: "", last_name: "", phone: "", email: "", company: "", lang: "fr" as "fr" | "en", channel: "phone" });
+  const [customer, setCustomer] = useState({ first_name: "", last_name: "", phone: "", email: "", instagram: "", company: "", lang: "fr" as "fr" | "en", channel: "phone" });
   const [internalNotes, setInternalNotes] = useState("");
   const [orderComment, setOrderComment] = useState("");
   const [items, setItems] = useState<EditorItem[]>([]);
@@ -202,7 +202,7 @@ const AdminManualOrderEditor = () => {
         setNotEditable(o.editable ? null : (o.notEditableReason || t("This order can't be edited.", "Cette commande ne peut pas être modifiée.")));
         setCustomer({
           first_name: o.customer.first_name ?? "", last_name: o.customer.last_name ?? "", phone: o.customer.phone ?? "",
-          email: o.customer.email ?? "", company: o.customer.company ?? "", lang: o.customer.lang === "en" ? "en" : "fr",
+          email: o.customer.email ?? "", instagram: o.customer.instagram ?? "", company: o.customer.company ?? "", lang: o.customer.lang === "en" ? "en" : "fr",
           channel: o.customer.channel ?? "phone",
         });
         setInternalNotes(o.internal_notes ?? "");
@@ -312,8 +312,10 @@ const AdminManualOrderEditor = () => {
     const out: string[] = [];
     if (!customer.first_name.trim()) out.push(t("First name", "Prénom"));
     if (!customer.last_name.trim()) out.push(t("Last name", "Nom"));
-    if (!customer.phone.trim() && !historical) out.push(t("Phone", "Téléphone"));
-    if (historical ? customer.email.trim() !== "" && !EMAIL_RE.test(customer.email.trim()) : !EMAIL_RE.test(customer.email.trim())) out.push(t("A valid email", "Un email valide"));
+    // F31 : téléphone, e-mail et Instagram facultatifs — au moins un pour une commande normale.
+    if (customer.email.trim() !== "" && !EMAIL_RE.test(customer.email.trim())) out.push(t("A valid email", "Un email valide"));
+    if (customer.instagram.trim() !== "" && !/^@?[A-Za-z0-9._]{1,30}$/.test(customer.instagram.trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/[/?#].*$/, ""))) out.push(t("A valid Instagram handle", "Un pseudo Instagram valide"));
+    if (!historical && !customer.phone.trim() && !customer.email.trim() && !customer.instagram.trim()) out.push(t("A contact: phone, email or Instagram", "Un contact : téléphone, e-mail ou Instagram"));
     if (items.length === 0) out.push(t("At least one product", "Au moins un produit"));
     const physical = items.some((it) => it.product !== "workshop");
     if (physical && groups.some((g) => !g.date)) out.push(t("The date (section 3)", "La date (section 3)"));
@@ -388,7 +390,7 @@ const AdminManualOrderEditor = () => {
       setSaving("confirm");
       let paid: { data: { error?: string; reason?: string; email?: { requested?: boolean; sent?: boolean; error?: string | null } } | null; error: unknown } | null = null;
       try {
-        paid = await supabase.functions.invoke("manage-manual-order", { body: markPaidBody(data.orderId, historical ? { ...pay, sendConfirmation: false } : pay, pin) });
+        paid = await supabase.functions.invoke("manage-manual-order", { body: markPaidBody(data.orderId, historical || !customer.email.trim() ? { ...pay, sendConfirmation: false } : pay, pin) });
       } catch (e) {
         console.error("mark_paid after confirm failed:", e);
       }
@@ -489,14 +491,16 @@ const AdminManualOrderEditor = () => {
                 {([
                   ["first_name", t("First name", "Prénom")],
                   ["last_name", t("Last name", "Nom")],
-                  ["phone", t("Phone", "Téléphone")],
-                  ["email", t("Email", "Email")],
+                  ["phone", t("Phone (optional)", "Téléphone (facultatif)")],
+                  ["email", t("Email (optional)", "Email (facultatif)")],
+                  ["instagram", t("Instagram handle (optional)", "Pseudo Instagram (facultatif)")],
                   ["company", t("Company (optional)", "Entreprise (optionnel)")],
                 ] as const).map(([k, lab]) => (
                   <div key={k}>
-                    <label className={label}>{lab}{k !== "company" && <span className="text-destructive"> *</span>}</label>
+                    <label className={label}>{lab}{(k === "first_name" || k === "last_name") && <span className="text-destructive"> *</span>}</label>
                     <input
                       type={k === "email" ? "email" : k === "phone" ? "tel" : "text"}
+                      placeholder={k === "instagram" ? "@pseudo" : undefined}
                       aria-label={lab}
                       value={customer[k]}
                       onChange={(e) => setCustomer({ ...customer, [k]: e.target.value })}
@@ -504,6 +508,10 @@ const AdminManualOrderEditor = () => {
                     />
                   </div>
                 ))}
+                <p className="sm:col-span-2 text-xs text-muted-foreground -mt-1">
+                  {t("Phone, email and Instagram are optional: give at least one (none needed for a historical order). Without an email, no email is ever sent.",
+                    "Téléphone, e-mail et Instagram sont facultatifs : indiquez-en au moins un (aucun pour une commande historique). Sans e-mail, aucun e-mail n'est jamais envoyé.")}
+                </p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className={label}>{t("Channel", "Canal")}</label>
@@ -808,8 +816,10 @@ const AdminManualOrderEditor = () => {
                           <PasswordInput id="pay-pin" value={pin} onChange={(e) => setPin(e.target.value)} className={field} autoComplete="off" />
                         </div>
                       )}
-                      {historical ? (
-                        <p className="text-xs text-amber-900">{t("Historical order: no email is sent.", "Commande historique : aucun e-mail n'est envoyé.")}</p>
+                      {historical || !customer.email.trim() ? (
+                        <p className="text-xs text-amber-900">{historical
+                          ? t("Historical order: no email is sent.", "Commande historique : aucun e-mail n'est envoyé.")
+                          : t("No email address: no email is sent.", "Pas d'adresse e-mail : aucun e-mail n'est envoyé.")}</p>
                       ) : (
                         <label className="flex items-start gap-2 text-sm">
                           <input type="checkbox" className="mt-0.5" checked={pay.sendConfirmation} onChange={(e) => setPay({ ...pay, sendConfirmation: e.target.checked })} />
@@ -834,7 +844,7 @@ const AdminManualOrderEditor = () => {
                     {historical
                       ? t("Historical order: no email is sent, nothing is charged, no seat is reserved.", "Commande historique : aucun e-mail, aucun débit, aucune réservation.")
                       : payNow
-                      ? (pay.sendConfirmation
+                      ? (pay.sendConfirmation && customer.email.trim()
                         ? t("The workshop seats are reserved and the confirmation + invoice are sent to the customer.", "Les places de workshop sont réservées, puis la confirmation et la facture partent au client.")
                         : t("The workshop seats are reserved. No email is sent.", "Les places de workshop sont réservées. Aucun email n'est envoyé."))
                       : t("No email is sent and no workshop seat is reserved at this stage.", "Aucun email n'est envoyé et aucune place workshop n'est réservée à ce stade.")}

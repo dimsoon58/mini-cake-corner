@@ -149,7 +149,8 @@ export function decide(d: Loaded): { kind: Kind | null; blocked: Blocked | null 
   } else if (["paid", "refunded"].includes(o.payment_status)) {
     // Commande manuelle payée dont la confirmation n'est jamais partie : le
     // bloc « Commande manuelle » l'envoie (il crée aussi la facture acquittée).
-    if (manual && !o.manual_confirmation_sent_at && o.created_via === "admin") return block("use_manual_panel");
+    // Sans adresse, on propose d'abord d'en ajouter une (F31).
+    if (manual && !o.manual_confirmation_sent_at && o.created_via === "admin" && String(o.email ?? "").trim()) return block("use_manual_panel");
     kind = "confirmation";
   }
   else if (manual && o.payment_status === "pending") kind = "payment_due";

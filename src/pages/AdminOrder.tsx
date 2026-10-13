@@ -20,7 +20,7 @@ import { ProductionCheck } from "@/components/admin/ProductionCheck";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
 import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
 import { OrderConfirmationPanel } from "@/components/admin/OrderConfirmationPanel";
-import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
+import { CHANNEL_LABELS, MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
 
@@ -452,6 +452,14 @@ const AdminOrder = () => {
             <DetailRow label={t("Name", "Nom")} value={customerName} />
             <DetailRow label={t("Email", "E-mail")} value={order.email} />
             <DetailRow label={t("Phone", "Téléphone")} value={order.phone} />
+            {/* F31 : coordonnées d'une commande prise par message ; les lignes vides restent masquées. */}
+            <DetailRow label="Instagram" value={order.customer_instagram} />
+            {order.order_channel && CHANNEL_LABELS[order.order_channel] && (
+              <DetailRow label={t("Order channel", "Canal de commande")} value={t(CHANNEL_LABELS[order.order_channel].en, CHANNEL_LABELS[order.order_channel].fr)} />
+            )}
+            {!String(order.email ?? "").trim() && (
+              <p className="text-xs text-muted-foreground pt-1">{t("No email address: no email is sent for this order.", "Pas d'adresse e-mail : aucun e-mail n'est envoyé pour cette commande.")}</p>
+            )}
             {/* The real channel (Instagram, WhatsApp, "manual order", ...)
                 behind the coarse MANUEL badge above — shown only when it's
                 actually set and isn't just the generic "website" value.
