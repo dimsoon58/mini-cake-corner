@@ -128,7 +128,7 @@ const AdminManualOrders = () => {
     );
   }
 
-  const fmtDate = (d: string) => { try { return format(parseISO(d), "dd.MM.yy"); } catch { return d; } };
+  const fmtDate = (d: string) => { try { return format(parseISO(d), "dd.MM.yyyy"); } catch { return d; } };
   // Short line for one item under its date: « 2 × Bento · Cœur · Vanilla ».
   const itemLine = (it: ScheduleItem) => {
     if (it.product === "workshop") return `${t("Workshop", "Workshop")}${it.participants ? ` · ${it.participants} ${t("seat(s)", "place(s)")}` : ""}`;

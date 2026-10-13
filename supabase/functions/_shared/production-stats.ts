@@ -576,3 +576,29 @@ export function itemStockNeeds(it: { product: string | null; size: string | null
   }
   return { needs: [...acc.values()], unknownUnits: unknown, notACake: false };
 }
+
+// ── Goûts et garnitures d'un gâteau (fiche de mise en place) ─────────────
+// Mêmes règles que itemStockNeeds : seuls les goûts reconnus sont rendus
+// (un goût inconnu est déjà compté dans unknownUnits) ; Dot Cakes en pièces.
+export interface PrepFlavour { flavourId: string; label: string; units: number; ingredients: Ingredient[] }
+export function itemPrepFlavours(it: { product: string | null; size: string | null; shape: string | null; flavors: string[] | null; quantity?: number | null }): PrepFlavour[] {
+  const qty = Number.isInteger(it.quantity) && (it.quantity as number) > 1 ? (it.quantity as number) : 1;
+  const category = productionCategory(it.product, it.size, it.shape);
+  if (category === "skip" || category === null || it.product === "workshop") return [];
+  const flavours = (it.flavors ?? []).filter((f) => f && f.trim());
+  let perFlavour = qty;
+  if (category === "dot_cake") {
+    const pack = dotCakePack(it.size);
+    if (!pack || flavours.length > pack.flavours) return [];
+    perFlavour = pack.perFlavour * qty;
+  } else if (flavours.length !== 1) return [];
+  const out = new Map<string, PrepFlavour>();
+  for (const raw of flavours) {
+    const f = resolveFlavour(raw);
+    if (!f) continue;
+    const cur = out.get(f.id);
+    if (cur) cur.units += perFlavour;
+    else out.set(f.id, { flavourId: f.id, label: f.names[0], units: perFlavour, ingredients: f.ingredients });
+  }
+  return [...out.values()];
+}

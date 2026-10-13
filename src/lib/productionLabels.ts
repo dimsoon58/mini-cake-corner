@@ -2,6 +2,7 @@ import { allFlavors, baseColors, extras as catalogExtras, ribbonColors, butterfl
 import { colourFr, extraNameFr, textStyleFr } from "@/data/catalogLabelsFr";
 import { inspirationReference } from "@/data/inspirationReference";
 import { PRODUCT_LABELS, designLabel, flavorLabel, formatDateCH, shapeLabel, sizeLabel, splitComment } from "@/lib/orderLabels";
+import type { Category, SpongeBase } from "@/lib/production";
 
 // Admin > Étiquettes de production — contenu et mise en page, sans DOM.
 //
@@ -40,6 +41,13 @@ export interface LabelSourceItem {
   // Nombre de photos de référence envoyées par la cliente (hors photo du
   // design choisi sur le site) — get-orders-for-labels ; absent = inconnu.
   reference_photos?: number;
+  // Fiche de mise en place : génoises et goûts reconnus pour UNE unité
+  // (règles de la page Production) — absent tant que la fonction n'est pas redéployée.
+  prep?: {
+    genoises: { base: SpongeBase; category: Category; units: number }[];
+    unknownUnits: number;
+    flavours: { flavourId: string; label: string; units: number; ingredients: string[] }[];
+  };
   quantity: number | null;
   created_at: string | null;
   date: string | null;

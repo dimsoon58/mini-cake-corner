@@ -223,11 +223,13 @@ const OurStory = () => {
           </h1>
         </div>
         <div className="container mx-auto px-4 mt-8 md:mt-10">
-          {/* Photo verticale : cadre 4:5 sur téléphone, 16:9 sur ordinateur, centré sur l'enseigne et les fondatrices. */}
+          {/* Photo verticale, sans zoom : seul le haut de la façade est coupé (~15 %), la vitrine et la cuisine restent visibles. Sur ordinateur elle tient dans la hauteur de l'écran. */}
           <img
             src={imgHero}
             alt={t("Melodie and Eli in front of the Bento Cake Studio shop window, Rue Prévost-Martin 8 in Geneva", "Melodie et Eli devant la vitrine de Bento Cake Studio, rue Prévost-Martin 8 à Genève")}
-            className="w-full max-w-5xl mx-auto aspect-[4/5] md:aspect-[16/9] object-cover object-[50%_85%] md:object-[50%_90%]"
+            width={1932}
+            height={2190}
+            className="block mx-auto w-full aspect-[1932/2190] object-cover object-bottom md:w-auto md:h-[85vh] md:max-w-full"
             data-testid="story-hero"
           />
         </div>
