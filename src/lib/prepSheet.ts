@@ -118,8 +118,8 @@ export function buildPrepSheet(
     workshopCakes += units;
     const box = workshopBox(s.type);
     if (box) add(boxes, box, units);
-    if (units > 0) chMissing.set("Workshop (gâteaux des participants)", (chMissing.get("Workshop (gâteaux des participants)") ?? 0) + units);
     else if (units > 0) toCheck.push({ who, what: "Boîte : type de workshop inconnu", units });
+    if (units > 0) chMissing.set("Workshop (gâteaux des participants)", (chMissing.get("Workshop (gâteaux des participants)") ?? 0) + units);
     for (const b of s.bases) if (b.needed > 0) add(genoises, `${b.base}|${s.category}`, b.needed);
     if (s.unknownUnits > 0) toCheck.push({ who, what: "Génoise à confirmer", units: s.unknownUnits });
   }
