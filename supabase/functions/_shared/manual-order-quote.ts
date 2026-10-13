@@ -64,6 +64,11 @@ export interface QuoteInput {
   items: QuoteItemInput[];
   fulfillments: QuoteFulfillmentInput[];
   adjustment?: { type: AdjustmentType; value: number } | null;
+  // F30 (13.10.2026) — « Commande historique — sans email » : commande déjà
+  // réalisée avant le site, saisie pour la compta. La date peut être passée,
+  // jamais de supplément express (le prix réel se saisit avec l'ajustement
+  // « prix final »), pas de workshop (aucune place ne peut être réservée).
+  historical?: boolean;
 }
 
 // One line of an item's price detail. `id` is the option id (size, flavour,
@@ -248,6 +253,7 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
   const itemResults: QuoteItemResult[] = items.map((it, index) => {
     const product = String(it?.product ?? "");
     if (product === "workshop") {
+      if (input.historical) return { index, product, total: null, error: "A historical order can't contain a workshop (no seat can be booked for a past session)" };
       const sid = it.workshop_session_id ? String(it.workshop_session_id) : "";
       const sess = sid ? sessionsById.get(sid) : undefined;
       const participants = Number(it.workshop_participants);
@@ -350,7 +356,9 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
           itemIndexes: idxs,
         },
         expressEligibleTotal,
-        { minLeadDays: 0, allowClosedDays: true, allowAnySlot: true, shortNoticeExpress: true },
+        input.historical
+          ? { minLeadDays: -36500, allowClosedDays: true, allowAnySlot: true, shortNoticeExpress: false }
+          : { minLeadDays: 0, allowClosedDays: true, allowAnySlot: true, shortNoticeExpress: true },
       );
       fulfillmentResults.push({
         ...base,
@@ -363,7 +371,7 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
         deliveryCity: resolved.deliveryCity,
         deliveryLatitude: resolved.deliveryLatitude,
         deliveryLongitude: resolved.deliveryLongitude,
-        expressRate: expressSurchargeRate(resolved.date, { shortNotice: true }),
+        expressRate: input.historical ? 0 : expressSurchargeRate(resolved.date, { shortNotice: true }),
         // Only meaningful once every item of this date is priced.
         expressSurcharge: itemsPriced ? resolved.expressSurcharge : null,
         error: null,

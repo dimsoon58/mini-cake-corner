@@ -61,8 +61,8 @@ const parseDay = (s: string) => {
 };
 
 // Same calendar as the checkout. Past days are blocked; today and tomorrow
-// stay possible for an Admin order.
-const DayPicker = ({ value, onChange, lang }: { value: string; onChange: (v: string) => void; lang: "en" | "fr" }) => {
+// stay possible for an Admin order. A historical order (F30) allows past days.
+const DayPicker = ({ value, onChange, lang, allowPast = false }: { value: string; onChange: (v: string) => void; lang: "en" | "fr"; allowPast?: boolean }) => {
   const [open, setOpen] = useState(false);
   const selected = parseDay(value);
   const today = new Date();
@@ -83,7 +83,7 @@ const DayPicker = ({ value, onChange, lang }: { value: string; onChange: (v: str
           selected={selected}
           defaultMonth={selected}
           onSelect={(d) => { if (d) { onChange(format(d, "yyyy-MM-dd")); setOpen(false); } }}
-          disabled={(d) => d < today}
+          disabled={(d) => !allowPast && d < today}
           locale={lang === "fr" ? frLocale : undefined}
           weekStartsOn={1}
           initialFocus
@@ -146,6 +146,8 @@ const AdminManualOrderEditor = () => {
   // Paiement à la création (« Déjà payée »)
   const zurichToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date());
   const [payNow, setPayNow] = useState(false);
+  // F30 « Commande historique — sans email » : commande déjà réalisée avant le site.
+  const [historical, setHistorical] = useState(false);
   const [pay, setPay] = useState<PaymentDraft>(() => ({ method: "twint", paidOn: zurichToday(), note: "", sendConfirmation: true }));
   const [pin, setPin, pinBySession] = useSessionPin();
 
@@ -196,6 +198,7 @@ const AdminManualOrderEditor = () => {
         }
         setOrderNumber(o.orderNumber);
         setIsDraft(o.isDraft);
+        setHistorical(o.historical === true);
         setNotEditable(o.editable ? null : (o.notEditableReason || t("This order can't be edited.", "Cette commande ne peut pas être modifiée.")));
         setCustomer({
           first_name: o.customer.first_name ?? "", last_name: o.customer.last_name ?? "", phone: o.customer.phone ?? "",
@@ -282,7 +285,7 @@ const AdminManualOrderEditor = () => {
       setQuoting(true);
       setQuoteFailed(false);
       try {
-        const res = await withTimeout(supabase.functions.invoke("quote-manual-order", { body: { ...payload, adjustment } }));
+        const res = await withTimeout(supabase.functions.invoke("quote-manual-order", { body: { ...payload, adjustment, historical } }));
         if (seq !== quoteSeq.current) return;
         if (res === TIMEOUT || res.error || res.data?.error) {
           console.error("quote failed:", res === TIMEOUT ? "timeout" : res.error || res.data?.error);
@@ -297,7 +300,7 @@ const AdminManualOrderEditor = () => {
       }
     }, 400);
     return () => clearTimeout(handle);
-  }, [catalog, payload, adjustment, items.length]);
+  }, [catalog, payload, adjustment, items.length, historical]);
 
   // Au moins un produit physique (gâteau, kit, dots…) : sinon pas de date de retrait / livraison.
   const hasPhysicalItem = items.some((it) => it.product !== "workshop");
@@ -309,8 +312,8 @@ const AdminManualOrderEditor = () => {
     const out: string[] = [];
     if (!customer.first_name.trim()) out.push(t("First name", "Prénom"));
     if (!customer.last_name.trim()) out.push(t("Last name", "Nom"));
-    if (!customer.phone.trim()) out.push(t("Phone", "Téléphone"));
-    if (!EMAIL_RE.test(customer.email.trim())) out.push(t("A valid email", "Un email valide"));
+    if (!customer.phone.trim() && !historical) out.push(t("Phone", "Téléphone"));
+    if (historical ? customer.email.trim() !== "" && !EMAIL_RE.test(customer.email.trim()) : !EMAIL_RE.test(customer.email.trim())) out.push(t("A valid email", "Un email valide"));
     if (items.length === 0) out.push(t("At least one product", "Au moins un produit"));
     const physical = items.some((it) => it.product !== "workshop");
     if (physical && groups.some((g) => !g.date)) out.push(t("The date (section 3)", "La date (section 3)"));
@@ -338,6 +341,7 @@ const AdminManualOrderEditor = () => {
       customer,
       internal_notes: internalNotes,
       order_comment: orderComment,
+      historical,
       ...payload,
       adjustment: adjustment ? { ...adjustment, reason: adjReason || null, note: adjNote || null } : null,
     };
@@ -384,7 +388,7 @@ const AdminManualOrderEditor = () => {
       setSaving("confirm");
       let paid: { data: { error?: string; reason?: string; email?: { requested?: boolean; sent?: boolean; error?: string | null } } | null; error: unknown } | null = null;
       try {
-        paid = await supabase.functions.invoke("manage-manual-order", { body: markPaidBody(data.orderId, pay, pin) });
+        paid = await supabase.functions.invoke("manage-manual-order", { body: markPaidBody(data.orderId, historical ? { ...pay, sendConfirmation: false } : pay, pin) });
       } catch (e) {
         console.error("mark_paid after confirm failed:", e);
       }
@@ -469,6 +473,18 @@ const AdminManualOrderEditor = () => {
             {/* 1. Client */}
             <section className="border border-border/60 bg-background">
               <h2 className={sectionTitle}>1. {t("Customer", "Client")}</h2>
+              <label className={cn("mx-4 mt-4 flex items-start gap-2 border p-3 text-sm", historical ? "border-amber-400 bg-amber-50" : "border-border")} data-testid="historical-toggle">
+                <input type="checkbox" className="mt-0.5" checked={historical} onChange={(e) => { setHistorical(e.target.checked); if (e.target.checked) setPay((p) => ({ ...p, sendConfirmation: false })); }} />
+                <span>
+                  <b>{t("Historical order — no email", "Commande historique — sans email")}</b>
+                  <span className="block text-xs text-muted-foreground">
+                    {t(
+                      "Order already made before the website, entered for the accounts only: past dates allowed, no express surcharge, no workshop, phone and email optional. No email is ever sent; cakes dated today or earlier are recorded as already handed over.",
+                      "Commande déjà réalisée avant le site, saisie seulement pour la compta : dates passées permises, pas de supplément express, pas de workshop, téléphone et e-mail facultatifs. Aucun e-mail ne part jamais ; les gâteaux datés d'aujourd'hui ou avant sont notés comme déjà remis.",
+                    )}
+                  </span>
+                </span>
+              </label>
               <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {([
                   ["first_name", t("First name", "Prénom")],
@@ -565,7 +581,7 @@ const AdminManualOrderEditor = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
                           <label className={label}>{t("Date", "Date")}</label>
-                          <DayPicker value={g.date} lang={lang === "en" ? "en" : "fr"} onChange={(v) => setGroups((prev) => prev.map((x) => (x.key === g.key ? { ...x, date: v } : x)))} />
+                          <DayPicker allowPast={historical} value={g.date} lang={lang === "en" ? "en" : "fr"} onChange={(v) => setGroups((prev) => prev.map((x) => (x.key === g.key ? { ...x, date: v } : x)))} />
                         </div>
                         <div>
                           <label className={label}>{t("Method", "Mode")}</label>
@@ -792,10 +808,14 @@ const AdminManualOrderEditor = () => {
                           <PasswordInput id="pay-pin" value={pin} onChange={(e) => setPin(e.target.value)} className={field} autoComplete="off" />
                         </div>
                       )}
-                      <label className="flex items-start gap-2 text-sm">
-                        <input type="checkbox" className="mt-0.5" checked={pay.sendConfirmation} onChange={(e) => setPay({ ...pay, sendConfirmation: e.target.checked })} />
-                        {t("Send the confirmation and the invoice to the customer", "Envoyer la confirmation et la facture au client")}
-                      </label>
+                      {historical ? (
+                        <p className="text-xs text-amber-900">{t("Historical order: no email is sent.", "Commande historique : aucun e-mail n'est envoyé.")}</p>
+                      ) : (
+                        <label className="flex items-start gap-2 text-sm">
+                          <input type="checkbox" className="mt-0.5" checked={pay.sendConfirmation} onChange={(e) => setPay({ ...pay, sendConfirmation: e.target.checked })} />
+                          {t("Send the confirmation and the invoice to the customer", "Envoyer la confirmation et la facture au client")}
+                        </label>
+                      )}
                     </div>
                   )}
                 </fieldset>
@@ -811,7 +831,9 @@ const AdminManualOrderEditor = () => {
                     {payNow ? t("Confirm and record the payment", "Confirmer et enregistrer le paiement") : t("Confirm — awaiting payment", "Confirmer — en attente de paiement")}
                   </Button>
                   <p className="text-[11px] text-muted-foreground">
-                    {payNow
+                    {historical
+                      ? t("Historical order: no email is sent, nothing is charged, no seat is reserved.", "Commande historique : aucun e-mail, aucun débit, aucune réservation.")
+                      : payNow
                       ? (pay.sendConfirmation
                         ? t("The workshop seats are reserved and the confirmation + invoice are sent to the customer.", "Les places de workshop sont réservées, puis la confirmation et la facture partent au client.")
                         : t("The workshop seats are reserved. No email is sent.", "Les places de workshop sont réservées. Aucun email n'est envoyé."))

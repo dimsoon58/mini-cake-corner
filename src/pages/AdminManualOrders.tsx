@@ -41,6 +41,7 @@ interface ManualOrderRow {
   finalAmount: number | null;
   paidAmount: number | null;
   confirmationSent: boolean;
+  historical?: boolean;
   createdAt: string;
   lastEditedAt: string | null;
 }
@@ -256,6 +257,9 @@ const AdminManualOrders = () => {
                       <span className={cn("inline-block px-2 py-0.5 text-[10px] uppercase tracking-wide whitespace-nowrap", MANUAL_STATUS_LABELS[o.status].className)}>
                         {tr(MANUAL_STATUS_LABELS[o.status])}
                       </span>
+                      {o.historical && (
+                        <span className="block mt-0.5 w-fit px-2 py-0.5 text-[10px] uppercase tracking-wide border border-amber-400 bg-amber-50 text-amber-900">{t("Historical", "Historique")}</span>
+                      )}
                       {o.status === "paid" && o.confirmationSent && (
                         <span className="block text-[11px] text-muted-foreground mt-0.5">{t("Confirmation sent", "Confirmation envoyée")}</span>
                       )}

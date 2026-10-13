@@ -104,6 +104,8 @@ serve(async (req) => {
     const { data: order, error: orderError } = await supabase.from("orders").select("*").eq("id", orderId).single();
     if (orderError || !order) return json(cors, { error: "Order not found" }, 404);
 
+    // F30 : commande historique (réalisée avant le site) — jamais d'e-mail.
+    if (order.is_historical === true) return json(cors, { error: "Historical order: no email is ever sent", reason: "historical" }, 409);
     if (order.order_source === "website" || order.postfinance_transaction_id) {
       return json(cors, { error: "This endpoint is only for manual orders" }, 400);
     }

@@ -93,6 +93,7 @@ export const confirmationTexts = {
     not_paid: "Commande pas encore payée : aucune confirmation à envoyer.",
     nothing_left: "Tous les articles sont annulés : aucune confirmation à envoyer.",
     use_manual_panel: "Confirmation jamais envoyée : utilisez « Envoyer la confirmation » du bloc Commande manuelle (il crée aussi la facture).",
+    historical: "Commande historique : aucun e-mail n'est envoyé pour cette commande.",
   } as Record<string, string>)[b] ?? b,
   reason: (reason: string | null, error: string) =>
     reason === "email_changed" ? "L'adresse de la commande a changé entre-temps : vérifiez-la puis réessayez."

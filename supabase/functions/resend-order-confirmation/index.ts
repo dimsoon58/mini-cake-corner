@@ -46,7 +46,7 @@ const STALE_MS = 5 * 60 * 1000;
 const FROM = "contact@bentocakestudio.ch";
 
 type Kind = "confirmation" | "payment_due" | "order_received";
-type Blocked = "draft" | "cancelled" | "refused" | "failed" | "no_email" | "awaiting_decision" | "not_paid" | "nothing_left" | "use_manual_panel";
+type Blocked = "draft" | "cancelled" | "refused" | "failed" | "no_email" | "awaiting_decision" | "not_paid" | "nothing_left" | "use_manual_panel" | "historical";
 
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -134,6 +134,8 @@ export function decide(d: Loaded): { kind: Kind | null; blocked: Blocked | null 
   const o = d.order;
   const block = (b: Blocked) => ({ kind: null, blocked: b });
   if (o.is_draft === true) return block("draft");
+  // F30 : commande historique (réalisée avant le site) — jamais d'e-mail.
+  if (o.is_historical === true) return block("historical");
   if (o.order_validation === "cancelled") return block("cancelled");
   if (o.order_validation === "rejected") return block("refused");
   if (o.order_failure_reason || ["failed", "cancelled"].includes(o.payment_status)) return block("failed");

@@ -22,7 +22,7 @@ const MIG = path.join(ROOT, "migrations");
 let fails = 0, passes = 0;
 const check = (name, cond, extra) => { if (cond) { passes++; console.log("PASS", name); } else { fails++; console.log("FAIL", name, extra !== undefined ? JSON.stringify(extra).slice(0, 900) : ""); } };
 
-const migrations = fs.readdirSync(MIG).filter((f) => /^202610(02(09|10|11|12|13|14|16|17|18|19)|03|04|05|06)/.test(f)).sort().map((f) => path.join(MIG, f));
+const migrations = fs.readdirSync(MIG).filter((f) => /^202610(02(09|10|11|12|13|14|16|17|18|19)|03|04|05|06)/.test(f)).sort().concat(fs.readdirSync(MIG).filter((f) => f.includes("_f30_"))).map((f) => path.join(MIG, f));
 const db = await freshDb({ migrations });
 const q = async (sql, p) => (await db.query(sql, p)).rows;
 const one = async (sql, p) => (await q(sql, p))[0];
