@@ -51,12 +51,16 @@ const CopyRow = ({ label, value, copyLabel, testId }: { label: string; value: st
   </div>
 );
 
+// Sur téléphone (14.10.2026) : l'intitulé passe AU-DESSUS du texte. Côte à
+// côte, un intitulé long (« Instructions particulières : ») ne laissait que
+// quelques pixels au commentaire, coupé une lettre par ligne. Sur ordinateur
+// (sm et plus), affichage inchangé. Les retours à la ligne du client sont gardés.
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
   if (!value) return null;
   return (
-    <div className="flex gap-2 text-sm">
-      <span className="text-muted-foreground min-w-[96px] sm:min-w-[140px] shrink-0">{label}:</span>
-      <span className="text-foreground min-w-0 break-words">{value}</span>
+    <div className="flex flex-col sm:flex-row sm:gap-2 text-sm">
+      <span className="text-muted-foreground sm:min-w-[140px] sm:shrink-0">{label}:</span>
+      <span className="text-foreground min-w-0 break-words whitespace-pre-line">{value}</span>
     </div>
   );
 };
