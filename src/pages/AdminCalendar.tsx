@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   format, addMonths, subMonths, isSameMonth, isToday,
 } from "date-fns";
 import { fr as dateFnsFr } from "date-fns/locale";
-import { Loader2, Lock, CalendarDays, ChevronLeft, ChevronRight, Tag } from "lucide-react";
+import { Loader2, Lock, CalendarDays, ChevronLeft, ChevronRight, Tag, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -21,6 +21,9 @@ import { cn } from "@/lib/utils";
 import { planningDays } from "@/lib/planning";
 import { BASE_LABELS, CATEGORY_LABELS } from "@/lib/production";
 import type { WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
+import { MarketingEventDialog } from "@/components/admin/MarketingEventDialog";
+import { MarketingDaySection, MarketingMonthPanel } from "@/components/admin/MarketingPanels";
+import { eventsByDay, marketingApi, tasksByDay, useShowEvents, type MarketingPlanning, type MarketingTask } from "@/lib/marketingEvents";
 
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
 type DayEntry = {
@@ -74,6 +77,14 @@ const AdminCalendar = () => {
   const [includeTests, setIncludeTests] = useShowTests();
   // F28 : sessions de workshop du mois avec les gâteaux à préparer (get-production).
   const [wsByDate, setWsByDate] = useState<Record<string, WorkshopSession[]>>({});
+  // F32 : événements (fêtes, marketing) et leurs tâches — Mel et Eli seulement.
+  const [showEvents, setShowEvents] = useShowEvents();
+  const [mkt, setMkt] = useState<MarketingPlanning | null>(null);
+  const [mktError, setMktError] = useState<string | null>(null);
+  const [mktReload, setMktReload] = useState(0);
+  const [mktBusy, setMktBusy] = useState(false);
+  const [eventDialog, setEventDialog] = useState<{ id: string | null; date?: string } | null>(null);
+  const withEvents = !employee && showEvents;
 
   useEffect(() => {
     document.title = "Admin – Calendar – Bento Cake Studio";
@@ -121,6 +132,37 @@ const AdminCalendar = () => {
     fetchMonth();
     return () => { cancelled = true; };
   }, [monthCursor, includeTests, authLoading, isAdmin, t, staff.loading]);
+
+  useEffect(() => {
+    if (authLoading || staff.loading || !isAdmin || employee) return;
+    let cancelled = false;
+    marketingApi<MarketingPlanning>({
+      action: "planning",
+      from: format(startOfWeek(startOfMonth(monthCursor)), "yyyy-MM-dd"),
+      to: format(endOfWeek(endOfMonth(monthCursor)), "yyyy-MM-dd"),
+    })
+      .then((d) => { if (!cancelled) { setMkt(d); setMktError(d?.unavailable ? "Événements pas encore activés (migration F32 à appliquer)." : null); } })
+      .catch((e) => { if (!cancelled) { setMkt(null); setMktError(e instanceof Error ? e.message : String(e)); } });
+    return () => { cancelled = true; };
+  }, [monthCursor, mktReload, authLoading, isAdmin, employee, staff.loading]);
+
+  const mktEventsByDay = useMemo(() => {
+    if (!mkt) return {};
+    return eventsByDay(mkt.events, format(startOfWeek(startOfMonth(monthCursor)), "yyyy-MM-dd"), format(endOfWeek(endOfMonth(monthCursor)), "yyyy-MM-dd"));
+  }, [mkt, monthCursor]);
+  const mktTasksByDay = useMemo(() => tasksByDay(mkt?.tasks ?? []), [mkt]);
+
+  const toggleTask = async (task: MarketingTask) => {
+    setMktBusy(true);
+    try {
+      await marketingApi({ action: "set_task_done", id: task.id, done: !task.done });
+      setMktReload((n) => n + 1);
+    } catch (e) {
+      setMktError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMktBusy(false);
+    }
+  };
 
   if (authLoading || staff.loading) {
     return (
@@ -213,6 +255,19 @@ const AdminCalendar = () => {
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="flex flex-wrap items-center justify-end gap-4 mb-2">
           <ShowTestsToggle checked={includeTests} onChange={setIncludeTests} />
+          {!employee && (
+            <>
+              <label className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.105em] text-muted-foreground cursor-pointer">
+                <input type="checkbox" className="w-3.5 h-3.5 accent-violet-600" checked={showEvents} onChange={(e) => setShowEvents(e.target.checked)} data-testid="toggle-events" />
+                <span className="w-2 h-2 rounded-full bg-violet-500" />
+                {t("Events", "Événements")}
+              </label>
+              <button type="button" onClick={() => setEventDialog({ id: null, date: selectedDate ?? mkt?.today })}
+                className="text-[11px] uppercase tracking-[0.105em] text-violet-700 hover:text-violet-900 flex items-center gap-1">
+                <Plus className="w-3 h-3" />{t("Event", "Événement")}
+              </button>
+            </>
+          )}
           {!employee && <Link to="/admin/labels" className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground hover:text-foreground">{t("Production labels", "Étiquettes de production")}</Link>}
         </div>
         <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8 text-center font-semibold flex items-center justify-center gap-3">
@@ -258,39 +313,82 @@ const AdminCalendar = () => {
                   const inMonth = isSameMonth(day, monthCursor);
                   const hasCancelledOnly = entries.length > 0 && entries.every((e) => e.status === "cancelled");
                   const isSelected = selectedDate === key;
+                  const dayEvents = withEvents ? (mktEventsByDay[key] ?? []) : [];
+                  const dayTasks = withEvents ? (mktTasksByDay[key] ?? []) : [];
+                  const marked = entries.length > 0 || dayEvents.length > 0 || dayTasks.length > 0;
                   return (
                     <button
                       key={key}
                       type="button"
-                      onClick={() => entries.length > 0 && setSelectedDate(isSelected ? null : key)}
-                      disabled={entries.length === 0}
+                      onClick={() => marked && setSelectedDate(isSelected ? null : key)}
+                      disabled={!marked}
+                      title={dayEvents.map((e) => e.title).join(" · ") || undefined}
                       className={cn(
                         "h-9 text-xs flex flex-col items-center justify-center relative transition-colors",
                         inMonth ? "text-foreground" : "text-muted-foreground/40",
-                        entries.length > 0 && !hasCancelledOnly && "cursor-pointer hover:bg-muted/60",
-                        entries.length === 0 && "cursor-default",
+                        marked && !hasCancelledOnly && "cursor-pointer hover:bg-muted/60",
+                        !marked && "cursor-default",
                         isSelected && "bg-primary text-primary-foreground hover:bg-primary",
                         isToday(day) && !isSelected && "font-bold text-primary",
                       )}
                     >
-                      {format(day, "d")}
-                      {entries.length > 0 && (
-                        <span className={cn(
-                          "absolute bottom-0.5 w-1 h-1 rounded-full",
-                          isSelected ? "bg-primary-foreground" : hasCancelledOnly ? "bg-muted-foreground" : "bg-primary"
+                      {/* Événement : barre violette en haut (pointillés si période indicative). */}
+                      {dayEvents.length > 0 && (
+                        <span data-testid="calendar-event-bar" className={cn(
+                          "absolute top-0 inset-x-0.5 h-1",
+                          dayEvents.some((e) => !e.indicative) ? "bg-violet-500" : "border-t-2 border-dashed border-violet-500",
+                          !inMonth && "opacity-40",
                         )} />
+                      )}
+                      {format(day, "d")}
+                      {(entries.length > 0 || dayTasks.length > 0) && (
+                        <span className="absolute bottom-0.5 flex gap-0.5">
+                          {entries.length > 0 && (
+                            <span className={cn(
+                              "w-1 h-1 rounded-full",
+                              isSelected ? "bg-primary-foreground" : hasCancelledOnly ? "bg-muted-foreground" : "bg-primary"
+                            )} />
+                          )}
+                          {/* Tâche prévue ce jour : petit carré violet. */}
+                          {dayTasks.length > 0 && <span className={cn("w-1 h-1", isSelected ? "bg-primary-foreground" : "bg-violet-500")} />}
+                        </span>
                       )}
                     </button>
                   );
                 })}
               </div>
+              {withEvents && (
+                <>
+                  <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-primary" />{t("Orders", "Commandes")}</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-1 bg-violet-500" />{t("Event", "Événement")}</span>
+                    <span className="flex items-center gap-1"><span className="w-3 border-t-2 border-dashed border-violet-500" />{t("Indicative period", "Période indicative")}</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-violet-500" />{t("Task", "Tâche")}</span>
+                  </p>
+                  {mktError && <p className="mt-2 text-xs text-amber-800" role="alert">{mktError}</p>}
+                  {mkt && !mkt.unavailable && (
+                    <MarketingMonthPanel
+                      monthEvents={mkt.events.filter((e) => e.start_date <= format(monthEnd, "yyyy-MM-dd") && e.end_date >= format(monthStart, "yyyy-MM-dd"))}
+                      todo={mkt.todo}
+                      today={mkt.today}
+                      year={monthCursor.getFullYear()}
+                      onOpen={(id) => setEventDialog({ id })}
+                      onToggle={toggleTask}
+                      onChanged={() => setMktReload((n) => n + 1)}
+                      busy={mktBusy}
+                    />
+                  )}
+                </>
+              )}
             </div>
 
             {/* Day list — compact, scrollable, image-first. */}
             <div className="flex-1 min-w-0 w-full">
               {!selectedDate ? (
                 <p className="text-sm text-muted-foreground py-8 text-center md:text-left">
-                  {t("Select a date with a marker to see that day's orders.", "Sélectionnez une date marquée pour voir les commandes de ce jour.")}
+                  {withEvents
+                    ? t("Select a date with a marker to see that day's orders and events.", "Sélectionnez une date marquée pour voir les commandes et les événements de ce jour.")
+                    : t("Select a date with a marker to see that day's orders.", "Sélectionnez une date marquée pour voir les commandes de ce jour.")}
                 </p>
               ) : (
                 <>
@@ -300,6 +398,16 @@ const AdminCalendar = () => {
                       ({selectedEntries.length})
                     </span>
                   </h2>
+                  {withEvents && mkt && (
+                    <MarketingDaySection
+                      events={mktEventsByDay[selectedDate] ?? []}
+                      tasks={mktTasksByDay[selectedDate] ?? []}
+                      today={mkt.today}
+                      onOpen={(id) => setEventDialog({ id })}
+                      onToggle={toggleTask}
+                      busy={mktBusy}
+                    />
+                  )}
                   {(wsByDate[selectedDate] ?? []).length > 0 && (
                     <ul className="mb-3 space-y-1.5" data-testid="calendar-workshop-sessions">
                       {wsByDate[selectedDate].map((ws) => {
@@ -371,6 +479,15 @@ const AdminCalendar = () => {
               )}
             </div>
           </div>
+        )}
+        {eventDialog && (
+          <MarketingEventDialog
+            eventId={eventDialog.id}
+            newDate={eventDialog.date}
+            today={mkt?.today ?? format(new Date(), "yyyy-MM-dd")}
+            onClose={() => setEventDialog(null)}
+            onChanged={() => setMktReload((n) => n + 1)}
+          />
         )}
       </main>
     </AdminLayout>
