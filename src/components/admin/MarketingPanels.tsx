@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CopyPlus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { eventWhen, isLate, longDate, marketingApi, type MarketingEvent, type MarketingTask } from "@/lib/marketingEvents";
+import { eventWhen, isLate, longDate, prepareNextYear, type MarketingEvent, type MarketingTask } from "@/lib/marketingEvents";
 
 // F32 — blocs « Événements » du Planning (Mel et Eli) : liste du mois,
 // « À préparer » (deux semaines + retards), préparer l'année suivante, et
@@ -29,14 +29,12 @@ export function MarketingMonthPanel({ monthEvents, todo, today, year, onOpen, on
 }) {
   const [copying, setCopying] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const prepareNextYear = async () => {
-    if (!window.confirm(`Copier tous les événements de ${year} vers ${year + 1} ?\n\nMêmes jours et mois, avec idées, notes et tâches (décochées). Chaque copie est marquée « dates à vérifier » : certaines fêtes changent de date chaque année. Un événement déjà copié vers ${year + 1} n'est pas recopié.`)) return;
+  const prepare = async () => {
     setCopying(true);
     setMsg(null);
     try {
-      const r = await marketingApi<{ created: number; skipped: number }>({ action: "duplicate_year", fromYear: year, toYear: year + 1 });
-      setMsg(`${r.created} événement(s) copié(s) vers ${year + 1}${r.skipped ? ` · ${r.skipped} déjà copié(s)` : ""}. Pensez à vérifier leurs dates.`);
-      onChanged();
+      const m = await prepareNextYear(year);
+      if (m) { setMsg(m); onChanged(); }
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
     } finally {
@@ -86,7 +84,7 @@ export function MarketingMonthPanel({ monthEvents, todo, today, year, onOpen, on
       </section>
 
       <section>
-        <button type="button" onClick={prepareNextYear} disabled={copying}
+        <button type="button" onClick={prepare} disabled={copying}
           className="text-[11px] uppercase tracking-[0.105em] text-muted-foreground hover:text-foreground flex items-center gap-1 disabled:opacity-50">
           {copying ? <Loader2 className="w-3 h-3 animate-spin" /> : <CopyPlus className="w-3 h-3" />}
           Préparer {year + 1} (copier les événements de {year})

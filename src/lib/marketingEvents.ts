@@ -83,4 +83,14 @@ export function shiftYear(d: string, years: number): string {
   return `${y}-${md}`;
 }
 
+/**
+ * « Préparer l'année suivante » : demande confirmation, copie les événements
+ * de `year` vers `year + 1` et renvoie le message à afficher (null si annulé).
+ */
+export async function prepareNextYear(year: number): Promise<string | null> {
+  if (!window.confirm(`Copier tous les événements de ${year} vers ${year + 1} ?\n\nMêmes jours et mois, avec idées, notes et tâches (décochées). Chaque copie est marquée « dates à vérifier » : certaines fêtes changent de date chaque année. Un événement déjà copié vers ${year + 1} n'est pas recopié.`)) return null;
+  const r = await marketingApi<{ created: number; skipped: number }>({ action: "duplicate_year", fromYear: year, toYear: year + 1 });
+  return `${r.created} événement(s) copié(s) vers ${year + 1}${r.skipped ? ` · ${r.skipped} déjà copié(s)` : ""}. Pensez à vérifier leurs dates.`;
+}
+
 export { addDays, longDate };
