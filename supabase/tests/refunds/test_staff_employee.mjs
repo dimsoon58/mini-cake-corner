@@ -45,6 +45,7 @@ function from(table) {
     in(c, v) { where.push(`${c}::text = any(${p(v.map(String))}::text[])`); return b; },
     is(c, v) { where.push(v === null ? `${c} is null` : `${c} is ${v}`); return b; },
     ilike(c, v) { where.push(`${c} ilike ${p(v)}`); return b; },
+    not(c, o, v) { if (o === "is") where.push(`${c} is not ${v === null ? "null" : v}`); return b; },
     or() { return b; },
     order(c, o = {}) { orderBy += `${orderBy ? "," : " order by"} ${c} ${o.ascending === false ? "desc" : "asc"}`; return b; },
     limit(n) { lim = ` limit ${Number(n)}`; return b; },

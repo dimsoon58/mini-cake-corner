@@ -1640,7 +1640,13 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
         : selections.comment,
       designImageUrl,
       imageUrls: selectedCake.styleId === "inspiration" ? [selectedCake.image] : [],
-      imageFiles: [...selections.commentImages],
+      // 13.10.2026 : l'image à imprimer (« Printed picture ») n'était jamais
+      // envoyée — seules les images de référence partaient. Elle est
+      // maintenant la PREMIÈRE photo de l'article (order_items.reference_images[0]).
+      imageFiles: [
+        ...((selectedCake.styleId === "printed-picture" || selections.extras.includes("printed-picture")) && selections.printedImage ? [selections.printedImage] : []),
+        ...selections.commentImages,
+      ],
       total: calculatePrice(),
     });
     if (!added.ok) {

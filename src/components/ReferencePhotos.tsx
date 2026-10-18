@@ -7,7 +7,8 @@ import { useLang } from "@/context/LanguageContext";
 // shown as thumbnails under that item — in addition to the design photo
 // (design_image_url), never instead of it. Used by Mes commandes and the
 // Admin order page. Clicking a thumbnail opens the photo full size.
-export const ReferencePhotos = ({ urls }: { urls: string[] | null | undefined }) => {
+// printedFirst (13.10.2026) : gâteau « Printed picture » — la 1ʳᵉ photo est l'image à imprimer.
+export const ReferencePhotos = ({ urls, printedFirst = false }: { urls: string[] | null | undefined; printedFirst?: boolean }) => {
   const { t } = useLang();
   const [open, setOpen] = useState<string | null>(null);
   const photos = (urls ?? []).filter((u): u is string => typeof u === "string" && u.length > 0);
@@ -19,6 +20,9 @@ export const ReferencePhotos = ({ urls }: { urls: string[] | null | undefined })
       <p className="text-xs font-semibold text-foreground/80 mb-1.5">
         {title} ({photos.length})
       </p>
+      {printedFirst && (
+        <p className="text-xs text-primary mb-1.5">{t("The first photo is the image to print.", "La 1ʳᵉ photo est l'image à imprimer.")}</p>
+      )}
       <div className="flex flex-wrap gap-2">
         {photos.map((url, i) => (
           <button

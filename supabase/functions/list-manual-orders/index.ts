@@ -51,7 +51,7 @@ serve(async (req) => {
       .select(
         "id, order_number, order_source, order_channel, created_via, is_draft, first_name, last_name, email, phone, customer_company, " +
         "payment_status, order_validation, order_failure_reason, calculated_amount, price_adjustment_amount, total_amount, paid_amount, " +
-        "pickup_delivery_date, manual_confirmation_status, created_at, last_edited_at, paid_at, cancelled_at",
+        "pickup_delivery_date, manual_confirmation_status, created_at, last_edited_at, paid_at, cancelled_at, is_historical, customer_instagram",
       )
       .or("order_number.like.ORDM-%,created_via.eq.admin")
       .order("created_at", { ascending: false })
@@ -113,11 +113,13 @@ serve(async (req) => {
         customerName: `${o.first_name || ""} ${o.last_name || ""}`.trim(),
         phone: o.phone,
         email: o.email,
+        instagram: o.customer_instagram ?? null,   // F31
         company: o.customer_company,
         channel: o.order_channel,
         createdVia: o.created_via,           // 'admin' | null (legacy Notion/Make)
         editable: o.created_via === "admin" && (status === "draft" || status === "awaiting_payment"),
         status,
+        historical: o.is_historical === true,   // F30 : commande réalisée avant le site, sans e-mail
         paymentStatus: o.payment_status,
         dates,
         // [{ date: "YYYY-MM-DD" | null, items: [...] }], dates in order, « sans date » last
@@ -144,7 +146,7 @@ serve(async (req) => {
       if (statusFilter && r.status !== statusFilter) return false;
       if ((from || to) && !r.dates.some((d) => (!from || d >= from) && (!to || d <= to))) return false;
       if (search) {
-        const hay = [r.orderNumber, r.customerName, r.phone, r.email, r.company].filter(Boolean).join(" ").toLowerCase();
+        const hay = [r.orderNumber, r.customerName, r.phone, r.email, r.instagram, r.company].filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(search)) return false;
       }
       return true;

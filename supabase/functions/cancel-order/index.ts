@@ -5,7 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "../_shared/email-darkmode.ts";
 import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
-import { isAwaitingDecision, type ProdOrder } from "../_shared/production-stats.ts";
+import { isAwaitingDecision, isManualOrder, type ProdOrder } from "../_shared/production-stats.ts";
 import { cancelReservationSeats } from "../_shared/workshop-cancel.ts";
 
 // Whole-order cancellation + the existing cancellation email (Resend).
@@ -210,7 +210,7 @@ serve(async (req) => {
       return json(cors, { error: "Order not found" }, 404);
     }
 
-    if (initialOrder.cancellation_status === "sent" || initialOrder.cancellation_email_sent_at) {
+    if (initialOrder.cancellation_status === "sent" || initialOrder.cancellation_status === "skipped" || initialOrder.cancellation_email_sent_at) {
       return json(cors, {
         success: true,
         alreadyCancelled: true,
@@ -236,7 +236,11 @@ serve(async (req) => {
       if (isAwaitingDecision(initialOrder as ProdOrder)) {
         return json(cors, { error: "This order is still awaiting your decision: use « Refuse » instead.", reason: "awaiting_decision" }, 409);
       }
-      if (!initialOrder.email) {
+      // F31 (13.10.2026) : une commande MANUELLE sans e-mail (prise par
+      // téléphone / Instagram) ou historique s'annule quand même — sans
+      // e-mail d'annulation (cancellation_status 'skipped'). Une commande du
+      // site sans e-mail reste refusée, comme avant (anomalie).
+      if (!String(initialOrder.email ?? "").trim() && initialOrder.is_historical !== true && !isManualOrder(initialOrder as ProdOrder)) {
         return json(cors, { error: "This order has no customer email: the cancellation email cannot be sent.", reason: "no_email" }, 409);
       }
     }
@@ -251,7 +255,7 @@ serve(async (req) => {
 
     if (!lockRows || lockRows.length === 0) {
       const { data: current } = await supabase.from("orders").select("*").eq("id", orderId).single();
-      if (current?.cancellation_status === "sent" || current?.cancellation_email_sent_at) {
+      if (current?.cancellation_status === "sent" || current?.cancellation_status === "skipped" || current?.cancellation_email_sent_at) {
         return json(cors, {
           success: true,
           alreadyCancelled: true,
@@ -332,6 +336,17 @@ serve(async (req) => {
       .select("id");
     if (itemsError) throw itemsError;
 
+    // F31 : commande historique, ou commande manuelle sans e-mail → annulée,
+    // aucun envoi tenté. Une commande du site sans e-mail échoue comme avant.
+    if (order.is_historical === true || (!String(order.email ?? "").trim() && isManualOrder(order as ProdOrder))) {
+      const { error: skipErr } = await supabase.from("orders").update({ cancellation_status: "skipped" }).eq("id", orderId);
+      if (skipErr) throw skipErr;
+      return json(cors, {
+        success: true, alreadyCancelled: false, emailSkipped: true, orderId, orderNumber: order.order_number,
+        originalPaymentStatus, originalRefundStatus, paymentStatus: resultingPaymentStatus, refundStatus: resultingRefundStatus,
+        orderValidation: "cancelled", itemsCancelled: cancelledItems?.length || 0, seatsReleased, cancelledAt: order.cancelled_at || now, emailId: null,
+      });
+    }
     if (!order.email) throw new Error("Order has no customer email");
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");

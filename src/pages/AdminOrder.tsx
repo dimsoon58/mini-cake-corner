@@ -20,7 +20,7 @@ import { ProductionCheck } from "@/components/admin/ProductionCheck";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
 import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
 import { OrderConfirmationPanel } from "@/components/admin/OrderConfirmationPanel";
-import { MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
+import { CHANNEL_LABELS, MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
 
@@ -51,12 +51,16 @@ const CopyRow = ({ label, value, copyLabel, testId }: { label: string; value: st
   </div>
 );
 
+// Sur téléphone (14.10.2026) : l'intitulé passe AU-DESSUS du texte. Côte à
+// côte, un intitulé long (« Instructions particulières : ») ne laissait que
+// quelques pixels au commentaire, coupé une lettre par ligne. Sur ordinateur
+// (sm et plus), affichage inchangé. Les retours à la ligne du client sont gardés.
 const DetailRow = ({ label, value }: { label: string; value?: string | null }) => {
   if (!value) return null;
   return (
-    <div className="flex gap-2 text-sm">
-      <span className="text-muted-foreground min-w-[96px] sm:min-w-[140px] shrink-0">{label}:</span>
-      <span className="text-foreground min-w-0 break-words">{value}</span>
+    <div className="flex flex-col sm:flex-row sm:gap-2 text-sm">
+      <span className="text-muted-foreground sm:min-w-[140px] sm:shrink-0">{label}:</span>
+      <span className="text-foreground min-w-0 break-words whitespace-pre-line">{value}</span>
     </div>
   );
 };
@@ -452,6 +456,14 @@ const AdminOrder = () => {
             <DetailRow label={t("Name", "Nom")} value={customerName} />
             <DetailRow label={t("Email", "E-mail")} value={order.email} />
             <DetailRow label={t("Phone", "Téléphone")} value={order.phone} />
+            {/* F31 : coordonnées d'une commande prise par message ; les lignes vides restent masquées. */}
+            <DetailRow label="Instagram" value={order.customer_instagram} />
+            {order.order_channel && CHANNEL_LABELS[order.order_channel] && (
+              <DetailRow label={t("Order channel", "Canal de commande")} value={t(CHANNEL_LABELS[order.order_channel].en, CHANNEL_LABELS[order.order_channel].fr)} />
+            )}
+            {!String(order.email ?? "").trim() && (
+              <p className="text-xs text-muted-foreground pt-1">{t("No email address: no email is sent for this order.", "Pas d'adresse e-mail : aucun e-mail n'est envoyé pour cette commande.")}</p>
+            )}
             {/* The real channel (Instagram, WhatsApp, "manual order", ...)
                 behind the coarse MANUEL badge above — shown only when it's
                 actually set and isn't just the generic "website" value.
@@ -606,7 +618,8 @@ const AdminOrder = () => {
                           </Link>
                         </div>
                         )}
-                        <ReferencePhotos urls={item.reference_images} />
+                        <ReferencePhotos urls={item.reference_images}
+                          printedFirst={item.design === "printed-picture" || (Array.isArray(item.extras) && item.extras.includes("printed-picture"))} />
                       </div>
                     </div>
                   </div>

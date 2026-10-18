@@ -55,7 +55,7 @@ async function call(name: "cancel-order" | "cancel-workshop-seats" | "cancel-ord
 export const OrderCancellationPanel = ({
   order, reservations, items = [], canCancelOrder, labelFor, onChanged,
 }: {
-  order: { id: string; order_number?: string | null; payment_status?: string | null };
+  order: { id: string; order_number?: string | null; payment_status?: string | null; email?: string | null; is_historical?: boolean | null };
   reservations: WorkshopReservation[];
   items?: CancellableItem[];
   canCancelOrder: boolean;
@@ -64,6 +64,8 @@ export const OrderCancellationPanel = ({
 }) => {
   const { t } = useLang();
   const [pin, setPin, pinBySession] = useSessionPin();
+  // F31 : sans adresse (ou commande historique), l'annulation se fait sans e-mail.
+  const noEmail = !String(order.email ?? "").trim() || order.is_historical === true;
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [seats, setSeats] = useState<Record<string, string>>({});
@@ -81,7 +83,7 @@ export const OrderCancellationPanel = ({
     && (it.product !== "workshop" || active.some((r) => r.order_item_id === it.id)));
   const itemsToCancel = canCancelOrder && activeItems.length > 1 ? activeItems.filter((it) => it.product !== "workshop") : [];
   // Cancelled but the email failed earlier → can be resent (same email, once).
-  const emailToResend = canCancelOrder ? items.filter((it) => it.product !== "workshop" && it.production_status === "cancelled" && !it.cancellation_email_sent_at) : [];
+  const emailToResend = canCancelOrder && !noEmail ? items.filter((it) => it.product !== "workshop" && it.production_status === "cancelled" && !it.cancellation_email_sent_at) : [];
   // Kept while a message is shown (e.g. « Commande annulée. E-mail envoyé. »
   // right after the last possible cancellation).
   if (!canCancelOrder && active.length === 0 && !message) return null;
@@ -104,8 +106,8 @@ export const OrderCancellationPanel = ({
     if (busy || needPin()) return;
     const paid = order.payment_status === "paid";
     if (!window.confirm(t(
-      `Cancel the whole order ${order.order_number ?? ""}? The customer receives the cancellation email.${paid ? " No refund is made automatically: refund by hand, then record it below." : ""}`,
-      `Annuler toute la commande ${order.order_number ?? ""} ? Le client reçoit l'e-mail d'annulation.${paid ? " Aucun remboursement automatique : remboursez vous-même, puis enregistrez-le dans « Remboursements »." : ""}`,
+      `Cancel the whole order ${order.order_number ?? ""}? ${noEmail ? "No email is sent." : "The customer receives the cancellation email."}${paid ? " No refund is made automatically: refund by hand, then record it below." : ""}`,
+      `Annuler toute la commande ${order.order_number ?? ""} ? ${noEmail ? "Aucun e-mail n'est envoyé." : "Le client reçoit l'e-mail d'annulation."}${paid ? " Aucun remboursement automatique : remboursez vous-même, puis enregistrez-le dans « Remboursements »." : ""}`,
     ))) return;
     setBusy("order"); setMessage(null);
     const r = await call("cancel-order", { orderId: order.id, pin });
@@ -115,7 +117,9 @@ export const OrderCancellationPanel = ({
       type: "ok",
       text: r.data?.alreadyCancelled
         ? t("This order was already cancelled — no new email.", "Cette commande était déjà annulée — aucun nouvel e-mail.")
-        : t("Order cancelled. Cancellation email sent.", "Commande annulée. E-mail d'annulation envoyé.")
+        : r.data?.emailSkipped
+          ? t("Order cancelled. No email (no address or historical order).", "Commande annulée. Aucun e-mail (pas d'adresse ou commande historique).")
+          : t("Order cancelled. Cancellation email sent.", "Commande annulée. E-mail d'annulation envoyé.")
           + (r.data?.seatsReleased ? ` ${t("Workshop seats released:", "Places workshop libérées :")} ${r.data.seatsReleased}.` : ""),
     });
     onChanged();
@@ -124,8 +128,8 @@ export const OrderCancellationPanel = ({
   const cancelItem = async (it: CancellableItem, resend = false) => {
     if (busy || needPin()) return;
     if (!resend && !window.confirm(t(
-      `Cancel only « ${it.label} »? The other items stay confirmed. The customer receives the partial cancellation email. No refund is made automatically.`,
-      `Annuler uniquement « ${it.label} » ? Les autres articles restent confirmés. Le client reçoit l'e-mail d'annulation partielle. Aucun remboursement automatique.`,
+      `Cancel only « ${it.label} »? The other items stay confirmed. ${noEmail ? "No email is sent." : "The customer receives the partial cancellation email."} No refund is made automatically.`,
+      `Annuler uniquement « ${it.label} » ? Les autres articles restent confirmés. ${noEmail ? "Aucun e-mail n'est envoyé." : "Le client reçoit l'e-mail d'annulation partielle."} Aucun remboursement automatique.`,
     ))) return;
     setBusy(it.id); setMessage(null);
     const r = await call("cancel-order-item", { orderItemId: it.id, pin });
@@ -144,7 +148,9 @@ export const OrderCancellationPanel = ({
         ? t("Already cancelled — no new email.", "Déjà annulé — aucun nouvel e-mail.")
         : r.data?.emailInProgress
           ? t("Cancelled. The email is already being sent.", "Annulé. L'e-mail est déjà en cours d'envoi.")
-          : t("Item cancelled. Partial cancellation email sent.", "Article annulé. E-mail d'annulation partielle envoyé."),
+          : r.data?.emailSkipped
+            ? t("Item cancelled. No email (no address or historical order).", "Article annulé. Aucun e-mail (pas d'adresse ou commande historique).")
+            : t("Item cancelled. Partial cancellation email sent.", "Article annulé. E-mail d'annulation partielle envoyé."),
     });
     onChanged();
   };
@@ -165,8 +171,8 @@ export const OrderCancellationPanel = ({
       return;
     }
     if (!window.confirm(t(
-      `Cancel ${n} seat(s) of ${res.workshop_reference}? The customer receives the workshop cancellation email. No refund is made automatically.`,
-      `Annuler ${n} place(s) de ${res.workshop_reference} ? Le client reçoit l'e-mail d'annulation du workshop. Aucun remboursement automatique.`,
+      `Cancel ${n} seat(s) of ${res.workshop_reference}? ${noEmail ? "No email is sent." : "The customer receives the workshop cancellation email."} No refund is made automatically.`,
+      `Annuler ${n} place(s) de ${res.workshop_reference} ? ${noEmail ? "Aucun e-mail n'est envoyé." : "Le client reçoit l'e-mail d'annulation du workshop."} Aucun remboursement automatique.`,
     ))) return;
     const prev = keys[res.id];
     const key = prev && prev.seats === n ? prev.key : `admin-${newKey()}`;
@@ -183,7 +189,9 @@ export const OrderCancellationPanel = ({
       type: "ok",
       text: r.data?.already_cancelled
         ? t("Already done — no new email.", "Déjà fait — aucun nouvel e-mail.")
-        : t(`${n} seat(s) cancelled. Workshop cancellation email sent.`, `${n} place(s) annulée(s). E-mail d'annulation du workshop envoyé.`),
+        : noEmail
+          ? t(`${n} seat(s) cancelled. No email (no address or historical order).`, `${n} place(s) annulée(s). Aucun e-mail (pas d'adresse ou commande historique).`)
+          : t(`${n} seat(s) cancelled. Workshop cancellation email sent.`, `${n} place(s) annulée(s). E-mail d'annulation du workshop envoyé.`),
     });
     onChanged();
   };

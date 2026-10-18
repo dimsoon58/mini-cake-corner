@@ -291,12 +291,19 @@ export default function AdminLabels() {
                         </div>
                       ))}
                     </div>
+                    <div className="sm:col-span-2" data-testid="prep-chantilly">
+                      <h3 className="text-xs uppercase tracking-[0.06em] text-muted-foreground mb-1">Chantilly (crème de base) — <b className="text-foreground">{sheet.chantilly.totalGrams} g</b></h3>
+                      <ul>{sheet.chantilly.rows.map((r) => <li key={r.label} className="flex justify-between border-b border-border/40 py-0.5"><span>{r.label} × {r.units}</span><b>{r.grams} g</b></li>)}</ul>
+                      {sheet.chantilly.missing.length > 0 && (
+                        <p className="text-xs text-amber-900 mt-1">Sans grammage connu (non compté) : {sheet.chantilly.missing.map((m) => `${m.label} × ${m.units}`).join(", ")}</p>
+                      )}
+                    </div>
                     <div>
                       <h3 className="text-xs uppercase tracking-[0.06em] text-muted-foreground mb-1">Goûts</h3>
                       <ul>{sheet.flavours.map((f) => <li key={f.label} className="flex justify-between border-b border-border/40 py-0.5"><span>{f.label}</span><b>{f.units}</b></li>)}</ul>
                     </div>
                     <div>
-                      <h3 className="text-xs uppercase tracking-[0.06em] text-muted-foreground mb-1">Garnitures</h3>
+                      <h3 className="text-xs uppercase tracking-[0.06em] text-muted-foreground mb-1">Garnitures (nombre de gâteaux)</h3>
                       {sheet.ingredients.length === 0 ? <p className="text-muted-foreground">—</p> : (
                         <ul>{sheet.ingredients.map((f) => <li key={f.label} className="flex justify-between border-b border-border/40 py-0.5"><span>{f.label}</span><b>{f.units}</b></li>)}</ul>
                       )}

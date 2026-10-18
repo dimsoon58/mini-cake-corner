@@ -26,6 +26,7 @@ interface ManualOrderRow {
   customerName: string;
   phone: string | null;
   email: string | null;
+  instagram?: string | null;   // F31
   company: string | null;
   channel: string | null;
   createdVia: string | null;
@@ -41,6 +42,7 @@ interface ManualOrderRow {
   finalAmount: number | null;
   paidAmount: number | null;
   confirmationSent: boolean;
+  historical?: boolean;
   createdAt: string;
   lastEditedAt: string | null;
 }
@@ -178,7 +180,7 @@ const AdminManualOrders = () => {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("Search: ORDM, name, phone, email", "Rechercher : ORDM, nom, téléphone, email")}
+              placeholder={t("Search: ORDM, name, phone, email, Instagram", "Rechercher : ORDM, nom, téléphone, email, Instagram")}
               className="w-full border border-input bg-background pl-8 pr-3 py-1.5 rounded-none"
             />
           </div>
@@ -228,9 +230,10 @@ const AdminManualOrders = () => {
                       </span>
                     </td>
                     <td className="py-2 px-3 min-w-[180px]">
-                      {o.customerName || "—"}
+                      {o.customerName || <span className="text-muted-foreground">{t("No name", "Sans nom")}</span>}
                       {o.company && <span className="block text-[11px] text-muted-foreground">{o.company}</span>}
                       {o.phone && <span className="block text-[11px] text-muted-foreground whitespace-nowrap">{o.phone}</span>}
+                      {o.instagram && <span className="block text-[11px] text-muted-foreground whitespace-nowrap">Instagram {o.instagram}</span>}
                     </td>
                     <td className="py-2 px-3 min-w-[220px]" data-testid="manual-schedule">
                       {o.schedule && o.schedule.length > 0 ? (
@@ -256,6 +259,9 @@ const AdminManualOrders = () => {
                       <span className={cn("inline-block px-2 py-0.5 text-[10px] uppercase tracking-wide whitespace-nowrap", MANUAL_STATUS_LABELS[o.status].className)}>
                         {tr(MANUAL_STATUS_LABELS[o.status])}
                       </span>
+                      {o.historical && (
+                        <span className="block mt-0.5 w-fit px-2 py-0.5 text-[10px] uppercase tracking-wide border border-amber-400 bg-amber-50 text-amber-900">{t("Historical", "Historique")}</span>
+                      )}
                       {o.status === "paid" && o.confirmationSent && (
                         <span className="block text-[11px] text-muted-foreground mt-0.5">{t("Confirmation sent", "Confirmation envoyée")}</span>
                       )}

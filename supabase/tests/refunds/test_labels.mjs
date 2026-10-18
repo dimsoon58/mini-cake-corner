@@ -363,10 +363,16 @@ const ing = Object.fromEntries(sh.ingredients.map((f) => [f.label, f.units]));
 check("Fiche : garnitures (cream cheese 7, citron 2)", ing["Cream cheese"] === 7 && ing.Citron === 2 && Object.keys(ing).length === 2, sh.ingredients);
 check("Fiche : goût Dot manquant et génoise de workshop à confirmer → « À vérifier », jamais devinés", sh.toCheck.length === 2 && /ORD-261013-0002/.test(sh.toCheck[0].who) && sh.toCheck[0].units === 3 && /Signature/.test(sh.toCheck[1].who) && sh.toCheck[1].units === 1, sh.toCheck);
 check("Fiche : compteurs (5 gâteaux, 6 de workshop)", sh.cakes === 5 && sh.workshopCakes === 6);
+// Chantilly (grammages donnés le 13.10.2026) : Bento 75 g, Medium 300 g, Dot 50 g par pièce.
+const ch = Object.fromEntries(sh.chantilly.rows.map((r) => [r.label, `${r.units}:${r.grams}`]));
+check("Chantilly : 3 Bento (225 g) + 1 Medium (300 g) + Dot 12 pièces (600 g) = 1125 g", sh.chantilly.totalGrams === 1125 && ch.Bento === "3:225" && ch.Medium === "1:300" && ch["Dot (pièces)"] === "12:600", sh.chantilly);
+check("Chantilly : workshops sans grammage connu → listés à part, jamais devinés", sh.chantilly.missing.length === 1 && /Workshop/.test(sh.chantilly.missing[0].label) && sh.chantilly.missing[0].units === 6, sh.chantilly.missing);
+check("Chantilly comptée à part des garnitures", !sh.ingredients.some((i) => /chantilly|crème fouettée/i.test(i.label)));
 const sh0 = P.buildPrepSheet([cake(iSimple)], new Map([[iSimple, { ...byId.get(iSimple), size: null, prep: undefined }]]), []);
+check("Chantilly : taille inconnue → non comptée, signalée", sh0.chantilly.totalGrams === 0 && sh0.chantilly.missing[0]?.label === "Taille inconnue");
 check("Fiche : taille inconnue ou prep absent (fonction pas redéployée) → « À vérifier »", sh0.boxes.length === 0 && sh0.genoises.length === 0 && sh0.toCheck.length === 2, sh0.toCheck);
 const html = P.prepSheetHtml(sh, "du 12.10.2026 au 13.10.2026");
-check("Fiche A4 : sections et échappement HTML", ["Boîtes", "Génoises", "Goûts", "Garnitures", "À vérifier", "Dot (pièces)", "size: A4"].every((x) => html.includes(x)) && !P.prepSheetHtml({ ...sh, flavours: [{ label: "<b>x", units: 1 }] }, "p").includes("<b>x"));
+check("Fiche A4 : sections et échappement HTML", ["Boîtes", "Génoises", "Goûts", "Garnitures", "À vérifier", "Dot (pièces)", "size: A4", "Chantilly (crème de base) — 1125 g"].every((x) => html.includes(x)) && !P.prepSheetHtml({ ...sh, flavours: [{ label: "<b>x", units: 1 }] }, "p").includes("<b>x"));
 
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);

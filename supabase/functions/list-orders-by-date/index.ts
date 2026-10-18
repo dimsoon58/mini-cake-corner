@@ -256,6 +256,8 @@ serve(async (req) => {
       const o = cakeOrdersById.get(orderId);
       if (!o) continue;
       if (!includeTests && o.is_test === true) continue;
+      // Brouillon de commande manuelle (13.10.2026) : jamais dans l'agenda ni les chiffres.
+      if (o.is_draft === true) continue;
       const isCancelled = o.order_validation === "cancelled" || !!o.order_failure_reason;
       const isWorkshopOnly = o.fulfillment_type === "workshop_only";
       const status = classifyState(isWorkshopOnly ? o.order_validation : o.physical_validation, isCancelled);
@@ -364,7 +366,7 @@ serve(async (req) => {
     if (workshopOrderIds.length > 0) {
       const { data: wsOrders, error: wsOrdersErr } = await supabase
         .from("orders")
-        .select("id, order_number, order_source, first_name, last_name, order_validation, order_failure_reason, payment_status, refund_status, delivery_fee, express_surcharge_amount, welcome_discount_amount, partner_discount_amount, reward_amount_used, is_test")
+        .select("id, order_number, order_source, first_name, last_name, order_validation, order_failure_reason, payment_status, refund_status, delivery_fee, express_surcharge_amount, welcome_discount_amount, partner_discount_amount, reward_amount_used, is_test, is_draft")
         .in("id", workshopOrderIds);
       if (wsOrdersErr) throw new Error(`Failed to load workshop orders: ${wsOrdersErr.message}`);
       workshopOrdersById = new Map((wsOrders ?? []).map((o) => [o.id, o]));
@@ -373,6 +375,7 @@ serve(async (req) => {
     for (const it of workshopItems ?? []) {
       const parent = workshopOrdersById.get(it.order_id);
       if (!includeTests && parent?.is_test === true) continue;
+      if (parent?.is_draft === true) continue;   // brouillon : pas encore une commande
       const isCancelled = parent?.order_validation === "cancelled" || !!parent?.order_failure_reason;
       pushEntry(it.workshop_date, {
         type: "workshop",

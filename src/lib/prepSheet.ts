@@ -28,11 +28,24 @@ export interface PrepCount { label: string; units: number }
 export interface PrepGenoiseGroup { base: SpongeBase; label: string; total: number; rows: PrepCount[] }
 export interface PrepCheck { who: string; what: string; units: number }
 
+// Chantilly = crème de base de TOUS les gâteaux, distincte des garnitures.
+// Grammages donnés par Mel le 13.10.2026, par gâteau (Dot : par pièce).
+// Toute autre taille (Rectangle, Kit Bento…) et les workshops n'ont pas de
+// grammage connu : ils sont listés à part, jamais devinés.
+export const CHANTILLY_G: Record<string, number> = { bento: 75, retro: 100, medium: 300, large: 450 };
+export const CHANTILLY_DOT_G = 50;
+export interface PrepChantilly {
+  totalGrams: number;
+  rows: { label: string; units: number; grams: number }[];  // par taille
+  missing: { label: string; units: number }[];              // sans grammage connu
+}
+
 export interface PrepSheet {
   cakes: number;          // étiquettes de gâteaux cochées
   workshopCakes: number;  // gâteaux des workshops cochés
   toAccept: number;       // dont gâteaux « À accepter »
   boxes: PrepCount[];
+  chantilly: PrepChantilly;
   genoises: PrepGenoiseGroup[];
   flavours: PrepCount[];
   ingredients: PrepCount[];
@@ -66,6 +79,8 @@ export function buildPrepSheet(
   const flavours = new Map<string, number>();
   const ingredients = new Map<string, number>();
   const toCheck: PrepCheck[] = [];
+  const chUnits = new Map<string, { units: number; grams: number }>();
+  const chMissing = new Map<string, number>();
   let toAccept = 0;
   let workshopCakes = 0;
 
@@ -79,6 +94,13 @@ export function buildPrepSheet(
     if (pack) add(boxes, "Dot", Number(pack[1]));
     else if (it.size) add(boxes, sizeLabel(it.size, "fr"), 1);
     else toCheck.push({ who, what: "Boîte : taille inconnue", units: 1 });
+    // Chantilly : une étiquette = un gâteau (un pack pour les Dot Cakes).
+    const chLabel = pack ? "Dot (pièces)" : it.size ? sizeLabel(it.size, "fr") : "Taille inconnue";
+    const g = pack ? Number(pack[1]) * CHANTILLY_DOT_G : it.size ? CHANTILLY_G[it.size] : undefined;
+    if (g !== undefined) {
+      const cur = chUnits.get(chLabel) ?? { units: 0, grams: 0 };
+      chUnits.set(chLabel, { units: cur.units + (pack ? Number(pack[1]) : 1), grams: cur.grams + g });
+    } else chMissing.set(chLabel, (chMissing.get(chLabel) ?? 0) + 1);
 
     const prep = it.prep;
     if (!prep) { toCheck.push({ who, what: "Génoise et goût non calculés", units: 1 }); continue; }
@@ -97,6 +119,7 @@ export function buildPrepSheet(
     const box = workshopBox(s.type);
     if (box) add(boxes, box, units);
     else if (units > 0) toCheck.push({ who, what: "Boîte : type de workshop inconnu", units });
+    if (units > 0) chMissing.set("Workshop (gâteaux des participants)", (chMissing.get("Workshop (gâteaux des participants)") ?? 0) + units);
     for (const b of s.bases) if (b.needed > 0) add(genoises, `${b.base}|${s.category}`, b.needed);
     if (s.unknownUnits > 0) toCheck.push({ who, what: "Génoise à confirmer", units: s.unknownUnits });
   }
@@ -120,6 +143,12 @@ export function buildPrepSheet(
     workshopCakes,
     toAccept,
     boxes: sorted(boxes, BOX_ORDER),
+    chantilly: {
+      totalGrams: [...chUnits.values()].reduce((n, r) => n + r.grams, 0),
+      rows: [...chUnits].map(([label, r]) => ({ label, ...r }))
+        .sort((a, b) => BOX_ORDER.indexOf(a.label.replace(" (pièces)", "")) - BOX_ORDER.indexOf(b.label.replace(" (pièces)", ""))),
+      missing: [...chMissing].map(([label, units]) => ({ label, units })),
+    },
     genoises: genoiseGroups,
     flavours: sorted(flavours),
     ingredients: sorted(ingredients),
@@ -153,9 +182,12 @@ td.n { text-align: right; font-weight: 700; width: 25mm; white-space: nowrap; }
 ${list(sheet.boxes.map((b) => (b.label === "Dot" ? { label: "Dot (pièces)", units: b.units } : b)))}
 <h2>Génoises</h2>
 ${sheet.genoises.length ? `<div class="cols">${sheet.genoises.map((g) => `<div><h3>${esc(g.label)} — ${g.total}</h3>${list(g.rows)}</div>`).join("")}</div>` : `<p class="muted">—</p>`}
+<h2>Chantilly (crème de base) — ${sheet.chantilly.totalGrams} g</h2>
+${sheet.chantilly.rows.length ? `<table>${sheet.chantilly.rows.map((r) => `<tr><td>${esc(r.label)} × ${r.units}</td><td class="n">${r.grams} g</td></tr>`).join("")}</table>` : `<p class="muted">—</p>`}
+${sheet.chantilly.missing.length ? `<p class="muted">Sans grammage connu (non compté) : ${sheet.chantilly.missing.map((m) => `${esc(m.label)} × ${m.units}`).join(", ")}</p>` : ""}
 <div class="cols">
 <div><h2>Goûts</h2>${list(sheet.flavours)}</div>
-<div><h2>Garnitures</h2>${list(sheet.ingredients)}</div>
+<div><h2>Garnitures (nombre de gâteaux)</h2>${list(sheet.ingredients)}</div>
 </div>
 ${sheet.toCheck.length ? `<h2>À vérifier</h2><table class="warn">${sheet.toCheck.map((c) => `<tr><td>${esc(c.who)}<br><span class="muted">${esc(c.what)}</span></td><td class="n">${c.units}</td></tr>`).join("")}</table>` : ""}
 <script>window.onload = () => window.print();</script>

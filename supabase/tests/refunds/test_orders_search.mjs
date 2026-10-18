@@ -43,6 +43,7 @@ function from(table) {
     in(c, v) { where.push(`${c}::text = any(${p(v.map(String))}::text[])`); return b; },
     is(c, v) { where.push(v === null ? `${c} is null` : `${c} is ${v}`); return b; },
     ilike(c, v) { where.push(`${c} ilike ${p(v)}`); return b; },
+    not(c, o, v) { if (o === "is") where.push(`${c} is not ${v === null ? "null" : v}`); return b; },
     // « col.ilike.%x%,col2.ilike.%x% » (forme utilisée par list-orders)
     or(expr) { where.push(`(${expr.split(",").map((t) => { const [c, o, ...v] = t.split("."); if (o !== "ilike") throw new Error("or: " + t); return `${c}::text ilike ${p(v.join("."))}`; }).join(" or ")})`); return b; },
     order(c, o = {}) { orderBy += `${orderBy ? "," : " order by"} ${c} ${o.ascending === false ? "desc" : "asc"}`; return b; },
