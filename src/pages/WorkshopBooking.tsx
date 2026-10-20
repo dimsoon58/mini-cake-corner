@@ -20,6 +20,24 @@ import {
   formatSessionDate,
 } from "@/data/workshopSessions";
 
+
+// ── Cake colours for Piping Workshop ─────────────────────────────────────────
+const CAKE_COLORS = [
+  { id: "white",        name: "White",        nameFr: "Blanc",          color: "#FFFFFF" },
+  { id: "pastel-pink",  name: "Pastel Pink",  nameFr: "Rose pastel",    color: "#FFE4EC" },
+  { id: "pastel-blue",  name: "Pastel Blue",  nameFr: "Bleu pastel",    color: "#D6EAF8" },
+  { id: "pastel-green", name: "Pastel Green", nameFr: "Vert pastel",    color: "#D5F5E3" },
+  { id: "pastel-yellow",name: "Pastel Yellow",nameFr: "Jaune pastel",   color: "#FDFBCC" },
+  { id: "pastel-lilac", name: "Pastel Lilac", nameFr: "Lilas pastel",   color: "#EAD9F7" },
+  { id: "ivory",        name: "Ivory",        nameFr: "Ivoire",         color: "#FFFFF0" },
+  { id: "sage-green",   name: "Sage Green",   nameFr: "Vert sauge",     color: "#B2C8B2" },
+  { id: "dusty-rose",   name: "Dusty Rose",   nameFr: "Rose poudré",    color: "#DCAEBF" },
+  { id: "sky-blue",     name: "Sky Blue",     nameFr: "Bleu ciel",      color: "#AED6F1" },
+  { id: "mint",         name: "Mint",         nameFr: "Menthe",         color: "#A8DFCB" },
+  { id: "lavender",     name: "Lavender",     nameFr: "Lavande",        color: "#C9BADF" },
+] as const;
+type CakeColorId = (typeof CAKE_COLORS)[number]["id"];
+
 // ── Stepper ──────────────────────────────────────────────────────────────────
 const makeSteps = (type: WorkshopType) => [
   { icon: Calendar, labelEn: "Date", labelFr: "Date" },
