@@ -11,7 +11,8 @@ import { useCart } from "@/context/CartContext";
 
 import Layout from "@/components/Layout";
 import CakeVisualizer from "@/components/CakeVisualizer";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
+import { isOrderDateDisabled } from "@/lib/orderDates";
 import { AllergenDisplay, AllergenNotice } from "@/data/allergens";
 import flavorVanilla from "@/assets/flavor-vanilla.png";
 import flavorRedVelvet from "@/assets/flavor-red-velvet.png";
@@ -642,7 +643,7 @@ const Customize = () => {
                     mode="single"
                     selected={selections.orderDate || undefined}
                     onSelect={(date) => setSelections({ ...selections, orderDate: date || null })}
-                    disabled={(date) => date < addDays(new Date(), 2)}
+                    disabled={(date) => isOrderDateDisabled(date)}
                     initialFocus
                     className="rounded-md"
                   />

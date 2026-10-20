@@ -80,6 +80,18 @@ export function isSaturdayISO(dateISO: string): boolean {
   return d.getUTCDay() === 6;
 }
 
+// Monday: the website offers no slot before 12:00, for pick-up and delivery
+// alike (src/lib/orderDates.ts MONDAY_FIRST_HOUR). Admin keeps every slot.
+export const MONDAY_FIRST_HOUR = 12;
+export function isMondayISO(dateISO: string): boolean {
+  const d = new Date(Date.UTC(+dateISO.slice(0, 4), +dateISO.slice(5, 7) - 1, +dateISO.slice(8, 10)));
+  return d.getUTCDay() === 1;
+}
+
+// Closed dates (whole day) — same list as src/lib/orderDates.ts CLOSED_DATES.
+// The Admin manual-order flow may still use them (allowClosedDays).
+export const CLOSED_DATES: readonly string[] = ["2026-11-13", "2026-11-14"];
+
 // Today's calendar date in Europe/Zurich as "YYYY-MM-DD" — avoids the UTC
 // off-by-one when deciding whether an order is "express" / too soon.
 export function zurichTodayISO(): string {
@@ -135,8 +147,10 @@ export function expressSurchargeRate(
 // checkout never does and keeps every default:
 //   minLeadDays: 0 so an order taken by phone can be for today or tomorrow
 //                (default ORDER_LEAD_DAYS);
-//   allowClosedDays: a Sunday is accepted as an exception (default: refused);
-//   allowAnySlot: any slot on a Saturday (default: SATURDAY_SLOT only);
+//   allowClosedDays: a Sunday or a CLOSED_DATES day is accepted as an
+//                    exception (default: refused);
+//   allowAnySlot: any slot on a Saturday or a Monday morning (default:
+//                 SATURDAY_SLOT only / from MONDAY_FIRST_HOUR);
 //   shortNoticeExpress: J+0 / J+1 carry SHORT_NOTICE_RATE (default: 0).
 export async function resolveOneFulfillment(
   input: FulfillmentInput,
@@ -168,8 +182,14 @@ export async function resolveOneFulfillment(
   if (!options.allowClosedDays && isClosedDayISO(date)) {
     throw new Error(`CLOSED_DAY: fulfillment ${date} — we are closed on Sundays. Please choose another date (for example the Saturday before).`);
   }
+  if (!options.allowClosedDays && CLOSED_DATES.includes(date)) {
+    throw new Error(`CLOSED_DATE: fulfillment ${date} — we are closed on this date. Please choose another date.`);
+  }
   if (!options.allowAnySlot && isSaturdayISO(date) && input.slot && input.slot !== SATURDAY_SLOT) {
     throw new Error(`SATURDAY_SLOT: fulfillment ${date} — on Saturdays only the ${SATURDAY_SLOT} slot is available.`);
+  }
+  if (!options.allowAnySlot && isMondayISO(date) && input.slot && !(Number(input.slot.slice(0, 2)) >= MONDAY_FIRST_HOUR)) {
+    throw new Error(`MONDAY_SLOT: fulfillment ${date} — on Mondays slots start at ${MONDAY_FIRST_HOUR}:00.`);
   }
 
   const resolved: ResolvedFulfillment = {

@@ -53,7 +53,7 @@ import DeliveryAddressAutocomplete, { type AddressSelection } from "@/components
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { isOrderDateDisabled, isClosedDay, CLOSED_DAY_COPY, SATURDAY_SLOT_COPY, slotsForDate, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
+import { isOrderDateDisabled, isClosedDay, isClosedDate, CLOSED_DAY_COPY, CLOSED_DATE_COPY, slotRuleCopy, slotsForDate, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
 import { cartItemTitle, flavorLabel, shapeLabel } from "@/lib/orderLabels";
 import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
@@ -505,7 +505,7 @@ const Checkout = () => {
   // Saturday no longer exists, so it is cleared (the customer picks again).
   const pickupSlots = slotsForDate(PICKUP_TIME_SLOTS, deliveryDate);
   const deliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate);
-  const isSaturdayDate = !!deliveryDate && deliveryDate.getDay() === 6;
+  const slotNote = slotRuleCopy(deliveryDate);
   useEffect(() => {
     if (pickupTime && !slotsForDate(PICKUP_TIME_SLOTS, deliveryDate).includes(pickupTime)) setPickupTime("");
     if (deliveryTime && !slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate).includes(deliveryTime)) setDeliveryTime("");
@@ -1032,6 +1032,14 @@ const Checkout = () => {
         toast({
           title: t("This date is a Sunday", "Cette date est un dimanche"),
           description: `${CLOSED_DAY_COPY[lang === "fr" ? "fr" : "en"]} ${t("Please choose another date.", "Merci de choisir une autre date.")}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (chosenDates.some(isClosedDate)) {
+        toast({
+          title: t("We are closed on this date", "Nous sommes fermés à cette date"),
+          description: `${CLOSED_DATE_COPY[lang === "fr" ? "fr" : "en"]} ${t("Please choose another date.", "Merci de choisir une autre date.")}`,
           variant: "destructive",
         });
         return;
@@ -1830,7 +1838,7 @@ const Checkout = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {isSaturdayDate && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
+                {slotNote && <p className="text-xs text-muted-foreground">{t(slotNote.en, slotNote.fr)}</p>}
               </div>
             )}
 
@@ -1902,7 +1910,7 @@ const Checkout = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  {isSaturdayDate && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
+                  {slotNote && <p className="text-xs text-muted-foreground">{t(slotNote.en, slotNote.fr)}</p>}
                 </div>
 
                 {/* Delivery Comment - Required */}
@@ -1972,7 +1980,7 @@ const Checkout = () => {
                   const draft = getFulfillmentDraft(group.date);
                   const groupPickupSlots = slotsForDate(PICKUP_TIME_SLOTS, group.date);
                   const groupDeliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, group.date);
-                  const groupSaturday = groupPickupSlots.length < PICKUP_TIME_SLOTS.length;
+                  const groupSlotNote = slotRuleCopy(group.date);
                   const groupDate = new Date(group.date + "T00:00:00");
                   const groupLabel = formatDisplayDate(groupDate);
                   const groupTotal = sumChf(...group.items.map((i) => i.total));
@@ -2034,7 +2042,7 @@ const Checkout = () => {
                               ))}
                             </SelectContent>
                           </Select>
-                          {groupSaturday && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
+                          {groupSlotNote && <p className="text-xs text-muted-foreground">{t(groupSlotNote.en, groupSlotNote.fr)}</p>}
                         </div>
                       )}
 
@@ -2078,7 +2086,7 @@ const Checkout = () => {
                                 ))}
                               </SelectContent>
                             </Select>
-                            {groupSaturday && <p className="text-xs text-muted-foreground">{t(SATURDAY_SLOT_COPY.en, SATURDAY_SLOT_COPY.fr)}</p>}
+                            {groupSlotNote && <p className="text-xs text-muted-foreground">{t(groupSlotNote.en, groupSlotNote.fr)}</p>}
                           </div>
                           {/* NOTE (rollout report): there is deliberately no per-date
                               delivery-comment field here yet — order_fulfillments has

@@ -6,8 +6,8 @@
 // authoritative; these helpers only drive the calendar UI and the checkout
 // preview.
 //
-//   * No daily order cap. Closed on Sundays (never selectable); every other
-//     day is available.
+//   * No daily order cap. Closed on Sundays and on the CLOSED_DATES below
+//     (never selectable); every other day is available.
 //   * Lead time: the customer can never order for today or tomorrow. First
 //     selectable date = today + 2 calendar days (Europe/Zurich).
 //   * Express surcharge, tiered (replaces the old flat +10%):
@@ -55,14 +55,31 @@ export function isClosedDay(date: Date): boolean {
   return date.getDay() === 0;
 }
 
+// Closed dates (whole day, pick-up and delivery), "YYYY-MM-DD" — greyed out
+// in every calendar of the site (server: CLOSED_DATES in order-pricing.ts,
+// keep both lists identical). Admin manual orders may still use them.
+export const CLOSED_DATES: readonly string[] = ["2026-11-13", "2026-11-14"];
+const localISO = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+export function isClosedDate(date: Date): boolean {
+  return CLOSED_DATES.includes(localISO(date));
+}
+
 // Saturday: a single slot, 11:00 – 12:00, for pick-up and delivery alike
 // (website checkout only; Admin manual orders keep every slot).
 export const SATURDAY_SLOT = "11:00 – 12:00";
-const isSaturday = (date: Date | string) => (typeof date === "string" ? new Date(`${date}T00:00:00`) : date).getDay() === 6;
+// Monday: no slot before 12:00, for pick-up and delivery alike (same scope).
+export const MONDAY_FIRST_HOUR = 12;
+const asDate = (date: Date | string) => (typeof date === "string" ? new Date(`${date}T00:00:00`) : date);
+const slotStartHour = (slot: string) => Number(slot.slice(0, 2));
 
-/** Slots offered for a date: all of them, except on Saturday (11:00 – 12:00 only). */
+/** Slots offered for a date: all of them, except Saturday (11:00 – 12:00 only) and Monday (from 12:00). */
 export function slotsForDate(slots: readonly string[], date: Date | string | null | undefined): string[] {
-  return date && isSaturday(date) ? slots.filter((s) => s === SATURDAY_SLOT) : [...slots];
+  if (!date) return [...slots];
+  const day = asDate(date).getDay();
+  if (day === 6) return slots.filter((s) => s === SATURDAY_SLOT);
+  if (day === 1) return slots.filter((s) => slotStartHour(s) >= MONDAY_FIRST_HOUR);
+  return [...slots];
 }
 
 export const SATURDAY_SLOT_COPY = {
@@ -70,14 +87,32 @@ export const SATURDAY_SLOT_COPY = {
   fr: "Le samedi, un seul créneau : 11:00 – 12:00.",
 } as const;
 
+export const MONDAY_SLOT_COPY = {
+  en: "On Mondays, slots from 12:00 only.",
+  fr: "Le lundi, créneaux à partir de 12:00 seulement.",
+} as const;
+
+/** Note shown under the time-slot select when the date has a reduced choice (Saturday, Monday). */
+export function slotRuleCopy(date: Date | string | null | undefined): { en: string; fr: string } | null {
+  if (!date) return null;
+  const day = asDate(date).getDay();
+  return day === 6 ? SATURDAY_SLOT_COPY : day === 1 ? MONDAY_SLOT_COPY : null;
+}
+
 export const CLOSED_DAY_COPY = {
   en: "We are closed on Sundays. You can order for Saturday.",
   fr: "Nous sommes fermés le dimanche. Vous pouvez commander pour le samedi.",
 } as const;
 
-// Calendar `disabled` predicate: everything before J+2 is off, and Sundays.
+export const CLOSED_DATE_COPY = {
+  en: "We are closed on this date.",
+  fr: "Nous sommes fermés à cette date.",
+} as const;
+
+// Calendar `disabled` predicate: everything before J+2 is off, Sundays and
+// the closed dates.
 export function isOrderDateDisabled(date: Date): boolean {
-  return calendarDaysUntil(date) < LEAD_DAYS || isClosedDay(date);
+  return calendarDaysUntil(date) < LEAD_DAYS || isClosedDay(date) || isClosedDate(date);
 }
 
 // The express surcharge RATE for a given date: 0.20 (J+2/J+3), 0.15
