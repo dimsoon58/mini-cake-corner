@@ -9,7 +9,7 @@ import { PrivateWorkshopDialog } from "@/components/PrivateWorkshopDialog";
 // Photos, remplace chaque import par une photo dédiée quand tu en as
 import workshopHero from "@/assets/home-cat-workshops.jpg";
 import imgSignature from "@/assets/workshop-signature.jpg";
-const imgPiping = imgSignature; // Replace with dedicated piping photo when available
+import imgPiping from "@/assets/workshop-piping.jpg";
 import imgPaint from "@/assets/workshop-paint.png";
 import imgPrivate from "@/assets/workshop-private.jpg";
 
