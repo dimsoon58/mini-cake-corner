@@ -221,17 +221,17 @@ const WorkshopCarousel = ({
       </button>
 
       {/* Scrollable track */}
-      <div className="overflow-hidden">
+      <div className="overflow-hidden mx-[max(1rem,calc((100vw-72rem)/2))]">
       <div
         ref={trackRef}
         onScroll={handleScroll}
-        className="flex gap-5 overflow-x-auto snap-x snap-mandatory px-[max(1rem,calc((100vw-72rem)/2))] pb-2"
+        className="flex gap-5 overflow-x-auto snap-x snap-mandatory pb-2"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
       >
         {cards.map((w) => (
           <div
             key={w.title}
-            className="snap-start shrink-0 w-[calc(100vw-3rem)] sm:w-80 lg:w-96 border border-border/60 flex flex-col bg-card"
+            className="snap-start shrink-0 w-[calc(100vw-3rem)] lg:w-[calc((100%-40px)/3)] border border-border/60 flex flex-col bg-card"
           >
             <div className="aspect-[4/3] overflow-hidden">
               <img src={w.image} alt={t(w.title, w.titleFr)} className="w-full h-full object-cover" style={w.objectPosition ? { objectPosition: w.objectPosition } : undefined} />
@@ -271,7 +271,7 @@ const WorkshopCarousel = ({
         ))}
 
         {/* Private card */}
-        <div className="snap-start shrink-0 w-[calc(100vw-3rem)] sm:w-80 lg:w-96 border border-border/60 flex flex-col bg-card">
+        <div className="snap-start shrink-0 w-[calc(100vw-3rem)] lg:w-[calc((100%-40px)/3)] border border-border/60 flex flex-col bg-card">
           <div className="aspect-[4/3] overflow-hidden">
             <img src={priv.image} alt={t(priv.title, priv.titleFr)} className="w-full h-full object-cover" />
           </div>
