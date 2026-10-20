@@ -23,17 +23,17 @@ import { cn } from "@/lib/utils";
 // « Participants » : qui vient, avec contact, places, mineur, génoises et
 // commentaire (remplace la base Notion des réservations).
 
-type WType = "signature" | "paint";
+type WType = "signature" | "paint" | "piping";
 interface Session {
   id: string; type: WType; date: string; time: string; unitPrice: number; capacity: number; isOpen: boolean; updatedAt: string;
-  occupied: number; remaining: number; reservations: number; cancelledSeats: number;
+  occupied: number; remaining: number; reservations: number; cancelledSeats: number; theme?: string | null;
 }
 interface Participant {
   reservationId: string; reference: string; orderId: string; orderNumber: string | null; name: string; email: string | null; phone: string | null;
   isTest: boolean; paymentStatus: string | null; purchased: number; cancelled: number; active: number; hasMinor: boolean; minorConsent: boolean;
   comment: string | null; status: string; refunded: number; sponges: { vanilla: number; chocolate: number };
 }
-const TYPE_LABEL: Record<WType, string> = { signature: "Signature", paint: "Peinture" };
+const TYPE_LABEL: Record<WType, string> = { signature: "Signature", paint: "Peinture", piping: "Pochage" };
 const RES_STATUS: Record<string, string> = { pending: "En attente", confirmed: "Confirmée", partially_cancelled: "Partiellement annulée", cancelled: "Annulée", rejected: "Refusée" };
 const box = "border border-border/60 bg-background";
 const h2 = "text-sm font-semibold uppercase tracking-[0.08em]";
@@ -282,6 +282,7 @@ function SessionDialog({ session, pin, onClose, onSaved }: { session: Session | 
   const [f, setF] = useState({
     type: (session?.type ?? "paint") as WType, date: session?.date ?? "", time: session?.time ?? "14:00",
     price: session ? String(session.unitPrice) : "", capacity: session ? String(session.capacity) : "10", isOpen: session?.isOpen ?? true,
+    theme: session?.theme ?? "",
   });
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -294,7 +295,7 @@ function SessionDialog({ session, pin, onClose, onSaved }: { session: Session | 
     if (!pin.trim()) { setErr("Saisissez d'abord le code PIN administrateur."); return; }
     setBusy(true); setErr(null);
     try {
-      await sessionsApi({ action: "save", id: session?.id, type: f.type, date: f.date, time: f.time, price: f.price, capacity: Number(f.capacity), isOpen: f.isOpen, confirm: confirmed, pin });
+      await sessionsApi({ action: "save", id: session?.id, type: f.type, date: f.date, time: f.time, price: f.price, capacity: Number(f.capacity), isOpen: f.isOpen, confirm: confirmed, pin, theme: f.theme || null });
       onSaved(session ? `Session du ${frDate(f.date)} enregistrée.` : `Session du ${frDate(f.date)} créée : elle est proposée sur le site${f.isOpen ? "" : " dès qu'elle sera ouverte"}.`);
     } catch (e) {
       const x = e as Error & { reason?: string };
@@ -312,7 +313,7 @@ function SessionDialog({ session, pin, onClose, onSaved }: { session: Session | 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1 col-span-2"><Label htmlFor="ws-type" className="text-xs">Type</Label>
             <select id="ws-type" value={f.type} disabled={locked} onChange={(e) => set({ type: e.target.value as WType })} className="w-full border border-input bg-background h-10 px-2 text-sm rounded-none">
-              <option value="paint">Peinture</option><option value="signature">Signature</option>
+              <option value="paint">Peinture</option><option value="signature">Signature</option><option value="piping">Pochage</option>
             </select>
             {locked && <p className="text-[11px] text-muted-foreground">Type figé : des réservations existent.</p>}</div>
           <div className="space-y-1"><Label htmlFor="ws-date" className="text-xs">Date</Label><Input id="ws-date" type="date" value={f.date} onChange={(e) => set({ date: e.target.value })} className="rounded-none" /></div>
@@ -320,6 +321,8 @@ function SessionDialog({ session, pin, onClose, onSaved }: { session: Session | 
           <div className="space-y-1"><Label htmlFor="ws-price" className="text-xs">Prix par personne (CHF)</Label><Input id="ws-price" inputMode="decimal" value={f.price} onChange={(e) => set({ price: e.target.value })} className="rounded-none" /></div>
           <div className="space-y-1"><Label htmlFor="ws-cap" className="text-xs">Capacité (places)</Label><Input id="ws-cap" type="number" min={Math.max(1, session?.occupied ?? 1)} value={f.capacity} onChange={(e) => set({ capacity: e.target.value })} className="rounded-none" /></div>
           <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={f.isOpen} onChange={(e) => set({ isOpen: e.target.checked })} /> Ouverte aux réservations sur le site</label>
+          <div className="space-y-1 col-span-2"><Label htmlFor="ws-theme" className="text-xs">Thème spécial (facultatif — ex : Halloween, Noël)</Label>
+            <Input id="ws-theme" value={f.theme} onChange={(e) => set({ theme: e.target.value })} className="rounded-none" placeholder="laisser vide si aucun" /></div>
         </div>
         {confirmMsg && (
           <div className="border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 space-y-2">

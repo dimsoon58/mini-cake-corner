@@ -9,6 +9,7 @@ export interface WorkshopSession {
   booked: number;
   pricePerPerson: number;
   currency: string;
+  theme?: string | null;
 }
 
 // ── Pricing & booking limits ────────────────────────────────────────────────
@@ -149,10 +150,10 @@ export const workshopSessions: WorkshopSession[] = [
 // gérées dans Admin > Workshops) via get_workshop_availability(). La liste
 // ci-dessus ne sert plus que de remplacement pendant le chargement ou si la
 // base ne répond pas.
-export interface SessionRow { id: string; workshop_type: string; workshop_date: string; workshop_time: string; unit_price: number; max_capacity: number; active_reserved_seats?: number; is_open?: boolean }
+export interface SessionRow { id: string; workshop_type: string; workshop_date: string; workshop_time: string; unit_price: number; max_capacity: number; active_reserved_seats?: number; is_open?: boolean; theme?: string | null }
 export function sessionFromRow(r: SessionRow): WorkshopSession {
   return { id: r.id, workshopType: r.workshop_type as WorkshopType, date: String(r.workshop_date).slice(0, 10), time: r.workshop_time,
-    capacity: Number(r.max_capacity), booked: Number(r.active_reserved_seats ?? 0), pricePerPerson: Number(r.unit_price), currency: "CHF" };
+    capacity: Number(r.max_capacity), booked: Number(r.active_reserved_seats ?? 0), pricePerPerson: Number(r.unit_price), currency: "CHF", theme: r.theme ?? null };
 }
 /**
  * Sessions proposées sur le site pour un type : uniquement celles de la base,

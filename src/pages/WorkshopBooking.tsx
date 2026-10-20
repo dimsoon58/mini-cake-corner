@@ -213,9 +213,16 @@ const WorkshopBooking = () => {
                     : "border-border hover:border-primary/60 bg-card"}`}
               >
                 <div>
-                  <p className={`text-sm font-medium capitalize ${selected ? "text-primary" : "text-foreground"}`}>
-                    {formatSessionDate(s.date, lang === "fr" ? "fr" : "en")}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className={`text-sm font-medium capitalize ${selected ? "text-primary" : "text-foreground"}`}>
+                      {formatSessionDate(s.date, lang === "fr" ? "fr" : "en")}
+                    </p>
+                    {s.theme && (
+                      <span className="text-[11px] font-medium uppercase tracking-wider px-1.5 py-0.5 bg-primary/10 text-primary leading-none">
+                        {s.theme}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {s.time} · {t(info.duration, info.durationFr)}
                   </p>

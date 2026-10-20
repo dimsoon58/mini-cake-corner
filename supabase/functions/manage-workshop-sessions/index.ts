@@ -94,7 +94,7 @@ serve(async (req) => {
       const type = String(body.type ?? "");
       const cakes = Number(body.cakesPerParticipant);
       const category = String(body.category ?? "");
-      if (!["signature", "paint"].includes(type)) return json(cors, { error: "Type de workshop inconnu", reason: "input" }, 400);
+      if (!["signature", "paint", "piping"].includes(type)) return json(cors, { error: "Type de workshop inconnu", reason: "input" }, 400);
       if (!Number.isInteger(cakes) || cakes < 0 || cakes > 10) return json(cors, { error: "Nombre de gâteaux invalide (0 à 10)", reason: "input" }, 400);
       if (!["bento_round", "bento_heart", "medium_round", "medium_heart", "large_round", "large_heart"].includes(category)) {
         return json(cors, { error: "Catégorie de gâteau invalide", reason: "input" }, 400);
@@ -108,7 +108,7 @@ serve(async (req) => {
       const time = String(body.time ?? "");
       const price = Number(String(body.price ?? "").replace(",", "."));
       const capacity = Number(body.capacity);
-      if (!["signature", "paint"].includes(type)) return json(cors, { error: "Type de workshop inconnu", reason: "input" }, 400);
+      if (!["signature", "paint", "piping"].includes(type)) return json(cors, { error: "Type de workshop inconnu", reason: "input" }, 400);
       if (!DATE_RE.test(date) || Number.isNaN(Date.parse(date))) return json(cors, { error: "Date invalide", reason: "input" }, 400);
       if (!TIME_RE.test(time)) return json(cors, { error: "Heure invalide (HH:MM)", reason: "input" }, 400);
       if (!Number.isFinite(price) || price <= 0) return json(cors, { error: "Prix invalide", reason: "input" }, 400);
@@ -116,6 +116,7 @@ serve(async (req) => {
       const r = await rpc("admin_workshop_session_save", {
         p_id: body.id ? String(body.id) : null, p_type: type, p_date: date, p_time: time, p_price: Math.round(price * 100) / 100,
         p_capacity: capacity, p_open: typeof body.isOpen === "boolean" ? body.isOpen : null, p_confirm: body.confirm === true, p_by: admin.email,
+        p_theme: body.theme ? String(body.theme).slice(0, 80) : null,
       }) as { needsConfirm: boolean; message?: string };
       if (r?.needsConfirm) return json(cors, { error: r.message, reason: "confirm", data: r }, 409);
       return json(cors, { data: r });
