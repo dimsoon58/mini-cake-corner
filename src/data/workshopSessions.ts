@@ -1,4 +1,4 @@
-export type WorkshopType = "signature" | "paint";
+export type WorkshopType = "signature" | "paint" | "piping";
 
 export interface WorkshopSession {
   id: string;
@@ -17,12 +17,14 @@ export interface WorkshopSession {
 // WORKSHOP_MAX_PARTICIPANTS) — the backend re-validates every price and
 // participant count; it never trusts the value sent by the browser.
 export const WORKSHOP_PRICE_PER_PERSON: Record<WorkshopType, number> = {
-  signature: 85,
+  signature: 120,
+  piping: 85,
   paint: 65,
 };
 
 export const WORKSHOP_MAX_PARTICIPANTS: Record<WorkshopType, number> = {
   signature: 8,
+  piping: 8,
   paint: 10,
 };
 
@@ -47,14 +49,15 @@ export const workshopInfo: Record<
   signature: {
     title: "Signature Workshop",
     titleFr: "Workshop Signature",
-    description: "Learn the basics of Bento Cake decorating in this hands-on 2-hour workshop.",
-    descriptionFr: "Découvrez les bases de la décoration du Bento Cake lors de ce workshop pratique de 2 heures.",
-    duration: "2 hours",
-    durationFr: "2 heures",
+    description: "Learn the art of assembling, frosting and decorating your own Bento Cake in this hands-on 3-hour workshop.",
+    descriptionFr: "Apprenez à assembler, glacer et décorer votre propre Bento Cake lors de ce workshop pratique de 3 heures.",
+    duration: "3 hours",
+    durationFr: "3 heures",
     maxParticipants: WORKSHOP_MAX_PARTICIPANTS.signature,
     pricePerPerson: WORKSHOP_PRICE_PER_PERSON.signature,
     currency: "CHF",
     features: [
+      "Assemble your cake",
       "Frost your cake",
       "Learn piping techniques",
       "Buttercream basics",
@@ -62,6 +65,7 @@ export const workshopInfo: Record<
       "Take it home",
     ],
     featuresFr: [
+      "Assemblez votre gâteau",
       "Glacez votre gâteau",
       "Apprenez les techniques de pochage",
       "Les bases de la crème au beurre",
@@ -70,6 +74,35 @@ export const workshopInfo: Record<
     ],
     includes: ["All materials provided", "Apron included", "Refreshments", "Recipe card to take home"],
     includesFr: ["Tous les matériaux fournis", "Tablier inclus", "Rafraîchissements", "Fiche recette à emporter"],
+  },
+  piping: {
+    title: "Piping Workshop",
+    titleFr: "Workshop Pochage",
+    description: "Master the art of piping and decorate your own Bento Cake.",
+    descriptionFr: "Maîtrisez l'art du pochage et décorez votre propre Bento Cake.",
+    duration: "1h30",
+    durationFr: "1h30",
+    maxParticipants: WORKSHOP_MAX_PARTICIPANTS.piping,
+    pricePerPerson: WORKSHOP_PRICE_PER_PERSON.piping,
+    currency: "CHF",
+    features: [
+      "Ready-to-decorate frosted cake",
+      "Learn piping techniques",
+      "Explore different piping tips",
+      "Create decorative borders and patterns",
+      "Decorate your own cake",
+      "Take it home",
+    ],
+    featuresFr: [
+      "Gâteau glacé prêt à décorer",
+      "Apprenez les techniques de pochage",
+      "Explorez différentes douilles",
+      "Créez des bordures et motifs décoratifs",
+      "Décorez votre propre gâteau",
+      "Repartez avec votre création",
+    ],
+    includes: ["Ready-to-decorate frosted cake", "Piping bags & tips", "Apron included", "Refreshments"],
+    includesFr: ["Gâteau glacé prêt à décorer", "Poches à douille & embouts", "Tablier inclus", "Rafraîchissements"],
   },
   paint: {
     title: "Paint Workshop",

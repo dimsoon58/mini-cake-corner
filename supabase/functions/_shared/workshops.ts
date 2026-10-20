@@ -3,15 +3,17 @@
 // max sent by the client. Keep these values identical to the frontend copy in
 // src/data/workshopSessions.ts.
 
-export type WorkshopType = "signature" | "paint";
+export type WorkshopType = "signature" | "paint" | "piping";
 
 export const WORKSHOP_PRICE: Record<WorkshopType, number> = {
-  signature: 85,
+  signature: 120,
+  piping: 85,
   paint: 65,
 };
 
 export const WORKSHOP_MAX_PARTICIPANTS: Record<WorkshopType, number> = {
   signature: 8,
+  piping: 8,
   paint: 10,
 };
 
@@ -36,6 +38,7 @@ export function getWorkshopSession(id: string | null | undefined): WorkshopSessi
 
 export function workshopTitle(type: WorkshopType, lang: "fr" | "en"): string {
   if (type === "signature") return lang === "fr" ? "Atelier Signature" : "Signature Workshop";
+  if (type === "piping") return lang === "fr" ? "Atelier Pochage" : "Piping Workshop";
   return lang === "fr" ? "Atelier Peinture" : "Paint Workshop";
 }
 

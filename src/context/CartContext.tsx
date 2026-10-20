@@ -86,7 +86,7 @@ export interface CartItem {
      Every cake field above stays empty for a workshop. These persist to the
      matching order_items.workshop_* columns. Customer contact details are
      NOT duplicated here — they live on orders (collected at checkout). */
-  workshopType?: "signature" | "paint";
+  workshopType?: "signature" | "paint" | "piping";
   workshopSessionId?: string;
   workshopDate?: string;   // "YYYY-MM-DD"
   workshopTime?: string;   // "HH:MM"

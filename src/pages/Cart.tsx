@@ -610,7 +610,7 @@ const Cart = () => {
                 const isEditing = editingItemId === item.id;
                 if (item.product === "workshop") {
                   const workshopName = item.styleName
-                    || (item.workshopType === "paint" ? t("Paint Workshop", "Workshop Peinture") : t("Signature Workshop", "Workshop Signature"));
+                    || (item.workshopType === "paint" ? t("Paint Workshop", "Workshop Peinture") : item.workshopType === "piping" ? t("Piping Workshop", "Workshop Pochage") : t("Signature Workshop", "Workshop Signature"));
                   return (
                     <Card key={item.id} className="overflow-hidden rounded-none">
                       <CardContent className="p-6">

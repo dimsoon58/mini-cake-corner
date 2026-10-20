@@ -18,6 +18,7 @@ import { PrivateWorkshopDialog } from "@/components/PrivateWorkshopDialog";
 // Photos, remplace chaque import par une photo dédiée quand tu en as
 import workshopHero from "@/assets/home-cat-workshops.jpg";
 import imgSignature from "@/assets/workshop-signature.jpg";
+const imgPiping = imgSignature; // Replace with dedicated piping photo when available
 import imgPaint from "@/assets/workshop-paint.png";
 import imgPrivate from "@/assets/workshop-private.jpg";
 
@@ -60,12 +61,47 @@ const workshops = [
 
   {
     emoji: "",
+    title: "Piping Workshop",
+    titleFr: "Workshop Pochage",
+    image: imgPiping,
+    tagline: "Master the art of piping and decorate your own Bento Cake.",
+    taglineFr: "Maîtrisez l'art du pochage et décorez votre propre Bento Cake.",
+    features: [
+      "Ready-to-decorate frosted cake",
+      "Learn piping techniques",
+      "Explore different piping tips",
+      "Create decorative borders and patterns",
+      "Decorate your own cake",
+      "Take it home",
+    ],
+    featuresFr: [
+      "Gâteau glacé prêt à décorer",
+      "Apprenez les techniques de pochage",
+      "Explorez différentes douilles",
+      "Créez des bordures et motifs décoratifs",
+      "Décorez votre propre gâteau",
+      "Repartez avec votre création",
+    ],
+    meta: [
+      { icon: Clock, label: "1h30", labelFr: "1h30" },
+      { icon: Users, label: "8 people", labelFr: "8 personnes" },
+      { icon: MapPin, label: "Geneva", labelFr: "Genève" },
+    ],
+    price: "CHF 85",
+    ctaLabel: "Book Now",
+    ctaLabelFr: "Réserver",
+    ctaTo: "/workshop-booking?type=piping",
+  },
+
+  {
+    emoji: "",
     title: "Signature Workshop",
     titleFr: "Workshop Signature",
     image: imgSignature,
-    tagline: "Learn the basics of Bento Cake decorating.",
-    taglineFr: "Découvrez les bases de la décoration du Bento Cake.",
+    tagline: "Learn the art of assembling, frosting and decorating your own Bento Cake.",
+    taglineFr: "Apprenez à assembler, glacer et décorer votre propre Bento Cake.",
     features: [
+      "Assemble your cake",
       "Frost your cake",
       "Learn piping techniques",
       "Buttercream basics",
@@ -73,6 +109,7 @@ const workshops = [
       "Take it home",
     ],
     featuresFr: [
+      "Assemblez votre gâteau",
       "Glacez votre gâteau",
       "Apprenez les techniques de pochage",
       "Les bases de la crème au beurre",
@@ -80,11 +117,11 @@ const workshops = [
       "Repartez avec votre création",
     ],
     meta: [
-      { icon: Clock, label: "2 hours", labelFr: "2 heures" },
+      { icon: Clock, label: "3 hours", labelFr: "3 heures" },
       { icon: Users, label: "8 people", labelFr: "8 personnes" },
       { icon: MapPin, label: "Geneva", labelFr: "Genève" },
     ],
-    price: "CHF 85",
+    price: "CHF 120",
     objectPosition: "70% center",
     ctaLabel: "Book Now",
     ctaLabelFr: "Réserver",
@@ -168,6 +205,7 @@ const Workshop = () => {
       <section id="experiences" className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <SectionTitle>{t("CHOOSE YOUR EXPERIENCE", "CHOISISSEZ VOTRE EXPÉRIENCE")}</SectionTitle>
+          {/* Three bookable workshops — 3-column grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {workshops.map((w) => (
               <div key={w.title} className="border border-border/60 flex flex-col bg-card">
@@ -207,9 +245,12 @@ const Workshop = () => {
                 </div>
               </div>
             ))}
+          </div>
 
-            <div className="border border-border/60 flex flex-col bg-card">
-              <div className="aspect-[4/3] overflow-hidden">
+          {/* Private & Custom — separate card below */}
+          <div className="max-w-6xl mx-auto mt-8">
+            <div className="border border-border/60 flex flex-col md:flex-row bg-card">
+              <div className="md:w-72 shrink-0 aspect-[4/3] md:aspect-auto overflow-hidden">
                 <img src={privateWorkshop.image} alt={t(privateWorkshop.title, privateWorkshop.titleFr)} className="w-full h-full object-cover" />
               </div>
               <div className="p-7 flex flex-col flex-1">
@@ -220,7 +261,7 @@ const Workshop = () => {
                 <p className="text-[13px] font-semibold uppercase tracking-[0.105em] text-foreground mb-3">
                   {t("Perfect for", "Idéal pour")}
                 </p>
-                <ul className="space-y-2 mb-6">
+                <ul className="flex flex-wrap gap-x-6 gap-y-1 mb-6">
                   {privateWorkshop.perfectFor.map((p, i) => (
                     <li key={p} className="text-sm text-foreground/80">{t(p, privateWorkshop.perfectForFr[i])}</li>
                   ))}
@@ -228,12 +269,14 @@ const Workshop = () => {
                 <p className="text-sm text-foreground/75 italic mb-7 mt-auto">
                   {t(privateWorkshop.note, privateWorkshop.noteFr)}
                 </p>
-                <Button
-                  onClick={() => setPrivateOpen(true)}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-[13px] font-medium uppercase tracking-[0.105em] rounded-none"
-                >
-                  {t("Enquire", "Nous contacter")}
-                </Button>
+                <div className="md:self-start">
+                  <Button
+                    onClick={() => setPrivateOpen(true)}
+                    className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-[13px] font-medium uppercase tracking-[0.105em] rounded-none px-10"
+                  >
+                    {t("Enquire", "Nous contacter")}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

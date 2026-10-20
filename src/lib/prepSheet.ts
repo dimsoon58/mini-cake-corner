@@ -56,8 +56,8 @@ const BOX_ORDER = ["Bento", "Retro Box", "Medium", "Large", "Rectangle", "Kit Be
 const DOT_PACK = /^dot-cakes-(\d+)$/;
 
 export const workshopTypeLabel = (type: string | null) =>
-  type === "paint" ? "Workshop Peinture" : type === "signature" ? "Workshop Signature" : "Workshop";
-const workshopBox = (type: string | null) => (type === "paint" ? "Bento" : type === "signature" ? "Retro Box" : null);
+  type === "paint" ? "Workshop Peinture" : type === "piping" ? "Workshop Pochage" : type === "signature" ? "Workshop Signature" : "Workshop";
+const workshopBox = (type: string | null) => (type === "paint" ? "Bento" : type === "piping" ? "Retro Box" : type === "signature" ? "Retro Box" : null);
 
 const add = (m: Map<string, number>, k: string, n: number) => m.set(k, (m.get(k) ?? 0) + n);
 const sorted = (m: Map<string, number>, order?: string[]) =>

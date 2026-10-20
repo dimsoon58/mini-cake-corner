@@ -21,15 +21,19 @@ import {
 } from "@/data/workshopSessions";
 
 // ── Stepper ──────────────────────────────────────────────────────────────────
-const STEPS = [
+const makeSteps = (type: WorkshopType) => [
   { icon: Calendar, labelEn: "Date", labelFr: "Date" },
   { icon: Users, labelEn: "Participants", labelFr: "Participants" },
-  { icon: Cake, labelEn: "Sponge", labelFr: "Génoise" },
+  type === "piping"
+    ? { icon: Cake, labelEn: "Colour", labelFr: "Couleur" }
+    : { icon: Cake, labelEn: "Sponge", labelFr: "Génoise" },
   { icon: InfoIcon, labelEn: "Information", labelFr: "Informations" },
   { icon: CreditCard, labelEn: "Confirm", labelFr: "Confirmation" },
 ];
 
-const Stepper = ({ current }: { current: number }) => (
+const Stepper = ({ current, workshopType }: { current: number; workshopType: WorkshopType }) => {
+  const STEPS = makeSteps(workshopType);
+  return (
   <div className="flex items-center justify-center gap-0 mb-10">
     {STEPS.map((s, i) => {
       const done = i < current;
@@ -58,7 +62,8 @@ const Stepper = ({ current }: { current: number }) => (
       );
     })}
   </div>
-);
+  );
+};
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const WorkshopBooking = () => {
@@ -68,7 +73,7 @@ const WorkshopBooking = () => {
   const { addItem } = useCart();
 
   const typeParam = searchParams.get("type") as WorkshopType | null;
-  const workshopType: WorkshopType = typeParam === "paint" ? "paint" : "signature";
+  const workshopType: WorkshopType = typeParam === "paint" ? "paint" : typeParam === "piping" ? "piping" : "signature";
   const info = workshopInfo[workshopType];
   // Server-authoritative availability. Re-read on mount and again right before
   // Add to cart; the payment step revalidates server-side once more.
@@ -82,6 +87,7 @@ const WorkshopBooking = () => {
   const [selectedSession, setSelectedSession] = useState<WorkshopSession | null>(null);
   const [participants, setParticipants] = useState(1);
   const [spongeChoices, setSpongeChoices] = useState<string[]>(["vanilla"]);
+  const [cakeColorChoices, setCakeColorChoices] = useState<string[]>(["white"]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
 
@@ -134,6 +140,15 @@ const WorkshopBooking = () => {
     setSpongeChoices((prev) => {
       if (prev.length === participants) return prev;
       if (prev.length < participants) return [...prev, ...Array(participants - prev.length).fill("vanilla")];
+      return prev.slice(0, participants);
+    });
+  }, [participants]);
+
+  // Resize cakeColorChoices array when number of participants changes.
+  useEffect(() => {
+    setCakeColorChoices((prev) => {
+      if (prev.length === participants) return prev;
+      if (prev.length < participants) return [...prev, ...Array(participants - prev.length).fill("white")];
       return prev.slice(0, participants);
     });
   }, [participants]);
@@ -278,8 +293,57 @@ const WorkshopBooking = () => {
     );
   };
 
-  // ── Step 2: sponge cake choice ──────────────────────────────────────────────
-  const Step2 = () => (
+  // ── Step 2: sponge cake choice (or base colour for Piping Workshop) ──────────
+  const Step2 = () => workshopType === "piping" ? (
+    <div>
+      <h2 className="font-sans uppercase tracking-[0.105em] text-lg text-foreground mb-2">
+        {t("Choose your cake colour", "Choisissez la couleur de votre gâteau")}
+      </h2>
+      <p className="text-sm text-muted-foreground mb-6">
+        {t(
+          "Each participant chooses the base frosting colour of their cake. Your cake will be assembled and frosted in your chosen colour before the workshop.",
+          "Chaque participant choisit la couleur du glaçage de son gâteau. Votre gâteau sera assemblé et glacé dans la couleur choisie avant le workshop.",
+        )}
+      </p>
+      <div className="divide-y divide-border">
+        {Array.from({ length: participants }, (_, i) => (
+          <div key={i} className="py-4">
+            <span className="text-xs uppercase tracking-[0.1em] text-muted-foreground block mb-3">
+              {t(`Participant ${i + 1}`, `Participant ${i + 1}`)}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {CAKE_COLORS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  title={t(c.name, c.nameFr)}
+                  onClick={() => setCakeColorChoices((prev) => {
+                    const next = [...prev];
+                    next[i] = c.id;
+                    return next;
+                  })}
+                  className={`w-9 h-9 border-2 transition-all flex-shrink-0 ${
+                    cakeColorChoices[i] === c.id
+                      ? "border-primary ring-2 ring-primary/30 scale-110"
+                      : "border-border hover:border-primary/60"
+                  }`}
+                  style={{ backgroundColor: c.color }}
+                />
+              ))}
+            </div>
+            {cakeColorChoices[i] && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {t(
+                  CAKE_COLORS.find(c => c.id === cakeColorChoices[i])?.name ?? "",
+                  CAKE_COLORS.find(c => c.id === cakeColorChoices[i])?.nameFr ?? "",
+                )}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : (
     <div>
       <h2 className="font-sans uppercase tracking-[0.105em] text-lg text-foreground mb-2">
         {t("Choose your sponge", "Choisissez votre génoise")}
@@ -454,7 +518,9 @@ const WorkshopBooking = () => {
       workshopUnitPrice: unitPrice,
       workshopHasMinor: hasMinor === true,
       workshopMinorConsentConfirmed: hasMinor === true ? minorConsent : false,
-      workshopSpongeChoices: spongeChoices,
+      workshopSpongeChoices: workshopType === "piping"
+        ? cakeColorChoices.map((id) => CAKE_COLORS.find(c => c.id === id)?.name ?? id)
+        : spongeChoices,
       total: unitPrice * participants,
     });
 
@@ -483,13 +549,25 @@ const WorkshopBooking = () => {
           />
           <Row label={t("Duration", "Durée")} value={t(info.duration, info.durationFr)} />
           <Row label={t("Participants", "Participants")} value={String(participants)} />
-          {spongeChoices.map((choice, i) => (
-            <Row
-              key={i}
-              label={t(`Participant ${i + 1}`, `Participant ${i + 1}`)}
-              value={choice === "vanilla" ? t("Vanilla sponge", "Génoise vanille") : t("Chocolate sponge", "Génoise chocolat")}
-            />
-          ))}
+          {workshopType === "piping"
+            ? cakeColorChoices.map((id, i) => (
+                <Row
+                  key={i}
+                  label={t(`Participant ${i + 1} – Colour`, `Participant ${i + 1} – Couleur`)}
+                  value={t(
+                    CAKE_COLORS.find(c => c.id === id)?.name ?? id,
+                    CAKE_COLORS.find(c => c.id === id)?.nameFr ?? id,
+                  )}
+                />
+              ))
+            : spongeChoices.map((choice, i) => (
+                <Row
+                  key={i}
+                  label={t(`Participant ${i + 1}`, `Participant ${i + 1}`)}
+                  value={choice === "vanilla" ? t("Vanilla sponge", "Génoise vanille") : t("Chocolate sponge", "Génoise chocolat")}
+                />
+              ))
+          }
           <Row
             label={t("Minor participant(s)", "Participant(s) mineur(s)")}
             value={hasMinor ? t("Yes", "Oui") : t("No", "Non")}
@@ -608,7 +686,7 @@ const WorkshopBooking = () => {
               <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground mb-8">
                 {t("Book your place", "Réservez votre place")}
               </h1>
-              <Stepper current={step} />
+              <Stepper current={step} workshopType={workshopType} />
 
               {/* Steps are rendered as function calls (not <StepN />) so React
                   keeps the same element tree between renders — rendering them

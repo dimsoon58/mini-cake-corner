@@ -532,7 +532,7 @@ const AdminOrder = () => {
                     <div key={item.id || i} className="border border-border/60 bg-background p-4 space-y-1">
                       <div className="flex justify-between mb-2">
                         <span className="font-medium text-sm">
-                          {item.workshop_type === "paint" ? t("Paint Workshop", "Workshop Peinture") : t("Signature Workshop", "Workshop Signature")}
+                          {item.workshop_type === "paint" ? t("Paint Workshop", "Workshop Peinture") : item.workshop_type === "piping" ? t("Piping Workshop", "Workshop Pochage") : t("Signature Workshop", "Workshop Signature")}
                         </span>
                         {!employee && <span className="font-semibold text-sm text-primary">CHF {item.total}</span>}
                       </div>
