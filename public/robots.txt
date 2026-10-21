@@ -12,3 +12,11 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /payment-success
+Disallow: /workshop-confirmation
+Disallow: /cart
+Disallow: /order-action
+
+Sitemap: https://bentocakestudio.ch/sitemap.xml

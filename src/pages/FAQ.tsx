@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
+import { useSeo } from "@/hooks/useSeo";
 import {
   Accordion,
   AccordionContent,
@@ -8,6 +10,113 @@ import {
 } from "@/components/ui/accordion";
 
 const FAQ = () => {
+  useSeo({
+    title: "FAQ – Bento Cake Studio Genève | Commandes, Livraison & Ateliers",
+    description: "Toutes vos questions sur les commandes, délais, livraison et ateliers de Bento Cake Studio Genève. Trouvez vos réponses avant de commander.",
+    canonical: "https://bentocakestudio.ch/faq",
+  });
+
+  // Inject FAQ structured data
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.id = "faq-schema";
+    script.textContent = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Qu'est-ce qu'un Bento cake ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Le Bento cake est un gâteau d'inspiration coréenne, à la texture légère. Il est entièrement personnalisable : vous choisissez le design, les couleurs et le message. Son style minimaliste en fait le cadeau idéal pour un anniversaire ou toute autre occasion spéciale."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Quel type de crème utilisez-vous ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nous utilisons de la crème chantilly afin de garder nos gâteaux légers, aériens et peu sucrés."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Utilisez-vous de la crème au beurre ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Oui, mais uniquement pour certains détails tels que les écritures, les dessins et les décorations aux couleurs foncées. Sa texture plus ferme permet de conserver des détails précis et de limiter le transfert des couleurs. Nous utilisons également de la crème au beurre dans nos Bento Kits, car elle est plus stable pendant le transport et plus facile à travailler à la maison."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Dois-je sortir mon gâteau du réfrigérateur avant de le servir ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Non, ce n'est pas nécessaire. Nous vous recommandons de conserver votre gâteau au réfrigérateur et de le sortir uniquement lorsque vous êtes prête à le déguster."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Vos gâteaux contiennent-ils des allergènes ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nos gâteaux contiennent du gluten (blé), des œufs et du lait. Selon le parfum choisi, d'autres allergènes peuvent être présents. Nos produits sont préparés dans une cuisine où des fruits à coque et d'autres allergènes sont également manipulés. Nous ne pouvons donc pas garantir l'absence totale de traces. Si vous avez une allergie ou une intolérance, veuillez consulter les informations relatives aux allergènes indiquées pour chaque parfum ou nous contacter avant de passer commande."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Comment conserver mon gâteau ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Conservez votre gâteau au réfrigérateur entre 0°C et 4°C et consommez-le dans les 48 heures afin de préserver au mieux sa fraîcheur et sa texture. Veuillez noter que lorsque des couleurs foncées et claires sont associées, un léger transfert de couleur peut apparaître avec le temps."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Combien de temps le gâteau peut-il rester hors du réfrigérateur ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nous vous recommandons de conserver le gâteau au réfrigérateur jusqu'au moment de le servir et de limiter autant que possible le temps passé à température ambiante, en particulier lorsqu'il fait chaud."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Les colorants alimentaires peuvent-ils colorer les lèvres ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Les couleurs foncées peuvent temporairement colorer les lèvres ou la langue. Plus la couleur est intense, plus cet effet peut être visible. Si vous souhaitez l'éviter, nous vous recommandons de choisir des couleurs plus claires."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Les femmes enceintes peuvent-elles manger nos gâteaux ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nos gâteaux sont préparés sans œufs crus. Cependant, par mesure de précaution, nous déconseillons les garnitures Passion Fruit et Lemon Curd pendant la grossesse. En cas de question spécifique liée à votre alimentation ou à votre santé, nous vous recommandons de demander conseil à votre professionnel de santé avant de commander."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Comment passer une commande ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Les commandes peuvent être passées directement sur notre site internet. Il vous suffit de choisir votre gâteau, de personnaliser les options disponibles, de sélectionner votre date et d'effectuer le paiement en ligne. Pour un design ou une demande qui n'est pas disponible dans notre catalogue, veuillez utiliser notre formulaire Custom Request."
+      }
+    }
+  ]
+});
+    if (!document.getElementById("faq-schema")) {
+      document.head.appendChild(script);
+    }
+    return () => {
+      const el = document.getElementById("faq-schema");
+      if (el) el.remove();
+    };
+  }, []);
+
+
   const { t } = useLang();
 
   const faqSections = [

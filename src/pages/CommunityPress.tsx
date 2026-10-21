@@ -5,6 +5,7 @@ import pressLesVoiles from "@/assets/press-cote-les-voiles.jpeg";
 import pressGaultMillau2 from "@/assets/press-gault-millau-2.png";
 import pressGaultMillau3 from "@/assets/press-gault-millau-3.webp";
 import pressGaultMillau4 from "@/assets/press-gault-millau-4.png";
+import { useSeo } from "@/hooks/useSeo";
 
 const standaloneArticles = [
   { id: 1, image: pressCotemag2022, title: "COTE Magazine", subtitle: "Février / Mars 2022", description: "Bento Cake Studio, Not traditional cakes - Deux étudiantes de l'école hôtelière de Lausanne passionnées par la culture coréenne, lancent en 2021 un concept unique à Genève." },
@@ -18,6 +19,12 @@ const gaultMillauImages = [
 ];
 
 const CommunityPress = () => {
+  useSeo({
+    title: "Presse & Médias | Bento Cake Studio Genève",
+    description: "Retrouvez les mentions presse et collaborations de Bento Cake Studio Genève. Parlons de nous dans vos médias — contactez-nous pour toute demande presse.",
+    canonical: "https://bentocakestudio.ch/community-press",
+  });
+
   const { t } = useLang();
   return (
     <Layout>

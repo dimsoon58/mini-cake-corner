@@ -75,6 +75,7 @@ import candleNum6 from "@/assets/candle-number-6.png";
 import candleNum7 from "@/assets/candle-number-7.png";
 import candleNum8 from "@/assets/candle-number-8.png";
 import candleNum9 from "@/assets/candle-number-9.png";
+import { useSeo } from "@/hooks/useSeo";
 export const NUMBER_CANDLE_IMAGES_KIT: Record<string, string> = {"0":candleNum0,"1":candleNum1,"2":candleNum2,"3":candleNum3,"4":candleNum4,"5":candleNum5,"6":candleNum6,"7":candleNum7,"8":candleNum8,"9":candleNum9};
 
 const BASE_PRICE = 40;
@@ -233,6 +234,12 @@ const tooltipTextsFr: Record<string, string> = {
 };
 
 const KitBentoCake = () => {
+  useSeo({
+    title: "Kit Bento Cake DIY Genève | Décorez votre gâteau à la maison",
+    description: "Commandez notre kit bento cake DIY à Genève. Tout le matériel pour décorer votre propre gâteau chez vous — idéal comme cadeau ou activité créative.",
+    canonical: "https://bentocakestudio.ch/kit-bento-cake",
+  });
+
   const { t, lang } = useLang();
   const { addItem, cartOrderDate } = useCart();
   const navigate = useNavigate();

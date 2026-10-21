@@ -175,6 +175,7 @@ import bentoGallery15 from "@/assets/bento-gallery-15.jpg";
 import bentoGallery16 from "@/assets/bento-gallery-16.jpg";
 import bentoGallery17 from "@/assets/bento-gallery-17.jpg";
 import { colourFr, extraNameFr, textStyleFr } from "@/data/catalogLabelsFr";
+import { useSeo } from "@/hooks/useSeo";
 
 const baseColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
@@ -750,6 +751,12 @@ const collections = [
 
 // Carousel component for catalog cards with multiple images
 const CatalogCarousel = ({ images, name, imagePositions }: { images: string[]; name: string; imagePositions?: string[] }) => {
+  useSeo({
+    title: "Commander un Bento Cake à Genève | Gâteaux d'anniversaire personnalisés",
+    description: "Découvrez notre catalogue de bento cakes à Genève. Choisissez votre parfum, taille et design pour toute occasion. Commande en ligne, livraison disponible.",
+    canonical: "https://bentocakestudio.ch/catalog",
+  });
+
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const [selectedIndex, setSelectedIndex] = useState(0);
 

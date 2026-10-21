@@ -15,6 +15,7 @@ import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { HoneypotField } from "@/components/HoneypotField";
 import { submitContactRequest } from "@/lib/contactRequest";
 import { combinePhoneNumber } from "@/lib/identity";
+import { useSeo } from "@/hooks/useSeo";
 
 const contactSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
@@ -73,6 +74,12 @@ function AccordionItem({
 }
 
 const Contact = () => {
+  useSeo({
+    title: "Contacter Bento Cake Studio Genève | Commandes & Renseignements",
+    description: "Contactez Bento Cake Studio pour vos commandes de gâteaux personnalisés ou vos questions sur nos ateliers à Genève. Nous répondons sous 24h.",
+    canonical: "https://bentocakestudio.ch/contact",
+  });
+
   const [submitted, setSubmitted] = useState(false);
   const { t, lang } = useLang();
   const fe = useFieldError();
