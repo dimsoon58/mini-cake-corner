@@ -58,7 +58,12 @@ export function isClosedDay(date: Date): boolean {
 // Closed dates (whole day, pick-up and delivery), "YYYY-MM-DD" — greyed out
 // in every calendar of the site (server: CLOSED_DATES in order-pricing.ts,
 // keep both lists identical). Admin manual orders may still use them.
-export const CLOSED_DATES: readonly string[] = ["2026-11-13", "2026-11-14"];
+export const CLOSED_DATES: readonly string[] = [
+  "2026-11-13", "2026-11-14",
+  // Fêtes : du 29 décembre 2026 au 7 janvier 2027 inclus
+  "2026-12-29", "2026-12-30", "2026-12-31",
+  "2027-01-01", "2027-01-02", "2027-01-03", "2027-01-04", "2027-01-05", "2027-01-06", "2027-01-07",
+];
 const localISO = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 export function isClosedDate(date: Date): boolean {
