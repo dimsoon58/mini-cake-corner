@@ -56,6 +56,7 @@ import {
   getFlavorCategoryExtra,
 } from "@/data/customization";
 import { INSPIRATIONS } from "@/data/inspirations";
+import { RibbonStainNotice } from "@/components/RibbonStainNotice";
 
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
@@ -1515,6 +1516,7 @@ const CartItemEditor = ({
                 </button>
               ))}
             </div>
+            <RibbonStainNotice colorId={item.ribbonColor} />
           </div>
         )}
 

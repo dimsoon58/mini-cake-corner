@@ -26,6 +26,7 @@ import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
 import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
+import { RibbonStainNotice } from "@/components/RibbonStainNotice";
 import { useCart } from "@/context/CartContext";
 import type { CandleSelection } from "@/context/CartContext";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
@@ -2552,6 +2553,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                               </button>
                             ))}
                           </div>
+                          <RibbonStainNotice colorId={selections.ribbonColor} />
                         </div>
                       )}
                     </div>
@@ -2625,6 +2627,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         </button>
                       ))}
                     </div>
+                    <RibbonStainNotice colorId={selections.ribbonColor} />
                   </div>
                 )}
 

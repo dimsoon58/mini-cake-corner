@@ -190,3 +190,17 @@ export function formatSessionDate(dateStr: string, lang: "en" | "fr"): string {
   }
   return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
+
+// Éditions spéciales par date, tous types d'ateliers confondus. Fixé côté
+// site : la colonne theme (F33) n'est pas encore exposée par
+// get_workshop_availability en production.
+const SESSION_EDITIONS: Record<string, { en: string; fr: string }> = {
+  "2026-10-28": { en: "Halloween Edition", fr: "Édition Halloween" },
+  "2026-12-05": { en: "Christmas Edition", fr: "Édition Noël" },
+  "2026-12-16": { en: "Christmas Edition", fr: "Édition Noël" },
+  "2026-12-19": { en: "Christmas Edition", fr: "Édition Noël" },
+};
+
+export function sessionEditionLabel(session: Pick<WorkshopSession, "date" | "theme">, lang: "en" | "fr"): string | null {
+  return SESSION_EDITIONS[session.date]?.[lang] ?? session.theme ?? null;
+}
