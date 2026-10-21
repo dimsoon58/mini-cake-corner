@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Catalog from "@/pages/Catalog";
 import { useLang } from "@/context/LanguageContext";
 import { INSPIRATIONS } from "@/data/inspirations";
+import { useSeo } from "@/hooks/useSeo";
 
 const PINTEREST_URL = "https://ch.pinterest.com/bentocakestudiosnc/_saved/";
 const IMAGES_PER_PAGE = 12;
@@ -65,6 +66,12 @@ const LazyImage = ({ src, index, onOpen }: { src: string; index: number; onOpen:
 };
 
 const Inspiration = () => {
+  useSeo({
+    title: "Galerie Idées Gâteaux | Inspiration Bento Cake Studio Genève",
+    description: "Parcourez notre galerie de bento cakes et gâteaux personnalisés pour trouver l'inspiration. Designs uniques pour anniversaires, mariages et événements à Genève.",
+    canonical: "https://bentocakestudio.ch/inspiration",
+  });
+
   const { t } = useLang();
   const [selected, setSelected] = useState<number | null>(null);
   const [visibleCount, setVisibleCount] = useState(IMAGES_PER_PAGE);

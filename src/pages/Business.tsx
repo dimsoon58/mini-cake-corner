@@ -40,6 +40,7 @@ import { useFieldError } from "@/lib/formErrors";
 import cardCelebrations from "@/assets/corporate-event-5.png";
 import cardEvents from "@/assets/partner-gallery-11.jpg";
 import cardHospitality from "@/assets/corporate-hospitality.jpg";
+import { useSeo } from "@/hooks/useSeo";
 
 // Same light rule everywhere phone is now split into country code + local
 // part: an "incomplete" number is caught here rather than by a rigid regex
@@ -51,6 +52,12 @@ const MIN_LOCAL_PHONE_DIGITS = 4;
 const RequiredMark = () => <span className="text-destructive">*</span>;
 
 const SuccessPanel = ({ message }: { message: string }) => {
+  useSeo({
+    title: "Gâteaux Entreprise Genève | Corporate Events & Partenariats",
+    description: "Bento Cake Studio crée des gâteaux personnalisés pour événements d'entreprise à Genève. Team building, réceptions, cadeaux clients. Devis sur demande.",
+    canonical: "https://bentocakestudio.ch/business",
+  });
+
   const { t } = useLang();
   const fe = useFieldError();
   return (

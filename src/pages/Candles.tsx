@@ -23,6 +23,7 @@ import candleNumber6 from "@/assets/candle-number-6.png";
 import candleNumber7 from "@/assets/candle-number-7.png";
 import candleNumber8 from "@/assets/candle-number-8.png";
 import candleNumber9 from "@/assets/candle-number-9.png";
+import { useSeo } from "@/hooks/useSeo";
 
 const NUMBER_CANDLE_IMAGES: Record<string, string> = {
   "0": candleNumber0, "1": candleNumber1, "2": candleNumber2,
@@ -47,6 +48,12 @@ const NUMBER_CANDLE_IMAGES: Record<string, string> = {
 // use, so there is exactly one implementation of that logic in the app.
 
 const Candles = () => {
+  useSeo({
+    title: "Bougies Anniversaire Genève | Cake Candles — Bento Cake Studio",
+    description: "Bougies d'anniversaire pour gâteaux disponibles chez Bento Cake Studio Genève. Commandez vos bougies personnalisées en ligne avec votre gâteau.",
+    canonical: "https://bentocakestudio.ch/candles",
+  });
+
   const navigate = useNavigate();
   const { t } = useLang();
   const { addItem } = useCart();

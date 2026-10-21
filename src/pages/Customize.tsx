@@ -78,6 +78,7 @@ import designScatteredPearls from "@/assets/design-scattered-pearls-new.jpg";
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 import designGlitterCherries from "@/assets/design-glitter-cherries-new.jpg";
 import extraSprinkles from "@/assets/extra-sprinkles.jpg";
+import { useSeo } from "@/hooks/useSeo";
 
 const steps = ["Date", "Size", "Shape", "Flavor", "Style", "Text", "Extras", "Candles"];
 
@@ -249,6 +250,12 @@ const butterflyColors = [
 ];
 
 const StyleImageCarousel = ({ image, secondImage, name }: { image: string; secondImage?: string; name: string }) => {
+  useSeo({
+    title: "Personnaliser votre Bento Cake Genève | Gâteau sur mesure",
+    description: "Créez votre gâteau sur mesure à Genève : choisissez parfum, décoration et message. Bento cakes personnalisés pour anniversaires, mariages et événements spéciaux.",
+    canonical: "https://bentocakestudio.ch/customize",
+  });
+
   const [activeIndex, setActiveIndex] = useState(0);
   const images = secondImage ? [image, secondImage] : [image];
   const prev = (e: React.MouseEvent) => { e.stopPropagation(); setActiveIndex(i => (i - 1 + images.length) % images.length); };

@@ -12,6 +12,7 @@ import imgSignature from "@/assets/workshop-signature.jpg";
 import imgPiping from "@/assets/workshop-piping.jpg";
 import imgPaint from "@/assets/workshop-paint.png";
 import imgPrivate from "@/assets/workshop-private.jpg";
+import { useSeo } from "@/hooks/useSeo";
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <h2 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-4xl text-center text-foreground mb-12">
@@ -328,14 +329,14 @@ const WorkshopCarousel = ({
 };
 
 const Workshop = () => {
+  useSeo({
+    title: "Ateliers Décoration Gâteau Genève | Cake Decorating Workshops",
+    description: "Participez à nos ateliers pâtisserie à Genève : bento cake, peinture, piping. Idéal pour EVJF, team building ou cadeau original. Join our Geneva cake workshops!",
+    canonical: "https://bentocakestudio.ch/workshop",
+  });
+
   const { t } = useLang();
   const [privateOpen, setPrivateOpen] = useState(false);
-  useEffect(() => {
-    document.title = t("Workshops – Bento Cake Studio", "Workshops – Bento Cake Studio");
-    return () => {
-      document.title = "Bento Cake Studio Geneva";
-    };
-  }, [t]);
 
   return (
     <Layout overlayHero>

@@ -32,6 +32,7 @@ import dotGallery6 from "@/assets/dot-gallery-6.jpg";
 import dotGallery7 from "@/assets/dot-gallery-7.jpg";
 import dotGallery8 from "@/assets/dot-gallery-8.jpg";
 import dotGallery9 from "@/assets/dot-gallery-9.jpg";
+import { useSeo } from "@/hooks/useSeo";
 
 const packs = [
   { size: 4, flavours: 2, price: 28 },
@@ -66,6 +67,12 @@ const dotGallery = [
 ];
 
 const DotGallery = () => {
+  useSeo({
+    title: "Dot Cakes Genève | Mini Gâteaux à Partager — Bento Cake Studio",
+    description: "Découvrez nos dot cakes à Genève — de petits gâteaux individuels parfaits pour anniversaires et événements. Commandez en ligne vos mini cakes personnalisés.",
+    canonical: "https://bentocakestudio.ch/dot-cakes",
+  });
+
   const { t } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
   const scroll = (direction: "left" | "right") => {

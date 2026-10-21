@@ -20,6 +20,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
+import { useSeo } from "@/hooks/useSeo";
 
 /* Emplacement photo elegant, en attendant les vraies images */
 const PhotoSlot = ({
@@ -55,6 +56,12 @@ const archivePhotos = [
 ];
 
 const ArchivesSlider = () => {
+  useSeo({
+    title: "Notre Histoire | Bento Cake Studio Genève — Pâtisserie Artisanale",
+    description: "Découvrez l'histoire de Bento Cake Studio, pâtisserie artisanale à Genève spécialisée en bento cakes et gâteaux de célébration depuis 2021.",
+    canonical: "https://bentocakestudio.ch/our-story",
+  });
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const { t } = useLang();
   const [lightbox, setLightbox] = useState<string | null>(null);

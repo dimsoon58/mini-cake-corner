@@ -24,11 +24,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
+import { useSeo } from "@/hooks/useSeo";
 
 /* ─── Price ─── */
 const PRINTING_PRICE = 15;
 
 const Printing = () => {
+  useSeo({
+    title: "Impression Comestible Genève | Photo sur Gâteau — Bento Cake Studio",
+    description: "Impression comestible sur gâteau à Genève — ajoutez votre photo ou logo sur un bento cake. Service d'impression alimentaire personnalisé pour tous vos événements.",
+    canonical: "https://bentocakestudio.ch/printing",
+  });
+
   const navigate = useNavigate();
   const { addItem } = useCart();
   const { t } = useLang();

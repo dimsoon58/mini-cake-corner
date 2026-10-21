@@ -80,6 +80,7 @@ import comment39 from "@/assets/comment-39.png";
 import comment40 from "@/assets/comment-40.png";
 import comment41 from "@/assets/comment-41.png";
 import comment42 from "@/assets/comment-42.png";
+import { useSeo } from "@/hooks/useSeo";
 
 const customerPhotos = [
   customer4, customer5, customer7,
@@ -162,6 +163,12 @@ const features = [
 ];
 
 const PhotoCarousel = ({ photos, altPrefix, contain = false }: { photos: string[]; altPrefix: string; contain?: boolean }) => {
+  useSeo({
+    title: "Bento Cake Studio Geneva | Gâteaux & Bento Cakes Personnalisés",
+    description: "Commandez vos bento cakes à Genève — gâteaux d'anniversaire et de célébration entièrement personnalisés. Ateliers de décoration disponibles. Order custom bento cakes in Geneva.",
+    canonical: "https://bentocakestudio.ch/",
+  });
+
   // Was missing entirely — the empty-state branch below calls t(...) without
   // this component ever calling useLang() itself, a real "Cannot find name
   // 't'" crash risk (not just a type error) whenever photos is empty.
