@@ -1,4 +1,4 @@
-import React from "react";
+import { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { useSeo } from "@/hooks/useSeo";
@@ -17,7 +17,7 @@ const FAQ = () => {
   });
 
   // Inject FAQ structured data
-  React.useEffect(() => {
+  useEffect(() => {
     const script = document.createElement("script");
     script.type = "application/ld+json";
     script.id = "faq-schema";
@@ -27,10 +27,10 @@ const FAQ = () => {
   "mainEntity": [
     {
       "@type": "Question",
-      "name": "Qu\'est-ce qu\'un Bento cake ?",
+      "name": "Qu'est-ce qu'un Bento cake ?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Le Bento cake est un gâteau d\'inspiration coréenne, à la texture légère. Il est entièrement personnalisable : vous choisissez le design, les couleurs et le message. Son style minimaliste en fait le cadeau idéal pour un anniversaire ou toute autre occasion spéciale."
+        "text": "Le Bento cake est un gâteau d'inspiration coréenne, à la texture légère. Il est entièrement personnalisable : vous choisissez le design, les couleurs et le message. Son style minimaliste en fait le cadeau idéal pour un anniversaire ou toute autre occasion spéciale."
       }
     },
     {
@@ -54,7 +54,7 @@ const FAQ = () => {
       "name": "Dois-je sortir mon gâteau du réfrigérateur avant de le servir ?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Non, ce n\'est pas nécessaire. Nous vous recommandons de conserver votre gâteau au réfrigérateur et de le sortir uniquement lorsque vous êtes prête à le déguster."
+        "text": "Non, ce n'est pas nécessaire. Nous vous recommandons de conserver votre gâteau au réfrigérateur et de le sortir uniquement lorsque vous êtes prête à le déguster."
       }
     },
     {
@@ -62,7 +62,7 @@ const FAQ = () => {
       "name": "Vos gâteaux contiennent-ils des allergènes ?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Nos gâteaux contiennent du gluten (blé), des œufs et du lait. Selon le parfum choisi, d\'autres allergènes peuvent être présents. Nos produits sont préparés dans une cuisine où des fruits à coque et d\'autres allergènes sont également manipulés. Nous ne pouvons donc pas garantir l\'absence totale de traces. Si vous avez une allergie ou une intolérance, veuillez consulter les informations relatives aux allergènes indiquées pour chaque parfum ou nous contacter avant de passer commande."
+        "text": "Nos gâteaux contiennent du gluten (blé), des œufs et du lait. Selon le parfum choisi, d'autres allergènes peuvent être présents. Nos produits sont préparés dans une cuisine où des fruits à coque et d'autres allergènes sont également manipulés. Nous ne pouvons donc pas garantir l'absence totale de traces. Si vous avez une allergie ou une intolérance, veuillez consulter les informations relatives aux allergènes indiquées pour chaque parfum ou nous contacter avant de passer commande."
       }
     },
     {
@@ -78,7 +78,7 @@ const FAQ = () => {
       "name": "Combien de temps le gâteau peut-il rester hors du réfrigérateur ?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Nous vous recommandons de conserver le gâteau au réfrigérateur jusqu\'au moment de le servir et de limiter autant que possible le temps passé à température ambiante, en particulier lorsqu\'il fait chaud."
+        "text": "Nous vous recommandons de conserver le gâteau au réfrigérateur jusqu'au moment de le servir et de limiter autant que possible le temps passé à température ambiante, en particulier lorsqu'il fait chaud."
       }
     },
     {
@@ -86,7 +86,7 @@ const FAQ = () => {
       "name": "Les colorants alimentaires peuvent-ils colorer les lèvres ?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Les couleurs foncées peuvent temporairement colorer les lèvres ou la langue. Plus la couleur est intense, plus cet effet peut être visible. Si vous souhaitez l\'éviter, nous vous recommandons de choisir des couleurs plus claires."
+        "text": "Les couleurs foncées peuvent temporairement colorer les lèvres ou la langue. Plus la couleur est intense, plus cet effet peut être visible. Si vous souhaitez l'éviter, nous vous recommandons de choisir des couleurs plus claires."
       }
     },
     {
@@ -102,7 +102,7 @@ const FAQ = () => {
       "name": "Comment passer une commande ?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Les commandes peuvent être passées directement sur notre site internet. Il vous suffit de choisir votre gâteau, de personnaliser les options disponibles, de sélectionner votre date et d\'effectuer le paiement en ligne. Pour un design ou une demande qui n\'est pas disponible dans notre catalogue, veuillez utiliser notre formulaire Custom Request."
+        "text": "Les commandes peuvent être passées directement sur notre site internet. Il vous suffit de choisir votre gâteau, de personnaliser les options disponibles, de sélectionner votre date et d'effectuer le paiement en ligne. Pour un design ou une demande qui n'est pas disponible dans notre catalogue, veuillez utiliser notre formulaire Custom Request."
       }
     }
   ]
