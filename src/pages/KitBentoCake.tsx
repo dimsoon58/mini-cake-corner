@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -25,7 +24,7 @@ import { toast } from "sonner";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
-import { expressCalendarProps } from "@/components/ExpressDateNotice";
+import { OrderCalendar } from "@/components/ExpressDateNotice";
 
 // Flavor images
 import flavorVanilla from "@/assets/flavor-vanilla.png";
@@ -600,7 +599,7 @@ const KitBentoCake = () => {
                       src/lib/orderDates.ts, the single shared source of
                       truth for this rule, which also carries the J+2/J+3
                       and J+4/J+5 express-surcharge tiers). */}
-                  <Calendar {...expressCalendarProps} mode="single" selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }} disabled={(date) => isOrderDateDisabled(date)} initialFocus />
+                  <OrderCalendar selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }} disabled={(date) => isOrderDateDisabled(date)} initialFocus />
                 </PopoverContent>
               </Popover>
               {/* Outside the Popover on purpose: PopoverContent unmounts the

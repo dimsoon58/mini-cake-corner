@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
@@ -55,7 +54,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isOrderDateDisabled, isClosedDay, isClosedDate, CLOSED_DAY_COPY, CLOSED_DATE_COPY, slotRuleCopy, slotsForDate, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
 import { cartItemTitle, flavorLabel, shapeLabel } from "@/lib/orderLabels";
-import { expressCalendarProps, ExpressLegend, ExpressDateNotice } from "@/components/ExpressDateNotice";
+import { ExpressLegend, ExpressDateNotice, OrderCalendar } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 import { getStoredOrderId, setStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { onOrderCompleted } from "@/lib/orderCompletionChannel";
@@ -1766,14 +1765,12 @@ const Checkout = () => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
+                  <OrderCalendar
                     selected={deliveryDate}
                     onSelect={setDeliveryDate}
                     disabled={(date) => isOrderDateDisabled(date)}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
-                    {...expressCalendarProps}
                   />
                   <div className="px-3 pb-3">
                     <ExpressLegend />

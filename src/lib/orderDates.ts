@@ -109,6 +109,14 @@ export const CLOSED_DAY_COPY = {
   fr: "Nous sommes fermés le dimanche. Vous pouvez commander pour le samedi.",
 } as const;
 
+// Shown when a customer taps a greyed-out date in an order calendar (too
+// close, closed date…) — customers didn't understand why nothing happened.
+// Sundays keep CLOSED_DAY_COPY instead.
+export const FULLY_BOOKED_COPY = {
+  en: "We're fully booked on this date. Please choose another date.",
+  fr: "Nous sommes complets à cette date. Merci de choisir une autre date.",
+} as const;
+
 export const CLOSED_DATE_COPY = {
   en: "We are closed on this date.",
   fr: "Nous sommes fermés à cette date.",

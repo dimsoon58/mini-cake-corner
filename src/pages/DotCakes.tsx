@@ -5,7 +5,6 @@ import { CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +13,7 @@ import { useCart } from "@/context/CartContext";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
-import { expressCalendarProps } from "@/components/ExpressDateNotice";
+import { OrderCalendar } from "@/components/ExpressDateNotice";
 import { flavorCategories, glutenFreeFlavorCategories, candles as kitCandles, NUMBER_CANDLE_IMAGES_KIT } from "@/pages/KitBentoCake";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import type { CandleSelection } from "@/context/CartContext";
@@ -429,7 +428,7 @@ const DotCakes = () => {
                       (was wrongly hardcoded to J+4 here — see
                       src/lib/orderDates.ts, the single shared source of
                       truth for this rule). */}
-                  <Calendar {...expressCalendarProps} mode="single" selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
+                  <OrderCalendar selected={orderDate} onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
                     disabled={(date) => isOrderDateDisabled(date)} initialFocus />
                 </PopoverContent>
               </Popover>
