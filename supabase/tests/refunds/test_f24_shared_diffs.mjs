@@ -87,9 +87,10 @@ const OLD = await loadInvoice(path.join(FIX, "invoice-pdf-before-d0d6b83.ts"), "
 const NEW = await loadInvoice(path.join(SHARED, "invoice-pdf.ts"), "inv-new");
 // Adresse de la société changée le 05.10.2026 (Rue Prévost-Martin 8, 1205 Genève) : l'ancienne copie
 // porte encore l'ancienne adresse et le titre « FACTURE AQUITÉE » (corrigé en ACQUITTÉE) ; on les remplace
-// dans son rendu pour ne comparer que le reste.
+// dans son rendu pour ne comparer que le reste. Dates passées de jj/mm/aaaa à jj.mm.aaaa le 26.10.2026.
 const ADDR_OLD = /58 Chemin de la Gradelle, 1224 (Genève|Geneva)/g;
-const render = async (mod, order, items, opts) => { drawn.length = 0; await mod.generateInvoicePdf(order, items, opts); return drawn.map((d) => d.join(" ").replace(ADDR_OLD, (_m, c) => `Rue Prévost-Martin 8, 1205 ${c}`).replace("FACTURE AQUITÉE", "FACTURE ACQUITTÉE")); };
+const DATE_OLD = /\b(\d{2})\/(\d{2})\/(\d{4})\b/g;
+const render = async (mod, order, items, opts) => { drawn.length = 0; await mod.generateInvoicePdf(order, items, opts); return drawn.map((d) => d.join(" ").replace(ADDR_OLD, (_m, c) => `Rue Prévost-Martin 8, 1205 ${c}`).replace("FACTURE AQUITÉE", "FACTURE ACQUITTÉE").replace(DATE_OLD, "$1.$2.$3")); };
 const base = { lang: "fr", first_name: "Test", last_name: "Client", email: "t@example.com", invoice_number: "INV-2026-0001", created_at: "2026-10-01T10:00:00Z",
   total_amount: 90, delivery_fee: 0, express_surcharge_amount: 0, reward_amount_used: 0, welcome_discount_amount: 0, partner_discount_amount: 0 };
 const cake = [{ product: "bento_cake", total: 90, quantity: 1, size: "10cm", flavors: ["vanilla"] }];

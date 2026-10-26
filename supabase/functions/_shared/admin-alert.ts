@@ -22,6 +22,16 @@ export const MAKE_REPAIR_ALERT_KEY = "make-repair-not-configured";
 // first.
 export const WORKSHOP_MAKE_URL_ALERT_KEY = "workshop-make-url-missing";
 
+// "26.10.2026 14:05" — Geneva time, the format used in every team e-mail
+// (never a raw UTC ISO timestamp).
+export function alertTime(d: Date = new Date()): string {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute}`;
+}
+
 export interface TechnicalAlertInput {
   subject: string;
   lines: string[]; // one "Label: value" per line

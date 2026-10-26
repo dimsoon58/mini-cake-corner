@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getPostFinanceCredentials, pfFetch, REWARD_ONLY_TRANSACTION_ID } from "../_shared/postfinance.ts";
 import { classifyTxState, findTransactionByMerchantReference, getTransactionState, referenceCandidates } from "../_shared/postfinance-transactions.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
-import { ALERT_COOLDOWN_SECONDS, claimAndSendTechnicalAlert } from "../_shared/admin-alert.ts";
+import { ALERT_COOLDOWN_SECONDS, alertTime, claimAndSendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Reward-reservation reconciliation sweep — 2026-09-13 payment-resilience
@@ -299,7 +299,7 @@ serve(async (req) => {
       subject: "reconcile-stale-reward-reservations : identifiants PostFinance indisponibles",
       lines: [
         `Erreur : ${e instanceof Error ? e.message : String(e)}`,
-        `Heure : ${new Date().toISOString()}`,
+        `Heure : ${alertTime()}`,
         "Aucune réservation n'a pu être vérifiée lors de ce passage.",
       ],
     });
@@ -471,7 +471,7 @@ serve(async (req) => {
       lines: [
         ...anomalies.slice(0, MAX_ANOMALIES_IN_ALERT),
         ...(anomalies.length > MAX_ANOMALIES_IN_ALERT ? [`… et ${anomalies.length - MAX_ANOMALIES_IN_ALERT} autre(s).`] : []),
-        `Heure du sweep : ${new Date().toISOString()}`,
+        `Heure du sweep : ${alertTime()}`,
       ],
     });
   }

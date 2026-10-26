@@ -4,7 +4,11 @@
 // a été déplacé ici pour être réutilisé par l'admin (cancel-order-item) ; un
 // test vérifie que le message envoyé est identique, octet pour octet, à
 // celui de la fonction de production. Ne pas modifier le modèle ici sans
-// décision explicite.
+// décision explicite. Seule différence voulue (2026-10-26) : les couleurs
+// sont affichées avec le nom vu sur le site (colourName), plus l'identifiant
+// brut (« dark-red » → « Rouge » / « Red »).
+
+import { colourName, colourListName } from "./catalog-colours.ts";
 
 export function esc(value: unknown): string {
   return String(value ?? "")
@@ -76,8 +80,8 @@ export function buildOrderItemCancellationEmail(
   const flavor = formatFlavors(item.flavors);
   const shape = humanize(item.shape);
   const design = humanize(item.design);
-  const baseColor = humanize(item.base_color);
-  const decorationColor = humanize(item.decoration_color);
+  const baseColor = colourName(item.base_color as string, lang);
+  const decorationColor = colourListName(item.decoration_color as string, lang);
   const extras = formatExtras(item.extras);
   const date = formatDate(fulfillment?.pickup_delivery_date);
   const slot = String(fulfillment?.pickup_delivery_slot ?? "").trim();

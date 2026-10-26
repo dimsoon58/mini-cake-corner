@@ -15,7 +15,7 @@ import {
   reportConflictingTransactions,
 } from "../_shared/postfinance-transactions.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
-import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
+import { alertTime, sendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { ORDER_CLIENT_FIELDS, ORDER_ITEM_CLIENT_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
 import { priceOrderItem, roundToCents, type CandleInput, type PricingInput } from "../_shared/pricing.ts";
 import { resolvePartnerReferral, computePartnerLineAmounts, partnerGivesDiscount, type ResolvedPartner } from "../_shared/partner-referral.ts";
@@ -1856,7 +1856,7 @@ serve(async (req) => {
           `Order ID : ${orderId}`,
           `Email : ${order.email}`,
           `Montant : CHF ${order.total_amount}`,
-          `Heure : ${new Date().toISOString()}`,
+          `Heure : ${alertTime()}`,
           `Type : transaction_create_failed`,
           `Erreur : ${createErr instanceof Error ? createErr.message : String(createErr)}`,
         ],
@@ -1889,7 +1889,7 @@ serve(async (req) => {
         lines: [
           `Order ID : ${orderId}`,
           `Transaction : ${transaction.id}`,
-          `Heure : ${new Date().toISOString()}`,
+          `Heure : ${alertTime()}`,
           `La transaction existe chez PostFinance mais son ID n'a pas pu être écrit dans pending_payments.`,
           `Réconciliation : recherche merchantReference (retry) ou webhook.`,
         ],
@@ -1916,7 +1916,7 @@ serve(async (req) => {
           `Transaction : ${transaction.id}`,
           `Email : ${order.email}`,
           `Montant : CHF ${order.total_amount}`,
-          `Heure : ${new Date().toISOString()}`,
+          `Heure : ${alertTime()}`,
           `Type : payment_page_url_unavailable`,
           `Erreur : ${urlErr instanceof Error ? urlErr.message : String(urlErr)}`,
         ],

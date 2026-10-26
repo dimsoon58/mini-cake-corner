@@ -6,7 +6,8 @@
 // catalogues already used at checkout (sizes/shapes/styles from
 // @/data/customization) — no new data source, no raw id ever shown to
 // either audience when a real catalogue name exists for it.
-import { sizes, shapes, styles } from "@/data/customization";
+import { sizes, shapes, styles, baseColors, ribbonColors, butterflyColors, glitterColors, glitterCherriesColors } from "@/data/customization";
+import { colourFr } from "@/data/catalogLabelsFr";
 
 export const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
   bento_cake: { en: "Bento Cake", fr: "Bento Cake" },
@@ -143,4 +144,40 @@ export function splitComment(comment: string | null | undefined): { designPhoto:
   if (!match) return { designPhoto: null, comment };
   const rest = comment.slice(match[0].length).trim();
   return { designPhoto: Number(match[1]), comment: rest || null };
+}
+
+// Colours: order_items.base_color / decoration_color / text_color store the
+// colour ID clicked on the site ("dark-red", "mint-green"…), never its
+// visible name — and "dark-red" is shown on the site as "Red" / "Rouge".
+// Resolved here to the exact word the customer clicked, never the raw ID.
+// Same mapping as supabase/functions/_shared/catalog-colours.ts (e-mails).
+const COLOUR_LISTS = [baseColors, ribbonColors, butterflyColors, glitterColors, glitterCherriesColors];
+
+export function colourLabel(token: string | null | undefined, lang: "en" | "fr" = "en"): string {
+  const t = (token ?? "").trim();
+  if (!t) return "";
+  for (const list of COLOUR_LISTS) {
+    const hit = list.find((c) => c.id === t) ?? list.find((c) => c.name.toLowerCase() === t.toLowerCase());
+    if (hit) return lang === "fr" ? colourFr[hit.name] ?? hit.name : hit.name;
+  }
+  return t;
+}
+
+/** "pink, dark-red, roses-white" (or a JSON array) → "Rose, Rouge · Roses : Blanc". */
+export function colourListLabel(raw: string | null | undefined, lang: "en" | "fr" = "en"): string {
+  const v = (raw ?? "").trim();
+  if (!v) return "";
+  let tokens: string[];
+  if (v.startsWith("[")) {
+    try { tokens = (JSON.parse(v) as unknown[]).map(String); } catch { tokens = [v]; }
+  } else tokens = v.split(",");
+  const plain: string[] = [];
+  const roses: string[] = [];
+  for (const tok of tokens.map((s) => s.trim()).filter(Boolean)) {
+    const m = tok.match(/^roses-(.+)$/);
+    if (m) roses.push(colourLabel(m[1], lang));
+    else plain.push(colourLabel(tok, lang));
+  }
+  const rosesLabel = roses.length ? `${lang === "fr" ? "Roses : " : "Roses: "}${roses.join(", ")}` : "";
+  return [plain.join(", "), rosesLabel].filter(Boolean).join(" · ");
 }

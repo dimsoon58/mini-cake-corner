@@ -5,7 +5,7 @@ import { getTransactionState } from "../_shared/postfinance-transactions.ts";
 import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { areSideEffectsComplete, runSideEffects } from "../_shared/order-side-effects.ts";
 import { ORDER_ITEM_PAYLOAD_FIELDS, ORDER_PAYLOAD_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
-import { sendTechnicalAlert } from "../_shared/admin-alert.ts";
+import { alertTime, sendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { claimAndDispatchWorkshopReservationSync } from "../_shared/workshop-make.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -175,7 +175,7 @@ async function abortOrderAfterCapture(
         `Transaction PostFinance : ${txId}`,
         `Montant autorisé (jamais capturé) : CHF ${Number(orderRecord.total_amount) || 0}`,
         `Raison : ${reason}`,
-        `Heure : ${new Date().toISOString()}`,
+        `Heure : ${alertTime()}`,
         voided
           ? `Action : aucune — l'autorisation a été annulée (void), rien n'a été prélevé.`
           : `Action : vérifier/annuler manuellement la transaction ${txId} dans PostFinance — le void automatique n'a pas pu être confirmé.`,
