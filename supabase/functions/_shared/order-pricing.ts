@@ -90,7 +90,12 @@ export function isMondayISO(dateISO: string): boolean {
 
 // Closed dates (whole day) — same list as src/lib/orderDates.ts CLOSED_DATES.
 // The Admin manual-order flow may still use them (allowClosedDays).
-export const CLOSED_DATES: readonly string[] = ["2026-11-13", "2026-11-14"];
+export const CLOSED_DATES: readonly string[] = [
+  "2026-11-13", "2026-11-14",
+  // Fêtes : du 29 décembre 2026 au 7 janvier 2027 inclus
+  "2026-12-29", "2026-12-30", "2026-12-31",
+  "2027-01-01", "2027-01-02", "2027-01-03", "2027-01-04", "2027-01-05", "2027-01-06", "2027-01-07",
+];
 
 // Today's calendar date in Europe/Zurich as "YYYY-MM-DD" — avoids the UTC
 // off-by-one when deciding whether an order is "express" / too soon.

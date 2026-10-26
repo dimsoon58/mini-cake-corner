@@ -12,7 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
-import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment } from "@/lib/orderLabels";
+import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment, colourLabel, colourListLabel } from "@/lib/orderLabels";
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPanel";
 import { ReferencePhotos } from "@/components/ReferencePhotos";
@@ -597,12 +597,12 @@ const AdminOrder = () => {
                             value={`${designLabel(item.design)}${designPhoto ? ` — ${t("Photo", "Photo")} ${designPhoto}` : ""}`}
                           />
                         )}
-                        <DetailRow label={t("Base Colour", "Couleur de base")} value={item.base_color} />
-                        <DetailRow label={t("Decoration Colour", "Couleur de décoration")} value={item.decoration_color} />
+                        <DetailRow label={t("Base Colour", "Couleur de base")} value={colourLabel(item.base_color, lang)} />
+                        <DetailRow label={t("Decoration Colour", "Couleur de décoration")} value={colourListLabel(item.decoration_color, lang)} />
                         {item.cake_text && (
                           <DetailRow
                             label={t("Text on Cake", "Texte sur le gâteau")}
-                            value={`"${item.cake_text}" (${item.text_style || "normal"}, ${item.text_color || "default"})`}
+                            value={`"${item.cake_text}" (${item.text_style || "normal"}, ${colourLabel(item.text_color, lang) || t("default", "par défaut")})`}
                           />
                         )}
                         {item.extra && (

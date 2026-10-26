@@ -18,6 +18,7 @@ import {
   upcomingSessions,
   spotsLeft,
   formatSessionDate,
+  sessionEditionLabel,
 } from "@/data/workshopSessions";
 
 
@@ -217,9 +218,9 @@ const WorkshopBooking = () => {
                     <p className={`text-sm font-medium capitalize ${selected ? "text-primary" : "text-foreground"}`}>
                       {formatSessionDate(s.date, lang === "fr" ? "fr" : "en")}
                     </p>
-                    {s.theme && (
+                    {sessionEditionLabel(s, lang === "fr" ? "fr" : "en") && (
                       <span className="text-[11px] font-medium uppercase tracking-wider px-1.5 py-0.5 bg-primary/10 text-primary leading-none">
-                        {s.theme}
+                        {sessionEditionLabel(s, lang === "fr" ? "fr" : "en")}
                       </span>
                     )}
                   </div>

@@ -314,6 +314,10 @@ export const ribbonColors = [
   { id: "black", name: "Black", color: "#000000" },
 ];
 
+// Rubans clairs (blanc, rose clair) : avertissement « rubans fournis à part »
+// si la base ou les décorations sont foncées.
+export const lightRibbonColorIds = ["white", "baby-pink"];
+
 export const butterflyColors = [
   { id: "pink", name: "Pink", color: "#FFC0CB" },
   { id: "blue", name: "Blue", color: "#3B82F6" },

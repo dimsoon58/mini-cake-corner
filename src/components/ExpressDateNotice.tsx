@@ -1,7 +1,8 @@
 import { useState } from "react";
-import type { DayContentProps } from "react-day-picker";
+import type { DayContentProps, DayPickerSingleProps } from "react-day-picker";
 import { useLang } from "@/context/LanguageContext";
-import { isExpressDate, expressSelectedCopy, expressTooltipCopy, EXPRESS_COPY, CLOSED_DAY_COPY } from "@/lib/orderDates";
+import { Calendar } from "@/components/ui/calendar";
+import { isExpressDate, expressSelectedCopy, expressTooltipCopy, EXPRESS_COPY, CLOSED_DAY_COPY, FULLY_BOOKED_COPY, calendarDaysUntil, isClosedDay } from "@/lib/orderDates";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Day number with a small tooltip on an express-surcharge day, stating
@@ -62,6 +63,57 @@ export const expressCalendarProps = {
   components: { DayContent: ExpressDayContent },
   footer: <ClosedDayFooter />,
 };
+
+// Order calendar (website checkout + product pages): a greyed-out date is no
+// longer a dead button. Tapping it shows why it can't be picked — « Nous
+// sommes complets à cette date » (Sunday: the closed-on-Sunday line) — and
+// never selects it. `disabled` keeps the same meaning as on <Calendar>: the
+// dates the customer may not pick. Past days stay plain disabled, no message.
+type OrderCalendarProps = Omit<DayPickerSingleProps, "mode" | "disabled"> & {
+  disabled?: (date: Date) => boolean;
+};
+
+export function OrderCalendar({ disabled, onSelect, footer, modifiers, modifiersClassNames, ...props }: OrderCalendarProps) {
+  const { lang } = useLang();
+  const l = lang === "fr" ? "fr" : "en";
+  const [message, setMessage] = useState<string | null>(null);
+  const isPast = (date: Date) => calendarDaysUntil(date) < 0;
+  const unavailable = (date: Date) => !isPast(date) && !!disabled?.(date);
+
+  return (
+    <Calendar
+      {...props}
+      mode="single"
+      disabled={isPast}
+      modifiers={{ ...modifiers, express: (date: Date) => isExpressDate(date) && !unavailable(date), unavailable }}
+      modifiersClassNames={{
+        ...modifiersClassNames,
+        unavailable: "text-muted-foreground opacity-50 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground",
+      }}
+      components={expressCalendarProps.components}
+      onSelect={(day, selectedDay, activeModifiers, e) => {
+        // selectedDay = the day actually tapped (day is undefined when the
+        // already-selected day is tapped again).
+        if (unavailable(selectedDay)) {
+          setMessage(isClosedDay(selectedDay) ? CLOSED_DAY_COPY[l] : FULLY_BOOKED_COPY[l]);
+          return;
+        }
+        setMessage(null);
+        onSelect?.(day, selectedDay, activeModifiers, e);
+      }}
+      footer={
+        <>
+          {message && (
+            <p role="alert" className="mt-2 max-w-[252px] border-l-2 border-primary bg-muted/40 px-2 py-1.5 text-xs font-medium leading-snug text-foreground">
+              {message}
+            </p>
+          )}
+          {footer ?? <ClosedDayFooter />}
+        </>
+      }
+    />
+  );
+}
 
 // Legend shown under any order calendar.
 export function ExpressLegend() {

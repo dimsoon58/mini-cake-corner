@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
-import { expressCalendarProps, ExpressDateNotice } from "@/components/ExpressDateNotice";
+import { ExpressDateNotice, OrderCalendar } from "@/components/ExpressDateNotice";
 import { CalendarIcon, Upload, X, ChevronLeft, ChevronRight } from "lucide-react";
 import printingGallery1 from "@/assets/printing-gallery-1.jpg";
 import printingGallery2 from "@/assets/printing-gallery-2.jpg";
@@ -19,7 +19,6 @@ const printingGallery = [
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
@@ -227,14 +226,12 @@ const Printing = () => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
+                  <OrderCalendar
                     selected={orderDate}
                     onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
                     disabled={(date) => isOrderDateDisabled(date)}
                     initialFocus
                     className="p-3 pointer-events-auto"
-                    {...expressCalendarProps}
                   />
                 </PopoverContent>
               </Popover>

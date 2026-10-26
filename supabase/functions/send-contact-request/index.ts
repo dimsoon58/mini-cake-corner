@@ -158,6 +158,13 @@ interface ContactRequestBody {
   attachments?: unknown;
 }
 
+// A date picked in the form arrives as "2026-10-17" — shown as 17.10.2026
+// in the e-mail; any other text (free "preferred date") stays as typed.
+function displayValue(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : value;
+}
+
 function isEmailLike(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -316,7 +323,7 @@ serve(async (req) => {
     // customer-facing branded template. ──
     const rows = spec.fields
       .filter((f) => data[f.key])
-      .map((f) => `<tr><td class="bcs-a-muted" style="padding:6px 12px;color:#888;font-size:14px;vertical-align:top;white-space:nowrap;">${escapeHtml(f.label)}</td><td class="bcs-a-text" style="padding:6px 12px;color:#333;font-size:14px;">${escapeHtml(data[f.key]).replace(/\n/g, "<br>")}</td></tr>`)
+      .map((f) => `<tr><td class="bcs-a-muted" style="padding:6px 12px;color:#888;font-size:14px;vertical-align:top;white-space:nowrap;">${escapeHtml(f.label)}</td><td class="bcs-a-text" style="padding:6px 12px;color:#333;font-size:14px;">${escapeHtml(displayValue(data[f.key])).replace(/\n/g, "<br>")}</td></tr>`)
       .join("");
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${DARKMODE_META_TAGS}
 ${adminDarkModeStyle()}

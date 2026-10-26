@@ -300,6 +300,12 @@ r = await cancelItem(h2);
 check("Puis envoi confirmé et marqué une seule fois", r.status === 200 && r.body.emailSent && !!(await itemRow(h2)).cancellation_email_sent_at);
 
 // ═══ E-mail identique à la fonction de production (octet pour octet) ════
+// Sauf les lignes de couleur (2026-10-26) : la nouvelle fonction affiche le
+// nom vu sur le site (« white » → « Blanc » / « White »), la copie Make
+// l'identifiant mis en forme. Ces deux lignes sont retirées avant de comparer
+// et vérifiées à part.
+const COLOUR_ROW_RE = /<tr><td[^>]*>(Couleur de base|Couleur décoration|Base colour|Decoration colour)<\/td><td[^>]*>[^<]*<\/td><\/tr>/g;
+const withoutColours = (b) => ({ ...b, html: String(b?.html ?? "").replace(COLOUR_ROW_RE, "") });
 const lastTo = (to, from = 0) => net.slice(from).filter((c) => c.url.startsWith("https://api.resend.com/") && c.body?.to?.includes(to)).pop();
 for (const [lang, prodId] of [["FR", p1], ["EN", pe1]]) {
   const newId = prodId;
@@ -312,13 +318,17 @@ for (const [lang, prodId] of [["FR", p1], ["EN", pe1]]) {
   const rn = await cancelItem(newId);
   const newMail = lastTo("twin@test.ch", mark2);
   check(`E-mail ${lang} identique à cancel-order-item-make (expéditeur, sujet, HTML, texte)`, rp.status === 200 && rn.status === 200 && !!prodMail && !!newMail
-    && ["from", "subject", "html", "text"].every((k) => prodMail.body[k] === newMail.body[k]) && JSON.stringify(prodMail.body.to) === JSON.stringify(newMail.body.to),
+    && ["from", "subject", "html", "text"].every((k) => withoutColours(prodMail.body)[k] === withoutColours(newMail.body)[k]) && JSON.stringify(prodMail.body.to) === JSON.stringify(newMail.body.to),
     { prod: prodMail?.body?.subject, neu: newMail?.body?.subject, diff: ["from", "subject", "html", "text"].filter((k) => prodMail?.body?.[k] !== newMail?.body?.[k]) });
+  check(`E-mail ${lang} : couleur de déco au nom du site`, (newMail?.body?.html ?? "").includes(lang === "FR" ? ">Blanc</td>" : ">White</td>"));
   check(`Clé Resend ${lang} identique à la production`, prodMail.headers["Idempotency-Key"] === `order-item-cancellation-${prodId}` && newMail.headers["Idempotency-Key"] === prodMail.headers["Idempotency-Key"]);
 }
 const shared = fs.readFileSync(path.join(ROOT, "functions/_shared/order-item-cancellation-email.ts"), "utf8");
 const prodSrc = fs.readFileSync(path.join(import.meta.dirname, "fixtures/prod-cancel-order-item-make.ts"), "utf8");
-const prodTpl = prodSrc.slice(prodSrc.indexOf("  const lang = String(order.lang"), prodSrc.indexOf("  const emailResp = await fetch("));
+// Seules lignes changées volontairement (2026-10-26) : les couleurs au nom du site.
+const prodTpl = prodSrc.slice(prodSrc.indexOf("  const lang = String(order.lang"), prodSrc.indexOf("  const emailResp = await fetch("))
+  .replace("  const baseColor = humanize(item.base_color);", "  const baseColor = colourName(item.base_color as string, lang);")
+  .replace("  const decorationColor = humanize(item.decoration_color);", "  const decorationColor = colourListName(item.decoration_color as string, lang);");
 check("Code du modèle repris tel quel (bloc complet présent mot pour mot)", shared.includes(prodTpl.trimEnd()) && prodTpl.length > 3000);
 
 // ═══ Production et étiquettes ════════════════════════════════════════════

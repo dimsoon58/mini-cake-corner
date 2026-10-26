@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { useCart, CandleSelection, CartItem } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { getStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
@@ -27,7 +26,7 @@ import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { formatSessionDate } from "@/data/workshopSessions";
 import { expressSurchargeBreakdown, expressSummaryLabel, isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
-import { ExpressDateNotice, expressCalendarProps } from "@/components/ExpressDateNotice";
+import { ExpressDateNotice, OrderCalendar } from "@/components/ExpressDateNotice";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +55,7 @@ import {
   getFlavorCategoryExtra,
 } from "@/data/customization";
 import { INSPIRATIONS } from "@/data/inspirations";
+import { RibbonStainNotice } from "@/components/RibbonStainNotice";
 
 import designRibbons from "@/assets/design-ribbons-new.jpg";
 import designButterflyGarden from "@/assets/design-butterfly-garden-new.jpg";
@@ -741,9 +741,7 @@ const Cart = () => {
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                {...expressCalendarProps}
-                                mode="single"
+                              <OrderCalendar
                                 // Pre-selects this item's OWN current date —
                                 // never another item's, never today.
                                 selected={new Date(`${item.orderDate}T00:00:00`)}
@@ -1515,6 +1513,7 @@ const CartItemEditor = ({
                 </button>
               ))}
             </div>
+            <RibbonStainNotice colorId={item.ribbonColor} />
           </div>
         )}
 

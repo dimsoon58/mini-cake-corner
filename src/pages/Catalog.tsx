@@ -14,7 +14,6 @@ import {
   DialogDescription as SheetDescription,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectGroup, SelectLabel, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { ShoppingBag, Upload, X, Plus, Minus, ChevronDown, ChevronUp, CalendarIcon, Info } from "lucide-react";
@@ -26,6 +25,7 @@ import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
 import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
 import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
+import { RibbonStainNotice } from "@/components/RibbonStainNotice";
 import { useCart } from "@/context/CartContext";
 import type { CandleSelection } from "@/context/CartContext";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, getSimpleCandleQty, changeSimpleCandleQty, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
@@ -34,7 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/context/LanguageContext";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
-import { expressCalendarProps } from "@/components/ExpressDateNotice";
+import { OrderCalendar } from "@/components/ExpressDateNotice";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { flavorDescMap } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
@@ -1809,9 +1809,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      {...expressCalendarProps}
-                      mode="single"
+                    <OrderCalendar
                       selected={selections.orderDate || undefined}
                       onSelect={(date) => { setSelections({ ...selections, orderDate: date || null }); setCalOpen(false); }}
                       disabled={(date) => {
@@ -2559,6 +2557,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                               </button>
                             ))}
                           </div>
+                          <RibbonStainNotice colorId={selections.ribbonColor} />
                         </div>
                       )}
                     </div>
@@ -2632,6 +2631,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                         </button>
                       ))}
                     </div>
+                    <RibbonStainNotice colorId={selections.ribbonColor} />
                   </div>
                 )}
 

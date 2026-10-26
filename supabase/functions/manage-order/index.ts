@@ -310,9 +310,12 @@ function formatInvoicePrice(amount: number | string): string {
   return Number.isInteger(n) ? `${n}.-` : n.toFixed(2);
 }
 
+// jj.mm.aaaa, Geneva day — the server runs in UTC, so an order placed
+// shortly after midnight must not show the previous day.
 function formatInvoiceDate(dateInput: string): string {
-  const d = new Date(dateInput);
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit" })
+    .formatToParts(new Date(dateInput)).map((x) => [x.type, x.value]));
+  return `${p.day}.${p.month}.${p.year}`;
 }
 // Generic greedy word-wrap for a table cell — used by the DESCRIPTION column
 // so any label (item description, express surcharge, welcome/partner

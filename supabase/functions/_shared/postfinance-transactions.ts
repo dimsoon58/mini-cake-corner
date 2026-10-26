@@ -4,7 +4,7 @@
 // REWARD_ONLY shim) — see _shared/postfinance.ts.
 
 import { type PostFinanceCredentials, pfFetch } from "./postfinance.ts";
-import { sendTechnicalAlert } from "./admin-alert.ts";
+import { alertTime, sendTechnicalAlert } from "./admin-alert.ts";
 
 // One orderId ended up pointing at TWO different real PostFinance transactions.
 // Read both real states, log + alert an operator, and NEVER overwrite. The
@@ -38,7 +38,7 @@ export async function reportConflictingTransactions(
       `Order ID : ${orderId}`,
       `Transaction enregistrée : ${recordedTxId} — état ${recordedState}`,
       `Transaction entrante : ${incomingTxId} — état ${incomingState}`,
-      `Heure : ${new Date().toISOString()}`,
+      `Heure : ${alertTime()}`,
       `Action : AUCUN écrasement. Vérification manuelle requise (double débit possible).`,
     ],
   }).catch(() => {});

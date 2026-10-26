@@ -2,6 +2,7 @@ import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
 
 // Shared confirmation-email renderer for a "cake / product" order at its
 import { getLogoEmailUrl } from "./site-config.ts";
+import { colourName, colourListName } from "./catalog-colours.ts";
 import { type ConfirmationOpts, moneyRowsHtml, paymentDueSentence } from "./confirmation-money.ts";
 import {
   EMAIL_SECTION_TITLE_STYLE, EMAIL_PRODUCT_NAME_STYLE, EMAIL_CARD_STYLE,
@@ -308,9 +309,9 @@ export function renderCakeOrderConfirmationEmail(
       // name for no new information (edible_printing is already excluded
       // above via isPrinting).
       if (item.design && !PRODUCTS_WITHOUT_MEANINGFUL_DESIGN.has(item.product)) rows.push(row(tr("Design", "Design"), designLabel(item.design)));
-      if (item.base_color) rows.push(row(tr("Base colour", "Couleur de base"), item.base_color));
-      if (item.decoration_color) rows.push(row(tr("Decoration colour", "Couleur de décoration"), item.decoration_color));
-      if (item.text_color) rows.push(row(tr("Text colour", "Couleur du texte"), item.text_color));
+      if (item.base_color) rows.push(row(tr("Base colour", "Couleur de base"), colourName(item.base_color, lang)));
+      if (item.decoration_color) rows.push(row(tr("Decoration colour", "Couleur de décoration"), colourListName(item.decoration_color, lang)));
+      if (item.text_color) rows.push(row(tr("Text colour", "Couleur du texte"), colourName(item.text_color, lang)));
       // "normal" is the default text style, never a real customer choice —
       // only show this row when they picked something else (e.g. uppercase).
       if (item.text_style && item.text_style !== "normal") rows.push(row(tr("Text style", "Style du texte"), item.text_style));

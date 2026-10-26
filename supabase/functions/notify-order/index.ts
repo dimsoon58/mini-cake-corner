@@ -4,6 +4,7 @@ import { getSiteBaseUrl, getLogoEmailUrl } from "../_shared/site-config.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { DARKMODE_META_TAGS, adminDarkModeStyle } from "../_shared/email-darkmode.ts";
+import { colourName, colourListName } from "../_shared/catalog-colours.ts";
 
 
 const ADMIN_EMAILS = ["naglemelodie@gmail.com", "e.potapushina@gmail.com"];
@@ -123,7 +124,7 @@ async function sendAdminEmail(
         <h4 class="bcs-a-text" style="margin:0 0 12px;color:#333;font-size:16px;font-weight:600;">Atelier ${i + 1} — CHF ${item.total}</h4>
         <table style="width:100%;border-collapse:collapse;">
           ${row("Atelier", wsName)}
-          ${row("Date", item.workshop_date)}
+          ${row("Date", formatDateCH(item.workshop_date))}
           ${row("Horaire", item.workshop_time)}
           ${row("Participants", item.workshop_participants != null ? String(item.workshop_participants) : null)}
           ${row("Notes", item.item_comment?.trim() || null)}
@@ -162,10 +163,10 @@ async function sendAdminEmail(
           ${row("Forme", item.shape)}
           ${row("Parfum", flavorsLabel(item.flavors))}
           ${row("Design", item.design)}
-          ${row("Couleur de base", item.base_color)}
-          ${row("Couleur de déco", item.decoration_color)}
+          ${row("Couleur de base", colourName(item.base_color, "fr"))}
+          ${row("Couleur de déco", colourListName(item.decoration_color, "fr"))}
           ${row("Couleur intérieure", item.inside_color)}
-          ${row("Texte sur le gâteau", item.cake_text ? `"${item.cake_text}" (${item.text_style || "normal"}, ${item.text_color || "default"})` : null)}
+          ${row("Texte sur le gâteau", item.cake_text ? `"${item.cake_text}" (${item.text_style || "normal"}, ${colourName(item.text_color, "fr") || "par défaut"})` : null)}
           ${row("Suppléments", item.extra || null)}
           ${row("Bougies", candlesList || null)}
           ${row("Instructions", realComment(item.item_comment))}
