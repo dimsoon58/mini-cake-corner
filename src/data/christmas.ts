@@ -86,13 +86,15 @@ export const CLASSIC_FILLING: ChristmasFlavour = {
   descriptionFr: "Notre crème fouettée signature, légère et onctueuse.", descriptionEn: "Our signature whipped cream, light and smooth.",
 };
 
-export const CAKE_FLAVOURS: ChristmasFlavour[] = [...CHRISTMAS_FLAVOURS, CLASSIC_FILLING];
+export const CAKE_FLAVOURS: ChristmasFlavour[] = [CLASSIC_FILLING, ...CHRISTMAS_FLAVOURS];
 
-export interface Sponge { id: string; fr: string; en: string; cakeOnly?: boolean }
+// classicOnly : pas de garniture au choix, toujours la garniture classique
+// (crème fouettée) — c'est le cas du red velvet.
+export interface Sponge { id: string; fr: string; en: string; cakeOnly?: boolean; classicOnly?: boolean }
 export const SPONGES: Sponge[] = [
   { id: "vanille", fr: "Génoise vanille", en: "Vanilla sponge" },
   { id: "chocolat", fr: "Génoise chocolat", en: "Chocolate sponge" },
-  { id: "red-velvet", fr: "Génoise red velvet", en: "Red velvet sponge", cakeOnly: true },
+  { id: "red-velvet", fr: "Génoise red velvet", en: "Red velvet sponge", cakeOnly: true, classicOnly: true },
 ];
 
 export const LOG_INTRO = {

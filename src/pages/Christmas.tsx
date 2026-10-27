@@ -13,7 +13,7 @@ import { useSeo } from "@/hooks/useSeo";
 import { useChristmasVisible } from "@/hooks/useChristmasVisible";
 import { cn } from "@/lib/utils";
 import {
-  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CAKE_FLAVOURS, LOG_FLAVOURS, SPONGES, LOG_INTRO,
+  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CAKE_FLAVOURS, LOG_FLAVOURS, SPONGES, LOG_INTRO, CLASSIC_FILLING,
   CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice,
   type ChristmasSize, type ChristmasFlavour,
 } from "@/data/christmas";
@@ -131,6 +131,8 @@ const Christmas = () => {
   const flavourName = (f: ChristmasFlavour) => (l === "fr" ? f.nameFr : f.nameEn);
   const flavourDescription = (f: ChristmasFlavour) => (l === "fr" ? f.descriptionFr : f.descriptionEn);
   const step = (n: number) => (cake ? n : n - 1);
+  // Red velvet : pas de garniture au choix (garniture classique d'office).
+  const classicOnly = !!sponges.find((g) => g.id === sponge)?.classicOnly;
 
   const choose = (next: Selection) => {
     setSelection(next);
@@ -253,7 +255,13 @@ const Christmas = () => {
                 <p className="uppercase tracking-[0.15em] text-xs font-semibold text-foreground mb-3">
                   {step(2)}. {t("Sponge", "Génoise")}
                 </p>
-                <Select value={sponge} onValueChange={setSponge}>
+                <Select
+                  value={sponge}
+                  onValueChange={(v) => {
+                    setSponge(v);
+                    if (SPONGES.find((g) => g.id === v)?.classicOnly) setFlavour(CLASSIC_FILLING.id);
+                  }}
+                >
                   <SelectTrigger className="rounded-none">
                     <SelectValue placeholder={t("Choose a sponge", "Choisir une génoise")} />
                   </SelectTrigger>
@@ -263,8 +271,14 @@ const Christmas = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {classicOnly && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {t("Red velvet comes with our signature whipped cream only, no other filling.", "Le red velvet se fait uniquement avec notre crème fouettée signature, sans autre garniture.")}
+                  </p>
+                )}
               </div>
 
+              {!classicOnly && (
               <div>
                 <p className="uppercase tracking-[0.15em] text-xs font-semibold text-foreground mb-3">
                   {step(3)}. {t("Filling", "Garniture")}
@@ -290,10 +304,11 @@ const Christmas = () => {
                   <p className="text-xs text-muted-foreground mt-2">{flavourDescription(flavours.find((f) => f.id === flavour)!)}</p>
                 )}
               </div>
+              )}
 
               <div>
                 <p className="uppercase tracking-[0.15em] text-xs font-semibold text-foreground mb-3">
-                  {step(4)}. {t("Date", "Date")}
+                  {classicOnly ? step(3) : step(4)}. {t("Date", "Date")}
                 </p>
                 <Popover open={calOpen} onOpenChange={setCalOpen}>
                   <PopoverTrigger asChild>
