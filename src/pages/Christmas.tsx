@@ -5,6 +5,7 @@ import { CalendarIcon, Check, ImageIcon } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OrderCalendar, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { isOrderDateDisabled, expressSurcharge, expressSurchargeRate } from "@/lib/orderDates";
 import { useLang } from "@/context/LanguageContext";
@@ -38,7 +39,7 @@ function PhotoSlot({ image, alt, className }: { image: string | null; alt: strin
   );
 }
 
-// Tuile de choix (taille, génoise, garniture) : titre + une ligne.
+// Tuile de choix de taille : titre + une ligne.
 function OptionTile({ title, detail, selected, onClick }: { title: string; detail?: string; selected: boolean; onClick: () => void }) {
   return (
     <button
@@ -252,22 +253,42 @@ const Christmas = () => {
                 <p className="uppercase tracking-[0.15em] text-xs font-semibold text-foreground mb-3">
                   {step(2)}. {t("Sponge", "Génoise")}
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {sponges.map((g) => (
-                    <OptionTile key={g.id} title={g[l]} selected={sponge === g.id} onClick={() => setSponge(g.id)} />
-                  ))}
-                </div>
+                <Select value={sponge} onValueChange={setSponge}>
+                  <SelectTrigger className="rounded-none">
+                    <SelectValue placeholder={t("Choose a sponge", "Choisir une génoise")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sponges.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>{g[l]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <p className="uppercase tracking-[0.15em] text-xs font-semibold text-foreground mb-3">
                   {step(3)}. {t("Filling", "Garniture")}
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {flavours.map((f) => (
-                    <OptionTile key={f.id} title={flavourName(f)} detail={flavourDescription(f)} selected={flavour === f.id} onClick={() => setFlavour(f.id)} />
-                  ))}
-                </div>
+                <Select value={flavour} onValueChange={setFlavour}>
+                  <SelectTrigger className="rounded-none">
+                    <SelectValue placeholder={t("Choose a filling", "Choisir une garniture")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {flavours.map((f) => (
+                      <SelectItem key={f.id} value={f.id} itemText={flavourName(f)}>
+                        <div className="min-w-0 flex-1 py-0.5">
+                          <span className="block whitespace-normal leading-snug">{flavourName(f)}</span>
+                          {flavourDescription(f) && (
+                            <span className="block text-[11px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">{flavourDescription(f)}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {flavours.find((f) => f.id === flavour) && flavourDescription(flavours.find((f) => f.id === flavour)!) && (
+                  <p className="text-xs text-muted-foreground mt-2">{flavourDescription(flavours.find((f) => f.id === flavour)!)}</p>
+                )}
               </div>
 
               <div>
