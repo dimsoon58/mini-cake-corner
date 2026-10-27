@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import AccountMenu from "@/components/AccountMenu";
 import logoBrown from "@/assets/logo-brown.png";
 import logoCream from "@/assets/logo-cream.png";
+import { useChristmasVisible } from "@/hooks/useChristmasVisible";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ type NavItem = { to?: string; label: string; children?: { to: string; label: str
 
 const navFr: Record<string, string> = {
   "Home": "Accueil",
+  "Christmas": "Noël",
   "Our Products": "Nos produits",
   "Bento Kit": "Bento Kit",
   "Candles": "Bougies",
@@ -54,6 +56,12 @@ const navLinks: NavItem[] = [
   ] },
 ];
 
+// « Noël » juste sous « Accueil », seulement quand la collection de Noël est
+// visible (useChristmasVisible : tout le monde après la mise en ligne,
+// sinon les admins connectées).
+const CHRISTMAS_LINK: NavItem = { to: "/noel", label: "Christmas" };
+const withChristmas = (links: NavItem[]): NavItem[] => [links[0], CHRISTMAS_LINK, ...links.slice(1)];
+
 const navLinkClass = (light: boolean) =>
   cn(
     "uppercase tracking-[0.18em] text-xs font-medium transition-colors whitespace-nowrap",
@@ -63,6 +71,8 @@ const navLinkClass = (light: boolean) =>
 const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps) => {
   const location = useLocation();
   const { lang, setLang, t } = useLang();
+  const { visible: christmasVisible } = useChristmasVisible();
+  const links = christmasVisible ? withChristmas(navLinks) : navLinks;
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
@@ -181,7 +191,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
           {/* Desktop nav */}
           {!hideNav && (
             <nav className="hidden xl:flex items-center gap-5">
-              {navLinks.map((link) => renderNavItem(link))}
+              {links.map((link) => renderNavItem(link))}
             </nav>
           )}
 
@@ -225,7 +235,7 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
             <div className="w-6" />
           </div>
           <nav className="flex-1 overflow-y-auto py-8 px-6">
-            {navLinks.map((item) =>
+            {links.map((item) =>
               item.children ? (
                 <div key={item.label} className="border-b border-border/30">
                   <button

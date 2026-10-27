@@ -20,6 +20,7 @@ import CommunityPress from "./pages/CommunityPress";
 import Catalog from "./pages/Catalog";
 import Business from "./pages/Business";
 import Printing from "./pages/Printing";
+import Christmas from "./pages/Christmas";
 import Candles from "./pages/Candles";
 import DotCakes from "./pages/DotCakes";
 import Workshop from "./pages/Workshop";
@@ -125,6 +126,7 @@ const App = () => (
             <Route path="/dot-cakes" element={<DotCakes />} />
             <Route path="/candles" element={<Candles />} />
             <Route path="/printing" element={<Printing />} />
+            <Route path="/noel" element={<Christmas />} />
             <Route path="/workshop" element={<Workshop />} />
             <Route path="/workshop-booking" element={<WorkshopBooking />} />
             <Route path="/workshop-confirmation" element={<BookingConfirmation />} />

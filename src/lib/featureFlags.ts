@@ -11,3 +11,8 @@
 // second pickup/delivery date (CartContext.addItem) and Checkout rendered the
 // single-block delivery UI; that gate is now lifted.
 export const MULTI_DATE_FULFILLMENT_ENABLED = true;
+
+// Collection de Noël (page /noel, lien « Noël » du menu, bandeau et carte de
+// l'accueil). false = visible seulement par les admins connectées (Mel, Eli)
+// pour préparer la page ; passer à true le jour de la mise en ligne.
+export const CHRISTMAS_PUBLIC = false;
