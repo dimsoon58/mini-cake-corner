@@ -6,7 +6,6 @@
 //
 // image: null tant que la photo n'est pas fournie — la page affiche un cadre
 // vide à la place.
-import { allFlavors } from "@/data/customization";
 
 export type ChristmasSize = "bento" | "retro" | "medium" | "large";
 
@@ -52,34 +51,54 @@ export const CHRISTMAS_LOGS: ChristmasLog[] = [
   { id: "buche-etoile-noel", nameFr: "Étoile de Noël", nameEn: "Christmas Star", image: null },
 ];
 
-// Parfums des bûches (liste du 27.10.2026).
-export const LOG_FLAVOURS: ChristmasFlavour[] = [
-  { id: "noel-vanille-framboise", nameFr: "Vanille framboise", nameEn: "Vanilla Raspberry" },
-  { id: "noel-lemon-curd", nameFr: "Lemon curd", nameEn: "Lemon Curd" },
-  { id: "noel-pomme-cannelle", nameFr: "Pomme cannelle", nameEn: "Apple Cinnamon" },
-  { id: "noel-mangue-passion", nameFr: "Mangue passion vanille", nameEn: "Mango Passion Vanilla" },
-  { id: "noel-pate-a-tartiner", nameFr: "Pâte à tartiner", nameEn: "Chocolate Hazelnut Spread" },
-  { id: "noel-caramel-cacahuetes", nameFr: "Caramel, cacahuètes concassées", nameEn: "Caramel & Crunchy Peanuts",
-    descriptionFr: "Caramel, cacahuètes concassées et snackées", descriptionEn: "Caramel with crushed roasted peanuts" },
+// Parfums de Noël (garniture), avec une ligne courte qui donne envie.
+// Liste et contenu donnés par Mel le 27.10.2026.
+export const CHRISTMAS_FLAVOURS: ChristmasFlavour[] = [
+  { id: "noel-vanille-framboise", nameFr: "Vanille framboise", nameEn: "Vanilla Raspberry",
+    descriptionFr: "Un généreux coulis de framboise.", descriptionEn: "A generous raspberry coulis." },
+  { id: "noel-lemon-curd", nameFr: "Lemon curd", nameEn: "Lemon Curd",
+    descriptionFr: "Un lemon curd acidulé, tout en fraîcheur.", descriptionEn: "A zesty, fresh lemon curd." },
+  { id: "noel-pomme-cannelle", nameFr: "Pomme cannelle", nameEn: "Apple Cinnamon",
+    descriptionFr: "Pommes caramélisées, encore croquantes, à la cannelle.", descriptionEn: "Caramelised apples, still crunchy, with cinnamon." },
+  { id: "noel-mangue-passion", nameFr: "Mangue passion", nameEn: "Mango Passion Fruit",
+    descriptionFr: "Coulis mangue-passion et morceaux de mangue fraîche.", descriptionEn: "Mango and passion fruit coulis with fresh mango pieces." },
+  { id: "noel-pate-a-tartiner", nameFr: "Pâte à tartiner", nameEn: "Chocolate Hazelnut Spread",
+    descriptionFr: "Façon pâte à tartiner, fondante et gourmande.", descriptionEn: "Hazelnut spread style, rich and melting." },
+  { id: "noel-caramel-cacahuetes", nameFr: "Caramel cacahuètes", nameEn: "Caramel Peanut",
+    descriptionFr: "Caramel et cacahuètes concassées, snackées pour le croquant.", descriptionEn: "Caramel with crushed roasted peanuts, for the crunch." },
   { id: "noel-chocolat", nameFr: "Chocolat", nameEn: "Chocolate",
-    descriptionFr: "Génoise chocolat, ganache chocolat et copeaux", descriptionEn: "Chocolate sponge, chocolate ganache and shavings" },
-  { id: "noel-marron", nameFr: "Marron", nameEn: "Chestnut" },
+    descriptionFr: "Ganache chocolat et copeaux de chocolat.", descriptionEn: "Chocolate ganache and chocolate shavings." },
+  { id: "noel-marron", nameFr: "Marron", nameEn: "Chestnut",
+    descriptionFr: "Une douce crème de marron.", descriptionEn: "A smooth chestnut cream." },
   { id: "noel-praline", nameFr: "Praliné", nameEn: "Praline",
-    descriptionFr: "Praliné, crêpes dentelles, génoise vanille et crème", descriptionEn: "Praline, crispy lace crêpes, vanilla sponge and cream" },
+    descriptionFr: "Praliné, chocolat et crêpes dentelles croustillantes.", descriptionEn: "Praline, chocolate and crispy lace crêpes." },
 ];
 
-// Parfums de bûche déjà présents (ou presque) dans la carte habituelle :
-// pas répétés dans la liste des gâteaux. Lemon curd = Lemon Curd ;
-// Vanille framboise ≈ White Berrylicious ; Chocolat ≈ Chocolate Lovers ;
-// Praliné ≈ Praline Obsession. À confirmer par Mel.
-const LOG_FLAVOURS_ALREADY_IN_CARD = new Set(["noel-lemon-curd", "noel-vanille-framboise", "noel-chocolat", "noel-praline"]);
+// Parcours : la génoise (base) d'abord, puis la garniture.
+// Bûches : génoise vanille ou chocolat + un des 9 parfums de Noël.
+// Gâteaux : génoise vanille, chocolat ou red velvet + un des 9 parfums de
+// Noël, ou la garniture classique (crème fouettée) — ce qui remplace la
+// longue liste habituelle.
+export const LOG_FLAVOURS = CHRISTMAS_FLAVOURS;
 
-// Gâteaux de Noël : tous les parfums habituels + les parfums de bûche qui
-// n'y sont pas déjà.
-export const CAKE_FLAVOURS: ChristmasFlavour[] = [
-  ...allFlavors.map((f) => ({ id: f.id, nameFr: f.name, nameEn: f.name, descriptionEn: "description" in f ? String(f.description) : undefined })),
-  ...LOG_FLAVOURS.filter((f) => !LOG_FLAVOURS_ALREADY_IN_CARD.has(f.id)),
+export const CLASSIC_FILLING: ChristmasFlavour = {
+  id: "noel-classique", nameFr: "Classique", nameEn: "Classic",
+  descriptionFr: "Notre crème fouettée signature, légère et onctueuse.", descriptionEn: "Our signature whipped cream, light and smooth.",
+};
+
+export const CAKE_FLAVOURS: ChristmasFlavour[] = [...CHRISTMAS_FLAVOURS, CLASSIC_FILLING];
+
+export interface Sponge { id: string; fr: string; en: string; cakeOnly?: boolean }
+export const SPONGES: Sponge[] = [
+  { id: "vanille", fr: "Génoise vanille", en: "Vanilla sponge" },
+  { id: "chocolat", fr: "Génoise chocolat", en: "Chocolate sponge" },
+  { id: "red-velvet", fr: "Génoise red velvet", en: "Red velvet sponge", cakeOnly: true },
 ];
+
+export const LOG_INTRO = {
+  fr: "Un roulé ultra moelleux et léger, garni du parfum de votre choix, avec une fine couche de crème.",
+  en: "An ultra-soft, light roll, filled with the flavour of your choice, with a thin layer of cream.",
+} as const;
 
 export const CHRISTMAS_SIZE_LABELS: Record<ChristmasSize, { fr: string; en: string; peopleFr: string; peopleEn: string }> = {
   bento: { fr: "Bento", en: "Bento", peopleFr: "jusqu’à 4 personnes", peopleEn: "up to 4 people" },
