@@ -166,8 +166,8 @@ const Christmas = () => {
           </h1>
           <p className="mt-3 max-w-2xl mx-auto text-sm md:text-base text-foreground/80 leading-relaxed">
             {t(
-              "Our Christmas collection: festive bento cakes and, new this year, Christmas logs. Choose your design, your size and your flavour.",
-              "Notre collection de Noël : des bento cakes de fête et, nouveauté cette année, des bûches de Noël. Choisissez votre design, votre taille et votre parfum.",
+              "This year, Christmas is all about sweetness. Discover our Christmas bento cakes and, for the very first time, our Christmas logs: choose your design, your sponge and your filling.",
+              "Cette année, Noël se fête en douceur. Découvrez nos bento cakes de Noël et, pour la première fois, nos bûches : choisissez votre design, votre génoise et votre garniture.",
             )}
           </p>
         </div>
