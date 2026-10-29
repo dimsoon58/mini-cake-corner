@@ -431,3 +431,30 @@ export const designExcludedExtras: Record<string, string[]> = {
 export const getExcludedExtras = (styleId: string): string[] => {
   return designExcludedExtras[styleId] || [];
 };
+
+// Per-design extras whitelist: when a design is listed here, ONLY these
+// extras are offered ([] hides the extras section entirely).
+export const designAllowedExtras: Record<string, string[]> = {
+  "butterfly-garden": ["printed-picture"],
+  "rainbow-cake": [],
+  "printed-picture": [],
+  "shag-cake": ["cherries", "glitter-cherries"],
+  "custom-drawing": ["gold-leaves", "printed-picture"],
+};
+
+// Designs whose catalogue sheet hides the extras section entirely (same as
+// hideExtras in Catalog.tsx's colour config, plus every Inspiration photo).
+const EXTRAS_HIDDEN_DESIGNS = new Set(["gender-reveal", "heart-bomb"]);
+
+/**
+ * Extras excluded when a cake already in the cart is edited — the same rule
+ * as the catalogue sheet, so the cart can never build a combination the
+ * catalogue refuses. null = the design takes no extras at all.
+ */
+export const getCartExcludedExtras = (styleId: string): string[] | null => {
+  const allowed = designAllowedExtras[styleId];
+  if (styleId.startsWith("inspiration") || EXTRAS_HIDDEN_DESIGNS.has(styleId) || (allowed && allowed.length === 0)) {
+    return null;
+  }
+  return getExcludedExtras(styleId).filter((id) => !allowed || !allowed.includes(id));
+};

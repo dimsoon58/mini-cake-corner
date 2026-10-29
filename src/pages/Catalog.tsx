@@ -24,7 +24,7 @@ import ExtraImageLightbox from "@/components/ExtraImageLightbox";
 import { GlutenFreeToggle } from "@/components/GlutenFreeToggle";
 import { PriceSummaryBar, PriceSummaryPanel, type PriceLine } from "@/components/PriceSummary";
 import { allergenMap, AllergenNotice } from "@/data/allergens";
-import { getExcludedExtras, extraGroups, extraDescriptions } from "@/data/customization";
+import { getExcludedExtras, designAllowedExtras, extraGroups, extraDescriptions } from "@/data/customization";
 import { RibbonStainNotice } from "@/components/RibbonStainNotice";
 import { useCart } from "@/context/CartContext";
 import type { CandleSelection } from "@/context/CartContext";
@@ -728,15 +728,6 @@ const getColorConfig = (styleId?: string): ColorSectionConfig => ({
   ...(styleId ? colorSectionOverrides[styleId] : undefined),
 });
 
-// Per-design extras whitelist: when a design is listed here, ONLY these
-// extras are offered ([] hides the extras section entirely).
-const designAllowedExtras: Record<string, string[]> = {
-  "butterfly-garden": ["printed-picture"],
-  "rainbow-cake": [],
-  "printed-picture": [],
-  "shag-cake": ["cherries", "glitter-cherries"],
-  "custom-drawing": ["gold-leaves", "printed-picture"],
-};
 
 // Collections: curated groupings shown as separate catalog sections
 const collections = [

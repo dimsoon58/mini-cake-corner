@@ -48,7 +48,7 @@ import {
   glitterColors,
   glitterCherriesColors,
   calculateCartItemTotal,
-  getExcludedExtras,
+  getCartExcludedExtras,
   extraGroups,
   extraDescriptions,
   getAvailableSizesForStyle,
@@ -327,45 +327,6 @@ const Cart = () => {
     recalcAndUpdate(itemId, { flavor: flavorId, flavorName: flavorObj?.name || "" });
   };
 
-  const handleStyleChange = (itemId: string, styleId: string) => {
-    const styleObj = styles.find(s => s.id === styleId);
-    const updates: Record<string, any> = { style: styleId, styleName: styleObj?.name || "" };
-    if (styleId === "printed-picture") {
-      updates.cakeText = "";
-      updates.textColor = "";
-      updates.textColorName = "";
-    }
-    if (styleId === "normal-without-border") {
-      updates.decorationColor = "";
-      updates.decorationColorName = "";
-    }
-    // Reset size if current size is not available for the new style
-    const item = items.find(i => i.id === itemId);
-    if (item) {
-      const availableSizes = getAvailableSizesForStyle(styleId);
-      if (!availableSizes.includes(item.size)) {
-        const newSizeId = availableSizes[0] || "bento";
-        const newSizeObj = sizes.find(s => s.id === newSizeId);
-        updates.size = newSizeId;
-        updates.sizeName = newSizeObj?.name || "";
-      }
-      // Remove incompatible extras when design changes
-      const excluded = getExcludedExtras(styleId);
-      const currentExtras = item.extras || [];
-      const filteredExtras = currentExtras.filter(e => !excluded.includes(e));
-      if (filteredExtras.length !== currentExtras.length) {
-        updates.extras = filteredExtras;
-        updates.extrasNames = filteredExtras.map(id => extras.find(e => e.id === id)?.name || "");
-        // Clear color selections for removed extras
-        if (!filteredExtras.includes("glitter")) updates.glitterColor = "";
-        if (!filteredExtras.includes("ribbons")) { updates.ribbonColor = ""; updates.ribbonColorName = ""; }
-        if (!filteredExtras.includes("butterfly")) { updates.butterflyColor = ""; updates.butterflyColorName = ""; }
-        if (!filteredExtras.includes("glitter-cherries")) updates.glitterCherriesColor = "";
-      }
-    }
-    recalcAndUpdate(itemId, updates);
-  };
-
   const handleBaseColorChange = (itemId: string, colorId: string) => {
     const colorObj = baseColors.find(c => c.id === colorId);
     recalcAndUpdate(itemId, { baseColor: colorId, baseColorName: colorObj?.name || "" });
@@ -404,6 +365,11 @@ const Cart = () => {
       if (extraId === "ribbons") { updates.ribbonColor = ""; updates.ribbonColorName = ""; }
       if (extraId === "butterfly") { updates.butterflyColor = ""; updates.butterflyColorName = ""; }
       if (extraId === "glitter-cherries") updates.glitterCherriesColor = "";
+      // The image to print is the item's first photo (see Catalog.tsx) —
+      // without the extra it must not stay behind as a "reference" photo.
+      if (extraId === "printed-picture" && item.style !== "printed-picture") {
+        updates.imageFiles = (item.imageFiles || []).slice(1);
+      }
       recalcAndUpdate(itemId, updates);
     } else {
       newExtras = [...currentExtras, extraId];
@@ -790,7 +756,6 @@ const Cart = () => {
                           item={item}
                           onSizeChange={(v) => handleSizeChange(item.id, v)}
                           onFlavorChange={(v) => handleFlavorChange(item.id, v)}
-                          onStyleChange={(v) => handleStyleChange(item.id, v)}
                           onBaseColorChange={(v) => handleBaseColorChange(item.id, v)}
                           onDecoColorChange={(v) => handleDecoColorChange(item.id, v)}
                           onTextChange={(v) => handleTextChange(item.id, v)}
@@ -1171,7 +1136,6 @@ interface CartItemEditorProps {
   item: any;
   onSizeChange: (v: string) => void;
   onFlavorChange: (v: string) => void;
-  onStyleChange: (v: string) => void;
   onBaseColorChange: (v: string) => void;
   onDecoColorChange: (v: string) => void;
   onTextChange: (v: string) => void;
@@ -1195,7 +1159,7 @@ interface CartItemEditorProps {
 
 const CartItemEditor = ({
   item,
-  onSizeChange, onFlavorChange, onStyleChange,
+  onSizeChange, onFlavorChange,
   onBaseColorChange, onDecoColorChange, onTextChange, onTextColorChange, onTextStyleChange,
   onToggleExtra, onRibbonColorChange, onButterflyColorChange,
   onGlitterColorChange, onGlitterCherriesColorChange,
@@ -1207,7 +1171,8 @@ const CartItemEditor = ({
   const { t } = useLang();
   const showDecoColor = item.style !== "normal-without-border";
   const showText = item.style !== "printed-picture";
-  const excludedExtras = getExcludedExtras(item.style);
+  // null = this design takes no extras (catalogue rule) — section hidden.
+  const excludedExtras = getCartExcludedExtras(item.style || "");
   const availableSizeIds = getAvailableSizesForStyle(item.style);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1295,26 +1260,16 @@ const CartItemEditor = ({
         </div>
       </EditSection>
 
-      {/* Design */}
-      <EditSection label={t("Design", "Design")} tooltip={t("You can select any design. You can also add extras and/or inspiration pictures in the next steps.", "Vous pouvez sélectionner n'importe quel design. Vous pourrez également ajouter des suppléments et/ou des photos d'inspiration aux étapes suivantes.")}>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {styles.map((style) => (
-            <button
-              key={style.id}
-              onClick={() => onStyleChange(style.id)}
-              className={cn(
-                "flex flex-col items-center gap-1 p-2 rounded-lg border transition-all",
-                item.style === style.id ? "ring-2 ring-primary bg-secondary border-primary" : "border-border hover:bg-muted/50"
-              )}
-            >
-              <img src={style.image} alt={style.name} className="h-16 w-16 object-cover rounded" />
-              <span className="text-xs font-medium text-foreground text-center leading-tight">{style.name}</span>
-              {item.size && style.price[item.size as keyof typeof style.price] > 0 && (
-                <span className="text-xs text-primary">+CHF {formatChf(style.price[item.size as keyof typeof style.price])}</span>
-              )}
-            </button>
-          ))}
-        </div>
+      {/* Design — read-only here. Changing it in the cart kept the old
+          design's photo, its « Photo N » pick and options the new design
+          doesn't allow (29.10.2026: Printed Picture switched to Normal
+          without border, image never sent). The design is only chosen in
+          the catalogue, where every rule and upload applies. */}
+      <EditSection label={t("Design", "Design")} tooltip={t("To choose another design, remove this cake and pick the new design in the catalogue.", "Pour choisir un autre design, supprimez ce gâteau et choisissez le nouveau design dans le catalogue.")}>
+        <p className="text-sm font-medium text-foreground">{item.style?.startsWith("inspiration-") ? t("Inspiration photo", "Photo d'inspiration") : item.styleName}</p>
+        <p className="text-xs text-muted-foreground">
+          {t("To choose another design, remove this cake and pick the new design in the catalogue.", "Pour choisir un autre design, supprimez ce gâteau et choisissez le nouveau design dans le catalogue.")}
+        </p>
       </EditSection>
 
       {/* Base Colour */}
@@ -1392,12 +1347,16 @@ const CartItemEditor = ({
         </EditSection>
       )}
 
-      {/* Extras */}
+      {/* Extras — same rules as the catalogue. Printed Picture can only be
+          added there (it needs the image to print); here it can only be
+          removed. */}
+      {excludedExtras && (
       <EditSection label={t("Extra", "Suppléments")} tooltip={t("You can add any additional elements to personalise your design.", "Vous pouvez ajouter des éléments supplémentaires pour personnaliser votre design.")}>
         {extraGroups.map((group) => {
           const visibleExtras = group.ids
             .map(id => extras.find(e => e.id === id))
             .filter((extra): extra is typeof extras[0] => !!extra && !excludedExtras.includes(extra.id))
+            .filter(extra => extra.id !== "printed-picture" || (item.extras || []).includes(extra.id))
             .filter(extra => {
               const price = extra.price[item.size as keyof typeof extra.price];
               return price !== undefined && price > 0;
@@ -1539,6 +1498,7 @@ const CartItemEditor = ({
           </div>
         )}
       </EditSection>
+      )}
 
       {/* Comment */}
       <EditSection label={t("Comment", "Commentaire")} tooltip={t("Write any guidelines you would like to clarify. Please note that if you request decorations or extras that were not selected, the price may change.", "Indiquez toute précision que vous souhaitez apporter. Veuillez noter que si vous demandez des décorations ou des suppléments non sélectionnés, le prix peut varier.")}>
