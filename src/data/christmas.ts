@@ -14,6 +14,10 @@ import noelRoyal from "@/assets/noel-royal.jpg";
 import noelBeauSapin from "@/assets/noel-beau-sapin.jpg";
 import noelSapin from "@/assets/noel-sapin.jpg";
 import noelCirque from "@/assets/noel-cirque.jpg";
+import bucheJardinHiver1 from "@/assets/buche-jardin-hiver-1.jpg";
+import bucheJardinHiver2 from "@/assets/buche-jardin-hiver-2.jpg";
+import bucheEtoileNoel1 from "@/assets/buche-etoile-noel-1.jpg";
+import bucheEtoileNoel2 from "@/assets/buche-etoile-noel-2.jpg";
 import noelGui1 from "@/assets/noel-gui-1.jpg";
 import noelGui2 from "@/assets/noel-gui-2.jpg";
 import noelGui3 from "@/assets/noel-gui-3.jpg";
@@ -35,6 +39,7 @@ export interface ChristmasLog {
   nameFr: string;
   nameEn: string;
   image: string | null;
+  moreImages?: string[];
 }
 
 export interface ChristmasFlavour {
@@ -61,8 +66,8 @@ export const CHRISTMAS_LOG_PRICE = 65;
 
 export const CHRISTMAS_LOGS: ChristmasLog[] = [
   { id: "buche-casse-noisette", nameFr: "Casse-Noisette", nameEn: "Nutcracker", image: null },
-  { id: "buche-jardin-hiver", nameFr: "Le Jardin d’Hiver", nameEn: "Winter Garden", image: null },
-  { id: "buche-etoile-noel", nameFr: "Étoile de Noël", nameEn: "Christmas Star", image: null },
+  { id: "buche-jardin-hiver", nameFr: "Le Jardin d’Hiver", nameEn: "Winter Garden", image: bucheJardinHiver1, moreImages: [bucheJardinHiver2] },
+  { id: "buche-etoile-noel", nameFr: "Étoile de Noël", nameEn: "Christmas Star", image: bucheEtoileNoel1, moreImages: [bucheEtoileNoel2] },
 ];
 
 // Parfums de Noël (garniture), avec une ligne courte qui donne envie.
@@ -125,7 +130,7 @@ export const CHRISTMAS_SIZE_LABELS: Record<ChristmasSize, { fr: string; en: stri
 
 export const CHRISTMAS_SIZE_ORDER: ChristmasSize[] = ["bento", "retro", "medium", "large"];
 
-/** Every photo of a cake, in display order ([] when none yet). */
+/** Every photo of a cake or log, in display order ([] when none yet). */
 export function cakePhotos(cake: { image: string | null; moreImages?: string[] }): string[] {
   return cake.image ? [cake.image, ...(cake.moreImages ?? [])] : [];
 }

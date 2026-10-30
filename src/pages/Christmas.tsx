@@ -236,7 +236,7 @@ const Christmas = () => {
                 key={b.id}
                 name={l === "fr" ? b.nameFr : b.nameEn}
                 price={`CHF ${CHRISTMAS_LOG_PRICE}`}
-                images={b.image ? [b.image] : []}
+                images={cakePhotos(b)}
                 selected={selection?.kind === "log" && selection.id === b.id}
                 onClick={() => choose({ kind: "log", id: b.id })}
               />
@@ -252,7 +252,7 @@ const Christmas = () => {
             <div className="aspect-square">
               <PhotoCarousel
                 key={(cake ?? log)!.id}
-                images={cake ? cakePhotos(cake) : log!.image ? [log!.image] : []}
+                images={cakePhotos((cake ?? log)!)}
                 alt={l === "fr" ? (cake ?? log)!.nameFr : (cake ?? log)!.nameEn}
               />
             </div>
