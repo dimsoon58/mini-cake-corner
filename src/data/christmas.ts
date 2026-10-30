@@ -14,6 +14,8 @@ import noelRoyal from "@/assets/noel-royal.jpg";
 import noelBeauSapin from "@/assets/noel-beau-sapin.jpg";
 import noelSapin from "@/assets/noel-sapin.jpg";
 import noelCirque from "@/assets/noel-cirque.jpg";
+import bucheCasseNoisette1 from "@/assets/buche-casse-noisette-1.jpg";
+import bucheCasseNoisette2 from "@/assets/buche-casse-noisette-2.jpg";
 import bucheJardinHiver1 from "@/assets/buche-jardin-hiver-1.jpg";
 import bucheJardinHiver2 from "@/assets/buche-jardin-hiver-2.jpg";
 import bucheEtoileNoel1 from "@/assets/buche-etoile-noel-1.jpg";
@@ -57,7 +59,7 @@ export const CHRISTMAS_CAKES: ChristmasCake[] = [
   { id: "noel-royal", nameFr: "Noël Royal", nameEn: "Royal Christmas", prices: { retro: 55, medium: 105, large: 185 }, image: noelRoyal },
   { id: "noel-sapin", nameFr: "Le Sapin de Noël", nameEn: "Christmas Tree", prices: { retro: 60, medium: 140, large: 230 }, image: noelSapin },
   { id: "noel-cirque", nameFr: "Le Cirque de Noël", nameEn: "Christmas Circus", prices: { retro: 55, medium: 110, large: 190 }, image: noelCirque },
-  { id: "noel-gui", nameFr: "Gui de Noël", nameEn: "Under the Mistletoe", prices: { retro: 55, medium: 105, large: 185 }, image: noelGui1, moreImages: [noelGui2, noelGui3] },
+  { id: "noel-gui", nameFr: "Gui de Noël", nameEn: "Under the Mistletoe", prices: { retro: 55, medium: 105, large: 185 }, image: noelGui2, moreImages: [noelGui1, noelGui3] },
   { id: "noel-beau-sapin", nameFr: "Mon beau sapin", nameEn: "Little Christmas Tree", prices: { bento: 45, medium: 90, large: 175 }, image: noelBeauSapin },
 ];
 
@@ -65,7 +67,7 @@ export const CHRISTMAS_CAKES: ChristmasCake[] = [
 export const CHRISTMAS_LOG_PRICE = 65;
 
 export const CHRISTMAS_LOGS: ChristmasLog[] = [
-  { id: "buche-casse-noisette", nameFr: "Casse-Noisette", nameEn: "Nutcracker", image: null },
+  { id: "buche-casse-noisette", nameFr: "Casse-Noisette", nameEn: "Nutcracker", image: bucheCasseNoisette1, moreImages: [bucheCasseNoisette2] },
   { id: "buche-jardin-hiver", nameFr: "Le Jardin d’Hiver", nameEn: "Winter Garden", image: bucheJardinHiver1, moreImages: [bucheJardinHiver2] },
   { id: "buche-etoile-noel", nameFr: "Étoile de Noël", nameEn: "Christmas Star", image: bucheEtoileNoel1, moreImages: [bucheEtoileNoel2] },
 ];
