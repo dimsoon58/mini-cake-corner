@@ -67,17 +67,20 @@ function ProductCard({ name, price, image, selected, onClick }: {
     <button
       type="button"
       onClick={onClick}
+      // Double bordeaux frame, same as the Catalog cards.
       className={cn(
-        "group flex flex-col justify-start text-left bg-background transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        selected ? "ring-2 ring-primary" : "hover:shadow-md",
+        "group flex flex-col justify-start text-left bg-background border-[3px] border-primary transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+        selected ? "ring-2 ring-primary ring-offset-2" : "hover:shadow-md",
       )}
     >
-      <div className="aspect-square overflow-hidden">
-        <PhotoSlot image={image} alt={name} className="transition-transform duration-500 group-hover:scale-105" />
-      </div>
-      <div className="px-3 py-3">
-        <p className="uppercase tracking-[0.12em] text-sm font-semibold text-foreground">{name}</p>
-        <p className="text-sm text-foreground/70 mt-1">{price}</p>
+      <div className="border border-primary m-1.5 flex flex-col flex-1 overflow-hidden">
+        <div className="aspect-square overflow-hidden">
+          <PhotoSlot image={image} alt={name} className="transition-transform duration-500 group-hover:scale-105" />
+        </div>
+        <div className="px-3 py-3">
+          <p className="uppercase tracking-[0.12em] text-sm font-semibold text-foreground">{name}</p>
+          <p className="text-sm text-foreground/70 mt-1">{price}</p>
+        </div>
       </div>
     </button>
   );
