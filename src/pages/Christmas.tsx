@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ImageIcon } from "lucide-react";
+import { CalendarIcon, Check, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,7 +14,7 @@ import { useChristmasVisible } from "@/hooks/useChristmasVisible";
 import { cn } from "@/lib/utils";
 import {
   CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CAKE_FLAVOURS, LOG_FLAVOURS, SPONGES, LOG_INTRO, CLASSIC_FILLING,
-  CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice,
+  CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos,
   type ChristmasSize, type ChristmasFlavour,
 } from "@/data/christmas";
 
@@ -60,13 +60,40 @@ function OptionTile({ title, detail, selected, onClick }: { title: string; detai
   );
 }
 
-function ProductCard({ name, price, image, selected, onClick }: {
-  name: string; price: string; image: string | null; selected: boolean; onClick: () => void;
+// Several photos: arrows to scroll them (clicking an arrow never selects
+// the card). One photo or none: the plain PhotoSlot.
+function PhotoCarousel({ images, alt, className }: { images: string[]; alt: string; className?: string }) {
+  const { t } = useLang();
+  const [index, setIndex] = useState(0);
+  if (images.length <= 1) return <PhotoSlot image={images[0] ?? null} alt={alt} className={className} />;
+  const go = (e: React.MouseEvent, step: number) => {
+    e.stopPropagation();
+    setIndex((i) => (i + step + images.length) % images.length);
+  };
+  const arrow = "absolute top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-background/90 hover:bg-background shadow-md";
+  return (
+    <div className="relative w-full h-full">
+      <img src={images[index]} alt={`${alt} ${index + 1}`} className={cn("w-full h-full object-cover", className)} />
+      <button type="button" onClick={(e) => go(e, -1)} aria-label={t("Previous photo", "Photo précédente")} className={cn(arrow, "left-2")}>
+        <ChevronLeft className="w-4 h-4 text-foreground" />
+      </button>
+      <button type="button" onClick={(e) => go(e, 1)} aria-label={t("Next photo", "Photo suivante")} className={cn(arrow, "right-2")}>
+        <ChevronRight className="w-4 h-4 text-foreground" />
+      </button>
+    </div>
+  );
+}
+
+function ProductCard({ name, price, images, selected, onClick }: {
+  name: string; price: string; images: string[]; selected: boolean; onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
+    // A div, not a button: the photo arrows inside are buttons themselves.
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
       // Double bordeaux frame, same as the Catalog cards.
       className={cn(
         "group flex flex-col justify-start text-left bg-background border-[3px] border-primary transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
@@ -75,14 +102,14 @@ function ProductCard({ name, price, image, selected, onClick }: {
     >
       <div className="border border-primary m-1.5 flex flex-col flex-1 overflow-hidden">
         <div className="aspect-square overflow-hidden">
-          <PhotoSlot image={image} alt={name} className="transition-transform duration-500 group-hover:scale-105" />
+          <PhotoCarousel images={images} alt={name} className="transition-transform duration-500 group-hover:scale-105" />
         </div>
         <div className="px-3 py-3">
           <p className="uppercase tracking-[0.12em] text-sm font-semibold text-foreground">{name}</p>
           <p className="text-sm text-foreground/70 mt-1">{price}</p>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -187,7 +214,7 @@ const Christmas = () => {
               key={c.id}
               name={l === "fr" ? c.nameFr : c.nameEn}
               price={t(`from CHF ${fromPrice(c)}`, `dès CHF ${fromPrice(c)}`)}
-              image={c.image}
+              images={cakePhotos(c)}
               selected={selection?.kind === "cake" && selection.id === c.id}
               onClick={() => choose({ kind: "cake", id: c.id })}
             />
@@ -209,7 +236,7 @@ const Christmas = () => {
                 key={b.id}
                 name={l === "fr" ? b.nameFr : b.nameEn}
                 price={`CHF ${CHRISTMAS_LOG_PRICE}`}
-                image={b.image}
+                images={b.image ? [b.image] : []}
                 selected={selection?.kind === "log" && selection.id === b.id}
                 onClick={() => choose({ kind: "log", id: b.id })}
               />
@@ -223,7 +250,11 @@ const Christmas = () => {
         <section ref={formRef} className="container mx-auto px-4 py-12 scroll-mt-24">
           <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             <div className="aspect-square">
-              <PhotoSlot image={(cake ?? log)!.image} alt={l === "fr" ? (cake ?? log)!.nameFr : (cake ?? log)!.nameEn} />
+              <PhotoCarousel
+                key={(cake ?? log)!.id}
+                images={cake ? cakePhotos(cake) : log!.image ? [log!.image] : []}
+                alt={l === "fr" ? (cake ?? log)!.nameFr : (cake ?? log)!.nameEn}
+              />
             </div>
 
             <div className="space-y-8">
