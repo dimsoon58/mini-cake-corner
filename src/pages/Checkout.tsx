@@ -273,14 +273,16 @@ const uploadImageFilesToStorage = async (
   allFiles: File[],
   orderId: string,
   onProgress?: (status: string) => void
-): Promise<string[]> => {
+): Promise<(string | null)[]> => {
   if (!allFiles.length) return [];
 
   onProgress?.("Uploading images...");
   const now = new Date();
   const year = String(now.getFullYear());
   const month = String(now.getMonth() + 1).padStart(2, "0");
-  const uploadedUrls: string[] = [];
+  // One entry per file, in order — null when that file failed, so the
+  // caller can stop the order and every photo stays with its own cake.
+  const uploadedUrls: (string | null)[] = [];
 
   for (let i = 0; i < allFiles.length; i++) {
     const file = allFiles[i];
@@ -315,6 +317,7 @@ const uploadImageFilesToStorage = async (
       uploadedUrls.push(data.publicUrl);
     } else {
       console.error(`Failed to upload reference_${i} after 3 attempts`);
+      uploadedUrls.push(null);
     }
   }
 
@@ -1012,6 +1015,23 @@ const Checkout = () => {
       return;
     }
 
+    // Photos are kept in the browser (cartPhotoStore.ts) but can still be
+    // lost (private browsing, another device, cleared data): never order
+    // without them silently — the cart shows which cake and lets the
+    // customer add them again or continue without.
+    const itemMissingPhotos = items.find((it) => (it.imageFileCount ?? 0) > (it.imageFiles ?? []).length);
+    if (itemMissingPhotos) {
+      toast({
+        title: t("Photos missing", "Photos manquantes"),
+        description: t(
+          "Some of the photos you added to your cart could not be found. Please go back to your cart to add them again, or to continue without them.",
+          "Certaines photos ajoutées à votre panier n'ont pas été retrouvées. Retournez au panier pour les ajouter à nouveau, ou pour continuer sans elles.",
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!acceptTerms) {
       toast({
         title: t("Terms and Conditions required", "CGV requises"),
@@ -1290,13 +1310,22 @@ const Checkout = () => {
       const orderImageUrls = await uploadImageFilesToStorage(allImageFiles, orderId, (status) => {
         toast({ title: status });
       });
+      // Never order without a photo the customer added (30.10.2026: a
+      // failed upload used to be skipped silently, and shifted the next
+      // photos onto the wrong cake).
+      if (orderImageUrls.some((url) => url === null)) {
+        throw new Error(t(
+          "One of your photos could not be sent (connection problem). Nothing has been charged — please check your connection and try again.",
+          "Une de vos photos n'a pas pu être envoyée (problème de connexion). Rien n'a été débité — vérifiez votre connexion et réessayez.",
+        ));
+      }
 
       // Build per-item image URLs (distribute back to items for their own
       // order_items.reference_images row)
       let urlIndex = 0;
       const orderItemsWithImageUrls = items.map(item => {
         const itemFileCount = (item.imageFiles || []).length;
-        const itemUrls = orderImageUrls.slice(urlIndex, urlIndex + itemFileCount);
+        const itemUrls = orderImageUrls.slice(urlIndex, urlIndex + itemFileCount) as string[];
         urlIndex += itemFileCount;
         return { ...item, imageUrls: itemUrls };
       });

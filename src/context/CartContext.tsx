@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { trackAddToCart, trackRemoveFromCart } from "@/lib/analytics";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { INSPIRATIONS } from "@/data/inspirations";
@@ -6,6 +6,7 @@ import { useLang } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { getStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { onOrderCompleted } from "@/lib/orderCompletionChannel";
+import { loadCartPhotos, saveCartPhotos, pruneCartPhotos } from "@/lib/cartPhotoStore";
 import { supabase } from "@/integrations/supabase/client";
 import {
   getStoredPartnerReferral,
@@ -74,6 +75,11 @@ export interface CartItem {
   comment: string;
   imageUrls: string[];
   imageFiles: File[];
+  /* How many photos the customer added (kept in localStorage with the
+     rest of the item, unlike the files themselves). If fewer files than
+     this come back from the browser's photo store, some were lost and
+     Checkout asks for them again instead of ordering without them. */
+  imageFileCount?: number;
   /* Absolute URL of the catalogue design photo the customer chose on
      Catalog.tsx: the exact option they clicked for a multi-photo design,
      otherwise the design's single photo. Complements `style`/`design` (the
@@ -267,6 +273,41 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setStaleInspirationDropped(0);
   }, [staleInspirationDropped, toast, t]);
 
+  // Photos live in the browser's photo store (cartPhotoStore.ts), not in
+  // localStorage: put them back on their items once read, then keep the
+  // store in sync. Nothing is written before the first read, so the empty
+  // imageFiles of the first render can never wipe the stored photos.
+  const [photosLoaded, setPhotosLoaded] = useState(false);
+  const savedPhotos = useRef<Record<string, File[]>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    loadCartPhotos().then((stored) => {
+      if (cancelled) return;
+      savedPhotos.current = stored;
+      setItems((prev) => prev.map((item) =>
+        !item.imageFiles?.length && stored[item.id]?.length ? { ...item, imageFiles: stored[item.id] } : item));
+      setPhotosLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!photosLoaded) return;
+    for (const item of items) {
+      const files = item.imageFiles || [];
+      const saved = savedPhotos.current[item.id];
+      if (files === saved || (!files.length && !saved?.length)) continue;
+      savedPhotos.current[item.id] = files;
+      saveCartPhotos(item.id, files);
+    }
+    const ids = items.map((item) => item.id);
+    if (Object.keys(savedPhotos.current).some((id) => !ids.includes(id))) {
+      for (const id of Object.keys(savedPhotos.current)) if (!ids.includes(id)) delete savedPhotos.current[id];
+      pruneCartPhotos(ids);
+    }
+  }, [items, photosLoaded]);
+
   useEffect(() => {
     // Exclude non-serializable File objects from localStorage
     const serializable = items.map(({ imageFiles, ...rest }) => rest);
@@ -370,7 +411,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return { ok: false, reason: "date_mismatch" };
       }
     }
-    const newItem = { ...item, id: Date.now().toString() };
+    const newItem = { ...item, id: Date.now().toString(), imageFileCount: item.imageFiles?.length ?? 0 };
     setItems((prev) => [...prev, newItem]);
     // GA4 add_to_cart — fired here so every "Add to cart" surface (Catalog,
     // Dot Cakes, Candles, DIY Kit, Printing, …) is covered once, and only
@@ -380,6 +421,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateItem = (id: string, updates: Partial<CartItem>) => {
+    if (updates.imageFiles && updates.imageFileCount === undefined) {
+      updates = { ...updates, imageFileCount: updates.imageFiles.length };
+    }
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
     );
