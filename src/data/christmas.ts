@@ -42,6 +42,7 @@ export const CHRISTMAS_CAKES: ChristmasCake[] = [
   { id: "noel-sapin", nameFr: "Le Sapin de Noël", nameEn: "Christmas Tree", prices: { retro: 60, medium: 140, large: 230 }, image: noelSapin },
   { id: "noel-cirque", nameFr: "Le Cirque de Noël", nameEn: "Christmas Circus", prices: { retro: 55, medium: 110, large: 190 }, image: null },
   { id: "noel-gui", nameFr: "Gui de Noël", nameEn: "Under the Mistletoe", prices: { retro: 55, medium: 105, large: 185 }, image: null },
+  { id: "noel-beau-sapin", nameFr: "Mon beau sapin", nameEn: "Little Christmas Tree", prices: { bento: 45, medium: 90, large: 175 }, image: null },
 ];
 
 // Même prix pour toutes les bûches.
