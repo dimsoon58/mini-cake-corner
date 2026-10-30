@@ -7,6 +7,8 @@
 // image: null tant que la photo n'est pas fournie — la page affiche un cadre
 // vide à la place.
 
+import noelSapin from "@/assets/noel-sapin.jpg";
+
 export type ChristmasSize = "bento" | "retro" | "medium" | "large";
 
 export interface ChristmasCake {
@@ -37,7 +39,7 @@ export const CHRISTMAS_CAKES: ChristmasCake[] = [
   { id: "noel-monsieur-neige", nameFr: "Monsieur Neige", nameEn: "Mr Snow", prices: { bento: 50, medium: 100, large: 190 }, image: null },
   { id: "noel-rodolphe", nameFr: "Rodolphe", nameEn: "Rudolph", prices: { bento: 45, medium: 90, large: 175 }, image: null },
   { id: "noel-royal", nameFr: "Noël Royal", nameEn: "Royal Christmas", prices: { retro: 55, medium: 105, large: 185 }, image: null },
-  { id: "noel-sapin", nameFr: "Le Sapin de Noël", nameEn: "Christmas Tree", prices: { retro: 60, medium: 140, large: 230 }, image: null },
+  { id: "noel-sapin", nameFr: "Le Sapin de Noël", nameEn: "Christmas Tree", prices: { retro: 60, medium: 140, large: 230 }, image: noelSapin },
   { id: "noel-cirque", nameFr: "Le Cirque de Noël", nameEn: "Christmas Circus", prices: { retro: 55, medium: 110, large: 190 }, image: null },
   { id: "noel-gui", nameFr: "Gui de Noël", nameEn: "Under the Mistletoe", prices: { retro: 55, medium: 105, large: 185 }, image: null },
 ];
