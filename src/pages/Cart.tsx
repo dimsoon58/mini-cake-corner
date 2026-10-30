@@ -785,6 +785,27 @@ const Cart = () => {
                           revoked, never leaked on every re-render. */}
                       <ItemDesignImage item={item} alt={t("Chosen design", "Design choisi")} />
 
+                      {/* Photos added to this cake but not found again in the
+                          browser (see cartPhotoStore.ts) — Checkout refuses
+                          the order until they're added again or dropped. */}
+                      {(item.imageFileCount ?? 0) > (item.imageFiles ?? []).length && (
+                        <div className="mt-3 border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
+                          <p className="text-foreground">
+                            {t(
+                              "Some photos you added to this cake could not be found. Click Edit to add them again in Photos.",
+                              "Certaines photos ajoutées à ce gâteau n'ont pas été retrouvées. Cliquez sur Modifier pour les ajouter à nouveau dans Photos.",
+                            )}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => updateItem(item.id, { imageFileCount: (item.imageFiles ?? []).length })}
+                            className="text-primary underline"
+                          >
+                            {t("Continue without these photos", "Continuer sans ces photos")}
+                          </button>
+                        </div>
+                      )}
+
                       {isEditing ? (
                         <CartItemEditor
                           item={item}
