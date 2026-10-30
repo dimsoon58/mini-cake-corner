@@ -14,7 +14,7 @@ import { useChristmasVisible } from "@/hooks/useChristmasVisible";
 import { cn } from "@/lib/utils";
 import {
   CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CAKE_FLAVOURS, LOG_FLAVOURS, SPONGES, LOG_INTRO, CLASSIC_FILLING,
-  CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos,
+  CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos, CHRISTMAS_MOMENTS,
   type ChristmasSize, type ChristmasFlavour,
 } from "@/data/christmas";
 
@@ -110,6 +110,40 @@ function ProductCard({ name, price, images, selected, onClick }: {
         </div>
       </div>
     </div>
+  );
+}
+
+// Bandeau de photos en bas de page, même présentation que « Dot Cake Moments ».
+function ChristmasMoments() {
+  const { t } = useLang();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scroll = (direction: "left" | "right") => {
+    scrollRef.current?.scrollBy({ left: direction === "left" ? -320 : 320, behavior: "smooth" });
+  };
+  if (CHRISTMAS_MOMENTS.length === 0) return null;
+  return (
+    <section className="space-y-6">
+      <h2 className="font-sans text-xl font-semibold text-center uppercase tracking-[0.105em] text-foreground">
+        Christmas Moments
+      </h2>
+      <div className="relative overflow-hidden">
+        <button onClick={() => scroll("left")} aria-label={t("Previous", "Précédent")}
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
+          <ChevronLeft className="h-5 w-5 text-foreground" />
+        </button>
+        <div ref={scrollRef} className="flex gap-4 overflow-x-auto scroll-smooth px-3" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          {CHRISTMAS_MOMENTS.map((photo, index) => (
+            <div key={index} className="flex-shrink-0 w-64 h-64 overflow-hidden">
+              <img src={photo} alt={`Christmas Moment ${index + 1}`} loading="lazy" className="w-full h-full object-cover" />
+            </div>
+          ))}
+        </div>
+        <button onClick={() => scroll("right")} aria-label={t("Next", "Suivant")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
+          <ChevronRight className="h-5 w-5 text-foreground" />
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -388,6 +422,10 @@ const Christmas = () => {
           </div>
         </section>
       )}
+
+      <div className="container mx-auto px-6 py-8 md:py-16">
+        <ChristmasMoments />
+      </div>
     </Layout>
   );
 };
