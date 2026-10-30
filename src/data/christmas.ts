@@ -13,6 +13,7 @@ import noelRodolphe from "@/assets/noel-rodolphe.jpg";
 import noelRoyal from "@/assets/noel-royal.jpg";
 import noelBeauSapin from "@/assets/noel-beau-sapin.jpg";
 import noelSapin from "@/assets/noel-sapin.jpg";
+import noelCirque from "@/assets/noel-cirque.jpg";
 import noelGui1 from "@/assets/noel-gui-1.jpg";
 import noelGui2 from "@/assets/noel-gui-2.jpg";
 import noelGui3 from "@/assets/noel-gui-3.jpg";
@@ -50,7 +51,7 @@ export const CHRISTMAS_CAKES: ChristmasCake[] = [
   { id: "noel-rodolphe", nameFr: "Rodolphe", nameEn: "Rudolph", prices: { bento: 45, medium: 90, large: 175 }, image: noelRodolphe },
   { id: "noel-royal", nameFr: "Noël Royal", nameEn: "Royal Christmas", prices: { retro: 55, medium: 105, large: 185 }, image: noelRoyal },
   { id: "noel-sapin", nameFr: "Le Sapin de Noël", nameEn: "Christmas Tree", prices: { retro: 60, medium: 140, large: 230 }, image: noelSapin },
-  { id: "noel-cirque", nameFr: "Le Cirque de Noël", nameEn: "Christmas Circus", prices: { retro: 55, medium: 110, large: 190 }, image: null },
+  { id: "noel-cirque", nameFr: "Le Cirque de Noël", nameEn: "Christmas Circus", prices: { retro: 55, medium: 110, large: 190 }, image: noelCirque },
   { id: "noel-gui", nameFr: "Gui de Noël", nameEn: "Under the Mistletoe", prices: { retro: 55, medium: 105, large: 185 }, image: noelGui1, moreImages: [noelGui2, noelGui3] },
   { id: "noel-beau-sapin", nameFr: "Mon beau sapin", nameEn: "Little Christmas Tree", prices: { bento: 45, medium: 90, large: 175 }, image: noelBeauSapin },
 ];
