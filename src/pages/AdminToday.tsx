@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
-import { AlertTriangle, Loader2, Lock, Plus, RefreshCw } from "lucide-react";
+import { AlertTriangle, Flame, Loader2, Lock, Plus, RefreshCw, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 import { PRODUCT_LABELS, flavorLabel, shapeLabel, sizeLabel } from "@/lib/orderLabels";
 import { formatChf } from "@/lib/manualOrders";
+import { useScrollMemory } from "@/hooks/useScrollMemory";
 import { cn } from "@/lib/utils";
 
 // Admin > Aujourd'hui — the Admin home. Every row opens the order page, where
@@ -46,6 +47,9 @@ type DayItem = {
   productionStatus: string | null;
   badge: "to_accept" | "awaiting_payment" | null;
   quantity?: number;
+  // Sent by get-today once redeployed (absent before: no badge).
+  candleName?: string | null;
+  candleQuantity?: number | null;
 };
 type Alert = { orderId: string; orderNumber: string | null; issueType: string; detail: string | null; createdAt: string };
 type TodayData = { today: string; tomorrow: string; from?: string; to?: string; toDecide: ListedOrder[]; toCollect: ListedOrder[]; days: Record<string, DayItem[]>; alerts: Alert[] };
@@ -54,6 +58,8 @@ type Filter = "all" | "todo" | "ready";
 
 const MAX_RANGE_DAYS = 31; // same limit as get-today
 const DEFAULT_EXTRA_DAYS = 2;
+// « Livraisons à venir » looks this many days ahead, whatever the period.
+const DELIVERY_LOOKAHEAD_DAYS = 14;
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 const zurichTodayISO = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
@@ -86,7 +92,8 @@ const AdminToday = () => {
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>("all");
+  // Upcoming deliveries (today → +14 days), to book the courier in time.
+  const [upcoming, setUpcoming] = useState<Record<string, DayItem[]> | null>(null);
   // Commandes de test masquées sauf avec « Afficher les tests » (get-today).
   const [includeTests, setIncludeTests] = useShowTests();
   // F28 : gâteaux des workshops de la période, par session (même calcul que Production).
@@ -104,6 +111,14 @@ const AdminToday = () => {
       : daysBetween(from, to) + 1 > MAX_RANGE_DAYS
         ? t(`The period is limited to ${MAX_RANGE_DAYS} days.`, `La période est limitée à ${MAX_RANGE_DAYS} jours.`)
         : null;
+  // Filter kept in the URL too (?vue=), so « Retour » from an order comes back to it.
+  const vue = searchParams.get("vue");
+  const filter: Filter = vue === "todo" || vue === "ready" ? vue : "all";
+  const setFilter = (next: Filter) => {
+    const p = new URLSearchParams(searchParams);
+    if (next === "all") p.delete("vue"); else p.set("vue", next);
+    setSearchParams(p, { replace: true });
+  };
   const setPeriod = (next: { from?: string; to?: string } | null) => {
     const p = new URLSearchParams(searchParams);
     if (!next) { p.delete("from"); p.delete("to"); } else {
@@ -143,6 +158,13 @@ const AdminToday = () => {
         return;
       }
       setData(res as TodayData);
+      // Livraisons à venir : same function, fixed 14-day window from today.
+      try {
+        const { data: up, error: uErr } = await supabase.functions.invoke("get-today", {
+          body: { from: zToday, to: addDays(zToday, DELIVERY_LOOKAHEAD_DAYS - 1), includeTests },
+        });
+        setUpcoming(!uErr && !up?.error && up?.from ? (up as TodayData).days : null);
+      } catch { setUpcoming(null); }
       // Sessions de workshop (get-production) : sans accès ou pas encore déployé → bloc absent.
       try {
         const { data: prod, error: pErr } = await supabase.functions.invoke("get-production", { body: { from, to, includeTests } });
@@ -154,7 +176,7 @@ const AdminToday = () => {
     } finally {
       setLoading(false);
     }
-  }, [t, from, to, includeTests, rangeError]);
+  }, [t, from, to, includeTests, rangeError, zToday]);
 
   useEffect(() => {
     if (!authLoading && !staff.loading && isAdmin) load();
@@ -164,6 +186,8 @@ const AdminToday = () => {
   // descendre jusqu'à la section une fois les données affichées.
   const { hash } = useLocation();
   const hasData = !!data;
+  // « Retour » from an order: back at the same place in the list.
+  useScrollMemory("today", hasData && !loading && !hash);
   useEffect(() => {
     if (!hasData || !hash) return;
     document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
@@ -250,16 +274,45 @@ const AdminToday = () => {
   const counts: Record<Filter, number> = { all: sumQty(periodCakes), todo: sumQty(periodCakes) - readyCount, ready: readyCount };
   const workshopDates = periodDates.filter((d) => data!.days[d].some((i) => i.type === "workshop"));
 
+  // Badges that must never be missed: delivery (courier to book) and candles.
+  const deliveryBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide bg-sky-700 text-white";
+  const candleBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-yellow-300 text-yellow-950 border border-yellow-500";
+  const candleText = (it: DayItem) => {
+    if (it.product === "candles") return t("Candles", "Bougies");
+    if (!it.candleName) return null;
+    return `${t("Candles", "Bougies")} : ${it.candleName}${it.candleQuantity && it.candleQuantity > 1 && !/×\s*\d/.test(it.candleName) ? ` ×${it.candleQuantity}` : ""}`;
+  };
+
+  // Upcoming deliveries, one line per order and date (several cakes of the
+  // same delivery are grouped).
+  const upcomingDeliveries = upcoming
+    ? Object.keys(upcoming).sort().flatMap((date) => {
+        const seen = new Map<string, { date: string; it: DayItem; cakes: number }>();
+        for (const it of upcoming[date]) {
+          if (it.type !== "cake" || it.deliveryMethod !== "delivery") continue;
+          const prev = seen.get(it.orderId);
+          if (prev) prev.cakes += qtyOf(it); else seen.set(it.orderId, { date, it, cakes: qtyOf(it) });
+        }
+        return [...seen.values()].sort((a, b) => (a.it.slot ?? "99").localeCompare(b.it.slot ?? "99"));
+      })
+    : null;
+
   const itemLink = (it: DayItem, done: boolean) => (
     <Link to={`/admin/order/${it.orderId}`} className={cn("flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 pr-4 py-3 hover:bg-secondary/40", done && "opacity-60")}>
       <span className="w-28 shrink-0 text-sm tabular-nums text-muted-foreground">{it.slot || t("No time slot", "Sans créneau")}</span>
       <span className="flex-1 min-w-[180px]">
         <span className={cn("block text-sm font-medium text-foreground", done && "line-through")}>{itemTitle(it)}</span>
         <span className="block text-xs text-muted-foreground">
-          {it.orderNumber} · {it.customerName} · {methodLabel(it)}
+          {it.orderNumber} · {it.customerName}{it.deliveryMethod === "delivery" ? "" : ` · ${methodLabel(it)}`}
         </span>
       </span>
       <span className="flex flex-wrap gap-1.5">
+        {it.deliveryMethod === "delivery" && it.type === "cake" && (
+          <span className={deliveryBadge}><Truck className="w-3.5 h-3.5" /> {t("Delivery", "Livraison")}{it.deliveryCity ? ` · ${it.deliveryCity}` : ""}</span>
+        )}
+        {candleText(it) && (
+          <span className={candleBadge}><Flame className="w-3.5 h-3.5" /> {candleText(it)}</span>
+        )}
         {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-blue-600 text-white">{t("To accept", "À accepter")}</span>}
         {it.badge === "awaiting_payment" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To collect", "À encaisser")}</span>}
         {done && <span className="px-2 py-0.5 text-[11px] bg-emerald-100 text-emerald-800">{t("Done", "Fait")}</span>}
@@ -426,6 +479,34 @@ const AdminToday = () => {
                 </a>
               ))}
             </div>
+
+            {/* Upcoming deliveries — the courier has to be booked ahead */}
+            {upcomingDeliveries && (
+              <section id="livraisons">
+                <h2 className={cn(sectionTitle, "flex items-center gap-2")}>
+                  <Truck className="w-4 h-4 text-sky-700" /> {t(`Upcoming deliveries (${DELIVERY_LOOKAHEAD_DAYS} days)`, `Livraisons à venir (${DELIVERY_LOOKAHEAD_DAYS} jours)`)} ({upcomingDeliveries.length})
+                </h2>
+                {upcomingDeliveries.length === 0 ? (
+                  <div className={box}><p className="px-4 py-5 text-sm text-muted-foreground">{t("No delivery in the next 14 days.", "Aucune livraison dans les 14 prochains jours.")}</p></div>
+                ) : (
+                  <ul className="border-2 border-sky-700 bg-sky-50 divide-y divide-sky-200">
+                    {upcomingDeliveries.map(({ date, it, cakes }) => (
+                      <li key={`${it.orderId}-${date}`}>
+                        <Link to={`/admin/order/${it.orderId}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm text-sky-950 hover:bg-sky-100">
+                          <span className="w-36 shrink-0 font-semibold first-letter:uppercase">{shortDate(date)}{date === today && <span className="ml-1 text-xs text-primary">{t("today", "aujourd'hui")}</span>}</span>
+                          <span className="w-28 shrink-0 tabular-nums">{it.slot || t("No time slot", "Sans créneau")}</span>
+                          <span className="flex-1 min-w-[180px]">
+                            <span className="font-medium">{it.deliveryCity || t("Address on the order", "Adresse dans la commande")}</span>
+                            <span className="block text-xs text-sky-900/80">{it.orderNumber} · {it.customerName} · {cakes} {t(cakes > 1 ? "cakes" : "cake", cakes > 1 ? "gâteaux" : "gâteau")}</span>
+                          </span>
+                          {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-blue-600 text-white">{t("To accept", "À accepter")}</span>}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
 
             {/* To do now */}
             {!employee && (

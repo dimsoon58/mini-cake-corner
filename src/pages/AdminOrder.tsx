@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useParams, useSearchParams, Link } from "react-router-dom";
-import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft, Printer, Copy } from "lucide-react";
+import { useParams, useSearchParams, Link, useLocation, useNavigate } from "react-router-dom";
+import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft, Printer, Copy, Flame, Truck } from "lucide-react";
 import { paymentRefs } from "@/lib/paymentRefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,8 @@ const formatDateFromIso = (dateValue?: string | null) => {
 
 const AdminOrder = () => {
   const { t, lang } = useLang();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
@@ -377,16 +379,33 @@ const AdminOrder = () => {
   // as before. 2+ rows means this order genuinely spans multiple dates, so
   // the single "Pickup / Delivery" block is replaced by one per date.
   const isMultiDate = fulfillments.length > 1;
+
+  // What must never be missed, summed up at the top of the order.
+  const candleLines: string[] = items
+    .filter((it: any) => it.candle_name || it.product === "candles")
+    .map((it: any) => it.candle_name
+      ? `${it.candle_name}${it.candle_quantity && !/×\s*\d/.test(it.candle_name) ? ` ×${it.candle_quantity}` : ""}`
+      : t("Candles", "Bougies"));
+  const deliveryStops = (isMultiDate ? fulfillments : [order])
+    .filter((f: any) => f?.delivery_method === "delivery")
+    .map((f: any) => ({ date: f.pickup_delivery_date as string | null, slot: f.pickup_delivery_slot as string | null, address: f.delivery_address as string | null }));
   const fulfillmentById = (fulfillmentId: string | null | undefined) =>
     fulfillmentId ? fulfillments.find((f) => f.id === fulfillmentId) : null;
 
   return (
     <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <Link to="/admin/orders" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="h-3 w-3 mr-1" />
-          {t("Back to all orders", "Retour à toutes les commandes")}
-        </Link>
+        {/* « Retour » goes back to the exact list it was opened from (same
+            period, filter, search and scroll); opened from a link or a new
+            tab, it falls back to Aujourd'hui. */}
+        <button
+          type="button"
+          onClick={() => (location.key !== "default" ? navigate(-1) : navigate("/admin"))}
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          {t("Back", "Retour")}
+        </button>
         <div className="border border-border/60 bg-background p-6 space-y-6">
           {/* Header */}
           <div className="border-b border-border/60 pb-4">
@@ -428,6 +447,31 @@ const AdminOrder = () => {
               )}
             </div>
           </div>
+
+          {/* Delivery and candles: impossible to miss */}
+          {(deliveryStops.length > 0 || candleLines.length > 0) && (
+            <div className="space-y-2">
+              {deliveryStops.map((d, i) => (
+                <div key={i} className="flex items-start gap-3 border-2 border-sky-700 bg-sky-50 px-4 py-3 text-sky-950">
+                  <Truck className="w-5 h-5 mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-semibold uppercase tracking-wide">{t("Delivery — book the courier", "Livraison — réserver le coursier")}</p>
+                    <p>{formatDateFromIso(d.date)}{d.slot ? ` · ${d.slot}` : ""}</p>
+                    {d.address && <p className="text-sky-900/90">{d.address}</p>}
+                  </div>
+                </div>
+              ))}
+              {candleLines.length > 0 && (
+                <div className="flex items-start gap-3 border-2 border-yellow-500 bg-yellow-100 px-4 py-3 text-yellow-950">
+                  <Flame className="w-5 h-5 mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-semibold uppercase tracking-wide">{t("Candles to add", "Bougies à ajouter")}</p>
+                    {candleLines.map((c, i) => <p key={i}>{c}</p>)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {order.created_via === "admin" && !employee && (
             <ManualOrderPanel order={order} items={items} invoiceUrl={invoiceUrl} onChanged={() => setReloadKey((k) => k + 1)} />
@@ -608,7 +652,11 @@ const AdminOrder = () => {
                         {item.extra && (
                           <DetailRow label={t("Extras", "Extras")} value={item.extra} />
                         )}
-                        {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
+                        {candlesList && (
+                          <div className="flex items-center gap-2 my-1 px-2 py-1.5 bg-yellow-100 border border-yellow-500 text-yellow-950 text-sm font-semibold">
+                            <Flame className="w-4 h-4 shrink-0" /> {t("Candles", "Bougies")} : {candlesList}
+                          </div>
+                        )}
                         <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
                         {!employee && (
                         <div className="pt-2">
