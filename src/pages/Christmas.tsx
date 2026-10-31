@@ -14,7 +14,7 @@ import { useChristmasVisible } from "@/hooks/useChristmasVisible";
 import { cn } from "@/lib/utils";
 import {
   CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CAKE_FLAVOURS, LOG_FLAVOURS, SPONGES, LOG_INTRO, CLASSIC_FILLING,
-  CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos, CHRISTMAS_MOMENTS,
+  CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos, CHRISTMAS_MOMENTS, CHRISTMAS_COVER,
   type ChristmasSize, type ChristmasFlavour,
 } from "@/data/christmas";
 
@@ -221,8 +221,9 @@ const Christmas = () => {
 
       {/* En-tête */}
       <section className="relative">
-        <div className="w-full aspect-[16/9] md:aspect-[16/5]">
-          <PhotoSlot image={null} alt="Noël" />
+        {/* 16/9 = the cover photo's own shape, so it is shown whole. */}
+        <div className="w-full aspect-[16/9]">
+          <PhotoSlot image={CHRISTMAS_COVER} alt={t("The Bento Cake Studio Christmas collection", "La collection de Noël de Bento Cake Studio")} />
         </div>
         <div className="container mx-auto px-4 py-10 md:py-14 text-center">
           <h1 className="font-script font-normal text-[44px] md:text-[64px] leading-tight text-foreground">
@@ -264,7 +265,7 @@ const Christmas = () => {
           </h2>
           <p className="text-center text-xs uppercase tracking-[0.15em] text-primary mb-3">{t("New", "Nouveauté")}</p>
           <p className="text-center text-sm text-foreground/80 max-w-xl mx-auto mb-6 leading-relaxed">{LOG_INTRO[l]}</p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {CHRISTMAS_LOGS.map((b) => (
               <ProductCard
                 key={b.id}

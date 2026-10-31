@@ -14,6 +14,9 @@ import noelRoyal from "@/assets/noel-royal.jpg";
 import noelBeauSapin from "@/assets/noel-beau-sapin.jpg";
 import noelSapin from "@/assets/noel-sapin.jpg";
 import noelCirque from "@/assets/noel-cirque.jpg";
+import bucheGrinch1 from "@/assets/buche-grinch-1.jpg";
+import bucheGrinch2 from "@/assets/buche-grinch-2.jpg";
+import noelCouverture from "@/assets/noel-couverture.jpg";
 import bucheCasseNoisette1 from "@/assets/buche-casse-noisette-1.jpg";
 import bucheCasseNoisette2 from "@/assets/buche-casse-noisette-2.jpg";
 import bucheJardinHiver1 from "@/assets/buche-jardin-hiver-1.jpg";
@@ -65,10 +68,14 @@ export const CHRISTMAS_CAKES: ChristmasCake[] = [
   { id: "noel-rodolphe", nameFr: "Rodolphe", nameEn: "Rudolph", prices: { bento: 45, medium: 90, large: 175 }, image: noelRodolphe },
 ];
 
+// Photo de couverture, en haut de la page.
+export const CHRISTMAS_COVER = noelCouverture;
+
 // Même prix pour toutes les bûches.
 export const CHRISTMAS_LOG_PRICE = 65;
 
 export const CHRISTMAS_LOGS: ChristmasLog[] = [
+  { id: "buche-grinch", nameFr: "Grinch", nameEn: "Grinch", image: bucheGrinch1, moreImages: [bucheGrinch2] },
   { id: "buche-jardin-hiver", nameFr: "Le Jardin d’Hiver", nameEn: "Winter Garden", image: bucheJardinHiver1, moreImages: [bucheJardinHiver2] },
   { id: "buche-casse-noisette", nameFr: "Casse-Noisette", nameEn: "Nutcracker", image: bucheCasseNoisette1, moreImages: [bucheCasseNoisette2] },
   { id: "buche-etoile-noel", nameFr: "Étoile de Noël", nameEn: "Christmas Star", image: bucheEtoileNoel1, moreImages: [bucheEtoileNoel2] },
