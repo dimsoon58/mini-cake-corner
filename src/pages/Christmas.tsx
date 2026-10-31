@@ -96,11 +96,11 @@ function ProductCard({ name, price, images, selected, onClick }: {
         <div className="aspect-square overflow-hidden bg-muted/30">
           <PhotoCarousel images={images} alt={name} />
         </div>
-        <div className="px-6 pt-3 pb-6 text-center flex flex-col flex-1">
+        <div className="px-3 md:px-4 pt-3 pb-4 md:pb-6 text-center flex flex-col flex-1">
           <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">{name}</h3>
           <p className="text-muted-foreground text-sm mb-4 flex-1">{price}</p>
           <div className="mt-auto">
-            <Button className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8" onClick={onClick}>
+            <Button className="w-full h-auto min-h-10 whitespace-normal rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-3 py-2 text-xs md:text-sm" onClick={onClick}>
               {t("CHOOSE THIS STYLE", "CHOISIR CE MODÈLE")}
             </Button>
           </div>
@@ -247,11 +247,11 @@ const Christmas = () => {
 
       {/* Gâteaux */}
       <section className="container mx-auto px-4 pb-16">
-        <div className="max-w-6xl mx-auto">
+        <div>
         <h2 className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-10 text-center md:text-left">
           {t("Christmas cakes", "Gâteaux de Noël")}
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {CHRISTMAS_CAKES.map((c) => (
             <ProductCard
               key={c.id}
@@ -268,12 +268,12 @@ const Christmas = () => {
 
       {/* Bûches */}
       <section className="container mx-auto px-4 pb-16">
-        <div className="max-w-6xl mx-auto">
+        <div>
           <h2 className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-6 text-center md:text-left">
             {t("Christmas logs — New", "Bûches de Noël — Nouveauté")}
           </h2>
           <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-10 text-sm md:text-base">{LOG_INTRO[l]}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {CHRISTMAS_LOGS.map((b) => (
               <ProductCard
                 key={b.id}
