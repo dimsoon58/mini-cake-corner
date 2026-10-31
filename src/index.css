@@ -594,3 +594,20 @@ All colors MUST be HSL.
 .rdp-dropdown_year svg {
   display: none !important;
 }
+
+/* Admin (31.10.2026): more contrast and no tiny text — darker borders and
+   secondary text, the smallest sizes bumped up. Scoped to the admin pages. */
+.admin-ui {
+  --border: 38 28% 66%;
+  --muted-foreground: 20 38% 20%;
+}
+.admin-ui .text-\[10px\],
+.admin-ui .text-\[11px\] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+.admin-ui .text-xs {
+  font-size: 0.8125rem;
+  line-height: 1.2rem;
+}
+

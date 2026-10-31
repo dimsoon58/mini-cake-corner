@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Calculator, CakeSlice, CalendarCheck, CalendarDays, ClipboardList, Handshake, LayoutDashboard, Palette, PartyPopper, PencilLine, RotateCcw, Sun, UserRoundCog, Users } from "lucide-react";
+import { Calculator, CakeSlice, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Handshake, LayoutDashboard, MoreHorizontal, Palette, PartyPopper, PencilLine, RotateCcw, Sun, UserRoundCog, Users, X } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -21,12 +21,14 @@ installAdminSessionTransport();
 // sees her allowed sections and never the admin PIN gate (sign-in /
 // access-denied screens keep the plain Layout look).
 
+// 31.10.2026 : the four sections used every day come first (menu and bottom
+// bar); everything else sits under « Autres ».
 const ITEMS = [
   { to: "/admin", en: "Today", fr: "Aujourd'hui", short: { en: "Today", fr: "Auj." }, icon: Sun, exact: true },
-  { to: "/admin/orders", en: "Orders", fr: "Commandes", short: { en: "Orders", fr: "Cmdes" }, icon: ClipboardList, also: ["/admin/order/"] },
+  { to: "/admin/orders", en: "Orders", fr: "Commandes", short: { en: "Orders", fr: "Commandes" }, icon: ClipboardList, also: ["/admin/order/"] },
+  { to: "/admin/calendar", en: "Planning", fr: "Planning", short: { en: "Planning", fr: "Planning" }, icon: CalendarDays, also: ["/admin/labels"] },
   { to: "/admin/customers", en: "Customers", fr: "Clients", short: { en: "Clients", fr: "Clients" }, icon: Users },
   { to: "/admin/manual-orders", en: "Manual orders", fr: "Commandes manuelles", short: { en: "Manual", fr: "Manu." }, icon: PencilLine },
-  { to: "/admin/calendar", en: "Planning", fr: "Planning", short: { en: "Plan.", fr: "Plan." }, icon: CalendarDays, also: ["/admin/labels"] },
   { to: "/admin/events", en: "Events", fr: "Événements", short: { en: "Events", fr: "Évén." }, icon: PartyPopper },
   { to: "/admin/workshops", en: "Workshops", fr: "Workshops", short: { en: "Wksp.", fr: "Wksp." }, icon: Palette },
   { to: "/admin/team", en: "Team", fr: "Équipe", short: { en: "Team", fr: "Équipe" }, icon: UserRoundCog },
@@ -36,6 +38,8 @@ const ITEMS = [
   { to: "/admin/partners", en: "Partners", fr: "Partenaires", short: { en: "Partners", fr: "Part." }, icon: Handshake },
   { to: "/admin/dashboard", en: "Dashboard", fr: "Tableau de bord", short: { en: "Board", fr: "Bord" }, icon: LayoutDashboard },
 ];
+
+const MAIN_COUNT = 4;
 
 // F23 : sections de l'employée (aucune donnée financière, aucune gestion).
 const EMPLOYEE_ITEMS: ((typeof ITEMS)[number] & { perms: StaffPermission[] })[] = [
@@ -53,6 +57,8 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
   const staff = useStaffRole();
   const admin = isAdminEmail(user?.email);
 
+  const [moreOpen, setMoreOpen] = useState(false);
+
   if (!admin && !staff.isEmployee) return <Layout>{children}</Layout>;
   const items: (typeof ITEMS)[number][] = admin ? ITEMS : EMPLOYEE_ITEMS.filter((it) => it.perms.some((p) => staff.can(p)));
   // L'employée n'a jamais le PIN administrateur : pas de demande de PIN.
@@ -62,34 +68,51 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
     it.exact
       ? pathname === it.to || pathname === `${it.to}/`
       : pathname === it.to || pathname.startsWith(`${it.to}/`) || (it.also ?? []).some((p) => pathname.startsWith(p));
+  // Admin: 4 main sections + « Autres ». The employee keeps her short list.
+  const main = admin ? items.slice(0, MAIN_COUNT) : items;
+  const more = admin ? items.slice(MAIN_COUNT) : [];
+  const moreActive = more.some(isActive);
+
+  const sideLink = (it: (typeof ITEMS)[number], big: boolean) => {
+    const Icon = it.icon;
+    const active = isActive(it);
+    return (
+      <Link
+        key={it.to}
+        to={it.to}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "flex items-center gap-2.5 px-3",
+          big ? "py-2.5 text-[15px]" : "py-2 text-sm",
+          active ? "bg-primary text-primary-foreground font-semibold" : "text-foreground hover:bg-secondary/60",
+        )}
+      >
+        <Icon className={cn(big ? "w-5 h-5" : "w-4 h-4", "shrink-0")} strokeWidth={1.75} />
+        {t(it.en, it.fr)}
+      </Link>
+    );
+  };
 
   return (
     <Layout>
       <NewVersionBanner />
       <Gate>
-      <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-2 lg:px-4 pb-20 lg:pb-0">
+      <div className="admin-ui lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-2 lg:px-4 pb-20 lg:pb-0">
         {/* Side menu (large screens) */}
         <nav aria-label={t("Admin menu", "Menu Admin")} className="hidden lg:block pt-8">
           <div className="sticky top-28 space-y-1">
             <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{admin ? "Admin" : t("Team", "Équipe")}</p>
-            {items.map((it) => {
-              const Icon = it.icon;
-              const active = isActive(it);
-              return (
-                <Link
-                  key={it.to}
-                  to={it.to}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-2.5 px-3 py-2 text-sm",
-                    active ? "bg-primary/10 text-primary font-semibold" : "text-foreground/80 hover:bg-secondary/60 hover:text-foreground",
-                  )}
-                >
-                  <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-                  {t(it.en, it.fr)}
-                </Link>
-              );
-            })}
+            {main.map((it) => sideLink(it, true))}
+            {more.length > 0 && (
+              <details open={moreActive || undefined} className="group pt-3">
+                <summary className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground cursor-pointer list-none hover:bg-secondary/60 [&::-webkit-details-marker]:hidden">
+                  <MoreHorizontal className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                  {t("Others", "Autres")}
+                  <ChevronDown className="w-4 h-4 ml-auto transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="space-y-0.5 pt-1">{more.map((it) => sideLink(it, false))}</div>
+              </details>
+            )}
           </div>
         </nav>
 
@@ -102,8 +125,27 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
         className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
+        {moreOpen && more.length > 0 && (
+          <div className="absolute bottom-full inset-x-0 border-t border-border bg-background shadow-lg max-h-[60vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+              <span className="text-sm font-semibold">{t("Others", "Autres")}</span>
+              <button type="button" onClick={() => setMoreOpen(false)} aria-label={t("Close", "Fermer")} className="p-1"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3">
+              {more.map((it) => {
+                const Icon = it.icon;
+                return (
+                  <Link key={it.to} to={it.to} onClick={() => setMoreOpen(false)}
+                    className={cn("flex items-center gap-2 px-4 py-3 text-sm border-b border-r border-border/60", isActive(it) ? "text-primary font-semibold" : "text-foreground")}>
+                    <Icon className="w-5 h-5 shrink-0" strokeWidth={1.75} /> {t(it.en, it.fr)}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="flex overflow-x-auto [scrollbar-width:none]">
-          {items.map((it) => {
+          {main.map((it) => {
             const Icon = it.icon;
             const active = isActive(it);
             return (
@@ -122,6 +164,20 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
               </Link>
             );
           })}
+          {more.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMoreOpen((o) => !o)}
+              aria-expanded={moreOpen}
+              className={cn(
+                "flex-[1_0_auto] flex flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-[10px] leading-tight",
+                moreActive || moreOpen ? "text-primary font-semibold" : "text-muted-foreground",
+              )}
+            >
+              <MoreHorizontal className="w-5 h-5 shrink-0" strokeWidth={1.75} />
+              <span>{t("Others", "Autres")}</span>
+            </button>
+          )}
         </div>
       </nav>
       </Gate>

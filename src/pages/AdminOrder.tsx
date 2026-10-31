@@ -12,7 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
-import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment, colourLabel, colourListLabel } from "@/lib/orderLabels";
+import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment, colourSwatches } from "@/lib/orderLabels";
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPanel";
 import { ReferencePhotos } from "@/components/ReferencePhotos";
@@ -61,6 +61,29 @@ const DetailRow = ({ label, value }: { label: string; value?: string | null }) =
     <div className="flex flex-col sm:flex-row sm:gap-2 text-sm">
       <span className="text-muted-foreground sm:min-w-[140px] sm:shrink-0">{label}:</span>
       <span className="text-foreground min-w-0 break-words whitespace-pre-line">{value}</span>
+    </div>
+  );
+};
+
+// Colour name + a swatch of the exact shade clicked on the site (« vert »
+// alone can be several greens).
+const ColourChips = ({ items }: { items: { label: string; hex: string | null }[] }) => (
+  <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+    {items.map((c, i) => (
+      <span key={i} className="inline-flex items-center gap-1.5">
+        {c.hex && <span className="inline-block w-4 h-4 rounded-full border border-foreground/30 shrink-0" style={{ backgroundColor: c.hex }} aria-hidden />}
+        {c.label}
+      </span>
+    ))}
+  </span>
+);
+
+const ColourRow = ({ label, items }: { label: string; items: { label: string; hex: string | null }[] }) => {
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-col sm:flex-row sm:gap-2 text-sm">
+      <span className="text-muted-foreground sm:min-w-[140px] sm:shrink-0">{label}:</span>
+      <span className="text-foreground min-w-0"><ColourChips items={items} /></span>
     </div>
   );
 };
@@ -641,13 +664,16 @@ const AdminOrder = () => {
                             value={`${designLabel(item.design)}${designPhoto ? ` — ${t("Photo", "Photo")} ${designPhoto}` : ""}`}
                           />
                         )}
-                        <DetailRow label={t("Base Colour", "Couleur de base")} value={colourLabel(item.base_color, lang)} />
-                        <DetailRow label={t("Decoration Colour", "Couleur de décoration")} value={colourListLabel(item.decoration_color, lang)} />
+                        <ColourRow label={t("Base Colour", "Couleur de base")} items={colourSwatches(item.base_color, lang)} />
+                        <ColourRow label={t("Decoration Colour", "Couleur de décoration")} items={colourSwatches(item.decoration_color, lang)} />
                         {item.cake_text && (
-                          <DetailRow
-                            label={t("Text on Cake", "Texte sur le gâteau")}
-                            value={`"${item.cake_text}" (${item.text_style || "normal"}, ${colourLabel(item.text_color, lang) || t("default", "par défaut")})`}
-                          />
+                          <div className="flex flex-col sm:flex-row sm:gap-2 text-sm">
+                            <span className="text-muted-foreground sm:min-w-[140px] sm:shrink-0">{t("Text on Cake", "Texte sur le gâteau")}:</span>
+                            <span className="text-foreground min-w-0 break-words">
+                              "{item.cake_text}" ({item.text_style || "normal"},{" "}
+                              {item.text_color ? <ColourChips items={colourSwatches(item.text_color, lang)} /> : t("default", "par défaut")})
+                            </span>
+                          </div>
                         )}
                         {item.extra && (
                           <DetailRow label={t("Extras", "Extras")} value={item.extra} />

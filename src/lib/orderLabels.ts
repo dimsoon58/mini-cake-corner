@@ -163,6 +163,34 @@ export function colourLabel(token: string | null | undefined, lang: "en" | "fr" 
   return t;
 }
 
+/** Swatch colour (hex) of the colour clicked — same lookup as colourLabel. */
+export function colourHex(token: string | null | undefined): string | null {
+  const t = (token ?? "").trim();
+  if (!t) return null;
+  for (const list of COLOUR_LISTS) {
+    const hit = list.find((c) => c.id === t) ?? list.find((c) => c.name.toLowerCase() === t.toLowerCase());
+    if (hit) return hit.color;
+  }
+  return null;
+}
+
+/** Each colour of a colour field, with its name and swatch (admin display).
+ *  "roses-…" tokens are prefixed « Roses : ». */
+export function colourSwatches(raw: string | null | undefined, lang: "en" | "fr" = "en"): { label: string; hex: string | null }[] {
+  const v = (raw ?? "").trim();
+  if (!v) return [];
+  let tokens: string[];
+  if (v.startsWith("[")) {
+    try { tokens = (JSON.parse(v) as unknown[]).map(String); } catch { tokens = [v]; }
+  } else tokens = v.split(",");
+  return tokens.map((s) => s.trim()).filter(Boolean).map((tok) => {
+    const m = tok.match(/^roses-(.+)$/);
+    const id = m ? m[1] : tok;
+    const name = colourLabel(id, lang);
+    return { label: m ? `${lang === "fr" ? "Roses : " : "Roses: "}${name}` : name, hex: colourHex(id) };
+  });
+}
+
 /** "pink, dark-red, roses-white" (or a JSON array) → "Rose, Rouge · Roses : Blanc". */
 export function colourListLabel(raw: string | null | undefined, lang: "en" | "fr" = "en"): string {
   const v = (raw ?? "").trim();
