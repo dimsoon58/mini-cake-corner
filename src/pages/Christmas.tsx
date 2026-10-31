@@ -13,7 +13,7 @@ import { useSeo } from "@/hooks/useSeo";
 import { useChristmasVisible } from "@/hooks/useChristmasVisible";
 import { cn } from "@/lib/utils";
 import {
-  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CAKE_FLAVOURS, LOG_FLAVOURS, LOG_FLAVOUR_SURCHARGES, SPONGES, LOG_INTRO, CLASSIC_FILLING,
+  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CAKE_FLAVOURS, LOG_FLAVOURS, LOG_FLAVOUR_SURCHARGES, cakeFlavourSurcharge, SPONGES, LOG_INTRO, CLASSIC_FILLING,
   CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos, CHRISTMAS_MOMENTS, CHRISTMAS_COVER,
   type ChristmasSize, type ChristmasFlavour,
 } from "@/data/christmas";
@@ -55,7 +55,7 @@ function OptionTile({ title, detail, selected, onClick }: { title: string; detai
         <span className="text-sm font-semibold uppercase tracking-[0.08em]">{title}</span>
         {selected && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
       </span>
-      {detail && <span className="block text-xs text-muted-foreground mt-1 leading-snug">{detail}</span>}
+      {detail && <span className="block text-sm text-muted-foreground mt-1 leading-snug">{detail}</span>}
     </button>
   );
 }
@@ -84,29 +84,26 @@ function PhotoCarousel({ images, alt, className }: { images: string[]; alt: stri
   );
 }
 
+// Same card as the Bento Cakes catalogue: double bordeaux frame, name,
+// price and the « Choisir ce modèle » button that opens the order form.
 function ProductCard({ name, price, images, selected, onClick }: {
   name: string; price: string; images: string[]; selected: boolean; onClick: () => void;
 }) {
+  const { t } = useLang();
   return (
-    // A div, not a button: the photo arrows inside are buttons themselves.
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
-      // Double bordeaux frame, same as the Catalog cards.
-      className={cn(
-        "group flex flex-col justify-start text-left bg-background border-[3px] border-primary transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-        selected ? "ring-2 ring-primary ring-offset-2" : "hover:shadow-md",
-      )}
-    >
+    <div className={cn("relative rounded-none overflow-hidden border-[3px] border-primary flex flex-col bg-background", selected && "ring-2 ring-primary ring-offset-2")}>
       <div className="border border-primary m-1.5 flex flex-col flex-1 overflow-hidden">
-        <div className="aspect-square overflow-hidden">
-          <PhotoCarousel images={images} alt={name} className="transition-transform duration-500 group-hover:scale-105" />
+        <div className="aspect-square overflow-hidden bg-muted/30">
+          <PhotoCarousel images={images} alt={name} />
         </div>
-        <div className="px-3 py-3">
-          <p className="uppercase tracking-[0.12em] text-sm font-semibold text-foreground">{name}</p>
-          <p className="text-sm text-foreground/70 mt-1">{price}</p>
+        <div className="px-6 pt-3 pb-6 text-center flex flex-col flex-1">
+          <h3 className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground mb-2">{name}</h3>
+          <p className="text-muted-foreground text-sm mb-4 flex-1">{price}</p>
+          <div className="mt-auto">
+            <Button className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground tracking-[0.105em] px-8" onClick={onClick}>
+              {t("CHOOSE THIS STYLE", "CHOISIR CE MODÈLE")}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -188,18 +185,21 @@ const Christmas = () => {
   const availableSizes = cake ? CHRISTMAS_SIZE_ORDER.filter((s) => cake.prices[s] !== undefined) : [];
   const sponges = log ? SPONGES.filter((g) => !g.cakeOnly) : SPONGES;
   const price = log ? CHRISTMAS_LOG_PRICE : cake && size ? cake.prices[size] ?? null : null;
-  // Bûches : supplément de la garniture choisie (un seul, remplacé quand on
-  // change de garniture). Gâteaux : prix final, pas de supplément.
-  const logSurcharge = (id: string) => (log ? LOG_FLAVOUR_SURCHARGES[id] ?? 0 : 0);
-  const flavourSurcharge = logSurcharge(flavour);
+  // Supplément de la garniture choisie (un seul, remplacé quand on change de
+  // garniture). Bûches : montant fixe ; gâteaux : selon la taille.
+  const surchargeFor = (id: string) =>
+    log ? LOG_FLAVOUR_SURCHARGES[id] ?? 0 : size ? cakeFlavourSurcharge(id, size) : 0;
+  const flavourSurcharge = surchargeFor(flavour);
+  // Gâteau : montants affichés une fois la taille choisie.
+  const showSurcharges = !!log || !!size;
   const subtotal = price !== null ? price + flavourSurcharge : null;
   // Même règle express que les autres gâteaux (J+2/J+3 : 20 %, J+4/J+5 : 15 %).
   const expressRate = expressSurchargeRate(orderDate);
   const express = subtotal !== null ? expressSurcharge(subtotal, orderDate) : 0;
   const total = subtotal !== null ? subtotal + express : null;
   const flavourName = (f: ChristmasFlavour) => (l === "fr" ? f.nameFr : f.nameEn);
-  const surchargeLabel = (id: string) => `+${logSurcharge(id)} CHF`;
-  const flavourLabel = (f: ChristmasFlavour) => (log ? `${flavourName(f)} (${surchargeLabel(f.id)})` : flavourName(f));
+  const surchargeLabel = (id: string) => `+${surchargeFor(id)} CHF`;
+  const flavourLabel = (f: ChristmasFlavour) => (showSurcharges ? `${flavourName(f)} (${surchargeLabel(f.id)})` : flavourName(f));
   const flavourDescription = (f: ChristmasFlavour) => (l === "fr" ? f.descriptionFr : f.descriptionEn);
   const step = (n: number) => (cake ? n : n - 1);
   // Red velvet : pas de garniture au choix (garniture classique d'office).
@@ -233,10 +233,10 @@ const Christmas = () => {
           <PhotoSlot image={CHRISTMAS_COVER} alt={t("The Bento Cake Studio Christmas collection", "La collection de Noël de Bento Cake Studio")} />
         </div>
         <div className="container mx-auto px-4 py-10 md:py-14 text-center">
-          <h1 className="font-script font-normal text-[44px] md:text-[64px] leading-tight text-foreground">
+          <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
             {t("Christmas", "Noël")}
           </h1>
-          <p className="mt-3 max-w-2xl mx-auto text-sm md:text-base text-foreground/80 leading-relaxed">
+          <p className="text-center text-muted-foreground max-w-2xl mx-auto text-sm md:text-base">
             {t(
               "This year, Christmas is all about sweetness. Discover our Christmas bento cakes and, for the very first time, our Christmas logs: choose your design, your sponge and your filling.",
               "Cette année, Noël se fête en douceur. Découvrez nos bento cakes de Noël et, pour la première fois, nos bûches : choisissez votre design, votre génoise et votre garniture.",
@@ -246,11 +246,12 @@ const Christmas = () => {
       </section>
 
       {/* Gâteaux */}
-      <section className="container mx-auto px-4 pb-12">
-        <h2 className="uppercase tracking-[0.18em] text-sm font-semibold text-foreground mb-6 text-center">
+      <section className="container mx-auto px-4 pb-16">
+        <div className="max-w-6xl mx-auto">
+        <h2 className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-10 text-center md:text-left">
           {t("Christmas cakes", "Gâteaux de Noël")}
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {CHRISTMAS_CAKES.map((c) => (
             <ProductCard
               key={c.id}
@@ -262,17 +263,17 @@ const Christmas = () => {
             />
           ))}
         </div>
+        </div>
       </section>
 
       {/* Bûches */}
-      <section className="bg-cream py-12">
-        <div className="container mx-auto px-4">
-          <h2 className="uppercase tracking-[0.18em] text-sm font-semibold text-foreground mb-2 text-center">
-            {t("Christmas logs", "Bûches de Noël")}
+      <section className="container mx-auto px-4 pb-16">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-6 text-center md:text-left">
+            {t("Christmas logs — New", "Bûches de Noël — Nouveauté")}
           </h2>
-          <p className="text-center text-xs uppercase tracking-[0.15em] text-primary mb-3">{t("New", "Nouveauté")}</p>
-          <p className="text-center text-sm text-foreground/80 max-w-xl mx-auto mb-6 leading-relaxed">{LOG_INTRO[l]}</p>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-10 text-sm md:text-base">{LOG_INTRO[l]}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {CHRISTMAS_LOGS.map((b) => (
               <ProductCard
                 key={b.id}
@@ -301,18 +302,18 @@ const Christmas = () => {
 
             <div className="space-y-8">
               <div>
-                <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {log ? t("Christmas log", "Bûche de Noël") : t("Christmas cake", "Gâteau de Noël")}
                 </p>
-                <h3 className="uppercase tracking-[0.12em] text-xl font-semibold text-foreground mt-1">
+                <h3 className="font-sans uppercase tracking-[0.105em] text-lg font-semibold text-foreground mt-1">
                   {l === "fr" ? (cake ?? log)!.nameFr : (cake ?? log)!.nameEn}
                 </h3>
-                {log && <p className="text-sm text-foreground/80 mt-2 leading-relaxed">{LOG_INTRO[l]}</p>}
+                {log && <p className="text-sm text-muted-foreground mt-2">{LOG_INTRO[l]}</p>}
               </div>
 
               {cake && (
                 <div>
-                  <p className="uppercase tracking-[0.15em] text-xs font-semibold text-foreground mb-3">{t("1. Size", "1. Taille")}</p>
+                  <p className="text-[14px] font-semibold text-foreground mb-3">{t("1. Size", "1. Taille")}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {availableSizes.map((s) => (
                       <OptionTile
@@ -328,7 +329,7 @@ const Christmas = () => {
               )}
 
               <div>
-                <p className="uppercase tracking-[0.15em] text-xs font-semibold text-foreground mb-3">
+                <p className="text-[14px] font-semibold text-foreground mb-3">
                   {step(2)}. {t("Sponge", "Génoise")}
                 </p>
                 <Select
@@ -348,7 +349,7 @@ const Christmas = () => {
                   </SelectContent>
                 </Select>
                 {classicOnly && (
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="text-sm text-muted-foreground mt-2">
                     {t("Red velvet comes with our signature whipped cream only, no other filling.", "Le red velvet se fait uniquement avec notre crème fouettée signature, sans autre garniture.")}
                   </p>
                 )}
@@ -356,7 +357,7 @@ const Christmas = () => {
 
               {!classicOnly && (
               <div>
-                <p className="uppercase tracking-[0.15em] text-xs font-semibold text-foreground mb-3">
+                <p className="text-[14px] font-semibold text-foreground mb-3">
                   {step(3)}. {t("Filling", "Garniture")}
                 </p>
                 <Select value={flavour} onValueChange={setFlavour}>
@@ -369,10 +370,10 @@ const Christmas = () => {
                         <div className="min-w-0 flex-1 py-0.5">
                           <span className="flex items-baseline justify-between gap-3 whitespace-normal leading-snug">
                             <span>{flavourName(f)}</span>
-                            {log && <span className="shrink-0 text-xs text-foreground/70">{surchargeLabel(f.id)}</span>}
+                            {showSurcharges && <span className="shrink-0 text-sm text-muted-foreground">{surchargeLabel(f.id)}</span>}
                           </span>
                           {flavourDescription(f) && (
-                            <span className="block text-[11px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">{flavourDescription(f)}</span>
+                            <span className="block text-xs text-muted-foreground leading-snug mt-0.5 whitespace-normal">{flavourDescription(f)}</span>
                           )}
                         </div>
                       </SelectItem>
@@ -380,13 +381,13 @@ const Christmas = () => {
                   </SelectContent>
                 </Select>
                 {flavours.find((f) => f.id === flavour) && flavourDescription(flavours.find((f) => f.id === flavour)!) && (
-                  <p className="text-xs text-muted-foreground mt-2">{flavourDescription(flavours.find((f) => f.id === flavour)!)}</p>
+                  <p className="text-sm text-muted-foreground mt-2">{flavourDescription(flavours.find((f) => f.id === flavour)!)}</p>
                 )}
               </div>
               )}
 
               <div>
-                <p className="uppercase tracking-[0.15em] text-xs font-semibold text-foreground mb-3">
+                <p className="text-[14px] font-semibold text-foreground mb-3">
                   {classicOnly ? step(3) : step(4)}. {t("Date", "Date")}
                 </p>
                 <Popover open={calOpen} onOpenChange={setCalOpen}>
@@ -423,14 +424,14 @@ const Christmas = () => {
                   </div>
                 )}
                 <div className="flex items-baseline justify-between mb-4">
-                  <span className="uppercase tracking-[0.15em] text-xs font-semibold">{t("Total", "Total")}</span>
+                  <span className="text-[14px] font-semibold">{t("Total", "Total")}</span>
                   <span className="text-xl font-semibold">{total !== null ? `CHF ${Number.isInteger(total) ? total : total.toFixed(2)}` : "—"}</span>
                 </div>
                 <Button disabled className="w-full rounded-none uppercase tracking-[0.105em]">
                   {t("Add to cart", "Ajouter au panier")}
                 </Button>
                 {preview && (
-                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                  <p className="text-sm text-muted-foreground mt-2 text-center">
                     {t("Online ordering will be switched on before the launch.", "La commande en ligne sera activée avant la mise en ligne.")}
                   </p>
                 )}

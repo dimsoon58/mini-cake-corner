@@ -140,6 +140,17 @@ export const LOG_FLAVOUR_SURCHARGES: Record<string, number> = {
   "noel-lemon-curd": 4,
 };
 
+// Gâteaux : supplément de garniture selon la taille, calculé depuis celui
+// des bûches (décision du 31.10.2026) — bento / retro : la moitié,
+// medium : le même, large : bento + medium. Classique = 0.
+export function cakeFlavourSurcharge(flavourId: string, size: ChristmasSize): number {
+  const log = LOG_FLAVOUR_SURCHARGES[flavourId] ?? 0;
+  const small = log / 2;
+  if (size === "bento" || size === "retro") return small;
+  if (size === "medium") return log;
+  return small + log;
+}
+
 export const LOG_FLAVOURS: ChristmasFlavour[] = Object.keys(LOG_FLAVOUR_SURCHARGES).map(
   (id) => CAKE_FLAVOURS.find((f) => f.id === id)!,
 );
