@@ -441,9 +441,11 @@ const Christmas = () => {
         </section>
       )}
 
-      <div className="container mx-auto px-6 py-8 md:py-16">
-        <ChristmasMoments />
-      </div>
+      {CHRISTMAS_MOMENTS.length > 0 && (
+        <div className="container mx-auto px-6 py-8 md:py-16">
+          <ChristmasMoments />
+        </div>
+      )}
     </Layout>
   );
 };

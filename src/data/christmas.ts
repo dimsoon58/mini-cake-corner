@@ -23,8 +23,6 @@ import bucheJardinHiver1 from "@/assets/buche-jardin-hiver-1.jpg";
 import bucheJardinHiver2 from "@/assets/buche-jardin-hiver-2.jpg";
 import bucheEtoileNoel1 from "@/assets/buche-etoile-noel-1.jpg";
 import bucheEtoileNoel2 from "@/assets/buche-etoile-noel-2.jpg";
-import noelMomentRoyal from "@/assets/noel-moment-royal.jpg";
-import noelMomentPereNoel from "@/assets/noel-moment-pere-noel.jpg";
 import noelGui1 from "@/assets/noel-gui-1.jpg";
 import noelGui2 from "@/assets/noel-gui-2.jpg";
 import noelGui3 from "@/assets/noel-gui-3.jpg";
@@ -82,10 +80,9 @@ export const CHRISTMAS_LOGS: ChristmasLog[] = [
 ];
 
 // « Christmas Moments » : bandeau de photos en bas de la page (comme
-// « Dot Cake Moments »). Ajouter les nouvelles photos ici.
-export const CHRISTMAS_MOMENTS: string[] = [
-  noelMomentPereNoel, noelGui1, bucheCasseNoisette2, noelMomentRoyal, bucheJardinHiver2, noelGui3, bucheEtoileNoel2,
-];
+// « Dot Cake Moments »). Ajouter les nouvelles photos ici. Vide = bandeau
+// masqué (31.10.2026 : en attente des nouvelles photos de Mel).
+export const CHRISTMAS_MOMENTS: string[] = [];
 
 // Parfums de Noël (garniture), avec une ligne courte qui donne envie.
 // Liste et contenu donnés par Mel le 27.10.2026.
