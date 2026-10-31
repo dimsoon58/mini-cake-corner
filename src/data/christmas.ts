@@ -115,7 +115,6 @@ export const CHRISTMAS_FLAVOURS: ChristmasFlavour[] = [
 // Gâteaux : génoise vanille, chocolat ou red velvet + un des 9 parfums de
 // Noël, ou la garniture classique (crème fouettée) — ce qui remplace la
 // longue liste habituelle.
-export const LOG_FLAVOURS = CHRISTMAS_FLAVOURS;
 
 export const CLASSIC_FILLING: ChristmasFlavour = {
   id: "noel-classique", nameFr: "Classique", nameEn: "Classic",
@@ -123,6 +122,27 @@ export const CLASSIC_FILLING: ChristmasFlavour = {
 };
 
 export const CAKE_FLAVOURS: ChristmasFlavour[] = [CLASSIC_FILLING, ...CHRISTMAS_FLAVOURS];
+
+// Bûches : supplément par garniture (décision du 31.10.2026), en CHF,
+// ajouté au prix de la bûche. Classique = +0, quelle que soit la génoise.
+// La génoise chocolat reste sans supplément ; c'est la GARNITURE chocolat
+// qui coûte +4. Ordre du menu = ordre de cette liste.
+export const LOG_FLAVOUR_SURCHARGES: Record<string, number> = {
+  "noel-classique": 0,
+  "noel-vanille-framboise": 4,
+  "noel-caramel-cacahuetes": 4,
+  "noel-pomme-cannelle": 4,
+  "noel-pate-a-tartiner": 4,
+  "noel-praline": 6,
+  "noel-marron": 4,
+  "noel-chocolat": 4,
+  "noel-mangue-passion": 6,
+  "noel-lemon-curd": 4,
+};
+
+export const LOG_FLAVOURS: ChristmasFlavour[] = Object.keys(LOG_FLAVOUR_SURCHARGES).map(
+  (id) => CAKE_FLAVOURS.find((f) => f.id === id)!,
+);
 
 // classicOnly : pas de garniture au choix, toujours la garniture classique
 // (crème fouettée) — c'est le cas du red velvet.

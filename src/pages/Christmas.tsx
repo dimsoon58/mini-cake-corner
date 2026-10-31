@@ -13,7 +13,7 @@ import { useSeo } from "@/hooks/useSeo";
 import { useChristmasVisible } from "@/hooks/useChristmasVisible";
 import { cn } from "@/lib/utils";
 import {
-  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CAKE_FLAVOURS, LOG_FLAVOURS, SPONGES, LOG_INTRO, CLASSIC_FILLING,
+  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CAKE_FLAVOURS, LOG_FLAVOURS, LOG_FLAVOUR_SURCHARGES, SPONGES, LOG_INTRO, CLASSIC_FILLING,
   CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos, CHRISTMAS_MOMENTS, CHRISTMAS_COVER,
   type ChristmasSize, type ChristmasFlavour,
 } from "@/data/christmas";
@@ -188,11 +188,18 @@ const Christmas = () => {
   const availableSizes = cake ? CHRISTMAS_SIZE_ORDER.filter((s) => cake.prices[s] !== undefined) : [];
   const sponges = log ? SPONGES.filter((g) => !g.cakeOnly) : SPONGES;
   const price = log ? CHRISTMAS_LOG_PRICE : cake && size ? cake.prices[size] ?? null : null;
+  // Bûches : supplément de la garniture choisie (un seul, remplacé quand on
+  // change de garniture). Gâteaux : prix final, pas de supplément.
+  const logSurcharge = (id: string) => (log ? LOG_FLAVOUR_SURCHARGES[id] ?? 0 : 0);
+  const flavourSurcharge = logSurcharge(flavour);
+  const subtotal = price !== null ? price + flavourSurcharge : null;
   // Même règle express que les autres gâteaux (J+2/J+3 : 20 %, J+4/J+5 : 15 %).
   const expressRate = expressSurchargeRate(orderDate);
-  const express = price !== null ? expressSurcharge(price, orderDate) : 0;
-  const total = price !== null ? price + express : null;
+  const express = subtotal !== null ? expressSurcharge(subtotal, orderDate) : 0;
+  const total = subtotal !== null ? subtotal + express : null;
   const flavourName = (f: ChristmasFlavour) => (l === "fr" ? f.nameFr : f.nameEn);
+  const surchargeLabel = (id: string) => `+${logSurcharge(id)} CHF`;
+  const flavourLabel = (f: ChristmasFlavour) => (log ? `${flavourName(f)} (${surchargeLabel(f.id)})` : flavourName(f));
   const flavourDescription = (f: ChristmasFlavour) => (l === "fr" ? f.descriptionFr : f.descriptionEn);
   const step = (n: number) => (cake ? n : n - 1);
   // Red velvet : pas de garniture au choix (garniture classique d'office).
@@ -358,9 +365,12 @@ const Christmas = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {flavours.map((f) => (
-                      <SelectItem key={f.id} value={f.id} itemText={flavourName(f)}>
+                      <SelectItem key={f.id} value={f.id} itemText={flavourLabel(f)}>
                         <div className="min-w-0 flex-1 py-0.5">
-                          <span className="block whitespace-normal leading-snug">{flavourName(f)}</span>
+                          <span className="flex items-baseline justify-between gap-3 whitespace-normal leading-snug">
+                            <span>{flavourName(f)}</span>
+                            {log && <span className="shrink-0 text-xs text-foreground/70">{surchargeLabel(f.id)}</span>}
+                          </span>
                           {flavourDescription(f) && (
                             <span className="block text-[11px] text-foreground/70 leading-tight mt-0.5 whitespace-normal">{flavourDescription(f)}</span>
                           )}
@@ -400,10 +410,16 @@ const Christmas = () => {
               </div>
 
               <div className="border-t border-border pt-6">
-                {express > 0 && price !== null && (
+                {(express > 0 || flavourSurcharge > 0) && price !== null && (
                   <div className="space-y-1 mb-2 text-sm text-foreground/80">
                     <div className="flex justify-between"><span>{l === "fr" ? (cake ?? log)!.nameFr : (cake ?? log)!.nameEn}</span><span>CHF {price}</span></div>
-                    <div className="flex justify-between"><span>{t(`Express surcharge (${Math.round(expressRate * 100)} %)`, `Supplément express (${Math.round(expressRate * 100)} %)`)}</span><span>CHF {express.toFixed(2)}</span></div>
+                    {flavourSurcharge > 0 && (
+                      <div className="flex justify-between">
+                        <span>{t("Filling", "Garniture")} : {flavourName(flavours.find((f) => f.id === flavour)!)}</span>
+                        <span>+ CHF {flavourSurcharge}</span>
+                      </div>
+                    )}
+                    {express > 0 && <div className="flex justify-between"><span>{t(`Express surcharge (${Math.round(expressRate * 100)} %)`, `Supplément express (${Math.round(expressRate * 100)} %)`)}</span><span>CHF {express.toFixed(2)}</span></div>}
                   </div>
                 )}
                 <div className="flex items-baseline justify-between mb-4">
