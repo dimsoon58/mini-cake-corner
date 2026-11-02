@@ -678,6 +678,12 @@ const AdminOrder = () => {
                         {item.extra && (
                           <DetailRow label={t("Extras", "Extras")} value={item.extra} />
                         )}
+                        {Number(item.fruit_supplement) > 0 && (
+                          <DetailRow
+                            label={t("Fruit supplement", "Supplément fruits")}
+                            value={employee ? t("Fruits as decoration", "Fruits en décoration") : `CHF ${Number(item.fruit_supplement).toFixed(2)} (${t("included in the price", "compris dans le prix")})`}
+                          />
+                        )}
                         {candlesList && (
                           <div className="flex items-center gap-2 my-1 px-2 py-1.5 bg-yellow-100 border border-yellow-500 text-yellow-950 text-sm font-semibold">
                             <Flame className="w-4 h-4 shrink-0" /> {t("Candles", "Bougies")} : {candlesList}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
-import { AlertTriangle, Flame, Loader2, Lock, Plus, RefreshCw, Truck } from "lucide-react";
+import { AlertTriangle, Cherry, Flame, Loader2, Lock, Plus, RefreshCw, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +50,7 @@ type DayItem = {
   // Sent by get-today once redeployed (absent before: no badge).
   candleName?: string | null;
   candleQuantity?: number | null;
+  fruits?: boolean; // supplément fruits (commande manuelle)
 };
 type Alert = { orderId: string; orderNumber: string | null; issueType: string; detail: string | null; createdAt: string };
 type TodayData = { today: string; tomorrow: string; from?: string; to?: string; toDecide: ListedOrder[]; toCollect: ListedOrder[]; days: Record<string, DayItem[]>; alerts: Alert[] };
@@ -277,6 +278,7 @@ const AdminToday = () => {
   // Badges that must never be missed: delivery (courier to book) and candles.
   const deliveryBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide bg-sky-700 text-white";
   const candleBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-yellow-300 text-yellow-950 border border-yellow-500";
+  const fruitBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-rose-200 text-rose-950 border border-rose-400";
   const candleText = (it: DayItem) => {
     if (it.product === "candles") return t("Candles", "Bougies");
     if (!it.candleName) return null;
@@ -313,6 +315,7 @@ const AdminToday = () => {
         {candleText(it) && (
           <span className={candleBadge}><Flame className="w-3.5 h-3.5" /> {candleText(it)}</span>
         )}
+        {it.fruits && <span className={fruitBadge}><Cherry className="w-3.5 h-3.5" /> Fruits</span>}
         {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-blue-600 text-white">{t("To accept", "À accepter")}</span>}
         {it.badge === "awaiting_payment" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To collect", "À encaisser")}</span>}
         {done && <span className="px-2 py-0.5 text-[11px] bg-emerald-100 text-emerald-800">{t("Done", "Fait")}</span>}

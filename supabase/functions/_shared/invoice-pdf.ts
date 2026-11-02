@@ -338,6 +338,23 @@ export async function generateInvoicePdf(
     };
   };
 
+  // Supplément fruits (commandes manuelles) : compris dans item.total, montré
+  // sur sa propre ligne juste sous le gâteau — le total de la facture ne change pas.
+  const rowsForItem = (item: any): InvoiceRow[] => {
+    const fruit = Number(item.fruit_supplement) || 0;
+    if (item.product === "workshop" || fruit <= 0) return [rowForItem(item)];
+    const cake = Math.round(((Number(item.total) || 0) - fruit) * 100) / 100;
+    return [
+      rowForItem({ ...item, total: cake }),
+      {
+        description: tr("Fruit supplement", "Supplément fruits"),
+        quantity: "1",
+        unitPrice: formatInvoicePrice(fruit),
+        total: formatInvoicePrice(fruit),
+      },
+    ];
+  };
+
   // Real product/workshop line count — computed from `items` directly (never
   // from itemRows.length below), since grouping inserts extra section-header
   // rows that must never be counted as billable lines in the TOTAL row's QTY.
@@ -347,7 +364,7 @@ export async function generateInvoicePdf(
   if (groupByFulfillment) {
     // Workshop lines first, exactly as before (never grouped by date — they
     // keep their own session date shown separately, not on the invoice).
-    const workshopRows = items.filter((it: any) => it.product === "workshop").map(rowForItem);
+    const workshopRows = items.filter((it: any) => it.product === "workshop").flatMap(rowsForItem);
     const sortedFulfillmentIds = Array.from(physicalFulfillmentIds).sort((a, b) => {
       const da = fulfillmentById.get(a)?.pickup_delivery_date ?? "";
       const db = fulfillmentById.get(b)?.pickup_delivery_date ?? "";
@@ -363,7 +380,7 @@ export async function generateInvoicePdf(
       groupedRows.push(
         ...items
           .filter((it: any) => it.product !== "workshop" && it.fulfillment_id === fid)
-          .map(rowForItem),
+          .flatMap(rowsForItem),
       );
     }
     // Defensive only: a physical item with no fulfillment_id at all (should
@@ -371,13 +388,13 @@ export async function generateInvoicePdf(
     // creation) — never silently dropped, just appended ungrouped.
     const ungroupedRows = items
       .filter((it: any) => it.product !== "workshop" && !it.fulfillment_id)
-      .map(rowForItem);
+      .flatMap(rowsForItem);
     itemRows = [...workshopRows, ...groupedRows, ...ungroupedRows];
   } else {
     // Exactly today's behaviour — one order always has one fulfillment while
     // MULTI_DATE_FULFILLMENT_ENABLED is false, so this is the only branch
     // that ever runs in production right now. Zero visual change.
-    itemRows = items.map(rowForItem);
+    itemRows = items.flatMap(rowsForItem);
   }
 
   // "workshop_only_kept" (mixed order, cake part refused): ONLY the workshop

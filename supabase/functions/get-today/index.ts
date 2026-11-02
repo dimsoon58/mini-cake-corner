@@ -200,6 +200,8 @@ serve(async (req) => {
       // shown as a badge in Admin > Aujourd'hui so none is missed.
       candleName?: string | null;
       candleQuantity?: number | null;
+      // Supplément fruits (commandes manuelles) : badge « Fruits » sur Aujourd'hui.
+      fruits?: boolean;
     };
     const days: Record<string, DayItem[]> = Object.fromEntries(dates.map((d) => [d, [] as DayItem[]]));
 
@@ -213,7 +215,7 @@ serve(async (req) => {
       const fById = new Map((allF ?? []).map((f) => [f.id, f]));
       const { data: items, error: iErr } = await supabase
         .from("order_items")
-        .select("id, order_id, fulfillment_id, product, size, shape, flavors, production_status, quantity, candle_name, candle_quantity")
+        .select("id, order_id, fulfillment_id, product, size, shape, flavors, production_status, quantity, candle_name, candle_quantity, fruit_supplement")
         .in("order_id", cakeOrderIds)
         .neq("product", "workshop");
       if (iErr) throw new Error(`Failed to load order items: ${iErr.message}`);
@@ -245,6 +247,7 @@ serve(async (req) => {
           quantity: Number.isInteger(it.quantity) && it.quantity > 1 ? it.quantity : 1,
           candleName: (it.candle_name as string | null) || null,
           candleQuantity: (it.candle_quantity as number | null) ?? null,
+          fruits: Number(it.fruit_supplement) > 0,
         });
       }
     }

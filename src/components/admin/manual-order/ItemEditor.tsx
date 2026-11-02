@@ -339,6 +339,36 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
             </div>
           </div>
         )}
+        {isCake && (
+          <div className="md:col-span-2">
+            <label className={label}>{t("Fruit supplement", "Supplément fruits")}</label>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <label className="inline-flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={item.fruit_supplement !== null}
+                  onChange={(ev) => set({ fruit_supplement: ev.target.checked ? "" : null })}
+                />
+                {t("Fruits as decoration", "Fruits en décoration")}
+              </label>
+              {/* No fixed price: the amount is chosen for each cake. */}
+              {item.fruit_supplement !== null && (
+                <span className="inline-flex items-center gap-1.5">
+                  CHF
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={item.fruit_supplement}
+                    onChange={(ev) => set({ fruit_supplement: ev.target.value })}
+                    placeholder="0.00"
+                    className={cn(field, "w-24 py-0.5")}
+                    aria-label={t("Fruit supplement amount (CHF)", "Montant du supplément fruits (CHF)")}
+                  />
+                </span>
+              )}
+            </div>
+          </div>
+        )}
         {isCake && needs.ribbon && renderOptionColours(t("Ribbon colour", "Couleur des rubans"), RIBBON_COLOURS, item.ribbon_color, (v) => set({ ribbon_color: v }), true)}
         {isCake && needs.butterfly && renderOptionColours(t("Butterfly colour", "Couleur du papillon"), BUTTERFLY_COLOURS, item.butterfly_color, (v) => set({ butterfly_color: v }), true)}
         {isCake && needs.glitter && renderOptionColours(t("Glitter colour", "Couleur des paillettes"), glitterChoices(needs), item.glitter_color, (v) => set({ glitter_color: v }), true)}
