@@ -19,7 +19,7 @@ const f35 = fs.readFileSync(`${M}/20261103120000_f35_influencer_codes.sql`, "utf
 const f35Cancel = f35.slice(f35.indexOf("create or replace function public.cancel_workshop_seats_atomic("));
 const db = await freshDb();
 await db.exec(f35Cancel.slice(0, f35Cancel.indexOf("\n$$;") + 4));
-for (const m of ["20261103154211_f37_gift_cards.sql", "20261103162501_f38_gift_card_redemption.sql", "20261104150000_f39_gift_card_admin.sql"]) {
+for (const m of ["20261103154211_f37_gift_cards.sql", "20261103162501_f38_gift_card_redemption.sql", "20261103163824_f39_gift_card_admin.sql"]) {
   await db.exec(fs.readFileSync(`${M}/${m}`, "utf8"));
 }
 const one = async (sql, params) => (await db.query(sql, params)).rows[0];
@@ -27,7 +27,7 @@ const err = async (sql, params) => { try { await db.query(sql, params); return n
 const uuid = () => crypto.randomUUID();
 {
   let replay = null;
-  try { await db.exec(fs.readFileSync(`${M}/20261104150000_f39_gift_card_admin.sql`, "utf8")); } catch (e) { replay = e.message; }
+  try { await db.exec(fs.readFileSync(`${M}/20261103163824_f39_gift_card_admin.sql`, "utf8")); } catch (e) { replay = e.message; }
   check("F39 peut être rejouée", replay === null, replay);
 }
 
