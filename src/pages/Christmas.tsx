@@ -5,7 +5,7 @@ import { CalendarIcon, Check, ChevronLeft, ChevronRight, ImageIcon } from "lucid
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OrderCalendar, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { isOrderDateDisabled, expressSurcharge, expressSurchargeRate } from "@/lib/orderDates";
 import { useLang } from "@/context/LanguageContext";
@@ -13,13 +13,13 @@ import { useSeo } from "@/hooks/useSeo";
 import { useChristmasVisible } from "@/hooks/useChristmasVisible";
 import { cn } from "@/lib/utils";
 import {
-  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CAKE_FLAVOURS, LOG_FLAVOURS, LOG_FLAVOUR_SURCHARGES, cakeFlavourSurcharge, SPONGES, LOG_INTRO, CLASSIC_FILLING,
+  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CLASSIC_CAKE_FLAVOURS, LOG_FLAVOURS, LOG_FLAVOUR_SURCHARGES, cakeFlavourSurcharge, LOG_INTRO,
   CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos, CHRISTMAS_MOMENTS, CHRISTMAS_COVER,
   type ChristmasSize, type ChristmasFlavour,
 } from "@/data/christmas";
 
 // Page « Noël / Christmas » : on choisit un design (gâteau ou bûche), la
-// taille (gâteaux seulement), la génoise, la garniture et la date. Pas
+// taille (gâteaux seulement), le goût et la date. Pas
 // d'extras ; supplément express habituel selon la date.
 // Tant que CHRISTMAS_PUBLIC est éteint, visible seulement par les admins
 // connectées (useChristmasVisible) ; l'ajout au panier reste désactivé tant
@@ -156,7 +156,6 @@ const Christmas = () => {
 
   const [selection, setSelection] = useState<Selection | null>(null);
   const [size, setSize] = useState<ChristmasSize | null>(null);
-  const [sponge, setSponge] = useState<string>("");
   const [flavour, setFlavour] = useState<string>("");
   const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
   const [calOpen, setCalOpen] = useState(false);
@@ -181,9 +180,15 @@ const Christmas = () => {
 
   const cake = selection?.kind === "cake" ? CHRISTMAS_CAKES.find((c) => c.id === selection.id) ?? null : null;
   const log = selection?.kind === "log" ? CHRISTMAS_LOGS.find((b) => b.id === selection.id) ?? null : null;
-  const flavours: ChristmasFlavour[] = log ? LOG_FLAVOURS : CAKE_FLAVOURS;
+  // Bûches : Christmas Edition seule. Gâteaux : Nos classiques puis Christmas Edition.
+  const flavourGroups: { id: string; label: string | null; flavours: ChristmasFlavour[] }[] = log
+    ? [{ id: "edition", label: null, flavours: LOG_FLAVOURS }]
+    : [
+        { id: "classics", label: t("Our classics", "Nos classiques"), flavours: CLASSIC_CAKE_FLAVOURS },
+        { id: "edition", label: "Christmas Edition", flavours: LOG_FLAVOURS },
+      ];
+  const flavours = flavourGroups.flatMap((g) => g.flavours);
   const availableSizes = cake ? CHRISTMAS_SIZE_ORDER.filter((s) => cake.prices[s] !== undefined) : [];
-  const sponges = log ? SPONGES.filter((g) => !g.cakeOnly) : SPONGES;
   const price = log ? CHRISTMAS_LOG_PRICE : cake && size ? cake.prices[size] ?? null : null;
   // Supplément de la garniture choisie (un seul, remplacé quand on change de
   // garniture). Bûches : montant fixe ; gâteaux : selon la taille.
@@ -202,13 +207,10 @@ const Christmas = () => {
   const flavourLabel = (f: ChristmasFlavour) => (showSurcharges ? `${flavourName(f)} (${surchargeLabel(f.id)})` : flavourName(f));
   const flavourDescription = (f: ChristmasFlavour) => (l === "fr" ? f.descriptionFr : f.descriptionEn);
   const step = (n: number) => (cake ? n : n - 1);
-  // Red velvet : pas de garniture au choix (garniture classique d'office).
-  const classicOnly = !!sponges.find((g) => g.id === sponge)?.classicOnly;
 
   const choose = (next: Selection) => {
     setSelection(next);
     setFlavour("");
-    setSponge("");
     if (next.kind === "cake") {
       const c = CHRISTMAS_CAKES.find((x) => x.id === next.id)!;
       const sizes = CHRISTMAS_SIZE_ORDER.filter((s) => c.prices[s] !== undefined);
@@ -238,8 +240,8 @@ const Christmas = () => {
           </h1>
           <p className="text-center text-muted-foreground max-w-2xl mx-auto text-sm md:text-base">
             {t(
-              "This year, Christmas is all about sweetness. Discover our Christmas bento cakes and, for the very first time, our Christmas logs: choose your design, your sponge and your filling.",
-              "Cette année, Noël se fête en douceur. Découvrez nos bento cakes de Noël et, pour la première fois, nos bûches : choisissez votre design, votre génoise et votre garniture.",
+              "This year, Christmas is all about sweetness. Discover our Christmas bento cakes and, for the very first time, our Christmas logs: choose your design and your flavour.",
+              "Cette année, Noël se fête en douceur. Découvrez nos bento cakes de Noël et, pour la première fois, nos bûches : choisissez votre design et votre goût.",
             )}
           </p>
         </div>
@@ -330,42 +332,17 @@ const Christmas = () => {
 
               <div>
                 <p className="text-[14px] font-semibold text-foreground mb-3">
-                  {step(2)}. {t("Sponge", "Génoise")}
-                </p>
-                <Select
-                  value={sponge}
-                  onValueChange={(v) => {
-                    setSponge(v);
-                    if (SPONGES.find((g) => g.id === v)?.classicOnly) setFlavour(CLASSIC_FILLING.id);
-                  }}
-                >
-                  <SelectTrigger className="rounded-none">
-                    <SelectValue placeholder={t("Choose a sponge", "Choisir une génoise")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sponges.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>{g[l]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {classicOnly && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {t("Red velvet comes with our signature whipped cream only, no other filling.", "Le red velvet se fait uniquement avec notre crème fouettée signature, sans autre garniture.")}
-                  </p>
-                )}
-              </div>
-
-              {!classicOnly && (
-              <div>
-                <p className="text-[14px] font-semibold text-foreground mb-3">
-                  {step(3)}. {t("Filling", "Garniture")}
+                  {step(2)}. {t("Flavour", "Goût")}
                 </p>
                 <Select value={flavour} onValueChange={setFlavour}>
                   <SelectTrigger className="rounded-none">
-                    <SelectValue placeholder={t("Choose a filling", "Choisir une garniture")} />
+                    <SelectValue placeholder={t("Choose a flavour", "Choisir un goût")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {flavours.map((f) => (
+                    {flavourGroups.map((g) => (
+                      <SelectGroup key={g.id}>
+                        {g.label && <SelectLabel className="text-xs uppercase tracking-[0.105em] text-primary">{g.label}</SelectLabel>}
+                    {g.flavours.map((f) => (
                       <SelectItem key={f.id} value={f.id} itemText={flavourLabel(f)}>
                         <div className="min-w-0 flex-1 py-0.5">
                           <span className="flex items-baseline justify-between gap-3 whitespace-normal leading-snug">
@@ -378,17 +355,18 @@ const Christmas = () => {
                         </div>
                       </SelectItem>
                     ))}
+                      </SelectGroup>
+                    ))}
                   </SelectContent>
                 </Select>
                 {flavours.find((f) => f.id === flavour) && flavourDescription(flavours.find((f) => f.id === flavour)!) && (
                   <p className="text-sm text-muted-foreground mt-2">{flavourDescription(flavours.find((f) => f.id === flavour)!)}</p>
                 )}
               </div>
-              )}
 
               <div>
                 <p className="text-[14px] font-semibold text-foreground mb-3">
-                  {classicOnly ? step(3) : step(4)}. {t("Date", "Date")}
+                  {step(3)}. {t("Date", "Date")}
                 </p>
                 <Popover open={calOpen} onOpenChange={setCalOpen}>
                   <PopoverTrigger asChild>
@@ -416,7 +394,7 @@ const Christmas = () => {
                     <div className="flex justify-between"><span>{l === "fr" ? (cake ?? log)!.nameFr : (cake ?? log)!.nameEn}</span><span>CHF {price}</span></div>
                     {flavourSurcharge > 0 && (
                       <div className="flex justify-between">
-                        <span>{t("Filling", "Garniture")} : {flavourName(flavours.find((f) => f.id === flavour)!)}</span>
+                        <span>{t("Flavour", "Goût")} : {flavourName(flavours.find((f) => f.id === flavour)!)}</span>
                         <span>+ CHF {flavourSurcharge}</span>
                       </div>
                     )}

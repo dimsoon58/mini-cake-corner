@@ -99,67 +99,87 @@ export const CHRISTMAS_FLAVOURS: ChristmasFlavour[] = [
     descriptionFr: "Façon pâte à tartiner, fondante et gourmande.", descriptionEn: "Hazelnut spread style, rich and melting." },
   { id: "noel-caramel-cacahuetes", nameFr: "Caramel cacahuètes", nameEn: "Caramel Peanut",
     descriptionFr: "Caramel et cacahuètes concassées, snackées pour le croquant.", descriptionEn: "Caramel with crushed roasted peanuts, for the crunch." },
-  { id: "noel-chocolat", nameFr: "Chocolat", nameEn: "Chocolate",
+  { id: "noel-chocolat", nameFr: "Chocolate Lovers", nameEn: "Chocolate Lovers",
     descriptionFr: "Ganache chocolat et copeaux de chocolat.", descriptionEn: "Chocolate ganache and chocolate shavings." },
   { id: "noel-marron", nameFr: "Marron", nameEn: "Chestnut",
     descriptionFr: "Une douce crème de marron.", descriptionEn: "A smooth chestnut cream." },
-  { id: "noel-praline", nameFr: "Praliné", nameEn: "Praline",
-    descriptionFr: "Praliné, chocolat et crêpes dentelles croustillantes.", descriptionEn: "Praline, chocolate and crispy lace crêpes." },
 ];
 
-// Parcours : la génoise (base) d'abord, puis la garniture.
-// Bûches : génoise vanille ou chocolat + un des 9 parfums de Noël.
-// Gâteaux : génoise vanille, chocolat ou red velvet + un des 9 parfums de
-// Noël, ou la garniture classique (crème fouettée) — ce qui remplace la
-// longue liste habituelle.
-
-export const CLASSIC_FILLING: ChristmasFlavour = {
-  id: "noel-classique", nameFr: "Classique", nameEn: "Classic",
-  descriptionFr: "Notre crème fouettée signature, légère et onctueuse.", descriptionEn: "Our signature whipped cream, light and smooth.",
+// 03.11.2026 (Mel) : plus de choix de génoise. Le praliné (crêpes
+// dentelles) est retiré ; « Chocolat » s'appelle Chocolate Lovers ; la
+// garniture « Classique » devient Vanille classique et Chocolat classique.
+// Bûches : la liste « Christmas Edition » ci-dessous. Gâteaux : un seul menu
+// avec « Nos classiques » (les goûts habituels du site) puis exactement la
+// même liste « Christmas Edition » que les bûches.
+export const CLASSIC_VANILLA: ChristmasFlavour = {
+  id: "noel-vanille-classique", nameFr: "Vanille classique", nameEn: "Classic Vanilla",
+  descriptionFr: "Génoise vanille et notre crème fouettée signature.", descriptionEn: "Vanilla sponge with our signature whipped cream.",
+};
+export const CLASSIC_CHOCOLATE: ChristmasFlavour = {
+  id: "noel-chocolat-classique", nameFr: "Chocolat classique", nameEn: "Classic Chocolate",
+  descriptionFr: "Génoise chocolat et notre crème fouettée signature.", descriptionEn: "Chocolate sponge with our signature whipped cream.",
 };
 
-export const CAKE_FLAVOURS: ChristmasFlavour[] = [CLASSIC_FILLING, ...CHRISTMAS_FLAVOURS];
-
-// Bûches : supplément par garniture (décision du 31.10.2026), en CHF,
-// ajouté au prix de la bûche. Classique = +0, quelle que soit la génoise.
-// La génoise chocolat reste sans supplément ; c'est la GARNITURE chocolat
-// qui coûte +4. Ordre du menu = ordre de cette liste.
+// Christmas Edition : supplément par garniture (décision du 31.10.2026), en
+// CHF, ajouté au prix de la bûche. Les deux classiques = +0.
+// Ordre du menu = ordre de cette liste.
 export const LOG_FLAVOUR_SURCHARGES: Record<string, number> = {
-  "noel-classique": 0,
+  "noel-vanille-classique": 0,
+  "noel-chocolat-classique": 0,
   "noel-vanille-framboise": 4,
   "noel-caramel-cacahuetes": 4,
   "noel-pomme-cannelle": 4,
   "noel-pate-a-tartiner": 4,
-  "noel-praline": 6,
   "noel-marron": 4,
   "noel-chocolat": 4,
   "noel-mangue-passion": 6,
   "noel-lemon-curd": 4,
 };
 
-// Gâteaux : supplément de garniture selon la taille, calculé depuis celui
-// des bûches (décision du 31.10.2026) — bento / retro : la moitié,
-// medium : le même, large : bento + medium. Classique = 0.
+const EDITION_FLAVOURS = [CLASSIC_VANILLA, CLASSIC_CHOCOLATE, ...CHRISTMAS_FLAVOURS];
+export const LOG_FLAVOURS: ChristmasFlavour[] = Object.keys(LOG_FLAVOUR_SURCHARGES).map(
+  (id) => EDITION_FLAVOURS.find((f) => f.id === id)!,
+);
+
+// « Nos classiques » : les goûts habituels des bento cakes (même liste et
+// mêmes suppléments que la personnalisation, sans la pistache), avec les
+// textes français du Bento Kit.
+type SizePrices = Record<ChristmasSize, number>;
+const STANDARD: SizePrices = { bento: 0, retro: 0, medium: 0, large: 0 };
+const SPECIAL: SizePrices = { bento: 2, retro: 2, medium: 5, large: 10 };
+const DELUXE: SizePrices = { bento: 4, retro: 4, medium: 10, large: 15 };
+const classic = (id: string, name: string, descriptionFr: string, descriptionEn: string, prices: SizePrices) =>
+  ({ id, nameFr: name, nameEn: name, descriptionFr, descriptionEn, prices });
+export const CLASSIC_CAKE_FLAVOURS: (ChristmasFlavour & { prices: SizePrices })[] = [
+  classic("vanilla", "Vanilla", "Génoise vanille moelleuse et crème fouettée", "Fluffy vanilla sponge with whipped cream", STANDARD),
+  classic("red-velvet", "Red Velvet", "Génoise vanille et chocolat moelleuse et crème fouettée", "Fluffy vanilla and chocolate sponge with whipped cream", STANDARD),
+  classic("chocolate", "Chocolate", "Génoise chocolat moelleuse et crème fouettée", "Fluffy chocolate sponge with whipped cream", STANDARD),
+  classic("chocolate-lovers", "Chocolate Lovers", "Génoise chocolat moelleuse et riche ganache au chocolat", "Moist chocolate sponge with rich chocolate ganache", SPECIAL),
+  classic("chocolate-lover-berrylicious", "Chocolate Lover x Berrylicious", "Génoise chocolat, coulis de framboise et ganache au chocolat", "Chocolate sponge with raspberry coulis and chocolate ganache", SPECIAL),
+  classic("dark-berrylicious", "Dark Berrylicious", "Génoise chocolat moelleuse garnie d'un généreux coulis de framboise et de crème fouettée", "Fluffy chocolate sponge filled with a generous raspberry coulis and whipped cream", SPECIAL),
+  classic("white-berrylicious", "White Berrylicious", "Génoise vanille moelleuse garnie d'un généreux coulis de framboise et de crème fouettée", "Fluffy vanilla sponge filled with a generous raspberry coulis and whipped cream", SPECIAL),
+  classic("salted-caramel", "Salted Butter Caramel", "Génoise vanille moelleuse garnie de caramel et de crème fouettée", "Fluffy vanilla sponge filled with caramel and whipped cream", SPECIAL),
+  classic("lemon-curd", "Lemon Curd", "Génoise vanille moelleuse garnie de lemon curd et de crème fouettée", "Fluffy vanilla sponge filled with lemon curd and whipped cream", SPECIAL),
+  classic("tiramisu", "Tiramisu", "Génoise vanille moelleuse garnie de café frais et de crème fouettée", "Fluffy vanilla sponge filled with fresh coffee and whipped cream", DELUXE),
+  classic("praline", "Praline Obsession", "Génoise vanille moelleuse garnie d'amandes et de noisettes caramélisées et de crème fouettée", "Fluffy vanilla sponge filled with caramelised almond, hazelnut and whipped cream", DELUXE),
+  classic("passion-fruit", "Passion Fruit", "Génoise vanille moelleuse garnie de curd de fruit de la passion et de crème fouettée", "Fluffy vanilla sponge filled with fresh passion fruit curd and whipped cream", DELUXE),
+  classic("vanilla-gf", "Vanilla Gluten-Free", "Génoise vanille sans gluten, moelleuse et crème fouettée", "Fluffy gluten-free vanilla sponge with whipped cream", DELUXE),
+  classic("red-velvet-gf", "Red Velvet Gluten-Free", "Génoise vanille et chocolat sans gluten, moelleuse et crème fouettée", "Fluffy gluten-free vanilla and chocolate sponge with whipped cream", DELUXE),
+  classic("chocolate-gf", "Chocolate Gluten-Free", "Génoise chocolat sans gluten, moelleuse et crème fouettée", "Fluffy gluten-free chocolate sponge with whipped cream", DELUXE),
+];
+
+// Gâteaux : supplément selon la taille. Nos classiques : celui du site.
+// Christmas Edition : calculé depuis celui des bûches (31.10.2026) —
+// bento / retro : la moitié, medium : le même, large : bento + medium.
 export function cakeFlavourSurcharge(flavourId: string, size: ChristmasSize): number {
+  const classicFlavour = CLASSIC_CAKE_FLAVOURS.find((f) => f.id === flavourId);
+  if (classicFlavour) return classicFlavour.prices[size];
   const log = LOG_FLAVOUR_SURCHARGES[flavourId] ?? 0;
   const small = log / 2;
   if (size === "bento" || size === "retro") return small;
   if (size === "medium") return log;
   return small + log;
 }
-
-export const LOG_FLAVOURS: ChristmasFlavour[] = Object.keys(LOG_FLAVOUR_SURCHARGES).map(
-  (id) => CAKE_FLAVOURS.find((f) => f.id === id)!,
-);
-
-// classicOnly : pas de garniture au choix, toujours la garniture classique
-// (crème fouettée) — c'est le cas du red velvet.
-export interface Sponge { id: string; fr: string; en: string; cakeOnly?: boolean; classicOnly?: boolean }
-export const SPONGES: Sponge[] = [
-  { id: "vanille", fr: "Génoise vanille", en: "Vanilla sponge" },
-  { id: "chocolat", fr: "Génoise chocolat", en: "Chocolate sponge" },
-  { id: "red-velvet", fr: "Génoise red velvet", en: "Red velvet sponge", cakeOnly: true, classicOnly: true },
-];
 
 export const LOG_INTRO = {
   fr: "Un roulé ultra moelleux et léger, garni du parfum de votre choix, avec une fine couche de crème.",
