@@ -10,6 +10,7 @@ import { OrderCalendar, ExpressDateNotice } from "@/components/ExpressDateNotice
 import { isOrderDateDisabled, expressSurcharge, expressSurchargeRate } from "@/lib/orderDates";
 import { useLang } from "@/context/LanguageContext";
 import { useSeo } from "@/hooks/useSeo";
+import { useToast } from "@/hooks/use-toast";
 import { useChristmasVisible } from "@/hooks/useChristmasVisible";
 import { cn } from "@/lib/utils";
 import {
@@ -151,6 +152,7 @@ const Christmas = () => {
     canonical: "https://bentocakestudio.ch/noel",
   });
   const { t, lang } = useLang();
+  const { toast } = useToast();
   const l = lang === "fr" ? "fr" : "en";
   const { visible, preview, loading } = useChristmasVisible();
 
@@ -207,6 +209,23 @@ const Christmas = () => {
   const flavourLabel = (f: ChristmasFlavour) => (showSurcharges ? `${flavourName(f)} (${surchargeLabel(f.id)})` : flavourName(f));
   const flavourDescription = (f: ChristmasFlavour) => (l === "fr" ? f.descriptionFr : f.descriptionEn);
   const step = (n: number) => (cake ? n : n - 1);
+
+  // Champs obligatoires (comme les bento cakes) : taille (gâteaux), goût, date.
+  const addToCart = () => {
+    const missing = cake && !size
+      ? { title: t("Size required", "Taille requise"), description: t("Please choose a size.", "Veuillez choisir une taille.") }
+      : !flavours.some((f) => f.id === flavour)
+        ? { title: t("Flavour required", "Goût requis"), description: t("Please choose a flavour.", "Veuillez choisir un goût.") }
+        : !orderDate
+          ? { title: t("Date required", "Date requise"), description: t("Please select a pickup/delivery date.", "Veuillez sélectionner une date de retrait ou de livraison.") }
+          : null;
+    if (missing) {
+      toast({ ...missing, variant: "destructive" });
+      return;
+    }
+    // Panier pas encore branché : le serveur de paiement ne connaît pas ces articles.
+    toast({ title: t("Not available yet", "Pas encore disponible"), description: t("Online ordering will be switched on before the launch.", "La commande en ligne sera activée avant la mise en ligne.") });
+  };
 
   const choose = (next: Selection) => {
     setSelection(next);
@@ -315,7 +334,7 @@ const Christmas = () => {
 
               {cake && (
                 <div>
-                  <p className="text-[14px] font-semibold text-foreground mb-3">{t("1. Size", "1. Taille")}</p>
+                  <p className="text-[14px] font-semibold text-foreground mb-3">{t("1. Size", "1. Taille")} <span className="text-destructive">*</span></p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {availableSizes.map((s) => (
                       <OptionTile
@@ -332,7 +351,7 @@ const Christmas = () => {
 
               <div>
                 <p className="text-[14px] font-semibold text-foreground mb-3">
-                  {step(2)}. {t("Flavour", "Goût")}
+                  {step(2)}. {t("Flavour", "Goût")} <span className="text-destructive">*</span>
                 </p>
                 {/* Gâteaux : deux menus séparés (Nos classiques, Christmas
                     Edition) — un seul goût en tout : choisir dans l'un vide l'autre. */}
@@ -373,7 +392,7 @@ const Christmas = () => {
 
               <div>
                 <p className="text-[14px] font-semibold text-foreground mb-3">
-                  {step(3)}. {t("Date", "Date")}
+                  {step(3)}. {t("Date", "Date")} <span className="text-destructive">*</span>
                 </p>
                 <Popover open={calOpen} onOpenChange={setCalOpen}>
                   <PopoverTrigger asChild>
@@ -412,7 +431,7 @@ const Christmas = () => {
                   <span className="text-[14px] font-semibold">{t("Total", "Total")}</span>
                   <span className="text-xl font-semibold">{total !== null ? `CHF ${Number.isInteger(total) ? total : total.toFixed(2)}` : "—"}</span>
                 </div>
-                <Button disabled className="w-full rounded-none uppercase tracking-[0.105em]">
+                <Button onClick={addToCart} className="w-full rounded-none uppercase tracking-[0.105em]">
                   {t("Add to cart", "Ajouter au panier")}
                 </Button>
                 {preview && (
