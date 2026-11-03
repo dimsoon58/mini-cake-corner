@@ -46,6 +46,7 @@ type DayItem = {
 };
 type Alert = { orderId: string; orderNumber: string | null; issueType: string; detail: string | null; createdAt: string };
 type TodayData = { today: string; tomorrow: string; from?: string; to?: string; toDecide: ListedOrder[]; toCollect: ListedOrder[]; days: Record<string, DayItem[]>; alerts: Alert[] };
+type Filter = "all" | "todo" | "ready";
 
 const MAX_RANGE_DAYS = 31;
 const DEFAULT_EXTRA_DAYS = 2;
