@@ -188,7 +188,9 @@ ${brandDarkModeStyle()}
       </div>
       <div class="bcs-text bcs-content-pad" style="padding:0 40px 36px;">
         ${p(`${tr("Hello", "Bonjour")} ${firstName},`)}
-        ${p(tr("Thank you for your purchase! Here is your Bento Cake Studio gift card 🤍", "Merci pour votre achat ! Voici votre bon cadeau Bento Cake Studio 🤍"))}
+        ${p(card.source === "manual"
+          ? tr("Here is your Bento Cake Studio gift card 🤍", "Voici votre bon cadeau Bento Cake Studio 🤍")
+          : tr("Thank you for your purchase! Here is your Bento Cake Studio gift card 🤍", "Merci pour votre achat ! Voici votre bon cadeau Bento Cake Studio 🤍"))}
         ${p(tr("You will find it attached as a PDF, ready to print or forward.", "Vous le trouverez en pièce jointe (PDF), prêt à imprimer ou à transmettre."), "margin-bottom:20px;")}
         <div class="bcs-callout" style="border:2px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:20px 18px;margin:0 0 20px;text-align:center;">
           <p style="color:#7A6540;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">${tr("Gift card", "Bon cadeau")}${recipient ? ` ${tr("for", "pour")} ${recipient}` : ""}</p>
@@ -246,7 +248,34 @@ async function activate(supabase: any, card: GiftCardRow): Promise<GiftCardRow |
 }
 
 // deno-lint-ignore no-explicit-any
-async function sendEmailOnce(supabase: any, card: GiftCardRow): Promise<boolean> {
+async function sendVoucherEmail(card: GiftCardRow, idempotencyKey: string): Promise<void> {
+  const resendKey = Deno.env.get("RESEND_API_KEY");
+  if (!resendKey) throw new Error("RESEND_API_KEY not configured");
+  if (!card.buyer_email) throw new Error("Pas d'adresse email pour ce bon");
+  const { subject, html } = renderGiftCardEmail(card);
+  const pdf = await generateGiftCardPdf(card);
+  const fr = card.lang !== "en";
+  const resp = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify({
+      from: FROM, to: [card.buyer_email], subject, html,
+      attachments: [{ filename: `${fr ? "Bon-cadeau" : "Gift-card"}_${card.code}.pdf`, content: pdf }],
+    }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(`Resend ${resp.status}: ${data?.message ?? JSON.stringify(data).slice(0, 300)}`);
+}
+
+/** Admin « Renvoyer l'email » (F39): sends again, whatever was sent before. */
+// deno-lint-ignore no-explicit-any
+export async function resendGiftCardEmail(supabase: any, card: GiftCardRow): Promise<void> {
+  await sendVoucherEmail(card, `gift-card-${card.id}-resend-${Date.now()}`);
+  await supabase.from("gift_cards").update({ email_status: "sent", email_sent_at: new Date().toISOString(), email_error: null }).eq("id", card.id);
+}
+
+// deno-lint-ignore no-explicit-any
+export async function sendEmailOnce(supabase: any, card: GiftCardRow, opts: { notifyTeam?: boolean } = {}): Promise<boolean> {
   if (card.email_status === "sent") return true;
   const staleBefore = new Date(Date.now() - EMAIL_CLAIM_STALE_MS).toISOString();
   const { data: claimed } = await supabase.from("gift_cards")
@@ -257,23 +286,9 @@ async function sendEmailOnce(supabase: any, card: GiftCardRow): Promise<boolean>
   if (!claimed) return false; // already sent, or being sent right now
 
   try {
-    const resendKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendKey) throw new Error("RESEND_API_KEY not configured");
-    const { subject, html } = renderGiftCardEmail(claimed);
-    const pdf = await generateGiftCardPdf(claimed);
-    const fr = claimed.lang !== "en";
-    const resp = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json", "Idempotency-Key": `gift-card-${claimed.id}` },
-      body: JSON.stringify({
-        from: FROM, to: [claimed.buyer_email], subject, html,
-        attachments: [{ filename: `${fr ? "Bon-cadeau" : "Gift-card"}_${claimed.code}.pdf`, content: pdf }],
-      }),
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error(`Resend ${resp.status}: ${data?.message ?? JSON.stringify(data).slice(0, 300)}`);
+    await sendVoucherEmail(claimed, `gift-card-${claimed.id}`);
     await supabase.from("gift_cards").update({ email_status: "sent", email_sent_at: new Date().toISOString(), email_error: null }).eq("id", claimed.id);
-    await notifyTeam(claimed);
+    if (opts.notifyTeam !== false) await notifyTeam(claimed);
     return true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

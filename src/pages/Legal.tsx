@@ -237,8 +237,8 @@ const articles: Article[] = [
   {
     id: "8",
     part: "gtc",
-    title: "Article 8 – Customer Benefits: Welcome Offer and Cashback",
-    titleFr: "Article 8 – Avantages clients : offre de bienvenue et cashback",
+    title: "Article 8 – Customer Benefits: Welcome Offer, Cashback and Gift Cards",
+    titleFr: "Article 8 – Avantages clients : offre de bienvenue, cashback et bons cadeaux",
     blocks: [
       { h: "Welcome Offer", hFr: "Offre de bienvenue" },
       {
@@ -302,6 +302,28 @@ const articles: Article[] = [
       {
         p: "Orders placed by telephone, email, message or any other channel outside the customer account on the website do not allow Customers to earn cashback or use their available cashback balance.",
         pFr: "Les commandes passées par téléphone, e-mail, message ou tout autre canal en dehors du compte client sur le site ne permettent ni de cumuler du cashback ni d'utiliser le solde disponible.",
+      },
+      // 03.11.2026 — bons cadeaux (F37–F39).
+      { h: "Gift Cards", hFr: "Bons cadeaux" },
+      {
+        p: "Bento Cake Studio SNC offers gift cards for an amount chosen by the buyer, between CHF 20 and CHF 500. The gift card is paid online and sent by email to the buyer, as a PDF bearing a unique code.",
+        pFr: "Bento Cake Studio SNC propose des bons cadeaux d'un montant choisi par l'acheteur, entre CHF 20 et CHF 500. Le bon est payé en ligne et envoyé par e-mail à l'acheteur, sous la forme d'un PDF portant un code unique.",
+      },
+      {
+        p: "The gift card is valid for 12 months from the date of purchase. After that date, any remaining balance is lost.",
+        pFr: "Le bon est valable 12 mois à compter de la date d'achat. Passé cette date, le solde éventuel est perdu.",
+      },
+      {
+        p: "It can be used on the whole website (cakes, workshops and other products, including delivery and express surcharges) by entering the code in the « Promo code » field of the cart. It can be combined with a discount; it is applied last, after any discounts. If the order costs less than the gift card, the remaining balance stays on the code until it expires. If the order costs more, the difference is paid by card.",
+        pFr: "Il est utilisable sur tout le site (gâteaux, workshops et autres produits, y compris la livraison et les suppléments express) en saisissant le code dans le champ « Code promo » du panier. Il est cumulable avec une remise ; il s'applique en dernier, après les éventuelles remises. Si la commande coûte moins que le bon, le solde reste sur le code jusqu'à son expiration. Si elle coûte plus, la différence est payée par carte.",
+      },
+      {
+        p: "A gift card is not refundable and cannot be exchanged for cash, in whole or in part. If an order paid with a gift card is refused or cancelled, the amount paid with the gift card is credited back to the gift card, never paid out in cash; any part paid by card is refunded according to Article 5.",
+        pFr: "Un bon cadeau n'est pas remboursable et ne peut pas être échangé contre des espèces, en tout ou en partie. Si une commande payée avec un bon est refusée ou annulée, le montant payé avec le bon est recrédité sur le bon, jamais versé en argent ; la part éventuellement payée par carte est remboursée selon l'article 5.",
+      },
+      {
+        p: "The gift card can be passed on to another person: whoever holds the code can use it. Bento Cake Studio SNC cannot be held responsible for the loss or theft of a code; please keep the email. In case of fraud or abusive use, Bento Cake Studio SNC may deactivate a gift card.",
+        pFr: "Le bon peut être offert à une autre personne : quiconque détient le code peut l'utiliser. Bento Cake Studio SNC ne peut être tenue responsable de la perte ou du vol d'un code ; merci de conserver l'e-mail. En cas de fraude ou d'usage abusif, Bento Cake Studio SNC peut désactiver un bon.",
       },
     ],
   },

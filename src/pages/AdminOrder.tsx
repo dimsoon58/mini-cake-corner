@@ -21,6 +21,7 @@ import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel"
 import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
 import { OrderConfirmationPanel } from "@/components/admin/OrderConfirmationPanel";
 import { OrderInternalNotes } from "@/components/admin/OrderInternalNotes";
+import { GiftCardOrderPanel } from "@/components/admin/GiftCardOrderPanel";
 import { CHANNEL_LABELS, MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -503,6 +504,9 @@ const AdminOrder = () => {
 
           {/* F36 : notes internes de l'équipe (texte + photos), toutes les commandes. */}
           {order.id && <OrderInternalNotes orderId={order.id} />}
+
+          {/* F39 : bon cadeau utilisé sur la commande (remettre un montant sur le bon). */}
+          {order.id && !employee && Number(order.gift_card_amount) > 0 && <GiftCardOrderPanel orderId={order.id} />}
 
           {/* Missing token warning — rare: only when this order genuinely has
               no order_action_tokens row at all (neither the URL nor

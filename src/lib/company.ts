@@ -20,4 +20,4 @@ export const LEGAL_PATHS = {
 } as const;
 
 // Version des CGV et de la politique de confidentialité affichée en bas des pages.
-export const LEGAL_UPDATED = "07.10.2026";
+export const LEGAL_UPDATED = "03.11.2026";

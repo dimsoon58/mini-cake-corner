@@ -40,6 +40,7 @@ import AdminWorkshops from "./pages/AdminWorkshops";
 import AdminCompta from "./pages/AdminCompta";
 import AdminPartners from "./pages/AdminPartners";
 import AdminInfluencers from "./pages/AdminInfluencers";
+import AdminGiftCards from "./pages/AdminGiftCards";
 import AdminPartner from "./pages/AdminPartner";
 import AdminCustomer from "./pages/AdminCustomer";
 import AdminCalendar from "./pages/AdminCalendar";
@@ -163,6 +164,7 @@ const App = () => (
             <Route path="/admin/compta" element={<AdminCompta />} />
             <Route path="/admin/partners" element={<AdminPartners />} />
             <Route path="/admin/influencers" element={<AdminInfluencers />} />
+            <Route path="/admin/gift-cards" element={<AdminGiftCards />} />
             <Route path="/admin/partners/:id" element={<AdminPartner />} />
             <Route path="/order-action" element={<OrderAction />} />
             <Route path="/product/:id" element={<ProductDetail />} />
