@@ -21,14 +21,14 @@ const f35 = fsMod.readFileSync(`${M}/20261103120000_f35_influencer_codes.sql`, "
 const f35Cancel = f35.slice(f35.indexOf("create or replace function public.cancel_workshop_seats_atomic("));
 const db = await freshDb();
 await db.exec(f35Cancel.slice(0, f35Cancel.indexOf("\n$$;") + 4));
-for (const m of ["20261103154211_f37_gift_cards.sql", "20261104120000_f38_gift_card_redemption.sql"]) await db.exec(fsMod.readFileSync(`${M}/${m}`, "utf8"));
+for (const m of ["20261103154211_f37_gift_cards.sql", "20261103162501_f38_gift_card_redemption.sql"]) await db.exec(fsMod.readFileSync(`${M}/${m}`, "utf8"));
 const one = async (sql, params) => (await db.query(sql, params)).rows[0];
 const fails_ = async (sql, params) => { try { await db.query(sql, params); return null; } catch (e) { return e.message; } };
 
 // Replaying F38 must be harmless.
 {
   let replayErr = null;
-  try { await db.exec(fsMod.readFileSync(`${M}/20261104120000_f38_gift_card_redemption.sql`, "utf8")); } catch (e) { replayErr = e.message; }
+  try { await db.exec(fsMod.readFileSync(`${M}/20261103162501_f38_gift_card_redemption.sql`, "utf8")); } catch (e) { replayErr = e.message; }
   check("F38 peut être rejouée", replayErr === null, replayErr);
 }
 
