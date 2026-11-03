@@ -82,12 +82,9 @@ const AdminToday = () => {
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-<<<<<<< HEAD
-=======
   // Upcoming deliveries (today → +14 days), to book the courier in time.
   const [upcoming, setUpcoming] = useState<Record<string, DayItem[]> | null>(null);
   // Commandes de test masquées sauf avec « Afficher les tests » (get-today).
->>>>>>> a42b08817d2cd14f870dc2782a564fe62fbabb5a
   const [includeTests, setIncludeTests] = useShowTests();
   const [ws, setWs] = useState<{ sessions: WorkshopSession[]; stockRows: { sponge_base: string; product_category: string; quantity: number }[] } | null>(null);
 
@@ -148,8 +145,6 @@ const AdminToday = () => {
         return;
       }
       setData(res as TodayData);
-<<<<<<< HEAD
-=======
       // Livraisons à venir : same function, fixed 14-day window from today.
       try {
         const { data: up, error: uErr } = await supabase.functions.invoke("get-today", {
@@ -158,7 +153,6 @@ const AdminToday = () => {
         setUpcoming(!uErr && !up?.error && up?.from ? (up as TodayData).days : null);
       } catch { setUpcoming(null); }
       // Sessions de workshop (get-production) : sans accès ou pas encore déployé → bloc absent.
->>>>>>> a42b08817d2cd14f870dc2782a564fe62fbabb5a
       try {
         const { data: prod, error: pErr } = await supabase.functions.invoke("get-production", { body: { from, to, includeTests } });
         setWs(!pErr && !prod?.error ? { sessions: prod?.workshopSessions ?? [], stockRows: prod?.stockRows ?? [] } : null);
@@ -258,8 +252,6 @@ const AdminToday = () => {
   const totalCakes = sumQty(periodCakes);
   const workshopDates = periodDates.filter((d) => data!.days[d].some((i) => i.type === "workshop"));
 
-<<<<<<< HEAD
-=======
   // Badges that must never be missed: delivery (courier to book) and candles.
   const deliveryBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide bg-sky-700 text-white";
   const candleBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-yellow-300 text-yellow-950 border border-yellow-500";
@@ -310,7 +302,6 @@ const AdminToday = () => {
 
   // One sub-list of a day ("À faire", "Prêts" or "Workshops"), items in slot
   // order (same order as get-today, kept when a tick moves an item across).
->>>>>>> a42b08817d2cd14f870dc2782a564fe62fbabb5a
   const bySlot = (a: DayItem, b: DayItem) =>
     (a.slot ?? "99").localeCompare(b.slot ?? "99") || (a.orderNumber ?? "").localeCompare(b.orderNumber ?? "");
 
@@ -462,40 +453,6 @@ const AdminToday = () => {
               </div>
             )}
 
-<<<<<<< HEAD
-            {/* To do now — only when non-empty */}
-            {!employee && (data.toDecide.length > 0 || data.toCollect.length > 0) && (
-              <section id="a-faire">
-                <h2 className={sectionTitle}>{t("To do now", "À faire maintenant")}</h2>
-                <div className={box}>
-                  <ul className="divide-y divide-[#F0E8D8]">
-=======
-            {/* Counters */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                ...(employee ? [] : [
-                  { label: t("To decide", "À décider"), value: data.toDecide.length, warn: data.toDecide.length > 0, href: "#a-faire" },
-                  { label: t("To collect", "À encaisser"), value: data.toCollect.length, warn: false, href: "#a-faire" },
-                ]),
-                { label: t("Cakes in the period", "Gâteaux sur la période"), value: counts.all, warn: false, href: "#production",
-                  note: toAcceptCakes > 0 ? t(`+ ${toAcceptCakes} to accept`, `+ ${toAcceptCakes} à accepter`) : null },
-                ...(employee ? [] : [{ label: t("Alerts", "Alertes"), value: data.alerts.length, danger: data.alerts.length > 0, href: "#alertes" }]),
-              ].map((c) => (
-                <a
-                  key={c.label}
-                  href={c.href}
-                  className={cn(
-                    "block px-4 py-3 border",
-                    c.danger ? "border-red-200 bg-red-50 text-red-900" : c.warn ? "border-amber-200 bg-amber-50 text-amber-900" : "border-border/60 bg-secondary/30 text-foreground",
-                  )}
-                >
-                  <span className="block text-xs font-semibold uppercase tracking-[0.08em] opacity-80">{c.label}</span>
-                  <span className="block text-3xl font-semibold tabular-nums">{c.value}</span>
-                  {"note" in c && c.note && <span className="block text-xs font-semibold text-blue-800">{c.note}</span>}
-                </a>
-              ))}
-            </div>
-
             {/* Upcoming deliveries — the courier has to be booked ahead */}
             {upcomingDeliveries && (
               <section id="livraisons">
@@ -524,16 +481,12 @@ const AdminToday = () => {
               </section>
             )}
 
-            {/* To do now */}
-            {!employee && (
-            <section id="a-faire">
-              <h2 className={sectionTitle}>{t("To do now", "À faire maintenant")}</h2>
-              <div className={box}>
-                {data.toDecide.length === 0 && data.toCollect.length === 0 ? (
-                  <p className="px-4 py-5 text-sm text-muted-foreground">{t("Nothing to decide or collect.", "Rien à décider ni à encaisser.")}</p>
-                ) : (
-                  <ul className="divide-y divide-border/60">
->>>>>>> a42b08817d2cd14f870dc2782a564fe62fbabb5a
+            {/* To do now — only when non-empty */}
+            {!employee && (data.toDecide.length > 0 || data.toCollect.length > 0) && (
+              <section id="a-faire">
+                <h2 className={sectionTitle}>{t("To do now", "À faire maintenant")}</h2>
+                <div className={box}>
+                  <ul className="divide-y divide-[#F0E8D8]">
                     {data.toDecide.map((o) => (
                       <li key={`d-${o.orderId}`} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
                         <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("À décider", "À décider")}</span>
