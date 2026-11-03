@@ -22,7 +22,8 @@ const formatDate = (iso: string) => {
 
 export default function PromoCodeBox({ discountAmount, welcomeAvailable }: { discountAmount: number; welcomeAvailable: boolean }) {
   const { t } = useLang();
-  const { partnerReferral, applyPromoCode, removePartnerReferral, giftCard, applyGiftCard, removeGiftCard } = useCart();
+  const { partnerReferral, applyPromoCode, removePartnerReferral, giftCard, applyGiftCard, removeGiftCard, items } = useCart();
+  const workshopTotal = items.filter((i) => i.product === "workshop").reduce((sum, i) => sum + (Number(i.total) || 0), 0);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,10 +100,17 @@ export default function PromoCodeBox({ discountAmount, welcomeAvailable }: { dis
         <div className="space-y-1 text-xs text-muted-foreground">
           <p>
             {t(
-              `Gift card ${giftCard.code}: CHF ${formatChf(giftCard.balance)} available${giftCard.expiresAt ? `, valid until ${formatDate(giftCard.expiresAt)}` : ""}.`,
-              `Bon cadeau ${giftCard.code} : CHF ${formatChf(giftCard.balance)} disponible${giftCard.expiresAt ? `, valable jusqu'au ${formatDate(giftCard.expiresAt)}` : ""}.`,
+              `${giftCard.kind === "workshop" ? "Workshop gift card" : "Gift card"} ${giftCard.code}: CHF ${formatChf(giftCard.balance)} available${giftCard.expiresAt ? `, valid until ${formatDate(giftCard.expiresAt)}` : ""}.`,
+              `${giftCard.kind === "workshop" ? "Bon cadeau workshop" : "Bon cadeau"} ${giftCard.code} : CHF ${formatChf(giftCard.balance)} disponible${giftCard.expiresAt ? `, valable jusqu'au ${formatDate(giftCard.expiresAt)}` : ""}.`,
             )}
           </p>
+          {giftCard.kind === "workshop" && (
+            <p className={workshopTotal > 0 ? "" : "text-amber-800"}>
+              {workshopTotal > 0
+                ? t("Valid on workshops only.", "Valable uniquement sur les workshops.")
+                : t("This gift card is valid on workshops only: add a workshop to your cart to use it.", "Ce bon est valable uniquement sur les workshops : ajoutez un workshop à votre panier pour l'utiliser.")}
+            </p>
+          )}
           <button type="button" onClick={removeGiftCard} className="underline hover:text-foreground">
             {t("Remove the gift card", "Retirer le bon cadeau")}
           </button>

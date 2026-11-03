@@ -10,7 +10,7 @@ export type GiftCardEvent = { action: string; amount: number | null; orderId: st
 export type AdminGiftCard = {
   id: string; code: string; initialAmount: number; balance: number; status: "active" | "disabled"; source: "online" | "manual";
   buyerName: string; buyerEmail: string | null; recipientName: string | null; message: string | null; note: string | null;
-  lang: "fr" | "en"; paidAt: string | null; expiresAt: string; createdAt: string; createdBy: string | null;
+  lang: "fr" | "en"; kind: "amount" | "workshop"; workshopType: string | null; workshopPlaces: number | null; paidAt: string | null; expiresAt: string; createdAt: string; createdBy: string | null;
   emailStatus: string; emailSentAt: string | null; expired: boolean; uses: GiftCardUse[]; events: GiftCardEvent[];
 };
 export type GiftCardSummary = {
@@ -50,6 +50,14 @@ export function giftCardState(c: Pick<AdminGiftCard, "status" | "expired" | "bal
   if (c.expired) return { label: "Expiré", cls: "border-amber-300 bg-amber-50 text-amber-900" };
   if (c.balance <= 0) return { label: "Utilisé", cls: "border-sky-300 bg-sky-50 text-sky-900" };
   return { label: "Actif", cls: "border-emerald-300 bg-emerald-50 text-emerald-900" };
+}
+
+export const WORKSHOP_VOUCHER_NAMES: Record<string, string> = { signature: "Signature", piping: "Pochage", paint: "Paint" };
+/** « Workshop Signature, 2 places » for a workshop voucher, null otherwise. */
+export function workshopVoucherLabel(c: Pick<AdminGiftCard, "kind" | "workshopType" | "workshopPlaces">): string | null {
+  if (c.kind !== "workshop" || !c.workshopType) return null;
+  const n = c.workshopPlaces ?? 1;
+  return `Workshop ${WORKSHOP_VOUCHER_NAMES[c.workshopType] ?? c.workshopType}, ${n} place${n > 1 ? "s" : ""}`;
 }
 
 export function downloadBase64Pdf(filename: string, base64: string) {

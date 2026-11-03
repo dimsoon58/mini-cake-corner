@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { generateGiftCardPdf, generateGiftCode, resendGiftCardEmail, sendEmailOnce } from "../_shared/gift-cards.ts";
+import { WORKSHOP_PRICE } from "../_shared/workshops.ts";
 
 // F39 (03.11.2026) — Admin › Bons cadeaux. Administrators only (Mel, Eli).
 //   Read : list, summary (a period), order (the voucher part of one order),
@@ -85,13 +86,22 @@ serve(async (req) => {
         const email = text(body.buyerEmail, 254)?.toLowerCase() ?? null;
         if (email && !EMAIL_RE.test(email)) throw new InputError("Adresse email invalide");
         const months = Number(body.months ?? 12);
+        // F40 — workshop voucher made by hand: value = workshop price × places.
+        const kind = body.kind === "workshop" ? "workshop" : "amount";
+        const workshopType = kind === "workshop" ? String(body.workshopType ?? "") : null;
+        const places = kind === "workshop" ? Number(body.places) : null;
+        if (kind === "workshop" && (!workshopType || !(workshopType in WORKSHOP_PRICE) || !Number.isInteger(places) || places! < 1 || places! > 6)) {
+          throw new InputError("Choisissez un workshop et 1 à 6 places");
+        }
+        const amount = kind === "workshop" ? WORKSHOP_PRICE[workshopType as keyof typeof WORKSHOP_PRICE] * places! : money(body.amount, "Montant");
         let card: Record<string, unknown> | null = null;
         for (let attempt = 0; attempt < 5 && !card; attempt++) {
           try {
             card = await rpc("gift_card_create_manual", {
-              p_code: generateGiftCode(), p_amount: money(body.amount, "Montant"), p_buyer_name: text(body.buyerName, 120),
+              p_code: generateGiftCode(), p_amount: amount, p_buyer_name: text(body.buyerName, 120),
               p_buyer_email: email, p_recipient: text(body.recipientName, 80), p_message: text(body.message, 200),
               p_lang: body.lang === "en" ? "en" : "fr", p_months: Number.isInteger(months) ? months : 12, p_note: text(body.note, 500), p_by: by,
+              p_kind: kind, p_workshop_type: workshopType, p_workshop_places: places,
             }) as Record<string, unknown>;
           } catch (e) {
             // 23505 = this random code already exists: draw another one.

@@ -310,12 +310,16 @@ const articles: Article[] = [
         pFr: "Bento Cake Studio SNC propose des bons cadeaux d'un montant choisi par l'acheteur, entre CHF 20 et CHF 500. Le bon est payé en ligne et envoyé par e-mail à l'acheteur, sous la forme d'un PDF portant un code unique.",
       },
       {
+        p: "Bento Cake Studio SNC also offers workshop gift cards, bought for a workshop and a number of places (1 to 6). Their value is the price of those places at the time of purchase. They can be used on any workshop, but only on workshops.",
+        pFr: "Bento Cake Studio SNC propose aussi des bons cadeaux workshop, achetés pour un workshop et un nombre de places (1 à 6). Leur valeur correspond au prix de ces places au moment de l'achat. Ils sont utilisables sur n'importe quel workshop, mais uniquement sur les workshops.",
+      },
+      {
         p: "The gift card is valid for 12 months from the date of purchase. After that date, any remaining balance is lost.",
         pFr: "Le bon est valable 12 mois à compter de la date d'achat. Passé cette date, le solde éventuel est perdu.",
       },
       {
-        p: "It can be used on the whole website (cakes, workshops and other products, including delivery and express surcharges) by entering the code in the « Promo code » field of the cart. It can be combined with a discount; it is applied last, after any discounts. If the order costs less than the gift card, the remaining balance stays on the code until it expires. If the order costs more, the difference is paid by card.",
-        pFr: "Il est utilisable sur tout le site (gâteaux, workshops et autres produits, y compris la livraison et les suppléments express) en saisissant le code dans le champ « Code promo » du panier. Il est cumulable avec une remise ; il s'applique en dernier, après les éventuelles remises. Si la commande coûte moins que le bon, le solde reste sur le code jusqu'à son expiration. Si elle coûte plus, la différence est payée par carte.",
+        p: "An amount gift card can be used on the whole website (cakes, workshops and other products, including delivery and express surcharges) by entering the code in the « Promo code » field of the cart. It can be combined with a discount; it is applied last, after any discounts. If the order costs less than the gift card, the remaining balance stays on the code until it expires. If the order costs more, the difference is paid by card.",
+        pFr: "Un bon cadeau d'un montant est utilisable sur tout le site (gâteaux, workshops et autres produits, y compris la livraison et les suppléments express) en saisissant le code dans le champ « Code promo » du panier. Il est cumulable avec une remise ; il s'applique en dernier, après les éventuelles remises. Si la commande coûte moins que le bon, le solde reste sur le code jusqu'à son expiration. Si elle coûte plus, la différence est payée par carte.",
       },
       {
         p: "A gift card is not refundable and cannot be exchanged for cash, in whole or in part. If an order paid with a gift card is refused or cancelled, the amount paid with the gift card is credited back to the gift card, never paid out in cash; any part paid by card is refunded according to Article 5.",

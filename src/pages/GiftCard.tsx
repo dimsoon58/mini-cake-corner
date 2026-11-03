@@ -12,6 +12,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useSeo } from "@/hooks/useSeo";
 import { useGiftCardsVisible } from "@/hooks/useGiftCardsVisible";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
+import { WORKSHOP_PRICE_PER_PERSON } from "@/data/workshopSessions";
+import { cn } from "@/lib/utils";
 
 // F37 (03.11.2026) — « Bon cadeau » : the buyer chooses a free amount
 // (CHF 20 – 500), their name and email, optionally the recipient's first
@@ -22,6 +24,15 @@ import { extractFunctionErrorMessage } from "@/lib/functionErrors";
 const MIN = 20;
 const MAX = 500;
 const MESSAGE_MAX = 200;
+// F40 — « Offrir un workshop »: bought for one workshop and 1–6 places;
+// whoever receives it can book any workshop (workshops only).
+type WorkshopKey = "piping" | "signature" | "paint";
+const WORKSHOP_CHOICES: { id: WorkshopKey; fr: string; en: string }[] = [
+  { id: "piping", fr: "Pochage", en: "Piping" },
+  { id: "signature", fr: "Signature", en: "Signature" },
+  { id: "paint", fr: "Paint", en: "Paint" },
+];
+const MAX_PLACES = 6;
 
 const GiftCard = () => {
   useSeo({
@@ -33,6 +44,10 @@ const GiftCard = () => {
   const { user } = useAuth();
   const { visible, preview, loading } = useGiftCardsVisible();
   const [params] = useSearchParams();
+  const presetWorkshop = WORKSHOP_CHOICES.find((w) => w.id === params.get("workshop"))?.id ?? null;
+  const [kind, setKind] = useState<"amount" | "workshop">(presetWorkshop ? "workshop" : "amount");
+  const [workshopType, setWorkshopType] = useState<WorkshopKey>(presetWorkshop ?? "signature");
+  const [places, setPlaces] = useState(1);
   const [amount, setAmount] = useState("");
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
@@ -60,8 +75,10 @@ const GiftCard = () => {
   if (loading) return <Layout><div className="min-h-[60vh]" /></Layout>;
   if (!visible) return <Navigate to="/" replace />;
 
-  const value = Math.round(Number(amount.replace(",", ".")) * 100) / 100;
-  const amountOk = Number.isFinite(value) && value >= MIN && value <= MAX;
+  const value = kind === "workshop"
+    ? WORKSHOP_PRICE_PER_PERSON[workshopType] * places
+    : Math.round(Number(amount.replace(",", ".")) * 100) / 100;
+  const amountOk = kind === "workshop" || (Number.isFinite(value) && value >= MIN && value <= MAX);
   const shown = amountOk ? (Number.isInteger(value) ? String(value) : value.toFixed(2)) : null;
   const paymentFailed = params.get("payment") === "failed";
 
@@ -76,7 +93,9 @@ const GiftCard = () => {
     setError(null);
     try {
       const { data, error: fnError } = await supabase.functions.invoke("create-gift-card-payment", {
-        body: { amount: value, buyerName, buyerEmail, recipientName, message, lang, acceptTerms: true },
+        body: kind === "workshop"
+          ? { kind, workshopType, places, buyerName, buyerEmail, recipientName, message, lang, acceptTerms: true }
+          : { kind, amount: value, buyerName, buyerEmail, recipientName, message, lang, acceptTerms: true },
       });
       if (fnError) throw new Error(await extractFunctionErrorMessage(fnError, t("We couldn't start the payment. Please try again.", "Nous n'avons pas pu démarrer le paiement. Merci de réessayer.")));
       if (!data?.paymentPageUrl) throw new Error(data?.error ?? t("We couldn't start the payment. Please try again.", "Nous n'avons pas pu démarrer le paiement. Merci de réessayer."));
@@ -103,8 +122,8 @@ const GiftCard = () => {
         </h1>
         <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto text-sm md:text-base">
           {t(
-            "Give a sweet moment: a Bento Cake Studio gift card, for the amount of your choice. It can be used on the whole site, for cakes, workshops and more, and is valid for 12 months.",
-            "Offrez un moment tout en douceur : un bon cadeau Bento Cake Studio, du montant de votre choix. Il s'utilise sur tout le site, pour les gâteaux, les workshops et plus, et il est valable 12 mois.",
+            "Give a sweet moment: a Bento Cake Studio gift card, for the amount of your choice or for a workshop. It is valid for 12 months.",
+            "Offrez un moment tout en douceur : un bon cadeau Bento Cake Studio, du montant de votre choix ou pour un workshop. Il est valable 12 mois.",
           )}
         </p>
 
@@ -115,6 +134,23 @@ const GiftCard = () => {
         )}
 
         <form onSubmit={submit} className="space-y-6 border border-border/60 bg-background p-5 sm:p-8">
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("Kind of gift card", "Type de bon cadeau")}>
+            {([["amount", t("An amount", "Un montant")], ["workshop", t("A workshop", "Un workshop")]] as const).map(([k, text]) => (
+              <button
+                key={k}
+                type="button"
+                role="radio"
+                aria-checked={kind === k}
+                onClick={() => { setKind(k); setError(null); }}
+                className={cn("border px-3 py-3 text-sm uppercase tracking-[0.105em] font-medium",
+                  kind === k ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:border-primary")}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+
+          {kind === "amount" ? (
           <div className="space-y-2">
             <Label htmlFor="gc-amount" className={label}>{t("Amount (CHF)", "Montant (CHF)")} {star}</Label>
             <Input
@@ -126,9 +162,47 @@ const GiftCard = () => {
               className="rounded-none text-lg"
             />
             <p className="text-xs text-muted-foreground">
-              {t(`Any amount from CHF ${MIN} to CHF ${MAX}. For example, a workshop place costs CHF 65 to 85.`, `Le montant de votre choix, de CHF ${MIN} à CHF ${MAX}. Par exemple, une place de workshop coûte CHF 65 à 85.`)}
+              {t(`Any amount from CHF ${MIN} to CHF ${MAX}, to use on the whole site.`, `Le montant de votre choix, de CHF ${MIN} à CHF ${MAX}, à utiliser sur tout le site.`)}
             </p>
           </div>
+          ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="gc-workshop" className={label}>{t("Workshop", "Workshop")} {star}</Label>
+                <select
+                  id="gc-workshop"
+                  value={workshopType}
+                  onChange={(e) => setWorkshopType(e.target.value as WorkshopKey)}
+                  className="h-10 w-full border border-input bg-background px-3 text-sm"
+                >
+                  {WORKSHOP_CHOICES.map((w) => (
+                    <option key={w.id} value={w.id}>{t(w.en, w.fr)} (CHF {WORKSHOP_PRICE_PER_PERSON[w.id]} {t("per person", "par personne")})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gc-places" className={label}>{t("Spots", "Places")} {star}</Label>
+                <select
+                  id="gc-places"
+                  value={places}
+                  onChange={(e) => setPlaces(Number(e.target.value))}
+                  className="h-10 w-full border border-input bg-background px-3 text-sm"
+                >
+                  {Array.from({ length: MAX_PLACES }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>{n} {n > 1 ? t("spots", "places") : t("spot", "place")}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                `Value CHF ${value}. Whoever receives it can book the workshop of their choice (Piping, Signature or Paint): if it costs more, the difference is paid by card; any remaining balance stays on the code. Workshops only.`,
+                `Valeur CHF ${value}. La personne qui le reçoit peut réserver le workshop de son choix (Pochage, Signature ou Paint) : s'il coûte plus, la différence se paie par carte ; le solde éventuel reste sur le code. Valable uniquement sur les workshops.`,
+              )}
+            </p>
+          </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -166,8 +240,12 @@ const GiftCard = () => {
             <Checkbox id="gc-terms" checked={accept} onCheckedChange={(c) => { setAccept(c === true); setError(null); }} className="mt-0.5" />
             <Label htmlFor="gc-terms" className="text-sm font-normal leading-snug cursor-pointer">
               {t(
-                "I accept the gift card conditions: valid 12 months from the purchase date, usable on the whole site (the remaining balance stays on the code), not refundable and not exchangeable for cash.",
-                "J'accepte les conditions des bons cadeaux : valable 12 mois à partir de la date d'achat, utilisable sur tout le site (le solde reste sur le code), non remboursable et non échangeable contre des espèces.",
+                kind === "workshop"
+                  ? "I accept the gift card conditions: valid 12 months from the purchase date, usable on workshops only (the remaining balance stays on the code), not refundable and not exchangeable for cash."
+                  : "I accept the gift card conditions: valid 12 months from the purchase date, usable on the whole site (the remaining balance stays on the code), not refundable and not exchangeable for cash.",
+                kind === "workshop"
+                  ? "J'accepte les conditions des bons cadeaux : valable 12 mois à partir de la date d'achat, utilisable uniquement sur les workshops (le solde reste sur le code), non remboursable et non échangeable contre des espèces."
+                  : "J'accepte les conditions des bons cadeaux : valable 12 mois à partir de la date d'achat, utilisable sur tout le site (le solde reste sur le code), non remboursable et non échangeable contre des espèces.",
               )} {star}
             </Label>
           </div>

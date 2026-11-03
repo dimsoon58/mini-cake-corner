@@ -912,7 +912,11 @@ const Cart = () => {
                     // F38 — the voucher pays what is left (display estimate; the
                     // payment page adds delivery, the server decides the amount).
                     const beforeGift = sumChf(totalPrice, expressBreakdown.total, -welcomeDiscountAmount, -partnerDiscountAmount);
-                    const giftUsed = giftCard ? Math.min(giftCard.balance, Math.max(beforeGift, 0)) : 0;
+                    // F40 — a workshop voucher only pays the workshops of the cart.
+                    const giftCap = giftCard?.kind === "workshop"
+                      ? Math.min(beforeGift, items.filter((i) => i.product === "workshop").reduce((sum, i) => sum + (Number(i.total) || 0), 0))
+                      : beforeGift;
+                    const giftUsed = giftCard ? Math.min(giftCard.balance, Math.max(giftCap, 0)) : 0;
                     return (
                       <>
                         {giftUsed > 0 && (

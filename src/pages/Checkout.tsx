@@ -970,7 +970,12 @@ const Checkout = () => {
   );
   // F38 — gift voucher, applied last (delivery and express included).
   // Display estimate from check-gift-card; the server reserves the real amount.
-  const estimatedGiftUsed = giftCard ? roundChf(Math.min(giftCard.balance, Math.max(totalBeforeGift, 0))) : 0;
+  // F40 — a workshop voucher only pays the workshops (estimate: their total
+  // minus the promo code share; the server decides the exact amount).
+  const giftCap = giftCard?.kind === "workshop"
+    ? Math.min(totalBeforeGift, sumChf(...items.filter((i) => i.product === "workshop").map((i) => i.total)))
+    : totalBeforeGift;
+  const estimatedGiftUsed = giftCard ? roundChf(Math.min(giftCard.balance, Math.max(giftCap, 0))) : 0;
   const totalPrice = sumChf(totalBeforeGift, -estimatedGiftUsed);
 
   // Build phone number with country code

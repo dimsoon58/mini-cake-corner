@@ -13,10 +13,11 @@ import { useSessionPin } from "@/lib/adminSession";
 import { money } from "@/lib/compta";
 import { formatDateCH } from "@/lib/orderLabels";
 import {
-  downloadBase64Pdf, giftCardState, giftCardsApi,
+  downloadBase64Pdf, giftCardState, giftCardsApi, workshopVoucherLabel, WORKSHOP_VOUCHER_NAMES,
   type AdminGiftCard, type GiftCardSummary,
 } from "@/lib/giftCards";
 import { cn } from "@/lib/utils";
+import { WORKSHOP_PRICE_PER_PERSON } from "@/data/workshopSessions";
 
 // Admin › Bons cadeaux (F39, 03.11.2026). Every voucher (bought online or
 // made by hand), its balance and the orders it paid; a voucher made by hand
@@ -24,10 +25,12 @@ import { cn } from "@/lib/utils";
 // resend the email, download the PDF. A voucher is never refunded in cash.
 
 type CreateForm = {
+  kind: "amount" | "workshop"; workshopType: "signature" | "piping" | "paint"; places: string;
   amount: string; buyerName: string; buyerEmail: string; recipientName: string; message: string;
   months: string; lang: "fr" | "en"; note: string; sendEmail: boolean;
 };
 const emptyCreate = (): CreateForm => ({
+  kind: "amount", workshopType: "signature", places: "1",
   amount: "", buyerName: "", buyerEmail: "", recipientName: "", message: "", months: "12", lang: "fr", note: "", sendEmail: true,
 });
 type Editing = { id: string; kind: "expiry" | "email"; value: string } | null;
@@ -124,7 +127,7 @@ const AdminGiftCards = () => {
     e.preventDefault();
     if (!create || needPin()) return;
     void run("create", async () => {
-      const res = await giftCardsApi<{ card: { code: string }; emailSent: boolean }>({ action: "create", pin, ...create, months: Number(create.months) });
+      const res = await giftCardsApi<{ card: { code: string }; emailSent: boolean }>({ action: "create", pin, ...create, months: Number(create.months), places: Number(create.places) });
       setCreate(null);
       await load();
       return `Bon ${res.card.code} créé${res.emailSent ? ", email envoyé" : ""}.`;
@@ -217,11 +220,30 @@ const AdminGiftCards = () => {
           <form onSubmit={submitCreate} className="border border-border p-4 space-y-4 bg-secondary/10">
             <h2 className="font-semibold">Nouveau bon (fait à la main)</h2>
             <p className="text-xs text-muted-foreground">Vente au studio, concours, geste commercial… Aucun paiement ne passe par le site.</p>
+            <div className="flex gap-4 text-sm">
+              <label className="flex items-center gap-2"><input type="radio" checked={create.kind === "amount"} onChange={() => setC({ kind: "amount" })} /> Un montant (tout le site)</label>
+              <label className="flex items-center gap-2"><input type="radio" checked={create.kind === "workshop"} onChange={() => setC({ kind: "workshop" })} /> Un workshop (workshops seulement)</label>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
+              {create.kind === "amount" ? (
               <div className="space-y-1">
                 <Label className="text-xs">Montant (CHF)</Label>
                 <Input value={create.amount} onChange={(e) => setC({ amount: e.target.value.replace(/[^0-9.,]/g, "") })} inputMode="decimal" className="rounded-none w-32" required />
               </div>
+              ) : (
+              <div className="space-y-1">
+                <Label className="text-xs">Workshop et places</Label>
+                <div className="flex gap-2 items-center">
+                  <select value={create.workshopType} onChange={(e) => setC({ workshopType: e.target.value as CreateForm["workshopType"] })} className="h-10 border border-input bg-background px-2 text-sm">
+                    {(["piping", "signature", "paint"] as const).map((w) => <option key={w} value={w}>{WORKSHOP_VOUCHER_NAMES[w]} (CHF {WORKSHOP_PRICE_PER_PERSON[w]})</option>)}
+                  </select>
+                  <select value={create.places} onChange={(e) => setC({ places: e.target.value })} className="h-10 border border-input bg-background px-2 text-sm">
+                    {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n} place{n > 1 ? "s" : ""}</option>)}
+                  </select>
+                  <span className="text-sm tabular-nums">= {money(WORKSHOP_PRICE_PER_PERSON[create.workshopType] * Number(create.places))}</span>
+                </div>
+              </div>
+              )}
               <div className="space-y-1">
                 <Label className="text-xs">Valable (mois)</Label>
                 <Input value={create.months} onChange={(e) => setC({ months: e.target.value.replace(/[^0-9]/g, "") })} inputMode="numeric" className="rounded-none w-24" required />
@@ -293,6 +315,7 @@ const AdminGiftCards = () => {
                     <span className="font-mono text-lg font-semibold tracking-wider">{c.code}</span>
                     <span className={cn("text-xs px-1.5 py-0.5 border", st.cls)}>{st.label}</span>
                     {c.source === "manual" && <span className="text-xs px-1.5 py-0.5 border border-border text-muted-foreground">Fait à la main</span>}
+                    {workshopVoucherLabel(c) && <span className="text-xs px-1.5 py-0.5 border border-primary/40 text-primary">{workshopVoucherLabel(c)}</span>}
                     <span className="text-sm tabular-nums"><strong>{money(c.balance)}</strong> restant sur {money(c.initialAmount)}</span>
                   </div>
                   <div className="text-sm text-muted-foreground">

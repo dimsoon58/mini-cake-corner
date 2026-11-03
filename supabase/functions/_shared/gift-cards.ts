@@ -14,6 +14,7 @@
 //      email claim + a Resend idempotency key, then a short note to the team.
 
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import fontkit from "npm:@pdf-lib/fontkit@1.1.1";
 import { getPostFinanceCredentials } from "./postfinance.ts";
 import { getTransactionState } from "./postfinance-transactions.ts";
 import { getLogoEmailUrl, getSiteBaseUrl } from "./site-config.ts";
@@ -66,95 +67,120 @@ function pdfSafe(text: string): string {
   }).join("").replace(/\s+/g, " ").trim();
 }
 
-function wrap(text: string, font: { widthOfTextAtSize(t: string, s: number): number }, size: number, maxWidth: number): string[] {
-  const lines: string[] = [];
-  let current = "";
-  for (const word of text.split(" ").filter(Boolean)) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (font.widthOfTextAtSize(candidate, size) <= maxWidth || !current) current = candidate;
-    else { lines.push(current); current = word; }
+
+// F40 (03.11.2026) — two kinds of voucher: « amount » (whole site) and
+// « workshop » (bought for a workshop type and a number of places, usable
+// on ANY workshop, workshops only). Labels shared by the PDF and the emails.
+export const WORKSHOP_VOUCHER_LABELS: Record<string, { fr: string; en: string }> = {
+  signature: { fr: "Signature", en: "Signature" },
+  piping: { fr: "Pochage", en: "Piping" },
+  paint: { fr: "Paint", en: "Paint" },
+};
+export function voucherWhat(card: GiftCardRow, lang: "fr" | "en"): string {
+  if (card.kind === "workshop" && card.workshop_type) {
+    const name = WORKSHOP_VOUCHER_LABELS[card.workshop_type]?.[lang] ?? card.workshop_type;
+    const n = Number(card.workshop_places) || 1;
+    return lang === "fr" ? `${name}, ${n} place${n > 1 ? "s" : ""}` : `${name}, ${n} spot${n > 1 ? "s" : ""}`;
   }
-  if (current) lines.push(current);
-  return lines;
+  return fmtAmount(Number(card.initial_amount));
 }
 
-/** The printable voucher (A5 landscape), base64 for a Resend attachment. */
+/**
+ * The printable voucher, base64 for a Resend attachment. Drawn like Mel's
+ * design (03.11.2026): burgundy background, double cream frame, cream logo,
+ * « GIFT VOUCHER / A SWEET EXPERIENCE AWAITS YOU! », three script lines
+ * filled in (workshop or amount, valid until, code). French or English.
+ * Fonts and logo are read from the site (public/voucher/); if they can't be
+ * fetched, Helvetica is used so a voucher is never left unsent.
+ */
 export async function generateGiftCardPdf(card: GiftCardRow): Promise<string> {
-  const fr = card.lang !== "en";
+  const lang: "fr" | "en" = card.lang === "en" ? "en" : "fr";
+  const fr = lang === "fr";
   const tr = (en: string, f: string) => (fr ? f : en);
-  const W = 595.28, H = 419.53; // A5 landscape
+  const W = 842, H = 473.6; // 16:9, the shape of the design (1920 × 1080)
+  const k = W / 1920;
+  const X = (x: number) => x * k;
+  const Y = (yFromTop: number) => H - yFromTop * k;
+
   const pdf = await PDFDocument.create();
-  const regular = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const italic = await pdf.embedFont(StandardFonts.HelveticaOblique);
+  pdf.registerFontkit(fontkit);
+  const site = getSiteBaseUrl();
+  const fetchBytes = async (path: string) => {
+    try {
+      const r = await fetch(`${site}/voucher/${path}`);
+      return r.ok ? new Uint8Array(await r.arrayBuffer()) : null;
+    } catch {
+      return null;
+    }
+  };
+  const [boldBytes, semiBytes, scriptBytes, logoBytes] = await Promise.all([
+    fetchBytes("Montserrat-Bold.ttf"), fetchBytes("Montserrat-SemiBold.ttf"), fetchBytes("PinyonScript-Regular.ttf"), fetchBytes("logo-cream.png"),
+  ]);
+  const bold = boldBytes ? await pdf.embedFont(boldBytes, { subset: true }) : await pdf.embedFont(StandardFonts.HelveticaBold);
+  const semi = semiBytes ? await pdf.embedFont(semiBytes, { subset: true }) : await pdf.embedFont(StandardFonts.Helvetica);
+  const script = scriptBytes ? await pdf.embedFont(scriptBytes, { subset: true }) : await pdf.embedFont(StandardFonts.HelveticaOblique);
+
+  const maroon = rgb(0.471, 0.027, 0.055);
   const cream = rgb(1, 0.976, 0.859);
-  const maroon = rgb(0.471, 0.008, 0.047);
-  const dark = rgb(0.208, 0.118, 0.075);
-  const label = rgb(0.478, 0.396, 0.251);
   const page = pdf.addPage([W, H]);
   page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: maroon });
-  page.drawRectangle({ x: 18, y: 18, width: W - 36, height: H - 36, color: cream });
-  page.drawRectangle({ x: 26, y: 26, width: W - 52, height: H - 52, borderColor: maroon, borderWidth: 0.8 });
+  page.drawRectangle({ x: X(108), y: Y(972), width: X(1704), height: X(864), borderColor: cream, borderWidth: X(10) });
+  page.drawRectangle({ x: X(152), y: Y(940), width: X(1616), height: X(784), borderColor: cream, borderWidth: X(4) });
 
-  const center = (text: string, y: number, font: typeof regular, size: number, color = dark) => {
-    const safe = pdfSafe(text);
-    page.drawText(safe, { x: (W - font.widthOfTextAtSize(safe, size)) / 2, y, size, font, color });
+  type F = typeof bold;
+  const center = (text: string, yTop: number, font: F, size: number) => {
+    const t = pdfSafe(text);
+    const sz = size * k;
+    page.drawText(t, { x: (W - font.widthOfTextAtSize(t, sz)) / 2, y: Y(yTop), size: sz, font, color: cream });
   };
 
-  let y = H - 60;
-  try {
-    const res = await fetch(getLogoEmailUrl());
-    if (res.ok) {
-      const logo = await pdf.embedPng(new Uint8Array(await res.arrayBuffer()));
-      const w = 170, h = (logo.height / logo.width) * w;
-      page.drawImage(logo, { x: (W - w) / 2, y: y - h, width: w, height: h });
-      y -= h + 22;
-    } else {
-      center("BENTO CAKE STUDIO", y - 14, bold, 18, maroon);
-      y -= 40;
-    }
-  } catch {
-    center("BENTO CAKE STUDIO", y - 14, bold, 18, maroon);
-    y -= 40;
+  if (logoBytes) {
+    const logo = await pdf.embedPng(logoBytes);
+    const w = X(285), h = (logo.height / logo.width) * w;
+    page.drawImage(logo, { x: (W - w) / 2, y: Y(198) - h, width: w, height: h });
+  } else {
+    center("BENTO CAKE STUDIO", 250, bold, 44);
   }
 
-  center(tr("GIFT CARD", "BON CADEAU"), y, bold, 13, label);
-  y -= 46;
-  center(fmtAmount(Number(card.initial_amount)), y, bold, 40, maroon);
-  y -= 30;
-  if (card.recipient_name) {
-    center(`${tr("For", "Pour")} ${card.recipient_name}`, y, bold, 14);
-    y -= 20;
+  center(tr("GIFT VOUCHER", "BON CADEAU"), 410, bold, 74);
+  center(tr("A SWEET EXPERIENCE AWAITS YOU!", "UNE DOUCE EXPÉRIENCE VOUS ATTEND !"), 476, bold, 38);
+  center(tr("Enjoy a creative moment at Bento Cake Studio.", "Profitez d’un moment créatif chez Bento Cake Studio."), 580, bold, 34);
+
+  // For whom + the buyer's few words, on one line when given.
+  const forLine = [card.recipient_name ? `${tr("For", "Pour")} ${card.recipient_name}` : null, card.message ? pdfSafe(String(card.message)) : null]
+    .filter(Boolean).join(" · ");
+  let linesTop = 700;
+  if (forLine) {
+    let t = forLine;
+    while (semi.widthOfTextAtSize(t, 24 * k) > X(1400) && t.length > 10) t = `${t.slice(0, -2).trimEnd()}…`;
+    center(t, 636, semi, 24);
+    linesTop = 712;
   }
-  if (card.message) {
-    for (const line of wrap(pdfSafe(card.message), italic, 11, W - 160).slice(0, 3)) {
-      center(line, y, italic, 11);
-      y -= 15;
-    }
-    y -= 4;
-  }
-  y -= 16;
-  // Code box
-  const code = String(card.code);
-  const codeW = bold.widthOfTextAtSize(code, 20) + 44;
-  page.drawRectangle({ x: (W - codeW) / 2, y: y - 12, width: codeW, height: 36, color: rgb(1, 1, 1), borderColor: maroon, borderWidth: 1 });
-  center(code, y, bold, 20, maroon);
-  y -= 34;
-  center(`${tr("Valid until", "Valable jusqu'au")} ${formatSwissDate(card.expires_at)}`, y, bold, 10);
-  y -= 15;
-  center(tr(
-    "To use on bentocakestudio.ch: cakes, workshops and everything on the site.",
-    "À utiliser sur bentocakestudio.ch : gâteaux, workshops et tout le site.",
-  ), y, regular, 9);
-  y -= 12;
-  center(tr(
-    "Enter the code in the « Promo code » field of the cart. Any remaining balance stays on the code.",
-    "Saisissez le code dans le champ « Code promo » du panier. Le solde éventuel reste sur le code.",
-  ), y, regular, 9);
-  center(tr(
-    `Not refundable, not exchangeable for cash. Bento Cake Studio, ${STUDIO_ADDRESS}`,
-    `Non remboursable, non échangeable contre des espèces. Bento Cake Studio, ${STUDIO_ADDRESS}`,
-  ), 38, regular, 7.5, label);
+
+  // Three script lines: label in script, value written on the line.
+  const rows: [string, string][] = [
+    [card.kind === "workshop" ? tr("Workshop:", "Workshop :") : tr("Amount:", "Montant :"), voucherWhat(card, lang)],
+    [tr("Valid until:", "Valable jusqu’au :"), formatSwissDate(card.expires_at)],
+    [tr("Voucher code:", "Code du bon :"), String(card.code)],
+  ];
+  const labelSize = 54 * k, valueSize = 30 * k, lineEnd = X(1290), gap = 68;
+  const labelsW = Math.max(...rows.map(([l]) => script.widthOfTextAtSize(pdfSafe(l), labelSize)));
+  const left = (W - (labelsW + X(18) + X(380))) / 2;
+  rows.forEach(([label, value], i) => {
+    const yTop = linesTop + i * gap;
+    const l = pdfSafe(label);
+    page.drawText(l, { x: left + labelsW - script.widthOfTextAtSize(l, labelSize), y: Y(yTop), size: labelSize, font: script, color: cream });
+    const vx = left + labelsW + X(18);
+    page.drawLine({ start: { x: vx, y: Y(yTop) - X(6) }, end: { x: Math.max(lineEnd, vx + X(380)), y: Y(yTop) - X(6) }, thickness: X(2.5), color: cream });
+    page.drawText(pdfSafe(value), { x: vx + X(10), y: Y(yTop) + X(4), size: valueSize, font: i === 2 ? bold : semi, color: cream });
+  });
+
+  center(card.kind === "workshop"
+    ? tr(`Value ${fmtAmount(Number(card.initial_amount))} · on the workshop of your choice at bentocakestudio.ch · not refundable`,
+         `Valeur ${fmtAmount(Number(card.initial_amount))} · sur le workshop de votre choix sur bentocakestudio.ch · non remboursable`)
+    : tr("To use on the whole site at bentocakestudio.ch · enter the code in the cart · not refundable",
+         "À utiliser sur tout le site bentocakestudio.ch · code à saisir dans le panier · non remboursable"),
+    912, semi, 17);
 
   const bytes = await pdf.save();
   let bin = "";
@@ -169,7 +195,11 @@ export function renderGiftCardEmail(card: GiftCardRow): { subject: string; html:
   const firstName = escapeHtml(String(card.buyer_name).trim().split(/\s+/)[0] ?? "");
   const recipient = card.recipient_name ? escapeHtml(String(card.recipient_name)) : null;
   const site = getSiteBaseUrl();
-  const subject = tr(`Your Bento Cake Studio gift card of ${amount}`, `Votre bon cadeau Bento Cake Studio de ${amount}`);
+  const workshop = card.kind === "workshop";
+  const what = voucherWhat(card, fr ? "fr" : "en");
+  const subject = workshop
+    ? tr(`Your Bento Cake Studio workshop gift card: ${what}`, `Votre bon cadeau workshop Bento Cake Studio : ${what}`)
+    : tr(`Your Bento Cake Studio gift card of ${amount}`, `Votre bon cadeau Bento Cake Studio de ${amount}`);
   const p = (inner: string, extra = "") => `<p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;${extra}">${inner}</p>`;
   const html = `<!DOCTYPE html>
 <html>
@@ -194,11 +224,17 @@ ${brandDarkModeStyle()}
         ${p(tr("You will find it attached as a PDF, ready to print or forward.", "Vous le trouverez en pièce jointe (PDF), prêt à imprimer ou à transmettre."), "margin-bottom:20px;")}
         <div class="bcs-callout" style="border:2px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:20px 18px;margin:0 0 20px;text-align:center;">
           <p style="color:#7A6540;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">${tr("Gift card", "Bon cadeau")}${recipient ? ` ${tr("for", "pour")} ${recipient}` : ""}</p>
-          <p style="color:#78020C;font-size:28px;font-weight:700;margin:0 0 10px;">${amount}</p>
+          <p style="color:#78020C;font-size:28px;font-weight:700;margin:0 0 10px;">${workshop ? `Workshop ${escapeHtml(what)}` : amount}</p>
+          ${workshop ? `<p style="color:#351E13;font-size:13px;margin:0 0 10px;">${tr("Value", "Valeur")} ${amount}, ${tr("on the workshop of your choice", "sur le workshop de votre choix")}</p>` : ""}
           <p style="color:#78020C;font-size:20px;font-weight:700;letter-spacing:0.08em;margin:0 0 8px;">${escapeHtml(String(card.code))}</p>
           <p style="color:#351E13;font-size:13px;margin:0;">${tr("Valid until", "Valable jusqu'au")} <strong>${formatSwissDate(card.expires_at)}</strong></p>
         </div>
-        ${p(tr(
+        ${p(workshop
+          ? tr(
+            `To use it, book the workshop of your choice on <a href="${site}/workshop" style="color:#78020C;">bentocakestudio.ch</a> (Signature, Piping or Paint) and enter the code in the « Promo code » field of the cart. It can only be used on workshops; if the workshop costs more, the difference is paid by card, and any remaining balance stays on the code until it expires.`,
+            `Pour l'utiliser, réservez le workshop de votre choix sur <a href="${site}/workshop" style="color:#78020C;">bentocakestudio.ch</a> (Signature, Pochage ou Paint) et saisissez le code dans le champ « Code promo » du panier. Il est valable uniquement sur les workshops ; si le workshop coûte plus, la différence se paie par carte, et le solde éventuel reste sur le code jusqu'à son expiration.`,
+          )
+          : tr(
           `To use it, choose a cake or a workshop on <a href="${site}" style="color:#78020C;">bentocakestudio.ch</a> and enter the code in the « Promo code » field of the cart. It can be used on the whole site; any remaining balance stays on the code until it expires.`,
           `Pour l'utiliser, choisissez un gâteau ou un workshop sur <a href="${site}" style="color:#78020C;">bentocakestudio.ch</a> et saisissez le code dans le champ « Code promo » du panier. Il est valable sur tout le site ; le solde éventuel reste sur le code jusqu'à son expiration.`,
         ))}
@@ -307,6 +343,7 @@ async function notifyTeam(card: GiftCardRow): Promise<void> {
   if (!resendKey) return;
   const rows = [
     ["Montant", fmtAmount(Number(card.initial_amount))],
+    ...(card.kind === "workshop" ? [["Workshop", voucherWhat(card, "fr")]] : []),
     ["Code", String(card.code)],
     ["Acheteur", `${card.buyer_name}, ${card.buyer_email}`],
     ["Pour", card.recipient_name ?? "pas indiqué"],

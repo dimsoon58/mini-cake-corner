@@ -534,6 +534,7 @@ const giftCardMessage = (reason: string, en: boolean): string => {
     case "gift_card_expired": return en ? "This gift card has expired." : "Ce bon cadeau a expiré.";
     case "gift_card_empty": return en ? "This gift card has no balance left." : "Ce bon cadeau n'a plus de solde.";
     case "gift_card_disabled": return en ? "This gift card is no longer valid." : "Ce bon cadeau n'est plus valable.";
+    case "gift_card_workshop_only": return en ? "This gift card can only be used on a workshop. Add a workshop to your cart to use it." : "Ce bon cadeau est valable uniquement sur un workshop. Ajoutez un workshop à votre panier pour l'utiliser.";
     default: return en ? "Unknown gift card code." : "Code de bon cadeau inconnu.";
   }
 };
@@ -1718,10 +1719,15 @@ serve(async (req) => {
       const beforeGift = roundToCents(
         productsSubtotal - discountAmount - partnerDiscountAmount - reservedReward + expressSurcharge + deliveryFeeTotal,
       );
+      // F40 — a workshop voucher only pays the workshop lines: what they
+      // still cost on the PostFinance lines (after cagnotte / promo code).
+      const workshopMax = roundToCents(lineItems.reduce(
+        (sum, line, i) => sum + (orderItems[i]?.product === "workshop" ? line.amountIncludingTax : 0), 0));
       const { data: giftData, error: giftError } = await supabase.rpc("reserve_gift_card", {
         p_code: giftCardCode,
         p_order_id: orderId,
         p_max_amount: Math.max(0, beforeGift),
+        p_workshop_max: Math.max(0, workshopMax),
       });
       if (giftError) {
         const reason = String(giftError.message ?? "");
@@ -1734,7 +1740,9 @@ serve(async (req) => {
         giftReservationOutstanding = true;
         order.gift_card_amount = giftAmount;
         order.gift_card_code = String((giftData as { code?: string })?.code ?? giftCardCode);
+        const workshopVoucher = (giftData as { kind?: string })?.kind === "workshop";
         const byWorkshopLast = lineItems.map((line, i) => ({ line, i }))
+          .filter(({ i }) => !workshopVoucher || orderItems[i]?.product === "workshop")
           .sort((a, b) => Number(orderItems[a.i]?.product === "workshop") - Number(orderItems[b.i]?.product === "workshop"));
         let giftRemaining = giftAmount;
         for (const { line, i } of byWorkshopLast) {
