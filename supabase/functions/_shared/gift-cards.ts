@@ -1,7 +1,7 @@
 // F37 (03.11.2026) — Bons cadeaux: everything shared by
 // create-gift-card-payment, confirm-gift-card-payment and postfinance-webhook.
 //
-// A voucher is paid with IMMEDIATE capture (unlike orders, which are only
+// A voucher is paid with immediate capture, COMPLETE_IMMEDIATELY (unlike orders, which are only
 // authorised until an administrator accepts them): no decision is needed
 // to sell a voucher. finalizeGiftCard() is idempotent and safe to run
 // concurrently (webhook + the thank-you page poll):
@@ -169,7 +169,7 @@ export function renderGiftCardEmail(card: GiftCardRow): { subject: string; html:
   const firstName = escapeHtml(String(card.buyer_name).trim().split(/\s+/)[0] ?? "");
   const recipient = card.recipient_name ? escapeHtml(String(card.recipient_name)) : null;
   const site = getSiteBaseUrl();
-  const subject = tr(`Your Bento Cake Studio gift card — ${amount}`, `Votre bon cadeau Bento Cake Studio — ${amount}`);
+  const subject = tr(`Your Bento Cake Studio gift card of ${amount}`, `Votre bon cadeau Bento Cake Studio de ${amount}`);
   const p = (inner: string, extra = "") => `<p style="color:#351E13;font-size:15px;line-height:1.8;margin:0 0 12px;${extra}">${inner}</p>`;
   const html = `<!DOCTYPE html>
 <html>
@@ -191,7 +191,7 @@ ${brandDarkModeStyle()}
         ${p(tr("Thank you for your purchase! Here is your Bento Cake Studio gift card 🤍", "Merci pour votre achat ! Voici votre bon cadeau Bento Cake Studio 🤍"))}
         ${p(tr("You will find it attached as a PDF, ready to print or forward.", "Vous le trouverez en pièce jointe (PDF), prêt à imprimer ou à transmettre."), "margin-bottom:20px;")}
         <div class="bcs-callout" style="border:2px solid #78020C;background-color:#FFFFFF!important;background-image:linear-gradient(#FFFFFF,#FFFFFF)!important;padding:20px 18px;margin:0 0 20px;text-align:center;">
-          <p style="color:#7A6540;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">${tr("Gift card", "Bon cadeau")}${recipient ? ` — ${tr("for", "pour")} ${recipient}` : ""}</p>
+          <p style="color:#7A6540;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">${tr("Gift card", "Bon cadeau")}${recipient ? ` ${tr("for", "pour")} ${recipient}` : ""}</p>
           <p style="color:#78020C;font-size:28px;font-weight:700;margin:0 0 10px;">${amount}</p>
           <p style="color:#78020C;font-size:20px;font-weight:700;letter-spacing:0.08em;margin:0 0 8px;">${escapeHtml(String(card.code))}</p>
           <p style="color:#351E13;font-size:13px;margin:0;">${tr("Valid until", "Valable jusqu'au")} <strong>${formatSwissDate(card.expires_at)}</strong></p>
@@ -280,7 +280,7 @@ async function sendEmailOnce(supabase: any, card: GiftCardRow): Promise<boolean>
     console.error(`gift card ${claimed.id}: email failed:`, msg);
     await supabase.from("gift_cards").update({ email_status: "error", email_error: msg.slice(0, 500) }).eq("id", claimed.id);
     await sendTechnicalAlert({
-      subject: `Bon cadeau payé mais email non envoyé — ${claimed.code}`,
+      subject: `Bon cadeau payé mais email non envoyé : ${claimed.code}`,
       lines: [`Code : ${claimed.code}`, `Montant : ${fmtAmount(Number(claimed.initial_amount))}`, `Acheteur : ${escapeHtml(claimed.buyer_email)}`, `Heure : ${alertTime()}`, `Erreur : ${escapeHtml(msg)}`],
     });
     return false;
@@ -293,8 +293,8 @@ async function notifyTeam(card: GiftCardRow): Promise<void> {
   const rows = [
     ["Montant", fmtAmount(Number(card.initial_amount))],
     ["Code", String(card.code)],
-    ["Acheteur", `${card.buyer_name} — ${card.buyer_email}`],
-    ["Pour", card.recipient_name ?? "—"],
+    ["Acheteur", `${card.buyer_name}, ${card.buyer_email}`],
+    ["Pour", card.recipient_name ?? "pas indiqué"],
     ["Valable jusqu'au", formatSwissDate(card.expires_at)],
   ].map(([k, v]) => `<tr><td style="padding:4px 12px;color:#7A6540;font-size:13px;">${k}</td><td style="padding:4px 12px;color:#351E13;font-size:14px;font-weight:600;">${escapeHtml(String(v))}</td></tr>`).join("");
   try {
@@ -303,7 +303,7 @@ async function notifyTeam(card: GiftCardRow): Promise<void> {
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json", "Idempotency-Key": `gift-card-team-${card.id}` },
       body: JSON.stringify({
         from: FROM, to: TEAM_EMAILS,
-        subject: `🎁 Bon cadeau vendu — ${fmtAmount(Number(card.initial_amount))}`,
+        subject: `🎁 Bon cadeau vendu : ${fmtAmount(Number(card.initial_amount))}`,
         html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;"><h2 style="color:#78020C;font-size:18px;">Bon cadeau vendu</h2><table style="border-collapse:collapse;">${rows}</table></body></html>`,
       }),
     });

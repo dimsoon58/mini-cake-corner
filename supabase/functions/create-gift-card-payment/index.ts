@@ -66,7 +66,7 @@ serve(async (req) => {
       successUrl: `${site}/bon-cadeau/merci?gc=${card.id}`,
       failedUrl: `${site}/bon-cadeau?payment=failed`,
       // Immediate capture: a voucher needs no acceptance by the team.
-      completionBehavior: "COMPLETE_IMMEDIATE",
+      completionBehavior: "COMPLETE_IMMEDIATELY",
       lineItems: [{
         uniqueId: "gift-card",
         name: lang === "en" ? "Bento Cake Studio gift card" : "Bon cadeau Bento Cake Studio",
