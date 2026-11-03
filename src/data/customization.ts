@@ -188,6 +188,11 @@ export const flavorCategories = [
 
 export const allFlavors = flavorCategories.flatMap(c => c.flavors);
 
+// Parfums que les clients ne peuvent plus choisir sur le site (03.11.2026 :
+// pistache). Gardés dans flavorCategories pour afficher les commandes passées.
+export const HIDDEN_FLAVOR_IDS = ["pistachio-lovers", "pistachio-gf"];
+export const isOrderableFlavor = (id: string) => !HIDDEN_FLAVOR_IDS.includes(id);
+
 export const styles = [
   { id: "normal-without-border", name: "Normal without border", price: { bento: 0, retro: 2, medium: 0, large: 0, rectangle: 0 } as Record<string, number>, image: styleNormalWithoutBorder, secondImage: styleNormalWithoutBorder2 },
   { id: "normal-with-border", name: "Normal with border", price: { bento: 0, retro: 3, medium: 0, large: 0, rectangle: 0 } as Record<string, number>, image: styleNormalWithBorder },

@@ -38,6 +38,7 @@ import {
   shapes,
   allFlavors,
   flavorCategories,
+  isOrderableFlavor,
   styles,
   extras,
   candles as customisationCandles,
@@ -1262,7 +1263,7 @@ const CartItemEditor = ({
       {/* Flavor with images */}
       <EditSection label={t("Flavor", "Parfum")} tooltip={t("Please select the flavour of your cake.", "Veuillez sélectionner le parfum de votre gâteau.")} required>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {flavorCategories.map(cat => cat.flavors.map(flavor => (
+          {flavorCategories.map(cat => cat.flavors.filter(f => isOrderableFlavor(f.id) || f.id === item.flavor).map(flavor => (
             <button
               key={flavor.id}
               onClick={() => onFlavorChange(flavor.id)}
