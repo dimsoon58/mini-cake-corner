@@ -27,18 +27,29 @@ const PARTNER_BASE_CAKE_PRICE: Record<string, Record<string, number>> = {
 // Fixed business rule for every partner (never partner-specific).
 export const PARTNER_ELIGIBLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake", "dot_cakes"]);
 
-export function getPartnerBaseCakePrice(item: { product: string; size: string }): number | null {
-  return PARTNER_BASE_CAKE_PRICE[item.product]?.[item.size] ?? null;
+// F35 — influencer codes: also the Bento Kit (its base price, without shape,
+// flavour or piping), edible printing and workshops (seat price ×
+// participants = the line total); never candles. Mirrors
+// INFLUENCER_ELIGIBLE_PRODUCTS / partnerBasePriceFor in
+// _shared/partner-referral.ts (DIY_KIT_BASE_PRICE, EDIBLE_PRINTING_PRICE).
+export const INFLUENCER_ELIGIBLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake", "dot_cakes", "diy_kit", "edible_printing", "workshop"]);
+const FLAT_BASE_PRICE: Record<string, number> = { diy_kit: 40, edible_printing: 15 };
+
+export function getPartnerBaseCakePrice(item: { product: string; size: string; total?: number }): number | null {
+  if (item.product === "workshop") return typeof item.total === "number" ? item.total : null;
+  return FLAT_BASE_PRICE[item.product] ?? PARTNER_BASE_CAKE_PRICE[item.product]?.[item.size] ?? null;
 }
 
 // Sums the eligible base across every eligible item in the cart — the exact
 // figure the partner discount rate is applied to. Never the real sale price
 // (which includes flavour/extras/candles) — only ever this flat base.
-export function computePartnerEligibleBase<T extends { product: string; size: string }>(
+export function computePartnerEligibleBase<T extends { product: string; size: string; total?: number }>(
   items: T[],
+  kind: "partner" | "influencer" = "partner",
 ): number {
+  const eligible = kind === "influencer" ? INFLUENCER_ELIGIBLE_PRODUCTS : PARTNER_ELIGIBLE_PRODUCTS;
   return items.reduce((sum, item) => {
-    if (!PARTNER_ELIGIBLE_PRODUCTS.has(item.product)) return sum;
+    if (!eligible.has(item.product)) return sum;
     const base = getPartnerBaseCakePrice(item);
     return base === null ? sum : sum + base;
   }, 0);

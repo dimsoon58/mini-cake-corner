@@ -188,6 +188,11 @@ export const flavorCategories = [
 
 export const allFlavors = flavorCategories.flatMap(c => c.flavors);
 
+// Parfums que les clients ne peuvent plus choisir sur le site (03.11.2026 :
+// pistache). Gardés dans flavorCategories pour afficher les commandes passées.
+export const HIDDEN_FLAVOR_IDS = ["pistachio-lovers", "pistachio-gf"];
+export const isOrderableFlavor = (id: string) => !HIDDEN_FLAVOR_IDS.includes(id);
+
 export const styles = [
   { id: "normal-without-border", name: "Normal without border", price: { bento: 0, retro: 2, medium: 0, large: 0, rectangle: 0 } as Record<string, number>, image: styleNormalWithoutBorder, secondImage: styleNormalWithoutBorder2 },
   { id: "normal-with-border", name: "Normal with border", price: { bento: 0, retro: 3, medium: 0, large: 0, rectangle: 0 } as Record<string, number>, image: styleNormalWithBorder },
@@ -430,4 +435,31 @@ export const designExcludedExtras: Record<string, string[]> = {
 
 export const getExcludedExtras = (styleId: string): string[] => {
   return designExcludedExtras[styleId] || [];
+};
+
+// Per-design extras whitelist: when a design is listed here, ONLY these
+// extras are offered ([] hides the extras section entirely).
+export const designAllowedExtras: Record<string, string[]> = {
+  "butterfly-garden": ["printed-picture"],
+  "rainbow-cake": [],
+  "printed-picture": [],
+  "shag-cake": ["cherries", "glitter-cherries"],
+  "custom-drawing": ["gold-leaves", "printed-picture"],
+};
+
+// Designs whose catalogue sheet hides the extras section entirely (same as
+// hideExtras in Catalog.tsx's colour config, plus every Inspiration photo).
+const EXTRAS_HIDDEN_DESIGNS = new Set(["gender-reveal", "heart-bomb"]);
+
+/**
+ * Extras excluded when a cake already in the cart is edited — the same rule
+ * as the catalogue sheet, so the cart can never build a combination the
+ * catalogue refuses. null = the design takes no extras at all.
+ */
+export const getCartExcludedExtras = (styleId: string): string[] | null => {
+  const allowed = designAllowedExtras[styleId];
+  if (styleId.startsWith("inspiration") || EXTRAS_HIDDEN_DESIGNS.has(styleId) || (allowed && allowed.length === 0)) {
+    return null;
+  }
+  return getExcludedExtras(styleId).filter((id) => !allowed || !allowed.includes(id));
 };

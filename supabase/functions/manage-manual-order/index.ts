@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { adminPinOk, requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
+  fruitSupplementOf,
   quoteManualOrder,
   type AdjustmentType,
   type QuoteFulfillmentInput,
@@ -205,6 +206,7 @@ serve(async (req) => {
           design: it.design,
           extras: it.extras ?? [],
           candles: it.candles ?? [],
+          fruit_supplement: it.fruit_supplement != null ? Number(it.fruit_supplement) : null,
           workshop_session_id: it.workshop_session_id,
           workshop_participants: it.workshop_participants,
           workshop_sponge_choices: it.workshop_sponge_choices,
@@ -480,6 +482,9 @@ serve(async (req) => {
             extra_color: isWorkshop ? null : strOrNull(it.extra_color),
             inside_color: isWorkshop ? null : strOrNull(it.inside_color),
             extras_price: isWorkshop ? 0 : extrasPrice(it),
+            // Supplément fruits : déjà compris dans `total` (quote) ; gardé à
+            // part pour la ligne de la facture et l'Admin.
+            fruit_supplement: fruitSupplementOf(it).amount || null,
             butterfly_color: strOrNull(it.butterfly_color),
             workshop_type: ws?.type ?? null,
             workshop_session_id: isWorkshop ? (it.workshop_session_id ?? null) : null,

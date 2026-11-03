@@ -17,7 +17,7 @@
 // and partner identity always come from this lookup, never from the
 // request body.
 
-import { roundToCents } from "./pricing.ts";
+import { DIY_KIT_BASE_PRICE, EDIBLE_PRINTING_PRICE, roundToCents } from "./pricing.ts";
 
 export interface ResolvedPartner {
   id: string;
@@ -25,6 +25,23 @@ export interface ResolvedPartner {
   slug: string;
   discountRate: number;
   commissionRate: number;
+  // F35 (03.11.2026) — « influencer » : code promo, remise sur le prix de
+  // base de tous les produits éligibles (voir INFLUENCER_ELIGIBLE_PRODUCTS),
+  // sans commission. « partner » : règles d'origine (gâteaux seulement).
+  kind: "partner" | "influencer";
+}
+
+// Today in Switzerland (YYYY-MM-DD) — validity dates are business days.
+export function zurichToday(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+// A code / link is only valid between valid_from and valid_until (both
+// included, NULL = no limit).
+export function partnerValidOn(row: { valid_from?: string | null; valid_until?: string | null }, today: string): boolean {
+  if (row.valid_from && today < String(row.valid_from).slice(0, 10)) return false;
+  if (row.valid_until && today > String(row.valid_until).slice(0, 10)) return false;
+  return true;
 }
 
 export async function resolvePartnerReferral(
@@ -35,7 +52,7 @@ export async function resolvePartnerReferral(
   try {
     const { data, error } = await supabase
       .from("partners")
-      .select("id, name, slug, customer_discount_rate, commission_rate, active")
+      .select("id, name, slug, customer_discount_rate, commission_rate, active, kind, valid_from, valid_until")
       .eq("referral_token", token)
       .maybeSingle();
     if (error) {
@@ -43,6 +60,8 @@ export async function resolvePartnerReferral(
       return null;
     }
     if (!data || data.active !== true) return null;
+    // Expired / not yet started code: the order simply has no partner.
+    if (!partnerValidOn(data, zurichToday())) return null;
 
     const discountRate = Number(data.customer_discount_rate);
     const commissionRate = Number(data.commission_rate);
@@ -63,6 +82,7 @@ export async function resolvePartnerReferral(
       slug: data.slug,
       discountRate,
       commissionRate,
+      kind: data.kind === "influencer" ? "influencer" : "partner",
     };
   } catch (e) {
     console.error("resolvePartnerReferral threw (proceeding without a partner):", e);
@@ -81,6 +101,27 @@ export function partnerGivesDiscount(partner: ResolvedPartner | null): boolean {
 // Fixed business rule for every partner (never partner-specific): only cake
 // products carry a "base cake price" a discount can apply to.
 export const PARTNER_ELIGIBLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake", "dot_cakes"]);
+
+// F35 — influencer codes: every product except candles. Workshops: the
+// seat price × participants; a seat cancellation then refunds the
+// discounted price (cancel_workshop_seats_atomic subtracts the line's
+// partner_discount_amount, F35 migration).
+// Christmas products: to add here with their base price when they go on sale.
+export const INFLUENCER_ELIGIBLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake", "dot_cakes", "diy_kit", "edible_printing", "workshop"]);
+
+export function partnerEligibleProducts(partner: ResolvedPartner | null): Set<string> {
+  return partner?.kind === "influencer" ? INFLUENCER_ELIGIBLE_PRODUCTS : PARTNER_ELIGIBLE_PRODUCTS;
+}
+
+// Base price a partner discount applies to: the flat size/pack price for the
+// cakes (priceOrderItem's baseCakePrice), the kit's base price (without
+// shape, flavour or piping), the edible printing price; for a workshop the
+// caller passes the line total (seat price × participants). undefined otherwise.
+export function partnerBasePriceFor(product: string | undefined, baseCakePrice: number | undefined): number | undefined {
+  if (product === "diy_kit") return DIY_KIT_BASE_PRICE;
+  if (product === "edible_printing") return EDIBLE_PRINTING_PRICE;
+  return baseCakePrice;
+}
 
 export interface PartnerLineAmounts {
   baseCakePrice: number;
@@ -102,7 +143,7 @@ export function computePartnerLineAmounts(
   partner: ResolvedPartner | null,
 ): PartnerLineAmounts {
   const hasBase = typeof baseCakePrice === "number" && Number.isFinite(baseCakePrice);
-  const eligible = !!partner && !!product && PARTNER_ELIGIBLE_PRODUCTS.has(product) && hasBase;
+  const eligible = !!partner && !!product && partnerEligibleProducts(partner).has(product) && hasBase;
   const base = hasBase ? (baseCakePrice as number) : 0;
 
   if (!eligible) {

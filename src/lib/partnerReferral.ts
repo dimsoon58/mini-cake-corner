@@ -17,6 +17,11 @@ export interface PartnerReferral {
   // As returned by resolve-partner-ref — display only at this stage, never
   // applied to any total here.
   discountRate: number;
+  // F35 (03.11.2026) — « influencer » = code promo typed in the cart (its
+  // discount covers more products, see partnerDiscount.ts). Absent on a
+  // referral stored before F35 = a partner link.
+  kind?: "partner" | "influencer";
+  code?: string;
 }
 
 const PARTNER_REFERRAL_KEY = "bento_partner_referral";
@@ -37,6 +42,12 @@ export function getStoredPartnerReferral(): PartnerReferral | null {
   } catch {
     return null;
   }
+}
+
+export function clearStoredPartnerReferral() {
+  try {
+    sessionStorage.removeItem(PARTNER_REFERRAL_KEY);
+  } catch { /* ignore */ }
 }
 
 export function setStoredPartnerReferral(referral: PartnerReferral) {

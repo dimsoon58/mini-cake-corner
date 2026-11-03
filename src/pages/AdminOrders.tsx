@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Loader2, Lock, ClipboardList, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
+import { useScrollMemory } from "@/hooks/useScrollMemory";
 
 type OrderSummary = {
   id: string;
@@ -123,12 +124,25 @@ const AdminOrders = () => {
   const isAdmin = isAdminEmail(user?.email) || staff.can("orders.view");
 
   const [orders, setOrders] = useState<OrderSummary[]>([]);
-  const [page, setPage] = useState(0);
+  // Page and search kept in the URL (?page=&q=), so « Retour » from an order
+  // comes back to the same results.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Math.max(0, Number(searchParams.get("page")) || 0);
+  const search = searchParams.get("q") ?? "";
+  const setListState = (next: { page?: number; search?: string }) => {
+    const p = new URLSearchParams(searchParams);
+    const nextPage = next.page ?? page;
+    const nextSearch = next.search ?? search;
+    if (nextPage > 0) p.set("page", String(nextPage)); else p.delete("page");
+    if (nextSearch) p.set("q", nextSearch); else p.delete("q");
+    setSearchParams(p, { replace: true });
+  };
+  const setPage = (update: (p: number) => number) => setListState({ page: update(page) });
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState(search);
+  useScrollMemory("orders", !loading && orders.length > 0);
 
   useEffect(() => {
     document.title = "Admin – Orders – Bento Cake Studio";
@@ -166,14 +180,12 @@ const AdminOrders = () => {
 
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
-    setPage(0);
-    setSearch(searchInput.trim());
+    setListState({ page: 0, search: searchInput.trim() });
   };
 
   const handleSearchClear = () => {
     setSearchInput("");
-    setSearch("");
-    setPage(0);
+    setListState({ page: 0, search: "" });
   };
 
   if (authLoading || staff.loading) {

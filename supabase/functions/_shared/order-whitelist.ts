@@ -88,6 +88,9 @@ export const ORDER_SERVER_FIELDS = [
   "welcome_discount_amount",
   "reward_amount_used",
   "express_surcharge_amount",
+  // F38 — gift voucher part (set by create-postfinance-payment from reserve_gift_card).
+  "gift_card_amount",
+  "gift_card_code",
   "total_amount",
   // 'cake_only' | 'workshop_only' | 'mixed' — computed by create-postfinance-
   // payment from the (already priced) order_items, carried on the payload.
@@ -134,6 +137,8 @@ export const ORDER_ITEM_SERVER_FIELDS = [
   // informational, read back later by claim_workshop_reservations_batch to
   // seed workshop_reservations.reward_amount_used for cancellation math.
   "reward_amount_used",
+  // F38 — voucher share of this line (workshop lines last), for refund math.
+  "gift_card_amount",
   // Partner referral snapshot, per item (2026-09-16) — 0 for every line that
   // isn't a partner-discount-eligible product (bento_cake / rectangle_cake /
   // dot_cakes) or when no partner referral is active. Kept per-item (not

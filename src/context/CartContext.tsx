@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { trackAddToCart, trackRemoveFromCart } from "@/lib/analytics";
 import { MULTI_DATE_FULFILLMENT_ENABLED } from "@/lib/featureFlags";
 import { INSPIRATIONS } from "@/data/inspirations";
@@ -6,8 +6,10 @@ import { useLang } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { getStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
 import { onOrderCompleted } from "@/lib/orderCompletionChannel";
+import { loadCartPhotos, saveCartPhotos, pruneCartPhotos } from "@/lib/cartPhotoStore";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  clearStoredPartnerReferral,
   getStoredPartnerReferral,
   setStoredPartnerReferral,
   type PartnerReferral,
@@ -74,6 +76,11 @@ export interface CartItem {
   comment: string;
   imageUrls: string[];
   imageFiles: File[];
+  /* How many photos the customer added (kept in localStorage with the
+     rest of the item, unlike the files themselves). If fewer files than
+     this come back from the browser's photo store, some were lost and
+     Checkout asks for them again instead of ordering without them. */
+  imageFileCount?: number;
   /* Absolute URL of the catalogue design photo the customer chose on
      Catalog.tsx: the exact option they clicked for a multi-photo design,
      otherwise the design's single photo. Complements `style`/`design` (the
@@ -176,6 +183,42 @@ interface CartContextType {
      used for pricing here; a later step recalculates and verifies the
      discount/commission server-side. */
   partnerReferral: PartnerReferral | null;
+  /* F35 — promo code typed in the cart (influencers). Checked by
+     resolve-partner-ref; on success it replaces any previous code/link
+     (last one wins, like links). */
+  applyPromoCode: (code: string) => Promise<PromoCodeResult>;
+  removePartnerReferral: () => void;
+  /* F38 — gift voucher typed in the same field (BCS-XXXX-XXXX). balance is
+     what check-gift-card saw: display only — the amount actually used is
+     reserved by create-postfinance-payment when the payment starts. Can be
+     combined with a promo code / partner link. */
+  giftCard: AppliedGiftCard | null;
+  applyGiftCard: (code: string) => Promise<GiftCardResult>;
+  removeGiftCard: () => void;
+}
+
+export type PromoCodeResult = { ok: true } | { ok: false; reason: "invalid" | "expired" | "not_started" | "error" };
+export type AppliedGiftCard = { code: string; balance: number; expiresAt: string };
+export type GiftCardResult = { ok: true } | { ok: false; reason: "unknown" | "expired" | "empty" | "disabled" | "error" };
+export const GIFT_CARD_CODE_RE = /^BCS-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+const GIFT_CARD_STORAGE_KEY = "bcs-gift-card";
+
+function readStoredGiftCard(): AppliedGiftCard | null {
+  try {
+    const raw = sessionStorage.getItem(GIFT_CARD_STORAGE_KEY);
+    const v = raw ? JSON.parse(raw) : null;
+    return v && typeof v.code === "string" && typeof v.balance === "number" ? v : null;
+  } catch {
+    return null;
+  }
+}
+function writeStoredGiftCard(v: AppliedGiftCard | null) {
+  try {
+    if (v) sessionStorage.setItem(GIFT_CARD_STORAGE_KEY, JSON.stringify(v));
+    else sessionStorage.removeItem(GIFT_CARD_STORAGE_KEY);
+  } catch {
+    /* private mode — the voucher just has to be typed again */
+  }
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -267,6 +310,41 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setStaleInspirationDropped(0);
   }, [staleInspirationDropped, toast, t]);
 
+  // Photos live in the browser's photo store (cartPhotoStore.ts), not in
+  // localStorage: put them back on their items once read, then keep the
+  // store in sync. Nothing is written before the first read, so the empty
+  // imageFiles of the first render can never wipe the stored photos.
+  const [photosLoaded, setPhotosLoaded] = useState(false);
+  const savedPhotos = useRef<Record<string, File[]>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    loadCartPhotos().then((stored) => {
+      if (cancelled) return;
+      savedPhotos.current = stored;
+      setItems((prev) => prev.map((item) =>
+        !item.imageFiles?.length && stored[item.id]?.length ? { ...item, imageFiles: stored[item.id] } : item));
+      setPhotosLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!photosLoaded) return;
+    for (const item of items) {
+      const files = item.imageFiles || [];
+      const saved = savedPhotos.current[item.id];
+      if (files === saved || (!files.length && !saved?.length)) continue;
+      savedPhotos.current[item.id] = files;
+      saveCartPhotos(item.id, files);
+    }
+    const ids = items.map((item) => item.id);
+    if (Object.keys(savedPhotos.current).some((id) => !ids.includes(id))) {
+      for (const id of Object.keys(savedPhotos.current)) if (!ids.includes(id)) delete savedPhotos.current[id];
+      pruneCartPhotos(ids);
+    }
+  }, [items, photosLoaded]);
+
   useEffect(() => {
     // Exclude non-serializable File objects from localStorage
     const serializable = items.map(({ imageFiles, ...rest }) => rest);
@@ -279,6 +357,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [partnerReferral, setPartnerReferral] = useState<PartnerReferral | null>(
     () => getStoredPartnerReferral(),
   );
+  const [giftCard, setGiftCard] = useState<AppliedGiftCard | null>(() => readStoredGiftCard());
 
   // Runs once, on site load — matches the task's own "on site load" spec.
   // CartProvider mounts exactly once at the app root (see App.tsx) and never
@@ -310,7 +389,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         });
         if (cancelled || error || !data?.valid || !data?.partner) return;
 
-        const partner = data.partner as { name?: unknown; discountRate?: unknown };
+        const partner = data.partner as { name?: unknown; discountRate?: unknown; kind?: unknown };
         if (typeof partner.name !== "string" || typeof partner.discountRate !== "number") return;
 
         const resolved: PartnerReferral = {
@@ -319,6 +398,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           // Stored exactly as returned (a fraction) — never converted here,
           // so a later step reads the same raw value the server verifies.
           discountRate: partner.discountRate,
+          kind: partner.kind === "influencer" ? "influencer" : "partner",
         };
         setPartnerReferral(resolved);
         setStoredPartnerReferral(resolved);
@@ -370,7 +450,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return { ok: false, reason: "date_mismatch" };
       }
     }
-    const newItem = { ...item, id: Date.now().toString() };
+    const newItem = { ...item, id: Date.now().toString(), imageFileCount: item.imageFiles?.length ?? 0 };
     setItems((prev) => [...prev, newItem]);
     // GA4 add_to_cart — fired here so every "Add to cart" surface (Catalog,
     // Dot Cakes, Candles, DIY Kit, Printing, …) is covered once, and only
@@ -380,6 +460,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateItem = (id: string, updates: Partial<CartItem>) => {
+    if (updates.imageFiles && updates.imageFileCount === undefined) {
+      updates = { ...updates, imageFileCount: updates.imageFiles.length };
+    }
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
     );
@@ -397,6 +480,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = () => {
     setItems([]);
+    // F38 — the voucher was used (or the cart emptied): type it again next time.
+    setGiftCard(null);
+    writeStoredGiftCard(null);
   };
 
   // 2026-09-14: cross-tab sync — the original Checkout tab is commonly left
@@ -433,6 +519,64 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const cartHasWorkshop = items.some((i) => i.product === "workshop");
   const cartHasCake = items.some((i) => i.product !== "workshop");
 
+  const applyPromoCode = async (raw: string): Promise<PromoCodeResult> => {
+    const code = raw.trim().toUpperCase();
+    if (!/^[A-Z0-9]{3,20}$/.test(code)) return { ok: false, reason: "invalid" };
+    try {
+      const { data, error } = await supabase.functions.invoke("resolve-partner-ref", { body: { code } });
+      if (error) return { ok: false, reason: "error" };
+      if (!data?.valid) {
+        const reason = data?.reason === "expired" || data?.reason === "not_started" ? data.reason : "invalid";
+        return { ok: false, reason };
+      }
+      const p = data.partner as { name?: unknown; discountRate?: unknown; token?: unknown; kind?: unknown };
+      if (typeof p?.name !== "string" || typeof p.discountRate !== "number" || typeof p.token !== "string") return { ok: false, reason: "error" };
+      const resolved: PartnerReferral = {
+        token: p.token,
+        partnerName: p.name,
+        discountRate: p.discountRate,
+        kind: p.kind === "influencer" ? "influencer" : "partner",
+        code,
+      };
+      setPartnerReferral(resolved);
+      setStoredPartnerReferral(resolved);
+      return { ok: true };
+    } catch (e) {
+      console.error("resolve-partner-ref (code) failed:", e);
+      return { ok: false, reason: "error" };
+    }
+  };
+
+  const removePartnerReferral = () => {
+    setPartnerReferral(null);
+    clearStoredPartnerReferral();
+  };
+
+  const applyGiftCard = async (raw: string): Promise<GiftCardResult> => {
+    const code = raw.trim().toUpperCase();
+    if (!GIFT_CARD_CODE_RE.test(code)) return { ok: false, reason: "unknown" };
+    try {
+      const { data, error } = await supabase.functions.invoke("check-gift-card", { body: { code } });
+      if (error) return { ok: false, reason: "error" };
+      if (!data?.ok) {
+        const reason = ["expired", "empty", "disabled"].includes(data?.reason) ? data.reason : data?.reason === "error" ? "error" : "unknown";
+        return { ok: false, reason };
+      }
+      const applied: AppliedGiftCard = { code: String(data.code ?? code), balance: Number(data.balance) || 0, expiresAt: String(data.expiresAt ?? "") };
+      setGiftCard(applied);
+      writeStoredGiftCard(applied);
+      return { ok: true };
+    } catch (e) {
+      console.error("check-gift-card failed:", e);
+      return { ok: false, reason: "error" };
+    }
+  };
+
+  const removeGiftCard = () => {
+    setGiftCard(null);
+    writeStoredGiftCard(null);
+  };
+
   return (
     <CartContext.Provider
       value={{
@@ -446,6 +590,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         cartHasWorkshop,
         cartHasCake,
         partnerReferral,
+        applyPromoCode,
+        removePartnerReferral,
+        giftCard,
+        applyGiftCard,
+        removeGiftCard,
       }}
     >
       {children}

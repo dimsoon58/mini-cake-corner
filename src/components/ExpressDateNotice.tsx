@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DayContentProps, DayPickerSingleProps } from "react-day-picker";
 import { useLang } from "@/context/LanguageContext";
 import { Calendar } from "@/components/ui/calendar";
-import { isExpressDate, expressSelectedCopy, expressTooltipCopy, EXPRESS_COPY, CLOSED_DAY_COPY, FULLY_BOOKED_COPY, calendarDaysUntil, isClosedDay } from "@/lib/orderDates";
+import { isExpressDate, expressSelectedCopy, expressTooltipCopy, EXPRESS_COPY, CLOSED_DAY_COPY, FULLY_BOOKED_COPY, HOLIDAY_CLOSURE_COPY, calendarDaysUntil, isClosedDay, isHolidayClosure } from "@/lib/orderDates";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Day number with a small tooltip on an express-surcharge day, stating
@@ -65,22 +65,49 @@ export const expressCalendarProps = {
 };
 
 // Order calendar (website checkout + product pages): a greyed-out date is no
-// longer a dead button. Tapping it shows why it can't be picked — « Nous
-// sommes complets à cette date » (Sunday: the closed-on-Sunday line) — and
-// never selects it. `disabled` keeps the same meaning as on <Calendar>: the
+// longer a dead button. Tapping it shows why it can't be picked, in a small
+// bubble right above the tapped day (03.11.2026: the line under the month
+// went unseen) — « Nous sommes complets à cette date » (Sunday: the
+// closed-on-Sunday line; holidays: the holiday closure) — and never selects
+// it. The bubble goes away after a few seconds, on the next tap or month. `disabled` keeps the same meaning as on <Calendar>: the
 // dates the customer may not pick. Past days stay plain disabled, no message.
 type OrderCalendarProps = Omit<DayPickerSingleProps, "mode" | "disabled"> & {
   disabled?: (date: Date) => boolean;
 };
 
-export function OrderCalendar({ disabled, onSelect, footer, modifiers, modifiersClassNames, ...props }: OrderCalendarProps) {
+const BUBBLE_WIDTH = 200;
+const BUBBLE_MS = 4000;
+
+export function OrderCalendar({ disabled, onSelect, onMonthChange, footer, modifiers, modifiersClassNames, ...props }: OrderCalendarProps) {
   const { lang } = useLang();
   const l = lang === "fr" ? "fr" : "en";
-  const [message, setMessage] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  // x = centre of the tapped day, y = its top, both relative to the wrapper.
+  const [bubble, setBubble] = useState<{ text: string; x: number; y: number; key: number } | null>(null);
   const isPast = (date: Date) => calendarDaysUntil(date) < 0;
   const unavailable = (date: Date) => !isPast(date) && !!disabled?.(date);
 
+  useEffect(() => {
+    if (!bubble) return;
+    const id = setTimeout(() => setBubble(null), BUBBLE_MS);
+    return () => clearTimeout(id);
+  }, [bubble]);
+
+  const showBubble = (text: string, target: EventTarget | null) => {
+    const wrap = wrapRef.current;
+    const day = target instanceof Element ? target.closest("button") : null;
+    if (!wrap || !day) return;
+    const w = wrap.getBoundingClientRect();
+    const d = day.getBoundingClientRect();
+    setBubble({ text, x: d.left + d.width / 2 - w.left, y: d.top - w.top, key: Date.now() });
+  };
+
+  // Keep the bubble inside the calendar; its arrow still points at the day.
+  const wrapWidth = wrapRef.current?.offsetWidth ?? BUBBLE_WIDTH;
+  const bubbleX = bubble ? Math.min(Math.max(bubble.x, BUBBLE_WIDTH / 2), Math.max(wrapWidth - BUBBLE_WIDTH / 2, BUBBLE_WIDTH / 2)) : 0;
+
   return (
+    <div ref={wrapRef} className="relative">
     <Calendar
       {...props}
       mode="single"
@@ -95,23 +122,32 @@ export function OrderCalendar({ disabled, onSelect, footer, modifiers, modifiers
         // selectedDay = the day actually tapped (day is undefined when the
         // already-selected day is tapped again).
         if (unavailable(selectedDay)) {
-          setMessage(isClosedDay(selectedDay) ? CLOSED_DAY_COPY[l] : FULLY_BOOKED_COPY[l]);
+          const copy = isClosedDay(selectedDay) ? CLOSED_DAY_COPY : isHolidayClosure(selectedDay) ? HOLIDAY_CLOSURE_COPY : FULLY_BOOKED_COPY;
+          showBubble(copy[l], e.target);
           return;
         }
-        setMessage(null);
+        setBubble(null);
         onSelect?.(day, selectedDay, activeModifiers, e);
       }}
-      footer={
-        <>
-          {message && (
-            <p role="alert" className="mt-2 max-w-[252px] border-l-2 border-primary bg-muted/40 px-2 py-1.5 text-xs font-medium leading-snug text-foreground">
-              {message}
-            </p>
-          )}
-          {footer ?? <ClosedDayFooter />}
-        </>
-      }
+      onMonthChange={(month) => { setBubble(null); onMonthChange?.(month); }}
+      footer={footer ?? <ClosedDayFooter />}
     />
+      {bubble && (
+        <div
+          key={bubble.key}
+          role="alert"
+          className="pointer-events-none absolute z-50 -translate-x-1/2 -translate-y-full rounded-md bg-foreground px-3 py-2 text-center text-xs font-medium leading-snug text-background shadow-lg animate-in fade-in-0 zoom-in-95"
+          style={{ left: bubbleX, top: bubble.y - 6, width: BUBBLE_WIDTH }}
+        >
+          {bubble.text}
+          <span
+            aria-hidden
+            className="absolute top-full h-0 w-0 -translate-x-1/2 border-x-[6px] border-t-[6px] border-x-transparent border-t-foreground"
+            style={{ left: BUBBLE_WIDTH / 2 + (bubble.x - bubbleX) }}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 

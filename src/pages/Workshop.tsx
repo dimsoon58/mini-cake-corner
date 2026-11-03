@@ -13,6 +13,7 @@ import imgPiping from "@/assets/workshop-piping.jpg";
 import imgPaint from "@/assets/workshop-paint.png";
 import imgPrivate from "@/assets/workshop-private.jpg";
 import { useSeo } from "@/hooks/useSeo";
+import { useGiftCardsVisible } from "@/hooks/useGiftCardsVisible";
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <h2 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-4xl text-center text-foreground mb-12">
@@ -337,6 +338,7 @@ const Workshop = () => {
 
   const { t } = useLang();
   const [privateOpen, setPrivateOpen] = useState(false);
+  const { visible: giftCardsVisible } = useGiftCardsVisible();
 
   return (
     <Layout overlayHero>
@@ -363,6 +365,14 @@ const Workshop = () => {
           >
             {t("BOOK A WORKSHOP", "RÉSERVER VOTRE WORKSHOP")}
           </Button>
+          {giftCardsVisible && (
+            <Link
+              to="/bon-cadeau"
+              className="mt-4 text-cream text-[13px] uppercase tracking-[0.105em] underline underline-offset-4 hover:text-cream/80"
+            >
+              {t("Give a gift card", "Offrir un bon cadeau")}
+            </Link>
+          )}
         </div>
       </section>
 

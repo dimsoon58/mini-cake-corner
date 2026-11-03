@@ -20,6 +20,9 @@ import CommunityPress from "./pages/CommunityPress";
 import Catalog from "./pages/Catalog";
 import Business from "./pages/Business";
 import Printing from "./pages/Printing";
+import Christmas from "./pages/Christmas";
+import GiftCard from "./pages/GiftCard";
+import GiftCardThanks from "./pages/GiftCardThanks";
 import Candles from "./pages/Candles";
 import DotCakes from "./pages/DotCakes";
 import Workshop from "./pages/Workshop";
@@ -36,6 +39,7 @@ import AdminMe from "./pages/AdminMe";
 import AdminWorkshops from "./pages/AdminWorkshops";
 import AdminCompta from "./pages/AdminCompta";
 import AdminPartners from "./pages/AdminPartners";
+import AdminInfluencers from "./pages/AdminInfluencers";
 import AdminPartner from "./pages/AdminPartner";
 import AdminCustomer from "./pages/AdminCustomer";
 import AdminCalendar from "./pages/AdminCalendar";
@@ -125,6 +129,9 @@ const App = () => (
             <Route path="/dot-cakes" element={<DotCakes />} />
             <Route path="/candles" element={<Candles />} />
             <Route path="/printing" element={<Printing />} />
+            <Route path="/noel" element={<Christmas />} />
+            <Route path="/bon-cadeau" element={<GiftCard />} />
+            <Route path="/bon-cadeau/merci" element={<GiftCardThanks />} />
             <Route path="/workshop" element={<Workshop />} />
             <Route path="/workshop-booking" element={<WorkshopBooking />} />
             <Route path="/workshop-confirmation" element={<BookingConfirmation />} />
@@ -155,6 +162,7 @@ const App = () => (
             <Route path="/admin/workshops" element={<AdminWorkshops />} />
             <Route path="/admin/compta" element={<AdminCompta />} />
             <Route path="/admin/partners" element={<AdminPartners />} />
+            <Route path="/admin/influencers" element={<AdminInfluencers />} />
             <Route path="/admin/partners/:id" element={<AdminPartner />} />
             <Route path="/order-action" element={<OrderAction />} />
             <Route path="/product/:id" element={<ProductDetail />} />

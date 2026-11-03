@@ -18,7 +18,7 @@ import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { alertTime, sendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { ORDER_CLIENT_FIELDS, ORDER_ITEM_CLIENT_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
 import { priceOrderItem, roundToCents, type CandleInput, type PricingInput } from "../_shared/pricing.ts";
-import { resolvePartnerReferral, computePartnerLineAmounts, partnerGivesDiscount, type ResolvedPartner } from "../_shared/partner-referral.ts";
+import { resolvePartnerReferral, computePartnerLineAmounts, partnerBasePriceFor, partnerGivesDiscount, type ResolvedPartner } from "../_shared/partner-referral.ts";
 import {
   expressSurchargeRate,
   resolveOneFulfillment,
@@ -97,6 +97,9 @@ interface OrderRow {
   welcome_discount_amount?: number;
   reward_amount_used?: number;
   express_surcharge_amount?: number;
+  // F38 — gift voucher part of the order (not charged to the card) and its code.
+  gift_card_amount?: number;
+  gift_card_code?: string | null;
   total_amount?: number;
   fulfillment_type?: "cake_only" | "workshop_only" | "mixed";
   // Partner referral snapshot (2026-09-16) — all null/0 unless
@@ -164,6 +167,8 @@ interface OrderItemRow {
   // `total` above is NEVER touched by this. 0 for every line the loop
   // doesn't reduce.
   reward_amount_used?: number;
+  // F38 — voucher share allocated to this line (total itself never reduced).
+  gift_card_amount?: number;
   // Partner referral snapshot, per item (2026-09-16) — see
   // computePartnerLineAmounts(). 0 for every non-eligible-product line or
   // whenever no partner referral is active.
@@ -203,6 +208,10 @@ interface PaymentRequest {
   // the `partners` table by resolvePartnerReferral() below. Absent/invalid/
   // inactive resolves to no partner and changes nothing else.
   partnerReferralToken?: string | null;
+  // F38 — gift voucher code typed in the cart (BCS-XXXX-XXXX). Only the
+  // code: the usable amount is always decided here by reserve_gift_card()
+  // (balance, validity, capped by what the order still costs).
+  giftCardCode?: string | null;
   // ── Multi-date fulfillment (Sept 2026), OPTIONAL and additive ─────────
   // When present and non-empty, this is the AUTHORITATIVE source of every
   // pickup/delivery decision for physical items — the legacy top-level
@@ -498,7 +507,37 @@ async function releaseReservationsForOrder(
   } catch (e) {
     console.error("releaseReservationsForOrder reward release threw:", e);
   }
+  await releaseGiftCardReservation(supabase, orderId);
 }
+
+// F38 — gives a gift voucher reservation back (idempotent, keyed on the order).
+async function releaseGiftCardReservation(supabase: any, orderId: string): Promise<void> {
+  try {
+    const { error } = await supabase.rpc("release_gift_card_reservation", { p_order_id: orderId });
+    if (error) console.error("release_gift_card_reservation error:", error);
+  } catch (e) {
+    console.error("release_gift_card_reservation threw:", e);
+  }
+}
+
+// F38 — a voucher the customer can't use (unknown, expired, empty…): the
+// checkout stops with a clear message, everything reserved is given back.
+class GiftCardError extends Error {
+  reason: string;
+  constructor(reason: string) {
+    super(reason);
+    this.reason = reason;
+  }
+}
+const giftCardMessage = (reason: string, en: boolean): string => {
+  switch (reason) {
+    case "gift_card_expired": return en ? "This gift card has expired." : "Ce bon cadeau a expiré.";
+    case "gift_card_empty": return en ? "This gift card has no balance left." : "Ce bon cadeau n'a plus de solde.";
+    case "gift_card_disabled": return en ? "This gift card is no longer valid." : "Ce bon cadeau n'est plus valable.";
+    default: return en ? "Unknown gift card code." : "Code de bon cadeau inconnu.";
+  }
+};
+const normaliseGiftCode = (v: unknown): string => (typeof v === "string" ? v.trim().toUpperCase() : "");
 
 // Resume (or terminate) a checkout that already has a real PostFinance
 // transaction id — called from handleRetry once the id is known (either it was
@@ -811,6 +850,8 @@ serve(async (req) => {
   let cleanupCustomerId: string | null = null;
   let rewardReservationOutstanding = false;
   let welcomeReservationOutstanding = false;
+  let giftReservationOutstanding = false;
+  let requestLangEn = false;
 
   // Set true the instant we attempt POST /payment/transactions. From that
   // point on the outcome is AMBIGUOUS (the request may have reached
@@ -824,6 +865,12 @@ serve(async (req) => {
     if (rewardReservationOutstanding && cleanupSupabase && cleanupOrderId) {
       await releaseRewardReservation(cleanupSupabase, cleanupOrderId);
       rewardReservationOutstanding = false;
+    }
+  };
+  const releaseGiftIfOutstanding = async () => {
+    if (giftReservationOutstanding && cleanupSupabase && cleanupOrderId) {
+      await releaseGiftCardReservation(cleanupSupabase, cleanupOrderId);
+      giftReservationOutstanding = false;
     }
   };
   const releaseWelcomeIfOutstanding = async () => {
@@ -846,8 +893,10 @@ serve(async (req) => {
       deliveryPlaceId,
       rewardAmountToUse,
       partnerReferralToken,
+      giftCardCode: rawGiftCardCode,
       fulfillments: rawFulfillments,
     } = body;
+    const giftCardCode = normaliseGiftCode(rawGiftCardCode);
 
     if (!orderId) throw new Error("orderId is required");
     if (!rawOrder || typeof rawOrder !== "object") throw new Error("order is required");
@@ -883,6 +932,7 @@ serve(async (req) => {
     );
 
     const orderLang: "fr" | "en" = order.lang === "en" ? "en" : "fr";
+    requestLangEn = orderLang === "en";
 
     // Never trust customer_id from the client payload — always stamp it
     // server-side from the verified Auth session. The anon key is itself a
@@ -946,7 +996,9 @@ serve(async (req) => {
           && !!storedSnapshot
           && cartSnapshotsMatch(currentSnapshot, storedSnapshot)
           && reservedRewardAmount === requestedRewardAmount
-          && storedWelcomeDiscountApplied === requestedWelcomeDiscount;
+          && storedWelcomeDiscountApplied === requestedWelcomeDiscount
+          // F38 — another (or no) gift voucher = another payment.
+          && normaliseGiftCode(storedOrder.gift_card_code) === giftCardCode;
 
         if (cartUnchanged) {
           return await handleRetry(cors, supabase, credentials, orderId, earlyPending, orderLang);
@@ -1049,7 +1101,9 @@ serve(async (req) => {
           rawChoices.every((c: unknown) => c === "vanilla" || c === "chocolate")
             ? rawChoices
             : null;
-        applyPartnerLineFields(i, orderItems[i].product, undefined); // workshop — never eligible
+        // Workshop: base = seat price × participants; only influencer codes
+        // (F35) discount it, partners keep their cakes-only rule.
+        applyPartnerLineFields(i, orderItems[i].product, orderItems[i].total);
 
         // Non-locking pre-check: if the session is already full, don't send
         // the customer to PostFinance at all. NOT a substitute for the atomic
@@ -1069,7 +1123,7 @@ serve(async (req) => {
         throw new Error(`Pricing rejected for item ${i} (${pricingItems[i]?.product}): ${result.reason}`);
       }
       orderItems[i].total = result.total;
-      applyPartnerLineFields(i, orderItems[i].product, result.baseCakePrice);
+      applyPartnerLineFields(i, orderItems[i].product, partnerBasePriceFor(orderItems[i].product, result.baseCakePrice));
     }
 
     // Delivery fee is never trusted from the client — recomputed here from
@@ -1553,8 +1607,9 @@ serve(async (req) => {
       // subtractions is ever non-zero for any given item; adding both terms
       // unconditionally is safe.
       const quantity = isWorkshop ? participants : 1;
+      // F35: a workshop line can carry an influencer-code discount too.
       const lineAmount = isWorkshop
-        ? roundToCents(Number(item.workshop_unit_price) * participants)
+        ? roundToCents(Number(item.workshop_unit_price) * participants - (item.partner_discount_amount ?? 0))
         : roundToCents(
             item.total
             - (item === discountedItem ? discountAmount : 0)
@@ -1602,6 +1657,7 @@ serve(async (req) => {
       if (roundToCents(rewardRemaining) !== 0) {
         await releaseRewardIfOutstanding();
         await releaseWelcomeIfOutstanding();
+        await releaseGiftIfOutstanding();
         throw new Error(
           `Reward allocation left ${rewardRemaining} unallocated — refusing to create a PostFinance transaction that would diverge from orders.total_amount.`,
         );
@@ -1647,12 +1703,67 @@ serve(async (req) => {
       });
     }
 
+    // ── F38 — gift voucher, applied LAST ──────────────────────────────────
+    // After the welcome / partner discount and the cagnotte, express
+    // surcharge and delivery included: the voucher pays whatever the order
+    // still costs, up to its balance. reserve_gift_card() locks the voucher,
+    // checks it and takes the amount off its balance at once. Allocated over
+    // the PostFinance lines with workshop lines LAST (their cash share stays
+    // exact for seat-cancellation refunds); order_items.total is never touched.
+    let giftAmount = 0;
+    order.gift_card_amount = 0;
+    order.gift_card_code = null;
+    for (const it of orderItems) it.gift_card_amount = 0;
+    if (giftCardCode) {
+      const beforeGift = roundToCents(
+        productsSubtotal - discountAmount - partnerDiscountAmount - reservedReward + expressSurcharge + deliveryFeeTotal,
+      );
+      const { data: giftData, error: giftError } = await supabase.rpc("reserve_gift_card", {
+        p_code: giftCardCode,
+        p_order_id: orderId,
+        p_max_amount: Math.max(0, beforeGift),
+      });
+      if (giftError) {
+        const reason = String(giftError.message ?? "");
+        throw new GiftCardError(reason.startsWith("gift_card_") ? reason : "gift_card_unknown");
+      }
+      giftAmount = roundToCents(Number((giftData as { amount?: number })?.amount ?? 0));
+      if (giftAmount > 0) {
+        cleanupSupabase = supabase;
+        cleanupOrderId = orderId;
+        giftReservationOutstanding = true;
+        order.gift_card_amount = giftAmount;
+        order.gift_card_code = String((giftData as { code?: string })?.code ?? giftCardCode);
+        const byWorkshopLast = lineItems.map((line, i) => ({ line, i }))
+          .sort((a, b) => Number(orderItems[a.i]?.product === "workshop") - Number(orderItems[b.i]?.product === "workshop"));
+        let giftRemaining = giftAmount;
+        for (const { line, i } of byWorkshopLast) {
+          if (giftRemaining <= 0) break;
+          const deduct = roundToCents(Math.min(giftRemaining, line.amountIncludingTax));
+          if (deduct <= 0) continue;
+          line.amountIncludingTax = roundToCents(line.amountIncludingTax - deduct);
+          if (orderItems[i]) orderItems[i].gift_card_amount = deduct;
+          giftRemaining = roundToCents(giftRemaining - deduct);
+        }
+        if (roundToCents(giftRemaining) !== 0) {
+          await releaseGiftIfOutstanding();
+          await releaseRewardIfOutstanding();
+          await releaseWelcomeIfOutstanding();
+          throw new Error(`Gift card allocation left ${giftRemaining} unallocated — refusing to create a PostFinance transaction.`);
+        }
+        // A line brought to 0 is dropped (PostFinance needs no empty line).
+        for (let k = lineItems.length - 1; k >= 0; k--) {
+          if (lineItems[k].amountIncludingTax === 0 && lineItems.length > 1) lineItems.splice(k, 1);
+        }
+      }
+    }
+
     // The frontend-sent total_amount is never trusted either — recomputed
     // here from the same real numbers PostFinance is actually charging.
     // orderItems[].total, deliveryFeeTotal and expressSurcharge are all
     // server-computed above, not client values.
     order.total_amount = roundToCents(
-      productsSubtotal - discountAmount - partnerDiscountAmount - reservedReward + expressSurcharge + deliveryFeeTotal,
+      productsSubtotal - discountAmount - partnerDiscountAmount - reservedReward + expressSurcharge + deliveryFeeTotal - giftAmount,
     );
 
     // The welcome discount + reward are both capped so this can never go
@@ -1679,6 +1790,7 @@ serve(async (req) => {
     if (lineItemsTotal !== order.total_amount) {
       await releaseRewardIfOutstanding();
       await releaseWelcomeIfOutstanding();
+      await releaseGiftIfOutstanding();
       throw new Error(
         `Line items total (CHF ${lineItemsTotal}) does not match the server total (CHF ${order.total_amount}) — refusing to create a PostFinance transaction that could under- or over-charge the customer.`,
       );
@@ -1947,6 +2059,7 @@ serve(async (req) => {
     if (!postAttempted) {
       await releaseRewardIfOutstanding();
       await releaseWelcomeIfOutstanding();
+      await releaseGiftIfOutstanding();
       if (placeholderCreated && cleanupSupabase && cleanupOrderId) {
         await cleanupSupabase.from("pending_payments").delete()
           .eq("order_id", cleanupOrderId)
@@ -1954,6 +2067,9 @@ serve(async (req) => {
       }
     }
 
+    if (error instanceof GiftCardError) {
+      return jsonResponse(cors, { error: giftCardMessage(error.reason, requestLangEn), code: "GIFT_CARD_INVALID", reason: error.reason }, 400);
+    }
     return jsonResponse(cors, {
       error: error instanceof Error ? error.message : "Unknown error",
     }, 500);

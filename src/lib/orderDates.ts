@@ -117,6 +117,19 @@ export const FULLY_BOOKED_COPY = {
   fr: "Nous sommes complets à cette date. Merci de choisir une autre date.",
 } as const;
 
+// Holiday closure (same dates as in CLOSED_DATES): tapping one of these days
+// says why, instead of « complets ».
+const HOLIDAY_FROM = "2026-12-29";
+const HOLIDAY_TO = "2027-01-07";
+export function isHolidayClosure(date: Date): boolean {
+  const iso = localISO(date);
+  return iso >= HOLIDAY_FROM && iso <= HOLIDAY_TO;
+}
+export const HOLIDAY_CLOSURE_COPY = {
+  en: "We are closed for the holidays, from 29 December to 7 January.",
+  fr: "Nous sommes fermés pour les fêtes, du 29 décembre au 7 janvier.",
+} as const;
+
 export const CLOSED_DATE_COPY = {
   en: "We are closed on this date.",
   fr: "Nous sommes fermés à cette date.",

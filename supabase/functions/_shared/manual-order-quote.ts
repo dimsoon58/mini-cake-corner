@@ -13,6 +13,7 @@
 //
 // Totals, as validated with the owner (2026-09-28):
 //   calculated_amount = Σ items + Σ delivery fees + Σ express surcharges
+//                       (an item = engine price + its fruit supplement, if any)
 //   adjustment        = amount (CHF, signed) | percent (signed, of
 //                       calculated_amount) | final (price typed by hand)
 //   final_amount      = calculated_amount + adjustment_amount (never < 0)
@@ -46,8 +47,27 @@ export interface QuoteItemInput {
   design?: string | null;      // style id / inspiration-N
   extras?: string[];
   candles?: CandleInput[];
+  // Supplément fruits (commandes manuelles uniquement, 02.11.2026) : fruits
+  // frais en décoration sur un gâteau, montant en CHF choisi par l'admin
+  // (pas de tarif fixe). null = pas de fruits.
+  fruit_supplement?: number | null;
   workshop_session_id?: string | null;
   workshop_participants?: number | null;
+}
+
+export const MAX_FRUIT_SUPPLEMENT = 500;
+
+// The fruit supplement only exists on a cake (bento / retro / medium /
+// large / rectangle). Returns the amount to charge (0 when there is none) or
+// an error to show in the editor.
+export function fruitSupplementOf(it: QuoteItemInput): { amount: number; error: string | null } {
+  const v = it.fruit_supplement;
+  if (v === null || v === undefined) return { amount: 0, error: null };
+  if (it.product !== "bento_cake" && it.product !== "rectangle_cake") return { amount: 0, error: null };
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return { amount: 0, error: "Enter the amount of the fruit supplement" };
+  if (n > MAX_FRUIT_SUPPLEMENT) return { amount: 0, error: `The fruit supplement can't exceed CHF ${MAX_FRUIT_SUPPLEMENT}` };
+  return { amount: roundToCents(n), error: null };
 }
 
 export interface QuoteFulfillmentInput {
@@ -74,7 +94,7 @@ export interface QuoteInput {
 // One line of an item's price detail. `id` is the option id (size, flavour,
 // extra, candle…); the Admin screen turns it into a display name.
 export interface QuoteBreakdownLine {
-  kind: "size" | "shape" | "flavour" | "design" | "extra" | "piping" | "pack" | "candle" | "printing" | "workshop";
+  kind: "size" | "shape" | "flavour" | "design" | "extra" | "fruit" | "piping" | "pack" | "candle" | "printing" | "workshop";
   id: string;
   amount: number;
   quantity?: number;
@@ -302,9 +322,18 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
       extras: Array.isArray(it.extras) ? it.extras : [],
       candles: Array.isArray(it.candles) ? it.candles : [],
     });
-    return priced.ok
-      ? { index, product, total: priced.total, error: null, breakdown: breakdownItem(it, product, priced.total) }
-      : { index, product, total: null, error: priced.reason };
+    if (!priced.ok) return { index, product, total: null, error: priced.reason };
+    // Fruit supplement: on top of the engine's price, never inside it.
+    const fruit = fruitSupplementOf(it);
+    if (fruit.error) return { index, product, total: null, error: fruit.error };
+    const breakdown = breakdownItem(it, product, priced.total);
+    return {
+      index,
+      product,
+      total: roundToCents(priced.total + fruit.amount),
+      error: null,
+      breakdown: breakdown && fruit.amount > 0 ? [...breakdown, { kind: "fruit" as const, id: "fruit", amount: fruit.amount }] : breakdown,
+    };
   });
 
   // ── Dates: every physical item in exactly one date ────────────────────

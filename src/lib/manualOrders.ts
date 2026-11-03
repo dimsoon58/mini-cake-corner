@@ -26,6 +26,9 @@ export interface EditorItem {
   design: string | null;
   extras: string[];
   candles: CandleEntry[];
+  // Supplément fruits (gâteaux) : null = pas de fruits ; sinon le montant en
+  // CHF tapé par l'admin (texte du champ, « 12.50 »).
+  fruit_supplement: string | null;
   dateKey: string | null;      // which date group (not for workshops)
   workshop_session_id: string | null;
   workshop_participants: number | null;
@@ -77,7 +80,7 @@ export interface ManualOrderCatalog {
 }
 
 export interface QuoteBreakdownLine {
-  kind: "size" | "shape" | "flavour" | "design" | "extra" | "piping" | "pack" | "candle" | "printing" | "workshop";
+  kind: "size" | "shape" | "flavour" | "design" | "extra" | "fruit" | "piping" | "pack" | "candle" | "printing" | "workshop";
   id: string;
   amount: number;
   quantity?: number;
@@ -107,6 +110,7 @@ export const emptyItem = (product: ProductId = "bento_cake"): EditorItem => ({
   design: product === "bento_cake" || product === "rectangle_cake" ? "normal-without-border" : null,
   extras: product === "diy_kit" ? ["piping-2-bags"] : [],
   candles: [],
+  fruit_supplement: null,
   dateKey: null,
   workshop_session_id: null,
   workshop_participants: product === "workshop" ? 1 : null,
@@ -237,6 +241,8 @@ export function extraFields(item: EditorItem): ExtraFields {
   if (butterfly) parts.push(`Butterfly: ${butterfly}`);
   if (glitter) parts.push(`Glitter: ${glitter}`);
   if (cherries) parts.push(`Glitter Cherries: ${cherries}`);
+  // Lu par les étiquettes de production et affiché dans les e-mails (« Suppléments »).
+  if (item.fruit_supplement !== null) parts.push("Fruits");
   const groups = Array.from(new Set(ids.map((id) => extraGroups.find((g) => g.ids.includes(id))?.label).filter(Boolean)));
   const colours = [ribbon, butterfly, glitter, cherries].filter(Boolean);
   return {
@@ -279,6 +285,7 @@ export function labelBreakdownLine(line: QuoteBreakdownLine, catalog: ManualOrde
     }
     case "design": return `Design ${labelDesign(line.id)}`;
     case "extra": return `${labelExtra(line.id)}${qty}`;
+    case "fruit": return fr ? "Supplément fruits" : "Fruit supplement";
     case "piping": return labelPiping(line.id, lang);
     case "pack": return `Pack ${labelSize(line.id, lang)}`;
     case "candle": return `${labelCandle(line.id, lang)}${qty}`;
@@ -348,6 +355,8 @@ const MESSAGE_RULES: { re: RegExp; en: string | ((m: RegExpMatchArray) => string
   { re: /Choose a reason for the price adjustment/i, en: "Choose a reason for the adjustment", fr: "Choisissez une raison pour l'ajustement" },
   { re: /choose the sponge of each participant/i, en: "Choose the sponge of each participant", fr: "Choisissez la génoise de chaque participant" },
   { re: /confirm the legal representative/i, en: "Confirm the legal representative's consent", fr: "Confirmez l'accord du représentant légal" },
+  { re: /amount of the fruit supplement/i, en: "Enter the amount of the fruit supplement", fr: "Indiquez le montant du supplément fruits" },
+  { re: /fruit supplement can't exceed/i, en: "The fruit supplement can't exceed CHF 500", fr: "Le supplément fruits ne peut pas dépasser CHF 500" },
   { re: /Add at least one product/i, en: "Add at least one product", fr: "Ajoutez au moins un produit" },
 ];
 

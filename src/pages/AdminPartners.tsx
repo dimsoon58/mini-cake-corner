@@ -105,8 +105,9 @@ const AdminPartners = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {data?.partners.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-muted-foreground">Aucun partenaire.</td></tr>}
-              {data?.partners.map((p) => {
+              {data?.partners.filter((p) => !p.slug.startsWith("inf-")).length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-muted-foreground">Aucun partenaire.</td></tr>}
+              {/* F35 : les influenceurs (slug « inf-… ») ont leur page, Admin > Influenceurs. */}
+              {data?.partners.filter((p) => !p.slug.startsWith("inf-")).map((p) => {
                 const url = partnerLink(data.siteBaseUrl, p.referralToken);
                 const { balance, provisional, overpaid } = partnerBalance(p.total);
                 return (

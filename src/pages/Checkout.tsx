@@ -273,14 +273,16 @@ const uploadImageFilesToStorage = async (
   allFiles: File[],
   orderId: string,
   onProgress?: (status: string) => void
-): Promise<string[]> => {
+): Promise<(string | null)[]> => {
   if (!allFiles.length) return [];
 
   onProgress?.("Uploading images...");
   const now = new Date();
   const year = String(now.getFullYear());
   const month = String(now.getMonth() + 1).padStart(2, "0");
-  const uploadedUrls: string[] = [];
+  // One entry per file, in order — null when that file failed, so the
+  // caller can stop the order and every photo stays with its own cake.
+  const uploadedUrls: (string | null)[] = [];
 
   for (let i = 0; i < allFiles.length; i++) {
     const file = allFiles[i];
@@ -315,6 +317,7 @@ const uploadImageFilesToStorage = async (
       uploadedUrls.push(data.publicUrl);
     } else {
       console.error(`Failed to upload reference_${i} after 3 attempts`);
+      uploadedUrls.push(null);
     }
   }
 
@@ -323,7 +326,7 @@ const uploadImageFilesToStorage = async (
 };
 
 const Checkout = () => {
-  const { items, clearCart, updateItem, partnerReferral } = useCart();
+  const { items, clearCart, updateItem, partnerReferral, giftCard } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -895,7 +898,7 @@ const Checkout = () => {
   // estimatedWelcomeDiscount above: the server independently revalidates
   // the token and recomputes this amount from its own pricing, never from
   // anything sent here.
-  const partnerEligibleBase = partnerReferral ? computePartnerEligibleBase(items) : 0;
+  const partnerEligibleBase = partnerReferral ? computePartnerEligibleBase(items, partnerReferral.kind) : 0;
   const estimatedPartnerDiscount = (partnerReferral && partnerEligibleBase > 0)
     ? roundChf(computePartnerDiscountAmount(partnerEligibleBase, partnerReferral.discountRate))
     : 0;
@@ -957,7 +960,7 @@ const Checkout = () => {
   // 2026-09-14: combined with sumChf (integer cents), not plain +/- — this
   // exact chain (subtotal - discount - reward + surcharge + delivery) is
   // what produced "CHF 48.699999999999996" instead of "CHF 48.70" before.
-  const totalPrice = sumChf(
+  const totalBeforeGift = sumChf(
     itemsTotal,
     -estimatedWelcomeDiscount,
     -estimatedPartnerDiscount,
@@ -965,6 +968,10 @@ const Checkout = () => {
     expressSurchargeAmount,
     hasPhysical ? deliveryPrice : 0,
   );
+  // F38 — gift voucher, applied last (delivery and express included).
+  // Display estimate from check-gift-card; the server reserves the real amount.
+  const estimatedGiftUsed = giftCard ? roundChf(Math.min(giftCard.balance, Math.max(totalBeforeGift, 0))) : 0;
+  const totalPrice = sumChf(totalBeforeGift, -estimatedGiftUsed);
 
   // Build phone number with country code
   const fullPhoneNumber = combinePhoneNumber(countryCode, phone);
@@ -1006,6 +1013,23 @@ const Checkout = () => {
         description: t(
           "The image to print on your cake was lost (the page was reloaded). Please remove this cake from your cart and add it again with its image.",
           "L'image à imprimer sur votre gâteau a été perdue (la page a été rechargée). Merci de retirer ce gâteau du panier puis de l'ajouter à nouveau avec son image.",
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Photos are kept in the browser (cartPhotoStore.ts) but can still be
+    // lost (private browsing, another device, cleared data): never order
+    // without them silently — the cart shows which cake and lets the
+    // customer add them again or continue without.
+    const itemMissingPhotos = items.find((it) => (it.imageFileCount ?? 0) > (it.imageFiles ?? []).length);
+    if (itemMissingPhotos) {
+      toast({
+        title: t("Photos missing", "Photos manquantes"),
+        description: t(
+          "Some of the photos you added to your cart could not be found. Please go back to your cart to add them again, or to continue without them.",
+          "Certaines photos ajoutées à votre panier n'ont pas été retrouvées. Retournez au panier pour les ajouter à nouveau, ou pour continuer sans elles.",
         ),
         variant: "destructive",
       });
@@ -1290,13 +1314,22 @@ const Checkout = () => {
       const orderImageUrls = await uploadImageFilesToStorage(allImageFiles, orderId, (status) => {
         toast({ title: status });
       });
+      // Never order without a photo the customer added (30.10.2026: a
+      // failed upload used to be skipped silently, and shifted the next
+      // photos onto the wrong cake).
+      if (orderImageUrls.some((url) => url === null)) {
+        throw new Error(t(
+          "One of your photos could not be sent (connection problem). Nothing has been charged — please check your connection and try again.",
+          "Une de vos photos n'a pas pu être envoyée (problème de connexion). Rien n'a été débité — vérifiez votre connexion et réessayez.",
+        ));
+      }
 
       // Build per-item image URLs (distribute back to items for their own
       // order_items.reference_images row)
       let urlIndex = 0;
       const orderItemsWithImageUrls = items.map(item => {
         const itemFileCount = (item.imageFiles || []).length;
-        const itemUrls = orderImageUrls.slice(urlIndex, urlIndex + itemFileCount);
+        const itemUrls = orderImageUrls.slice(urlIndex, urlIndex + itemFileCount) as string[];
         urlIndex += itemFileCount;
         return { ...item, imageUrls: itemUrls };
       });
@@ -1585,6 +1618,8 @@ const Checkout = () => {
         // etc.) not yet implemented — safe to send regardless, current
         // create-postfinance-payment simply ignores unknown fields.
         rewardAmountToUse: estimatedRewardUsed,
+        // F38 — the voucher code only; the server checks it and decides the amount.
+        giftCardCode: giftCard?.code ?? null,
         // Multi-date fulfillment — undefined on every order today (see its
         // computation above). When present, create-postfinance-payment
         // treats it as authoritative and ignores deliveryOption/
@@ -2293,10 +2328,12 @@ const Checkout = () => {
               {estimatedPartnerDiscount > 0 && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">
-                    {t(
-                      `${partnerReferral!.partnerName} partner discount`,
-                      `Réduction partenaire ${partnerReferral!.partnerName}`,
-                    )}
+                    {partnerReferral!.code
+                      ? t(`Code ${partnerReferral!.code} -${Math.round(partnerReferral!.discountRate * 100)}%`, `Code ${partnerReferral!.code} -${Math.round(partnerReferral!.discountRate * 100)} %`)
+                      : t(
+                          `${partnerReferral!.partnerName} partner discount`,
+                          `Réduction partenaire ${partnerReferral!.partnerName}`,
+                        )}
                   </span>
                   <span className="font-medium text-primary">- CHF {formatChf(estimatedPartnerDiscount)}</span>
                 </div>
@@ -2361,10 +2398,21 @@ const Checkout = () => {
                   <span className="font-medium">CHF {formatChf(multiDateDeliveryFeeTotal)}</span>
                 </div>
               )}
+              {estimatedGiftUsed > 0 && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">{t(`Gift card ${giftCard!.code}`, `Bon cadeau ${giftCard!.code}`)}</span>
+                  <span className="font-medium text-primary">- CHF {formatChf(estimatedGiftUsed)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-lg font-semibold pt-2 border-t border-border">
                 <span>{t("Total", "Total")}</span>
                 <span className="text-primary">CHF {formatChf(totalPrice)}</span>
               </div>
+              {estimatedGiftUsed > 0 && totalPrice <= 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("Fully paid with your gift card: no card payment needed.", "Entièrement payé avec votre bon cadeau : aucun paiement par carte.")}
+                </p>
+              )}
             </div>
 
             {/* CGV (obligatoire, non cochée) + information confidentialité & newsletter.

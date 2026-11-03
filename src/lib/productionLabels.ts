@@ -138,7 +138,7 @@ function glitterColours(extra: string | null): string[] {
 
 // Type de déco : les décorations du catalogue présentes dans order_items.extra
 // (site : « Gold leaves, Pearl border (each), Ribbon: Baby Pink » ; commande
-// manuelle : « Scattered Pearls × 3 »). Noms reconnus sans tenir compte des
+// manuelle : « Scattered Pearls × 3 », « Fruits »). Noms reconnus sans tenir compte des
 // majuscules, comptés, en français ; les parties « Ribbon: … », « Glitter: … »
 // sont des couleurs (ligne « Couleur déco »), le reste inconnu est ignoré.
 function decoTypes(extra: string | null): string | null {
@@ -149,7 +149,8 @@ function decoTypes(extra: string | null): string | null {
   for (const raw of v.split(",").map((p) => p.trim()).filter(Boolean)) {
     if (raw.includes(":")) continue;
     const m = raw.match(/^(.*?)(?:\s*×\s*(\d+))?$/);
-    const e = byName.get((m?.[1] ?? raw).trim().toLowerCase());
+    // Supplément fruits d'une commande manuelle (« Fruits », pas un extra du catalogue).
+    const e = raw.toLowerCase() === "fruits" ? { id: "fruits", name: "Fruits" } : byName.get((m?.[1] ?? raw).trim().toLowerCase());
     if (!e) continue;
     const cur = counts.get(e.id) ?? { id: e.id, name: extraNameFr[e.id] ?? e.name, n: 0 };
     cur.n += m?.[2] ? Number(m[2]) : 1;

@@ -213,10 +213,11 @@ const AdminManualOrderEditor = () => {
         const groupOfItem = new Map<number, string>();
         (o.fulfillments ?? []).forEach((f: { itemIndexes: number[] }, gi: number) => f.itemIndexes.forEach((ii) => groupOfItem.set(ii, loadedGroups[gi].key)));
         setGroups(loadedGroups.length > 0 ? loadedGroups : [emptyGroup()]);
-        setItems((o.items ?? []).map((it: Partial<EditorItem> & { product: EditorItem["product"]; extra?: string | null }, ii: number) => ({
+        setItems((o.items ?? []).map((it: Omit<Partial<EditorItem>, "fruit_supplement"> & { product: EditorItem["product"]; extra?: string | null; fruit_supplement?: number | null }, ii: number) => ({
           ...emptyItem(it.product),
           ...coloursFromExtra(it.extra),
-          ...Object.fromEntries(Object.entries(it).filter(([k, v]) => v !== null && v !== undefined && k !== "extra")),
+          ...Object.fromEntries(Object.entries(it).filter(([k, v]) => v !== null && v !== undefined && k !== "extra" && k !== "fruit_supplement")),
+          fruit_supplement: it.fruit_supplement != null && Number(it.fruit_supplement) > 0 ? String(it.fruit_supplement) : null,
           key: newKey(),
           dateKey: groupOfItem.get(ii) ?? null,
           workshop_sponge_choices: it.workshop_sponge_choices ?? (it.product === "workshop" ? Array.from({ length: it.workshop_participants ?? 1 }, () => "vanilla") : []),
@@ -257,6 +258,8 @@ const AdminManualOrderEditor = () => {
   const payload = useMemo(() => {
     const itemsPayload = items.map((it) => ({
       product: it.product, size: it.size, shape: it.shape, flavors: it.flavors, design: it.design, extras: it.extras, candles: it.candles,
+      // Ticked but empty / not a number → 0, which the server refuses with a clear message.
+      fruit_supplement: it.fruit_supplement === null ? null : (Number(it.fruit_supplement.replace(",", ".")) || 0),
       workshop_session_id: it.workshop_session_id, workshop_participants: it.workshop_participants,
       workshop_sponge_choices: it.workshop_sponge_choices, workshop_has_minor: it.workshop_has_minor,
       workshop_minor_consent_confirmed: it.workshop_minor_consent_confirmed,

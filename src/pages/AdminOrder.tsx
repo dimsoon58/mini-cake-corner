@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useParams, useSearchParams, Link } from "react-router-dom";
-import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft, Printer, Copy } from "lucide-react";
+import { useParams, useSearchParams, Link, useLocation, useNavigate } from "react-router-dom";
+import { CheckCircle, XCircle, Loader2, AlertTriangle, Lock, User, Package, Cake, CreditCard, ArrowLeft, Printer, Copy, Flame, Truck } from "lucide-react";
 import { paymentRefs } from "@/lib/paymentRefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useStaffRole } from "@/lib/staff";
 import { extractFunctionErrorMessage } from "@/lib/functionErrors";
-import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment, colourLabel, colourListLabel } from "@/lib/orderLabels";
+import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment, colourSwatches } from "@/lib/orderLabels";
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPanel";
 import { ReferencePhotos } from "@/components/ReferencePhotos";
@@ -20,6 +20,7 @@ import { ProductionCheck } from "@/components/admin/ProductionCheck";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
 import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
 import { OrderConfirmationPanel } from "@/components/admin/OrderConfirmationPanel";
+import { OrderInternalNotes } from "@/components/admin/OrderInternalNotes";
 import { CHANNEL_LABELS, MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -65,6 +66,29 @@ const DetailRow = ({ label, value }: { label: string; value?: string | null }) =
   );
 };
 
+// Colour name + a swatch of the exact shade clicked on the site (« vert »
+// alone can be several greens).
+const ColourChips = ({ items }: { items: { label: string; hex: string | null }[] }) => (
+  <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+    {items.map((c, i) => (
+      <span key={i} className="inline-flex items-center gap-1.5">
+        {c.hex && <span className="inline-block w-4 h-4 rounded-full border border-foreground/30 shrink-0" style={{ backgroundColor: c.hex }} aria-hidden />}
+        {c.label}
+      </span>
+    ))}
+  </span>
+);
+
+const ColourRow = ({ label, items }: { label: string; items: { label: string; hex: string | null }[] }) => {
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-col sm:flex-row sm:gap-2 text-sm">
+      <span className="text-muted-foreground sm:min-w-[140px] sm:shrink-0">{label}:</span>
+      <span className="text-foreground min-w-0"><ColourChips items={items} /></span>
+    </div>
+  );
+};
+
 const formatDateFromIso = (dateValue?: string | null) => {
   if (!dateValue) return dateValue;
   const [year, month, day] = dateValue.split("-");
@@ -74,6 +98,8 @@ const formatDateFromIso = (dateValue?: string | null) => {
 
 const AdminOrder = () => {
   const { t, lang } = useLang();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
@@ -377,16 +403,33 @@ const AdminOrder = () => {
   // as before. 2+ rows means this order genuinely spans multiple dates, so
   // the single "Pickup / Delivery" block is replaced by one per date.
   const isMultiDate = fulfillments.length > 1;
+
+  // What must never be missed, summed up at the top of the order.
+  const candleLines: string[] = items
+    .filter((it: any) => it.candle_name || it.product === "candles")
+    .map((it: any) => it.candle_name
+      ? `${it.candle_name}${it.candle_quantity && !/×\s*\d/.test(it.candle_name) ? ` ×${it.candle_quantity}` : ""}`
+      : t("Candles", "Bougies"));
+  const deliveryStops = (isMultiDate ? fulfillments : [order])
+    .filter((f: any) => f?.delivery_method === "delivery")
+    .map((f: any) => ({ date: f.pickup_delivery_date as string | null, slot: f.pickup_delivery_slot as string | null, address: f.delivery_address as string | null }));
   const fulfillmentById = (fulfillmentId: string | null | undefined) =>
     fulfillmentId ? fulfillments.find((f) => f.id === fulfillmentId) : null;
 
   return (
     <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <Link to="/admin/orders" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="h-3 w-3 mr-1" />
-          {t("Back to all orders", "Retour à toutes les commandes")}
-        </Link>
+        {/* « Retour » goes back to the exact list it was opened from (same
+            period, filter, search and scroll); opened from a link or a new
+            tab, it falls back to Aujourd'hui. */}
+        <button
+          type="button"
+          onClick={() => (location.key !== "default" ? navigate(-1) : navigate("/admin"))}
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          {t("Back", "Retour")}
+        </button>
         <div className="border border-border/60 bg-background p-6 space-y-6">
           {/* Header */}
           <div className="border-b border-border/60 pb-4">
@@ -429,9 +472,37 @@ const AdminOrder = () => {
             </div>
           </div>
 
+          {/* Delivery and candles: impossible to miss */}
+          {(deliveryStops.length > 0 || candleLines.length > 0) && (
+            <div className="space-y-2">
+              {deliveryStops.map((d, i) => (
+                <div key={i} className="flex items-start gap-3 border-2 border-sky-700 bg-sky-50 px-4 py-3 text-sky-950">
+                  <Truck className="w-5 h-5 mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-semibold uppercase tracking-wide">{t("Delivery — book the courier", "Livraison — réserver le coursier")}</p>
+                    <p>{formatDateFromIso(d.date)}{d.slot ? ` · ${d.slot}` : ""}</p>
+                    {d.address && <p className="text-sky-900/90">{d.address}</p>}
+                  </div>
+                </div>
+              ))}
+              {candleLines.length > 0 && (
+                <div className="flex items-start gap-3 border-2 border-yellow-500 bg-yellow-100 px-4 py-3 text-yellow-950">
+                  <Flame className="w-5 h-5 mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-semibold uppercase tracking-wide">{t("Candles to add", "Bougies à ajouter")}</p>
+                    {candleLines.map((c, i) => <p key={i}>{c}</p>)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {order.created_via === "admin" && !employee && (
             <ManualOrderPanel order={order} items={items} invoiceUrl={invoiceUrl} onChanged={() => setReloadKey((k) => k + 1)} />
           )}
+
+          {/* F36 : notes internes de l'équipe (texte + photos), toutes les commandes. */}
+          {order.id && <OrderInternalNotes orderId={order.id} />}
 
           {/* Missing token warning — rare: only when this order genuinely has
               no order_action_tokens row at all (neither the URL nor
@@ -597,18 +668,31 @@ const AdminOrder = () => {
                             value={`${designLabel(item.design)}${designPhoto ? ` — ${t("Photo", "Photo")} ${designPhoto}` : ""}`}
                           />
                         )}
-                        <DetailRow label={t("Base Colour", "Couleur de base")} value={colourLabel(item.base_color, lang)} />
-                        <DetailRow label={t("Decoration Colour", "Couleur de décoration")} value={colourListLabel(item.decoration_color, lang)} />
+                        <ColourRow label={t("Base Colour", "Couleur de base")} items={colourSwatches(item.base_color, lang)} />
+                        <ColourRow label={t("Decoration Colour", "Couleur de décoration")} items={colourSwatches(item.decoration_color, lang)} />
                         {item.cake_text && (
-                          <DetailRow
-                            label={t("Text on Cake", "Texte sur le gâteau")}
-                            value={`"${item.cake_text}" (${item.text_style || "normal"}, ${colourLabel(item.text_color, lang) || t("default", "par défaut")})`}
-                          />
+                          <div className="flex flex-col sm:flex-row sm:gap-2 text-sm">
+                            <span className="text-muted-foreground sm:min-w-[140px] sm:shrink-0">{t("Text on Cake", "Texte sur le gâteau")}:</span>
+                            <span className="text-foreground min-w-0 break-words">
+                              "{item.cake_text}" ({item.text_style || "normal"},{" "}
+                              {item.text_color ? <ColourChips items={colourSwatches(item.text_color, lang)} /> : t("default", "par défaut")})
+                            </span>
+                          </div>
                         )}
                         {item.extra && (
                           <DetailRow label={t("Extras", "Extras")} value={item.extra} />
                         )}
-                        {candlesList && <DetailRow label={t("Candles", "Bougies")} value={candlesList} />}
+                        {Number(item.fruit_supplement) > 0 && (
+                          <DetailRow
+                            label={t("Fruit supplement", "Supplément fruits")}
+                            value={employee ? t("Fruits as decoration", "Fruits en décoration") : `CHF ${Number(item.fruit_supplement).toFixed(2)} (${t("included in the price", "compris dans le prix")})`}
+                          />
+                        )}
+                        {candlesList && (
+                          <div className="flex items-center gap-2 my-1 px-2 py-1.5 bg-yellow-100 border border-yellow-500 text-yellow-950 text-sm font-semibold">
+                            <Flame className="w-4 h-4 shrink-0" /> {t("Candles", "Bougies")} : {candlesList}
+                          </div>
+                        )}
                         <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
                         {!employee && (
                         <div className="pt-2">
@@ -686,7 +770,13 @@ const AdminOrder = () => {
                 <Link to={`/admin/customers/${order.customer_ref_id}`} className="underline underline-offset-2">{t("Open the customer record", "Ouvrir la fiche client")}</Link>
               </div>
             )}
-            <DetailRow label={t("Total", "Total")} value={`CHF ${order.total_amount}`} />
+            {Number(order.gift_card_amount) > 0 && (
+              <DetailRow
+                label={t("Paid with gift card", "Payé par bon cadeau")}
+                value={`${order.gift_card_code ? `${order.gift_card_code} : ` : ""}CHF ${Number(order.gift_card_amount).toFixed(2)}`}
+              />
+            )}
+            <DetailRow label={Number(order.gift_card_amount) > 0 ? t("Total (by card)", "Total (par carte)") : t("Total", "Total")} value={`CHF ${order.total_amount}`} />
             <DetailRow label={t("Payment", "Paiement")} value={
               order.payment_status === "paid"
                 ? t("Captured", "Encaissé")
@@ -702,7 +792,11 @@ const AdminOrder = () => {
                 <>
                   {refs.reference && <CopyRow testId="payment-reference" label={t("Payment reference", "Référence de paiement")} value={refs.reference} copyLabel={t("Copy", "Copier")} />}
                   {refs.transactionId && <CopyRow testId="postfinance-transaction" label={t("PostFinance transaction", "Transaction PostFinance")} value={refs.transactionId} copyLabel={t("Copy", "Copier")} />}
-                  {refs.rewardOnly && <DetailRow label={t("PostFinance transaction", "Transaction PostFinance")} value={t("None — paid entirely with the reward balance", "Aucune — payée entièrement avec la cagnotte")} />}
+                  {refs.rewardOnly && <DetailRow label={t("PostFinance transaction", "Transaction PostFinance")} value={
+                    Number(order.reward_amount_used) > 0
+                      ? t("None — paid entirely with the reward balance", "Aucune — payée entièrement avec la cagnotte")
+                      : t("None — paid entirely with a gift card", "Aucune — payée entièrement avec un bon cadeau")
+                  } />}
                 </>
               );
             })()}

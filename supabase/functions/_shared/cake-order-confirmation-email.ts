@@ -539,6 +539,10 @@ ${brandDarkModeStyle()}
               <td class="bcs-text bcs-row-label bcs-row-price-label" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${Number(order.price_adjustment_amount) < 0 ? tr("Discount", "Remise") : tr("Supplement", "Supplément")}</td>
               <td class="bcs-text bcs-row-value bcs-row-price-value" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">${Number(order.price_adjustment_amount) < 0 ? "- " : ""}CHF ${Math.abs(Number(order.price_adjustment_amount)).toFixed(2)}</td>
             </tr>` : ""}
+          ${(Number(order.gift_card_amount) || 0) > 0 ? `<tr>
+              <td class="bcs-text bcs-row-label bcs-row-price-label" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;">${tr("Paid with gift card", "Payé par bon cadeau")}${order.gift_card_code ? ` ${order.gift_card_code}` : ""}</td>
+              <td class="bcs-text bcs-row-value bcs-row-price-value" style="padding:12px 14px;border-bottom:1px solid #78020C;font-size:15px;color:#351E13;text-align:right;white-space:nowrap;">- CHF ${Number(order.gift_card_amount).toFixed(2)}</td>
+            </tr>` : ""}
           </tbody>
           <tfoot>
             <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
