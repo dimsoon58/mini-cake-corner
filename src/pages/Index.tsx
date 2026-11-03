@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
-import { useChristmasVisible } from "@/hooks/useChristmasVisible";
+import { ChristmasBar } from "@/components/ChristmasBar";
 import homeCatBento from "@/assets/home-cat-bento.jpg";
 import homeCatDots from "@/assets/home-cat-dots.jpg";
 import homeCatDiy from "@/assets/home-cat-diy.jpg";
@@ -231,7 +231,7 @@ const Index = () => {
   const discoverRef = useRef<HTMLDivElement>(null);
   const heroVideoRef = useRef<HTMLVideoElement>(null);
   const { t, lang } = useLang();
-  const { visible: christmasVisible } = useChristmasVisible();
+
 
   // iOS Safari ignores the `autoplay` HTML attribute unless we also call
   // .play() programmatically after mount with muted=true already set.
@@ -317,14 +317,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Bandeau Noël, juste sous la vidéo (seulement si la collection de
-          Noël est visible : tout le monde après la mise en ligne, sinon les
-          admins connectées) */}
-      {christmasVisible && (
-        <Link to="/noel" className="block bg-primary text-primary-foreground text-center px-4 py-3 uppercase tracking-[0.15em] text-xs md:text-sm font-semibold hover:bg-primary/90 transition-colors">
-          {t("Order now for Christmas →", "Commandez pour Noël →")}
-        </Link>
-      )}
+      {/* Bandeau Noël défilant — visible par tous (teaser public avant la mise en ligne) */}
+      <ChristmasBar />
 
       <div className="flex flex-col">
 
@@ -360,23 +354,20 @@ const Index = () => {
             <ChevronLeft className="h-6 w-6 text-foreground" />
           </button>
           <div ref={discoverRef} className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {/* Carte Noël en premier (même règle de visibilité que le bandeau).
-                Fond uni en attendant la photo. */}
-            {christmasVisible && (
-              <Link
-                to="/noel"
-                className="relative snap-start flex-shrink-0 w-full sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)] aspect-square overflow-hidden group bg-foreground"
-              >
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="font-script text-cream text-[56px] md:text-[72px]">{t("Christmas", "Noël")}</span>
-                </div>
-                <div className="absolute bottom-5 left-5 md:bottom-7 md:left-7">
-                  <span className="block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-8 py-2.5 transition-colors">
-                    {t("CHRISTMAS", "NOËL")}
-                  </span>
-                </div>
-              </Link>
-            )}
+            {/* Carte Noël en premier — visible par tous (pointe vers le teaser avant la mise en ligne) */}
+            <Link
+              to="/noel"
+              className="relative snap-start flex-shrink-0 w-full sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)] aspect-square overflow-hidden group bg-foreground"
+            >
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="font-script text-cream text-[56px] md:text-[72px]">{t("Christmas", "Noël")}</span>
+              </div>
+              <div className="absolute bottom-5 left-5 md:bottom-7 md:left-7">
+                <span className="block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-8 py-2.5 transition-colors">
+                  {t("CHRISTMAS", "NOËL")}
+                </span>
+              </div>
+            </Link>
             {[
               { image: homeCatBento, label: "BENTO CAKES", labelFr: "BENTO CAKES", to: "/catalog" },
               { image: homeCatRectangle, label: "RECTANGLE CAKES", labelFr: "RECTANGLE CAKES", to: "/catalog#rectangle-cakes" },
