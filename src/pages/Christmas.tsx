@@ -198,7 +198,7 @@ function ChristmasTeaser({ lang }: { lang: string }) {
             {lang === "fr" ? "La Collection de Noël" : "The Christmas Collection"}
           </h1>
           <p className="font-script text-[28px] md:text-[40px] text-cream/90 mb-2">
-            {lang === "fr" ? "Quelque chose de doux arrive..." : "Something sweet is coming..."}
+            {lang === "fr" ? "La magie de Noël se prépare…" : "Something sweet is coming..."}
           </p>
 
           {/* Compte à rebours */}
