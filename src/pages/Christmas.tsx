@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
+
 import { format } from "date-fns";
 import { CalendarIcon, Check, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import Layout from "@/components/Layout";
@@ -11,7 +11,8 @@ import { isOrderDateDisabled, expressSurcharge, expressSurchargeRate } from "@/l
 import { useLang } from "@/context/LanguageContext";
 import { useSeo } from "@/hooks/useSeo";
 import { useToast } from "@/hooks/use-toast";
-import { useChristmasVisible } from "@/hooks/useChristmasVisible";
+import { useChristmasVisible, CHRISTMAS_LAUNCH } from "@/hooks/useChristmasVisible";
+import { useCountdown } from "@/hooks/useCountdown";
 import { cn } from "@/lib/utils";
 import {
   CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CLASSIC_CAKE_FLAVOURS, LOG_FLAVOURS, LOG_FLAVOUR_SURCHARGES, cakeFlavourSurcharge, LOG_INTRO,
@@ -145,6 +146,102 @@ function ChristmasMoments() {
   );
 }
 
+// ─── Teaser pré-lancement ────────────────────────────────────────────────────
+
+function CountdownBlock({ lang }: { lang: string }) {
+  const { days, hours, minutes, seconds, passed } = useCountdown(CHRISTMAS_LAUNCH);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (passed) return null;
+  const labels =
+    lang === "fr"
+      ? ["Jours", "Heures", "Min", "Sec"]
+      : ["Days", "Hours", "Min", "Sec"];
+  const values = [days, hours, minutes, seconds];
+  return (
+    <div className="flex items-center justify-center gap-4 md:gap-8 mt-8 mb-4">
+      {values.map((val, i) => (
+        <div key={i} className="flex flex-col items-center">
+          <span className="font-sans font-bold text-[36px] md:text-[64px] leading-none tabular-nums text-cream">
+            {i === 0 ? val : pad(val)}
+          </span>
+          <span className="text-[9px] md:text-[11px] uppercase tracking-[0.2em] text-cream/70 mt-1">
+            {labels[i]}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ChristmasTeaser({ lang }: { lang: string }) {
+  return (
+    <Layout>
+      {/* ── Hero floutée ── */}
+      <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden">
+        {/* Photo de couverture floutée */}
+        <img
+          src={CHRISTMAS_COVER}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover scale-110"
+          style={{ filter: "blur(22px)" }}
+        />
+        {/* Overlay sombre pour la lisibilité */}
+        <div className="absolute inset-0 bg-foreground/55" />
+
+        {/* Contenu centré */}
+        <div className="relative z-10 text-center px-6 py-20">
+          <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-cream/70 mb-4">
+            {lang === "fr" ? "Bento Cake Studio" : "Bento Cake Studio"}
+          </p>
+          <h1 className="font-sans font-bold text-[28px] md:text-[52px] uppercase tracking-[0.12em] text-cream leading-tight mb-4">
+            {lang === "fr" ? "La Collection de Noël" : "The Christmas Collection"}
+          </h1>
+          <p className="font-script text-[28px] md:text-[40px] text-cream/90 mb-2">
+            {lang === "fr" ? "La magie de Noël se prépare…" : "Something sweet is coming..."}
+          </p>
+
+          {/* Compte à rebours */}
+          <CountdownBlock lang={lang} />
+
+          <p className="text-[10px] md:text-sm uppercase tracking-[0.25em] text-cream/70 mt-6">
+            {lang === "fr" ? "Disponible le 14 novembre 2026" : "Available November 14, 2026"}
+          </p>
+        </div>
+      </section>
+
+      {/* ── Cook'n'Show ── */}
+      <section className="py-16 md:py-20 bg-background text-center px-6">
+        <div className="max-w-xl mx-auto">
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-5">
+            {lang === "fr" ? "Un avant-goût exclusif" : "An Exclusive First Look"}
+          </p>
+          <h2 className="font-sans text-xl md:text-2xl font-semibold uppercase tracking-[0.1em] text-foreground mb-5">
+            {lang === "fr"
+              ? "Vous n'attendez pas le 14 novembre ?"
+              : "Can't wait until November 14?"}
+          </h2>
+          <p className="text-sm md:text-base text-muted-foreground leading-relaxed mb-8">
+            {lang === "fr"
+              ? "Rejoignez-nous au Cook'n'Show des Automnales pour un avant-goût exclusif de notre Collection de Noël ! Découvrez nos gâteaux festifs et nos bûches de Noël avant tout le monde, avec la possibilité de pré-commander vos préférés."
+              : "Join us at Cook'n'Show, Les Automnales, for an exclusive preview of our Christmas Collection! Discover our festive cakes and Christmas bûches before everyone else, with the opportunity to pre-order your favourites."}
+          </p>
+          <div className="space-y-1.5">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
+              {lang === "fr" ? "13 NOVEMBRE 2026 · 13H30" : "NOVEMBER 13, 2026 · 13:30"}
+            </p>
+            <p className="text-sm uppercase tracking-[0.15em] text-muted-foreground">
+              COOK'N'SHOW · PALEXPO GENEVA
+            </p>
+          </div>
+        </div>
+      </section>
+    </Layout>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const Christmas = () => {
   useSeo({
     title: "Gâteaux et bûches de Noël Genève — Bento Cake Studio",
@@ -178,7 +275,7 @@ const Christmas = () => {
   }, [selection]);
 
   if (loading) return <Layout><div className="min-h-[60vh]" /></Layout>;
-  if (!visible) return <Navigate to="/" replace />;
+  if (!visible) return <ChristmasTeaser lang={lang} />;
 
   const cake = selection?.kind === "cake" ? CHRISTMAS_CAKES.find((c) => c.id === selection.id) ?? null : null;
   const log = selection?.kind === "log" ? CHRISTMAS_LOGS.find((b) => b.id === selection.id) ?? null : null;
