@@ -8,6 +8,7 @@ import {
 import { areSideEffectsComplete } from "../_shared/order-side-effects.ts";
 import { reportConflictingTransactions } from "../_shared/postfinance-transactions.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { finalizeGiftCard, GIFT_MERCHANT_PREFIX } from "../_shared/gift-cards.ts";
 
 // PostFinance Checkout → Supabase webhook.
 //
@@ -139,6 +140,24 @@ serve(async (req) => {
     return txt(cors, `ok (ignored entity ${technicalName})`, 200);
   }
 
+  // ── 2b. Gift voucher (F37) — never an order. Found by its transaction id,
+  // or (id not saved yet) by its merchantReference « GIFT-<id> ». Done = the
+  // voucher is active with its email sent, or failed; otherwise 503 so
+  // PostFinance retries.
+  const giftResponse = async (giftCardId: string): Promise<Response> => {
+    try {
+      const r = await finalizeGiftCard(supabase, giftCardId);
+      if (r.status === "pending" || (r.status === "active" && !r.emailSent)) return txt(cors, "gift card not final yet — retry", 503);
+      return txt(cors, `ok (gift card ${r.status})`, 200);
+    } catch (e) {
+      console.error(`postfinance-webhook: gift card ${giftCardId} failed:`, e);
+      return txt(cors, "gift card error — retry", 503);
+    }
+  };
+  const { data: giftByTx } = await supabase
+    .from("gift_cards").select("id").eq("postfinance_transaction_id", entityId).maybeSingle();
+  if (giftByTx) return await giftResponse(giftByTx.id);
+
   // ── 3. Resolve the orderId from the transaction id ──
   let orderId: string | null = null;
 
@@ -174,6 +193,19 @@ serve(async (req) => {
       console.error(`postfinance-webhook: GET /payment/transactions/${entityId} failed:`, e);
       // Cannot resolve right now — let PostFinance retry this event.
       return txt(cors, "could not resolve transaction — retry", 503);
+    }
+
+    if (merchantRef?.startsWith(GIFT_MERCHANT_PREFIX)) {
+      const giftCardId = merchantRef.slice(GIFT_MERCHANT_PREFIX.length);
+      const { data: giftByRef } = await supabase.from("gift_cards").select("id, postfinance_transaction_id").eq("id", giftCardId).maybeSingle();
+      if (!giftByRef) return txt(cors, "ok (unknown gift card)", 200);
+      if (!giftByRef.postfinance_transaction_id) {
+        await supabase.from("gift_cards").update({ postfinance_transaction_id: entityId }).eq("id", giftCardId).is("postfinance_transaction_id", null);
+      } else if (giftByRef.postfinance_transaction_id !== entityId) {
+        console.error(`postfinance-webhook: gift card ${giftCardId} has transaction ${giftByRef.postfinance_transaction_id}, event for ${entityId}`);
+        return txt(cors, "ok (other transaction of this gift card)", 200);
+      }
+      return await giftResponse(giftCardId);
     }
 
     if (merchantRef) {

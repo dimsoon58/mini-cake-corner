@@ -16,3 +16,9 @@ export const MULTI_DATE_FULFILLMENT_ENABLED = true;
 // l'accueil). false = visible seulement par les admins connectées (Mel, Eli)
 // pour préparer la page ; passer à true le jour de la mise en ligne.
 export const CHRISTMAS_PUBLIC = false;
+
+// Bons cadeaux (F37, page /bon-cadeau, lien du menu « Nos produits » et
+// bouton de la page Workshop). false = visible seulement par les admins
+// connectées : l'achat marche, mais le bon ne s'utilise dans le panier
+// qu'avec l'étape 2. Passer à true quand l'étape 2 est en ligne.
+export const GIFT_CARDS_PUBLIC = false;

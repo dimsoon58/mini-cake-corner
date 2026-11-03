@@ -21,6 +21,8 @@ import Catalog from "./pages/Catalog";
 import Business from "./pages/Business";
 import Printing from "./pages/Printing";
 import Christmas from "./pages/Christmas";
+import GiftCard from "./pages/GiftCard";
+import GiftCardThanks from "./pages/GiftCardThanks";
 import Candles from "./pages/Candles";
 import DotCakes from "./pages/DotCakes";
 import Workshop from "./pages/Workshop";
@@ -128,6 +130,8 @@ const App = () => (
             <Route path="/candles" element={<Candles />} />
             <Route path="/printing" element={<Printing />} />
             <Route path="/noel" element={<Christmas />} />
+            <Route path="/bon-cadeau" element={<GiftCard />} />
+            <Route path="/bon-cadeau/merci" element={<GiftCardThanks />} />
             <Route path="/workshop" element={<Workshop />} />
             <Route path="/workshop-booking" element={<WorkshopBooking />} />
             <Route path="/workshop-confirmation" element={<BookingConfirmation />} />

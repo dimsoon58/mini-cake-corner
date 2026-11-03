@@ -11,6 +11,7 @@ import AccountMenu from "@/components/AccountMenu";
 import logoBrown from "@/assets/logo-brown.png";
 import logoCream from "@/assets/logo-cream.png";
 import { useChristmasVisible } from "@/hooks/useChristmasVisible";
+import { useGiftCardsVisible } from "@/hooks/useGiftCardsVisible";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -31,6 +32,7 @@ const navFr: Record<string, string> = {
   "Partnerships": "Partenariats",
   "Inspirations": "Inspirations",
   "Printing": "Impression",
+  "Gift card": "Bon cadeau",
   "Corporate": "Corporate",
   "Press": "Presse",
   "About Us": "À propos",
@@ -61,6 +63,10 @@ const navLinks: NavItem[] = [
 // sinon les admins connectées).
 const CHRISTMAS_LINK: NavItem = { to: "/noel", label: "Christmas" };
 const withChristmas = (links: NavItem[]): NavItem[] => [links[0], CHRISTMAS_LINK, ...links.slice(1)];
+// « Bon cadeau » (F37) en dernier dans « Nos produits », seulement quand les
+// bons cadeaux sont visibles (useGiftCardsVisible).
+const withGiftCard = (links: NavItem[]): NavItem[] =>
+  links.map((l) => (l.label === "Our Products" && l.children ? { ...l, children: [...l.children, { to: "/bon-cadeau", label: "Gift card" }] } : l));
 
 const navLinkClass = (light: boolean) =>
   cn(
@@ -72,7 +78,9 @@ const Layout = ({ children, hideNav = false, overlayHero = false }: LayoutProps)
   const location = useLocation();
   const { lang, setLang, t } = useLang();
   const { visible: christmasVisible } = useChristmasVisible();
-  const links = christmasVisible ? withChristmas(navLinks) : navLinks;
+  const { visible: giftCardsVisible } = useGiftCardsVisible();
+  const baseLinks = giftCardsVisible ? withGiftCard(navLinks) : navLinks;
+  const links = christmasVisible ? withChristmas(baseLinks) : baseLinks;
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
