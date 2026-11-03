@@ -877,8 +877,8 @@ const Cart = () => {
                   {partnerDiscountAmount > 0 && partnerReferral!.code && (
                     <p className="text-xs text-muted-foreground">
                       {t(
-                        "On the base price of the products only: excludes extras, options, decorations, candles, workshops and delivery.",
-                        "Sur le prix de base des produits uniquement : hors suppléments, options, décos, bougies, workshops et livraison.",
+                        "On the base price of the products only: excludes extras, options, decorations, candles and delivery.",
+                        "Sur le prix de base des produits uniquement : hors suppléments, options, décos, bougies et livraison.",
                       )}
                     </p>
                   )}

@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 // Admin > Influenceurs (F35, 03.11.2026). Un code promo par influenceur, à
 // taper dans le panier : remise client sur le prix de base des produits
-// (gâteaux, Dot Cakes, kits, impression ; jamais bougies ni workshops), sans
+// (gâteaux, Dot Cakes, kits, impression, workshops ; jamais bougies), sans
 // commission, valable du … au …. Les commandes sont comptées comme pour les
 // partenaires (orders.partner_id), tests exclus.
 
@@ -125,8 +125,8 @@ const AdminInfluencers = () => {
           {!form && <Button className="rounded-none" onClick={() => { setFormError(null); setForm(emptyForm()); }}><Plus className="w-4 h-4 mr-1" /> Nouveau code</Button>}
         </div>
         <p className="text-sm text-muted-foreground">
-          Un code par influenceur, à taper dans le panier. Remise sur le <strong>prix de base</strong> des gâteaux, Dot Cakes, kits et impressions
-          (jamais sur les suppléments, décos, bougies, workshops ni la livraison). Non cumulable avec le rabais de bienvenue. L'influenceur ne touche rien.
+          Un code par influenceur, à taper dans le panier. Remise sur le <strong>prix de base</strong> des gâteaux, Dot Cakes, kits, impressions et workshops
+          (jamais sur les suppléments, décos, bougies ni la livraison). Non cumulable avec le rabais de bienvenue. L'influenceur ne touche rien.
           Changer le % ou les dates ne vaut que pour les nouvelles commandes.
         </p>
         {error && <p className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">{error}</p>}

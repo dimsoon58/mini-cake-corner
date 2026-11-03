@@ -1049,7 +1049,9 @@ serve(async (req) => {
           rawChoices.every((c: unknown) => c === "vanilla" || c === "chocolate")
             ? rawChoices
             : null;
-        applyPartnerLineFields(i, orderItems[i].product, undefined); // workshop — never eligible
+        // Workshop: base = seat price × participants; only influencer codes
+        // (F35) discount it, partners keep their cakes-only rule.
+        applyPartnerLineFields(i, orderItems[i].product, orderItems[i].total);
 
         // Non-locking pre-check: if the session is already full, don't send
         // the customer to PostFinance at all. NOT a substitute for the atomic
@@ -1553,8 +1555,9 @@ serve(async (req) => {
       // subtractions is ever non-zero for any given item; adding both terms
       // unconditionally is safe.
       const quantity = isWorkshop ? participants : 1;
+      // F35: a workshop line can carry an influencer-code discount too.
       const lineAmount = isWorkshop
-        ? roundToCents(Number(item.workshop_unit_price) * participants)
+        ? roundToCents(Number(item.workshop_unit_price) * participants - (item.partner_discount_amount ?? 0))
         : roundToCents(
             item.total
             - (item === discountedItem ? discountAmount : 0)

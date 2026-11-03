@@ -105,7 +105,9 @@ export function renderWorkshopConfirmationEmail(
   const firstName = order.first_name || "";
 
   const multiple = workshopItems.length > 1;
-  const workshopSubtotal = workshopItems.reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+  // Minus a promo-code discount on the seats (F35, partner_discount_amount
+  // per line) — what the customer actually paid for the workshop.
+  const workshopSubtotal = workshopItems.reduce((sum, it) => sum + (Number(it.total) || 0) - (Number(it.partner_discount_amount) || 0), 0);
 
   // MIXED order (workshop + physical): the workshop part is confirmed + paid,
   // but the cake part is still awaiting the admin. "Montant payé" here is the

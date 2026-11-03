@@ -102,12 +102,12 @@ export function partnerGivesDiscount(partner: ResolvedPartner | null): boolean {
 // products carry a "base cake price" a discount can apply to.
 export const PARTNER_ELIGIBLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake", "dot_cakes"]);
 
-// F35 — influencer codes: every product except candles. Workshops are NOT in
-// this V1: a seat cancellation refunds unit_price × seats (cancel-workshop-
-// seats / its RPC), which would refund more than the customer paid after a
-// discount — to add once that refund math takes the discount into account.
+// F35 — influencer codes: every product except candles. Workshops: the
+// seat price × participants; a seat cancellation then refunds the
+// discounted price (cancel_workshop_seats_atomic subtracts the line's
+// partner_discount_amount, F35 migration).
 // Christmas products: to add here with their base price when they go on sale.
-export const INFLUENCER_ELIGIBLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake", "dot_cakes", "diy_kit", "edible_printing"]);
+export const INFLUENCER_ELIGIBLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake", "dot_cakes", "diy_kit", "edible_printing", "workshop"]);
 
 export function partnerEligibleProducts(partner: ResolvedPartner | null): Set<string> {
   return partner?.kind === "influencer" ? INFLUENCER_ELIGIBLE_PRODUCTS : PARTNER_ELIGIBLE_PRODUCTS;
@@ -115,7 +115,8 @@ export function partnerEligibleProducts(partner: ResolvedPartner | null): Set<st
 
 // Base price a partner discount applies to: the flat size/pack price for the
 // cakes (priceOrderItem's baseCakePrice), the kit's base price (without
-// shape, flavour or piping), the edible printing price. undefined otherwise.
+// shape, flavour or piping), the edible printing price; for a workshop the
+// caller passes the line total (seat price × participants). undefined otherwise.
 export function partnerBasePriceFor(product: string | undefined, baseCakePrice: number | undefined): number | undefined {
   if (product === "diy_kit") return DIY_KIT_BASE_PRICE;
   if (product === "edible_printing") return EDIBLE_PRINTING_PRICE;
