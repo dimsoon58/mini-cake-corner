@@ -23,6 +23,7 @@ import { trackEventWhenReady, trackRemoveFromCart, cartItemsToGA4Items, cartItem
 import { ShoppingBag, Trash2, ArrowLeft, Pencil, Check, Plus, Minus, Upload, X, Info, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Layout from "@/components/Layout";
+import PromoCodeBox from "@/components/PromoCodeBox";
 import { useLang } from "@/context/LanguageContext";
 import { formatSessionDate } from "@/data/workshopSessions";
 import { expressSurchargeBreakdown, expressSummaryLabel, isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
@@ -157,12 +158,13 @@ const Cart = () => {
   // does (it never even claims the welcome voucher when a partner is
   // active), so this preview is never misleading. A commission-only
   // partner (0 %) gives no discount and leaves the welcome discount as is.
-  const partnerEligibleBase = partnerReferral ? computePartnerEligibleBase(items) : 0;
+  const partnerEligibleBase = partnerReferral ? computePartnerEligibleBase(items, partnerReferral.kind) : 0;
   const partnerDiscountAmount = (partnerReferral && partnerEligibleBase > 0)
     ? roundChf(computePartnerDiscountAmount(partnerEligibleBase, partnerReferral.discountRate))
     : 0;
 
-  const welcomeDiscountSelected = !partnerGivesDiscount(partnerReferral) && isWelcomeDiscountSelectedForAttempt(profile, getStoredOrderId());
+  const welcomeDiscountChosen = isWelcomeDiscountSelectedForAttempt(profile, getStoredOrderId());
+  const welcomeDiscountSelected = !partnerGivesDiscount(partnerReferral) && welcomeDiscountChosen;
   const { item: welcomeDiscountItem, base: welcomeDiscountBase } = pickWelcomeDiscountItem(items);
   const welcomeDiscountAmount = (welcomeDiscountSelected && welcomeDiscountItem)
     ? roundChf(computeWelcomeDiscountAmount(welcomeDiscountBase))
@@ -862,15 +864,25 @@ const Cart = () => {
                   {partnerDiscountAmount > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
-                        {t(
-                          `${partnerReferral!.partnerName} partner discount`,
-                          `Réduction partenaire ${partnerReferral!.partnerName}`,
-                        )}
+                        {partnerReferral!.code
+                          ? t(`Code ${partnerReferral!.code} -${Math.round(partnerReferral!.discountRate * 100)}%`, `Code ${partnerReferral!.code} -${Math.round(partnerReferral!.discountRate * 100)} %`)
+                          : t(
+                              `${partnerReferral!.partnerName} partner discount`,
+                              `Réduction partenaire ${partnerReferral!.partnerName}`,
+                            )}
                       </span>
                       <span className="text-primary">- CHF {formatChf(partnerDiscountAmount)}</span>
                     </div>
                   )}
-                  {partnerDiscountAmount > 0 && (
+                  {partnerDiscountAmount > 0 && partnerReferral!.code && (
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        "On the base price of the products only: excludes extras, options, decorations, candles, workshops and delivery.",
+                        "Sur le prix de base des produits uniquement : hors suppléments, options, décos, bougies, workshops et livraison.",
+                      )}
+                    </p>
+                  )}
+                  {partnerDiscountAmount > 0 && !partnerReferral!.code && (
                     <p className="text-xs text-muted-foreground">
                       {t(
                         `Partner benefit: -${Math.round(partnerReferral!.discountRate * 100)}% on the cake base price`,
@@ -883,6 +895,7 @@ const Cart = () => {
                       )}
                     </p>
                   )}
+                  <PromoCodeBox discountAmount={partnerDiscountAmount} welcomeAvailable={welcomeDiscountChosen} />
                   {welcomeDiscountAmount > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{t("Welcome discount -10%", "Réduction bienvenue -10%")}</span>

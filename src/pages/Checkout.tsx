@@ -898,7 +898,7 @@ const Checkout = () => {
   // estimatedWelcomeDiscount above: the server independently revalidates
   // the token and recomputes this amount from its own pricing, never from
   // anything sent here.
-  const partnerEligibleBase = partnerReferral ? computePartnerEligibleBase(items) : 0;
+  const partnerEligibleBase = partnerReferral ? computePartnerEligibleBase(items, partnerReferral.kind) : 0;
   const estimatedPartnerDiscount = (partnerReferral && partnerEligibleBase > 0)
     ? roundChf(computePartnerDiscountAmount(partnerEligibleBase, partnerReferral.discountRate))
     : 0;
@@ -2322,10 +2322,12 @@ const Checkout = () => {
               {estimatedPartnerDiscount > 0 && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-muted-foreground">
-                    {t(
-                      `${partnerReferral!.partnerName} partner discount`,
-                      `Réduction partenaire ${partnerReferral!.partnerName}`,
-                    )}
+                    {partnerReferral!.code
+                      ? t(`Code ${partnerReferral!.code} -${Math.round(partnerReferral!.discountRate * 100)}%`, `Code ${partnerReferral!.code} -${Math.round(partnerReferral!.discountRate * 100)} %`)
+                      : t(
+                          `${partnerReferral!.partnerName} partner discount`,
+                          `Réduction partenaire ${partnerReferral!.partnerName}`,
+                        )}
                   </span>
                   <span className="font-medium text-primary">- CHF {formatChf(estimatedPartnerDiscount)}</span>
                 </div>

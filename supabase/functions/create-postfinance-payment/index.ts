@@ -18,7 +18,7 @@ import { recordPaymentAttempt } from "../_shared/payment-attempts.ts";
 import { alertTime, sendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { ORDER_CLIENT_FIELDS, ORDER_ITEM_CLIENT_FIELDS, pickAllowed } from "../_shared/order-whitelist.ts";
 import { priceOrderItem, roundToCents, type CandleInput, type PricingInput } from "../_shared/pricing.ts";
-import { resolvePartnerReferral, computePartnerLineAmounts, partnerGivesDiscount, type ResolvedPartner } from "../_shared/partner-referral.ts";
+import { resolvePartnerReferral, computePartnerLineAmounts, partnerBasePriceFor, partnerGivesDiscount, type ResolvedPartner } from "../_shared/partner-referral.ts";
 import {
   expressSurchargeRate,
   resolveOneFulfillment,
@@ -1069,7 +1069,7 @@ serve(async (req) => {
         throw new Error(`Pricing rejected for item ${i} (${pricingItems[i]?.product}): ${result.reason}`);
       }
       orderItems[i].total = result.total;
-      applyPartnerLineFields(i, orderItems[i].product, result.baseCakePrice);
+      applyPartnerLineFields(i, orderItems[i].product, partnerBasePriceFor(orderItems[i].product, result.baseCakePrice));
     }
 
     // Delivery fee is never trusted from the client — recomputed here from

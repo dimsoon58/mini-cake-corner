@@ -9,6 +9,7 @@ import { onOrderCompleted } from "@/lib/orderCompletionChannel";
 import { loadCartPhotos, saveCartPhotos, pruneCartPhotos } from "@/lib/cartPhotoStore";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  clearStoredPartnerReferral,
   getStoredPartnerReferral,
   setStoredPartnerReferral,
   type PartnerReferral,
@@ -182,7 +183,14 @@ interface CartContextType {
      used for pricing here; a later step recalculates and verifies the
      discount/commission server-side. */
   partnerReferral: PartnerReferral | null;
+  /* F35 — promo code typed in the cart (influencers). Checked by
+     resolve-partner-ref; on success it replaces any previous code/link
+     (last one wins, like links). */
+  applyPromoCode: (code: string) => Promise<PromoCodeResult>;
+  removePartnerReferral: () => void;
 }
+
+export type PromoCodeResult = { ok: true } | { ok: false; reason: "invalid" | "expired" | "not_started" | "error" };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -351,7 +359,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         });
         if (cancelled || error || !data?.valid || !data?.partner) return;
 
-        const partner = data.partner as { name?: unknown; discountRate?: unknown };
+        const partner = data.partner as { name?: unknown; discountRate?: unknown; kind?: unknown };
         if (typeof partner.name !== "string" || typeof partner.discountRate !== "number") return;
 
         const resolved: PartnerReferral = {
@@ -360,6 +368,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           // Stored exactly as returned (a fraction) — never converted here,
           // so a later step reads the same raw value the server verifies.
           discountRate: partner.discountRate,
+          kind: partner.kind === "influencer" ? "influencer" : "partner",
         };
         setPartnerReferral(resolved);
         setStoredPartnerReferral(resolved);
@@ -477,6 +486,39 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const cartHasWorkshop = items.some((i) => i.product === "workshop");
   const cartHasCake = items.some((i) => i.product !== "workshop");
 
+  const applyPromoCode = async (raw: string): Promise<PromoCodeResult> => {
+    const code = raw.trim().toUpperCase();
+    if (!/^[A-Z0-9]{3,20}$/.test(code)) return { ok: false, reason: "invalid" };
+    try {
+      const { data, error } = await supabase.functions.invoke("resolve-partner-ref", { body: { code } });
+      if (error) return { ok: false, reason: "error" };
+      if (!data?.valid) {
+        const reason = data?.reason === "expired" || data?.reason === "not_started" ? data.reason : "invalid";
+        return { ok: false, reason };
+      }
+      const p = data.partner as { name?: unknown; discountRate?: unknown; token?: unknown; kind?: unknown };
+      if (typeof p?.name !== "string" || typeof p.discountRate !== "number" || typeof p.token !== "string") return { ok: false, reason: "error" };
+      const resolved: PartnerReferral = {
+        token: p.token,
+        partnerName: p.name,
+        discountRate: p.discountRate,
+        kind: p.kind === "influencer" ? "influencer" : "partner",
+        code,
+      };
+      setPartnerReferral(resolved);
+      setStoredPartnerReferral(resolved);
+      return { ok: true };
+    } catch (e) {
+      console.error("resolve-partner-ref (code) failed:", e);
+      return { ok: false, reason: "error" };
+    }
+  };
+
+  const removePartnerReferral = () => {
+    setPartnerReferral(null);
+    clearStoredPartnerReferral();
+  };
+
   return (
     <CartContext.Provider
       value={{
@@ -490,6 +532,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         cartHasWorkshop,
         cartHasCake,
         partnerReferral,
+        applyPromoCode,
+        removePartnerReferral,
       }}
     >
       {children}

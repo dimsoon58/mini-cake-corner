@@ -20,6 +20,12 @@ function corsHeaders(origin: string | null) {
   };
 }
 
+const CODE_RE = /^[A-Z0-9]{3,20}$/;
+
+// Today in Switzerland (YYYY-MM-DD): validity dates are business days.
+const zurichToday = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 Deno.serve(async (req: Request) => {
@@ -38,15 +44,21 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ valid: false }), { status: 403, headers });
   }
 
+  // F35 (03.11.2026) — either the link's token (?ref=<uuid>) or a promo code
+  // typed in the cart (influencers: « LEA15 », case-insensitive). A code
+  // resolves to its partner's token, which the cart then sends to the
+  // payment exactly like a link — the payment re-checks everything.
   let token = "";
+  let code = "";
   try {
     const body = await req.json();
     token = typeof body?.token === "string" ? body.token.trim() : "";
+    code = typeof body?.code === "string" ? body.code.trim().toUpperCase() : "";
   } catch {
     return new Response(JSON.stringify({ valid: false }), { status: 400, headers });
   }
 
-  if (!UUID_RE.test(token)) {
+  if (code ? !CODE_RE.test(code) : !UUID_RE.test(token)) {
     return new Response(JSON.stringify({ valid: false }), { status: 200, headers });
   }
 
@@ -58,9 +70,10 @@ Deno.serve(async (req: Request) => {
   }
 
   const query = new URL(`${supabaseUrl}/rest/v1/partners`);
-  query.searchParams.set("referral_token", `eq.${token}`);
+  if (code) query.searchParams.set("promo_code", `eq.${code}`);
+  else query.searchParams.set("referral_token", `eq.${token}`);
   query.searchParams.set("active", "eq.true");
-  query.searchParams.set("select", "name,customer_discount_rate");
+  query.searchParams.set("select", "name,customer_discount_rate,referral_token,kind,valid_from,valid_until");
   query.searchParams.set("limit", "1");
 
   try {
@@ -83,11 +96,24 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ valid: false }), { status: 200, headers });
     }
 
+    // Outside its dates: refused, with the reason so the cart can say
+    // « ce code a expiré » instead of « code inconnu ».
+    const today = zurichToday();
+    if (partner.valid_from && today < String(partner.valid_from)) {
+      return new Response(JSON.stringify({ valid: false, reason: "not_started" }), { status: 200, headers });
+    }
+    if (partner.valid_until && today > String(partner.valid_until)) {
+      return new Response(JSON.stringify({ valid: false, reason: "expired" }), { status: 200, headers });
+    }
+
     return new Response(JSON.stringify({
       valid: true,
       partner: {
         name: partner.name,
         discountRate: Number(partner.customer_discount_rate),
+        token: partner.referral_token,
+        kind: partner.kind === "influencer" ? "influencer" : "partner",
+        validUntil: partner.valid_until ?? null,
       },
     }), { status: 200, headers });
   } catch (error) {

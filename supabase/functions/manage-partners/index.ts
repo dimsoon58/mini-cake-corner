@@ -13,8 +13,8 @@ import { getSiteBaseUrl } from "../_shared/site-config.ts";
 // aux remises du site ; aucune attribution manuelle ; aucun virement ;
 // n'envoie aucun e-mail ; ne touche ni à Make ni à Notion.
 
-const READ = new Set(["list", "get"]);
-const WRITE = new Set(["save", "confirm_conditions", "revoke_conditions", "set_refund_motif", "payout_save", "payout_void"]);
+const READ = new Set(["list", "get", "influencer_list"]);
+const WRITE = new Set(["save", "influencer_save", "confirm_conditions", "revoke_conditions", "set_refund_motif", "payout_save", "payout_void"]);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -150,6 +150,20 @@ serve(async (req) => {
           p_period_end: optDate(body.periodEnd, "Fin de période"), p_reference: text(body.reference, 200), p_note: text(body.note, 500), p_by: by,
         });
         break;
+      // F35 — Admin > Influenceurs : code promo, remise, dates ; jamais de commission.
+      case "influencer_list":
+        data = { siteBaseUrl: getSiteBaseUrl(), influencers: await rpc("admin_influencer_list", {}) };
+        break;
+      case "influencer_save": {
+        const discount = pct(body.discountPct, "Remise");
+        if (discount == null || discount <= 0) throw new InputError("Remise manquante (1 à 99 %)");
+        data = await rpc("influencer_save", {
+          p_id: optUuid(body.id, "Influenceur"), p_name: text(body.name, 120), p_code: text(body.code, 20),
+          p_discount: discount, p_from: optDate(body.validFrom, "Date de début"), p_until: optDate(body.validUntil, "Date de fin"),
+          p_active: body.active !== false, p_notes: text(body.notes, 2000), p_by: by,
+        });
+        break;
+      }
       case "payout_void":
         await rpc("partner_payout_void", { p_id: uuid(body.id, "Paiement"), p_reason: text(body.reason, 300), p_by: by });
         data = { ok: true };
