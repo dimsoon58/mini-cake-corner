@@ -285,6 +285,10 @@ ${brandDarkModeStyle()}
             <td class="bcs-text bcs-row-value" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${STORE_ADDRESS}</td>
           </tr>` : ""}
           `}
+          ${(Number(order.gift_card_amount) || 0) > 0 ? `<tr style="border-bottom:1px solid ${EMAIL_ACCENT_COLOR};">
+            <td class="bcs-label bcs-row-label" style="padding:10px 14px;color:${EMAIL_LABEL_COLOR};font-size:${EMAIL_SMALL_SIZE};font-family:${EMAIL_FONT_STACK};">${tr("Paid with gift card", "Payé par bon cadeau")}</td>
+            <td class="bcs-text bcs-row-value" style="padding:10px 14px;color:${EMAIL_BODY_COLOR};font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">- CHF ${Number(order.gift_card_amount).toFixed(2)}</td>
+          </tr>` : ""}
           <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
             <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">${tr("Total amount", "Montant total")}</td>
             <td class="bcs-accent-text" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:15px;font-weight:700;font-family:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif;">CHF ${order.total_amount}</td>

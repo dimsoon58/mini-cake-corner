@@ -82,7 +82,7 @@ const formatDateFromIso = (dateValue: string) => {
 };
 
 const Cart = () => {
-  const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate, partnerReferral } = useCart();
+  const { items, removeItem, updateItem, clearCart, itemCount, cartOrderDate, partnerReferral, giftCard } = useCart();
   const { t, lang } = useLang();
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -908,10 +908,31 @@ const Cart = () => {
                       <span className="text-foreground">CHF {formatChf(amount)}</span>
                     </div>
                   ))}
-                  <div className="flex justify-between text-lg font-bold">
-                    <span className="text-foreground">{t("Total", "Total")}</span>
-                    <span className="text-primary">CHF {formatChf(sumChf(totalPrice, expressBreakdown.total, -welcomeDiscountAmount, -partnerDiscountAmount))}</span>
-                  </div>
+                  {(() => {
+                    // F38 — the voucher pays what is left (display estimate; the
+                    // payment page adds delivery, the server decides the amount).
+                    const beforeGift = sumChf(totalPrice, expressBreakdown.total, -welcomeDiscountAmount, -partnerDiscountAmount);
+                    const giftUsed = giftCard ? Math.min(giftCard.balance, Math.max(beforeGift, 0)) : 0;
+                    return (
+                      <>
+                        {giftUsed > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">{t(`Gift card ${giftCard!.code}`, `Bon cadeau ${giftCard!.code}`)}</span>
+                            <span className="text-primary">- CHF {formatChf(giftUsed)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-lg font-bold">
+                          <span className="text-foreground">{t("Total", "Total")}</span>
+                          <span className="text-primary">CHF {formatChf(sumChf(beforeGift, -giftUsed))}</span>
+                        </div>
+                        {giftUsed > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            {t("The gift card also pays the delivery if any. The exact amount is shown on the payment page.", "Le bon cadeau paie aussi la livraison éventuelle. Le montant exact est indiqué à la page de paiement.")}
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                   <ExpressDateNotice date={cartOrderDate ? new Date(cartOrderDate + "T00:00:00") : null} />
                   {items.some((i) => i.product === "workshop") &&
                    items.some((i) => i.product !== "workshop") && (

@@ -152,15 +152,28 @@ async function sendDeclineEmail(
   // outcome). opts?.refundDue is no longer used here.
   const amountCHF = Number(order.total_amount ?? 0).toFixed(2);
 
-  const outcomeText = rewardOnly
+  // F38 — a gift voucher part goes back on the voucher (trigger on the
+  // refusal); the email says so. A « REWARD_ONLY » order may also be one
+  // fully paid with a voucher (no cagnotte at all).
+  const giftBack = Number(order.gift_card_amount) || 0;
+  const rewardUsedAmount = Number(order.reward_amount_used) || 0;
+  const giftSentence = giftBack > 0
+    ? tr(
+        ` The CHF ${giftBack.toFixed(2)} paid with your gift card${order.gift_card_code ? ` ${order.gift_card_code}` : ""} has been put back on it.`,
+        ` Les CHF ${giftBack.toFixed(2)} payés avec votre bon cadeau${order.gift_card_code ? ` ${order.gift_card_code}` : ""} y ont été recrédités.`,
+      )
+    : "";
+  const outcomeText = (rewardOnly && rewardUsedAmount > 0
     ? tr(
         "Your order has therefore been cancelled. The amount used from your reward balance has been credited back to your account.",
         "Votre commande a donc été annulée. Le montant utilisé depuis votre cagnotte a été recrédité sur votre compte."
       )
-    : tr(
-        "Your order has therefore been cancelled. Nothing was charged, the authorization on your payment method has been released, and no further action is needed on your end.",
-        "Votre commande a donc été annulée. Aucun montant n'a été prélevé, l'autorisation sur votre moyen de paiement a été annulée, et vous n'avez rien d'autre à faire de votre côté."
-      );
+    : rewardOnly
+      ? tr("Your order has therefore been cancelled.", "Votre commande a donc été annulée.")
+      : tr(
+          "Your order has therefore been cancelled. Nothing was charged, the authorization on your payment method has been released, and no further action is needed on your end.",
+          "Votre commande a donc été annulée. Aucun montant n'a été prélevé, l'autorisation sur votre moyen de paiement a été annulée, et vous n'avez rien d'autre à faire de votre côté."
+        )) + giftSentence;
 
   const html = `
 <!DOCTYPE html>
@@ -236,7 +249,7 @@ ${brandDarkModeStyle()}
           <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">
             <td class="bcs-accent-text bcs-row-label" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;font-family:${EMAIL_FONT_STACK};">${tr("Status", "Statut")}</td>
             <td class="bcs-accent-text bcs-row-value" style="padding:10px 14px;color:#FFF9DB;-webkit-text-fill-color:#FFF9DB!important;font-size:${EMAIL_SMALL_SIZE};font-weight:700;font-family:${EMAIL_FONT_STACK};">${rewardOnly
-              ? tr("Reward balance credited", "Cagnotte recréditée")
+              ? (rewardUsedAmount > 0 ? tr("Reward balance credited", "Cagnotte recréditée") : tr("Gift card credited", "Bon cadeau recrédité"))
               : tr("Authorization cancelled, nothing charged", "Autorisation annulée, aucun montant prélevé")}</td>
           </tr>
         </table>

@@ -93,6 +93,13 @@ async function abortOrderAfterCapture(
   } catch (e) {
     console.error(`release_reward_reservation threw for aborted ${orderRecord.id}:`, e);
   }
+  // F38 — the gift voucher part goes back on the voucher too.
+  try {
+    const { error: giftErr } = await supabase.rpc("release_gift_card_reservation", { p_order_id: orderRecord.id });
+    if (giftErr) console.error(`release_gift_card_reservation error for aborted ${orderRecord.id}:`, giftErr);
+  } catch (e) {
+    console.error(`release_gift_card_reservation threw for aborted ${orderRecord.id}:`, e);
+  }
   // Any workshop_reservations that DID land are moved to 'rejected' — idempotent,
   // frees capacity.
   try {
@@ -398,6 +405,13 @@ async function cleanupFailedPayment(
     if (error) console.error(`cleanupFailedPayment reward release error for ${orderId}:`, error);
   } catch (e) {
     console.error(`cleanupFailedPayment reward release threw for ${orderId}:`, e);
+  }
+  // F38 — gift voucher reservation of this dead attempt → back on the voucher.
+  try {
+    const { error } = await supabase.rpc("release_gift_card_reservation", { p_order_id: orderId });
+    if (error) console.error(`cleanupFailedPayment gift card release error for ${orderId}:`, error);
+  } catch (e) {
+    console.error(`cleanupFailedPayment gift card release threw for ${orderId}:`, e);
   }
   await supabase.from("pending_payments").delete().eq("order_id", orderId);
   await recordPaymentAttempt(supabase, {

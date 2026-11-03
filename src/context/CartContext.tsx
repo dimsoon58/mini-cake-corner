@@ -188,9 +188,38 @@ interface CartContextType {
      (last one wins, like links). */
   applyPromoCode: (code: string) => Promise<PromoCodeResult>;
   removePartnerReferral: () => void;
+  /* F38 — gift voucher typed in the same field (BCS-XXXX-XXXX). balance is
+     what check-gift-card saw: display only — the amount actually used is
+     reserved by create-postfinance-payment when the payment starts. Can be
+     combined with a promo code / partner link. */
+  giftCard: AppliedGiftCard | null;
+  applyGiftCard: (code: string) => Promise<GiftCardResult>;
+  removeGiftCard: () => void;
 }
 
 export type PromoCodeResult = { ok: true } | { ok: false; reason: "invalid" | "expired" | "not_started" | "error" };
+export type AppliedGiftCard = { code: string; balance: number; expiresAt: string };
+export type GiftCardResult = { ok: true } | { ok: false; reason: "unknown" | "expired" | "empty" | "disabled" | "error" };
+export const GIFT_CARD_CODE_RE = /^BCS-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+const GIFT_CARD_STORAGE_KEY = "bcs-gift-card";
+
+function readStoredGiftCard(): AppliedGiftCard | null {
+  try {
+    const raw = sessionStorage.getItem(GIFT_CARD_STORAGE_KEY);
+    const v = raw ? JSON.parse(raw) : null;
+    return v && typeof v.code === "string" && typeof v.balance === "number" ? v : null;
+  } catch {
+    return null;
+  }
+}
+function writeStoredGiftCard(v: AppliedGiftCard | null) {
+  try {
+    if (v) sessionStorage.setItem(GIFT_CARD_STORAGE_KEY, JSON.stringify(v));
+    else sessionStorage.removeItem(GIFT_CARD_STORAGE_KEY);
+  } catch {
+    /* private mode — the voucher just has to be typed again */
+  }
+}
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -328,6 +357,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [partnerReferral, setPartnerReferral] = useState<PartnerReferral | null>(
     () => getStoredPartnerReferral(),
   );
+  const [giftCard, setGiftCard] = useState<AppliedGiftCard | null>(() => readStoredGiftCard());
 
   // Runs once, on site load — matches the task's own "on site load" spec.
   // CartProvider mounts exactly once at the app root (see App.tsx) and never
@@ -450,6 +480,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = () => {
     setItems([]);
+    // F38 — the voucher was used (or the cart emptied): type it again next time.
+    setGiftCard(null);
+    writeStoredGiftCard(null);
   };
 
   // 2026-09-14: cross-tab sync — the original Checkout tab is commonly left
@@ -519,6 +552,31 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     clearStoredPartnerReferral();
   };
 
+  const applyGiftCard = async (raw: string): Promise<GiftCardResult> => {
+    const code = raw.trim().toUpperCase();
+    if (!GIFT_CARD_CODE_RE.test(code)) return { ok: false, reason: "unknown" };
+    try {
+      const { data, error } = await supabase.functions.invoke("check-gift-card", { body: { code } });
+      if (error) return { ok: false, reason: "error" };
+      if (!data?.ok) {
+        const reason = ["expired", "empty", "disabled"].includes(data?.reason) ? data.reason : data?.reason === "error" ? "error" : "unknown";
+        return { ok: false, reason };
+      }
+      const applied: AppliedGiftCard = { code: String(data.code ?? code), balance: Number(data.balance) || 0, expiresAt: String(data.expiresAt ?? "") };
+      setGiftCard(applied);
+      writeStoredGiftCard(applied);
+      return { ok: true };
+    } catch (e) {
+      console.error("check-gift-card failed:", e);
+      return { ok: false, reason: "error" };
+    }
+  };
+
+  const removeGiftCard = () => {
+    setGiftCard(null);
+    writeStoredGiftCard(null);
+  };
+
   return (
     <CartContext.Provider
       value={{
@@ -534,6 +592,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         partnerReferral,
         applyPromoCode,
         removePartnerReferral,
+        giftCard,
+        applyGiftCard,
+        removeGiftCard,
       }}
     >
       {children}

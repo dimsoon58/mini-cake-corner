@@ -326,7 +326,7 @@ const uploadImageFilesToStorage = async (
 };
 
 const Checkout = () => {
-  const { items, clearCart, updateItem, partnerReferral } = useCart();
+  const { items, clearCart, updateItem, partnerReferral, giftCard } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -960,7 +960,7 @@ const Checkout = () => {
   // 2026-09-14: combined with sumChf (integer cents), not plain +/- — this
   // exact chain (subtotal - discount - reward + surcharge + delivery) is
   // what produced "CHF 48.699999999999996" instead of "CHF 48.70" before.
-  const totalPrice = sumChf(
+  const totalBeforeGift = sumChf(
     itemsTotal,
     -estimatedWelcomeDiscount,
     -estimatedPartnerDiscount,
@@ -968,6 +968,10 @@ const Checkout = () => {
     expressSurchargeAmount,
     hasPhysical ? deliveryPrice : 0,
   );
+  // F38 — gift voucher, applied last (delivery and express included).
+  // Display estimate from check-gift-card; the server reserves the real amount.
+  const estimatedGiftUsed = giftCard ? roundChf(Math.min(giftCard.balance, Math.max(totalBeforeGift, 0))) : 0;
+  const totalPrice = sumChf(totalBeforeGift, -estimatedGiftUsed);
 
   // Build phone number with country code
   const fullPhoneNumber = combinePhoneNumber(countryCode, phone);
@@ -1614,6 +1618,8 @@ const Checkout = () => {
         // etc.) not yet implemented — safe to send regardless, current
         // create-postfinance-payment simply ignores unknown fields.
         rewardAmountToUse: estimatedRewardUsed,
+        // F38 — the voucher code only; the server checks it and decides the amount.
+        giftCardCode: giftCard?.code ?? null,
         // Multi-date fulfillment — undefined on every order today (see its
         // computation above). When present, create-postfinance-payment
         // treats it as authoritative and ignores deliveryOption/
@@ -2392,10 +2398,21 @@ const Checkout = () => {
                   <span className="font-medium">CHF {formatChf(multiDateDeliveryFeeTotal)}</span>
                 </div>
               )}
+              {estimatedGiftUsed > 0 && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">{t(`Gift card ${giftCard!.code}`, `Bon cadeau ${giftCard!.code}`)}</span>
+                  <span className="font-medium text-primary">- CHF {formatChf(estimatedGiftUsed)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-lg font-semibold pt-2 border-t border-border">
                 <span>{t("Total", "Total")}</span>
                 <span className="text-primary">CHF {formatChf(totalPrice)}</span>
               </div>
+              {estimatedGiftUsed > 0 && totalPrice <= 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("Fully paid with your gift card: no card payment needed.", "Entièrement payé avec votre bon cadeau : aucun paiement par carte.")}
+                </p>
+              )}
             </div>
 
             {/* CGV (obligatoire, non cochée) + information confidentialité & newsletter.

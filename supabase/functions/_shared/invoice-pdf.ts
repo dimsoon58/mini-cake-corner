@@ -472,6 +472,18 @@ export async function generateInvoicePdf(
         total: priceAdjustment < 0 ? `- ${formatInvoicePrice(-priceAdjustment)}` : formatInvoicePrice(priceAdjustment),
       });
     }
+
+    // F38 — part paid with a gift voucher (a means of payment): the TOTAL
+    // below is what the card paid, so the lines still add up.
+    const giftCardInvoice = Number(order.gift_card_amount) || 0;
+    if (giftCardInvoice > 0) {
+      itemRows.push({
+        description: `${tr("Paid with gift card", "Payé par bon cadeau")}${order.gift_card_code ? ` ${order.gift_card_code}` : ""}`,
+        quantity: "",
+        unitPrice: "",
+        total: `- ${formatInvoicePrice(giftCardInvoice)}`,
+      });
+    }
   }
 
   const billableRows = itemRows.length > 0 ? itemRows : [{

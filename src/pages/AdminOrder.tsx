@@ -770,7 +770,13 @@ const AdminOrder = () => {
                 <Link to={`/admin/customers/${order.customer_ref_id}`} className="underline underline-offset-2">{t("Open the customer record", "Ouvrir la fiche client")}</Link>
               </div>
             )}
-            <DetailRow label={t("Total", "Total")} value={`CHF ${order.total_amount}`} />
+            {Number(order.gift_card_amount) > 0 && (
+              <DetailRow
+                label={t("Paid with gift card", "Payé par bon cadeau")}
+                value={`${order.gift_card_code ? `${order.gift_card_code} : ` : ""}CHF ${Number(order.gift_card_amount).toFixed(2)}`}
+              />
+            )}
+            <DetailRow label={Number(order.gift_card_amount) > 0 ? t("Total (by card)", "Total (par carte)") : t("Total", "Total")} value={`CHF ${order.total_amount}`} />
             <DetailRow label={t("Payment", "Paiement")} value={
               order.payment_status === "paid"
                 ? t("Captured", "Encaissé")
@@ -786,7 +792,11 @@ const AdminOrder = () => {
                 <>
                   {refs.reference && <CopyRow testId="payment-reference" label={t("Payment reference", "Référence de paiement")} value={refs.reference} copyLabel={t("Copy", "Copier")} />}
                   {refs.transactionId && <CopyRow testId="postfinance-transaction" label={t("PostFinance transaction", "Transaction PostFinance")} value={refs.transactionId} copyLabel={t("Copy", "Copier")} />}
-                  {refs.rewardOnly && <DetailRow label={t("PostFinance transaction", "Transaction PostFinance")} value={t("None — paid entirely with the reward balance", "Aucune — payée entièrement avec la cagnotte")} />}
+                  {refs.rewardOnly && <DetailRow label={t("PostFinance transaction", "Transaction PostFinance")} value={
+                    Number(order.reward_amount_used) > 0
+                      ? t("None — paid entirely with the reward balance", "Aucune — payée entièrement avec la cagnotte")
+                      : t("None — paid entirely with a gift card", "Aucune — payée entièrement avec un bon cadeau")
+                  } />}
                 </>
               );
             })()}
