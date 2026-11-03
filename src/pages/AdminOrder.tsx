@@ -20,6 +20,7 @@ import { ProductionCheck } from "@/components/admin/ProductionCheck";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
 import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
 import { OrderConfirmationPanel } from "@/components/admin/OrderConfirmationPanel";
+import { OrderInternalNotes } from "@/components/admin/OrderInternalNotes";
 import { CHANNEL_LABELS, MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -499,6 +500,9 @@ const AdminOrder = () => {
           {order.created_via === "admin" && !employee && (
             <ManualOrderPanel order={order} items={items} invoiceUrl={invoiceUrl} onChanged={() => setReloadKey((k) => k + 1)} />
           )}
+
+          {/* F36 : notes internes de l'équipe (texte + photos), toutes les commandes. */}
+          {order.id && <OrderInternalNotes orderId={order.id} />}
 
           {/* Missing token warning — rare: only when this order genuinely has
               no order_action_tokens row at all (neither the URL nor
