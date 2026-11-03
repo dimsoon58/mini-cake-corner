@@ -5,7 +5,7 @@ import { CalendarIcon, Check, ChevronLeft, ChevronRight, ImageIcon } from "lucid
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OrderCalendar, ExpressDateNotice } from "@/components/ExpressDateNotice";
 import { isOrderDateDisabled, expressSurcharge, expressSurchargeRate } from "@/lib/orderDates";
 import { useLang } from "@/context/LanguageContext";
@@ -180,7 +180,7 @@ const Christmas = () => {
 
   const cake = selection?.kind === "cake" ? CHRISTMAS_CAKES.find((c) => c.id === selection.id) ?? null : null;
   const log = selection?.kind === "log" ? CHRISTMAS_LOGS.find((b) => b.id === selection.id) ?? null : null;
-  // Bûches : Christmas Edition seule. Gâteaux : Nos classiques puis Christmas Edition.
+  // Bûches : un menu, Christmas Edition. Gâteaux : deux menus, Nos classiques puis Christmas Edition.
   const flavourGroups: { id: string; label: string | null; flavours: ChristmasFlavour[] }[] = log
     ? [{ id: "edition", label: null, flavours: LOG_FLAVOURS }]
     : [
@@ -334,14 +334,20 @@ const Christmas = () => {
                 <p className="text-[14px] font-semibold text-foreground mb-3">
                   {step(2)}. {t("Flavour", "Goût")}
                 </p>
-                <Select value={flavour} onValueChange={setFlavour}>
+                {/* Gâteaux : deux menus séparés (Nos classiques, Christmas
+                    Edition) — un seul goût en tout : choisir dans l'un vide l'autre. */}
+                <div className="space-y-4">
+                {flavourGroups.map((g, i) => (
+                  <div key={g.id}>
+                    {i > 0 && (
+                      <p className="text-xs text-muted-foreground text-center mb-3">{t("or", "ou")}</p>
+                    )}
+                    {g.label && <p className="text-xs uppercase tracking-[0.105em] font-semibold text-primary mb-2">{g.label}</p>}
+                <Select value={g.flavours.some((f) => f.id === flavour) ? flavour : ""} onValueChange={setFlavour}>
                   <SelectTrigger className="rounded-none">
-                    <SelectValue placeholder={t("Choose a flavour", "Choisir un goût")} />
+                    <SelectValue placeholder={g.label ? t(`Choose from ${g.id === "classics" ? "our classics" : "Christmas Edition"}`, `Choisir dans ${g.id === "classics" ? "nos classiques" : "Christmas Edition"}`) : t("Choose a flavour", "Choisir un goût")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {flavourGroups.map((g) => (
-                      <SelectGroup key={g.id}>
-                        {g.label && <SelectLabel className="text-xs uppercase tracking-[0.105em] text-primary">{g.label}</SelectLabel>}
                     {g.flavours.map((f) => (
                       <SelectItem key={f.id} value={f.id} itemText={flavourLabel(f)}>
                         <div className="min-w-0 flex-1 py-0.5">
@@ -355,10 +361,11 @@ const Christmas = () => {
                         </div>
                       </SelectItem>
                     ))}
-                      </SelectGroup>
-                    ))}
                   </SelectContent>
                 </Select>
+                  </div>
+                ))}
+                </div>
                 {flavours.find((f) => f.id === flavour) && flavourDescription(flavours.find((f) => f.id === flavour)!) && (
                   <p className="text-sm text-muted-foreground mt-2">{flavourDescription(flavours.find((f) => f.id === flavour)!)}</p>
                 )}
