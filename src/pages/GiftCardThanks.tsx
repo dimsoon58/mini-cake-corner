@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { CheckCircle, Gift, Loader2, XCircle } from "lucide-react";
+import { CheckCircle, Loader2, XCircle } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,7 +81,7 @@ const GiftCardThanks = () => {
               {state.emailSent
                 ? t(`It has been sent by email${state.email ? ` to ${state.email}` : ""}, as a PDF to print or forward. Remember to check your spam folder.`,
                     `Il vient d'être envoyé par email${state.email ? ` à ${state.email}` : ""}, en PDF à imprimer ou à transmettre. Pensez à vérifier vos spams.`)
-                : t("You will receive it by email in a few minutes. If it doesn't arrive, contact us — your gift card is safely recorded.",
+                : t("You will receive it by email in a few minutes. If it doesn't arrive, contact us, your gift card is safely recorded.",
                     "Vous le recevrez par email dans quelques minutes. S'il n'arrive pas, contactez-nous : votre bon cadeau est bien enregistré.")}
             </p>
             <Button asChild variant="outline" className="rounded-none mt-8 uppercase tracking-[0.105em]">
@@ -92,7 +92,6 @@ const GiftCardThanks = () => {
 
         {state.kind === "slow" && (
           <>
-            <Gift className="w-10 h-10 text-primary mx-auto mb-4" strokeWidth={1.5} />
             <p className="text-foreground mb-2">{t("Your payment is still being confirmed.", "Votre paiement est encore en cours de confirmation.")}</p>
             <p className="text-muted-foreground text-sm">
               {t("You will receive your gift card by email as soon as it is confirmed. No need to pay again.", "Vous recevrez votre bon cadeau par email dès qu'il sera confirmé. Inutile de payer une deuxième fois.")}
@@ -112,7 +111,6 @@ const GiftCardThanks = () => {
 
         {state.kind === "error" && (
           <>
-            <Gift className="w-10 h-10 text-primary mx-auto mb-4" strokeWidth={1.5} />
             <p className="text-foreground mb-2">{t("We couldn't check your payment from this page.", "Nous n'avons pas pu vérifier votre paiement depuis cette page.")}</p>
             <p className="text-muted-foreground text-sm">
               {t("If you paid, your gift card will arrive by email. Otherwise, contact us.", "Si vous avez payé, votre bon cadeau arrivera par email. Sinon, contactez-nous.")}

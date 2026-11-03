@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
-import { Gift, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ const MESSAGE_MAX = 200;
 const GiftCard = () => {
   useSeo({
     title: "Bon cadeau Bento Cake Studio Genève | Gâteaux & Workshops",
-    description: "Offrez un bon cadeau Bento Cake Studio : le montant de votre choix, valable 12 mois sur tout le site — bento cakes, workshops et plus, à Genève.",
+    description: "Offrez un bon cadeau Bento Cake Studio : le montant de votre choix, valable 12 mois sur tout le site, pour les bento cakes, les workshops et plus, à Genève.",
     canonical: "https://bentocakestudio.ch/bon-cadeau",
   });
   const { t, lang } = useLang();
@@ -94,26 +94,23 @@ const GiftCard = () => {
     <Layout>
       {preview && (
         <div className="bg-foreground text-cream text-center text-xs tracking-[0.12em] uppercase px-4 py-2">
-          {t("Preview — visible to the team only, not online yet", "Aperçu — visible uniquement par l’équipe, pas encore en ligne")}
+          {t("Preview, visible to the team only, not online yet", "Aperçu, visible uniquement par l’équipe, pas encore en ligne")}
         </div>
       )}
-      <section className="container mx-auto px-4 sm:px-6 py-10 md:py-16 max-w-2xl">
-        <div className="text-center mb-8">
-          <Gift className="w-8 h-8 text-primary mx-auto mb-3" strokeWidth={1.5} />
-          <h1 className="font-sans text-3xl md:text-4xl tracking-[0.105em] uppercase text-foreground mb-4 font-semibold">
-            {t("Gift card", "Bon cadeau")}
-          </h1>
-          <p className="text-muted-foreground text-sm md:text-base">
-            {t(
-              "Give a sweet moment: a Bento Cake Studio gift card, for the amount of your choice. It can be used on the whole site — cakes, workshops and more — and is valid for 12 months.",
-              "Offrez un moment tout en douceur : un bon cadeau Bento Cake Studio, du montant de votre choix. Il s'utilise sur tout le site (gâteaux, workshops et plus) et il est valable 12 mois.",
-            )}
-          </p>
-        </div>
+      <section className="container mx-auto px-4 py-12 max-w-2xl">
+        <h1 className="font-sans text-4xl md:text-5xl text-center tracking-[0.105em] uppercase text-foreground mb-6 font-semibold">
+          {t("Gift card", "Bon cadeau")}
+        </h1>
+        <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto text-sm md:text-base">
+          {t(
+            "Give a sweet moment: a Bento Cake Studio gift card, for the amount of your choice. It can be used on the whole site, for cakes, workshops and more, and is valid for 12 months.",
+            "Offrez un moment tout en douceur : un bon cadeau Bento Cake Studio, du montant de votre choix. Il s'utilise sur tout le site, pour les gâteaux, les workshops et plus, et il est valable 12 mois.",
+          )}
+        </p>
 
         {paymentFailed && (
           <p role="alert" className="mb-6 border-l-2 border-destructive bg-destructive/5 px-3 py-2 text-sm text-foreground">
-            {t("The payment did not go through. Nothing was charged — you can try again.", "Le paiement n'a pas abouti. Rien n'a été prélevé, vous pouvez réessayer.")}
+            {t("The payment did not go through. Nothing was charged, you can try again.", "Le paiement n'a pas abouti. Rien n'a été prélevé, vous pouvez réessayer.")}
           </p>
         )}
 
