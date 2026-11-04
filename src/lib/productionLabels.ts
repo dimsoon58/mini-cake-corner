@@ -116,7 +116,9 @@ function decorationColours(raw: string | null): string[] {
   const extra: string[] = [];
   for (const tok of tokens.map((s) => s.trim()).filter(Boolean)) {
     const roses = tok.match(/^roses-(.+)$/);
+    const border = tok.match(/^border-(.+)$/);
     if (roses) extra.push(`Roses : ${colourLabel(roses[1])}`);
+    else if (border) extra.push(`Bordure : ${colourLabel(border[1])}`);
     else plain.push(colourLabel(tok));
   }
   return [...(plain.length ? [plain.join(", ")] : []), ...extra];

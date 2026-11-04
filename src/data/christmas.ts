@@ -186,6 +186,12 @@ export const LOG_INTRO = {
   en: "An ultra-soft, light roll, filled with the flavour of your choice, with a thin layer of cream.",
 } as const;
 
+// Taille unique des bûches (affichée sur la page).
+export const LOG_SIZE = {
+  people: { fr: "8 à 12 personnes", en: "8 to 12 people" },
+  dimensions: { fr: "Dimensions : 30 × 10 × 10 cm", en: "Dimensions: 30 × 10 × 10 cm" },
+} as const;
+
 export const CHRISTMAS_SIZE_LABELS: Record<ChristmasSize, { fr: string; en: string; peopleFr: string; peopleEn: string }> = {
   bento: { fr: "Bento", en: "Bento", peopleFr: "jusqu’à 4 personnes", peopleEn: "up to 4 people" },
   retro: { fr: "Retro Box", en: "Retro Box", peopleFr: "jusqu’à 4 personnes", peopleEn: "up to 4 people" },

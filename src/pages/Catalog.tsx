@@ -800,6 +800,9 @@ interface CakeSelections {
   decorationColors: string[];
   borderTopColor?: string;
   borderBottomColor?: string;
+  // Heart Bomb: optional border and its colour (stored as "border-<id>")
+  wantsBorder?: boolean;
+  borderColor?: string;
   roseColor: string;
   wantsText: boolean;
   cakeText: string;
@@ -1486,6 +1489,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       return;
     }
 
+    if (selectedCake.styleId === "heart-bomb" && selections.wantsBorder && !selections.borderColor) {
+      toast({ title: t("Border colour required", "Couleur de bordure requise"), description: t("Please choose a colour for the border.", "Veuillez choisir une couleur pour la bordure."), variant: "destructive" });
+      return;
+    }
+
     if (cfg.roseColor && !selections.roseColor) {
       toast({ title: t("Roses Colour required", "Couleur des roses requise"), description: t("Please select a colour for your roses.", "Veuillez sélectionner une couleur pour vos roses."), variant: "destructive" });
       return;
@@ -1546,6 +1554,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       const botName = baseColors.find(c => c.id === selections.borderBottomColor)?.name;
       if (topName) decoColorNames.push(`Top border: ${topName}`);
       if (botName) decoColorNames.push(`Bottom border: ${botName}`);
+    }
+    const heartBombBorder = selectedCake.styleId === "heart-bomb" && selections.wantsBorder && selections.borderColor ? selections.borderColor : "";
+    if (heartBombBorder) {
+      const borderName = baseColors.find(c => c.id === heartBombBorder)?.name;
+      if (borderName) decoColorNames.push(`Border: ${borderName}`);
     }
     if (selectedCake.styleId === "gender-reveal") {
       const genderName = genderColors.find(c => c.id === selections.genderColor)?.name;
@@ -1617,7 +1630,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       styleName: selectedCake.styleName,
       baseColor: genderWhite ? "white" : selections.baseColor,
       baseColorName: baseColorObj?.name || "",
-      decorationColor: [...selections.decorationColors, ...(selections.roseColor ? [`roses-${selections.roseColor}`] : [])].join(", "),
+      decorationColor: [
+        ...selections.decorationColors,
+        ...(selections.roseColor ? [`roses-${selections.roseColor}`] : []),
+        ...(heartBombBorder ? [`border-${heartBombBorder}`] : []),
+      ].join(", "),
       decorationColorName: decoColorNames.join(", "),
       insideColor: insideColorFr,
       cakeText: finalText,
@@ -2287,6 +2304,58 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     </div>
                   ))}
                 </div>
+              )}
+
+              {/* Heart Bomb: border yes / no, then its colour */}
+              {selectedCake?.styleId === "heart-bomb" && (
+              <div className="space-y-2">
+                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
+                  {t("Border", "Bordure")}
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[220px]">{t("Add a piped border around your cake (optional).", "Ajoutez une bordure pochée autour de votre gâteau (optionnel).")}</p></TooltipContent>
+                  </Tooltip>
+                </label>
+                <div className="flex gap-2">
+                  {([false, true] as const).map((yes) => (
+                    <button
+                      key={String(yes)}
+                      type="button"
+                      onClick={() => setSelections({ ...selections, wantsBorder: yes, borderColor: yes ? selections.borderColor : "" })}
+                      className={cn(
+                        "flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                        !!selections.wantsBorder === yes
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      )}
+                    >
+                      {yes ? t("Yes", "Oui") : t("No", "Non")}
+                    </button>
+                  ))}
+                </div>
+                {selections.wantsBorder && (
+                  <div className="space-y-2 pt-2">
+                    <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
+                      {t("Border colour", "Couleur de la bordure")} <span className="text-destructive">*</span>
+                    </label>
+                    <Select value={selections.borderColor ?? ""} onValueChange={(v) => setSelections({ ...selections, borderColor: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("Select a colour", "Choisir une couleur")} />
+                      </SelectTrigger>
+                      <SelectContent className="w-[min(90vw,280px)]">
+                        {baseColors.map(color => (
+                          <SelectItem key={color.id} value={color.id} itemText={t(color.name, colourFr[color.name] ?? color.name)}>
+                            <span className="flex items-center gap-2.5">
+                              <span className="w-4 h-4 rounded-full flex-shrink-0 border" style={{ backgroundColor: color.color, borderColor: (color.id === "white" || color.id === "cream") ? "#bbb" : "transparent" }} />
+                              <span>{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
               )}
 
               {/* Text Toggle - hidden for printed-picture */}

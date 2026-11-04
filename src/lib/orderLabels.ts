@@ -175,7 +175,7 @@ export function colourHex(token: string | null | undefined): string | null {
 }
 
 /** Each colour of a colour field, with its name and swatch (admin display).
- *  "roses-…" tokens are prefixed « Roses : ». */
+ *  "roses-…" tokens are prefixed « Roses : », "border-…" (Heart Bomb) « Bordure : ». */
 export function colourSwatches(raw: string | null | undefined, lang: "en" | "fr" = "en"): { label: string; hex: string | null }[] {
   const v = (raw ?? "").trim();
   if (!v) return [];
@@ -185,9 +185,11 @@ export function colourSwatches(raw: string | null | undefined, lang: "en" | "fr"
   } else tokens = v.split(",");
   return tokens.map((s) => s.trim()).filter(Boolean).map((tok) => {
     const m = tok.match(/^roses-(.+)$/);
-    const id = m ? m[1] : tok;
+    const b = tok.match(/^border-(.+)$/);
+    const id = m ? m[1] : b ? b[1] : tok;
     const name = colourLabel(id, lang);
-    return { label: m ? `${lang === "fr" ? "Roses : " : "Roses: "}${name}` : name, hex: colourHex(id) };
+    const prefix = m ? (lang === "fr" ? "Roses : " : "Roses: ") : b ? (lang === "fr" ? "Bordure : " : "Border: ") : "";
+    return { label: `${prefix}${name}`, hex: colourHex(id) };
   });
 }
 
@@ -201,11 +203,15 @@ export function colourListLabel(raw: string | null | undefined, lang: "en" | "fr
   } else tokens = v.split(",");
   const plain: string[] = [];
   const roses: string[] = [];
+  const border: string[] = [];
   for (const tok of tokens.map((s) => s.trim()).filter(Boolean)) {
     const m = tok.match(/^roses-(.+)$/);
+    const b = tok.match(/^border-(.+)$/);
     if (m) roses.push(colourLabel(m[1], lang));
+    else if (b) border.push(colourLabel(b[1], lang));
     else plain.push(colourLabel(tok, lang));
   }
   const rosesLabel = roses.length ? `${lang === "fr" ? "Roses : " : "Roses: "}${roses.join(", ")}` : "";
-  return [plain.join(", "), rosesLabel].filter(Boolean).join(" · ");
+  const borderLabel = border.length ? `${lang === "fr" ? "Bordure : " : "Border: "}${border.join(", ")}` : "";
+  return [plain.join(", "), rosesLabel, borderLabel].filter(Boolean).join(" · ");
 }

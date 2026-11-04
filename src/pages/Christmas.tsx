@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import { CalendarIcon, Check, ChevronLeft, ChevronRight, ImageIcon, Ruler, Users } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,7 +15,7 @@ import { useChristmasVisible, CHRISTMAS_LAUNCH } from "@/hooks/useChristmasVisib
 import { useCountdown } from "@/hooks/useCountdown";
 import { cn } from "@/lib/utils";
 import {
-  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CLASSIC_CAKE_FLAVOURS, LOG_FLAVOURS, LOG_FLAVOUR_SURCHARGES, cakeFlavourSurcharge, LOG_INTRO,
+  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CLASSIC_CAKE_FLAVOURS, LOG_FLAVOURS, LOG_FLAVOUR_SURCHARGES, cakeFlavourSurcharge, LOG_INTRO, LOG_SIZE,
   CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos, CHRISTMAS_MOMENTS, CHRISTMAS_COVER,
   type ChristmasSize, type ChristmasFlavour,
 } from "@/data/christmas";
@@ -108,6 +108,27 @@ function ProductCard({ name, price, images, selected, onClick }: {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Taille des bûches : personnes et dimensions, deux étiquettes au cadre
+// bordeaux comme les cartes produits.
+function LogSize({ className }: { className?: string }) {
+  const { lang } = useLang();
+  const l = lang === "fr" ? "fr" : "en";
+  const items = [
+    { icon: Users, label: LOG_SIZE.people[l] },
+    { icon: Ruler, label: LOG_SIZE.dimensions[l] },
+  ];
+  return (
+    <div className={cn("flex flex-wrap gap-2", className)}>
+      {items.map(({ icon: Icon, label }) => (
+        <span key={label} className="inline-flex items-center gap-2 border border-primary px-3 py-1.5 text-[12px] uppercase tracking-[0.105em] text-primary">
+          <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+          {label}
+        </span>
+      ))}
     </div>
   );
 }
@@ -390,7 +411,8 @@ const Christmas = () => {
           <h2 className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-6 text-center md:text-left">
             {t("Christmas logs — New", "Bûches de Noël — Nouveauté")}
           </h2>
-          <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-10 text-sm md:text-base">{LOG_INTRO[l]}</p>
+          <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-4 text-sm md:text-base">{LOG_INTRO[l]}</p>
+          <LogSize className="justify-center mb-10" />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {CHRISTMAS_LOGS.map((b) => (
               <ProductCard
@@ -427,6 +449,7 @@ const Christmas = () => {
                   {l === "fr" ? (cake ?? log)!.nameFr : (cake ?? log)!.nameEn}
                 </h3>
                 {log && <p className="text-sm text-muted-foreground mt-2">{LOG_INTRO[l]}</p>}
+                {log && <LogSize className="mt-3" />}
               </div>
 
               {cake && (
