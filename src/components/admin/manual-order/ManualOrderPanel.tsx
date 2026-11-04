@@ -17,6 +17,7 @@ import {
 import { useSessionPin } from "@/lib/adminSession";
 import { markPaidBody, markPaidErrorText, markPaidSuccess } from "@/lib/manualOrderPayment";
 import { PasswordInput } from "@/components/ui/password-input";
+import { ManualOrderPayments, type PaymentsSummary } from "./ManualOrderPayments";
 
 // Admin order page — block shown only for orders created from the Admin
 // manual-order editor (created_via = 'admin'): amounts (calculated /
@@ -60,6 +61,9 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
   const [sendConfirmation, setSendConfirmation] = useState(true); // checked by default
   const [busy, setBusy] = useState<"pay" | "email" | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null);
+  // F41 : solde restant (acomptes déduits) ; « Marquer comme payée » règle ce solde.
+  const [payments, setPayments] = useState<PaymentsSummary | null>(null);
+  const balance = payments ? Number(payments.balance) : Number(order.total_amount);
 
   const adjustment = Number(order.price_adjustment_amount) || 0;
   const reason = ADJUSTMENT_REASONS.find((r) => r.id === order.price_adjustment_reason);
@@ -178,6 +182,18 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
         )}
       </div>
 
+      {status !== "draft" && (
+        <ManualOrderPayments
+          orderId={order.id}
+          awaitingPayment={status === "awaiting_payment"}
+          emailOff={emailOff}
+          email={order.email ?? null}
+          hasWorkshop={items.some((it) => it.product === "workshop")}
+          onSummary={setPayments}
+          onChanged={onChanged}
+        />
+      )}
+
       {message && (
         <div className={cn(
           "px-3 py-2 text-sm flex items-start gap-2 border",
@@ -224,7 +240,9 @@ export const ManualOrderPanel = ({ order, items, invoiceUrl, onChanged }: Props)
       {payOpen && (
         <div className="border border-border bg-secondary/20 p-3 space-y-3">
           <p className="text-sm font-semibold">
-            {t(`Confirm the payment of ${formatChf(Number(order.total_amount))}`, `Confirmer le paiement de ${formatChf(Number(order.total_amount))}`)}
+            {balance < Number(order.total_amount)
+              ? t(`Confirm the payment of the remaining balance: ${formatChf(balance)}`, `Confirmer le paiement du solde restant : ${formatChf(balance)}`)
+              : t(`Confirm the payment of ${formatChf(Number(order.total_amount))}`, `Confirmer le paiement de ${formatChf(Number(order.total_amount))}`)}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>

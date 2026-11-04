@@ -23,6 +23,7 @@ import Printing from "./pages/Printing";
 import Christmas from "./pages/Christmas";
 import GiftCard from "./pages/GiftCard";
 import GiftCardThanks from "./pages/GiftCardThanks";
+import PayOrder from "./pages/PayOrder";
 import Candles from "./pages/Candles";
 import DotCakes from "./pages/DotCakes";
 import Workshop from "./pages/Workshop";
@@ -133,6 +134,7 @@ const App = () => (
             <Route path="/noel" element={<Christmas />} />
             <Route path="/bon-cadeau" element={<GiftCard />} />
             <Route path="/bon-cadeau/merci" element={<GiftCardThanks />} />
+            <Route path="/payer/:token" element={<PayOrder />} />
             <Route path="/workshop" element={<Workshop />} />
             <Route path="/workshop-booking" element={<WorkshopBooking />} />
             <Route path="/workshop-confirmation" element={<BookingConfirmation />} />

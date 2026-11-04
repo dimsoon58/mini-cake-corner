@@ -11,6 +11,7 @@ import {
 } from "../_shared/manual-order-quote.ts";
 import { FLAVOUR_BY_ID, resolveFlavour } from "../_shared/production-catalog.ts";
 import { CAKE_EXTRAS, DIY_KIT_PIPING, roundToCents } from "../_shared/pricing.ts";
+import { getSiteBaseUrl } from "../_shared/site-config.ts";
 
 // Admin manual orders — writes. Same core tables as website orders (orders,
 // order_items, order_fulfillments); no second order system.
@@ -351,6 +352,19 @@ serve(async (req) => {
       const single = qf.length === 1 ? qf[0] : null;
       const nowIso = new Date().toISOString();
 
+      // F41 : des paiements sont déjà reçus → le total ne peut pas passer
+      // en dessous, et la commande ne peut pas redevenir un brouillon.
+      if (existing) {
+        const { data: pays } = await supabase.from("manual_order_payments").select("amount").eq("order_id", existing.id).eq("status", "recorded");
+        const alreadyPaid = roundToCents((pays ?? []).reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0));
+        if (alreadyPaid > 0 && mode === "draft") {
+          return json(cors, { error: `Payments of CHF ${alreadyPaid.toFixed(2)} are already recorded: the order can't go back to draft`, reason: "has_payments", quote }, 409);
+        }
+        if (alreadyPaid > 0 && (quote.final ?? 0) < alreadyPaid) {
+          return json(cors, { error: `The new total is below the payments already received (CHF ${alreadyPaid.toFixed(2)})`, reason: "below_paid", quote }, 409);
+        }
+      }
+
       const orderFields: Record<string, unknown> = {
         order_source: "manual order",   // → ORDM-/INV- numbers from the live trigger
         created_via: "admin",
@@ -600,6 +614,79 @@ serve(async (req) => {
         email = { requested: true, ...(await sendManualConfirmation(supabase, orderId)) };
       }
       return json(cors, { success: true, paid: true, order: paid, email });
+    }
+
+    // ── F41 : paiements reçus et lien de paiement ──────────────────────
+    //   payments            lecture : total, payé, solde, paiements, lien
+    //   record_payment      (PIN) un paiement reçu (acompte ou solde) ; au
+    //                       solde atteint, même passage à « payée » que
+    //                       mark_paid (places de workshop), puis e-mail si demandé
+    //   cancel_payment      (PIN) annule une saisie erronée (historique gardé)
+    //   payment_link        (PIN) renvoie le lien actif, ou le crée
+    //   disable_payment_link (PIN)
+    if (action === "payments") {
+      const { data, error } = await supabase.rpc("manual_order_payments_summary", { p_order_id: String(body?.orderId ?? "") });
+      if (error) return json(cors, { error: error.message }, (error as { code?: string }).code === "P0002" ? 404 : 500);
+      return json(cors, { data });
+    }
+
+    if (["record_payment", "cancel_payment", "payment_link", "disable_payment_link"].includes(action)) {
+      if (!adminPinOk(admin, body?.pin)) return json(cors, { error: "Invalid PIN" }, 403);
+      const by = admin.email ?? null;
+      const orderId = String(body?.orderId ?? "");
+      const refused = (error: { code?: string; message?: string }) => {
+        const code = error.code ?? "";
+        const reason =
+          code === "P0004" ? "session_full" : code === "P0003" ? "session_closed" : code === "P0007" ? "minor_consent_missing" :
+          code === "P0011" ? "still_draft" : code === "P0012" ? "cancelled" : code === "P0013" ? "not_awaiting_payment" :
+          code === "P0014" ? "above_balance" : code === "P0016" ? "nothing_to_pay" : code === "P0017" ? "not_cancellable" :
+          code === "22023" ? "invalid_input" : code === "P0002" ? "not_found" : "failed";
+        console.error(`manage-manual-order ${action} refused for ${orderId} (${code}):`, error.message);
+        return json(cors, { error: error.message, reason }, 409);
+      };
+
+      if (action === "record_payment") {
+        const paidOn = ISO_DATE.test(String(body?.paidOn ?? "")) ? String(body.paidOn) : null;
+        const method = String(body?.paymentMethod ?? "");
+        if (method === "postfinance") return json(cors, { error: "PostFinance payments are recorded by the payment link", reason: "invalid_input" }, 400);
+        const amount = Number(String(body?.amount ?? "").replace(",", "."));
+        const { data, error } = await supabase.rpc("record_manual_order_payment", {
+          p_order_id: orderId, p_amount: amount, p_method: method,
+          p_paid_at: paidOn ? `${paidOn}T12:00:00+02:00` : new Date().toISOString(),
+          p_note: strOrNull(body?.note), p_by: by, p_source: "admin",
+        });
+        if (error) return refused(error);
+        let email: { requested: boolean; sent: boolean; alreadySent?: boolean; error?: string | null; noEmail?: boolean; historical?: boolean } = { requested: false, sent: false };
+        if (data?.fully_paid) {
+          const { data: o } = await supabase.from("orders").select("is_historical, email").eq("id", orderId).maybeSingle();
+          if (o?.is_historical === true) email = { requested: false, sent: false, historical: true };
+          else if (!String(o?.email ?? "").trim()) email = { requested: false, sent: false, noEmail: true };
+          else if (body?.sendConfirmation === true) email = { requested: true, ...(await sendManualConfirmation(supabase, orderId)) };
+        }
+        return json(cors, { success: true, data, email });
+      }
+
+      if (action === "cancel_payment") {
+        const { data, error } = await supabase.rpc("cancel_manual_order_payment", { p_payment_id: String(body?.paymentId ?? ""), p_by: by, p_reason: strOrNull(body?.reason) });
+        if (error) return refused(error);
+        return json(cors, { success: true, data });
+      }
+
+      if (action === "payment_link") {
+        const bytes = crypto.getRandomValues(new Uint8Array(24));
+        const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+        const token = Array.from(bytes, (x) => ALPHA[x % ALPHA.length]).join("");
+        const { data, error } = await supabase.rpc("payment_link_create", {
+          p_order_id: orderId, p_token: token, p_send_confirmation: body?.sendConfirmation !== false, p_by: by,
+        });
+        if (error) return refused(error);
+        return json(cors, { success: true, data: { ...data, url: `${getSiteBaseUrl()}/payer/${data.token}` } });
+      }
+
+      // disable_payment_link
+      const { data, error } = await supabase.rpc("payment_link_disable", { p_link_id: String(body?.linkId ?? ""), p_by: by, p_reason: strOrNull(body?.reason) });
+      if (error) return refused(error);
+      return json(cors, { success: true, data });
     }
 
     // ── send_confirmation (manual, e.g. after an email failure) ────────

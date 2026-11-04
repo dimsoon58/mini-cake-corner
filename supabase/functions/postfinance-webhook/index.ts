@@ -9,6 +9,7 @@ import { areSideEffectsComplete } from "../_shared/order-side-effects.ts";
 import { reportConflictingTransactions } from "../_shared/postfinance-transactions.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { finalizeGiftCard, GIFT_MERCHANT_PREFIX } from "../_shared/gift-cards.ts";
+import { finalizePaymentAttempt, findAttemptId, PAYMENT_LINK_MERCHANT_PREFIX } from "../_shared/payment-links.ts";
 
 // PostFinance Checkout → Supabase webhook.
 //
@@ -158,6 +159,23 @@ serve(async (req) => {
     .from("gift_cards").select("id").eq("postfinance_transaction_id", entityId).maybeSingle();
   if (giftByTx) return await giftResponse(giftByTx.id);
 
+  // ── 2c. Lien de paiement d'une commande manuelle (F41) — jamais une
+  // commande du site. Trouvé par la transaction ou par « MOP-<tentative> ».
+  // Fini = payé (e-mail parti s'il est demandé), annulé, échoué ou « à
+  // rembourser » ; sinon 503 pour que PostFinance réessaie.
+  const linkResponse = async (attemptId: string): Promise<Response> => {
+    try {
+      const r = await finalizePaymentAttempt(supabase, attemptId);
+      if (r.status === "pending" || (r.status === "paid" && r.emailWanted && !r.emailSent)) return txt(cors, "payment link not final yet — retry", 503);
+      return txt(cors, `ok (payment link ${r.status})`, 200);
+    } catch (e) {
+      console.error(`postfinance-webhook: payment link attempt ${attemptId} failed:`, e);
+      return txt(cors, "payment link error — retry", 503);
+    }
+  };
+  const linkByTx = await findAttemptId(supabase, entityId, null);
+  if (linkByTx) return await linkResponse(linkByTx);
+
   // ── 3. Resolve the orderId from the transaction id ──
   let orderId: string | null = null;
 
@@ -193,6 +211,12 @@ serve(async (req) => {
       console.error(`postfinance-webhook: GET /payment/transactions/${entityId} failed:`, e);
       // Cannot resolve right now — let PostFinance retry this event.
       return txt(cors, "could not resolve transaction — retry", 503);
+    }
+
+    if (merchantRef?.startsWith(PAYMENT_LINK_MERCHANT_PREFIX)) {
+      const attemptId = await findAttemptId(supabase, entityId, merchantRef);
+      if (!attemptId) return txt(cors, "ok (unknown payment link attempt)", 200);
+      return await linkResponse(attemptId);
     }
 
     if (merchantRef?.startsWith(GIFT_MERCHANT_PREFIX)) {
