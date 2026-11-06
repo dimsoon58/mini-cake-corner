@@ -103,6 +103,7 @@ import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
 import extraGlitter from "@/assets/extra-glitter-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
+import designHeartBombBorder from "@/assets/design-heart-bomb-border.jpg";
 import designGenderReveal from "@/assets/design-gender-reveal-new.jpg";
 import genderReveal2 from "@/assets/gender-reveal-2.jpg";
 import genderReveal3 from "@/assets/gender-reveal-3.jpg";
@@ -420,6 +421,8 @@ const catalog = [
     name: "Heart Bomb",
     description: "A romantic cake covered in delicate heart decorations",
     image: designHeartBomb,
+    // Photo 1 sans bordure, photo 2 avec bordures (la 2 demande la couleur de bordure).
+    images: [designHeartBomb, designHeartBombBorder],
     styleId: "heart-bomb",
     styleName: "Heart Bomb",
     priceRange: "CHF 43 – 185",
@@ -801,7 +804,6 @@ interface CakeSelections {
   borderTopColor?: string;
   borderBottomColor?: string;
   // Heart Bomb: optional border and its colour (stored as "border-<id>")
-  wantsBorder?: boolean;
   borderColor?: string;
   roseColor: string;
   wantsText: boolean;
@@ -1490,7 +1492,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       return;
     }
 
-    if (selectedCake.styleId === "heart-bomb" && selections.wantsBorder && !selections.borderColor) {
+    if (selectedCake.styleId === "heart-bomb" && selections.shagDesignPreference === 1 && !selections.borderColor) {
       toast({ title: t("Border colour required", "Couleur de bordure requise"), description: t("Please choose a colour for the border.", "Veuillez choisir une couleur pour la bordure."), variant: "destructive" });
       return;
     }
@@ -1563,7 +1565,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       if (topName) decoColorNames.push(`Top border: ${topName}`);
       if (botName) decoColorNames.push(`Bottom border: ${botName}`);
     }
-    const heartBombBorder = selectedCake.styleId === "heart-bomb" && selections.wantsBorder && selections.borderColor ? selections.borderColor : "";
+    const heartBombBorder = selectedCake.styleId === "heart-bomb" && selections.shagDesignPreference === 1 && selections.borderColor ? selections.borderColor : "";
     if (heartBombBorder) {
       const borderName = baseColors.find(c => c.id === heartBombBorder)?.name;
       if (borderName) decoColorNames.push(`Border: ${borderName}`);
@@ -2118,7 +2120,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     {selectedCake.images.map((img, i) => (
                       <button
                         key={i}
-                        onClick={() => setSelections(prev => ({ ...prev, shagDesignPreference: i }))}
+                        onClick={() => setSelections(prev => ({ ...prev, shagDesignPreference: i, ...(selectedCake.styleId === "heart-bomb" && i !== 1 ? { borderColor: "" } : {}) }))}
                         className={cn(
                           "rounded-none overflow-hidden border-2 transition-all aspect-square",
                           selections.shagDesignPreference === i
@@ -2130,6 +2132,37 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       </button>
                     ))}
                   </div>
+                  {/* Heart Bomb : photo 2 = avec bordures → couleur de la bordure */}
+                  {selectedCake.styleId === "heart-bomb" && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3 text-xs text-center text-muted-foreground">
+                        <span>{t("Without border", "Sans bordure")}</span>
+                        <span>{t("With borders", "Avec bordures")}</span>
+                      </div>
+                      {selections.shagDesignPreference === 1 && (
+                        <div className="space-y-2 pt-2">
+                          <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
+                            {t("Border colour", "Couleur de la bordure")} <span className="text-destructive">*</span>
+                          </label>
+                        <Select value={selections.borderColor ?? ""} onValueChange={(v) => setSelections({ ...selections, borderColor: v })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("Select a colour", "Choisir une couleur")} />
+                          </SelectTrigger>
+                          <SelectContent className="w-[min(90vw,280px)]">
+                            {baseColors.map(color => (
+                              <SelectItem key={color.id} value={color.id} itemText={t(color.name, colourFr[color.name] ?? color.name)}>
+                                <span className="flex items-center gap-2.5">
+                                  <span className="w-4 h-4 rounded-full flex-shrink-0 border" style={{ backgroundColor: color.color, borderColor: (color.id === "white" || color.id === "cream") ? "#bbb" : "transparent" }} />
+                                  <span>{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 
@@ -2312,58 +2345,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     </div>
                   ))}
                 </div>
-              )}
-
-              {/* Heart Bomb: border yes / no, then its colour */}
-              {selectedCake?.styleId === "heart-bomb" && (
-              <div className="space-y-2">
-                <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
-                  {t("Border", "Bordure")}
-                  <Tooltip>
-                    <TooltipTrigger asChild><Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">{t("Add a piped border around your cake (optional).", "Ajoutez une bordure pochée autour de votre gâteau (optionnel).")}</p></TooltipContent>
-                  </Tooltip>
-                </label>
-                <div className="flex gap-2">
-                  {([false, true] as const).map((yes) => (
-                    <button
-                      key={String(yes)}
-                      type="button"
-                      onClick={() => setSelections({ ...selections, wantsBorder: yes, borderColor: yes ? selections.borderColor : "" })}
-                      className={cn(
-                        "flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                        !!selections.wantsBorder === yes
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
-                      )}
-                    >
-                      {yes ? t("Yes", "Oui") : t("No", "Non")}
-                    </button>
-                  ))}
-                </div>
-                {selections.wantsBorder && (
-                  <div className="space-y-2 pt-2">
-                    <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
-                      {t("Border colour", "Couleur de la bordure")} <span className="text-destructive">*</span>
-                    </label>
-                    <Select value={selections.borderColor ?? ""} onValueChange={(v) => setSelections({ ...selections, borderColor: v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("Select a colour", "Choisir une couleur")} />
-                      </SelectTrigger>
-                      <SelectContent className="w-[min(90vw,280px)]">
-                        {baseColors.map(color => (
-                          <SelectItem key={color.id} value={color.id} itemText={t(color.name, colourFr[color.name] ?? color.name)}>
-                            <span className="flex items-center gap-2.5">
-                              <span className="w-4 h-4 rounded-full flex-shrink-0 border" style={{ backgroundColor: color.color, borderColor: (color.id === "white" || color.id === "cream") ? "#bbb" : "transparent" }} />
-                              <span>{t(color.name, colourFr[color.name] ?? color.name)}</span>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
               )}
 
               {/* Text Toggle - hidden for printed-picture */}
