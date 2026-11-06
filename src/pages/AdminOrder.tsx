@@ -633,14 +633,18 @@ const AdminOrder = () => {
                   designImageUrl: item.design_image_url,
                   referenceImages: item.reference_images,
                   candleName: item.candle_name,
+                  design: item.design,
+                  comment: item.item_comment,
                 });
 
                 return (
                   <div key={item.id || i} className="border border-border/60 bg-background p-4">
                     <div className="flex gap-4">
                       <div className="w-16 h-16 flex-shrink-0 bg-secondary/40 overflow-hidden">
-                        {displayImage && (
+                        {displayImage ? (
                           <img src={displayImage} alt={productLabel} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="w-full h-full flex items-center justify-center text-center text-[10px] leading-tight text-muted-foreground px-1">{t("No design photo", "Pas de photo du design")}</span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0 space-y-1">

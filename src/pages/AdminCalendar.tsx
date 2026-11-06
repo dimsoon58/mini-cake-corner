@@ -39,6 +39,7 @@ type DayEntry = {
   shape: string | null;
   flavors: string[] | null;
   designImageUrl: string | null;
+  design?: string | null; // id du design (photo du catalogue si aucune photo enregistrée)
   referenceImages: string[] | null;
   workshopType: string | null;
   workshopTime: string | null;
@@ -445,9 +446,9 @@ const AdminCalendar = () => {
                         className="flex gap-3 p-2 border border-border/60 bg-background hover:bg-secondary/30 transition-colors"
                       >
                         <div className="w-14 h-14 flex-shrink-0 bg-secondary/40 overflow-hidden">
-                          {itemDisplayImage({ product: e.product, designImageUrl: e.designImageUrl, referenceImages: e.referenceImages, workshopType: e.workshopType }) && (
+                          {itemDisplayImage({ product: e.product, designImageUrl: e.designImageUrl, referenceImages: e.referenceImages, workshopType: e.workshopType, design: e.design }) && (
                             <img
-                              src={itemDisplayImage({ product: e.product, designImageUrl: e.designImageUrl, referenceImages: e.referenceImages, workshopType: e.workshopType })!}
+                              src={itemDisplayImage({ product: e.product, designImageUrl: e.designImageUrl, referenceImages: e.referenceImages, workshopType: e.workshopType, design: e.design })!}
                               alt=""
                               className="w-full h-full object-cover"
                             />
