@@ -1,7 +1,11 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 8080 },
-    { "name": "couleurs", "runtimeExecutable": "/bin/sh", "runtimeArgs": ["-c", "cd /private/tmp/claude-501/-Users-melodienagle-Documents-GitHub-mini-cake-corner/0651a500-83ee-4bec-bee1-86c9aab2fd86/scratchpad/wt-colours && PATH=/private/tmp/claude-501/-Users-melodienagle-Documents-GitHub-mini-cake-corner/0651a500-83ee-4bec-bee1-86c9aab2fd86/scratchpad/node-v22.11.0-darwin-arm64/bin:$PATH node_modules/.bin/vite --port 8097 --strictPort"], "port": 8097 }
+    {
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 8080
+    }
   ]
 }
