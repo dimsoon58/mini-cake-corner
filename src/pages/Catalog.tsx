@@ -1125,6 +1125,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
   // Declared before the effect below, which reads it in both its body and
   // its dependency array — referencing it while still part of the same
@@ -1540,6 +1541,13 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
     const designNeedsButterfly = selectedCake?.styleId === "butterfly-garden";
     if ((designNeedsButterfly || selections.extras.includes("butterfly")) && !selections.butterflyColor) {
       toast({ title: t("Butterfly Colour required", "Couleur du papillon requise"), description: t("Please select a colour for your butterfly.", "Veuillez sélectionner une couleur pour votre papillon."), variant: "destructive" });
+      return;
+    }
+
+    // Images de référence ajoutées → commentaire obligatoire (ce qu'il faut en reprendre).
+    if (selections.commentImages.length > 0 && !selections.comment.trim()) {
+      toast({ title: t("Comment required", "Commentaire requis"), description: t("Please tell us what you would like us to take from your reference images.", "Merci de nous dire ce que vous souhaitez que nous reprenions de vos images de référence."), variant: "destructive" });
+      commentRef.current?.focus();
       return;
     }
     
@@ -2793,10 +2801,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <TooltipContent><p className="text-xs max-w-[240px]">{t("Add any details (optional). Decorations that were not selected may change the price.", "Ajoutez vos précisions (optionnel). Des décorations non sélectionnées peuvent modifier le prix.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
+                {selections.commentImages.length > 0 && (
+                  <p className="text-sm text-foreground">
+                    {t("What would you like us to take from your reference images? Please be as precise as possible 😊", "Quels éléments souhaitez-vous que nous reprenions de vos images de référence ? Soyez le plus précis possible 😊")}
+                    <span className="text-destructive"> *</span>
+                  </p>
+                )}
                 <Textarea
+                  ref={commentRef}
                   value={selections.comment}
                   onChange={(e) => setSelections({ ...selections, comment: e.target.value })}
-                  placeholder={t("Any special requests or details about your cake...", "Toute demande particulière ou tout détail concernant votre gâteau...")}
+                  required={selections.commentImages.length > 0}
+                  aria-required={selections.commentImages.length > 0}
+                  placeholder={selections.commentImages.length > 0
+                    ? t("Example: the colours, the decorations and the overall style of the cake.", "Exemple : « Les couleurs, les décorations et le style général du gâteau. »")
+                    : t("Any special requests or details about your cake...", "Toute demande particulière ou tout détail concernant votre gâteau...")}
                   className="min-h-[80px] text-sm"
                 />
                 {selectedCake?.styleId !== "printed-picture" && (
