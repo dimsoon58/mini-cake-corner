@@ -12,6 +12,7 @@ import {
 import { FLAVOUR_BY_ID, resolveFlavour } from "../_shared/production-catalog.ts";
 import { CAKE_EXTRAS, DIY_KIT_PIPING, roundToCents } from "../_shared/pricing.ts";
 import { getSiteBaseUrl } from "../_shared/site-config.ts";
+import { renderPaymentLinkEmail } from "../_shared/payment-link-email.ts";
 
 // Admin manual orders — writes. Same core tables as website orders (orders,
 // order_items, order_fulfillments); no second order system.
@@ -624,13 +625,16 @@ serve(async (req) => {
     //   cancel_payment      (PIN) annule une saisie erronée (historique gardé)
     //   payment_link        (PIN) renvoie le lien actif, ou le crée
     //   disable_payment_link (PIN)
+    //   send_payment_link_email (PIN, F43) email « Confirmez votre commande »
+    //                       avec le récapitulatif et le lien actif ; un
+    //                       nouvel envoi demande resend: true
     if (action === "payments") {
       const { data, error } = await supabase.rpc("manual_order_payments_summary", { p_order_id: String(body?.orderId ?? "") });
       if (error) return json(cors, { error: error.message }, (error as { code?: string }).code === "P0002" ? 404 : 500);
       return json(cors, { data });
     }
 
-    if (["record_payment", "cancel_payment", "payment_link", "disable_payment_link"].includes(action)) {
+    if (["record_payment", "cancel_payment", "payment_link", "disable_payment_link", "send_payment_link_email"].includes(action)) {
       if (!adminPinOk(admin, body?.pin)) return json(cors, { error: "Invalid PIN" }, 403);
       const by = admin.email ?? null;
       const orderId = String(body?.orderId ?? "");
@@ -681,6 +685,69 @@ serve(async (req) => {
         });
         if (error) return refused(error);
         return json(cors, { success: true, data: { ...data, url: `${getSiteBaseUrl()}/payer/${data.token}` } });
+      }
+
+      if (action === "send_payment_link_email") {
+        const { data: link, error: lErr } = await supabase.from("order_payment_links").select("*")
+          .eq("order_id", orderId).eq("status", "active").maybeSingle();
+        if (lErr) throw new Error(`Failed to load payment link: ${lErr.message}`);
+        if (!link) return json(cors, { error: "No active payment link for this order", reason: "no_link" }, 409);
+        const { data: order, error: oErr } = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
+        if (oErr) throw new Error(`Failed to load order: ${oErr.message}`);
+        if (!order) return json(cors, { error: "Order not found", reason: "not_found" }, 404);
+        if (order.is_historical === true) return json(cors, { error: "Historical order: no email is ever sent", reason: "historical" }, 409);
+        const to = String(order.email ?? "").trim();
+        if (!to) return json(cors, { error: "This order has no email address", reason: "no_email" }, 409);
+        if (order.order_validation === "cancelled" || order.order_validation === "rejected" || order.order_failure_reason) {
+          return json(cors, { error: "This order is cancelled", reason: "cancelled" }, 409);
+        }
+        const { data: sum, error: sErr } = await supabase.rpc("manual_order_payments_summary", { p_order_id: orderId });
+        if (sErr) return refused(sErr);
+        const balance = Number(sum?.balance ?? 0);
+        if (order.payment_status === "paid" || !(balance > 0)) return json(cors, { error: "Nothing left to pay", reason: "nothing_to_pay" }, 409);
+        const prev = Number(link.email_sent_count ?? 0);
+        // La page envoie le nombre d'envois qu'elle a vu : un double clic sur
+        // « Renvoyer » ne part qu'une fois.
+        const expected = Number.isInteger(body?.expectedCount) ? Number(body.expectedCount) : null;
+        if ((prev > 0 && body?.resend !== true) || (expected !== null && expected !== prev)) {
+          return json(cors, { error: "Already sent", reason: "already_sent", data: { sentAt: link.email_sent_at, to: link.email_sent_to, count: prev } }, 409);
+        }
+        const resendApiKey = Deno.env.get("RESEND_API_KEY");
+        if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
+
+        // Verrou : un seul envoi à la fois (le compteur doit être celui lu).
+        const sentAt = new Date().toISOString();
+        const { data: claimed, error: cErr } = await supabase.from("order_payment_links")
+          .update({ email_sent_count: prev + 1, email_sent_at: sentAt, email_sent_to: to, email_sent_by: by })
+          .eq("id", link.id).eq("email_sent_count", prev).eq("status", "active").select("id");
+        if (cErr) throw new Error(`Failed to record the email: ${cErr.message}`);
+        if (!claimed || claimed.length !== 1) return json(cors, { error: "An email is already being sent", reason: "in_progress" }, 409);
+
+        const { data: items } = await supabase.from("order_items").select("*").eq("order_id", orderId).order("created_at", { ascending: true });
+        const { data: fulfillments } = await supabase.from("order_fulfillments").select("*").eq("order_id", orderId);
+        const { subject, html } = renderPaymentLinkEmail(order, items ?? [], fulfillments ?? [], {
+          url: `${getSiteBaseUrl()}/payer/${link.token}`, total: Number(sum?.total ?? order.total_amount ?? 0), paid: Number(sum?.paid ?? 0), balance,
+        });
+        let sendError: string | null = null;
+        try {
+          const resp = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json", "Idempotency-Key": `payment-link-email-${link.id}-${prev + 1}` },
+            body: JSON.stringify({ from: "contact@bentocakestudio.ch", to: [to], subject, html }),
+          });
+          if (!resp.ok) sendError = `Resend ${resp.status}: ${JSON.stringify(await resp.json().catch(() => ({})))}`;
+        } catch (e) {
+          sendError = e instanceof Error ? e.message : String(e);
+        }
+        if (sendError) {
+          console.error(`send_payment_link_email failed for ${orderId}:`, sendError);
+          // Rien n'est parti : on remet la trace d'avant.
+          await supabase.from("order_payment_links")
+            .update({ email_sent_count: prev, email_sent_at: link.email_sent_at, email_sent_to: link.email_sent_to, email_sent_by: link.email_sent_by })
+            .eq("id", link.id).eq("email_sent_count", prev + 1);
+          return json(cors, { error: "The email could not be sent", reason: "send_failed" }, 502);
+        }
+        return json(cors, { success: true, data: { sentAt, to, count: prev + 1 } });
       }
 
       // disable_payment_link

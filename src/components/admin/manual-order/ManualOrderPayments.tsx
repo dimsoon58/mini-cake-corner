@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
-import { AlertTriangle, Check, Copy, Link2, Loader2, Plus, X } from "lucide-react";
+import { AlertTriangle, Check, Copy, Link2, Loader2, Mail, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 // F41 (04.11.2026) — fiche d'une commande manuelle : paiements reçus
 // (acomptes), solde restant et lien de paiement PostFinance.
 // Tout passe par manage-manual-order (payments, record_payment,
-// cancel_payment, payment_link, disable_payment_link).
+// cancel_payment, payment_link, disable_payment_link, et F43
+// send_payment_link_email : le lien envoyé par email avec le récapitulatif).
 
 export type PaymentsSummary = {
   total: number; paid: number; balance: number; legacy: boolean;
@@ -20,7 +21,9 @@ export type PaymentsSummary = {
     id: string; amount: number; method: string; paidAt: string; note: string | null; source: "admin" | "mark_paid" | "payment_link";
     transactionId: string | null; status: "recorded" | "cancelled"; cancelledAt: string | null; cancelledBy: string | null; cancelReason: string | null; createdBy: string | null;
   }[];
-  link: { id: string; token: string; status: "active" | "paid" | "disabled"; sendConfirmation: boolean; createdAt: string; createdBy: string | null; paidAt: string | null; disabledAt: string | null; disabledReason: string | null } | null;
+  link: { id: string; token: string; status: "active" | "paid" | "disabled"; sendConfirmation: boolean; createdAt: string; createdBy: string | null; paidAt: string | null; disabledAt: string | null; disabledReason: string | null;
+    // F43 (absents avant la migration)
+    emailSentAt?: string | null; emailSentTo?: string | null; emailSentBy?: string | null; emailSentCount?: number } | null;
   alerts: { id: string; amount: number; status: string; transactionId: string | null; detail: string | null; at: string }[];
 };
 
@@ -90,6 +93,11 @@ export const ManualOrderPayments = ({ orderId, awaitingPayment, emailOff, email,
     : d?.reason === "not_awaiting_payment" ? t("This order is not awaiting payment any more.", "Cette commande n'est plus en attente de paiement.")
     : d?.reason === "nothing_to_pay" ? t("Nothing left to pay.", "Plus rien à payer.")
     : d?.reason === "cancelled" ? t("This order is cancelled.", "Cette commande est annulée.")
+    : d?.reason === "no_email" ? t("This order has no email address.", "Cette commande n'a pas d'adresse email.")
+    : d?.reason === "historical" ? t("Historical order: no email is sent.", "Commande historique : aucun email n'est envoyé.")
+    : d?.reason === "no_link" ? t("Generate the payment link first.", "Générez d'abord le lien de paiement.")
+    : d?.reason === "in_progress" ? t("An email is already being sent. Refresh in a moment.", "Un email est déjà en cours d'envoi. Actualisez dans un instant.")
+    : d?.reason === "send_failed" ? t("The email could not be sent. Please try again.", "L'email n'a pas pu partir. Réessayez.")
     : d?.error ?? t("Something went wrong: nothing was changed.", "Une erreur est survenue : rien n'a été modifié.");
   const needPin = () => {
     if (!pinBySession && !pin.trim()) { setMessage({ type: "error", text: t("Please enter the admin PIN.", "Veuillez saisir le code PIN administrateur.") }); return true; }
@@ -148,6 +156,22 @@ export const ManualOrderPayments = ({ orderId, awaitingPayment, emailOff, email,
     const r = await call({ action: "disable_payment_link", linkId: id });
     setBusy(null);
     if (!r.ok) { setMessage({ type: "error", text: errorText(r.detail) }); return; }
+    await load();
+  };
+
+  // F43 : envoyer le lien par email (récapitulatif + bouton « Payer »).
+  const sendLinkEmail = async () => {
+    if (needPin()) return;
+    const already = (summary?.link?.emailSentCount ?? 0) > 0;
+    const sentOn = summary?.link?.emailSentAt ? format(new Date(summary.link.emailSentAt), "dd.MM.yyyy HH:mm") : "";
+    if (!window.confirm(already
+      ? t(`The link was already sent on ${sentOn}. Send it again to ${email}?`, `Le lien a déjà été envoyé le ${sentOn}. Le renvoyer à ${email} ?`)
+      : t(`Send the payment link by email to ${email}?`, `Envoyer le lien de paiement par email à ${email} ?`))) return;
+    setBusy("mail"); setMessage(null);
+    const r = await call({ action: "send_payment_link_email", resend: already, expectedCount: summary?.link?.emailSentCount ?? 0 });
+    setBusy(null);
+    if (!r.ok) { setMessage({ type: "error", text: errorText(r.detail) }); await load(); return; }
+    setMessage({ type: "success", text: t(`Email sent to ${r.data?.data?.to ?? email}.`, `Email envoyé à ${r.data?.data?.to ?? email}.`) });
     await load();
   };
 
@@ -232,6 +256,20 @@ export const ManualOrderPayments = ({ orderId, awaitingPayment, emailOff, email,
                 {t(`Active since ${format(new Date(activeLink.createdAt), "dd.MM.yyyy")}. The customer pays the remaining balance at the moment they open it.`, `Actif depuis le ${format(new Date(activeLink.createdAt), "dd.MM.yyyy")}. Le client paie le solde restant au moment où il l'ouvre.`)}
                 {" "}{activeLink.sendConfirmation && !emailOff ? t("Confirmation + invoice sent automatically once fully paid.", "Confirmation + facture envoyées automatiquement au paiement complet.") : t("No automatic email.", "Pas d'e-mail automatique.")}
               </p>
+              {!emailOff && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Button type="button" variant="outline" onClick={sendLinkEmail} disabled={busy !== null} className="rounded-none">
+                    {busy === "mail" ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Mail className="w-4 h-4 mr-1" />}
+                    {(activeLink.emailSentCount ?? 0) > 0 ? t("Send again by email", "Renvoyer par email") : t("Send by email", "Envoyer par email")}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    {activeLink.emailSentAt
+                      ? t(`Sent on ${format(new Date(activeLink.emailSentAt), "dd.MM.yyyy")} at ${format(new Date(activeLink.emailSentAt), "HH:mm")} to ${activeLink.emailSentTo ?? email}${(activeLink.emailSentCount ?? 0) > 1 ? ` (${activeLink.emailSentCount} times)` : ""}.`,
+                          `Envoyé le ${format(new Date(activeLink.emailSentAt), "dd.MM.yyyy")} à ${format(new Date(activeLink.emailSentAt), "HH:mm")} à ${activeLink.emailSentTo ?? email}${(activeLink.emailSentCount ?? 0) > 1 ? ` (${activeLink.emailSentCount} fois)` : ""}.`)
+                      : t(`Not sent yet. The customer receives the order summary and a « Pay » button (${email}).`, `Pas encore envoyé. Le client reçoit le récapitulatif de la commande et un bouton « Payer » (${email}).`)}
+                  </span>
+                </div>
+              )}
               <button type="button" onClick={() => disableLink(activeLink.id)} disabled={busy !== null} className="text-xs underline text-muted-foreground hover:text-destructive">
                 {t("Disable the link", "Désactiver le lien")}
               </button>

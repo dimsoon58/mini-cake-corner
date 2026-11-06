@@ -21,7 +21,7 @@ const MIG = path.join(ROOT, "migrations");
 let fails = 0, passes = 0;
 const check = (name, cond, extra) => { if (cond) { passes++; console.log("PASS", name); } else { fails++; console.log("FAIL", name, extra !== undefined ? JSON.stringify(extra).slice(0, 900) : ""); } };
 
-const migrations = fs.readdirSync(MIG).filter((f) => /^202610(02(09|10|11|12|13|14|16|17|18|19)|03|04|05|06|13)/.test(f) || /_f(34|41)_/.test(f)).sort().map((f) => path.join(MIG, f));
+const migrations = fs.readdirSync(MIG).filter((f) => /^202610(02(09|10|11|12|13|14|16|17|18|19)|03|04|05|06|13)/.test(f) || /_f(34|41|43)_/.test(f)).sort().map((f) => path.join(MIG, f));
 const db = await freshDb({ migrations });
 const q = async (sql, p) => (await db.query(sql, p)).rows;
 const one = async (sql, p) => (await q(sql, p))[0];
@@ -101,6 +101,7 @@ const USERS = { [MEL]: "naglemelodie@gmail.com" };
 
 // ── Réseau simulé : Resend (avec Idempotency-Key), logo du site ───────────
 const net = [];
+let failNextResend = false;
 const resendKeys = new Map();
 globalThis.fetch = async (url, init = {}) => {
   const u = String(url);
@@ -108,6 +109,7 @@ globalThis.fetch = async (url, init = {}) => {
   const body = init.body && typeof init.body === "string" ? JSON.parse(init.body) : null;
   net.push({ url: u, headers, body });
   if (u.startsWith("https://api.resend.com/")) {
+    if (failNextResend) { failNextResend = false; return new Response(JSON.stringify({ message: "down" }), { status: 500 }); }
     const key = headers["Idempotency-Key"];
     if (key && resendKeys.has(key)) return new Response(JSON.stringify({ id: resendKeys.get(key) }), { status: 200 });
     const id = `em_${net.length}`;
@@ -412,6 +414,43 @@ await webhook(txI);
 check("Case « envoyer » décochée : aucune confirmation", (await orderOf(I)).payment_status === "paid" && confirmations().length === beforeI);
 r = await mm("record_payment", { orderId: (await save([cakeItem()], [pickup(D1, [0])])), amount: "10", paymentMethod: "cash", paidOn: zToday, sendConfirmation: true });
 check("Acompte partiel : aucun e-mail (seulement au paiement complet)", r.status === 200 && r.body.email.requested === false && r.body.data.fully_paid === false, r.body);
+
+// ═══ 6b. Lien envoyé par email (F43) ════════════════════════════════════
+const J = await save([{ ...cakeItem(), cake_text: "Joyeux anniversaire" }], [pickup(D1, [0])]);
+r = await mm("send_payment_link_email", { orderId: J });
+check("Email du lien sans lien actif : refusé (no_link)", r.status === 409 && r.body.reason === "no_link", r.body);
+const tokenJ = (await mm("payment_link", { orderId: J, sendConfirmation: true })).body.data.token;
+await mm("record_payment", { orderId: J, amount: "20", paymentMethod: "cash", paidOn: zToday, sendConfirmation: false });
+const sumJ = await summary(J);
+r = await call("manage-manual-order", { action: "send_payment_link_email", orderId: J });
+check("Email du lien sans code PIN : refusé", r.status === 403);
+const m0 = mailsTo().length;
+r = await mm("send_payment_link_email", { orderId: J });
+const mailJ = mailsTo().at(-1);
+check("Email du lien envoyé (1 email au client)", r.status === 200 && mailsTo().length === m0 + 1 && r.body.data.count === 1, r.body);
+check("… objet « Confirmez votre commande », lien /payer/<jeton> et bouton « Payer » du solde",
+  /^Confirmez votre commande /.test(mailJ.body.subject) && mailJ.body.html.includes(`https://site.test/payer/${tokenJ}`) && mailJ.body.html.includes(`Payer CHF ${Number(sumJ.balance).toFixed(2)}`), mailJ.body.subject);
+check("… récapitulatif : texte du gâteau, déjà payé (acompte), reste à payer, confirmée uniquement après paiement",
+  mailJ.body.html.includes("Joyeux anniversaire") && mailJ.body.html.includes("Déjà payé") && mailJ.body.html.includes("- CHF 20.00") && mailJ.body.html.includes("Reste à payer")
+  && mailJ.body.html.includes("confirmée uniquement après le paiement"));
+check("… aucun tiret long dans l'email", !mailJ.body.html.includes("—"));
+let lJ = (await summary(J)).link;
+check("Trace de l'envoi visible dans l'admin (quand, à qui, 1 fois)", lJ.emailSentCount === 1 && lJ.emailSentTo === EMAIL && !!lJ.emailSentAt, lJ);
+r = await mm("send_payment_link_email", { orderId: J });
+check("Deuxième clic sans confirmation : refusé (already_sent), aucun email", r.status === 409 && r.body.reason === "already_sent" && mailsTo().length === m0 + 1, r.body);
+const [ja, jb] = await Promise.all([mm("send_payment_link_email", { orderId: J, resend: true, expectedCount: 1 }), mm("send_payment_link_email", { orderId: J, resend: true, expectedCount: 1 })]);
+check("Renvoyer (confirmé) : un seul envoi même avec deux clics simultanés", mailsTo().length === m0 + 2 && [ja.status, jb.status].sort().join() === "200,409" && (await summary(J)).link.emailSentCount === 2, [ja.body, jb.body]);
+failNextResend = true;
+r = await mm("send_payment_link_email", { orderId: J, resend: true });
+check("Envoi en échec : erreur, compteur inchangé (2)", r.status === 502 && r.body.reason === "send_failed" && (await summary(J)).link.emailSentCount === 2, r.body);
+r = await mm("send_payment_link_email", { orderId: H });
+check("Commande sans adresse email : refusé", r.status === 409 && ["no_email", "no_link"].includes(r.body.reason), r.body);
+r = await mm("send_payment_link_email", { orderId: I });
+check("Commande déjà payée par le lien : refusé (plus de lien actif)", r.status === 409 && r.body.reason === "no_link", r.body);
+const K = await save([cakeItem()], [pickup(D1, [0])], { ...customer, lang: "en" });
+await mm("payment_link", { orderId: K });
+await mm("send_payment_link_email", { orderId: K });
+check("Commande en anglais : email en anglais", /^Confirm your order /.test(mailsTo().at(-1).body.subject) && mailsTo().at(-1).body.html.includes("Left to pay"));
 
 // ═══ 7. Droits ════════════════════════════════════════════════════════════
 const anonOk = await q("select has_table_privilege('anon','public.manual_order_payments','select') a, has_table_privilege('authenticated','public.order_payment_links','select') b, has_function_privilege('anon','public.record_manual_order_payment(uuid, numeric, text, timestamptz, text, text, text, uuid, text)','execute') c");
