@@ -15,6 +15,8 @@ import { flavorDescMap } from "@/data/flavorDesc";
 import { cn } from "@/lib/utils";
 import { BASE_LABELS, CATEGORY_LABELS, CATEGORY_ORDER, INGREDIENT_LABELS, genoiseLabel, type Category, type SpongeBase, type StockUnits } from "@/lib/production";
 import { WorkshopSessionsPanel, type WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
+import { ColourPrepPanel } from "@/components/admin/ColourPrepPanel";
+import type { ColourItem } from "@/lib/colourPrep";
 
 // Admin > Production — production sheet for a period, computed server-side
 // by get-production (_shared/production-stats.ts holds every counting rule).
@@ -68,6 +70,7 @@ interface ProductionData {
   workshopSessions?: WorkshopSession[];   // F28
   pendingReuse?: PendingReuse[];
   movements?: Movement[];
+  colourItems?: ColourItem[];             // préparation des couleurs (absent avant le redéploiement)
 }
 
 // F15 : gâteau préparé puis annulé (« réutilisable ? ») et journal du stock.
@@ -410,6 +413,15 @@ const AdminProduction = () => {
           <div className={cn("space-y-6 transition-opacity", loading && "opacity-60")}>
             {stockError && <p className="text-sm text-destructive">{stockError}</p>}
 
+            {/* Deux parties : gâteaux (existant, inchangé) et couleurs (06.11.2026). */}
+            <nav className="flex flex-wrap gap-2 text-sm" aria-label={t("Production parts", "Parties de la production")}>
+              <a href="#prep-gateaux" className="px-3 py-1.5 border border-border bg-background hover:border-primary">1 · {t("Cake preparation", "Préparation des gâteaux")}</a>
+              <a href="#prep-couleurs" className="px-3 py-1.5 border border-border bg-background hover:border-primary">2 · {t("Colour preparation", "Préparation des couleurs")} 🎨</a>
+            </nav>
+            <h2 id="prep-gateaux" className="scroll-mt-24 font-sans uppercase tracking-[0.105em] text-lg text-primary font-semibold border-b border-primary/30 pb-1">
+              1 · {t("Cake preparation", "Préparation des gâteaux")}
+            </h2>
+
             {/* Summary — besoins = gâteaux confirmés pas encore « Fait » */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="production-summary">
               <div className="border border-border/60 bg-background p-4">
@@ -655,6 +667,15 @@ const AdminProduction = () => {
                 )}
               </div>
             </section>
+
+            <h2 id="prep-couleurs" className="scroll-mt-24 pt-4 font-sans uppercase tracking-[0.105em] text-lg text-primary font-semibold border-b border-primary/30 pb-1">
+              2 · {t("Colour preparation", "Préparation des couleurs")} 🎨
+            </h2>
+            {data.colourItems ? (
+              <ColourPrepPanel items={data.colourItems} />
+            ) : (
+              <p className="text-xs text-muted-foreground">{t("Not available yet: the get-production function must be redeployed.", "Pas encore disponible : la fonction get-production doit être redéployée.")}</p>
+            )}
           </div>
         ) : null}
       </main>
