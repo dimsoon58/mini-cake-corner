@@ -16,7 +16,7 @@ import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment, colou
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPanel";
 import { ReferencePhotos } from "@/components/ReferencePhotos";
-import { ProductionCheck } from "@/components/admin/ProductionCheck";
+import { ProductionSteps } from "@/components/admin/ProductionSteps";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
 import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
 import { OrderConfirmationPanel } from "@/components/admin/OrderConfirmationPanel";
@@ -646,20 +646,25 @@ const AdminOrder = () => {
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex justify-between items-center gap-3 mb-1">
                           <span className="flex items-center gap-2.5">
-                            {item.production_status === "cancelled" ? (
+                            {item.production_status === "cancelled" && (
                               <span className="px-2 py-0.5 text-[11px] bg-red-100 text-red-800">{t("Cancelled", "Annulé")}</span>
-                            ) : (
-                              <ProductionCheck
-                                itemId={item.id}
-                                status={item.production_status}
-                                disabledReason={productionBlockedReason}
-                                onChange={(next) => setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, production_status: next } : x)))}
-                              />
                             )}
                             <span className="font-medium text-sm">{productLabel} {i + 1}</span>
                           </span>
                           {!employee && <span className="font-semibold text-sm text-primary">CHF {item.total}</span>}
                         </div>
+                        {item.production_status !== "cancelled" && (
+                          <ProductionSteps
+                            className="mb-2"
+                            itemId={item.id}
+                            status={item.production_status}
+                            steps={item.production_steps}
+                            item={item}
+                            delivery={(fulfillmentById(item.fulfillment_id)?.delivery_method ?? order.delivery_method) === "delivery"}
+                            disabledReason={productionBlockedReason}
+                            onChange={(status, steps) => setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, production_status: status, production_steps: steps } : x)))}
+                          />
+                        )}
                         {isMultiDate && (
                           <DetailRow label={t("Date", "Date")} value={formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date)} />
                         )}
