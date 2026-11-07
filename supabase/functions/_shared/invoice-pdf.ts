@@ -1,5 +1,6 @@
 // Invoice PDF generation.
 import { getLogoEmailUrl } from "./site-config.ts";
+import { CHRISTMAS_DESIGN_NAMES } from "./christmas.ts";
 
 //
 // This is a faithful, self-contained copy of manage-order's generateInvoicePdf
@@ -99,6 +100,9 @@ function physicalItemDescription(item: any, lang: "en" | "fr"): string {
   const sizePart = item.size ? sizeLabel(item.size, lang) : "";
   const shapePart = item.shape && item.shape !== "round" ? ` ${shapeLabel(item.shape, lang)}` : "";
   const flavourPart = item.flavors?.length ? ` — ${flavorsLabel(item.flavors)}` : "";
+  // Noël : le nom du gâteau ou de la bûche d'abord (« Le Sapin de Noël — Medium — Marron »), comme les e-mails.
+  const christmasName = item.design ? CHRISTMAS_DESIGN_NAMES[item.design] : undefined;
+  if (christmasName) return `${christmasName} — ${sizePart}${flavourPart}`.trim();
   return `${sizePart}${shapePart}${flavourPart}`.trim() || productLabel(item.product, lang);
 }
 function formatInvoicePrice(amount: number | string): string {
