@@ -134,7 +134,8 @@ serve(async (req) => {
 
       let excluded: Excluded = null;
       const status = orderStatus(o, true);
-      if (productionCategory(it.product, it.size, it.shape) === "skip") excluded = "not_a_cake";
+      // Les bûches de Noël sont hors stock (« skip ») mais ont bien leur étiquette.
+      if (productionCategory(it.product, it.size, it.shape) === "skip" && it.product !== "christmas_log") excluded = "not_a_cake";
       else if (!status.include) excluded = "order_not_eligible";
       else if (cancelled.has(it.id) || (it as { production_status?: string }).production_status === "cancelled") excluded = "item_cancelled";
       else if (!date) excluded = "no_date";

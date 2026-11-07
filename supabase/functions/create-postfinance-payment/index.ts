@@ -26,6 +26,7 @@ import {
   type ResolvedFulfillment,
 } from "../_shared/order-pricing.ts";
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "../_shared/workshops.ts";
+import { CHRISTMAS_CAKE_PRICES, CHRISTMAS_LAST_DATE, isChristmasCakeDesign, isChristmasItem } from "../_shared/christmas.ts";
 
 
 import { getSiteBaseUrl } from "../_shared/site-config.ts";
@@ -446,6 +447,12 @@ function cartSnapshotsMatch(a: CanonicalItemSnapshot[], b: CanonicalItemSnapshot
 // table above — in which case the item is never selected as the
 // discounted one.
 function getWelcomeVoucherBase(item: OrderItemRow): number | null {
+  // Gâteau de Noël : base = prix de Noël de la taille (sans supplément de
+  // goût). Bûche (christmas_log) : absente de WELCOME_VOUCHER_BASE, donc
+  // jamais de réduction de bienvenue (Mel, 07.11.2026).
+  if (item.product === "bento_cake" && isChristmasCakeDesign(item.design)) {
+    return CHRISTMAS_CAKE_PRICES[item.design as string]?.[(item.size ?? "") as "bento"] ?? null;
+  }
   return WELCOME_VOUCHER_BASE[item.product]?.[item.size ?? ""] ?? null;
 }
 
@@ -1236,6 +1243,10 @@ serve(async (req) => {
           (sum, idx) => (orderItems[idx].product === "candles" ? sum : sum + (orderItems[idx].total ?? 0)),
           0,
         );
+        // Articles de Noël : retrait / livraison au plus tard le 28.12.
+        if (f.date > CHRISTMAS_LAST_DATE && f.itemIndexes.some((idx) => isChristmasItem(orderItems[idx]))) {
+          throw new Error(`CHRISTMAS_DATE: fulfillment ${f.date} — Christmas cakes and logs are available until ${CHRISTMAS_LAST_DATE}.`);
+        }
         resolvedFulfillments.push(await resolveOneFulfillment(f, groupExpressEligibleTotal));
       }
 

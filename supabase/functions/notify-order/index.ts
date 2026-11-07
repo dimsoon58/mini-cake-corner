@@ -149,7 +149,7 @@ async function sendAdminEmail(
     // email should stay exactly as light as it already was for those
     // products, per explicit request — the customer-facing confirmation
     // email is where those photos now show up instead.
-    const designImageBlock = item.design_image_url && (item.product === "bento_cake" || item.product === "rectangle_cake")
+    const designImageBlock = item.design_image_url && (item.product === "bento_cake" || item.product === "rectangle_cake" || item.product === "christmas_log")
       ? `<img src="${item.design_image_url}" alt="Design choisi" style="max-width:220px;width:100%;height:auto;border-radius:8px;border:1px solid #e5e7eb;display:block;margin:0 0 12px;" />`
       : "";
 

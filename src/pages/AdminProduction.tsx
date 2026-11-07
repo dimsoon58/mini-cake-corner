@@ -106,6 +106,7 @@ const PRODUCT_NAMES: Record<string, { en: string; fr: string }> = {
   bento_cake: { en: "Bento cake", fr: "Bento cake" },
   rectangle_cake: { en: "Rectangle cake", fr: "Rectangle cake" },
   dot_cakes: { en: "Dot Cakes", fr: "Dot Cakes" },
+  christmas_log: { en: "Christmas Log", fr: "Bûche de Noël" },
   diy_kit: { en: "Bento Kit", fr: "Bento Kit" },
   workshop: { en: "Workshop", fr: "Workshop" },
 };

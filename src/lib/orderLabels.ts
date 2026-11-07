@@ -7,12 +7,14 @@
 // @/data/customization) — no new data source, no raw id ever shown to
 // either audience when a real catalogue name exists for it.
 import { sizes, shapes, styles, baseColors, ribbonColors, butterflyColors, glitterColors, glitterCherriesColors } from "@/data/customization";
+import { christmasDesignName } from "@/data/christmas";
 import { colourFr } from "@/data/catalogLabelsFr";
 
 export const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
   bento_cake: { en: "Bento Cake", fr: "Bento Cake" },
   rectangle_cake: { en: "Rectangle Cake", fr: "Gâteau Rectangle" },
   dot_cakes: { en: "Dot Cakes", fr: "Dot Cakes" },
+  christmas_log: { en: "Christmas Log", fr: "Bûche de Noël" },
   diy_kit: { en: "Bento Kit", fr: "Bento Kit" },
   candles: { en: "Candles", fr: "Bougies" },
   edible_printing: { en: "Printing", fr: "Impression" },
@@ -57,6 +59,7 @@ const SIZE_LABELS_FR: Record<string, string> = {
   large: "Large",
   rectangle: "Rectangle",
   "kit-bento": "Kit Bento",
+  buche: "Bûche",
 };
 const SHAPE_LABELS_FR: Record<string, string> = {
   round: "Rond",
@@ -69,6 +72,7 @@ export function sizeLabel(sizeId: string, lang: "en" | "fr" = "en"): string {
     return lang === "fr" ? `Dot Cakes ${packMatch[1]} pièces` : `Dot Cakes pack of ${packMatch[1]}`;
   }
   if (sizeId === "kit-bento") return "Bento Kit";
+  if (sizeId === "buche") return lang === "fr" ? "Bûche" : "Log";
   if (lang === "fr" && SIZE_LABELS_FR[sizeId]) return SIZE_LABELS_FR[sizeId];
   const known = sizes.find((s) => s.id === sizeId)?.name;
   return known || prettifyId(sizeId);
@@ -93,10 +97,13 @@ export function shapeLabel(shapeId: string, lang: "en" | "fr" = "en", size?: str
 // English for a French customer and never doubles up with a generic "Cake"
 // suffix that doesn't apply to a Dot Cakes pack or a DIY Kit.
 export function cartItemTitle(
-  item: { product: string; size?: string | null; sizeName?: string | null; shapeName?: string | null },
+  item: { product: string; size?: string | null; sizeName?: string | null; shapeName?: string | null; style?: string | null },
   lang: "en" | "fr",
   t: (en: string, fr: string) => string,
 ): string {
+  // Noël : « Le Sapin de Noël · Medium », « Grinch · Bûche ».
+  const christmasName = christmasDesignName(item.style);
+  if (christmasName) return item.size ? `${christmasName} · ${sizeLabel(item.size, lang)}` : christmasName;
   if (item.product === "bento_cake" || item.product === "rectangle_cake") {
     return `${item.sizeName || ""} ${item.shapeName || ""} ${t("Cake", "Gâteau")}`.replace(/\s+/g, " ").trim();
   }
@@ -107,7 +114,7 @@ export function cartItemTitle(
 }
 
 export function designLabel(designId: string): string {
-  return styles.find((s) => s.id === designId)?.name || prettifyId(designId);
+  return styles.find((s) => s.id === designId)?.name || christmasDesignName(designId) || prettifyId(designId);
 }
 
 // Display only — a Dot Cakes pack's flavorName carries a trailing category

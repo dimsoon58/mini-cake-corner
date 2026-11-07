@@ -1,3 +1,4 @@
+import { christmasCakePrice } from "@/data/christmas";
 // Generic BentoCake Studio partner-referral discount — step 2, DISPLAY ONLY.
 // Mirrors welcomeDiscount.ts's role exactly: a preview estimate for Cart.tsx
 // and Checkout.tsx, never the authoritative amount. The server
@@ -35,8 +36,13 @@ export const PARTNER_ELIGIBLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake"
 export const INFLUENCER_ELIGIBLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake", "dot_cakes", "diy_kit", "edible_printing", "workshop"]);
 const FLAT_BASE_PRICE: Record<string, number> = { diy_kit: 40, edible_printing: 15 };
 
-export function getPartnerBaseCakePrice(item: { product: string; size: string; total?: number }): number | null {
+export function getPartnerBaseCakePrice(item: { product: string; size: string; total?: number; style?: string }): number | null {
   if (item.product === "workshop") return typeof item.total === "number" ? item.total : null;
+  // Noël : prix de Noël de la taille (bûches : jamais de réduction).
+  if (item.product === "bento_cake") {
+    const christmas = christmasCakePrice(item.style, item.size);
+    if (christmas !== null) return christmas;
+  }
   return FLAT_BASE_PRICE[item.product] ?? PARTNER_BASE_CAKE_PRICE[item.product]?.[item.size] ?? null;
 }
 

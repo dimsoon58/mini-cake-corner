@@ -155,7 +155,7 @@ export const CLASSIC_CAKE_FLAVOURS: (ChristmasFlavour & { prices: SizePrices })[
   classic("red-velvet", "Red Velvet", "Génoise vanille et chocolat moelleuse et crème fouettée", "Fluffy vanilla and chocolate sponge with whipped cream", STANDARD),
   classic("chocolate", "Chocolate", "Génoise chocolat moelleuse et crème fouettée", "Fluffy chocolate sponge with whipped cream", STANDARD),
   classic("chocolate-lovers", "Chocolate Lovers", "Génoise chocolat moelleuse et riche ganache au chocolat", "Moist chocolate sponge with rich chocolate ganache", SPECIAL),
-  classic("chocolate-lover-berrylicious", "Chocolate Lover x Berrylicious", "Génoise chocolat, coulis de framboise et ganache au chocolat", "Chocolate sponge with raspberry coulis and chocolate ganache", SPECIAL),
+  classic("chocolate-lover-berrylicious", "Chocolate Lover x Berrylicious", "Génoise chocolat, coulis de framboise et ganache au chocolat", "Chocolate sponge with raspberry coulis and chocolate ganache", DELUXE),
   classic("dark-berrylicious", "Dark Berrylicious", "Génoise chocolat moelleuse garnie d'un généreux coulis de framboise et de crème fouettée", "Fluffy chocolate sponge filled with a generous raspberry coulis and whipped cream", SPECIAL),
   classic("white-berrylicious", "White Berrylicious", "Génoise vanille moelleuse garnie d'un généreux coulis de framboise et de crème fouettée", "Fluffy vanilla sponge filled with a generous raspberry coulis and whipped cream", SPECIAL),
   classic("salted-caramel", "Salted Butter Caramel", "Génoise vanille moelleuse garnie de caramel et de crème fouettée", "Fluffy vanilla sponge filled with caramel and whipped cream", SPECIAL),
@@ -204,6 +204,32 @@ export const CHRISTMAS_SIZE_ORDER: ChristmasSize[] = ["bento", "retro", "medium"
 /** Every photo of a cake or log, in display order ([] when none yet). */
 export function cakePhotos(cake: { image: string | null; moreImages?: string[] }): string[] {
   return cake.image ? [cake.image, ...(cake.moreImages ?? [])] : [];
+}
+
+// Dernière date de retrait / livraison pour un article de Noël (Mel,
+// 07.11.2026) : le 28.12, la fermeture des fêtes commence le 29.12. Même
+// valeur que CHRISTMAS_LAST_DATE dans supabase/functions/_shared/christmas.ts.
+export const CHRISTMAS_LAST_DATE = "2026-12-28";
+const LAST_DATE_END = new Date(2026, 11, 28, 23, 59, 59);
+export function isAfterChristmasLastDate(date: Date): boolean {
+  return date.getTime() > LAST_DATE_END.getTime();
+}
+
+/** Christmas cake (bento_cake + design noel-<id>) or log line. */
+export function isChristmasCartItem(item: { product: string; style?: string | null }): boolean {
+  return item.product === "christmas_log" || (item.product === "bento_cake" && !!item.style && CHRISTMAS_CAKES.some((c) => c.id === item.style));
+}
+
+/** Christmas price of a cake for a size (without flavour supplement), or null. */
+export function christmasCakePrice(designId: string | null | undefined, size: string | null | undefined): number | null {
+  const cake = designId ? CHRISTMAS_CAKES.find((c) => c.id === designId) : undefined;
+  return cake && size ? cake.prices[size as ChristmasSize] ?? null : null;
+}
+
+/** French name of a Christmas cake or log from its design id (null otherwise). */
+export function christmasDesignName(designId: string | null | undefined): string | null {
+  if (!designId) return null;
+  return (CHRISTMAS_CAKES.find((c) => c.id === designId) ?? CHRISTMAS_LOGS.find((b) => b.id === designId))?.nameFr ?? null;
 }
 
 /** Lowest price of a cake ("dès CHF 45"). */

@@ -6,6 +6,17 @@
 // transaction, never silently charge nothing.
 
 import { WORKSHOP_PRICE, WORKSHOP_MAX_PARTICIPANTS, getWorkshopSession } from "./workshops.ts";
+import {
+  CHRISTMAS_CAKE_PRICES,
+  CHRISTMAS_CLASSIC_FLAVOURS,
+  CHRISTMAS_LOG_IDS,
+  CHRISTMAS_LOG_PRICE,
+  CHRISTMAS_LOG_SIZE,
+  LOG_FLAVOUR_SURCHARGES,
+  christmasEditionCakeSurcharge,
+  isChristmasCakeDesign,
+  type ChristmasSize,
+} from "./christmas.ts";
 
 export const NUMBER_CANDLE_ID = "number-candle";
 export const NUMBER_CANDLE_PRICE = 5;
@@ -430,6 +441,10 @@ function priceCakeFamily(input: PricingInput, product: "bento_cake" | "rectangle
   if (!input.size || !validSizes.includes(input.size)) return fail(`invalid size ${input.size} for ${product}`);
   const size = input.size as SizeKey;
 
+  // Gâteau de Noël (design "noel-<id>") : son propre prix par taille, forme
+  // ronde, ni extras ni bougies — voir _shared/christmas.ts.
+  if (product === "bento_cake" && isChristmasCakeDesign(input.design)) return priceChristmasCake(input, size as ChristmasSize);
+
   const basePrice = CAKE_SIZES[size];
 
   const shape = input.shape || "round";
@@ -462,6 +477,35 @@ function priceCakeFamily(input: PricingInput, product: "bento_cake" | "rectangle
     total: basePrice + shapePrice + flavorPrice + designPrice + extrasTotal + candlesResult.total,
     baseCakePrice: basePrice,
   };
+}
+
+function priceChristmasCake(input: PricingInput, size: ChristmasSize): PricingResult {
+  const design = input.design as string;
+  const basePrice = CHRISTMAS_CAKE_PRICES[design]?.[size];
+  if (basePrice === undefined) return fail(`christmas design ${design} unavailable for size ${size}`);
+  if ((input.shape || "round") !== "round") return fail("christmas cakes are round only");
+  if (input.extras.length > 0) return fail("christmas cakes take no extras");
+  if (input.candles.length > 0) return fail("christmas cakes take no candles");
+  if (input.flavors.length !== 1) return fail("exactly one flavor expected for this product");
+  const flavourId = input.flavors[0];
+  const flavourPrice = CHRISTMAS_CLASSIC_FLAVOURS.includes(flavourId)
+    ? CAKE_FLAVORS[flavourId]?.[size]
+    : christmasEditionCakeSurcharge(flavourId, size);
+  if (flavourPrice === undefined) return fail(`flavor ${flavourId} unavailable for christmas cakes`);
+  // baseCakePrice = prix de Noël de la taille, sans le supplément de goût :
+  // c'est la base des réductions (bienvenue, influenceur, partenaire).
+  return { ok: true, total: basePrice + flavourPrice, baseCakePrice: basePrice };
+}
+
+// Bûche de Noël : jamais de baseCakePrice, donc jamais de réduction.
+function priceChristmasLog(input: PricingInput): PricingResult {
+  if (input.size !== CHRISTMAS_LOG_SIZE) return fail(`invalid size ${input.size} for christmas_log`);
+  if (!input.design || !CHRISTMAS_LOG_IDS.includes(input.design)) return fail(`unknown christmas log ${input.design}`);
+  if (input.extras.length > 0 || input.candles.length > 0) return fail("christmas logs take no extras or candles");
+  if (input.flavors.length !== 1) return fail("exactly one flavor expected for this product");
+  const surcharge = LOG_FLAVOUR_SURCHARGES[input.flavors[0]];
+  if (surcharge === undefined) return fail(`flavor ${input.flavors[0]} unavailable for christmas logs`);
+  return { ok: true, total: CHRISTMAS_LOG_PRICE + surcharge };
 }
 
 function priceDiyKit(input: PricingInput): PricingResult {
@@ -541,6 +585,7 @@ export function priceOrderItem(input: PricingInput): PricingResult {
     case "edible_printing": return priceEdiblePrinting(input);
     case "candles": return priceStandaloneCandles(input);
     case "workshop": return priceWorkshop(input);
+    case "christmas_log": return priceChristmasLog(input);
     default: return fail(`unknown product ${input.product}`);
   }
 }

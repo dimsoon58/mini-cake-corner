@@ -1,4 +1,5 @@
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
+import { CHRISTMAS_DESIGN_NAMES } from "./christmas.ts";
 
 // Shared confirmation-email renderer for a "cake / product" order at its
 import { getLogoEmailUrl } from "./site-config.ts";
@@ -66,16 +67,17 @@ const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
   bento_cake: { en: "Bento Cake", fr: "Bento Cake" },
   rectangle_cake: { en: "Rectangle Cake", fr: "Gâteau Rectangle" },
   dot_cakes: { en: "Dot Cakes", fr: "Dot Cakes" },
+  christmas_log: { en: "Christmas Log", fr: "Bûche de Noël" },
   diy_kit: { en: "DIY Kit", fr: "Kit DIY" },
   candles: { en: "Candles", fr: "Bougies" },
   edible_printing: { en: "Printing", fr: "Impression" },
   workshop: { en: "Workshop", fr: "Atelier" },
 };
 const SIZE_LABELS_FR: Record<string, string> = {
-  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "Kit Bento",
+  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "Kit Bento", buche: "Bûche",
 };
 const SIZE_LABELS_EN: Record<string, string> = {
-  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "DIY Kit",
+  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "DIY Kit", buche: "Log",
 };
 const SHAPE_LABELS_FR: Record<string, string> = { round: "Rond", heart: "Cœur" };
 const SHAPE_LABELS_EN: Record<string, string> = { round: "Round", heart: "Heart" };
@@ -98,7 +100,7 @@ export function shapeLabel(shapeId: string, lang: "en" | "fr"): string {
   return table[shapeId] || prettifyId(shapeId);
 }
 export function designLabel(designId: string): string {
-  return prettifyId(designId);
+  return CHRISTMAS_DESIGN_NAMES[designId] ?? prettifyId(designId);
 }
 // Dot Cakes/DIY Kit/Printing/Candles: "design" is a fixed internal id,
 // never a real customer choice — showing it would just repeat the product

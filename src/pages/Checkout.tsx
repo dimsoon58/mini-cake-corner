@@ -53,6 +53,7 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isOrderDateDisabled, isClosedDay, isClosedDate, CLOSED_DAY_COPY, CLOSED_DATE_COPY, slotRuleCopy, slotsForDate, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
+import { isChristmasCartItem, isAfterChristmasLastDate } from "@/data/christmas";
 import { cartItemTitle, flavorLabel, shapeLabel } from "@/lib/orderLabels";
 import { ExpressLegend, ExpressDateNotice, OrderCalendar } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
@@ -327,6 +328,7 @@ const uploadImageFilesToStorage = async (
 
 const Checkout = () => {
   const { items, clearCart, updateItem, partnerReferral, giftCard } = useCart();
+  const cartHasChristmas = items.some((it) => isChristmasCartItem(it));
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -1809,7 +1811,7 @@ const Checkout = () => {
                   <OrderCalendar
                     selected={deliveryDate}
                     onSelect={setDeliveryDate}
-                    disabled={(date) => isOrderDateDisabled(date)}
+                    disabled={(date) => isOrderDateDisabled(date) || (cartHasChristmas && isAfterChristmasLastDate(date))}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
                   />

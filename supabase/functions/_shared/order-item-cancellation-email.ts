@@ -25,6 +25,7 @@ function humanize(value: unknown): string {
   const mapped: Record<string, string> = {
     bento_cake: "Bento Cake",
     dot_cakes: "Dot Cakes",
+    christmas_log: "Bûche de Noël",
     dot_cake: "Dot Cake",
     diy_kit: "DIY Kit",
     printing: "Printing",

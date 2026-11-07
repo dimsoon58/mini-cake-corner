@@ -150,6 +150,7 @@ export const VALID_PRODUCTS = new Set([
   "candles",
   "edible_printing",
   "workshop",
+  "christmas_log",
 ]);
 
 // Result of an addItem() attempt. `ok: false` means the item was NOT added
