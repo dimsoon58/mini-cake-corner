@@ -70,19 +70,22 @@ export function isClosedDate(date: Date): boolean {
   return CLOSED_DATES.includes(localISO(date));
 }
 
-// Saturday: a single slot, 11:00 – 12:00, for pick-up and delivery alike
-// (website checkout only; Admin manual orders keep every slot).
+// Saturday (website checkout only; Admin manual orders keep every slot):
+//   pick-up  → a single slot, 11:00 – 12:00;
+//   delivery → every slot ending at 13:00 at the latest (06.11.2026).
 export const SATURDAY_SLOT = "11:00 – 12:00";
+export const SATURDAY_DELIVERY_LAST_HOUR = 13;
+const slotEndHour = (slot: string) => Number(slot.slice(-5, -3));
 // Monday: no slot before 12:00, for pick-up and delivery alike (same scope).
 export const MONDAY_FIRST_HOUR = 12;
 const asDate = (date: Date | string) => (typeof date === "string" ? new Date(`${date}T00:00:00`) : date);
 const slotStartHour = (slot: string) => Number(slot.slice(0, 2));
 
-/** Slots offered for a date: all of them, except Saturday (11:00 – 12:00 only) and Monday (from 12:00). */
-export function slotsForDate(slots: readonly string[], date: Date | string | null | undefined): string[] {
+/** Slots offered for a date: all of them, except Saturday (pick-up 11:00 – 12:00 only, delivery until 13:00) and Monday (from 12:00). */
+export function slotsForDate(slots: readonly string[], date: Date | string | null | undefined, kind: "pickup" | "delivery" = "pickup"): string[] {
   if (!date) return [...slots];
   const day = asDate(date).getDay();
-  if (day === 6) return slots.filter((s) => s === SATURDAY_SLOT);
+  if (day === 6) return kind === "delivery" ? slots.filter((s) => slotEndHour(s) <= SATURDAY_DELIVERY_LAST_HOUR) : slots.filter((s) => s === SATURDAY_SLOT);
   if (day === 1) return slots.filter((s) => slotStartHour(s) >= MONDAY_FIRST_HOUR);
   return [...slots];
 }
@@ -92,16 +95,21 @@ export const SATURDAY_SLOT_COPY = {
   fr: "Le samedi, un seul créneau : 11:00 – 12:00.",
 } as const;
 
+export const SATURDAY_DELIVERY_COPY = {
+  en: "On Saturdays, delivery until 13:00.",
+  fr: "Le samedi, livraison jusqu'à 13:00.",
+} as const;
+
 export const MONDAY_SLOT_COPY = {
   en: "On Mondays, slots from 12:00 only.",
   fr: "Le lundi, créneaux à partir de 12:00 seulement.",
 } as const;
 
 /** Note shown under the time-slot select when the date has a reduced choice (Saturday, Monday). */
-export function slotRuleCopy(date: Date | string | null | undefined): { en: string; fr: string } | null {
+export function slotRuleCopy(date: Date | string | null | undefined, kind: "pickup" | "delivery" = "pickup"): { en: string; fr: string } | null {
   if (!date) return null;
   const day = asDate(date).getDay();
-  return day === 6 ? SATURDAY_SLOT_COPY : day === 1 ? MONDAY_SLOT_COPY : null;
+  return day === 6 ? (kind === "delivery" ? SATURDAY_DELIVERY_COPY : SATURDAY_SLOT_COPY) : day === 1 ? MONDAY_SLOT_COPY : null;
 }
 
 export const CLOSED_DAY_COPY = {

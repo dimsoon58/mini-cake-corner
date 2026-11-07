@@ -506,11 +506,12 @@ const Checkout = () => {
   // Saturday: 11:00 – 12:00 only. A slot chosen before switching to a
   // Saturday no longer exists, so it is cleared (the customer picks again).
   const pickupSlots = slotsForDate(PICKUP_TIME_SLOTS, deliveryDate);
-  const deliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate);
+  const deliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate, "delivery");
   const slotNote = slotRuleCopy(deliveryDate);
+  const deliverySlotNote = slotRuleCopy(deliveryDate, "delivery");
   useEffect(() => {
     if (pickupTime && !slotsForDate(PICKUP_TIME_SLOTS, deliveryDate).includes(pickupTime)) setPickupTime("");
-    if (deliveryTime && !slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate).includes(deliveryTime)) setDeliveryTime("");
+    if (deliveryTime && !slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate, "delivery").includes(deliveryTime)) setDeliveryTime("");
   }, [deliveryDate, pickupTime, deliveryTime]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
@@ -1227,7 +1228,7 @@ const Checkout = () => {
           });
           return;
         }
-        if (d.deliveryOption === "delivery" && !slotsForDate(DELIVERY_TIME_SLOTS, group.date).includes(d.deliveryTime)) {
+        if (d.deliveryOption === "delivery" && !slotsForDate(DELIVERY_TIME_SLOTS, group.date, "delivery").includes(d.deliveryTime)) {
           toast({
             title: t(`Delivery time slot required for ${dateLabel}`, `Créneau de livraison requis pour le ${dateLabel}`),
             variant: "destructive",
@@ -1947,7 +1948,7 @@ const Checkout = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  {slotNote && <p className="text-xs text-muted-foreground">{t(slotNote.en, slotNote.fr)}</p>}
+                  {deliverySlotNote && <p className="text-xs text-muted-foreground">{t(deliverySlotNote.en, deliverySlotNote.fr)}</p>}
                 </div>
 
                 {/* Delivery Comment - Required */}
@@ -2016,8 +2017,9 @@ const Checkout = () => {
                 {physicalDateGroups.map((group) => {
                   const draft = getFulfillmentDraft(group.date);
                   const groupPickupSlots = slotsForDate(PICKUP_TIME_SLOTS, group.date);
-                  const groupDeliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, group.date);
+                  const groupDeliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, group.date, "delivery");
                   const groupSlotNote = slotRuleCopy(group.date);
+                  const groupDeliverySlotNote = slotRuleCopy(group.date, "delivery");
                   const groupDate = new Date(group.date + "T00:00:00");
                   const groupLabel = formatDisplayDate(groupDate);
                   const groupTotal = sumChf(...group.items.map((i) => i.total));
@@ -2123,7 +2125,7 @@ const Checkout = () => {
                                 ))}
                               </SelectContent>
                             </Select>
-                            {groupSlotNote && <p className="text-xs text-muted-foreground">{t(groupSlotNote.en, groupSlotNote.fr)}</p>}
+                            {groupDeliverySlotNote && <p className="text-xs text-muted-foreground">{t(groupDeliverySlotNote.en, groupDeliverySlotNote.fr)}</p>}
                           </div>
                           {/* NOTE (rollout report): there is deliberately no per-date
                               delivery-comment field here yet — order_fulfillments has

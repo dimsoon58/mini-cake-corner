@@ -96,6 +96,12 @@ function physicalItemDescription(item: any, lang: "en" | "fr"): string {
 }
 
 // orders.lang is written by Checkout.tsx directly; French is the default.
+// F43 : même description d'article pour l'email du lien de paiement, sans
+// tiret long (texte client). N'altère pas l'email « Commande reçue ».
+export function itemSummaryLine(item: any, lang: "en" | "fr"): string {
+  return physicalItemDescription(item, lang).replace(/ — /g, " · ");
+}
+
 function getCustomerLang(order: any): "fr" | "en" {
   return order?.lang === "en" ? "en" : "fr";
 }
