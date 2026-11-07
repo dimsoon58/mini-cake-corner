@@ -2,8 +2,8 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { CHRISTMAS_PUBLIC } from "@/lib/featureFlags";
 
-// 13 novembre 2026 à 09h00 heure suisse (CET = UTC+1 en novembre)
-export const CHRISTMAS_LAUNCH = new Date("2026-11-13T08:00:00Z"); // 13.11.2026 09:00 Genève (Mel, 07.11.2026)
+// 13 novembre 2026 à 11h00 heure suisse (CET = UTC+1 en novembre)
+export const CHRISTMAS_LAUNCH = new Date("2026-11-13T10:00:00Z"); // 13.11.2026 11:00 Genève (Mel, 07.11.2026)
 
 /**
  * Whether the Christmas collection is shown to the current visitor.
