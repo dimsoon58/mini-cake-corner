@@ -59,6 +59,21 @@ export const LOG_FLAVOUR_SURCHARGES: Record<string, number> = {
   "noel-lemon-curd": 4,
 };
 
+// Nom (français) enregistré dans order_items.flavors pour un goût
+// Christmas Edition — le même que celui écrit par la page Noël.
+export const CHRISTMAS_FLAVOUR_NAMES: Record<string, string> = {
+  "noel-vanille-classique": "Vanille classique",
+  "noel-chocolat-classique": "Chocolat classique",
+  "noel-vanille-framboise": "Vanille framboise",
+  "noel-caramel-cacahuetes": "Caramel cacahuètes",
+  "noel-pomme-cannelle": "Pomme cannelle",
+  "noel-pate-a-tartiner": "Pâte à tartiner",
+  "noel-marron": "Marron",
+  "noel-chocolat": "Chocolate Lovers",
+  "noel-mangue-passion": "Mangue passion",
+  "noel-lemon-curd": "Lemon curd",
+};
+
 // « Nos classiques » proposés sur les gâteaux de Noël (sans la pistache).
 export const CHRISTMAS_CLASSIC_FLAVOURS = [
   "vanilla", "red-velvet", "chocolate", "chocolate-lovers", "chocolate-lover-berrylicious",

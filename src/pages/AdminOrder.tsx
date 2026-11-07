@@ -21,6 +21,8 @@ import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel"
 import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
 import { OrderConfirmationPanel } from "@/components/admin/OrderConfirmationPanel";
 import { OrderInternalNotes } from "@/components/admin/OrderInternalNotes";
+import { EditOrderItemDialog } from "@/components/admin/EditOrderItemDialog";
+import { OrderItemChanges, type ItemChange } from "@/components/admin/OrderItemChanges";
 import { GiftCardOrderPanel } from "@/components/admin/GiftCardOrderPanel";
 import { CHANNEL_LABELS, MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
@@ -109,6 +111,9 @@ const AdminOrder = () => {
   const staff = useStaffRole();
   const employee = staff.isEmployee;
   const isAdmin = isAdminEmail(user?.email) || staff.can("orders.view");
+  // F44 : modifier un gâteau (Mel et Eli seulement) + historique des modifications.
+  const canEditItems = isAdminEmail(user?.email);
+  const [itemChanges, setItemChanges] = useState<ItemChange[]>([]);
 
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -201,6 +206,14 @@ const AdminOrder = () => {
     };
     fetchOrder();
   }, [id, token, t, authLoading, isAdmin, reloadKey, staff.loading]);
+
+  // F44 : historique des modifications (silencieux si la fonction n'est pas encore déployée).
+  useEffect(() => {
+    if (!canEditItems || !order?.id) return;
+    supabase.functions.invoke("edit-order-item", { body: { action: "list", orderId: order.id } })
+      .then(({ data, error }) => { if (!error && Array.isArray(data?.changes)) setItemChanges(data.changes); })
+      .catch(() => {});
+  }, [canEditItems, order?.id, reloadKey]);
 
   const handleAction = async (action: "approve" | "reject") => {
     if (!pin.trim()) {
@@ -708,13 +721,17 @@ const AdminOrder = () => {
                         )}
                         <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
                         {!employee && (
-                        <div className="pt-2">
+                        <div className="pt-2 flex flex-wrap gap-x-4 gap-y-1">
                           <Link to={`/admin/labels?order=${order?.id ?? ""}&item=${item.id}`} className="text-[11px] text-primary hover:underline flex items-center gap-1">
                             <Printer className="w-3 h-3" />
                             {t("Production label", "Étiquette de production")}
                           </Link>
+                          {canEditItems && !isCancelled && item.production_status !== "cancelled" && item.id && (
+                            <EditOrderItemDialog orderId={order.id} item={item} onSaved={() => setReloadKey((k) => k + 1)} />
+                          )}
                         </div>
                         )}
+                        <OrderItemChanges changes={itemChanges.filter((c) => c.item_id === item.id)} />
                         <ReferencePhotos urls={item.reference_images}
                           printedFirst={item.design === "printed-picture" || (Array.isArray(item.extras) && item.extras.includes("printed-picture"))} />
                       </div>
