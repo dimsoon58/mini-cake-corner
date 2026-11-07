@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { BASE_LABELS, CATEGORY_LABELS, CATEGORY_ORDER, INGREDIENT_LABELS, genoiseLabel, type Category, type SpongeBase, type StockUnits } from "@/lib/production";
 import { WorkshopSessionsPanel, type WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
 import { ColourPrepPanel } from "@/components/admin/ColourPrepPanel";
+import { LogPrepPanel, type LogItem } from "@/components/admin/LogPrepPanel";
 import type { ColourItem } from "@/lib/colourPrep";
 
 // Admin > Production — production sheet for a period, computed server-side
@@ -71,6 +72,7 @@ interface ProductionData {
   pendingReuse?: PendingReuse[];
   movements?: Movement[];
   colourItems?: ColourItem[];             // préparation des couleurs (absent avant le redéploiement)
+  logItems?: LogItem[];                   // bûches de Noël (absent avant le redéploiement)
 }
 
 // F15 : gâteau préparé puis annulé (« réutilisable ? ») et journal du stock.
@@ -418,6 +420,9 @@ const AdminProduction = () => {
             <nav className="flex flex-wrap gap-2 text-sm" aria-label={t("Production parts", "Parties de la production")}>
               <a href="#prep-gateaux" className="px-3 py-1.5 border border-border bg-background hover:border-primary">1 · {t("Cake preparation", "Préparation des gâteaux")}</a>
               <a href="#prep-couleurs" className="px-3 py-1.5 border border-border bg-background hover:border-primary">2 · {t("Colour preparation", "Préparation des couleurs")} 🎨</a>
+              {data.logItems && data.logItems.length > 0 && (
+                <a href="#prep-buches" className="px-3 py-1.5 border border-border bg-background hover:border-primary">3 · {t("Christmas logs", "Bûches de Noël")} 🎄</a>
+              )}
             </nav>
             <h2 id="prep-gateaux" className="scroll-mt-24 font-sans uppercase tracking-[0.105em] text-lg text-primary font-semibold border-b border-primary/30 pb-1">
               1 · {t("Cake preparation", "Préparation des gâteaux")}
@@ -676,6 +681,15 @@ const AdminProduction = () => {
               <ColourPrepPanel items={data.colourItems} />
             ) : (
               <p className="text-xs text-muted-foreground">{t("Not available yet: the get-production function must be redeployed.", "Pas encore disponible : la fonction get-production doit être redéployée.")}</p>
+            )}
+
+            {data.logItems && (
+              <>
+                <h2 id="prep-buches" className="scroll-mt-24 pt-4 font-sans uppercase tracking-[0.105em] text-lg text-primary font-semibold border-b border-primary/30 pb-1">
+                  3 · {t("Christmas logs", "Bûches de Noël")} 🎄
+                </h2>
+                <LogPrepPanel items={data.logItems} />
+              </>
             )}
           </div>
         ) : null}

@@ -92,6 +92,8 @@ serve(async (req) => {
     const cakeItems: ProdCakeItem[] = [];
     // Préparation des couleurs (06.11.2026) : couleurs et rubans de chaque gâteau compté.
     const colourRaw = new Map<string, Record<string, unknown>>();
+    // Bûches de Noël (07.11.2026) : hors génoises (roulé), listées à part.
+    const logRaw: Record<string, unknown>[] = [];
     if (cakeOrderIds.length > 0) {
       await loadOrders(cakeOrderIds);
 
@@ -124,6 +126,15 @@ serve(async (req) => {
           hasText: !!String(it.cake_text ?? "").trim(), ribbonColor: it.ribbon_color,
           extras: Array.isArray(it.extras) ? it.extras : [], extra: it.extra, done: DONE_STATUSES.has(it.production_status),
         });
+        if (it.product === "christmas_log") {
+          logRaw.push({
+            itemId: it.id, orderId: it.order_id, date, slot: f ? f.pickup_delivery_slot : (o.pickup_delivery_slot ?? null),
+            design: it.design, flavour: (it.flavors ?? []).join(", ") || null,
+            quantity: Number.isInteger(it.quantity) && it.quantity > 1 ? it.quantity : 1,
+            done: DONE_STATUSES.has(it.production_status),
+            orderNumber: o.order_number ?? null, customerName: `${o.first_name ?? ""} ${o.last_name ?? ""}`.trim(),
+          });
+        }
         cakeItems.push({
           id: it.id,
           order_id: it.order_id,
@@ -188,6 +199,14 @@ serve(async (req) => {
       return st.include && st.badge !== "to_accept";
     }).map((c) => ({ ...c, decorated: c.done === true || decoDone.has(String(c.itemId)) }));
 
+    // Bûches : mêmes règles que les couleurs (pas « à accepter », pas de test sauf demandé, pas annulées).
+    const logItems = logRaw.filter((l) => {
+      const o = ordersById.get(String(l.orderId));
+      if (!o || (!includeTests && isTestOrder(o)) || cancelledItemIds.has(String(l.itemId))) return false;
+      const st = orderStatus(o, true);
+      return st.include && st.badge !== "to_accept";
+    }).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
     // Stock ↔ production (F15) : gâteaux préparés puis annulés (à décider) et
     // journal des mouvements. Absents tant que F15 n'est pas appliquée.
     const { data: pendingReuse, error: prErr } = await supabase.rpc("production_pending_reuse");
@@ -196,7 +215,7 @@ serve(async (req) => {
     if (!stockLinked) console.warn("get-production: stock link (F15) not available:", prErr?.message ?? mvErr?.message);
 
     return json(cors, forCaller(caller, {
-      from, to, includeTests, ...result, stockRows: stock ?? [], colourItems,
+      from, to, includeTests, ...result, stockRows: stock ?? [], colourItems, logItems,
       stockLinked,
       workshopLinked: ws.linked,
       pendingReuse: stockLinked ? pendingReuse ?? [] : [],
