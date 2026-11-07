@@ -9,7 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { ShowTestsToggle, useShowTests } from "@/components/admin/ShowTestsToggle";
 import { WorkshopSessionsPanel, type WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
-import { ProductionCheck, isProductionDone } from "@/components/admin/ProductionCheck";
+import { isProductionDone } from "@/components/admin/ProductionCheck";
+import { ProductionSteps } from "@/components/admin/ProductionSteps";
+import { isHandedOver, type StepItem, type Steps } from "@/lib/productionSteps";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -43,6 +45,8 @@ type DayItem = {
   candleName?: string | null;
   candleQuantity?: number | null;
   fruits?: boolean; // supplément fruits (commande manuelle)
+  productionSteps?: unknown; // étapes (F42)
+  stepItem?: StepItem;
 };
 type Alert = { orderId: string; orderNumber: string | null; issueType: string; detail: string | null; createdAt: string };
 type TodayData = { today: string; tomorrow: string; from?: string; to?: string; toDecide: ListedOrder[]; toCollect: ListedOrder[]; days: Record<string, DayItem[]>; alerts: Alert[] };
@@ -117,11 +121,11 @@ const AdminToday = () => {
     setSearchParams(p, { replace: true });
   };
 
-  const setItemStatus = (itemId: string, status: string) =>
+  const setItemStatus = (itemId: string, status: string, steps: Steps) =>
     setData((d) => d && ({
       ...d,
       days: Object.fromEntries(Object.entries(d.days).map(([day, items]) => [
-        day, items.map((it) => (it.itemId === itemId ? { ...it, productionStatus: status } : it)),
+        day, items.map((it) => (it.itemId === itemId ? { ...it, productionStatus: status, productionSteps: steps } : it)),
       ])),
     }));
 
@@ -317,12 +321,15 @@ const AdminToday = () => {
     alertParts.push(`${data.alerts.length} ${t(data.alerts.length > 1 ? "alerts" : "alert", data.alerts.length > 1 ? "alertes" : "alerte")}`);
   const alertHref = data && data.toDecide.length > 0 ? "#a-faire" : data && data.toCollect.length > 0 ? "#a-faire" : "#alertes";
 
-  // Production: single list per day, toDo first then ready at bottom
+  // Production: une liste par jour ; les gâteaux déjà donnés (retirés /
+  // livrés) en bas, grisés. « prêts » = Emballé (ou plus).
   const renderCakeDay = (date: string) => {
     const cakes = data!.days[date].filter((i) => i.type === "cake");
-    const toDo = [...cakes.filter((i) => !isProductionDone(i.productionStatus))].sort(bySlot);
-    const ready = [...cakes.filter((i) => isProductionDone(i.productionStatus))].sort(bySlot);
-    const allCakes = [...toDo, ...ready];
+    const ready = cakes.filter((i) => isProductionDone(i.productionStatus));
+    const allCakes = [
+      ...cakes.filter((i) => !isHandedOver(i.productionStatus)).sort(bySlot),
+      ...cakes.filter((i) => isHandedOver(i.productionStatus)).sort(bySlot),
+    ];
     return (
       <div key={date} data-day={date} className={box}>
         <div className={cn("flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-2.5", cakes.length > 0 && "border-b border-[#E3D7BE]")}>
@@ -341,20 +348,14 @@ const AdminToday = () => {
         ) : (
           <ul className="divide-y divide-[#F0E8D8]">
             {allCakes.map((it) => {
-              const done = isProductionDone(it.productionStatus);
+              const done = isHandedOver(it.productionStatus);
               const nameParts = it.customerName.split(" ");
               const shortName = nameParts[1] ? `${nameParts[0]} ${nameParts[1][0]}.` : nameParts[0];
               return (
-                <li key={it.itemId} className={cn("flex items-center gap-3 pl-4 min-h-[44px]", done && "bg-[#F7F4EE]")}>
-                  <ProductionCheck
-                    itemId={it.itemId}
-                    status={it.productionStatus}
-                    disabledReason={it.badge === "to_accept" ? t("Accept the order first.", "Acceptez d'abord la commande.") : null}
-                    onChange={(next) => setItemStatus(it.itemId, next)}
-                  />
+                <li key={it.itemId} className={cn("pl-4 pr-4 pb-3", done && "bg-[#F7F4EE]")}>
                   <Link
                     to={`/admin/order/${it.orderId}`}
-                    className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 pr-4 py-3 hover:bg-black/[0.02]"
+                    className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 pt-3 pb-2 hover:bg-black/[0.02]"
                   >
                     <span className={cn("w-20 shrink-0 text-sm font-bold tabular-nums", done ? "text-[#8A7A6A]" : "text-foreground")}>
                       {it.slot || "—"}
@@ -372,9 +373,17 @@ const AdminToday = () => {
                       {it.badge === "awaiting_payment" && (
                         <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To collect", "À encaisser")}</span>
                       )}
-                      {done && <span className="text-xs font-semibold text-[#2F6B3A]">Ready ✓</span>}
                     </span>
                   </Link>
+                  <ProductionSteps
+                    itemId={it.itemId}
+                    status={it.productionStatus}
+                    steps={it.productionSteps}
+                    item={it.stepItem ?? { product: it.product, candle_name: it.candleName, fruit_supplement: it.fruits ? 1 : 0 }}
+                    delivery={it.deliveryMethod === "delivery"}
+                    disabledReason={it.badge === "to_accept" ? t("Accept the order first.", "Acceptez d'abord la commande.") : null}
+                    onChange={(status, steps) => setItemStatus(it.itemId, status, steps)}
+                  />
                 </li>
               );
             })}

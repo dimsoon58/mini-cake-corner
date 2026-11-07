@@ -33,7 +33,17 @@ import { itemStockNeeds, orderStatus, type ProdOrder } from "../_shared/producti
 //                                          put back only when returnUnits says
 //                                          so (at most what was removed, once).
 // Without `mode` (older page) nothing is removed from the stock.
+//
+// Étapes (F42, 2026-11-06) : la case « Fait » devient 5 étapes
+// (deco, texte, extra, emballe, donne), cochées dans n'importe quel ordre :
+//   { itemId, step, on: true|false, mode?, returnUnits?, note? }
+// → production_set_step, qui garde qui/quand et déduit production_status
+// (Emballé = « fait », Donné = retiré / livré). Déco porte le lien stock
+// ci-dessus (mode au cochage, returnUnits au décochage).
+// L'ancien appel { done } reste accepté (page pas encore rechargée) :
+// done=true coche Déco + Emballé, done=false décoche Emballé puis Déco.
 
+const STEPS = ["deco", "texte", "extra", "emballe", "donne"];
 const json = (cors: Record<string, string>, body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
@@ -51,6 +61,10 @@ const unitsList = (v: unknown) => {
 // F15 not applied yet → behave exactly like before (status only).
 const missingFunction = (e: { code?: string; message?: string } | null) =>
   !!e && (e.code === "PGRST202" || e.code === "42883" || /function .*production_/i.test(e.message ?? ""));
+
+// F42 pas encore appliquée (production_set_step absente) → ancien comportement.
+const stepsMissing = (e: { code?: string; message?: string } | null) =>
+  !!e && (e.code === "PGRST202" || e.code === "42883") && /production_set_step/i.test(e.message ?? "");
 
 serve(async (req) => {
   const cors = corsHeaders(req);
@@ -71,14 +85,17 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const itemId = String(body?.itemId ?? "");
     const preview = body?.preview === true;
-    if (!/^[0-9a-f-]{36}$/i.test(itemId) || (!preview && typeof body?.done !== "boolean")) {
+    const step = typeof body?.step === "string" ? body.step : null;
+    if (step !== null && !STEPS.includes(step)) return json(cors, { error: "Étape invalide", reason: "input" }, 400);
+    if (step !== null && typeof body?.on !== "boolean") return json(cors, { error: "on (true/false) is required", reason: "input" }, 400);
+    if (!/^[0-9a-f-]{36}$/i.test(itemId) || (!preview && step === null && typeof body?.done !== "boolean")) {
       return json(cors, { error: "itemId and done (true/false) are required" }, 400);
     }
     const done: boolean = body.done === true;
 
     const { data: item, error: iErr } = await supabase
       .from("order_items")
-      .select("id, order_id, product, size, shape, flavors, quantity, production_status")
+      .select("id, order_id, fulfillment_id, product, size, shape, flavors, quantity, production_status")
       .eq("id", itemId)
       .maybeSingle();
     if (iErr) throw new Error(`Failed to load item: ${iErr.message}`);
@@ -132,7 +149,53 @@ serve(async (req) => {
       });
     }
 
-    // ── « Fait » ──────────────────────────────────────────────────────────
+    // ── Étapes (F42) ──────────────────────────────────────────────────────
+    let delivery = order.delivery_method === "delivery";
+    if (item.fulfillment_id) {
+      const { data: f } = await supabase.from("order_fulfillments").select("delivery_method").eq("id", item.fulfillment_id).maybeSingle();
+      if (f) delivery = f.delivery_method === "delivery";
+    }
+    const setStep = async (s: string, on: boolean) => {
+      const { data, error } = await supabase.rpc("production_set_step", {
+        p_item: itemId, p_step: s, p_on: on, p_by: admin.email, p_delivery: delivery,
+        p_mode: body?.mode === "stock" ? "stock" : "fresh", p_needs: plan.needs, p_unknown: plan.unknownUnits,
+        p_return: unitsList(body?.returnUnits), p_note: typeof body?.note === "string" ? body.note.slice(0, 300) : null,
+      });
+      return { data, error };
+    };
+    const refused = (error: { code?: string; message?: string }) =>
+      error.code === "P0001" ? json(cors, { error: error.message, reason: "refused" }, 409) : null;
+
+    if (step !== null) {
+      const { data, error } = await setStep(step, body.on === true);
+      if (error) {
+        if (stepsMissing(error)) return json(cors, { error: "Étapes pas encore installées (F42)", reason: "not_installed" }, 409);
+        const r = refused(error);
+        if (r) return r;
+        throw new Error(`Failed to set step: ${error.message}`);
+      }
+      return json(cors, { success: true, itemId, productionStatus: data?.productionStatus, steps: data?.steps ?? {}, stock: data?.stock ?? null });
+    }
+
+    // Ancienne page ({ done }) une fois F42 installée : traduit en étapes.
+    {
+      const order2 = done ? ["deco", "emballe"] : ["emballe", "deco"];
+      let last: { productionStatus?: string; steps?: unknown } | null = null;
+      let installed = true;
+      for (const s of order2) {
+        const { data, error } = await setStep(s, done);
+        if (error) {
+          if (stepsMissing(error)) { installed = false; break; }
+          const r = refused(error);
+          if (r) return r;
+          throw new Error(`Failed to set step: ${error.message}`);
+        }
+        last = data;
+      }
+      if (installed) return json(cors, { success: true, itemId, productionStatus: last?.productionStatus, steps: last?.steps ?? {} });
+    }
+
+    // ── « Fait » (avant F42) ──────────────────────────────────────────────
     if (done) {
       const mode = body?.mode === "stock" ? "stock" : "fresh";
       const { data, error } = await supabase.rpc("production_mark_done", {
