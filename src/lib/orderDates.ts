@@ -59,7 +59,7 @@ export function isClosedDay(date: Date): boolean {
 // in every calendar of the site (server: CLOSED_DATES in order-pricing.ts,
 // keep both lists identical). Admin manual orders may still use them.
 export const CLOSED_DATES: readonly string[] = [
-  "2026-11-13", "2026-11-14",
+  "2026-11-12", "2026-11-13", "2026-11-14", // 12.11 ajouté le 09.11.2026 (Mel) : plus de nouvelles commandes en ligne
   // Fêtes : du 29 décembre 2026 au 7 janvier 2027 inclus
   "2026-12-29", "2026-12-30", "2026-12-31",
   "2027-01-01", "2027-01-02", "2027-01-03", "2027-01-04", "2027-01-05", "2027-01-06", "2027-01-07",

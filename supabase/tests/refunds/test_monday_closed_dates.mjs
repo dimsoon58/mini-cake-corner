@@ -62,20 +62,20 @@ check("Admin (commande manuelle) : lundi 10:00 – 11:00 accepté", (await resol
 
 const HOLIDAYS = ["2026-12-29", "2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03", "2027-01-04", "2027-01-05", "2027-01-06", "2027-01-07"];
 
-// ═══ 13 et 14 novembre ═══════════════════════════════════════════════════
-check("Même liste de dates fermées sur le site et le serveur", JSON.stringify(site.CLOSED_DATES) === JSON.stringify(server.CLOSED_DATES) && site.CLOSED_DATES.join() === ["2026-11-13", "2026-11-14", ...HOLIDAYS].join());
-if (zToday <= "2026-11-11") {
-  for (const d of ["2026-11-13", "2026-11-14"]) {
+// ═══ 12, 13 et 14 novembre (12.11 ajouté le 09.11.2026) ═══════════════════════════════════════════════════
+check("Même liste de dates fermées sur le site et le serveur", JSON.stringify(site.CLOSED_DATES) === JSON.stringify(server.CLOSED_DATES) && site.CLOSED_DATES.join() === ["2026-11-12", "2026-11-13", "2026-11-14", ...HOLIDAYS].join());
+if (zToday <= "2026-11-10") {
+  for (const d of ["2026-11-12", "2026-11-13", "2026-11-14"]) {
     check(`Site : ${d} grisé dans le calendrier`, site.isOrderDateDisabled(new Date(`${d}T00:00:00`)) && site.isClosedDate(new Date(`${d}T00:00:00`)));
     const r1 = await resolve(d, "11:00 – 12:00", "pickup"), r2 = await resolve(d, "11:00 – 12:00", "delivery");
     check(`Serveur : ${d} refusé en retrait et en livraison (CLOSED_DATE)`, r1.startsWith("CLOSED_DATE:") && r2.startsWith("CLOSED_DATE:"), [r1, r2]);
     check(`Admin (commande manuelle) : ${d} accepté`, (await resolve(d, "11:00 – 12:00", "pickup", ADMIN)) === "ok");
   }
-  check("Site : 12 novembre (jeudi) et 16 novembre (lundi) restent ouverts",
-    !site.isOrderDateDisabled(new Date("2026-11-12T00:00:00")) && !site.isOrderDateDisabled(new Date("2026-11-16T00:00:00")));
-  check("Serveur : 12 novembre accepté", (await resolve("2026-11-12", "10:00 – 11:00")) === "ok");
+  check("Site : 11 novembre (mercredi) et 16 novembre (lundi) restent ouverts",
+    !site.isOrderDateDisabled(new Date("2026-11-11T00:00:00")) && !site.isOrderDateDisabled(new Date("2026-11-16T00:00:00")));
+  check("Serveur : 18 novembre (mercredi) accepté", (await resolve("2026-11-18", "10:00 – 11:00")) === "ok");
 } else {
-  console.log("(13–14 novembre déjà trop proches ou passés : contrôles de date sautés)");
+  console.log("(12–14 novembre déjà trop proches ou passés : contrôles de date sautés)");
 }
 // ═══ Fêtes : 29 décembre 2026 → 7 janvier 2027 ═══════════════════════════
 if (zToday <= "2026-12-27") {
