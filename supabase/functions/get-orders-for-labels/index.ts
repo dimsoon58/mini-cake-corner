@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { requireAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { itemPrepFlavours, itemStockNeeds, orderStatus, type ProdOrder } from "../_shared/production-stats.ts";
+import { itemPrepFlavours, itemStockNeeds, orderStatus, seatSponges, type ProdOrder } from "../_shared/production-stats.ts";
+import { loadWorkshopProduction } from "../_shared/workshop-production-load.ts";
 import { productionCategory } from "../_shared/production-catalog.ts";
 
 // Admin > Étiquettes de production — read-only. Returns the physical cakes
@@ -56,6 +57,38 @@ const json = (cors: Record<string, string>, body: unknown, status = 200) =>
 
 type Excluded = "not_a_cake" | "order_not_eligible" | "item_cancelled" | "no_date" | null;
 
+// Workshops (10.11.2026) : une ligne par réservation de la période, avec ses
+// gâteaux par génoise (mêmes règles que la page Production : places actives,
+// génoise des places annulées, gâteaux par participant). Le site en fait une
+// étiquette par gâteau, au nom de la personne qui a réservé.
+// deno-lint-ignore no-explicit-any
+async function workshopBookings(supabase: any, from: string, to: string) {
+  const ws = await loadWorkshopProduction(supabase, { from, to });
+  if (ws.items.length === 0) return [];
+  const { data: wOrders, error } = await supabase.from("orders").select("*").in("id", ws.orderIds);
+  if (error) throw new Error(`Failed to load workshop orders: ${error.message}`);
+  const byId = new Map((wOrders ?? []).map((o: { id: string }) => [o.id, o as ProdOrder & Record<string, unknown>]));
+  const out = [];
+  for (const it of ws.items) {
+    const o = byId.get(it.order_id);
+    if (!o) continue;
+    const status = orderStatus(o, false);
+    if (!status.include) continue;
+    const sp = seatSponges(it, status.badge === "awaiting_payment");
+    if (!sp) continue;
+    const per = Math.max(0, Number(ws.state?.settings?.[it.workshop_type ?? ""]?.cakesPerParticipant ?? 1) || 0);
+    if ((sp.vanilla + sp.chocolate + sp.unknown) * per === 0) continue;
+    out.push({
+      itemId: it.id, orderId: it.order_id, orderNumber: o.order_number ?? null,
+      customerName: `${o.first_name ?? ""} ${o.last_name ?? ""}`.trim(),
+      type: it.workshop_type, date: it.workshop_date, time: it.workshop_time,
+      vanilla: sp.vanilla, chocolate: sp.chocolate, unknown: sp.unknown, perParticipant: per,
+      badge: status.badge, isTest: (o as { is_test?: boolean }).is_test === true,
+    });
+  }
+  return out.sort((a, b) => `${a.date} ${a.time ?? ""} ${a.customerName}`.localeCompare(`${b.date} ${b.time ?? ""} ${b.customerName}`));
+}
+
 serve(async (req) => {
   const cors = corsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -97,7 +130,13 @@ serve(async (req) => {
       if (oErr) throw new Error(`Failed to load orders by date: ${oErr.message}`);
       orderIds = Array.from(new Set([...(fIn ?? []).map((f) => f.order_id), ...(oIn ?? []).map((o) => o.id)]));
     }
-    if (orderIds.length === 0) return json(cors, { items: [] });
+    // Les étiquettes des gâteaux ne dépendent jamais des workshops : un échec ici ne bloque rien.
+    let workshops: Awaited<ReturnType<typeof workshopBookings>> = [];
+    if (!single) {
+      try { workshops = await workshopBookings(supabase, from, to); }
+      catch (e) { console.error("get-orders-for-labels: workshops not loaded:", e); }
+    }
+    if (orderIds.length === 0) return json(cors, { items: [], workshops });
 
     // select("*") like get-production: is_draft / created_via / is_test are
     // read when present. Only names and the order number leave this function.
@@ -165,7 +204,7 @@ serve(async (req) => {
         },
       });
     }
-    return json(cors, { items: out });
+    return json(cors, { items: out, workshops });
   } catch (error) {
     console.error("get-orders-for-labels error:", error);
     return json(cors, { error: error instanceof Error ? error.message : "Unknown error" }, 500);

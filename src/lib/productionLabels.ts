@@ -78,6 +78,71 @@ export interface CakeLabel {
   alerts: string[];       // « COMMENTAIRE CLIENT À LIRE », « PHOTO DE RÉFÉRENCE À VOIR »
   isTest: boolean;
   badge: LabelSourceItem["badge"];
+  // Gâteau de workshop (10.11.2026) : compté à part dans la fiche de mise en place.
+  workshop?: boolean;
+}
+
+// ── Workshops (get-orders-for-labels → workshops) ────────────────────────
+export interface WorkshopLabelSource {
+  itemId: string;
+  orderId: string;
+  orderNumber: string | null;
+  customerName: string;
+  type: string | null;
+  date: string;
+  time: string | null;
+  vanilla: number;        // places actives, génoise vanille
+  chocolate: number;      // places actives, génoise chocolat
+  unknown: number;        // places dont la génoise n'est pas connue
+  perParticipant: number; // gâteaux par participant (réglage de la page Production)
+  badge: LabelSourceItem["badge"];
+  isTest: boolean;
+}
+
+const WORKSHOP_NAMES: Record<string, string> = { paint: "Workshop Peinture", signature: "Workshop Signature", piping: "Workshop Pochage" };
+const WORKSHOP_BOXES: Record<string, string> = { paint: "Bento", signature: "Retro Box", piping: "Retro Box" };
+
+/** Gâteaux et workshops réunis par date (gâteaux d'abord, l'ordre de chacun est gardé). */
+export function mergeByDate(cakes: CakeLabel[], workshops: CakeLabel[]): CakeLabel[] {
+  return [...cakes, ...workshops].map((c, i) => ({ c, i })).sort((a, b) => (a.c.date ?? "").localeCompare(b.c.date ?? "") || a.i - b.i).map((x) => x.c);
+}
+
+/** Une étiquette par gâteau de workshop, au nom de la personne qui a réservé (Mel, 10.11.2026). */
+export function workshopCakeLabels(list: WorkshopLabelSource[]): CakeLabel[] {
+  return list.flatMap((w) => {
+    const per = Math.max(0, w.perParticipant);
+    const sponges = [
+      ...Array<string | null>(w.vanilla * per).fill("Génoise vanille"),
+      ...Array<string | null>(w.chocolate * per).fill("Génoise chocolat"),
+      ...Array<string | null>(w.unknown * per).fill(null),
+    ];
+    const n = sponges.length;
+    const type = w.type ?? "";
+    const productLine = [WORKSHOP_NAMES[type] ?? "Workshop", WORKSHOP_BOXES[type]].filter(Boolean).join(" · ");
+    const dateText = `${formatDateCH(w.date)}${w.time ? ` · ${w.time.slice(0, 5)}` : ""}`;
+    return sponges.map((sponge, i) => ({
+      key: `ws-${w.itemId}-${i}`,
+      itemId: w.itemId,
+      orderId: w.orderId,
+      date: w.date,
+      dateText,
+      customer: w.customerName,
+      orderNumber: w.orderNumber,
+      marker: n > 1 ? `${i + 1}/${n}` : null,
+      productLine,
+      flavour: sponge ?? "Génoise à confirmer",
+      base: null, design: null, decoType: null, colours: null,
+      cakeText: null, textColour: null, textStyle: null,
+      missing: [
+        ...(sponge ? [] : ["génoise (place annulée, à vérifier)"]),
+        ...(w.customerName ? [] : ["nom du client"]),
+      ],
+      alerts: [],
+      isTest: w.isTest,
+      badge: w.badge,
+      workshop: true,
+    }));
+  });
 }
 
 export const ALERT_COMMENT = "COMMENTAIRE CLIENT À LIRE";
