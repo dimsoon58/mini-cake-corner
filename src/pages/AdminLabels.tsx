@@ -230,7 +230,7 @@ export default function AdminLabels() {
               ))}
               {!orderId && (sessions.length > 0 || sessionsError) && (
                 <div className="space-y-1 pt-2" data-testid="labels-workshops">
-                  <h2 className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Workshops (fiche de mise en place seulement, pas d'étiquette)</h2>
+                  <h2 className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Workshops pour la fiche de mise en place (leurs étiquettes sont dans la liste ci-dessus)</h2>
                   {sessionsError && <p className="text-xs text-amber-900">Workshops non chargés : la fiche ne les compte pas.</p>}
                   <ul className="divide-y divide-border/60 border border-border/60">
                     {sessions.map((x) => {
