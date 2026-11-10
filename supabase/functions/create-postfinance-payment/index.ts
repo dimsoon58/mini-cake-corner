@@ -26,6 +26,7 @@ import {
   type ResolvedFulfillment,
 } from "../_shared/order-pricing.ts";
 import { workshopTitle, formatWorkshopDate, type WorkshopType } from "../_shared/workshops.ts";
+import { isCatalogColourId } from "../_shared/catalog-colours.ts";
 import { CHRISTMAS_CAKE_PRICES, CHRISTMAS_LAST_DATE, isChristmasCakeDesign, isChristmasItem } from "../_shared/christmas.ts";
 
 
@@ -163,6 +164,7 @@ interface OrderItemRow {
   // Sponge per participant ('vanilla'/'chocolate'), set in the workshop
   // branch below (2026-09-28) — read by Admin > Production.
   workshop_sponge_choices?: string[] | null;
+  workshop_base_colors?: string[] | null;
   // Reward/workshop bugfix (Sept 2026): set below, in the reward-allocation
   // loop, alongside (never instead of) the PostFinance line-item discount —
   // `total` above is NEVER touched by this. 0 for every line the loop
@@ -1108,6 +1110,16 @@ serve(async (req) => {
           rawChoices.length === participants &&
           rawChoices.every((c: unknown) => c === "vanilla" || c === "chocolate")
             ? rawChoices
+            : null;
+        // F45 — Pochage : couleur de base de chaque participant (ids du
+        // catalogue), seulement si une par participant ; sinon NULL.
+        const rawColours = p.workshop_base_colors ?? p.workshopBaseColors ?? null;
+        orderItems[i].workshop_base_colors =
+          sess.workshop_type === "piping" &&
+          Array.isArray(rawColours) &&
+          rawColours.length === participants &&
+          rawColours.every((c: unknown) => isCatalogColourId(c))
+            ? rawColours
             : null;
         // Workshop: base = seat price × participants; only influencer codes
         // (F35) discount it, partners keep their cakes-only rule.

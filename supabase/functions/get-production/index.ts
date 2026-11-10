@@ -199,6 +199,30 @@ serve(async (req) => {
       return st.include && st.badge !== "to_accept";
     }).map((c) => ({ ...c, decorated: c.done === true || decoDone.has(String(c.itemId)) }));
 
+    // F45 : Workshop Pochage — couleur de base de chaque participant, ajoutée à
+    // « Préparation des couleurs » (seulement si aucune place n'a été annulée).
+    const pipingItems = workshopItems.filter((i) => i.workshop_type === "piping");
+    if (pipingItems.length > 0) {
+      const { data: pRows, error: pErr } = await supabase.from("order_items").select("id, workshop_base_colors").in("id", pipingItems.map((i) => i.id));
+      if (!pErr) {
+        const coloursById = new Map((pRows ?? []).map((r: { id: string; workshop_base_colors: string[] | null }) => [r.id, r.workshop_base_colors]));
+        const per = Math.max(1, Number(ws.state?.settings?.piping?.cakesPerParticipant ?? 1) || 1);
+        for (const it of pipingItems) {
+          const o = ordersById.get(it.order_id);
+          if (!o || (!includeTests && isTestOrder(o)) || cancelledItemIds.has(it.id)) continue;
+          if (!orderStatus(o, false).include) continue;
+          if (it.reservation && Number(it.reservation.active_seats) !== Number(it.reservation.purchased_seats)) continue;
+          for (const c of coloursById.get(it.id) ?? []) {
+            colourItems.push({
+              itemId: it.id, orderId: it.order_id, product: "workshop", size: "retro", design: null, quantity: per,
+              baseColor: c, decorationColor: null, textColor: null, hasText: false, ribbonColor: null,
+              extras: [], extra: null, done: false, decorated: false,
+            });
+          }
+        }
+      }
+    }
+
     // Bûches : mêmes règles que les couleurs (pas « à accepter », pas de test sauf demandé, pas annulées).
     const logItems = logRaw.filter((l) => {
       const o = ordersById.get(String(l.orderId));

@@ -627,6 +627,14 @@ const AdminOrder = () => {
                       <DetailRow label={t("Date", "Date")} value={formatDateFromIso(item.workshop_date)} />
                       <DetailRow label={t("Time", "Heure")} value={item.workshop_time} />
                       <DetailRow label={t("Participants", "Participants")} value={item.workshop_participants != null ? String(item.workshop_participants) : null} />
+                      {/* F45 : génoise (et couleur de base pour le Pochage) de chaque participant. */}
+                      {Array.isArray(item.workshop_sponge_choices) && item.workshop_sponge_choices.map((ch: string, pi: number) => (
+                        <DetailRow
+                          key={pi}
+                          label={`${t("Participant", "Participant")} ${pi + 1}`}
+                          value={`${ch === "chocolate" ? t("Chocolate sponge", "Génoise chocolat") : ch === "vanilla" ? t("Vanilla sponge", "Génoise vanille") : ch}${item.workshop_base_colors?.[pi] ? ` · ${colourSwatches(item.workshop_base_colors[pi], lang)[0]?.label ?? item.workshop_base_colors[pi]}` : ""}`}
+                        />
+                      ))}
                       {!employee && <DetailRow label={t("Unit price", "Prix unitaire")} value={item.workshop_unit_price != null ? `CHF ${item.workshop_unit_price}` : null} />}
                       <DetailRow label={t("Notes", "Notes")} value={item.item_comment} />
                     </div>

@@ -77,8 +77,8 @@ export function computeColourPrep(items: ColourItem[], lang: "en" | "fr"): Colou
 
   for (const it of items) {
     const n = Math.max(1, Number(it.quantity) || 1);
-    // Seuls les gâteaux décorés ici et les kits DIY ont des couleurs (pas les Dot Cakes, bougies, impressions).
-    if (!["bento_cake", "rectangle_cake", "diy_kit"].includes(it.product)) continue;
+    // Seuls les gâteaux décorés ici, les kits DIY et les gâteaux du Workshop Pochage (couleur de base, F45) ont des couleurs.
+    if (!["bento_cake", "rectangle_cake", "diy_kit", "workshop"].includes(it.product)) continue;
     if (it.decorated) { skippedDecorated += n; continue; }
     counted += n;
     const ref = it.design?.startsWith("inspiration-") ? inspirationReference(it.design) : null;

@@ -9,6 +9,8 @@ import { useLang } from "@/context/LanguageContext";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCart } from "@/context/CartContext";
+import { baseColors } from "@/data/customization";
+import { colourFr } from "@/data/catalogLabelsFr";
 import { PrivateWorkshopDialog } from "@/components/PrivateWorkshopDialog";
 import { useWorkshopAvailability } from "@/hooks/useWorkshopAvailability";
 import {
@@ -23,28 +25,16 @@ import {
 
 
 // ── Cake colours for Piping Workshop ─────────────────────────────────────────
-const CAKE_COLORS = [
-  { id: "white",        name: "White",        nameFr: "Blanc",          color: "#FFFFFF" },
-  { id: "pastel-pink",  name: "Pastel Pink",  nameFr: "Rose pastel",    color: "#FFE4EC" },
-  { id: "pastel-blue",  name: "Pastel Blue",  nameFr: "Bleu pastel",    color: "#D6EAF8" },
-  { id: "pastel-green", name: "Pastel Green", nameFr: "Vert pastel",    color: "#D5F5E3" },
-  { id: "pastel-yellow",name: "Pastel Yellow",nameFr: "Jaune pastel",   color: "#FDFBCC" },
-  { id: "pastel-lilac", name: "Pastel Lilac", nameFr: "Lilas pastel",   color: "#EAD9F7" },
-  { id: "ivory",        name: "Ivory",        nameFr: "Ivoire",         color: "#FFFFF0" },
-  { id: "sage-green",   name: "Sage Green",   nameFr: "Vert sauge",     color: "#B2C8B2" },
-  { id: "dusty-rose",   name: "Dusty Rose",   nameFr: "Rose poudré",    color: "#DCAEBF" },
-  { id: "sky-blue",     name: "Sky Blue",     nameFr: "Bleu ciel",      color: "#AED6F1" },
-  { id: "mint",         name: "Mint",         nameFr: "Menthe",         color: "#A8DFCB" },
-  { id: "lavender",     name: "Lavender",     nameFr: "Lavande",        color: "#C9BADF" },
-] as const;
-type CakeColorId = (typeof CAKE_COLORS)[number]["id"];
+// F45 (10.11.2026) : mêmes couleurs de base que les commandes de gâteaux
+// (catalogue du site), enregistrées par id dans order_items.workshop_base_colors.
+const CAKE_COLORS = baseColors.map((c) => ({ id: c.id, name: c.name, nameFr: colourFr[c.name] ?? c.name, color: c.color }));
 
 // ── Stepper ──────────────────────────────────────────────────────────────────
 const makeSteps = (type: WorkshopType) => [
   { icon: Calendar, labelEn: "Date", labelFr: "Date" },
   { icon: Users, labelEn: "Participants", labelFr: "Participants" },
   type === "piping"
-    ? { icon: Cake, labelEn: "Colour", labelFr: "Couleur" }
+    ? { icon: Cake, labelEn: "Cake", labelFr: "Gâteau" }
     : { icon: Cake, labelEn: "Sponge", labelFr: "Génoise" },
   { icon: InfoIcon, labelEn: "Information", labelFr: "Informations" },
   { icon: CreditCard, labelEn: "Confirm", labelFr: "Confirmation" },
@@ -323,12 +313,12 @@ const WorkshopBooking = () => {
   const Step2 = () => workshopType === "piping" ? (
     <div>
       <h2 className="font-sans uppercase tracking-[0.105em] text-lg text-foreground mb-2">
-        {t("Choose your cake colour", "Choisissez la couleur de votre gâteau")}
+        {t("Choose your cake", "Choisissez votre gâteau")}
       </h2>
       <p className="text-sm text-muted-foreground mb-6">
         {t(
-          "Each participant chooses the base frosting colour of their cake. Your cake will be assembled and frosted in your chosen colour before the workshop.",
-          "Chaque participant choisit la couleur du glaçage de son gâteau. Votre gâteau sera assemblé et glacé dans la couleur choisie avant le workshop.",
+          "Each participant chooses the sponge and the base frosting colour of their cake. Your cake will be assembled and frosted in your chosen colour before the workshop.",
+          "Chaque participant choisit la génoise et la couleur du glaçage de son gâteau. Votre gâteau sera assemblé et glacé dans la couleur choisie avant le workshop.",
         )}
       </p>
       <div className="divide-y divide-border">
@@ -337,6 +327,27 @@ const WorkshopBooking = () => {
             <span className="text-xs uppercase tracking-[0.1em] text-muted-foreground block mb-3">
               {t(`Participant ${i + 1}`, `Participant ${i + 1}`)}
             </span>
+            <p className="text-xs text-muted-foreground mb-1.5">{t("Sponge", "Génoise")}</p>
+            <div className="flex gap-2 mb-3">
+              {(["vanilla", "chocolate"] as const).map((choice) => (
+                <button
+                  key={choice}
+                  type="button"
+                  onClick={() => setSpongeChoices((prev) => {
+                    const next = [...prev];
+                    next[i] = choice;
+                    return next;
+                  })}
+                  className={`px-4 py-1.5 border text-xs uppercase tracking-wider transition-colors font-medium
+                    ${spongeChoices[i] === choice
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-foreground hover:border-primary/60"}`}
+                >
+                  {choice === "vanilla" ? t("Vanilla", "Vanille") : t("Chocolate", "Chocolat")}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mb-1.5">{t("Base colour", "Couleur de base")}</p>
             <div className="flex flex-wrap gap-2">
               {CAKE_COLORS.map((c) => (
                 <button
@@ -544,9 +555,9 @@ const WorkshopBooking = () => {
       workshopUnitPrice: unitPrice,
       workshopHasMinor: hasMinor === true,
       workshopMinorConsentConfirmed: hasMinor === true ? minorConsent : false,
-      workshopSpongeChoices: workshopType === "piping"
-        ? cakeColorChoices.map((id) => CAKE_COLORS.find(c => c.id === id)?.name ?? id)
-        : spongeChoices,
+      // F45 : Pochage = génoise ET couleur de base (avant : la couleur prenait la place de la génoise).
+      workshopSpongeChoices: spongeChoices,
+      workshopBaseColors: workshopType === "piping" ? cakeColorChoices : undefined,
       total: unitPrice * participants,
     });
 
@@ -579,11 +590,11 @@ const WorkshopBooking = () => {
             ? cakeColorChoices.map((id, i) => (
                 <Row
                   key={i}
-                  label={t(`Participant ${i + 1} – Colour`, `Participant ${i + 1} – Couleur`)}
-                  value={t(
+                  label={t(`Participant ${i + 1}`, `Participant ${i + 1}`)}
+                  value={`${spongeChoices[i] === "chocolate" ? t("Chocolate sponge", "Génoise chocolat") : t("Vanilla sponge", "Génoise vanille")} · ${t(
                     CAKE_COLORS.find(c => c.id === id)?.name ?? id,
                     CAKE_COLORS.find(c => c.id === id)?.nameFr ?? id,
-                  )}
+                  )}`}
                 />
               ))
             : spongeChoices.map((choice, i) => (
@@ -628,7 +639,8 @@ const WorkshopBooking = () => {
   const canAdvance = () => {
     if (step === 0) return selectedSession !== null && sessionSelectable(selectedSession);
     if (step === 1) return participants >= 1 && participants <= maxAllowed;
-    if (step === 2) return spongeChoices.length === participants && spongeChoices.every(Boolean);
+    if (step === 2) return spongeChoices.length === participants && spongeChoices.every(Boolean)
+      && (workshopType !== "piping" || (cakeColorChoices.length === participants && cakeColorChoices.every(Boolean)));
     if (step === 3) return true; // validated on attempt
     return false;
   };

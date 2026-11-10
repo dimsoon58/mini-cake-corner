@@ -221,6 +221,7 @@ const AdminManualOrderEditor = () => {
           key: newKey(),
           dateKey: groupOfItem.get(ii) ?? null,
           workshop_sponge_choices: it.workshop_sponge_choices ?? (it.product === "workshop" ? Array.from({ length: it.workshop_participants ?? 1 }, () => "vanilla") : []),
+          workshop_base_colors: it.workshop_base_colors ?? [],
         })));
         if (o.adjustment) {
           setAdjMode(o.adjustment.type);
@@ -262,6 +263,7 @@ const AdminManualOrderEditor = () => {
       fruit_supplement: it.fruit_supplement === null ? null : (Number(it.fruit_supplement.replace(",", ".")) || 0),
       workshop_session_id: it.workshop_session_id, workshop_participants: it.workshop_participants,
       workshop_sponge_choices: it.workshop_sponge_choices, workshop_has_minor: it.workshop_has_minor,
+      workshop_base_colors: it.workshop_base_colors?.length ? it.workshop_base_colors : null,
       workshop_minor_consent_confirmed: it.workshop_minor_consent_confirmed,
       item_comment: it.item_comment, internal_notes: it.internal_notes, reference_images: it.reference_images,
       base_color: it.base_color, decoration_color: it.decoration_color, cake_text: it.cake_text, text_color: it.text_color, text_style: it.text_style,

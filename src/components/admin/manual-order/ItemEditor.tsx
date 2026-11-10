@@ -91,7 +91,8 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
   const setParticipants = (n: number) => {
     const count = Math.max(1, Math.min(n || 1, session?.maxCapacity ?? 20));
     const choices = Array.from({ length: count }, (_, i) => item.workshop_sponge_choices[i] ?? "vanilla");
-    set({ workshop_participants: count, workshop_sponge_choices: choices });
+    const colours = session?.type === "piping" ? Array.from({ length: count }, (_, i) => item.workshop_base_colors?.[i] ?? "") : [];
+    set({ workshop_participants: count, workshop_sponge_choices: choices, workshop_base_colors: colours });
   };
 
   const upload = async (files: FileList | null) => {
@@ -490,6 +491,30 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
                 ))}
               </div>
             </div>
+            {session?.type === "piping" && (
+              <div className="md:col-span-2" data-testid="piping-colours">
+                <label className={label}>{t("Base colour per participant (Piping)", "Couleur de base par participant (Pochage)")}<span className="text-destructive"> *</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: Number(item.workshop_participants) || 1 }, (_, ci) => (
+                    <select
+                      key={ci}
+                      value={item.workshop_base_colors?.[ci] ?? ""}
+                      onChange={(e) => {
+                        const n = Number(item.workshop_participants) || 1;
+                        const next = Array.from({ length: n }, (_, k) => item.workshop_base_colors?.[k] ?? "");
+                        next[ci] = e.target.value;
+                        set({ workshop_base_colors: next });
+                      }}
+                      className={cn(field, "w-auto")}
+                      aria-label={`${t("Colour", "Couleur")} ${ci + 1}`}
+                    >
+                      <option value="">{ci + 1}. {t("Colour?", "Couleur ?")}</option>
+                      {COLOURS.map((c) => <option key={c.id} value={c.id}>{ci + 1}. {c.name}</option>)}
+                    </select>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="md:col-span-2 flex flex-wrap gap-4 text-sm">
               <label className="inline-flex items-center gap-1.5">
                 <input type="checkbox" checked={item.workshop_has_minor} onChange={(e) => set({ workshop_has_minor: e.target.checked, workshop_minor_consent_confirmed: e.target.checked && item.workshop_minor_consent_confirmed })} />

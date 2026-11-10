@@ -107,6 +107,7 @@ export interface CartItem {
   workshopHasMinor?: boolean;
   workshopMinorConsentConfirmed?: boolean;
   workshopSpongeChoices?: string[];  // one per participant: "vanilla" | "chocolate"
+  workshopBaseColors?: string[];     // F45 — Pochage : couleur de base (id du catalogue) par participant
   total: number;
   /* Standalone candle product (added from the Candles page) */
   isCandleProduct?: boolean;

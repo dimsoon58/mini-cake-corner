@@ -33,6 +33,7 @@ export interface EditorItem {
   workshop_session_id: string | null;
   workshop_participants: number | null;
   workshop_sponge_choices: string[];
+  workshop_base_colors: string[];  // F45 — Pochage : couleur de base (id du catalogue) par participant
   workshop_has_minor: boolean;
   workshop_minor_consent_confirmed: boolean;
   item_comment: string;
@@ -115,6 +116,7 @@ export const emptyItem = (product: ProductId = "bento_cake"): EditorItem => ({
   workshop_session_id: null,
   workshop_participants: product === "workshop" ? 1 : null,
   workshop_sponge_choices: product === "workshop" ? ["vanilla"] : [],
+  workshop_base_colors: [],
   workshop_has_minor: false,
   workshop_minor_consent_confirmed: false,
   item_comment: "",

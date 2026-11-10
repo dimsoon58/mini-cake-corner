@@ -54,7 +54,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isOrderDateDisabled, isClosedDay, isClosedDate, CLOSED_DAY_COPY, CLOSED_DATE_COPY, slotRuleCopy, slotsForDate, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
 import { isChristmasCartItem, isAfterChristmasLastDate } from "@/data/christmas";
-import { cartItemTitle, flavorLabel, shapeLabel } from "@/lib/orderLabels";
+import { cartItemTitle, flavorLabel, shapeLabel, colourLabel } from "@/lib/orderLabels";
 import { ExpressLegend, ExpressDateNotice, OrderCalendar } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 import { getStoredOrderId, setStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
@@ -1590,6 +1590,7 @@ const Checkout = () => {
           workshop_session_id: item.product === "workshop" ? (item.workshopSessionId ?? null) : null,
           workshop_participants: item.product === "workshop" ? (item.workshopParticipants ?? null) : null,
           workshop_sponge_choices: item.product === "workshop" ? (item.workshopSpongeChoices ?? null) : null,
+          workshop_base_colors: item.product === "workshop" ? (item.workshopBaseColors ?? null) : null,
         })),
         items: items.map((item) => ({
           sizeName: item.sizeName,
@@ -2171,6 +2172,7 @@ const Checkout = () => {
                               {item.workshopSpongeChoices.map((ch: string, i: number) => (
                                 <p key={i} className="text-[10px] text-muted-foreground">
                                   P{i + 1}: {ch === "vanilla" ? t("Vanilla sponge", "Génoise vanille") : t("Chocolate sponge", "Génoise chocolat")}
+                                  {item.workshopBaseColors?.[i] ? ` · ${colourLabel(item.workshopBaseColors[i], lang === "fr" ? "fr" : "en")}` : ""}
                                 </p>
                               ))}
                             </div>
