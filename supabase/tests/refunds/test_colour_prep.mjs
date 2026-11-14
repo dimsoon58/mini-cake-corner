@@ -124,7 +124,7 @@ await build({ entryPoints: [path.join(REPO, "src/lib/colourPrep.ts")], bundle: t
     });
     b.onLoad({ filter: /\.(png|jpe?g|webp|svg|gif)$/ }, (a) => ({ contents: `export default ${JSON.stringify(path.basename(a.path))};`, loader: "js" }));
   } }] });
-const { computeColourPrep } = await import(path.join(tmp, "prep.mjs"));
+const { computeColourPrep, formatSpoons: fmtSp } = await import(path.join(tmp, "prep.mjs"));
 const cake = (o) => ({ itemId: `i${Math.random()}`, orderId: "o", product: "bento_cake", size: "bento", design: "normal-without-border", quantity: 1,
   baseColor: null, decorationColor: null, textColor: null, hasText: false, ribbonColor: null, extras: [], extra: null, decorated: false, ...o });
 const P = computeColourPrep([
@@ -140,13 +140,13 @@ const P = computeColourPrep([
   cake({ product: "diy_kit", size: "kit-bento", design: "diy-kit", extra: "2 piping bags" }),
   cake({ product: "dot_cakes", size: "dot-cakes-12" }),
 ], "fr");
-const rib = (label, size) => P.ribbons.find((r) => r.label === label && r.size === size);
-check("Rubans : nom (site) et code (manuel) regroupés : 3 sets Rose bébé · Bento", rib(P.ribbons.find((r) => r.key === "baby-pink" && r.size === "bento")?.label, "bento")?.sets === 3, P.ribbons);
-check("Rubans : par taille (1 set Rose bébé · Medium)", P.ribbons.find((r) => r.key === "baby-pink" && r.size === "medium")?.sets === 1);
+const rib = (k) => P.ribbons.find((r) => r.key === k);
+check("Rubans : par couleur seulement (toutes tailles) — nom (site) et code (manuel) regroupés : 4 sets Rose bébé", rib("baby-pink")?.sets === 4 && P.ribbons.filter((r) => r.key === "baby-pink").length === 1, P.ribbons);
+check("Rubans : plus de taille sur les lignes", P.ribbons.every((r) => !("size" in r) && !("sizeLabel" in r)), P.ribbons);
 check("Rubans : gâteau déjà décoré non compté", !P.ribbons.some((r) => r.key === "red"));
 check("Rubans : la bougie « Ribbon » n'est pas un ruban", P.ribbons.reduce((n, r) => n + r.sets, 0) === 6, P.ribbons);
-check("Rubans d'une inspiration : couleur de référence « Rose (réf.) »", P.ribbons.some((r) => r.reference && /Rose \(réf\.\)/.test(r.label) && r.size === "bento"), P.ribbons);
-check("Rubans d'une inspiration sans couleur : « Couleur à vérifier » en bas de liste", P.ribbons.at(-1)?.toCheck === true && P.ribbons.at(-1)?.size === "medium");
+check("Rubans d'une inspiration : couleur de référence « Rose (réf.) »", P.ribbons.some((r) => r.reference && /Rose \(réf\.\)/.test(r.label)), P.ribbons);
+check("Rubans d'une inspiration sans couleur : « Couleur à vérifier » en bas de liste", P.ribbons.at(-1)?.toCheck === true);
 const base = (k) => P.bases.find((b) => b.key === k)?.cakes;
 check("Bases : Blanc 4 gâteaux (quantités comprises), Rose pastel 1", base("white") === 4 && base("pastel-pink") === 1, P.bases);
 check("Bases : inspiration sans couleur → couleur de référence (réf.)", P.bases.some((b) => b.reference && b.label === "Rose (réf.)"));
@@ -159,6 +159,21 @@ check("Écritures : seulement les gâteaux avec un texte (Noir 1)", P.writing.le
 check("Kits DIY : couleurs des poches (Bleu ciel, Rose, Orange pastel) + 1 à vérifier", P.kits.length === 4 && P.kits.some((k) => k.key === "sky-blue") && P.kits.at(-1).toCheck, P.kits);
 check("Dot Cakes : aucune couleur ni ruban", !P.bases.some((b) => b.cakes > 4));
 check("Comptes : 9 gâteaux comptés, 1 déjà décoré", P.counted === 9 && P.skippedDecorated === 1, [P.counted, P.skippedDecorated]);
+// ── Crèmes en cuillères (Mel, 14.11.2026) : Bento 1, Retro 1,5, Medium 2, Large 3, Rectangle 3
+const en = (k) => P.enchanted.find((b) => b.key === k);
+check("Crème enchantée = bases + décorations : Blanc = base (bento + 2 bentos + large = 1+2+3) + déco (medium roses = 2) = 8 cuill.", en("white")?.spoons === 8 && en("white")?.baseCakes === 4 && en("white")?.decoCakes === 1, en("white"));
+check("Crème enchantée : Rose = déco bento + 2 bentos = 3 cuill.", en("pink")?.spoons === 3, en("pink"));
+check("Crème enchantée : Rouge foncé = bento 1 + large 3 = 4 cuill., « dont 1 bordure »", en("dark-red")?.spoons === 4 && en("dark-red")?.border === 1, en("dark-red"));
+check("Crème enchantée : Rose pastel = base medium = 2 cuill.", en("pastel-pink")?.spoons === 2);
+check("Crème au beurre = écritures : Noir = medium = 2 cuill.", P.butter.length === 1 && P.butter[0].key === "black" && P.butter[0].spoons === 2, P.butter);
+check("Totaux des crèmes", P.butterSpoons === 2 && P.enchantedSpoons === P.enchanted.reduce((n, l) => n + l.spoons, 0), [P.enchantedSpoons, P.butterSpoons]);
+check("Crème enchantée triée par cuillères (la plus grosse en premier, « à vérifier » en bas)", P.enchanted.filter((l) => !l.toCheck).every((l, i, a) => i === 0 || a[i - 1].spoons >= l.spoons));
+const S = computeColourPrep([
+  cake({ size: "retro", baseColor: "white" }), cake({ product: "rectangle_cake", size: "rectangle", baseColor: "white" }),
+  cake({ product: "workshop", size: "retro", baseColor: "sky-blue", quantity: 2 }), cake({ size: null, baseColor: "white" }),
+], "fr");
+check("Cuillères : Retro 1,5 + Rectangle 3 + taille inconnue 1 = 5,5 ; Workshop Pochage (retro × 2) = 3", S.enchanted.find((l) => l.key === "white")?.spoons === 5.5 && S.enchanted.find((l) => l.key === "sky-blue")?.spoons === 3, S.enchanted);
+check("Affichage : « 5,5 cuill. » en français, « 5.5 tbsp » en anglais, entier sans décimale", fmtSp(5.5, "fr") === "5,5 cuill." && fmtSp(5.5, "en") === "5.5 tbsp" && fmtSp(8, "fr") === "8 cuill.");
 check("Libellés en français (Blanc, Rose)", P.bases.find((b) => b.key === "white")?.label === "Blanc");
 
 // ═══ B. get-production : mêmes gâteaux que la production ═══════════════

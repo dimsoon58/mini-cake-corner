@@ -16,6 +16,7 @@ import {
 } from "@/lib/productionLabels";
 import { canvasMeasure, exportNiimbotXlsx, exportOnePng, exportPdf, exportPngZip, renderPage } from "@/lib/productionLabelsExport";
 import { buildPrepSheet, prepSheetHtml, workshopTypeLabel, type PrepWorkshopSession } from "@/lib/prepSheet";
+import { ColourPrepView } from "@/components/admin/ColourPrepPanel";
 import { cn } from "@/lib/utils";
 
 // Admin > Étiquettes de production. Remplace les Post-it : une étiquette
@@ -310,6 +311,10 @@ export default function AdminLabels() {
                       {sheet.ingredients.length === 0 ? <p className="text-muted-foreground">—</p> : (
                         <ul>{sheet.ingredients.map((f) => <li key={f.label} className="flex justify-between border-b border-border/40 py-0.5"><span>{f.label}</span><b>{f.units}</b></li>)}</ul>
                       )}
+                    </div>
+                    <div className="sm:col-span-2" data-testid="prep-colours">
+                      <h3 className="text-xs uppercase tracking-[0.06em] text-muted-foreground mb-1">Couleurs (crèmes et rubans)</h3>
+                      <ColourPrepView prep={sheet.colours} compact />
                     </div>
                     {sheet.toCheck.length > 0 && (
                       <div className="sm:col-span-2 text-xs text-amber-900">
