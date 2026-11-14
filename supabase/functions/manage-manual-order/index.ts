@@ -139,6 +139,50 @@ async function sendManualConfirmation(supabase: any, orderId: string): Promise<{
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 const strOrNull = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
+// Products of an order in a stable order (rows inserted together share the
+// same created_at, so the id breaks the tie).
+// deno-lint-ignore no-explicit-any
+function sortItemRows<T extends { id: string; created_at?: any }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const ta = String(a.created_at ?? ""), tb = String(b.created_at ?? "");
+    return ta < tb ? -1 : ta > tb ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+}
+
+// What makes a product "the same cake" for Production.
+// deno-lint-ignore no-explicit-any
+const itemSignature = (r: any) => JSON.stringify([
+  r.product ?? null, r.size ?? null, r.shape ?? null, r.design ?? null,
+  Array.isArray(r.flavors) ? r.flavors : [], r.workshop_session_id ?? null,
+]);
+
+const NOT_STARTED = new Set(["to_assign", "pending"]);
+
+// Pairs the saved products with the products already on the order, so that
+// they are updated in place instead of deleted and re-created.
+//   1. same product (signature) → same row, in order;
+//   2. otherwise, the next unused row whose Production hasn't started
+//      (production_status to_assign / pending / empty) — a product already
+//      started (Déco, « Fait », emballé, remis) is never re-used for a
+//      different cake.
+// Rows left over are the products removed from the order.
+// deno-lint-ignore no-explicit-any
+function matchItemRows(olds: any[], news: any[]): { targetByNew: (string | null)[]; removed: { id: string }[] } {
+  const used = new Set<string>();
+  const targetByNew: (string | null)[] = news.map(() => null);
+  news.forEach((n, i) => {
+    const sig = itemSignature(n);
+    const o = olds.find((x) => !used.has(x.id) && itemSignature(x) === sig);
+    if (o) { used.add(o.id); targetByNew[i] = o.id; }
+  });
+  news.forEach((_, i) => {
+    if (targetByNew[i]) return;
+    const o = olds.find((x) => !used.has(x.id) && NOT_STARTED.has(x.production_status ?? "to_assign"));
+    if (o) { used.add(o.id); targetByNew[i] = o.id; }
+  });
+  return { targetByNew, removed: olds.filter((x) => !used.has(x.id)).map((x) => ({ id: x.id })) };
+}
+
 // deno-lint-ignore no-explicit-any
 function editableState(o: any): { ok: boolean; reason?: string } {
   if (o.created_via !== "admin") return { ok: false, reason: "Only orders created from the Admin can be edited here" };
@@ -197,7 +241,7 @@ serve(async (req) => {
         itemIndexes: [] as number[],
       }));
       // deno-lint-ignore no-explicit-any
-      const editorItems = (items ?? []).map((it: any, idx: number) => {
+      const editorItems = sortItemRows(items ?? []).map((it: any, idx: number) => {
         if (it.fulfillment_id && fIndex.has(it.fulfillment_id)) fulfillments[fIndex.get(it.fulfillment_id)!].itemIndexes.push(idx);
         return {
           product: it.product,
@@ -425,10 +469,16 @@ serve(async (req) => {
       }
 
       // Snapshot of the current rows, to restore them if the save fails.
-      const { data: oldItems } = existing ? await supabase.from("order_items").select("id, fulfillment_id").eq("order_id", orderId) : { data: [] };
+      // Full rows (not only ids): products kept in place are restored from
+      // this snapshot if a later step fails.
+      // deno-lint-ignore no-explicit-any
+      const { data: oldItemsRaw } = existing ? await supabase.from("order_items").select("*").eq("order_id", orderId) : { data: [] };
+      // deno-lint-ignore no-explicit-any
+      const oldItems: any[] = sortItemRows(oldItemsRaw ?? []);
       const { data: oldFuls } = existing ? await supabase.from("order_fulfillments").select("*").eq("order_id", orderId) : { data: [] };
       let newFulIds: string[] = [];
       let newItemIds: string[] = [];
+      let keptItemIds: string[] = [];
       try {
         // 2. Dates — for an existing order, the old rows are removed first
         //    (one row per date is enforced by the database).
@@ -515,14 +565,41 @@ serve(async (req) => {
             workshop_minor_consent_confirmed: isWorkshop ? !!it.workshop_minor_consent_confirmed : false,
           };
         });
-        const { data: insI, error: iErr } = await supabase.from("order_items").insert(itemRows).select("id");
-        if (iErr) throw new Error(`Failed to save products: ${iErr.message}`);
-        newItemIds = (insI ?? []).map((r: { id: string }) => r.id);
+        // Products already on the order are updated IN PLACE (same id), not
+        // deleted and re-created: Production (« Fait », stock movements,
+        // preparations, steps), labels, notes and item changes all point at
+        // order_items.id and must keep their history (14.11.2026 — saving an
+        // order whose cake was already « Fait » failed on
+        // production_stock_movements_order_item_id_fkey).
+        const plan = matchItemRows(oldItems, itemRows);
+        for (const [i, row] of itemRows.entries()) {
+          const target = plan.targetByNew[i];
+          if (!target) continue;
+          // deno-lint-ignore no-unused-vars
+          const { order_id, ...fields } = row;
+          const { error } = await supabase.from("order_items").update(fields).eq("id", target);
+          if (error) throw new Error(`Failed to save products: ${error.message}`);
+          keptItemIds.push(target);
+        }
+        const toInsert = itemRows.filter((_, i) => !plan.targetByNew[i]);
+        if (toInsert.length > 0) {
+          const { data: insI, error: iErr } = await supabase.from("order_items").insert(toInsert).select("id");
+          if (iErr) throw new Error(`Failed to save products: ${iErr.message}`);
+          newItemIds = (insI ?? []).map((r: { id: string }) => r.id);
+        }
 
-        // 4. Old items, then the order fields.
-        if ((oldItems ?? []).length > 0) {
-          const { error } = await supabase.from("order_items").delete().in("id", (oldItems ?? []).map((r: { id: string }) => r.id));
-          if (error) throw new Error(`Failed to replace products: ${error.message}`);
+        // 4. Products removed from the order, then the order fields.
+        if (plan.removed.length > 0) {
+          const { error } = await supabase.from("order_items").delete().in("id", plan.removed.map((r) => r.id));
+          if (error) {
+            if (/foreign key/i.test(error.message)) {
+              throw new Error(
+                "A removed product already has a Production history (marked done, stock used or label printed) and can't be deleted here. " +
+                "Keep it on the order, or cancel it from the order page (« Annuler ce gâteau »).",
+              );
+            }
+            throw new Error(`Failed to replace products: ${error.message}`);
+          }
         }
         if (existing) {
           const { error } = await supabase.from("orders").update(orderFields).eq("id", orderId);
@@ -541,8 +618,18 @@ serve(async (req) => {
             const { error: restoreErr } = await supabase.from("order_fulfillments").insert(oldFuls);
             if (restoreErr) console.error(`manage-manual-order: could not restore dates of ${orderId}:`, restoreErr);
           }
-          for (const it of (oldItems ?? []) as { id: string; fulfillment_id: string | null }[]) {
-            if (it.fulfillment_id) await supabase.from("order_items").update({ fulfillment_id: it.fulfillment_id }).eq("id", it.id);
+          // Every previous product gets its previous content back (products
+          // updated in place) and its previous date link.
+          const kept = new Set(keptItemIds);
+          for (const it of oldItems) {
+            if (kept.has(it.id)) {
+              // deno-lint-ignore no-unused-vars
+              const { id, created_at, ...previous } = it;
+              const { error: rErr } = await supabase.from("order_items").update(previous).eq("id", it.id);
+              if (rErr) console.error(`manage-manual-order: could not restore product ${it.id}:`, rErr);
+            } else if (it.fulfillment_id) {
+              await supabase.from("order_items").update({ fulfillment_id: it.fulfillment_id }).eq("id", it.id);
+            }
           }
         }
         throw e;

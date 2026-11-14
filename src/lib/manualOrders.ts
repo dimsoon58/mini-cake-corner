@@ -358,6 +358,9 @@ const MESSAGE_RULES: { re: RegExp; en: string | ((m: RegExpMatchArray) => string
   { re: /amount of the fruit supplement/i, en: "Enter the amount of the fruit supplement", fr: "Indiquez le montant du supplément fruits" },
   { re: /fruit supplement can't exceed/i, en: "The fruit supplement can't exceed CHF 500", fr: "Le supplément fruits ne peut pas dépasser CHF 500" },
   { re: /Add at least one product/i, en: "Add at least one product", fr: "Ajoutez au moins un produit" },
+  { re: /removed product already has a Production history/i,
+    en: "A product you removed is already started in Production (done, stock used or label) — keep it, or cancel it from the order page (« Cancel this cake »)",
+    fr: "Un produit retiré est déjà commencé en Production (fait, stock utilisé ou étiquette) — gardez-le, ou annulez-le depuis la fiche commande (« Annuler ce gâteau »)" },
 ];
 
 export function friendlyMessage(msg: string, lang: "en" | "fr"): string {
