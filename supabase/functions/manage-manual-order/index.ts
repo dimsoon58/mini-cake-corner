@@ -12,6 +12,7 @@ import {
 import { FLAVOUR_BY_ID, resolveFlavour } from "../_shared/production-catalog.ts";
 import { CAKE_EXTRAS, DIY_KIT_PIPING, roundToCents } from "../_shared/pricing.ts";
 import { getSiteBaseUrl } from "../_shared/site-config.ts";
+import { isCatalogColourId } from "../_shared/catalog-colours.ts";
 import { renderPaymentLinkEmail } from "../_shared/payment-link-email.ts";
 
 // Admin manual orders — writes. Same core tables as website orders (orders,
@@ -95,6 +96,7 @@ interface EditorItem extends QuoteItemInput {
   extra_color?: string | null;        // option colours alone, e.g. "Pink, Gold" (as the checkout)
   inside_color?: string | null;       // Gender Reveal inside colour, "Rose" / "Bleu" (as the checkout)
   workshop_sponge_choices?: string[] | null;
+  workshop_base_colors?: string[] | null; // F45 — Pochage : couleur de base par participant
   workshop_has_minor?: boolean;
   workshop_minor_consent_confirmed?: boolean;
 }
@@ -371,11 +373,24 @@ serve(async (req) => {
           if (quote.errors.length === 0 && quote.totals.calculated === null && problems.length === 0) problems.push("The price could not be calculated");
         }
         if (adj && quote.adjustment.amount !== 0 && !adj.reason) problems.push("Choose a reason for the price adjustment");
+        // F45 — sessions Pochage (la couleur de base y est obligatoire).
+        const wsIds = items.filter((it) => it.product === "workshop" && it.workshop_session_id).map((it) => String(it.workshop_session_id));
+        const pipingSessions = new Set<string>();
+        if (wsIds.length > 0) {
+          const { data: sessRows } = await supabase.from("workshop_sessions").select("id, workshop_type").in("id", wsIds);
+          for (const r of sessRows ?? []) if (r.workshop_type === "piping") pipingSessions.add(r.id);
+        }
+        const wsTypeOf = (it: { workshop_session_id?: string | null }) => (it.workshop_session_id && pipingSessions.has(it.workshop_session_id) ? "piping" : null);
         items.forEach((it, i) => {
           if (it.product === "workshop") {
             const n = Number(it.workshop_participants) || 0;
             const ch = it.workshop_sponge_choices ?? [];
             if (ch.length !== n || !ch.every((x) => x === "vanilla" || x === "chocolate")) problems.push(`Item ${i + 1}: choose the sponge of each participant`);
+            // F45 — Pochage : une couleur de base par participant.
+            if (wsTypeOf(it) === "piping") {
+              const col = it.workshop_base_colors ?? [];
+              if (col.length !== n || !col.every((x) => isCatalogColourId(x))) problems.push(`Item ${i + 1}: choose the base colour of each participant`);
+            }
             if (it.workshop_has_minor && !it.workshop_minor_consent_confirmed) problems.push(`Item ${i + 1}: confirm the legal representative's consent for the minor`);
           }
         });
@@ -561,6 +576,10 @@ serve(async (req) => {
                 it.workshop_sponge_choices.length === Number(it.workshop_participants) &&
                 it.workshop_sponge_choices.every((x) => x === "vanilla" || x === "chocolate")
               ? it.workshop_sponge_choices : null,
+            workshop_base_colors: isWorkshop && ws?.type === "piping" && Array.isArray(it.workshop_base_colors) &&
+                it.workshop_base_colors.length === Number(it.workshop_participants) &&
+                it.workshop_base_colors.every((x) => isCatalogColourId(x))
+              ? it.workshop_base_colors : null,
             workshop_has_minor: isWorkshop ? !!it.workshop_has_minor : false,
             workshop_minor_consent_confirmed: isWorkshop ? !!it.workshop_minor_consent_confirmed : false,
           };

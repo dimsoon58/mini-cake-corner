@@ -95,6 +95,8 @@ export interface WorkshopLabelSource {
   chocolate: number;      // places actives, génoise chocolat
   unknown: number;        // places dont la génoise n'est pas connue
   perParticipant: number; // gâteaux par participant (réglage de la page Production)
+  // F45 : génoise et couleur de base (Pochage) de chaque participant, dans l'ordre ; null si des places ont été annulées.
+  participants?: { sponge: string; colour: string | null }[] | null;
   badge: LabelSourceItem["badge"];
   isTest: boolean;
 }
@@ -111,11 +113,15 @@ export function mergeByDate(cakes: CakeLabel[], workshops: CakeLabel[]): CakeLab
 export function workshopCakeLabels(list: WorkshopLabelSource[]): CakeLabel[] {
   return list.flatMap((w) => {
     const per = Math.max(0, w.perParticipant);
-    const sponges = [
-      ...Array<string | null>(w.vanilla * per).fill("Génoise vanille"),
-      ...Array<string | null>(w.chocolate * per).fill("Génoise chocolat"),
-      ...Array<string | null>(w.unknown * per).fill(null),
-    ];
+    const spongeName = (s: string) => (s === "chocolate" ? "Génoise chocolat" : "Génoise vanille");
+    const cakes: { sponge: string | null; colour: string | null }[] = w.participants?.length
+      ? w.participants.flatMap((p) => Array.from({ length: per }, () => ({ sponge: spongeName(p.sponge), colour: p.colour ? colourLabel(p.colour) : null })))
+      : [
+        ...Array.from({ length: w.vanilla * per }, () => ({ sponge: "Génoise vanille", colour: null })),
+        ...Array.from({ length: w.chocolate * per }, () => ({ sponge: "Génoise chocolat", colour: null })),
+        ...Array.from({ length: w.unknown * per }, () => ({ sponge: null, colour: null })),
+      ];
+    const sponges = cakes.map((c) => c.sponge);
     const n = sponges.length;
     const type = w.type ?? "";
     const productLine = [WORKSHOP_NAMES[type] ?? "Workshop", WORKSHOP_BOXES[type]].filter(Boolean).join(" · ");
@@ -131,10 +137,12 @@ export function workshopCakeLabels(list: WorkshopLabelSource[]): CakeLabel[] {
       marker: n > 1 ? `${i + 1}/${n}` : null,
       productLine,
       flavour: sponge ?? "Génoise à confirmer",
-      base: null, design: null, decoType: null, colours: null,
+      base: cakes[i].colour,
+      design: null, decoType: null, colours: null,
       cakeText: null, textColour: null, textStyle: null,
       missing: [
-        ...(sponge ? [] : ["génoise (place annulée, à vérifier)"]),
+        ...(sponge ? [] : ["génoise (pas choisie ou place annulée)"]),
+        ...(type === "piping" && sponge && !cakes[i].colour ? ["couleur de base"] : []),
         ...(w.customerName ? [] : ["nom du client"]),
       ],
       alerts: [],

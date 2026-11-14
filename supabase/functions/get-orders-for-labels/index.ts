@@ -68,6 +68,9 @@ async function workshopBookings(supabase: any, from: string, to: string) {
   const { data: wOrders, error } = await supabase.from("orders").select("*").in("id", ws.orderIds);
   if (error) throw new Error(`Failed to load workshop orders: ${error.message}`);
   const byId = new Map((wOrders ?? []).map((o: { id: string }) => [o.id, o as ProdOrder & Record<string, unknown>]));
+  // F45 : génoise et couleur de base de chaque participant (Pochage), dans l'ordre.
+  const { data: choiceRows } = await supabase.from("order_items").select("id, workshop_sponge_choices, workshop_base_colors").in("id", ws.items.map((i) => i.id));
+  const choicesById = new Map((choiceRows ?? []).map((r: { id: string; workshop_sponge_choices: string[] | null; workshop_base_colors: string[] | null }) => [r.id, r]));
   const out = [];
   for (const it of ws.items) {
     const o = byId.get(it.order_id);
@@ -78,11 +81,20 @@ async function workshopBookings(supabase: any, from: string, to: string) {
     if (!sp) continue;
     const per = Math.max(0, Number(ws.state?.settings?.[it.workshop_type ?? ""]?.cakesPerParticipant ?? 1) || 0);
     if ((sp.vanilla + sp.chocolate + sp.unknown) * per === 0) continue;
+    // Détail par participant seulement si aucune place n'a été annulée (sinon on ne sait pas lesquelles restent).
+    const ch = choicesById.get(it.id);
+    const seats = Number(it.workshop_participants) || 0;
+    const noCancel = !it.reservation || Number(it.reservation.active_seats) === Number(it.reservation.purchased_seats);
+    const sponges = Array.isArray(ch?.workshop_sponge_choices) ? ch!.workshop_sponge_choices! : [];
+    const colours = Array.isArray(ch?.workshop_base_colors) ? ch!.workshop_base_colors! : [];
+    const participants = noCancel && sponges.length === seats && sponges.every((x) => x === "vanilla" || x === "chocolate")
+      ? sponges.map((s, k) => ({ sponge: s, colour: colours.length === seats ? colours[k] ?? null : null }))
+      : null;
     out.push({
       itemId: it.id, orderId: it.order_id, orderNumber: o.order_number ?? null,
       customerName: `${o.first_name ?? ""} ${o.last_name ?? ""}`.trim(),
       type: it.workshop_type, date: it.workshop_date, time: it.workshop_time,
-      vanilla: sp.vanilla, chocolate: sp.chocolate, unknown: sp.unknown, perParticipant: per,
+      vanilla: sp.vanilla, chocolate: sp.chocolate, unknown: sp.unknown, perParticipant: per, participants,
       badge: status.badge, isTest: (o as { is_test?: boolean }).is_test === true,
     });
   }

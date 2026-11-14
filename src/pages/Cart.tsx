@@ -34,7 +34,7 @@ import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
-import { splitComment, flavorLabel, shapeLabel, cartItemTitle } from "@/lib/orderLabels";
+import { splitComment, flavorLabel, shapeLabel, cartItemTitle, colourLabel } from "@/lib/orderLabels";
 import {
   sizes,
   shapes,
@@ -613,6 +613,7 @@ const Cart = () => {
                               {item.workshopSpongeChoices.map((ch, i) => (
                                 <p key={i} className="text-[10px] text-muted-foreground">
                                   P{i + 1}: {ch === "vanilla" ? "Génoise vanille" : "Génoise chocolat"}
+                                  {item.workshopBaseColors?.[i] ? ` · ${colourLabel(item.workshopBaseColors[i], lang === "fr" ? "fr" : "en")}` : ""}
                                 </p>
                               ))}
                             </div>

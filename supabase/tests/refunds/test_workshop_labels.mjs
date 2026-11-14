@@ -40,5 +40,14 @@ check("11 fusion par date : 13.11 puis gâteaux du 14.11 puis workshops", m[0].k
 const measure = (t, f) => t.length * f.size * 0.55;
 const txt = pageText(layoutCake(a[1], measure)[0]).join(" ").replace(/\s+/g, " ");
 check("12 texte imprimé", /14\.11\.2026 · 18:00/.test(txt) && /Claire Dupont/.test(txt) && /ORDM-1/.test(txt) && /2\/2/.test(txt) && /Workshop Peinture · Bento/.test(txt) && /Génoise chocolat/.test(txt), txt);
+// F45 : Pochage avec génoise et couleur par participant
+const P = workshopCakeLabels([{ ...base, itemId: "p", type: "piping", time: "19:00", vanilla: 1, chocolate: 1, unknown: 0,
+  participants: [{ sponge: "chocolate", colour: "pastel-pink" }, { sponge: "vanilla", colour: "sky-blue" }] }]);
+check("13 Pochage : génoise et couleur dans l'ordre des participants", P.length === 2 && P[0].flavour === "Génoise chocolat" && P[0].base === "Rose Pastel" && P[1].flavour === "Génoise vanille" && P[1].base === "Bleu Ciel", P);
+check("14 Pochage = Retro Box", P[0].productLine === "Workshop Pochage · Retro Box", P[0].productLine);
+const Q = workshopCakeLabels([{ ...base, itemId: "q", type: "piping", vanilla: 1, chocolate: 0, unknown: 0, participants: [{ sponge: "vanilla", colour: null }] }]);
+check("15 Pochage sans couleur : signalé « couleur de base »", Q[0].missing.includes("couleur de base"), Q[0].missing);
+const ptxt = pageText(layoutCake(P[0], () => 1)[0]).join(" ");
+check("16 texte imprimé : Base : Rose Pastel", /Base :/.test(ptxt) && /Rose Pastel/.test(ptxt), ptxt);
 console.log(`\n${ok} PASS, ${ko} FAIL`);
 process.exit(ko ? 1 : 0);

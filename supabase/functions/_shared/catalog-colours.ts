@@ -44,6 +44,11 @@ const COLOURS: Record<string, { en: string; fr: string }> = {
 };
 
 /** One stored colour (ID, or an English/French name) → the name shown on the site; unknown values pass through unchanged. */
+/** True for a colour id of the site catalogue (same list as base colours). */
+export function isCatalogColourId(id: unknown): boolean {
+  return typeof id === "string" && Object.prototype.hasOwnProperty.call(COLOURS, id);
+}
+
 export function colourName(token: string | null | undefined, lang: "en" | "fr"): string {
   const t = String(token ?? "").trim();
   if (!t) return "";

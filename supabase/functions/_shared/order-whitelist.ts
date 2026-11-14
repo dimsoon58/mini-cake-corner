@@ -125,6 +125,9 @@ export const ORDER_ITEM_SERVER_FIELDS = [
   // Sponge per workshop participant (2026-09-28) — validated and set by
   // create-postfinance-payment, never taken from the client as-is.
   "workshop_sponge_choices",
+  // F45 — Workshop Pochage : couleur de base par participant (validée et
+  // posée par create-postfinance-payment, jamais reprise telle quelle).
+  "workshop_base_colors",
   // Multi-date fulfillment (Sept 2026): links a PHYSICAL order_item to the
   // order_fulfillments row (one per distinct pickup/delivery date) it
   // belongs to. Set only by confirm-postfinance-payment, after creating that
