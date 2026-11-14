@@ -54,7 +54,8 @@ type FormType =
   | "corporate_events"
   | "hospitality_partners"
   | "contact"
-  | "custom_request";
+  | "custom_request"
+  | "client_gift";
 
 // One entry per form on the site. Field keys/labels/required-ness mirror
 // each form's existing zod schema exactly — this is the server-side
@@ -130,6 +131,27 @@ const FORM_SPECS: Record<FormType, { subject: string; fields: FieldSpec[] }> = {
       { key: "eventDate", label: "Event / pick-up date", required: true, maxLen: 20 },
       { key: "numberOfGuests", label: "Number of guests", required: true, maxLen: 10 },
       { key: "description", label: "Design description", required: true, maxLen: 3000 },
+    ],
+  },
+  // Offre « Attention client » (page cachée /attention-client, 14.11.2026) :
+  // gâteaux imprimés avec le logo du client de l'entreprise. Libellés en
+  // français, c'est Mel qui lit cet e-mail et crée la commande manuelle.
+  client_gift: {
+    subject: "Attention client (logo imprimé), Bento Cake Studio",
+    fields: [
+      { key: "companyName", label: "Entreprise qui commande", required: true, maxLen: 200 },
+      { key: "fullName", label: "Contact", required: true, maxLen: 150 },
+      { key: "email", label: "E-mail", required: true, maxLen: 255 },
+      { key: "phone", label: "Téléphone", required: true, maxLen: 40 },
+      { key: "size", label: "Taille", required: true, maxLen: 40 },
+      { key: "quantity", label: "Quantité", required: true, maxLen: 5 },
+      { key: "estimate", label: "Prix indicatif", required: false, maxLen: 120 },
+      { key: "clientLogo", label: "Logo de (nom / site du client)", required: true, maxLen: 300 },
+      { key: "instructions", label: "Instructions", required: false, maxLen: 2000 },
+      { key: "date", label: "Date", required: true, maxLen: 20 },
+      { key: "fulfillment", label: "Retrait / livraison", required: true, maxLen: 40 },
+      { key: "deliveryAddress", label: "Adresse de livraison", required: false, maxLen: 300 },
+      { key: "payment", label: "Paiement souhaité", required: false, maxLen: 60 },
     ],
   },
 };

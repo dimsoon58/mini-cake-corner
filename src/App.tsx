@@ -20,6 +20,7 @@ import CommunityPress from "./pages/CommunityPress";
 import Catalog from "./pages/Catalog";
 import Business from "./pages/Business";
 import Printing from "./pages/Printing";
+import ClientGift from "./pages/ClientGift";
 import Christmas from "./pages/Christmas";
 import GiftCard from "./pages/GiftCard";
 import GiftCardThanks from "./pages/GiftCardThanks";
@@ -126,6 +127,8 @@ const App = () => (
             <Route path="/community-press" element={<CommunityPress />} />
             <Route path="/business" element={<Business />} />
             <Route path="/corporate-event" element={<Business />} />
+            {/* Offre « Attention client » — page cachée (aucun lien, noindex) */}
+            <Route path="/attention-client" element={<ClientGift />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/customize" element={<Customize />} />
             <Route path="/dot-cakes" element={<DotCakes />} />
