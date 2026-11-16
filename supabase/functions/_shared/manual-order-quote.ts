@@ -13,7 +13,8 @@
 //
 // Totals, as validated with the owner (2026-09-28):
 //   calculated_amount = Σ items + Σ delivery fees + Σ express surcharges
-//                       (an item = engine price + its fruit supplement, if any)
+//                       (an item = engine price + its fruit supplement, if any,
+//                        − the options ticked « Offert », F46)
 //   adjustment        = amount (CHF, signed) | percent (signed, of
 //                       calculated_amount) | final (price typed by hand)
 //   final_amount      = calculated_amount + adjustment_amount (never < 0)
@@ -51,11 +52,56 @@ export interface QuoteItemInput {
   // frais en décoration sur un gâteau, montant en CHF choisi par l'admin
   // (pas de tarif fixe). null = pas de fruits.
   fruit_supplement?: number | null;
+  // F46 (16.11.2026) — options offertes (commandes manuelles) : clés des
+  // lignes du détail de prix (« design:mini-heart », « extra:gold-leaves »…)
+  // ou « all » = l'article entier. Le montant se calcule ici, jamais côté
+  // navigateur.
+  free_options?: string[] | null;
   workshop_session_id?: string | null;
   workshop_participants?: number | null;
 }
 
 export const MAX_FRUIT_SUPPLEMENT = 500;
+
+export const FREE_ALL = "all";
+export const freeKeyOf = (line: { kind: string; id: string }) => `${line.kind}:${line.id}`;
+
+// F46 — Options offertes. Retire du prix de l'article le montant des lignes
+// cochées « Offert » (ou tout l'article avec « all »). Une clé qui ne
+// correspond plus à aucune ligne payante (option changée depuis) est
+// simplement ignorée : `keys` rend les clés réellement appliquées, les
+// seules enregistrées.
+export function applyFreeOptions(
+  requested: unknown,
+  lines: QuoteBreakdownLine[] | null | undefined,
+  fullTotal: number,
+): { amount: number; keys: string[]; lines: QuoteBreakdownLine[] | null | undefined; error: string | null } {
+  const wanted = Array.isArray(requested)
+    ? Array.from(new Set(requested.filter((k): k is string => typeof k === "string" && k.length > 0 && k.length <= 120)))
+    : [];
+  if (wanted.length === 0 || fullTotal <= 0) return { amount: 0, keys: [], lines, error: null };
+  if (wanted.includes(FREE_ALL)) {
+    return {
+      amount: roundToCents(fullTotal),
+      keys: [FREE_ALL],
+      lines: lines ? lines.map((l) => (l.amount > 0 ? { ...l, free: true } : l)) : lines,
+      error: null,
+    };
+  }
+  if (!lines) return { amount: 0, keys: [], lines, error: "The price detail of this product isn't available: only the whole product can be offered" };
+  const keys: string[] = [];
+  let amount = 0;
+  const marked = lines.map((l) => {
+    const k = freeKeyOf(l);
+    if (l.amount > 0 && wanted.includes(k)) {
+      if (!keys.includes(k)) keys.push(k);
+      amount += l.amount;
+      return { ...l, free: true };
+    }
+    return l;
+  });
+  return { amount: roundToCents(Math.min(amount, fullTotal)), keys, lines: marked, error: null };
+}
 
 // The fruit supplement only exists on a cake (bento / retro / medium /
 // large / rectangle). Returns the amount to charge (0 when there is none) or
@@ -98,6 +144,7 @@ export interface QuoteBreakdownLine {
   id: string;
   amount: number;
   quantity?: number;
+  free?: true;                   // F46 — ligne offerte (déduite du total)
 }
 
 export interface QuoteItemResult {
@@ -109,6 +156,9 @@ export interface QuoteItemResult {
   // priceOrderItem() uses, and dropped (null) unless it adds up exactly to
   // `total`, so it can never show a figure the engine didn't charge.
   breakdown?: QuoteBreakdownLine[] | null;
+  // F46 — montant offert (déjà déduit de `total`) et clés appliquées.
+  freeAmount?: number;
+  freeOptions?: string[];
   workshop?: {
     sessionId: string;
     type: string;
@@ -282,12 +332,16 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
       if (participants > sess.max_capacity) return { index, product, total: null, error: `At most ${sess.max_capacity} seats for this session` };
       const unitPrice = roundToCents(Number(sess.unit_price));
       const remaining = remainingById.has(sid) ? remainingById.get(sid)! : null;
+      const full = roundToCents(unitPrice * participants);
+      const free = applyFreeOptions(it.free_options, [{ kind: "workshop", id: sess.workshop_type, amount: full, quantity: participants }], full);
       return {
         index,
         product,
-        total: roundToCents(unitPrice * participants),
+        total: roundToCents(full - free.amount),
         error: null,
-        breakdown: [{ kind: "workshop", id: sess.workshop_type, amount: roundToCents(unitPrice * participants), quantity: participants }],
+        breakdown: free.lines,
+        freeAmount: free.amount,
+        freeOptions: free.keys,
         workshop: {
           sessionId: sess.id,
           type: sess.workshop_type,
@@ -327,12 +381,19 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
     const fruit = fruitSupplementOf(it);
     if (fruit.error) return { index, product, total: null, error: fruit.error };
     const breakdown = breakdownItem(it, product, priced.total);
+    const full = roundToCents(priced.total + fruit.amount);
+    const lines = breakdown && fruit.amount > 0 ? [...breakdown, { kind: "fruit" as const, id: "fruit", amount: fruit.amount }] : breakdown;
+    // F46 — options offertes : déduites du prix de l'article, après le moteur.
+    const free = applyFreeOptions(it.free_options, lines, full);
+    if (free.error) return { index, product, total: null, error: free.error };
     return {
       index,
       product,
-      total: roundToCents(priced.total + fruit.amount),
+      total: roundToCents(full - free.amount),
       error: null,
-      breakdown: breakdown && fruit.amount > 0 ? [...breakdown, { kind: "fruit" as const, id: "fruit", amount: fruit.amount }] : breakdown,
+      breakdown: free.lines,
+      freeAmount: free.amount,
+      freeOptions: free.keys,
     };
   });
 

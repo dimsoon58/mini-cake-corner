@@ -95,6 +95,9 @@ interface EditorItem extends QuoteItemInput {
   extra_type?: string | null;         // their catalogue groups, e.g. "Toppings, Pearls"
   extra_color?: string | null;        // option colours alone, e.g. "Pink, Gold" (as the checkout)
   inside_color?: string | null;       // Gender Reveal inside colour, "Rose" / "Bleu" (as the checkout)
+  // F46 — libellé de la ligne « Offert » de la facture (langue du client),
+  // composé par l'écran Admin. Texte seulement : le montant vient du devis.
+  free_label?: string | null;
   workshop_sponge_choices?: string[] | null;
   workshop_base_colors?: string[] | null; // F45 — Pochage : couleur de base par participant
   workshop_has_minor?: boolean;
@@ -255,6 +258,7 @@ serve(async (req) => {
           extras: it.extras ?? [],
           candles: it.candles ?? [],
           fruit_supplement: it.fruit_supplement != null ? Number(it.fruit_supplement) : null,
+          free_options: it.free_options ?? [],
           workshop_session_id: it.workshop_session_id,
           workshop_participants: it.workshop_participants,
           workshop_sponge_choices: it.workshop_sponge_choices,
@@ -565,6 +569,11 @@ serve(async (req) => {
             // Supplément fruits : déjà compris dans `total` (quote) ; gardé à
             // part pour la ligne de la facture et l'Admin.
             fruit_supplement: fruitSupplementOf(it).amount || null,
+            // F46 — options offertes : déjà déduites de `total` (quote) ;
+            // gardées à part pour la ligne « Offert » de la facture et l'Admin.
+            free_options: quote.items[i]?.freeOptions?.length ? quote.items[i].freeOptions : null,
+            free_amount: quote.items[i]?.freeAmount ? quote.items[i].freeAmount : null,
+            free_label: quote.items[i]?.freeAmount ? (strOrNull(it.free_label)?.slice(0, 200) ?? null) : null,
             butterfly_color: strOrNull(it.butterfly_color),
             workshop_type: ws?.type ?? null,
             workshop_session_id: isWorkshop ? (it.workshop_session_id ?? null) : null,

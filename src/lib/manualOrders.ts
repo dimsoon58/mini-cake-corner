@@ -29,6 +29,10 @@ export interface EditorItem {
   // Supplément fruits (gâteaux) : null = pas de fruits ; sinon le montant en
   // CHF tapé par l'admin (texte du champ, « 12.50 »).
   fruit_supplement: string | null;
+  // F46 — options offertes : clés des lignes du détail de prix
+  // (« design:mini-heart ») ou « all » = l'article entier. Le montant est
+  // toujours calculé par le serveur.
+  free_options: string[];
   dateKey: string | null;      // which date group (not for workshops)
   workshop_session_id: string | null;
   workshop_participants: number | null;
@@ -85,11 +89,16 @@ export interface QuoteBreakdownLine {
   id: string;
   amount: number;
   quantity?: number;
+  free?: true;
 }
+
+export const FREE_ALL = "all";
+export const freeKeyOf = (line: { kind: string; id: string }) => `${line.kind}:${line.id}`;
 
 export interface QuoteResult {
   ok: boolean;
   items: { index: number; product: string; total: number | null; error: string | null; breakdown?: QuoteBreakdownLine[] | null;
+    freeAmount?: number; freeOptions?: string[];
     workshop?: { remainingSeats: number | null; nearlyFull: boolean; isOpen: boolean; unitPrice: number } }[];
   fulfillments: { index: number; date: string; deliveryMethod: string; deliveryFee: number | null; deliveryZone: string | null;
     expressRate: number | null; expressSurcharge: number | null; error: string | null }[];
@@ -112,6 +121,7 @@ export const emptyItem = (product: ProductId = "bento_cake"): EditorItem => ({
   extras: product === "diy_kit" ? ["piping-2-bags"] : [],
   candles: [],
   fruit_supplement: null,
+  free_options: [],
   dateKey: null,
   workshop_session_id: null,
   workshop_participants: product === "workshop" ? 1 : null,

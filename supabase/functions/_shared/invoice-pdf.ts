@@ -345,10 +345,26 @@ export async function generateInvoicePdf(
 
   // Supplément fruits (commandes manuelles) : compris dans item.total, montré
   // sur sa propre ligne juste sous le gâteau — le total de la facture ne change pas.
+  // F46 — options offertes (commandes manuelles) : item.total est DÉJÀ le prix
+  // après l'offert. L'article est montré à son prix normal, puis une ligne
+  // « Offert : … » en négatif juste dessous — le total de la facture ne change pas.
+  const freeRow = (item: any): InvoiceRow[] => {
+    const free = Number(item.free_amount) || 0;
+    if (free <= 0) return [];
+    const label = typeof item.free_label === "string" && item.free_label.trim() ? item.free_label.trim() : "";
+    return [{
+      description: label ? `${tr("Complimentary", "Offert")} : ${label}` : tr("Complimentary", "Offert"),
+      quantity: "",
+      unitPrice: "",
+      total: `- ${formatInvoicePrice(free)}`,
+    }];
+  };
   const rowsForItem = (item: any): InvoiceRow[] => {
     const fruit = Number(item.fruit_supplement) || 0;
-    if (item.product === "workshop" || fruit <= 0) return [rowForItem(item)];
-    const cake = Math.round(((Number(item.total) || 0) - fruit) * 100) / 100;
+    const free = Number(item.free_amount) || 0;
+    const full = Math.round(((Number(item.total) || 0) + free) * 100) / 100;
+    if (item.product === "workshop" || fruit <= 0) return [rowForItem({ ...item, total: full }), ...freeRow(item)];
+    const cake = Math.round((full - fruit) * 100) / 100;
     return [
       rowForItem({ ...item, total: cake }),
       {
@@ -357,6 +373,7 @@ export async function generateInvoicePdf(
         unitPrice: formatInvoicePrice(fruit),
         total: formatInvoicePrice(fruit),
       },
+      ...freeRow(item),
     ];
   };
 

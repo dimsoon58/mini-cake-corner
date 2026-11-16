@@ -36,6 +36,8 @@ import {
   CHANNEL_LABELS,
   formatChf,
   labelBreakdownLine,
+  FREE_ALL,
+  freeKeyOf,
   MANUAL_STATUS_LABELS,
   PAYMENT_METHODS,
   slotsFor,
@@ -218,6 +220,7 @@ const AdminManualOrderEditor = () => {
           ...coloursFromExtra(it.extra),
           ...Object.fromEntries(Object.entries(it).filter(([k, v]) => v !== null && v !== undefined && k !== "extra" && k !== "fruit_supplement")),
           fruit_supplement: it.fruit_supplement != null && Number(it.fruit_supplement) > 0 ? String(it.fruit_supplement) : null,
+          free_options: Array.isArray(it.free_options) ? it.free_options : [],
           key: newKey(),
           dateKey: groupOfItem.get(ii) ?? null,
           workshop_sponge_choices: it.workshop_sponge_choices ?? (it.product === "workshop" ? Array.from({ length: it.workshop_participants ?? 1 }, () => "vanilla") : []),
@@ -261,6 +264,7 @@ const AdminManualOrderEditor = () => {
       product: it.product, size: it.size, shape: it.shape, flavors: it.flavors, design: it.design, extras: it.extras, candles: it.candles,
       // Ticked but empty / not a number → 0, which the server refuses with a clear message.
       fruit_supplement: it.fruit_supplement === null ? null : (Number(it.fruit_supplement.replace(",", ".")) || 0),
+      free_options: it.free_options,
       workshop_session_id: it.workshop_session_id, workshop_participants: it.workshop_participants,
       workshop_sponge_choices: it.workshop_sponge_choices, workshop_has_minor: it.workshop_has_minor,
       workshop_base_colors: it.workshop_base_colors?.length ? it.workshop_base_colors : null,
@@ -330,6 +334,29 @@ const AdminManualOrderEditor = () => {
     return Array.from(new Set(out));
   }, [customer, items, groups, quote, lang, t]);
 
+  // ── F46 — options offertes ────────────────────────────────────────────
+  const toggleFree = (index: number, key: string) => {
+    setItems((prev) => prev.map((it, j) => {
+      if (j !== index) return it;
+      const cur = it.free_options ?? [];
+      if (key === FREE_ALL) return { ...it, free_options: cur.includes(FREE_ALL) ? [] : [FREE_ALL] };
+      const rest = cur.filter((k) => k !== FREE_ALL);
+      return { ...it, free_options: rest.includes(key) ? rest.filter((k) => k !== key) : [...rest, key] };
+    }));
+  };
+  // Libellé de la ligne « Offert » de la facture : les options offertes
+  // (vide = l'article entier, la facture écrit alors « Offert » seul).
+  const freeLabelOf = (index: number): string | null => {
+    const keys = items[index]?.free_options ?? [];
+    if (keys.length === 0 || keys.includes(FREE_ALL)) return null;
+    const lines = quote?.items[index]?.breakdown ?? [];
+    const names = keys.map((k) => {
+      const line = lines.find((l) => freeKeyOf(l) === k);
+      return line ? labelBreakdownLine(line, catalog, customer.lang, items[index].size) : null;
+    }).filter((n): n is string => !!n);
+    return names.length > 0 ? names.join(", ") : null;
+  };
+
   // ── Save ──────────────────────────────────────────────────────────────
   const save = async (mode: "draft" | "confirm") => {
     const withPayment = mode === "confirm" && payNow;
@@ -350,6 +377,8 @@ const AdminManualOrderEditor = () => {
       order_comment: orderComment,
       historical,
       ...payload,
+      // F46 — texte de la ligne « Offert » de la facture, dans la langue du client.
+      items: payload.items.map((p, i) => ({ ...p, free_label: freeLabelOf(i) })),
       adjustment: adjustment ? { ...adjustment, reason: adjReason || null, note: adjNote || null } : null,
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -700,12 +729,49 @@ const AdminManualOrderEditor = () => {
                       {qi?.total != null && qi.breakdown && qi.breakdown.length > 0 && (
                         <ul className="mt-0.5 mb-1.5 pl-3 border-l border-border space-y-0.5 text-xs">
                           {qi.breakdown.map((line, li) => (
-                            <li key={li} className="flex justify-between gap-2">
+                            <li key={li} className="flex justify-between items-center gap-2">
                               <span className="text-muted-foreground">{labelBreakdownLine(line, catalog, lang === "en" ? "en" : "fr", it.size)}</span>
-                              <span className={line.amount === 0 ? "text-muted-foreground" : ""}>{line.amount === 0 ? t("incl.", "inclus") : `+${line.amount.toFixed(2)}`}</span>
+                              <span className="flex items-center gap-1.5 shrink-0">
+                                {/* F46 — rendre une option gratuite (le serveur recalcule le prix). */}
+                                {line.amount > 0 && !readOnly && !it.free_options.includes(FREE_ALL) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleFree(i, freeKeyOf(line))}
+                                    className={cn(
+                                      "px-1.5 py-px border text-[10px] uppercase tracking-wide",
+                                      line.free ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-border text-muted-foreground hover:text-foreground",
+                                    )}
+                                    title={line.free ? t("Charge this option again", "Refacturer cette option") : t("Offer this option", "Offrir cette option")}
+                                  >
+                                    {line.free ? t("Free ✓", "Offert ✓") : t("Offer", "Offrir")}
+                                  </button>
+                                )}
+                                <span className={cn(line.amount === 0 && "text-muted-foreground", line.free && "line-through text-muted-foreground")}>
+                                  {line.amount === 0 ? t("incl.", "inclus") : `+${line.amount.toFixed(2)}`}
+                                </span>
+                              </span>
                             </li>
                           ))}
                         </ul>
+                      )}
+                      {qi?.total != null && (qi.total > 0 || it.free_options.includes(FREE_ALL)) && (
+                        <div className="flex justify-between items-center gap-2 text-xs mb-1.5">
+                          {!readOnly ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleFree(i, FREE_ALL)}
+                              className={cn(
+                                "px-1.5 py-px border text-[10px] uppercase tracking-wide",
+                                it.free_options.includes(FREE_ALL) ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-border text-muted-foreground hover:text-foreground",
+                              )}
+                            >
+                              {it.free_options.includes(FREE_ALL) ? t("Whole product free ✓", "Article entier offert ✓") : t("Offer the whole product", "Offrir l'article entier")}
+                            </button>
+                          ) : <span />}
+                          {(qi.freeAmount ?? 0) > 0 && (
+                            <span className="text-emerald-800">{t("Free", "Offert")} −{(qi.freeAmount ?? 0).toFixed(2)}</span>
+                          )}
+                        </div>
                       )}
                     </li>
                   );
