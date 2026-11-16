@@ -21,4 +21,5 @@ export const CHRISTMAS_PUBLIC = false;
 // bouton de la page Workshop). false = visible seulement par les admins
 // connectées : l'achat marche, mais le bon ne s'utilise dans le panier
 // qu'avec l'étape 2. Passer à true quand l'étape 2 est en ligne.
-export const GIFT_CARDS_PUBLIC = false;
+// Mis en ligne le 16.11.2026 (Mel : montant + workshop).
+export const GIFT_CARDS_PUBLIC = true;
