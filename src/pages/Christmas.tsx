@@ -22,6 +22,17 @@ import {
   type ChristmasSize, type ChristmasFlavour,
 } from "@/data/christmas";
 
+import flavourVanilla from "@/assets/xmas-flavour-vanilla.jpg";
+import flavourChocolate from "@/assets/xmas-flavour-chocolate.jpg";
+import flavourRaspberry from "@/assets/xmas-flavour-raspberry.jpg";
+import flavourCaramelPeanut from "@/assets/xmas-flavour-caramel-peanut.jpg";
+import flavourAppleCinnamon from "@/assets/xmas-flavour-apple-cinnamon.jpg";
+import flavourChocolateSpread from "@/assets/xmas-flavour-chocolate-spread.jpg";
+import flavourChestnut from "@/assets/xmas-flavour-chestnut.jpg";
+import flavourTripleChocolate from "@/assets/xmas-flavour-triple-chocolate.jpg";
+import flavourMangoPassionfruit from "@/assets/xmas-flavour-mango-passionfruit.jpg";
+import flavourLemonCurd from "@/assets/xmas-flavour-lemon-curd.jpg";
+
 // Page « Noël / Christmas » : on choisit un design (gâteau ou bûche), la
 // taille (gâteaux seulement), le goût et la date. Pas
 // d'extras ; supplément express habituel selon la date.
@@ -132,6 +143,49 @@ function LogSize({ className }: { className?: string }) {
         </span>
       ))}
     </div>
+  );
+}
+
+// Photos des goûts spéciaux de Noël, carousel horizontal.
+const FLAVOUR_PHOTOS = [
+  { src: flavourVanilla, labelEn: "Vanilla", labelFr: "Vanille" },
+  { src: flavourChocolate, labelEn: "Chocolate", labelFr: "Chocolat" },
+  { src: flavourRaspberry, labelEn: "Raspberry", labelFr: "Framboise" },
+  { src: flavourCaramelPeanut, labelEn: "Caramel & Peanut", labelFr: "Caramel & Cacahuète" },
+  { src: flavourAppleCinnamon, labelEn: "Apple & Cinnamon", labelFr: "Pomme & Cannelle" },
+  { src: flavourChocolateSpread, labelEn: "Chocolate Spread", labelFr: "Pâte à tartiner" },
+  { src: flavourChestnut, labelEn: "Chestnut", labelFr: "Marron" },
+  { src: flavourTripleChocolate, labelEn: "Triple Chocolate", labelFr: "Triple chocolat" },
+  { src: flavourMangoPassionfruit, labelEn: "Mango & Passionfruit", labelFr: "Mangue & Passion" },
+  { src: flavourLemonCurd, labelEn: "Lemon Curd", labelFr: "Lemon Curd" },
+];
+
+function FlavourCarousel() {
+  const { t } = useLang();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scroll = (direction: "left" | "right") => {
+    scrollRef.current?.scrollBy({ left: direction === "left" ? -280 : 280, behavior: "smooth" });
+  };
+  return (
+    <section className="py-10">
+      <div className="relative overflow-hidden">
+        <button onClick={() => scroll("left")} aria-label={t("Previous", "Précédent")}
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
+          <ChevronLeft className="h-5 w-5 text-foreground" />
+        </button>
+        <div ref={scrollRef} className="flex gap-4 overflow-x-auto scroll-smooth px-6" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          {FLAVOUR_PHOTOS.map((f, i) => (
+            <div key={i} className="flex-shrink-0 w-52 aspect-[4/5] overflow-hidden">
+              <img src={f.src} alt={t(f.labelEn, f.labelFr)} loading="lazy" className="w-full h-full object-cover" />
+            </div>
+          ))}
+        </div>
+        <button onClick={() => scroll("right")} aria-label={t("Next", "Suivant")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
+          <ChevronRight className="h-5 w-5 text-foreground" />
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -421,6 +475,9 @@ const Christmas = () => {
           </p>
         </div>
       </section>
+
+      {/* Carousel goûts spéciaux */}
+      <FlavourCarousel />
 
       {/* Gâteaux */}
       <section className="container mx-auto px-4 pb-16">
