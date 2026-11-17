@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   format, addMonths, subMonths, isSameMonth, isToday,
@@ -69,11 +69,29 @@ const AdminCalendar = () => {
   const isAdmin = isAdminEmail(user?.email) || staff.can("planning.view");
   const dfLocale = lang === "fr" ? { locale: dateFnsFr } : undefined;
 
-  const [monthCursor, setMonthCursor] = useState(() => new Date());
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [monthCursor, setMonthCursor] = useState(() => {
+    const mp = searchParams.get("month");
+    if (mp) {
+      const d = new Date(`${mp}-01T00:00:00`);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return new Date();
+  });
   const [days, setDays] = useState<Record<string, DayEntry[]>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDateState] = useState<string | null>(() => searchParams.get("date"));
+  // Sync selectedDate avec l'URL
+  const setSelectedDate = (date: string | null) => {
+    setSelectedDateState(date);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (date) { next.set("date", date); } else { next.delete("date"); }
+      return next;
+    }, { replace: true });
+  };
+
   // Commandes de test masquées sauf avec « Afficher les tests » (list-orders-by-date).
   const [includeTests, setIncludeTests] = useShowTests();
   // F28 : sessions de workshop du mois avec les gâteaux à préparer (get-production).
@@ -280,13 +298,13 @@ const AdminCalendar = () => {
             a stuck error state with no way to try a different month (or
             retry the same one) would be a dead end. */}
         <div className="flex items-center justify-between mb-3 max-w-[300px] mx-auto md:mx-0">
-          <Button variant="outline" size="icon" className="rounded-none h-8 w-8" onClick={() => setMonthCursor((d) => subMonths(d, 1))}>
+          <Button variant="outline" size="icon" className="rounded-none h-8 w-8" onClick={() => setMonthCursor((d) => { const nd = subMonths(d, 1); setSearchParams((p) => { const n = new URLSearchParams(p); n.set("month", format(nd, "yyyy-MM")); n.delete("date"); return n; }, { replace: true }); return nd; })}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <span className="font-sans text-[13px] tracking-[0.105em] font-semibold uppercase text-foreground">
             {format(monthCursor, "MMMM yyyy", dfLocale)}
           </span>
-          <Button variant="outline" size="icon" className="rounded-none h-8 w-8" onClick={() => setMonthCursor((d) => addMonths(d, 1))}>
+          <Button variant="outline" size="icon" className="rounded-none h-8 w-8" onClick={() => setMonthCursor((d) => { const nd = addMonths(d, 1); setSearchParams((p) => { const n = new URLSearchParams(p); n.set("month", format(nd, "yyyy-MM")); n.delete("date"); return n; }, { replace: true }); return nd; })}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
