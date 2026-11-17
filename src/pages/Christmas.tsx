@@ -178,10 +178,10 @@ function FlavourCarousel() {
       </div>
       <div className="relative overflow-hidden">
         <button onClick={() => scroll("left")} aria-label={t("Previous", "Précédent")}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background rounded-none p-2 shadow-md">
           <ChevronLeft className="h-5 w-5 text-foreground" />
         </button>
-        <div ref={scrollRef} className="flex gap-3 overflow-x-auto scroll-smooth" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+        <div ref={scrollRef} className="flex gap-3 overflow-x-auto scroll-smooth pl-4" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
           {FLAVOUR_PHOTOS.map((f, i) => (
             <div key={i} className="flex-shrink-0 w-52 aspect-[4/5] overflow-hidden">
               <img src={f.src} alt={t(f.labelEn, f.labelFr)} loading="lazy" className="w-full h-full object-cover" />
