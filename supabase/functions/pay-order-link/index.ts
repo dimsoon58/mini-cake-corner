@@ -6,6 +6,7 @@ import { finalizePaymentAttempt, PAYMENT_LINK_MERCHANT_PREFIX } from "../_shared
 import { getSiteBaseUrl } from "../_shared/site-config.ts";
 import { alertTime, sendTechnicalAlert } from "../_shared/admin-alert.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { buildPaymentRecap } from "../_shared/payment-recap.ts";
 
 // F41 (04.11.2026) — page publique /payer/<jeton> d'une commande manuelle.
 // Public (le client n'a pas de compte) : le jeton aléatoire du lien est la
@@ -45,7 +46,36 @@ serve(async (req) => {
       const cancelled = !o || o.order_validation === "cancelled" || o.order_validation === "rejected" || !!o.order_failure_reason;
       const fullyPaid = o?.payment_status === "paid";
       const { data: l2 } = await supabase.from("order_payment_links").select("status").eq("id", link.id).maybeSingle();
+      // Récapitulatif du prix (articles, livraison, express, rabais…), comme le panier.
+      let recap = null;
+      try {
+        const { data: full } = await supabase.from("orders").select("*").eq("id", link.order_id).maybeSingle();
+        const { data: its } = await supabase.from("order_items").select("*").eq("order_id", link.order_id).order("created_at", { ascending: true });
+        const { data: fuls } = await supabase.from("order_fulfillments").select("*").eq("order_id", link.order_id);
+        if (full) recap = buildPaymentRecap(full, its ?? [], fuls ?? []);
+      } catch (e) {
+        console.error("pay-order-link: recap failed:", e);
+      }
+      // F47 — lien d'un supplément : seul le supplément est à payer.
+      if (link.edit_id) {
+        const { data: e } = await supabase.from("order_edits").select("supplement_amount, supplement_status").eq("id", link.edit_id).maybeSingle();
+        const amount = r2(e?.supplement_amount);
+        const done = e?.supplement_status === "paid";
+        return {
+          orderNumber: o?.order_number ?? null,
+          firstName: o?.first_name ?? null,
+          lang: o?.lang === "en" ? "en" : "fr",
+          kind: "supplement",
+          recap,
+          total: amount,
+          paid: done ? amount : 0,
+          balance: done ? 0 : amount,
+          state: done ? "paid" : cancelled ? "cancelled" : l2?.status === "active" && e?.supplement_status === "due" ? "open" : "disabled",
+        };
+      }
       return {
+        kind: "balance",
+        recap,
         orderNumber: o?.order_number ?? null,
         firstName: o?.first_name ?? null,
         lang: o?.lang === "en" ? "en" : "fr",
@@ -110,7 +140,9 @@ serve(async (req) => {
           completionBehavior: "COMPLETE_DEFERRED",
           lineItems: [{
             uniqueId: "balance",
-            name: lang === "en" ? `Order ${begin.order_number}: balance` : `Commande ${begin.order_number} : solde`,
+            name: begin.supplement
+              ? (lang === "en" ? `Order ${begin.order_number}: supplement` : `Commande ${begin.order_number} : supplément`)
+              : (lang === "en" ? `Order ${begin.order_number}: balance` : `Commande ${begin.order_number} : solde`),
             quantity: 1,
             amountIncludingTax: r2(begin.amount),
             type: "PRODUCT",

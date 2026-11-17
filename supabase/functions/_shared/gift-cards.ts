@@ -240,8 +240,8 @@ ${brandDarkModeStyle()}
         ))}
         <p style="color:#351E13;font-size:13px;line-height:1.7;margin:20px 0 0;border-top:1px solid #78020C;padding-top:16px;">
           ${tr(
-            "Valid 12 months from the purchase date. Not refundable and not exchangeable for cash. Keep this email: the code is all you need.",
-            "Valable 12 mois à partir de la date d'achat. Non remboursable et non échangeable contre des espèces. Gardez cet email : le code suffit pour utiliser le bon.",
+            `Valid until ${formatSwissDate(card.expires_at)}. Not refundable and not exchangeable for cash. Keep this email: the code is all you need.`,
+            `Valable jusqu'au ${formatSwissDate(card.expires_at)}. Non remboursable et non échangeable contre des espèces. Gardez cet email : le code suffit pour utiliser le bon.`,
           )}
         </p>
         ${p(`${tr("See you soon,", "À très bientôt,")}<br><strong>Bento Cake Studio</strong> 🤍`, "margin-top:24px;")}

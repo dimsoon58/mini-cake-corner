@@ -22,6 +22,7 @@ import { OrderCancellationPanel, type WorkshopReservation } from "@/components/a
 import { OrderConfirmationPanel } from "@/components/admin/OrderConfirmationPanel";
 import { OrderInternalNotes } from "@/components/admin/OrderInternalNotes";
 import { EditOrderItemDialog } from "@/components/admin/EditOrderItemDialog";
+import { OrderEditsPanel } from "@/components/admin/OrderEditsPanel";
 import { OrderItemChanges, type ItemChange } from "@/components/admin/OrderItemChanges";
 import { GiftCardOrderPanel } from "@/components/admin/GiftCardOrderPanel";
 import { CHANNEL_LABELS, MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
@@ -513,6 +514,16 @@ const AdminOrder = () => {
 
           {order.created_via === "admin" && !employee && (
             <ManualOrderPanel order={order} items={items} invoiceUrl={invoiceUrl} onChanged={() => setReloadKey((k) => k + 1)} />
+          )}
+
+          {/* F47 : modifier une commande du site, ou manuelle déjà payée (Mel / Eli). */}
+          {canEditItems && !employee && order.id && !order.is_draft && (order.created_via !== "admin" || order.payment_status === "paid") && (
+            <OrderEditsPanel
+              orderId={order.id}
+              canEdit={!isCancelled && (order.payment_status === "paid" || decisionState === "pending")}
+              reloadKey={reloadKey}
+              onChanged={() => setReloadKey((k) => k + 1)}
+            />
           )}
 
           {/* F36 : notes internes de l'équipe (texte + photos), toutes les commandes. */}

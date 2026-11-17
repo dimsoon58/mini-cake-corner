@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { DeliveryAddressAutocomplete } from "@/components/DeliveryAddressAutocomplete";
 import { ItemEditor } from "@/components/admin/manual-order/ItemEditor";
+import { PlacedEditSummary } from "@/components/admin/manual-order/PlacedEditSummary";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -36,8 +37,12 @@ import {
   CHANNEL_LABELS,
   formatChf,
   labelBreakdownLine,
+  FREE_ALL,
+  freeKeyOf,
   MANUAL_STATUS_LABELS,
+  LOCK_LABELS,
   PAYMENT_METHODS,
+  type PlacedSummary,
   slotsFor,
 } from "@/lib/manualOrders";
 
@@ -126,6 +131,8 @@ const AdminManualOrderEditor = () => {
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [isDraft, setIsDraft] = useState(true);
   const [notEditable, setNotEditable] = useState<string | null>(null);
+  // F47 — commande déjà payée (site ou manuelle) : modification complète.
+  const [placed, setPlaced] = useState<PlacedSummary | null>(null);
 
   const [customer, setCustomer] = useState({ first_name: "", last_name: "", phone: "", email: "", instagram: "", company: "", lang: "fr" as "fr" | "en", channel: "phone" });
   const [internalNotes, setInternalNotes] = useState("");
@@ -200,6 +207,7 @@ const AdminManualOrderEditor = () => {
         setIsDraft(o.isDraft);
         setHistorical(o.historical === true);
         setNotEditable(o.editable ? null : (o.notEditableReason || t("This order can't be edited.", "Cette commande ne peut pas être modifiée.")));
+        setPlaced(o.placed ?? null);
         setCustomer({
           first_name: o.customer.first_name ?? "", last_name: o.customer.last_name ?? "", phone: o.customer.phone ?? "",
           email: o.customer.email ?? "", instagram: o.customer.instagram ?? "", company: o.customer.company ?? "", lang: o.customer.lang === "en" ? "en" : "fr",
@@ -207,8 +215,8 @@ const AdminManualOrderEditor = () => {
         });
         setInternalNotes(o.internal_notes ?? "");
         setOrderComment(o.order_comment ?? "");
-        const loadedGroups: DateGroup[] = (o.fulfillments ?? []).map((f: { date: string; deliveryMethod: "pickup" | "delivery"; deliveryPlaceId: string | null; deliveryAddressLabel: string | null; slot: string | null }) => ({
-          key: newKey(), date: f.date, deliveryMethod: f.deliveryMethod, slot: f.slot ?? "", placeId: f.deliveryPlaceId, addressLabel: f.deliveryAddressLabel,
+        const loadedGroups: DateGroup[] = (o.fulfillments ?? []).map((f: { fulfillmentId?: string | null; date: string; deliveryMethod: "pickup" | "delivery"; deliveryPlaceId: string | null; deliveryAddressLabel: string | null; slot: string | null }) => ({
+          key: newKey(), fulfillmentId: f.fulfillmentId ?? null, date: f.date, deliveryMethod: f.deliveryMethod, slot: f.slot ?? "", placeId: f.deliveryPlaceId, addressLabel: f.deliveryAddressLabel,
         }));
         const groupOfItem = new Map<number, string>();
         (o.fulfillments ?? []).forEach((f: { itemIndexes: number[] }, gi: number) => f.itemIndexes.forEach((ii) => groupOfItem.set(ii, loadedGroups[gi].key)));
@@ -218,6 +226,7 @@ const AdminManualOrderEditor = () => {
           ...coloursFromExtra(it.extra),
           ...Object.fromEntries(Object.entries(it).filter(([k, v]) => v !== null && v !== undefined && k !== "extra" && k !== "fruit_supplement")),
           fruit_supplement: it.fruit_supplement != null && Number(it.fruit_supplement) > 0 ? String(it.fruit_supplement) : null,
+          free_options: Array.isArray(it.free_options) ? it.free_options : [],
           key: newKey(),
           dateKey: groupOfItem.get(ii) ?? null,
           workshop_sponge_choices: it.workshop_sponge_choices ?? (it.product === "workshop" ? Array.from({ length: it.workshop_participants ?? 1 }, () => "vanilla") : []),
@@ -258,9 +267,12 @@ const AdminManualOrderEditor = () => {
 
   const payload = useMemo(() => {
     const itemsPayload = items.map((it) => ({
+      // F47 — la ligne déjà enregistrée est modifiée sur place (même id).
+      rowId: it.rowId ?? null,
       product: it.product, size: it.size, shape: it.shape, flavors: it.flavors, design: it.design, extras: it.extras, candles: it.candles,
       // Ticked but empty / not a number → 0, which the server refuses with a clear message.
       fruit_supplement: it.fruit_supplement === null ? null : (Number(it.fruit_supplement.replace(",", ".")) || 0),
+      free_options: it.free_options,
       workshop_session_id: it.workshop_session_id, workshop_participants: it.workshop_participants,
       workshop_sponge_choices: it.workshop_sponge_choices, workshop_has_minor: it.workshop_has_minor,
       workshop_base_colors: it.workshop_base_colors?.length ? it.workshop_base_colors : null,
@@ -271,6 +283,7 @@ const AdminManualOrderEditor = () => {
     }));
     const fulfillments = groups
       .map((g) => ({
+        fulfillmentId: g.fulfillmentId ?? null,
         date: g.date,
         deliveryMethod: g.deliveryMethod,
         deliveryPlaceId: g.deliveryMethod === "delivery" ? g.placeId : null,
@@ -330,6 +343,29 @@ const AdminManualOrderEditor = () => {
     return Array.from(new Set(out));
   }, [customer, items, groups, quote, lang, t]);
 
+  // ── F46 — options offertes ────────────────────────────────────────────
+  const toggleFree = (index: number, key: string) => {
+    setItems((prev) => prev.map((it, j) => {
+      if (j !== index) return it;
+      const cur = it.free_options ?? [];
+      if (key === FREE_ALL) return { ...it, free_options: cur.includes(FREE_ALL) ? [] : [FREE_ALL] };
+      const rest = cur.filter((k) => k !== FREE_ALL);
+      return { ...it, free_options: rest.includes(key) ? rest.filter((k) => k !== key) : [...rest, key] };
+    }));
+  };
+  // Libellé de la ligne « Offert » de la facture : les options offertes
+  // (vide = l'article entier, la facture écrit alors « Offert » seul).
+  const freeLabelOf = (index: number): string | null => {
+    const keys = items[index]?.free_options ?? [];
+    if (keys.length === 0 || keys.includes(FREE_ALL)) return null;
+    const lines = quote?.items[index]?.breakdown ?? [];
+    const names = keys.map((k) => {
+      const line = lines.find((l) => freeKeyOf(l) === k);
+      return line ? labelBreakdownLine(line, catalog, customer.lang, items[index].size) : null;
+    }).filter((n): n is string => !!n);
+    return names.length > 0 ? names.join(", ") : null;
+  };
+
   // ── Save ──────────────────────────────────────────────────────────────
   const save = async (mode: "draft" | "confirm") => {
     const withPayment = mode === "confirm" && payNow;
@@ -350,6 +386,8 @@ const AdminManualOrderEditor = () => {
       order_comment: orderComment,
       historical,
       ...payload,
+      // F46 — texte de la ligne « Offert » de la facture, dans la langue du client.
+      items: payload.items.map((p, i) => ({ ...p, free_label: freeLabelOf(i) })),
       adjustment: adjustment ? { ...adjustment, reason: adjReason || null, note: adjNote || null } : null,
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -455,14 +493,19 @@ const AdminManualOrderEditor = () => {
   return (
     <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-6xl">
-        <Link to="/admin/manual-orders" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-4">
-          <ChevronLeft className="w-3.5 h-3.5 mr-1" /> {t("Manual orders", "Commandes manuelles")}
+        <Link to={placed && orderId ? `/admin/order/${orderId}` : "/admin/manual-orders"} className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-4">
+          <ChevronLeft className="w-3.5 h-3.5 mr-1" /> {placed ? t("Back to the order", "Retour à la commande") : t("Manual orders", "Commandes manuelles")}
         </Link>
         <div className="flex items-center gap-3 flex-wrap mb-6">
           <h1 className="font-sans uppercase tracking-[0.105em] text-2xl text-foreground">
-            {orderNumber || t("New manual order", "Nouvelle commande manuelle")}
+            {placed ? `${t("Edit order", "Modifier la commande")} ${orderNumber ?? ""}` : (orderNumber || t("New manual order", "Nouvelle commande manuelle"))}
           </h1>
-          {status && (
+          {placed && (
+            <span className={cn("px-2 py-0.5 text-[10px] uppercase tracking-wide", placed.awaiting ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-800")}>
+              {placed.awaiting ? t("To accept", "À accepter") : t("Paid", "Payée")}{placed.site ? ` · ${t("website", "site")}` : ""}
+            </span>
+          )}
+          {status && !placed && (
             <span className={cn("px-2 py-0.5 text-[10px] uppercase tracking-wide", MANUAL_STATUS_LABELS[status].className)}>
               {tr(MANUAL_STATUS_LABELS[status])}
             </span>
@@ -474,13 +517,26 @@ const AdminManualOrderEditor = () => {
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {notEditable}
           </div>
         )}
+        {placed && !readOnly && (
+          <p className="border border-border bg-secondary/30 px-4 py-3 text-sm mb-6" data-testid="placed-intro">
+            {t("This order is already paid. Change anything (size, flavour, design, extras, candles, text, date, delivery, add or remove a cake): the price is recalculated on the right. Nothing is saved before « Save the changes ».",
+              "Cette commande est déjà payée. Changez ce que vous voulez (taille, goût, design, extras, bougies, texte, date, livraison, ajouter ou retirer un gâteau) : le prix est recalculé à droite. Rien n'est enregistré avant « Enregistrer les modifications ».")}
+          </p>
+        )}
 
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start">
           <fieldset disabled={readOnly} className="space-y-6 min-w-0">
             {/* 1. Client */}
+            <fieldset disabled={!!placed} className="min-w-0">
             <section className="border border-border/60 bg-background">
               <h2 className={sectionTitle}>1. {t("Customer", "Client")}</h2>
-              <label className={cn("mx-4 mt-4 flex items-start gap-2 border p-3 text-sm", historical ? "border-amber-400 bg-amber-50" : "border-border")} data-testid="historical-toggle">
+              {placed && (
+                <p className="mx-4 mt-4 text-xs text-muted-foreground">
+                  {t("Contact details don't change here. To correct the email of this order: « Confirmation » block on the order page.",
+                    "Les coordonnées ne changent pas ici. Pour corriger l'e-mail de cette commande : bloc « Confirmation » de la fiche.")}
+                </p>
+              )}
+              {!placed && <label className={cn("mx-4 mt-4 flex items-start gap-2 border p-3 text-sm", historical ? "border-amber-400 bg-amber-50" : "border-border")} data-testid="historical-toggle">
                 <input type="checkbox" className="mt-0.5" checked={historical} onChange={(e) => { setHistorical(e.target.checked); if (e.target.checked) setPay((p) => ({ ...p, sendConfirmation: false })); }} />
                 <span>
                   <b>{t("Historical order — no email", "Commande historique — sans email")}</b>
@@ -491,7 +547,7 @@ const AdminManualOrderEditor = () => {
                     )}
                   </span>
                 </span>
-              </label>
+              </label>}
               <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {([
                   ["first_name", t("First name (optional)", "Prénom (facultatif)")],
@@ -534,11 +590,26 @@ const AdminManualOrderEditor = () => {
                 </div>
               </div>
             </section>
+            </fieldset>
 
             {/* 2. Products */}
             <section className="space-y-3">
               <h2 className="text-base font-bold uppercase tracking-[0.12em] text-foreground">2. {t("Products", "Produits")}</h2>
-              {items.map((it, i) => (
+              {items.map((it, i) => it.locked ? (
+                <div key={it.key} className="border border-border/60 bg-secondary/20 p-4 space-y-2" data-testid="locked-item">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold uppercase tracking-[0.1em]">{t("Product", "Produit")} {i + 1} · {[it.product, it.size, it.design].filter(Boolean).join(" · ")}</span>
+                    {it.rowTotal != null && <span className="text-sm">{formatChf(it.rowTotal)}</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground flex items-start gap-1.5"><Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />{tr(LOCK_LABELS[it.locked] ?? LOCK_LABELS.unsupported)}</p>
+                  {it.product !== "workshop" && groups.length > 1 && (
+                    <select value={it.dateKey ?? ""} onChange={(e) => setItems((prev) => prev.map((x) => (x.key === it.key ? { ...x, dateKey: e.target.value || null } : x)))} className={cn(field, "w-auto")} aria-label={t("Date", "Date")}>
+                      <option value="">{t("Choose the date…", "Choisir la date…")}</option>
+                      {groups.map((g, gi) => <option key={g.key} value={g.key}>{t("Date", "Date")} {gi + 1}{g.date ? ` · ${g.date.split("-").reverse().join(".")}` : ""}</option>)}
+                    </select>
+                  )}
+                </div>
+              ) : (
                 <ItemEditor
                   key={it.key}
                   index={i}
@@ -684,6 +755,53 @@ const AdminManualOrderEditor = () => {
 
           {/* 5. Price summary (sticky on desktop) */}
           <aside className="mt-6 lg:mt-0 lg:sticky lg:top-28">
+            {placed && orderId && !readOnly ? (
+              <div className="space-y-3">
+                {/* Commande manuelle payée : son ajustement reste modifiable. */}
+                {!placed.site && (
+                  <fieldset className="border border-border bg-secondary/30 p-4 space-y-2 text-sm">
+                    <label className={label}>{t("Adjustment", "Ajustement")}</label>
+                    <select value={adjMode} onChange={(e) => setAdjMode(e.target.value as AdjustmentMode)} className={field}>
+                      <option value="none">{t("None", "Aucun")}</option>
+                      <option value="amount">{t("Amount in CHF", "Montant en CHF")}</option>
+                      <option value="percent">{t("Percentage", "Pourcentage")}</option>
+                      <option value="final">{t("Final price set by hand", "Prix final saisi à la main")}</option>
+                    </select>
+                    {adjMode !== "none" && (
+                      <>
+                        <div className="flex gap-2">
+                          {adjMode !== "final" && (
+                            <select value={adjDirection} onChange={(e) => setAdjDirection(e.target.value === "supplement" ? "supplement" : "discount")} className={cn(field, "w-auto")}>
+                              <option value="discount">{t("Discount", "Remise")}</option>
+                              <option value="supplement">{t("Supplement", "Supplément")}</option>
+                            </select>
+                          )}
+                          <input inputMode="decimal" value={adjValue} onChange={(e) => setAdjValue(e.target.value)} className={field} aria-label={t("Value", "Valeur")} />
+                          <span className="self-center text-muted-foreground">{adjMode === "percent" ? "%" : "CHF"}</span>
+                        </div>
+                        <select value={adjReason} onChange={(e) => setAdjReason(e.target.value)} className={field} aria-label={t("Reason", "Raison")}>
+                          <option value="">{t("Reason…", "Raison…")}</option>
+                          {ADJUSTMENT_REASONS.map((r) => <option key={r.id} value={r.id}>{tr(r)}</option>)}
+                        </select>
+                        <input value={adjNote} onChange={(e) => setAdjNote(e.target.value)} placeholder={t("Note (optional)", "Note (optionnel)")} className={field} />
+                      </>
+                    )}
+                  </fieldset>
+                )}
+                <PlacedEditSummary
+                  orderId={orderId}
+                  placed={placed}
+                  body={{
+                    items: payload.items.map((p, i) => ({ ...p, free_label: freeLabelOf(i) })),
+                    fulfillments: payload.fulfillments,
+                    internal_notes: internalNotes,
+                    order_comment: orderComment,
+                    adjustment: adjustment ? { ...adjustment, reason: adjReason || null, note: adjNote || null } : null,
+                  }}
+                  onSaved={() => navigate(`/admin/order/${orderId}`)}
+                />
+              </div>
+            ) : (
             <div className="border border-border bg-secondary/30 p-4 space-y-3 text-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.105em] flex items-center justify-between">
                 {t("Price", "Prix")} {quoting && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
@@ -700,12 +818,49 @@ const AdminManualOrderEditor = () => {
                       {qi?.total != null && qi.breakdown && qi.breakdown.length > 0 && (
                         <ul className="mt-0.5 mb-1.5 pl-3 border-l border-border space-y-0.5 text-xs">
                           {qi.breakdown.map((line, li) => (
-                            <li key={li} className="flex justify-between gap-2">
+                            <li key={li} className="flex justify-between items-center gap-2">
                               <span className="text-muted-foreground">{labelBreakdownLine(line, catalog, lang === "en" ? "en" : "fr", it.size)}</span>
-                              <span className={line.amount === 0 ? "text-muted-foreground" : ""}>{line.amount === 0 ? t("incl.", "inclus") : `+${line.amount.toFixed(2)}`}</span>
+                              <span className="flex items-center gap-1.5 shrink-0">
+                                {/* F46 — rendre une option gratuite (le serveur recalcule le prix). */}
+                                {line.amount > 0 && !readOnly && !it.free_options.includes(FREE_ALL) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleFree(i, freeKeyOf(line))}
+                                    className={cn(
+                                      "px-1.5 py-px border text-[10px] uppercase tracking-wide",
+                                      line.free ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-border text-muted-foreground hover:text-foreground",
+                                    )}
+                                    title={line.free ? t("Charge this option again", "Refacturer cette option") : t("Offer this option", "Offrir cette option")}
+                                  >
+                                    {line.free ? t("Free ✓", "Offert ✓") : t("Offer", "Offrir")}
+                                  </button>
+                                )}
+                                <span className={cn(line.amount === 0 && "text-muted-foreground", line.free && "line-through text-muted-foreground")}>
+                                  {line.amount === 0 ? t("incl.", "inclus") : `+${line.amount.toFixed(2)}`}
+                                </span>
+                              </span>
                             </li>
                           ))}
                         </ul>
+                      )}
+                      {qi?.total != null && (qi.total > 0 || it.free_options.includes(FREE_ALL)) && (
+                        <div className="flex justify-between items-center gap-2 text-xs mb-1.5">
+                          {!readOnly ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleFree(i, FREE_ALL)}
+                              className={cn(
+                                "px-1.5 py-px border text-[10px] uppercase tracking-wide",
+                                it.free_options.includes(FREE_ALL) ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-border text-muted-foreground hover:text-foreground",
+                              )}
+                            >
+                              {it.free_options.includes(FREE_ALL) ? t("Whole product free ✓", "Article entier offert ✓") : t("Offer the whole product", "Offrir l'article entier")}
+                            </button>
+                          ) : <span />}
+                          {(qi.freeAmount ?? 0) > 0 && (
+                            <span className="text-emerald-800">{t("Free", "Offert")} −{(qi.freeAmount ?? 0).toFixed(2)}</span>
+                          )}
+                        </div>
                       )}
                     </li>
                   );
@@ -857,6 +1012,7 @@ const AdminManualOrderEditor = () => {
                 </div>
               )}
             </div>
+            )}
           </aside>
         </div>
       </main>
