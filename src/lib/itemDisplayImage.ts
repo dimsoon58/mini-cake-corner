@@ -10,8 +10,13 @@
 //      an emoji standing in for a missing image.
 import dotCakesFallback from "@/assets/dot-gallery-1.jpg";
 import diyKitFallback from "@/assets/diy-kit-box.jpg";
-import bentoCakeFallback from "@/assets/bento-gallery-1.jpg";
-import rectangleCakeFallback from "@/assets/rectangle-signature.jpg";
+// 06.11.2026 : plus de photo « par défaut » pour un gâteau sans photo
+// enregistrée (c'était bento-gallery-1.jpg, un cœur rétro hors catalogue,
+// affiché pour toutes les commandes manuelles). On montre la photo du design
+// commandé (catalogue / inspiration), sinon rien (case « Pas de photo »).
+import { styles } from "@/data/customization";
+import { INSPIRATIONS } from "@/data/inspirations";
+import heartBombBorderPhoto from "@/assets/design-heart-bomb-border.jpg";
 import workshopSignatureFallback from "@/assets/workshop-signature.jpg";
 import workshopPaintFallback from "@/assets/workshop-paint.png";
 import printingFallback from "@/assets/printing-gallery-1.jpg";
@@ -113,8 +118,21 @@ export function candleImageFromName(candleName: string | null | undefined): stri
   return CANDLE_NAME_IMAGE[baseName] ?? null;
 }
 
+// Photo du catalogue pour un design enregistré (order_items.design).
+// Heart Bomb « [Preferred design: Option 2] » = photo avec bordures.
+export function designCatalogueImage(design: string | null | undefined, comment?: string | null): string | null {
+  const d = String(design ?? "").trim();
+  if (!d) return null;
+  const insp = INSPIRATIONS.find((i) => i.id === d);
+  if (insp) return insp.src;
+  if (d === "heart-bomb" && /\[Preferred design: Option 2\]/.test(comment ?? "")) return heartBombBorderPhoto;
+  return styles.find((s) => s.id === d)?.image ?? null;
+}
+
 export interface DisplayImageItem {
   product: string;
+  design?: string | null;
+  comment?: string | null;
   designImageUrl?: string | null;
   referenceImages?: string[] | null;
   workshopType?: string | null;
@@ -130,8 +148,8 @@ export function itemDisplayImage(item: DisplayImageItem): string | null {
     case "dot_cakes": return dotCakesFallback;
     case "diy_kit": return diyKitFallback;
     case "candles": return candleImageFromName(item.candleName) ?? candlesFallback;
-    case "bento_cake": return bentoCakeFallback;
-    case "rectangle_cake": return rectangleCakeFallback;
+    case "bento_cake":
+    case "rectangle_cake": return designCatalogueImage(item.design, item.comment);
     case "edible_printing": return printingFallback;
     case "workshop": return item.workshopType === "paint" ? workshopPaintFallback : workshopSignatureFallback;
     default: return null;

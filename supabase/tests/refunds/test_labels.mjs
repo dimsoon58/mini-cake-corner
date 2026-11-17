@@ -304,8 +304,8 @@ check("Corrections du 2026-10-04 : #9 Retro, #13 Normal with border, #30 Rainbow
   && r30.design === "Rainbow Cake" && r30.base === "Rose" && r30.decoration === "Rose"
   && rp(37).design === "Heart Bomb" && rp(37).base === "Rose" && rp(37).decoration === "Rose et blanche"
   && rp(47).design === "Heart Bomb" && rp(47).base === "Verte" && rp(47).decoration === "Orange");
-check("Fiches d'inspiration : utilisées seulement par les étiquettes (aucune page client)",
-  execSync("git grep -l inspirationReference -- src", { cwd: REPO }).toString().trim().split("\n").sort().join() === "src/data/inspirationReference.ts,src/lib/productionLabels.ts");
+check("Fiches d'inspiration : utilisées seulement par l'admin (étiquettes, préparation des couleurs ; aucune page client)",
+  execSync("git grep -l inspirationReference -- src", { cwd: REPO }).toString().trim().split("\n").sort().join() === "src/data/inspirationReference.ts,src/lib/colourPrep.ts,src/lib/productionLabels.ts");
 const inspItem = { ...itE, design: "inspiration-22", base_color: null, decoration_color: null, extra: null, text_color: null, text_style: null, cake_text: "Bravo", item_comment: null, order: { ...itE.order, has_comment: false } };
 const li = L.cakeLabelsFor(inspItem)[0];
 check("Étiquette d'inspiration : n° de galerie (pas l'identifiant interne) et design de référence", li.design === "Inspiration n°3 — Pearl Border × Retro", li.design);
@@ -372,6 +372,22 @@ const sh0 = P.buildPrepSheet([cake(iSimple)], new Map([[iSimple, { ...byId.get(i
 check("Chantilly : taille inconnue → non comptée, signalée", sh0.chantilly.totalGrams === 0 && sh0.chantilly.missing[0]?.label === "Taille inconnue");
 check("Fiche : taille inconnue ou prep absent (fonction pas redéployée) → « À vérifier »", sh0.boxes.length === 0 && sh0.genoises.length === 0 && sh0.toCheck.length === 2, sh0.toCheck);
 const html = P.prepSheetHtml(sh, "du 12.10.2026 au 13.10.2026");
+// Couleurs de la fiche (14.11.2026) : une étiquette = un gâteau ; crèmes en cuillères, rubans en sets.
+const cItem = { id: "col1", order_id: "oc", product: "bento_cake", size: "medium", shape: "round", flavors: ["Vanilla"], design: "normal-without-border",
+  base_color: "white", decoration_color: "pink", inside_color: null, ribbon_color: "Baby Pink", butterfly_color: null, extra: null, cake_text: "Bravo",
+  text_color: "black", text_style: null, item_comment: null, quantity: 2, created_at: null, date: "2026-10-12", excluded: null, badge: null,
+  order: { id: "oc", order_number: "ORD-C", first_name: "A", last_name: "B", manual: false, is_test: false } };
+const cLab = (i) => ({ key: `col1-${i}`, itemId: "col1", orderNumber: "ORD-C", customer: "A B", marker: null, badge: null, flavour: "Vanilla" });
+const shC = P.buildPrepSheet([cLab(0), cLab(1)], new Map([["col1", cItem]]), []);
+const encC = (k) => shC.colours.enchanted.find((l) => l.key === k);
+check("Fiche : couleurs des gâteaux cochés — 2 Medium = Blanc 4 cuill. (base), Rose 4 cuill. (déco) en crème enchantée",
+  encC("white")?.spoons === 4 && encC("white")?.baseCakes === 2 && encC("pink")?.spoons === 4 && encC("pink")?.decoCakes === 2, shC.colours.enchanted);
+check("Fiche : écriture Noir 4 cuill. en crème au beurre, rubans Rose bébé 2 sets",
+  shC.colours.butter[0]?.key === "black" && shC.colours.butter[0]?.spoons === 4 && shC.colours.ribbons[0]?.key === "baby-pink" && shC.colours.ribbons[0]?.sets === 2, shC.colours);
+const htmlC = P.prepSheetHtml(shC, "p");
+check("Fiche A4 : Crème enchantée, Crème au beurre, Rubans, pastilles de couleur",
+  ["Crème enchantée (bases + décorations) — 8 cuill.", "Crème au beurre (écritures) — 4 cuill.", "Rubans — 2 sets", 'class="dot" style="background:', "print-color-adjust: exact"].every((x) => htmlC.includes(x)), htmlC.slice(-2500));
+
 check("Fiche A4 : sections et échappement HTML", ["Boîtes", "Génoises", "Goûts", "Garnitures", "À vérifier", "Dot (pièces)", "size: A4", "Chantilly (crème de base) — 1125 g"].every((x) => html.includes(x)) && !P.prepSheetHtml({ ...sh, flavours: [{ label: "<b>x", units: 1 }] }, "p").includes("<b>x"));
 
 console.log(`\n${passes} PASS, ${fails} FAIL`);

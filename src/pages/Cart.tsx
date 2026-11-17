@@ -27,13 +27,14 @@ import PromoCodeBox from "@/components/PromoCodeBox";
 import { useLang } from "@/context/LanguageContext";
 import { formatSessionDate } from "@/data/workshopSessions";
 import { expressSurchargeBreakdown, expressSummaryLabel, isOrderDateDisabled, expressCalendarNotice } from "@/lib/orderDates";
+import { isChristmasCartItem, isAfterChristmasLastDate, christmasCakePrice, CHRISTMAS_LOG_PRICE } from "@/data/christmas";
 import { ExpressDateNotice, OrderCalendar } from "@/components/ExpressDateNotice";
 import { sizeInfo, sizeInfoSummary } from "@/data/sizeInfo";
 import { FlavorDesc } from "@/data/flavorDesc";
 import { supabase } from "@/integrations/supabase/client";
 import { NUMBER_CANDLE_ID, NUMBER_CANDLE_PRICE, NUMBER_CANDLE_DIGITS, priceCandleSelection, composeCandleName, upsertCandleSelection, removeCandleSelection } from "@/lib/candleCartHelpers";
 import { ColorFamilyCandleCard, FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
-import { splitComment, flavorLabel, shapeLabel, cartItemTitle } from "@/lib/orderLabels";
+import { splitComment, flavorLabel, shapeLabel, cartItemTitle, colourLabel } from "@/lib/orderLabels";
 import {
   sizes,
   shapes,
@@ -612,6 +613,7 @@ const Cart = () => {
                               {item.workshopSpongeChoices.map((ch, i) => (
                                 <p key={i} className="text-[10px] text-muted-foreground">
                                   P{i + 1}: {ch === "vanilla" ? "Génoise vanille" : "Génoise chocolat"}
+                                  {item.workshopBaseColors?.[i] ? ` · ${colourLabel(item.workshopBaseColors[i], lang === "fr" ? "fr" : "en")}` : ""}
                                 </p>
                               ))}
                             </div>
@@ -717,6 +719,7 @@ const Cart = () => {
                                 onSelect={(date) => handleDateChange(item.id, date)}
                                 disabled={(date) => {
                                   if (isOrderDateDisabled(date)) return true;
+                                  if (isChristmasCartItem(item) && isAfterChristmasLastDate(date)) return true;
                                   return fullyBookedDates.some(
                                     (bookedDate) => bookedDate.toDateString() === date.toDateString()
                                   );
@@ -805,6 +808,8 @@ const Cart = () => {
                       )}
                       {!isEditing && (
                         <div className="border-t border-border/30 px-6 py-3 flex items-center justify-between">
+                          {/* Noël : rien à personnaliser dans le panier (prix fixé par la page Noël). */}
+                          {isChristmasCartItem(item) ? <span /> : (
                           <button
                             onClick={() => setEditingItemId(item.id)}
                             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -812,6 +817,7 @@ const Cart = () => {
                             <Pencil className="h-3 w-3" />
                             {t("Edit", "Modifier")}
                           </button>
+                          )}
                           <button
                             onClick={() => removeItem(item.id)}
                             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
@@ -912,7 +918,11 @@ const Cart = () => {
                     // F38 — the voucher pays what is left (display estimate; the
                     // payment page adds delivery, the server decides the amount).
                     const beforeGift = sumChf(totalPrice, expressBreakdown.total, -welcomeDiscountAmount, -partnerDiscountAmount);
-                    const giftUsed = giftCard ? Math.min(giftCard.balance, Math.max(beforeGift, 0)) : 0;
+                    // F40 — a workshop voucher only pays the workshops of the cart.
+                    const giftCap = giftCard?.kind === "workshop"
+                      ? Math.min(beforeGift, items.filter((i) => i.product === "workshop").reduce((sum, i) => sum + (Number(i.total) || 0), 0))
+                      : beforeGift;
+                    const giftUsed = giftCard ? Math.min(giftCard.balance, Math.max(giftCap, 0)) : 0;
                     return (
                       <>
                         {giftUsed > 0 && (
@@ -992,6 +1002,38 @@ const ItemDesignImage = ({ item, alt }: { item: CartItem; alt: string }) => {
 
 /* ---------- Summary (read-only view) ---------- */
 const CartItemSummary = ({ item }: { item: any }) => {
+  if (isChristmasCartItem(item)) return <ChristmasItemSummary item={item} />;
+  return <RegularItemSummary item={item} />;
+};
+
+/* Noël : prix de Noël (taille ou bûche) + supplément du goût. */
+const ChristmasItemSummary = ({ item }: { item: any }) => {
+  const { t } = useLang();
+  const base = item.product === "christmas_log" ? CHRISTMAS_LOG_PRICE : christmasCakePrice(item.style, item.size) ?? 0;
+  const supplement = Math.max(0, Math.round((item.total - base) * 100) / 100);
+  return (
+    <div className="space-y-2">
+      <div className="bg-muted/30 rounded-lg p-3 space-y-3 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{item.styleName}{item.product === "christmas_log" ? "" : ` · ${item.sizeName}`}</span>
+          <span className="text-foreground">CHF {formatChf(base)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("Flavour:", "Goût :")} {item.flavorName}</span>
+          {supplement > 0
+            ? <span className="text-foreground">+ CHF {formatChf(supplement)}</span>
+            : <span className="text-muted-foreground text-xs">{t("included", "inclus")}</span>}
+        </div>
+      </div>
+      <div className="flex justify-between items-center pt-3 mt-3 border-t border-border/30">
+        <span className="text-sm text-muted-foreground">{t("Total", "Total")}</span>
+        <span className="text-lg font-bold text-primary">CHF {formatChf(item.total)}</span>
+      </div>
+    </div>
+  );
+};
+
+const RegularItemSummary = ({ item }: { item: any }) => {
   const { t, lang } = useLang();
   const isDiyKit = item.product === "diy_kit";
   // Dot Cakes/DIY Kit/Printing/Candles: "design"/styleName is a fixed

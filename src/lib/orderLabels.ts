@@ -7,12 +7,14 @@
 // @/data/customization) — no new data source, no raw id ever shown to
 // either audience when a real catalogue name exists for it.
 import { sizes, shapes, styles, baseColors, ribbonColors, butterflyColors, glitterColors, glitterCherriesColors } from "@/data/customization";
+import { christmasDesignName } from "@/data/christmas";
 import { colourFr } from "@/data/catalogLabelsFr";
 
 export const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
   bento_cake: { en: "Bento Cake", fr: "Bento Cake" },
   rectangle_cake: { en: "Rectangle Cake", fr: "Gâteau Rectangle" },
   dot_cakes: { en: "Dot Cakes", fr: "Dot Cakes" },
+  christmas_log: { en: "Christmas Log", fr: "Bûche de Noël" },
   diy_kit: { en: "Bento Kit", fr: "Bento Kit" },
   candles: { en: "Candles", fr: "Bougies" },
   edible_printing: { en: "Printing", fr: "Impression" },
@@ -57,6 +59,7 @@ const SIZE_LABELS_FR: Record<string, string> = {
   large: "Large",
   rectangle: "Rectangle",
   "kit-bento": "Kit Bento",
+  buche: "Bûche",
 };
 const SHAPE_LABELS_FR: Record<string, string> = {
   round: "Rond",
@@ -69,6 +72,7 @@ export function sizeLabel(sizeId: string, lang: "en" | "fr" = "en"): string {
     return lang === "fr" ? `Dot Cakes ${packMatch[1]} pièces` : `Dot Cakes pack of ${packMatch[1]}`;
   }
   if (sizeId === "kit-bento") return "Bento Kit";
+  if (sizeId === "buche") return lang === "fr" ? "Bûche" : "Log";
   if (lang === "fr" && SIZE_LABELS_FR[sizeId]) return SIZE_LABELS_FR[sizeId];
   const known = sizes.find((s) => s.id === sizeId)?.name;
   return known || prettifyId(sizeId);
@@ -93,10 +97,13 @@ export function shapeLabel(shapeId: string, lang: "en" | "fr" = "en", size?: str
 // English for a French customer and never doubles up with a generic "Cake"
 // suffix that doesn't apply to a Dot Cakes pack or a DIY Kit.
 export function cartItemTitle(
-  item: { product: string; size?: string | null; sizeName?: string | null; shapeName?: string | null },
+  item: { product: string; size?: string | null; sizeName?: string | null; shapeName?: string | null; style?: string | null },
   lang: "en" | "fr",
   t: (en: string, fr: string) => string,
 ): string {
+  // Noël : « Le Sapin de Noël · Medium », « Grinch · Bûche ».
+  const christmasName = christmasDesignName(item.style);
+  if (christmasName) return item.size ? `${christmasName} · ${sizeLabel(item.size, lang)}` : christmasName;
   if (item.product === "bento_cake" || item.product === "rectangle_cake") {
     return `${item.sizeName || ""} ${item.shapeName || ""} ${t("Cake", "Gâteau")}`.replace(/\s+/g, " ").trim();
   }
@@ -107,7 +114,7 @@ export function cartItemTitle(
 }
 
 export function designLabel(designId: string): string {
-  return styles.find((s) => s.id === designId)?.name || prettifyId(designId);
+  return styles.find((s) => s.id === designId)?.name || christmasDesignName(designId) || prettifyId(designId);
 }
 
 // Display only — a Dot Cakes pack's flavorName carries a trailing category
@@ -175,7 +182,7 @@ export function colourHex(token: string | null | undefined): string | null {
 }
 
 /** Each colour of a colour field, with its name and swatch (admin display).
- *  "roses-…" tokens are prefixed « Roses : ». */
+ *  "roses-…" tokens are prefixed « Roses : », "border-…" (Heart Bomb) « Bordure : ». */
 export function colourSwatches(raw: string | null | undefined, lang: "en" | "fr" = "en"): { label: string; hex: string | null }[] {
   const v = (raw ?? "").trim();
   if (!v) return [];
@@ -185,9 +192,11 @@ export function colourSwatches(raw: string | null | undefined, lang: "en" | "fr"
   } else tokens = v.split(",");
   return tokens.map((s) => s.trim()).filter(Boolean).map((tok) => {
     const m = tok.match(/^roses-(.+)$/);
-    const id = m ? m[1] : tok;
+    const b = tok.match(/^border-(.+)$/);
+    const id = m ? m[1] : b ? b[1] : tok;
     const name = colourLabel(id, lang);
-    return { label: m ? `${lang === "fr" ? "Roses : " : "Roses: "}${name}` : name, hex: colourHex(id) };
+    const prefix = m ? (lang === "fr" ? "Roses : " : "Roses: ") : b ? (lang === "fr" ? "Bordure : " : "Border: ") : "";
+    return { label: `${prefix}${name}`, hex: colourHex(id) };
   });
 }
 
@@ -201,11 +210,15 @@ export function colourListLabel(raw: string | null | undefined, lang: "en" | "fr
   } else tokens = v.split(",");
   const plain: string[] = [];
   const roses: string[] = [];
+  const border: string[] = [];
   for (const tok of tokens.map((s) => s.trim()).filter(Boolean)) {
     const m = tok.match(/^roses-(.+)$/);
+    const b = tok.match(/^border-(.+)$/);
     if (m) roses.push(colourLabel(m[1], lang));
+    else if (b) border.push(colourLabel(b[1], lang));
     else plain.push(colourLabel(tok, lang));
   }
   const rosesLabel = roses.length ? `${lang === "fr" ? "Roses : " : "Roses: "}${roses.join(", ")}` : "";
-  return [plain.join(", "), rosesLabel].filter(Boolean).join(" · ");
+  const borderLabel = border.length ? `${lang === "fr" ? "Bordure : " : "Border: "}${border.join(", ")}` : "";
+  return [plain.join(", "), rosesLabel, borderLabel].filter(Boolean).join(" · ");
 }

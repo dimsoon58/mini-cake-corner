@@ -1,5 +1,6 @@
 // Invoice PDF generation.
 import { getLogoEmailUrl } from "./site-config.ts";
+import { CHRISTMAS_DESIGN_NAMES } from "./christmas.ts";
 
 //
 // This is a faithful, self-contained copy of manage-order's generateInvoicePdf
@@ -49,16 +50,17 @@ const PRODUCT_LABELS: Record<string, { en: string; fr: string }> = {
   bento_cake: { en: "Bento Cake", fr: "Bento Cake" },
   rectangle_cake: { en: "Rectangle Cake", fr: "Gâteau Rectangle" },
   dot_cakes: { en: "Dot Cakes", fr: "Dot Cakes" },
+  christmas_log: { en: "Christmas Log", fr: "Bûche de Noël" },
   diy_kit: { en: "DIY Kit", fr: "Kit DIY" },
   candles: { en: "Candles", fr: "Bougies" },
   edible_printing: { en: "Printing", fr: "Impression" },
   workshop: { en: "Workshop", fr: "Atelier" },
 };
 const SIZE_LABELS_FR: Record<string, string> = {
-  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "Kit Bento",
+  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "Kit Bento", buche: "Bûche",
 };
 const SIZE_LABELS_EN: Record<string, string> = {
-  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "DIY Kit",
+  bento: "Bento", retro: "Retro Box", medium: "Medium", large: "Large", rectangle: "Rectangle", "kit-bento": "DIY Kit", buche: "Log",
 };
 const SHAPE_LABELS_FR: Record<string, string> = { round: "Rond", heart: "Cœur" };
 const SHAPE_LABELS_EN: Record<string, string> = { round: "Round", heart: "Heart" };
@@ -98,6 +100,9 @@ function physicalItemDescription(item: any, lang: "en" | "fr"): string {
   const sizePart = item.size ? sizeLabel(item.size, lang) : "";
   const shapePart = item.shape && item.shape !== "round" ? ` ${shapeLabel(item.shape, lang)}` : "";
   const flavourPart = item.flavors?.length ? ` — ${flavorsLabel(item.flavors)}` : "";
+  // Noël : le nom du gâteau ou de la bûche d'abord (« Le Sapin de Noël — Medium — Marron »), comme les e-mails.
+  const christmasName = item.design ? CHRISTMAS_DESIGN_NAMES[item.design] : undefined;
+  if (christmasName) return `${christmasName} — ${sizePart}${flavourPart}`.trim();
   return `${sizePart}${shapePart}${flavourPart}`.trim() || productLabel(item.product, lang);
 }
 function formatInvoicePrice(amount: number | string): string {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/context/LanguageContext";
@@ -7,6 +7,8 @@ import { useLang } from "@/context/LanguageContext";
 const NewsletterPopup = () => {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
+  // F41 : pas d'offre « première commande » sur la page de paiement d'une commande.
+  const onPaymentLink = useLocation().pathname.startsWith("/payer/");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -20,7 +22,7 @@ const NewsletterPopup = () => {
     if (typeof window !== "undefined") window.localStorage.setItem("cakeClubDismissed", "1");
   };
 
-  if (!open) return null;
+  if (!open || onPaymentLink) return null;
 
   return (
     <div className="fixed z-[80] bottom-4 right-4 left-4 sm:left-auto sm:bottom-6 sm:right-6 sm:w-[360px] animate-in fade-in slide-in-from-bottom-4 duration-500">

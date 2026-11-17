@@ -107,6 +107,7 @@ export interface CartItem {
   workshopHasMinor?: boolean;
   workshopMinorConsentConfirmed?: boolean;
   workshopSpongeChoices?: string[];  // one per participant: "vanilla" | "chocolate"
+  workshopBaseColors?: string[];     // F45 — Pochage : couleur de base (id du catalogue) par participant
   total: number;
   /* Standalone candle product (added from the Candles page) */
   isCandleProduct?: boolean;
@@ -150,6 +151,7 @@ export const VALID_PRODUCTS = new Set([
   "candles",
   "edible_printing",
   "workshop",
+  "christmas_log",
 ]);
 
 // Result of an addItem() attempt. `ok: false` means the item was NOT added
@@ -198,7 +200,7 @@ interface CartContextType {
 }
 
 export type PromoCodeResult = { ok: true } | { ok: false; reason: "invalid" | "expired" | "not_started" | "error" };
-export type AppliedGiftCard = { code: string; balance: number; expiresAt: string };
+export type AppliedGiftCard = { code: string; balance: number; expiresAt: string; kind?: "amount" | "workshop"; workshopType?: string | null; workshopPlaces?: number | null };
 export type GiftCardResult = { ok: true } | { ok: false; reason: "unknown" | "expired" | "empty" | "disabled" | "error" };
 export const GIFT_CARD_CODE_RE = /^BCS-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
 const GIFT_CARD_STORAGE_KEY = "bcs-gift-card";
@@ -562,7 +564,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         const reason = ["expired", "empty", "disabled"].includes(data?.reason) ? data.reason : data?.reason === "error" ? "error" : "unknown";
         return { ok: false, reason };
       }
-      const applied: AppliedGiftCard = { code: String(data.code ?? code), balance: Number(data.balance) || 0, expiresAt: String(data.expiresAt ?? "") };
+      const applied: AppliedGiftCard = {
+        code: String(data.code ?? code), balance: Number(data.balance) || 0, expiresAt: String(data.expiresAt ?? ""),
+        // F40 — a workshop voucher pays workshops only.
+        kind: data.kind === "workshop" ? "workshop" : "amount", workshopType: data.workshopType ?? null, workshopPlaces: data.workshopPlaces ?? null,
+      };
       setGiftCard(applied);
       writeStoredGiftCard(applied);
       return { ok: true };

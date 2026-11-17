@@ -44,6 +44,11 @@ const COLOURS: Record<string, { en: string; fr: string }> = {
 };
 
 /** One stored colour (ID, or an English/French name) → the name shown on the site; unknown values pass through unchanged. */
+/** True for a colour id of the site catalogue (same list as base colours). */
+export function isCatalogColourId(id: unknown): boolean {
+  return typeof id === "string" && Object.prototype.hasOwnProperty.call(COLOURS, id);
+}
+
 export function colourName(token: string | null | undefined, lang: "en" | "fr"): string {
   const t = String(token ?? "").trim();
   if (!t) return "";
@@ -55,7 +60,8 @@ export function colourName(token: string | null | undefined, lang: "en" | "fr"):
 /**
  * A stored colour list (decoration_color: "pink, dark-red, roses-white", or
  * a JSON array from a manual order) → readable names, same order. A
- * "roses-<id>" entry is the rose colour of the Roses Please design.
+ * "roses-<id>" entry is the rose colour of the Roses Please design, a
+ * "border-<id>" entry the border colour of the Heart Bomb design.
  */
 export function colourListName(raw: string | null | undefined, lang: "en" | "fr"): string {
   const v = String(raw ?? "").trim();
@@ -66,11 +72,15 @@ export function colourListName(raw: string | null | undefined, lang: "en" | "fr"
   } else tokens = v.split(",");
   const plain: string[] = [];
   const roses: string[] = [];
+  const border: string[] = [];
   for (const tok of tokens.map((s) => s.trim()).filter(Boolean)) {
     const m = tok.match(/^roses-(.+)$/);
+    const b = tok.match(/^border-(.+)$/);
     if (m) roses.push(colourName(m[1], lang));
+    else if (b) border.push(colourName(b[1], lang));
     else plain.push(colourName(tok, lang));
   }
   const rosesLabel = roses.length ? `${lang === "fr" ? "Roses : " : "Roses: "}${roses.join(", ")}` : "";
-  return [plain.join(", "), rosesLabel].filter(Boolean).join(" · ");
+  const borderLabel = border.length ? `${lang === "fr" ? "Bordure : " : "Border: "}${border.join(", ")}` : "";
+  return [plain.join(", "), rosesLabel, borderLabel].filter(Boolean).join(" · ");
 }

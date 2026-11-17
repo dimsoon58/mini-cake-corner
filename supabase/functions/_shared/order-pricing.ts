@@ -71,10 +71,13 @@ export function isClosedDayISO(dateISO: string): boolean {
   return d.getUTCDay() === 0;
 }
 
-// Saturday: the website offers a single slot, 11:00 – 12:00, for pick-up and
-// delivery alike (src/lib/orderDates.ts SATURDAY_SLOT — same string, en dash).
+// Saturday: the website offers a single pick-up slot, 11:00 – 12:00
+// (src/lib/orderDates.ts SATURDAY_SLOT — same string, en dash); deliveries
+// any slot ending at 13:00 at the latest.
 // The Admin manual-order flow keeps every slot.
 export const SATURDAY_SLOT = "11:00 – 12:00";
+// Livraison le samedi : tout créneau qui finit à 13:00 au plus tard (06.11.2026).
+export const SATURDAY_DELIVERY_LAST_HOUR = 13;
 export function isSaturdayISO(dateISO: string): boolean {
   const d = new Date(Date.UTC(+dateISO.slice(0, 4), +dateISO.slice(5, 7) - 1, +dateISO.slice(8, 10)));
   return d.getUTCDay() === 6;
@@ -91,7 +94,7 @@ export function isMondayISO(dateISO: string): boolean {
 // Closed dates (whole day) — same list as src/lib/orderDates.ts CLOSED_DATES.
 // The Admin manual-order flow may still use them (allowClosedDays).
 export const CLOSED_DATES: readonly string[] = [
-  "2026-11-13", "2026-11-14",
+  "2026-11-12", "2026-11-13", "2026-11-14", // 12.11 ajouté le 09.11.2026 (Mel) : plus de nouvelles commandes en ligne
   // Fêtes : du 29 décembre 2026 au 7 janvier 2027 inclus
   "2026-12-29", "2026-12-30", "2026-12-31",
   "2027-01-01", "2027-01-02", "2027-01-03", "2027-01-04", "2027-01-05", "2027-01-06", "2027-01-07",
@@ -190,8 +193,13 @@ export async function resolveOneFulfillment(
   if (!options.allowClosedDays && CLOSED_DATES.includes(date)) {
     throw new Error(`CLOSED_DATE: fulfillment ${date} — we are closed on this date. Please choose another date.`);
   }
-  if (!options.allowAnySlot && isSaturdayISO(date) && input.slot && input.slot !== SATURDAY_SLOT) {
-    throw new Error(`SATURDAY_SLOT: fulfillment ${date} — on Saturdays only the ${SATURDAY_SLOT} slot is available.`);
+  if (!options.allowAnySlot && isSaturdayISO(date) && input.slot) {
+    const end = Number(String(input.slot).slice(-5, -3));
+    if (input.deliveryMethod === "delivery" ? !(end <= SATURDAY_DELIVERY_LAST_HOUR) : input.slot !== SATURDAY_SLOT) {
+      throw new Error(input.deliveryMethod === "delivery"
+        ? `SATURDAY_SLOT: fulfillment ${date} — on Saturdays deliveries end at ${SATURDAY_DELIVERY_LAST_HOUR}:00 at the latest.`
+        : `SATURDAY_SLOT: fulfillment ${date} — on Saturdays only the ${SATURDAY_SLOT} pick-up slot is available.`);
+    }
   }
   if (!options.allowAnySlot && isMondayISO(date) && input.slot && !(Number(input.slot.slice(0, 2)) >= MONDAY_FIRST_HOUR)) {
     throw new Error(`MONDAY_SLOT: fulfillment ${date} — on Mondays slots start at ${MONDAY_FIRST_HOUR}:00.`);

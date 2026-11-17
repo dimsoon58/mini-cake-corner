@@ -4,6 +4,7 @@ import { forCaller, requireStaff } from "../_shared/staff-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   computeProduction,
+  orderStatus,
   type ProdCakeItem,
   type ProdOrder,
   type ProdWorkshopItem,
@@ -89,6 +90,10 @@ serve(async (req) => {
     };
 
     const cakeItems: ProdCakeItem[] = [];
+    // Préparation des couleurs (06.11.2026) : couleurs et rubans de chaque gâteau compté.
+    const colourRaw = new Map<string, Record<string, unknown>>();
+    // Bûches de Noël (07.11.2026) : hors génoises (roulé), listées à part.
+    const logRaw: Record<string, unknown>[] = [];
     if (cakeOrderIds.length > 0) {
       await loadOrders(cakeOrderIds);
 
@@ -101,7 +106,7 @@ serve(async (req) => {
 
       const { data: items, error: iErr } = await supabase
         .from("order_items")
-        .select("id, order_id, fulfillment_id, product, size, shape, flavors, quantity, production_status")
+        .select("id, order_id, fulfillment_id, product, size, shape, flavors, quantity, production_status, design, base_color, decoration_color, text_color, cake_text, ribbon_color, extras, extra")
         .in("order_id", cakeOrderIds)
         .neq("product", "workshop");
       if (iErr) throw new Error(`Failed to load order items: ${iErr.message}`);
@@ -114,6 +119,22 @@ serve(async (req) => {
         if (!inRange(date)) continue;
         // Gâteau annulé (annulation d'article ou de commande) : hors production.
         if (it.production_status === "cancelled") continue;
+        colourRaw.set(it.id, {
+          itemId: it.id, orderId: it.order_id, product: it.product, size: it.size, design: it.design,
+          quantity: Number.isInteger(it.quantity) && it.quantity > 1 ? it.quantity : 1,
+          baseColor: it.base_color, decorationColor: it.decoration_color, textColor: it.text_color,
+          hasText: !!String(it.cake_text ?? "").trim(), ribbonColor: it.ribbon_color,
+          extras: Array.isArray(it.extras) ? it.extras : [], extra: it.extra, done: DONE_STATUSES.has(it.production_status),
+        });
+        if (it.product === "christmas_log") {
+          logRaw.push({
+            itemId: it.id, orderId: it.order_id, date, slot: f ? f.pickup_delivery_slot : (o.pickup_delivery_slot ?? null),
+            design: it.design, flavour: (it.flavors ?? []).join(", ") || null,
+            quantity: Number.isInteger(it.quantity) && it.quantity > 1 ? it.quantity : 1,
+            done: DONE_STATUSES.has(it.production_status),
+            orderNumber: o.order_number ?? null, customerName: `${o.first_name ?? ""} ${o.last_name ?? ""}`.trim(),
+          });
+        }
         cakeItems.push({
           id: it.id,
           order_id: it.order_id,
@@ -163,6 +184,53 @@ serve(async (req) => {
       workshopState: ws.state,
     });
 
+    // Préparation des couleurs : mêmes gâteaux que la production (commande
+    // incluse, pas « à accepter », pas de test sauf demandé, pas annulés).
+    // « decorated » = déjà « Fait », ou étape Déco cochée (F42, si présente).
+    const decoDone = new Set<string>();
+    if (colourRaw.size > 0) {
+      const { data: steps, error: stErr } = await supabase.from("order_items").select("id, production_steps").in("id", [...colourRaw.keys()]);
+      if (!stErr) for (const r of steps ?? []) if (r.production_steps && typeof r.production_steps === "object" && "deco" in r.production_steps) decoDone.add(r.id);
+    }
+    const colourItems = [...colourRaw.values()].filter((c) => {
+      const o = ordersById.get(String(c.orderId));
+      if (!o || (!includeTests && isTestOrder(o)) || cancelledItemIds.has(String(c.itemId))) return false;
+      const st = orderStatus(o, true);
+      return st.include && st.badge !== "to_accept";
+    }).map((c) => ({ ...c, decorated: c.done === true || decoDone.has(String(c.itemId)) }));
+
+    // F45 : Workshop Pochage — couleur de base de chaque participant, ajoutée à
+    // « Préparation des couleurs » (seulement si aucune place n'a été annulée).
+    const pipingItems = workshopItems.filter((i) => i.workshop_type === "piping");
+    if (pipingItems.length > 0) {
+      const { data: pRows, error: pErr } = await supabase.from("order_items").select("id, workshop_base_colors").in("id", pipingItems.map((i) => i.id));
+      if (!pErr) {
+        const coloursById = new Map((pRows ?? []).map((r: { id: string; workshop_base_colors: string[] | null }) => [r.id, r.workshop_base_colors]));
+        const per = Math.max(1, Number(ws.state?.settings?.piping?.cakesPerParticipant ?? 1) || 1);
+        for (const it of pipingItems) {
+          const o = ordersById.get(it.order_id);
+          if (!o || (!includeTests && isTestOrder(o)) || cancelledItemIds.has(it.id)) continue;
+          if (!orderStatus(o, false).include) continue;
+          if (it.reservation && Number(it.reservation.active_seats) !== Number(it.reservation.purchased_seats)) continue;
+          for (const c of coloursById.get(it.id) ?? []) {
+            colourItems.push({
+              itemId: it.id, orderId: it.order_id, product: "workshop", size: "retro", design: null, quantity: per,
+              baseColor: c, decorationColor: null, textColor: null, hasText: false, ribbonColor: null,
+              extras: [], extra: null, done: false, decorated: false,
+            });
+          }
+        }
+      }
+    }
+
+    // Bûches : mêmes règles que les couleurs (pas « à accepter », pas de test sauf demandé, pas annulées).
+    const logItems = logRaw.filter((l) => {
+      const o = ordersById.get(String(l.orderId));
+      if (!o || (!includeTests && isTestOrder(o)) || cancelledItemIds.has(String(l.itemId))) return false;
+      const st = orderStatus(o, true);
+      return st.include && st.badge !== "to_accept";
+    }).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
     // Stock ↔ production (F15) : gâteaux préparés puis annulés (à décider) et
     // journal des mouvements. Absents tant que F15 n'est pas appliquée.
     const { data: pendingReuse, error: prErr } = await supabase.rpc("production_pending_reuse");
@@ -171,7 +239,7 @@ serve(async (req) => {
     if (!stockLinked) console.warn("get-production: stock link (F15) not available:", prErr?.message ?? mvErr?.message);
 
     return json(cors, forCaller(caller, {
-      from, to, includeTests, ...result, stockRows: stock ?? [],
+      from, to, includeTests, ...result, stockRows: stock ?? [], colourItems, logItems,
       stockLinked,
       workshopLinked: ws.linked,
       pendingReuse: stockLinked ? pendingReuse ?? [] : [],

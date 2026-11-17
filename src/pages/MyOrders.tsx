@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PRODUCT_LABELS, formatDateCH, sizeLabel, shapeLabel, designLabel, flavorLabel, splitComment } from "@/lib/orderLabels";
 import { formatChf } from "@/lib/money";
-import { candleImageFromName, candlesFallback } from "@/lib/itemDisplayImage";
+import { candleImageFromName, candlesFallback, designCatalogueImage } from "@/lib/itemDisplayImage";
 // Real product-line photos for the "no exact design captured" fallback
 // below — never the generic cake emoji. Same source photos already used as
 // each product's own hero/representative image on its page (DotCakes.tsx,
@@ -18,8 +18,6 @@ import { candleImageFromName, candlesFallback } from "@/lib/itemDisplayImage";
 // reused here rather than inventing new imagery.
 import dotCakesFallback from "@/assets/dot-gallery-1.jpg";
 import diyKitFallback from "@/assets/diy-kit-box.jpg";
-import bentoCakeFallback from "@/assets/bento-gallery-1.jpg";
-import rectangleCakeFallback from "@/assets/rectangle-signature.jpg";
 import workshopSignatureFallback from "@/assets/workshop-signature.jpg";
 import workshopPaintFallback from "@/assets/workshop-paint.png";
 import printingFallback from "@/assets/printing-gallery-1.jpg";
@@ -410,8 +408,9 @@ const MyOrders = () => {
       case "dot_cakes": return dotCakesFallback;
       case "diy_kit": return diyKitFallback;
       case "candles": return candleImageFromName(item.candle_name) ?? candlesFallback;
-      case "bento_cake": return bentoCakeFallback;
-      case "rectangle_cake": return rectangleCakeFallback;
+      // Photo du design commandé (catalogue / inspiration), jamais une photo hors catalogue.
+      case "bento_cake":
+      case "rectangle_cake": return designCatalogueImage(item.design, item.item_comment);
       case "edible_printing": return printingFallback;
       case "workshop": return item.workshop_type === "paint" ? workshopPaintFallback : workshopSignatureFallback;
       default: return null;

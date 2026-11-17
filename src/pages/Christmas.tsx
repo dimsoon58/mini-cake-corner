@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useCart } from "@/context/CartContext";
 
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import { CalendarIcon, Check, ChevronLeft, ChevronRight, ImageIcon, Ruler, Users } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,17 +17,17 @@ import { useChristmasVisible, CHRISTMAS_LAUNCH } from "@/hooks/useChristmasVisib
 import { useCountdown } from "@/hooks/useCountdown";
 import { cn } from "@/lib/utils";
 import {
-  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CLASSIC_CAKE_FLAVOURS, LOG_FLAVOURS, LOG_FLAVOUR_SURCHARGES, cakeFlavourSurcharge, LOG_INTRO,
-  CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos, CHRISTMAS_MOMENTS, CHRISTMAS_COVER,
+  CHRISTMAS_CAKES, CHRISTMAS_LOGS, CHRISTMAS_LOG_PRICE, CLASSIC_CAKE_FLAVOURS, LOG_FLAVOURS, LOG_FLAVOUR_SURCHARGES, cakeFlavourSurcharge, LOG_INTRO, LOG_SIZE,
+  CHRISTMAS_SIZE_LABELS, CHRISTMAS_SIZE_ORDER, fromPrice, cakePhotos, CHRISTMAS_MOMENTS, CHRISTMAS_COVER, isAfterChristmasLastDate,
   type ChristmasSize, type ChristmasFlavour,
 } from "@/data/christmas";
 
 // Page « Noël / Christmas » : on choisit un design (gâteau ou bûche), la
 // taille (gâteaux seulement), le goût et la date. Pas
 // d'extras ; supplément express habituel selon la date.
-// Tant que CHRISTMAS_PUBLIC est éteint, visible seulement par les admins
-// connectées (useChristmasVisible) ; l'ajout au panier reste désactivé tant
-// que le serveur de paiement ne connaît pas ces articles.
+// Avant l'ouverture (CHRISTMAS_LAUNCH), visible seulement par les admins
+// connectées (useChristmasVisible). Gâteau = bento_cake + design noel-<id> ;
+// bûche = christmas_log (taille « buche »). Prix recalculé par le serveur.
 
 type Selection = { kind: "cake" | "log"; id: string };
 
@@ -108,6 +110,27 @@ function ProductCard({ name, price, images, selected, onClick }: {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Taille des bûches : personnes et dimensions, deux étiquettes au cadre
+// bordeaux comme les cartes produits.
+function LogSize({ className }: { className?: string }) {
+  const { lang } = useLang();
+  const l = lang === "fr" ? "fr" : "en";
+  const items = [
+    { icon: Users, label: LOG_SIZE.people[l] },
+    { icon: Ruler, label: LOG_SIZE.dimensions[l] },
+  ];
+  return (
+    <div className={cn("flex flex-wrap gap-2", className)}>
+      {items.map(({ icon: Icon, label }) => (
+        <span key={label} className="inline-flex items-center gap-2 border border-primary px-3 py-1.5 text-[12px] uppercase tracking-[0.105em] text-primary">
+          <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+          {label}
+        </span>
+      ))}
     </div>
   );
 }
@@ -205,7 +228,7 @@ function ChristmasTeaser({ lang }: { lang: string }) {
           <CountdownBlock lang={lang} />
 
           <p className="text-[10px] md:text-sm uppercase tracking-[0.25em] text-cream/70 mt-6">
-            {lang === "fr" ? "Disponible le 14 novembre 2026" : "Available November 14, 2026"}
+            {lang === "fr" ? "Disponible le 13 novembre 2026" : "Available November 13, 2026"}
           </p>
         </div>
       </section>
@@ -218,8 +241,8 @@ function ChristmasTeaser({ lang }: { lang: string }) {
           </p>
           <h2 className="font-sans text-xl md:text-2xl font-semibold uppercase tracking-[0.1em] text-foreground mb-5">
             {lang === "fr"
-              ? "Vous n'attendez pas le 14 novembre ?"
-              : "Can't wait until November 14?"}
+              ? "Vous n'attendez pas le 13 novembre ?"
+              : "Can't wait until November 13?"}
           </h2>
           <p className="text-sm md:text-base text-muted-foreground leading-relaxed mb-8">
             {lang === "fr"
@@ -250,6 +273,8 @@ const Christmas = () => {
   });
   const { t, lang } = useLang();
   const { toast } = useToast();
+  const { addItem } = useCart();
+  const navigate = useNavigate();
   const l = lang === "fr" ? "fr" : "en";
   const { visible, preview, loading } = useChristmasVisible();
 
@@ -320,8 +345,42 @@ const Christmas = () => {
       toast({ ...missing, variant: "destructive" });
       return;
     }
-    // Panier pas encore branché : le serveur de paiement ne connaît pas ces articles.
-    toast({ title: t("Not available yet", "Pas encore disponible"), description: t("Online ordering will be switched on before the launch.", "La commande en ligne sera activée avant la mise en ligne.") });
+    const chosen = flavours.find((f) => f.id === flavour)!;
+    const item = (cake ?? log)!;
+    const photo = cakePhotos(item)[0];
+    const sizeId = cake ? (size as ChristmasSize) : "buche";
+    const added = addItem({
+      id: "",
+      product: cake ? "bento_cake" : "christmas_log",
+      orderDate: format(orderDate as Date, "yyyy-MM-dd"),
+      orderTime: "",
+      size: sizeId,
+      sizeName: cake ? CHRISTMAS_SIZE_LABELS[sizeId as ChristmasSize].fr : "Bûche",
+      shape: cake ? "round" : "",
+      shapeName: cake ? "Round" : "",
+      // Id pour le prix serveur ; nom (français) enregistré dans la commande.
+      flavor: chosen.id,
+      flavorName: chosen.nameFr,
+      style: item.id,
+      styleName: item.nameFr,
+      baseColor: "", baseColorName: "", decorationColor: "", decorationColorName: "",
+      cakeText: "", textColor: "", textColorName: "", textStyle: "normal",
+      extras: [], extrasNames: [], ribbonColor: "", ribbonColorName: "",
+      butterflyColor: "", butterflyColorName: "",
+      candles: [], comment: "", imageUrls: [], imageFiles: [],
+      total: subtotal ?? 0,
+      designImageUrl: photo ? new URL(photo, window.location.origin).href : null,
+    });
+    if (!added.ok) {
+      toast({
+        title: t("Different date", "Date différente"),
+        description: t("This item's date doesn't match the rest of your cart. Please place a separate order.", "La date de cet article ne correspond pas au reste de votre panier. Merci de passer une commande séparée."),
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: t("Added to your cart!", "Ajouté au panier !") });
+    navigate("/cart");
   };
 
   const choose = (next: Selection) => {
@@ -390,7 +449,8 @@ const Christmas = () => {
           <h2 className="bg-primary text-primary-foreground uppercase tracking-[0.105em] text-sm font-medium px-6 py-2.5 mb-6 text-center md:text-left">
             {t("Christmas logs — New", "Bûches de Noël — Nouveauté")}
           </h2>
-          <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-10 text-sm md:text-base">{LOG_INTRO[l]}</p>
+          <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-4 text-sm md:text-base">{LOG_INTRO[l]}</p>
+          <LogSize className="justify-center mb-10" />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {CHRISTMAS_LOGS.map((b) => (
               <ProductCard
@@ -427,6 +487,7 @@ const Christmas = () => {
                   {l === "fr" ? (cake ?? log)!.nameFr : (cake ?? log)!.nameEn}
                 </h3>
                 {log && <p className="text-sm text-muted-foreground mt-2">{LOG_INTRO[l]}</p>}
+                {log && <LogSize className="mt-3" />}
               </div>
 
               {cake && (
@@ -502,7 +563,7 @@ const Christmas = () => {
                     <OrderCalendar
                       selected={orderDate}
                       onSelect={(d) => { setOrderDate(d); setCalOpen(false); }}
-                      disabled={(date) => isOrderDateDisabled(date)}
+                      disabled={(date) => isOrderDateDisabled(date) || isAfterChristmasLastDate(date)}
                       initialFocus
                       className="p-3 pointer-events-auto"
                     />

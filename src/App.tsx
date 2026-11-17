@@ -20,9 +20,11 @@ import CommunityPress from "./pages/CommunityPress";
 import Catalog from "./pages/Catalog";
 import Business from "./pages/Business";
 import Printing from "./pages/Printing";
+import ClientGift from "./pages/ClientGift";
 import Christmas from "./pages/Christmas";
 import GiftCard from "./pages/GiftCard";
 import GiftCardThanks from "./pages/GiftCardThanks";
+import PayOrder from "./pages/PayOrder";
 import Candles from "./pages/Candles";
 import DotCakes from "./pages/DotCakes";
 import Workshop from "./pages/Workshop";
@@ -40,6 +42,7 @@ import AdminWorkshops from "./pages/AdminWorkshops";
 import AdminCompta from "./pages/AdminCompta";
 import AdminPartners from "./pages/AdminPartners";
 import AdminInfluencers from "./pages/AdminInfluencers";
+import AdminGiftCards from "./pages/AdminGiftCards";
 import AdminPartner from "./pages/AdminPartner";
 import AdminCustomer from "./pages/AdminCustomer";
 import AdminCalendar from "./pages/AdminCalendar";
@@ -124,6 +127,8 @@ const App = () => (
             <Route path="/community-press" element={<CommunityPress />} />
             <Route path="/business" element={<Business />} />
             <Route path="/corporate-event" element={<Business />} />
+            {/* Offre « Attention client » — page cachée (aucun lien, noindex) */}
+            <Route path="/attention-client" element={<ClientGift />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/customize" element={<Customize />} />
             <Route path="/dot-cakes" element={<DotCakes />} />
@@ -132,6 +137,7 @@ const App = () => (
             <Route path="/noel" element={<Christmas />} />
             <Route path="/bon-cadeau" element={<GiftCard />} />
             <Route path="/bon-cadeau/merci" element={<GiftCardThanks />} />
+            <Route path="/payer/:token" element={<PayOrder />} />
             <Route path="/workshop" element={<Workshop />} />
             <Route path="/workshop-booking" element={<WorkshopBooking />} />
             <Route path="/workshop-confirmation" element={<BookingConfirmation />} />
@@ -163,6 +169,7 @@ const App = () => (
             <Route path="/admin/compta" element={<AdminCompta />} />
             <Route path="/admin/partners" element={<AdminPartners />} />
             <Route path="/admin/influencers" element={<AdminInfluencers />} />
+            <Route path="/admin/gift-cards" element={<AdminGiftCards />} />
             <Route path="/admin/partners/:id" element={<AdminPartner />} />
             <Route path="/order-action" element={<OrderAction />} />
             <Route path="/product/:id" element={<ProductDetail />} />

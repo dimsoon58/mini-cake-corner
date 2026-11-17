@@ -16,11 +16,14 @@ import { PRODUCT_LABELS, sizeLabel, shapeLabel, designLabel, splitComment, colou
 import { itemDisplayImage } from "@/lib/itemDisplayImage";
 import { ManualOrderPanel } from "@/components/admin/manual-order/ManualOrderPanel";
 import { ReferencePhotos } from "@/components/ReferencePhotos";
-import { ProductionCheck } from "@/components/admin/ProductionCheck";
+import { ProductionSteps } from "@/components/admin/ProductionSteps";
 import { OrderRefundsPanel } from "@/components/admin/refunds/OrderRefundsPanel";
 import { OrderCancellationPanel, type WorkshopReservation } from "@/components/admin/OrderCancellationPanel";
 import { OrderConfirmationPanel } from "@/components/admin/OrderConfirmationPanel";
 import { OrderInternalNotes } from "@/components/admin/OrderInternalNotes";
+import { EditOrderItemDialog } from "@/components/admin/EditOrderItemDialog";
+import { OrderItemChanges, type ItemChange } from "@/components/admin/OrderItemChanges";
+import { GiftCardOrderPanel } from "@/components/admin/GiftCardOrderPanel";
 import { CHANNEL_LABELS, MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -108,6 +111,9 @@ const AdminOrder = () => {
   const staff = useStaffRole();
   const employee = staff.isEmployee;
   const isAdmin = isAdminEmail(user?.email) || staff.can("orders.view");
+  // F44 : modifier un gâteau (Mel et Eli seulement) + historique des modifications.
+  const canEditItems = isAdminEmail(user?.email);
+  const [itemChanges, setItemChanges] = useState<ItemChange[]>([]);
 
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -200,6 +206,14 @@ const AdminOrder = () => {
     };
     fetchOrder();
   }, [id, token, t, authLoading, isAdmin, reloadKey, staff.loading]);
+
+  // F44 : historique des modifications (silencieux si la fonction n'est pas encore déployée).
+  useEffect(() => {
+    if (!canEditItems || !order?.id) return;
+    supabase.functions.invoke("edit-order-item", { body: { action: "list", orderId: order.id } })
+      .then(({ data, error }) => { if (!error && Array.isArray(data?.changes)) setItemChanges(data.changes); })
+      .catch(() => {});
+  }, [canEditItems, order?.id, reloadKey]);
 
   const handleAction = async (action: "approve" | "reject") => {
     if (!pin.trim()) {
@@ -504,6 +518,9 @@ const AdminOrder = () => {
           {/* F36 : notes internes de l'équipe (texte + photos), toutes les commandes. */}
           {order.id && <OrderInternalNotes orderId={order.id} />}
 
+          {/* F39 : bon cadeau utilisé sur la commande (remettre un montant sur le bon). */}
+          {order.id && !employee && Number(order.gift_card_amount) > 0 && <GiftCardOrderPanel orderId={order.id} />}
+
           {/* Missing token warning — rare: only when this order genuinely has
               no order_action_tokens row at all (neither the URL nor
               get-order-detail's own lookup found one), so Accept/Refuse has
@@ -610,6 +627,14 @@ const AdminOrder = () => {
                       <DetailRow label={t("Date", "Date")} value={formatDateFromIso(item.workshop_date)} />
                       <DetailRow label={t("Time", "Heure")} value={item.workshop_time} />
                       <DetailRow label={t("Participants", "Participants")} value={item.workshop_participants != null ? String(item.workshop_participants) : null} />
+                      {/* F45 : génoise (et couleur de base pour le Pochage) de chaque participant. */}
+                      {Array.isArray(item.workshop_sponge_choices) && item.workshop_sponge_choices.map((ch: string, pi: number) => (
+                        <DetailRow
+                          key={pi}
+                          label={`${t("Participant", "Participant")} ${pi + 1}`}
+                          value={`${ch === "chocolate" ? t("Chocolate sponge", "Génoise chocolat") : ch === "vanilla" ? t("Vanilla sponge", "Génoise vanille") : ch}${item.workshop_base_colors?.[pi] ? ` · ${colourSwatches(item.workshop_base_colors[pi], lang)[0]?.label ?? item.workshop_base_colors[pi]}` : ""}`}
+                        />
+                      ))}
                       {!employee && <DetailRow label={t("Unit price", "Prix unitaire")} value={item.workshop_unit_price != null ? `CHF ${item.workshop_unit_price}` : null} />}
                       <DetailRow label={t("Notes", "Notes")} value={item.item_comment} />
                     </div>
@@ -629,33 +654,42 @@ const AdminOrder = () => {
                   designImageUrl: item.design_image_url,
                   referenceImages: item.reference_images,
                   candleName: item.candle_name,
+                  design: item.design,
+                  comment: item.item_comment,
                 });
 
                 return (
                   <div key={item.id || i} className="border border-border/60 bg-background p-4">
                     <div className="flex gap-4">
                       <div className="w-16 h-16 flex-shrink-0 bg-secondary/40 overflow-hidden">
-                        {displayImage && (
+                        {displayImage ? (
                           <img src={displayImage} alt={productLabel} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="w-full h-full flex items-center justify-center text-center text-[10px] leading-tight text-muted-foreground px-1">{t("No design photo", "Pas de photo du design")}</span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex justify-between items-center gap-3 mb-1">
                           <span className="flex items-center gap-2.5">
-                            {item.production_status === "cancelled" ? (
+                            {item.production_status === "cancelled" && (
                               <span className="px-2 py-0.5 text-[11px] bg-red-100 text-red-800">{t("Cancelled", "Annulé")}</span>
-                            ) : (
-                              <ProductionCheck
-                                itemId={item.id}
-                                status={item.production_status}
-                                disabledReason={productionBlockedReason}
-                                onChange={(next) => setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, production_status: next } : x)))}
-                              />
                             )}
                             <span className="font-medium text-sm">{productLabel} {i + 1}</span>
                           </span>
                           {!employee && <span className="font-semibold text-sm text-primary">CHF {item.total}</span>}
                         </div>
+                        {item.production_status !== "cancelled" && (
+                          <ProductionSteps
+                            className="mb-2"
+                            itemId={item.id}
+                            status={item.production_status}
+                            steps={item.production_steps}
+                            item={item}
+                            delivery={(fulfillmentById(item.fulfillment_id)?.delivery_method ?? order.delivery_method) === "delivery"}
+                            disabledReason={productionBlockedReason}
+                            onChange={(status, steps) => setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, production_status: status, production_steps: steps } : x)))}
+                          />
+                        )}
                         {isMultiDate && (
                           <DetailRow label={t("Date", "Date")} value={formatDateFromIso(fulfillmentById(item.fulfillment_id)?.pickup_delivery_date)} />
                         )}
@@ -695,13 +729,17 @@ const AdminOrder = () => {
                         )}
                         <DetailRow label={t("Special Instructions", "Instructions particulières")} value={comment} />
                         {!employee && (
-                        <div className="pt-2">
+                        <div className="pt-2 flex flex-wrap gap-x-4 gap-y-1">
                           <Link to={`/admin/labels?order=${order?.id ?? ""}&item=${item.id}`} className="text-[11px] text-primary hover:underline flex items-center gap-1">
                             <Printer className="w-3 h-3" />
                             {t("Production label", "Étiquette de production")}
                           </Link>
+                          {canEditItems && !isCancelled && item.production_status !== "cancelled" && item.id && (
+                            <EditOrderItemDialog orderId={order.id} item={item} onSaved={() => setReloadKey((k) => k + 1)} />
+                          )}
                         </div>
                         )}
+                        <OrderItemChanges changes={itemChanges.filter((c) => c.item_id === item.id)} />
                         <ReferencePhotos urls={item.reference_images}
                           printedFirst={item.design === "printed-picture" || (Array.isArray(item.extras) && item.extras.includes("printed-picture"))} />
                       </div>

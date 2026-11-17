@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Calculator, CakeSlice, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Handshake, LayoutDashboard, MoreHorizontal, Palette, PartyPopper, PencilLine, RotateCcw, Sparkles, Sun, UserRoundCog, Users, X } from "lucide-react";
+import { Calculator, CakeSlice, CalendarCheck, CalendarDays, ChevronDown, ClipboardList, Gift, Handshake, LayoutDashboard, MoreHorizontal, Palette, PartyPopper, PencilLine, RotateCcw, Sparkles, Sun, UserRoundCog, Users, X } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -37,6 +37,7 @@ const ITEMS = [
   { to: "/admin/compta", en: "Accounting", fr: "Compta", short: { en: "Acct.", fr: "Compta" }, icon: Calculator },
   { to: "/admin/partners", en: "Partners", fr: "Partenaires", short: { en: "Partners", fr: "Part." }, icon: Handshake },
   { to: "/admin/influencers", en: "Influencers", fr: "Influenceurs", short: { en: "Influ.", fr: "Influ." }, icon: Sparkles },
+  { to: "/admin/gift-cards", en: "Gift cards", fr: "Bons cadeaux", short: { en: "Gifts", fr: "Bons" }, icon: Gift },
   { to: "/admin/dashboard", en: "Dashboard", fr: "Tableau de bord", short: { en: "Board", fr: "Bord" }, icon: LayoutDashboard },
 ];
 

@@ -11,11 +11,12 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { PRODUCT_LABELS, formatDateCH } from "@/lib/orderLabels";
 import {
-  EXCLUDED_LABELS, buildCakeLabels, defaultSelectedKeys, layoutAll,
-  type CakeLabel, type LabelPage, type LabelSourceItem,
+  EXCLUDED_LABELS, buildCakeLabels, workshopCakeLabels, mergeByDate, defaultSelectedKeys, layoutAll,
+  type CakeLabel, type LabelPage, type LabelSourceItem, type WorkshopLabelSource,
 } from "@/lib/productionLabels";
 import { canvasMeasure, exportNiimbotXlsx, exportOnePng, exportPdf, exportPngZip, renderPage } from "@/lib/productionLabelsExport";
 import { buildPrepSheet, prepSheetHtml, workshopTypeLabel, type PrepWorkshopSession } from "@/lib/prepSheet";
+import { ColourPrepView } from "@/components/admin/ColourPrepPanel";
 import { cn } from "@/lib/utils";
 
 // Admin > Étiquettes de production. Remplace les Post-it : une étiquette
@@ -54,6 +55,7 @@ export default function AdminLabels() {
   const [from, setFrom] = useState(params.get("date") ?? zDate(0));
   const [to, setTo] = useState(params.get("date") ?? zDate(2));
   const [items, setItems] = useState<LabelSourceItem[] | null>(null);
+  const [workshops, setWorkshops] = useState<WorkshopLabelSource[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -93,8 +95,10 @@ export default function AdminLabels() {
         throw new Error(msg ?? (ctx?.status === 404 ? "La fonction get-orders-for-labels n'est pas encore déployée." : "Chargement impossible. Réessayez."));
       }
       const list = (data?.items ?? []) as LabelSourceItem[];
+      const ws = (data?.workshops ?? []) as WorkshopLabelSource[];
       setItems(list);
-      const cakes = buildCakeLabels(list);
+      setWorkshops(ws);
+      const cakes = mergeByDate(buildCakeLabels(list), workshopCakeLabels(ws));
       setSelected(new Set(defaultSelectedKeys(cakes, itemId)));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -104,14 +108,14 @@ export default function AdminLabels() {
 
   useEffect(() => { if (!authLoading && isAdmin && orderId) load(); }, [authLoading, isAdmin, orderId, load]);
 
-  const cakes = useMemo(() => (items ? buildCakeLabels(items) : []), [items]);
+  const cakes = useMemo(() => (items ? mergeByDate(buildCakeLabels(items), workshopCakeLabels(workshops)) : []), [items, workshops]);
   const excluded = useMemo(() => (items ?? []).filter((i) => i.excluded), [items]);
   const chosen = useMemo(() => cakes.filter((c) => selected.has(c.key)), [cakes, selected]);
   const toAccept = useMemo(() => cakes.filter((c) => c.badge === "to_accept"), [cakes]);
   const itemsById = useMemo(() => new Map((items ?? []).map((i) => [i.id, i])), [items]);
   const chosenSessions = useMemo(() => sessions.filter((x) => selectedSessions.has(x.sessionId)), [sessions, selectedSessions]);
   const sheet = useMemo(() => buildPrepSheet(chosen, itemsById, chosenSessions), [chosen, itemsById, chosenSessions]);
-  const prepMissing = chosen.some((c) => !itemsById.get(c.itemId)?.prep);
+  const prepMissing = chosen.some((c) => !c.workshop && !itemsById.get(c.itemId)?.prep);
   const pages = useMemo(() => (fontsReady ? layoutAll(chosen, canvasMeasure) : []), [chosen, fontsReady]);
   const pagesByCake = useMemo(() => {
     const m = new Map<string, LabelPage[]>();
@@ -162,7 +166,7 @@ export default function AdminLabels() {
         </Link>
         <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground font-semibold">Étiquettes de production</h1>
         <p className="text-xs text-muted-foreground">
-          Une étiquette NIIMBOT B1 de 50 × 80 mm par gâteau, avec les règles de l'agenda de production (workshops, bougies, gâteaux annulés et commandes non retenues exclus).
+          Une étiquette NIIMBOT B1 de 50 × 80 mm par gâteau, avec les règles de l'agenda de production (bougies, gâteaux annulés et commandes non retenues exclus). Workshops : une étiquette par gâteau, au nom de la personne qui a réservé.
           Rien n'est modifié dans les commandes et aucun e-mail n'est envoyé.
         </p>
 
@@ -227,7 +231,7 @@ export default function AdminLabels() {
               ))}
               {!orderId && (sessions.length > 0 || sessionsError) && (
                 <div className="space-y-1 pt-2" data-testid="labels-workshops">
-                  <h2 className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Workshops (fiche de mise en place seulement, pas d'étiquette)</h2>
+                  <h2 className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Workshops pour la fiche de mise en place (leurs étiquettes sont dans la liste ci-dessus)</h2>
                   {sessionsError && <p className="text-xs text-amber-900">Workshops non chargés : la fiche ne les compte pas.</p>}
                   <ul className="divide-y divide-border/60 border border-border/60">
                     {sessions.map((x) => {
@@ -307,6 +311,10 @@ export default function AdminLabels() {
                       {sheet.ingredients.length === 0 ? <p className="text-muted-foreground">—</p> : (
                         <ul>{sheet.ingredients.map((f) => <li key={f.label} className="flex justify-between border-b border-border/40 py-0.5"><span>{f.label}</span><b>{f.units}</b></li>)}</ul>
                       )}
+                    </div>
+                    <div className="sm:col-span-2" data-testid="prep-colours">
+                      <h3 className="text-xs uppercase tracking-[0.06em] text-muted-foreground mb-1">Couleurs (crèmes et rubans)</h3>
+                      <ColourPrepView prep={sheet.colours} compact />
                     </div>
                     {sheet.toCheck.length > 0 && (
                       <div className="sm:col-span-2 text-xs text-amber-900">

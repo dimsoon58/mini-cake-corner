@@ -4,7 +4,8 @@ import { getPostFinanceCredentials, pfFetch } from "../_shared/postfinance.ts";
 import { getPaymentPageUrl } from "../_shared/postfinance-transactions.ts";
 import { getSiteBaseUrl } from "../_shared/site-config.ts";
 import { alertTime, sendTechnicalAlert } from "../_shared/admin-alert.ts";
-import { GIFT_CARD_MAX, GIFT_CARD_MIN, GIFT_MERCHANT_PREFIX } from "../_shared/gift-cards.ts";
+import { GIFT_CARD_MAX, GIFT_CARD_MIN, GIFT_MERCHANT_PREFIX, WORKSHOP_VOUCHER_LABELS } from "../_shared/gift-cards.ts";
+import { WORKSHOP_PRICE } from "../_shared/workshops.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // F37 (03.11.2026) — « Bon cadeau » page: starts the PostFinance payment of
@@ -31,13 +32,23 @@ serve(async (req) => {
   const lang = body?.lang === "en" ? "en" : "fr";
   const tr = (en: string, fr: string) => (lang === "fr" ? fr : en);
 
-  const amount = Math.round(Number(String(body?.amount ?? "").replace(",", ".")) * 100) / 100;
+  // F40 — « Offrir un workshop »: a workshop type and 1–6 places; the value
+  // is decided here (price of that workshop × places), never by the page.
+  const kind = body?.kind === "workshop" ? "workshop" : "amount";
+  const workshopType = kind === "workshop" ? String(body?.workshopType ?? "") : null;
+  const places = kind === "workshop" ? Number(body?.places) : null;
+  if (kind === "workshop" && (!workshopType || !(workshopType in WORKSHOP_PRICE) || !Number.isInteger(places) || places! < 1 || places! > 6)) {
+    return json(cors, { error: tr("Choose a workshop and 1 to 6 spots.", "Choisissez un workshop et 1 à 6 places."), reason: "input" }, 400);
+  }
+  const amount = kind === "workshop"
+    ? WORKSHOP_PRICE[workshopType as keyof typeof WORKSHOP_PRICE] * places!
+    : Math.round(Number(String(body?.amount ?? "").replace(",", ".")) * 100) / 100;
   const buyerName = clean(body?.buyerName, 120);
   const buyerEmail = clean(body?.buyerEmail, 254).toLowerCase();
   const recipientName = clean(body?.recipientName, 80) || null;
   const message = typeof body?.message === "string" ? body.message.trim().slice(0, 200) || null : null;
 
-  if (!Number.isFinite(amount) || amount < GIFT_CARD_MIN || amount > GIFT_CARD_MAX) {
+  if (kind === "amount" && (!Number.isFinite(amount) || amount < GIFT_CARD_MIN || amount > GIFT_CARD_MAX)) {
     return json(cors, { error: tr(`Choose an amount between CHF ${GIFT_CARD_MIN} and ${GIFT_CARD_MAX}.`, `Choisissez un montant entre CHF ${GIFT_CARD_MIN} et ${GIFT_CARD_MAX}.`), reason: "input" }, 400);
   }
   if (!buyerName) return json(cors, { error: tr("Please enter your name.", "Merci d'indiquer votre nom."), reason: "input" }, 400);
@@ -47,7 +58,10 @@ serve(async (req) => {
   const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", { auth: { persistSession: false } });
 
   const { data: card, error: insErr } = await supabase.from("gift_cards")
-    .insert({ initial_amount: amount, buyer_name: buyerName, buyer_email: buyerEmail, recipient_name: recipientName, message, lang, source: "online" })
+    .insert({
+      initial_amount: amount, buyer_name: buyerName, buyer_email: buyerEmail, recipient_name: recipientName, message, lang, source: "online",
+      kind, workshop_type: workshopType, workshop_places: places,
+    })
     .select("id").single();
   if (insErr || !card) {
     console.error("create-gift-card-payment: insert failed:", insErr);
@@ -69,7 +83,11 @@ serve(async (req) => {
       completionBehavior: "COMPLETE_IMMEDIATELY",
       lineItems: [{
         uniqueId: "gift-card",
-        name: lang === "en" ? "Bento Cake Studio gift card" : "Bon cadeau Bento Cake Studio",
+        name: kind === "workshop"
+          ? (lang === "en"
+            ? `Workshop gift card: ${WORKSHOP_VOUCHER_LABELS[workshopType!]?.en ?? workshopType}, ${places} spot${places! > 1 ? "s" : ""}`
+            : `Bon cadeau workshop : ${WORKSHOP_VOUCHER_LABELS[workshopType!]?.fr ?? workshopType}, ${places} place${places! > 1 ? "s" : ""}`)
+          : (lang === "en" ? "Bento Cake Studio gift card" : "Bon cadeau Bento Cake Studio"),
         quantity: 1,
         amountIncludingTax: amount,
         type: "PRODUCT",

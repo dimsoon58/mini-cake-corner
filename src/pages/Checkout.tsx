@@ -53,7 +53,8 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isOrderDateDisabled, isClosedDay, isClosedDate, CLOSED_DAY_COPY, CLOSED_DATE_COPY, slotRuleCopy, slotsForDate, expressSurchargeBreakdown, expressSummaryLabel, type ExpressGroup } from "@/lib/orderDates";
-import { cartItemTitle, flavorLabel, shapeLabel } from "@/lib/orderLabels";
+import { isChristmasCartItem, isAfterChristmasLastDate } from "@/data/christmas";
+import { cartItemTitle, flavorLabel, shapeLabel, colourLabel } from "@/lib/orderLabels";
 import { ExpressLegend, ExpressDateNotice, OrderCalendar } from "@/components/ExpressDateNotice";
 import { PostFinanceCheckout } from "@/components/EmbeddedCheckout";
 import { getStoredOrderId, setStoredOrderId, clearStoredOrderId } from "@/lib/checkoutOrderId";
@@ -327,6 +328,7 @@ const uploadImageFilesToStorage = async (
 
 const Checkout = () => {
   const { items, clearCart, updateItem, partnerReferral, giftCard } = useCart();
+  const cartHasChristmas = items.some((it) => isChristmasCartItem(it));
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -506,11 +508,12 @@ const Checkout = () => {
   // Saturday: 11:00 – 12:00 only. A slot chosen before switching to a
   // Saturday no longer exists, so it is cleared (the customer picks again).
   const pickupSlots = slotsForDate(PICKUP_TIME_SLOTS, deliveryDate);
-  const deliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate);
+  const deliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate, "delivery");
   const slotNote = slotRuleCopy(deliveryDate);
+  const deliverySlotNote = slotRuleCopy(deliveryDate, "delivery");
   useEffect(() => {
     if (pickupTime && !slotsForDate(PICKUP_TIME_SLOTS, deliveryDate).includes(pickupTime)) setPickupTime("");
-    if (deliveryTime && !slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate).includes(deliveryTime)) setDeliveryTime("");
+    if (deliveryTime && !slotsForDate(DELIVERY_TIME_SLOTS, deliveryDate, "delivery").includes(deliveryTime)) setDeliveryTime("");
   }, [deliveryDate, pickupTime, deliveryTime]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
@@ -970,7 +973,12 @@ const Checkout = () => {
   );
   // F38 — gift voucher, applied last (delivery and express included).
   // Display estimate from check-gift-card; the server reserves the real amount.
-  const estimatedGiftUsed = giftCard ? roundChf(Math.min(giftCard.balance, Math.max(totalBeforeGift, 0))) : 0;
+  // F40 — a workshop voucher only pays the workshops (estimate: their total
+  // minus the promo code share; the server decides the exact amount).
+  const giftCap = giftCard?.kind === "workshop"
+    ? Math.min(totalBeforeGift, sumChf(...items.filter((i) => i.product === "workshop").map((i) => i.total)))
+    : totalBeforeGift;
+  const estimatedGiftUsed = giftCard ? roundChf(Math.min(giftCard.balance, Math.max(giftCap, 0))) : 0;
   const totalPrice = sumChf(totalBeforeGift, -estimatedGiftUsed);
 
   // Build phone number with country code
@@ -1222,7 +1230,7 @@ const Checkout = () => {
           });
           return;
         }
-        if (d.deliveryOption === "delivery" && !slotsForDate(DELIVERY_TIME_SLOTS, group.date).includes(d.deliveryTime)) {
+        if (d.deliveryOption === "delivery" && !slotsForDate(DELIVERY_TIME_SLOTS, group.date, "delivery").includes(d.deliveryTime)) {
           toast({
             title: t(`Delivery time slot required for ${dateLabel}`, `Créneau de livraison requis pour le ${dateLabel}`),
             variant: "destructive",
@@ -1582,6 +1590,7 @@ const Checkout = () => {
           workshop_session_id: item.product === "workshop" ? (item.workshopSessionId ?? null) : null,
           workshop_participants: item.product === "workshop" ? (item.workshopParticipants ?? null) : null,
           workshop_sponge_choices: item.product === "workshop" ? (item.workshopSpongeChoices ?? null) : null,
+          workshop_base_colors: item.product === "workshop" ? (item.workshopBaseColors ?? null) : null,
         })),
         items: items.map((item) => ({
           sizeName: item.sizeName,
@@ -1803,7 +1812,7 @@ const Checkout = () => {
                   <OrderCalendar
                     selected={deliveryDate}
                     onSelect={setDeliveryDate}
-                    disabled={(date) => isOrderDateDisabled(date)}
+                    disabled={(date) => isOrderDateDisabled(date) || (cartHasChristmas && isAfterChristmasLastDate(date))}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
                   />
@@ -1942,7 +1951,7 @@ const Checkout = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  {slotNote && <p className="text-xs text-muted-foreground">{t(slotNote.en, slotNote.fr)}</p>}
+                  {deliverySlotNote && <p className="text-xs text-muted-foreground">{t(deliverySlotNote.en, deliverySlotNote.fr)}</p>}
                 </div>
 
                 {/* Delivery Comment - Required */}
@@ -2011,8 +2020,9 @@ const Checkout = () => {
                 {physicalDateGroups.map((group) => {
                   const draft = getFulfillmentDraft(group.date);
                   const groupPickupSlots = slotsForDate(PICKUP_TIME_SLOTS, group.date);
-                  const groupDeliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, group.date);
+                  const groupDeliverySlots = slotsForDate(DELIVERY_TIME_SLOTS, group.date, "delivery");
                   const groupSlotNote = slotRuleCopy(group.date);
+                  const groupDeliverySlotNote = slotRuleCopy(group.date, "delivery");
                   const groupDate = new Date(group.date + "T00:00:00");
                   const groupLabel = formatDisplayDate(groupDate);
                   const groupTotal = sumChf(...group.items.map((i) => i.total));
@@ -2118,7 +2128,7 @@ const Checkout = () => {
                                 ))}
                               </SelectContent>
                             </Select>
-                            {groupSlotNote && <p className="text-xs text-muted-foreground">{t(groupSlotNote.en, groupSlotNote.fr)}</p>}
+                            {groupDeliverySlotNote && <p className="text-xs text-muted-foreground">{t(groupDeliverySlotNote.en, groupDeliverySlotNote.fr)}</p>}
                           </div>
                           {/* NOTE (rollout report): there is deliberately no per-date
                               delivery-comment field here yet — order_fulfillments has
@@ -2162,6 +2172,7 @@ const Checkout = () => {
                               {item.workshopSpongeChoices.map((ch: string, i: number) => (
                                 <p key={i} className="text-[10px] text-muted-foreground">
                                   P{i + 1}: {ch === "vanilla" ? t("Vanilla sponge", "Génoise vanille") : t("Chocolate sponge", "Génoise chocolat")}
+                                  {item.workshopBaseColors?.[i] ? ` · ${colourLabel(item.workshopBaseColors[i], lang === "fr" ? "fr" : "en")}` : ""}
                                 </p>
                               ))}
                             </div>

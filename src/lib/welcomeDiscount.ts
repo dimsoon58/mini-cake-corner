@@ -1,4 +1,5 @@
 import type { User } from "@supabase/supabase-js";
+import { christmasCakePrice } from "@/data/christmas";
 import type { Profile } from "@/context/AuthContext";
 
 // Single shared source for the welcome-voucher (-10%) DISPLAY logic, used by
@@ -39,7 +40,12 @@ export const WELCOME_VOUCHER_BASE: Record<string, Record<string, number>> = {
 // pair isn't in the fixed table above — including a stale cart still
 // carrying the old generic "dot-cakes" size — in which case the item is
 // never selected as the discounted one.
-export function getWelcomeVoucherBase(item: { product: string; size: string }): number | null {
+export function getWelcomeVoucherBase(item: { product: string; size: string; style?: string }): number | null {
+  // Noël : prix de Noël de la taille ; bûche absente du tableau = jamais de réduction.
+  if (item.product === "bento_cake") {
+    const christmas = christmasCakePrice(item.style, item.size);
+    if (christmas !== null) return christmas;
+  }
   return WELCOME_VOUCHER_BASE[item.product]?.[item.size] ?? null;
 }
 

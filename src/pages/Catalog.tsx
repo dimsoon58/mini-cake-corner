@@ -103,6 +103,7 @@ import designGlitterCake from "@/assets/design-glitter-cake-new.jpg";
 import extraGlitter from "@/assets/extra-glitter-new.jpg";
 import designGlitterInAir from "@/assets/design-glitter-in-air-new.jpg";
 import designHeartBomb from "@/assets/design-heart-bomb-new.jpg";
+import designHeartBombBorder from "@/assets/design-heart-bomb-border.jpg";
 import designGenderReveal from "@/assets/design-gender-reveal-new.jpg";
 import genderReveal2 from "@/assets/gender-reveal-2.jpg";
 import genderReveal3 from "@/assets/gender-reveal-3.jpg";
@@ -420,6 +421,8 @@ const catalog = [
     name: "Heart Bomb",
     description: "A romantic cake covered in delicate heart decorations",
     image: designHeartBomb,
+    // Photo 1 sans bordure, photo 2 avec bordures (la 2 demande la couleur de bordure).
+    images: [designHeartBomb, designHeartBombBorder],
     styleId: "heart-bomb",
     styleName: "Heart Bomb",
     priceRange: "CHF 43 – 185",
@@ -800,6 +803,8 @@ interface CakeSelections {
   decorationColors: string[];
   borderTopColor?: string;
   borderBottomColor?: string;
+  // Heart Bomb: optional border and its colour (stored as "border-<id>")
+  borderColor?: string;
   roseColor: string;
   wantsText: boolean;
   cakeText: string;
@@ -1122,6 +1127,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
   const [showAllCandles, setShowAllCandles] = useState(false);
   // Declared before the effect below, which reads it in both its body and
   // its dependency array — referencing it while still part of the same
@@ -1486,6 +1492,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       return;
     }
 
+    if (selectedCake.styleId === "heart-bomb" && selections.shagDesignPreference === 1 && !selections.borderColor) {
+      toast({ title: t("Border colour required", "Couleur de bordure requise"), description: t("Please choose a colour for the border.", "Veuillez choisir une couleur pour la bordure."), variant: "destructive" });
+      return;
+    }
+
     if (cfg.roseColor && !selections.roseColor) {
       toast({ title: t("Roses Colour required", "Couleur des roses requise"), description: t("Please select a colour for your roses.", "Veuillez sélectionner une couleur pour vos roses."), variant: "destructive" });
       return;
@@ -1534,6 +1545,13 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       toast({ title: t("Butterfly Colour required", "Couleur du papillon requise"), description: t("Please select a colour for your butterfly.", "Veuillez sélectionner une couleur pour votre papillon."), variant: "destructive" });
       return;
     }
+
+    // Images de référence ajoutées → commentaire obligatoire (ce qu'il faut en reprendre).
+    if (selections.commentImages.length > 0 && !selections.comment.trim()) {
+      toast({ title: t("Comment required", "Commentaire requis"), description: t("Please tell us what you would like us to take from your reference images.", "Merci de nous dire ce que vous souhaitez que nous reprenions de vos images de référence."), variant: "destructive" });
+      commentRef.current?.focus();
+      return;
+    }
     
     const sizeObj = sizes.find(s => s.id === selections.size);
     const shapeObj = shapes.find(s => s.id === selections.shape);
@@ -1546,6 +1564,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       const botName = baseColors.find(c => c.id === selections.borderBottomColor)?.name;
       if (topName) decoColorNames.push(`Top border: ${topName}`);
       if (botName) decoColorNames.push(`Bottom border: ${botName}`);
+    }
+    const heartBombBorder = selectedCake.styleId === "heart-bomb" && selections.shagDesignPreference === 1 && selections.borderColor ? selections.borderColor : "";
+    if (heartBombBorder) {
+      const borderName = baseColors.find(c => c.id === heartBombBorder)?.name;
+      if (borderName) decoColorNames.push(`Border: ${borderName}`);
     }
     if (selectedCake.styleId === "gender-reveal") {
       const genderName = genderColors.find(c => c.id === selections.genderColor)?.name;
@@ -1617,7 +1640,11 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       styleName: selectedCake.styleName,
       baseColor: genderWhite ? "white" : selections.baseColor,
       baseColorName: baseColorObj?.name || "",
-      decorationColor: [...selections.decorationColors, ...(selections.roseColor ? [`roses-${selections.roseColor}`] : [])].join(", "),
+      decorationColor: [
+        ...selections.decorationColors,
+        ...(selections.roseColor ? [`roses-${selections.roseColor}`] : []),
+        ...(heartBombBorder ? [`border-${heartBombBorder}`] : []),
+      ].join(", "),
       decorationColorName: decoColorNames.join(", "),
       insideColor: insideColorFr,
       cakeText: finalText,
@@ -2093,7 +2120,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     {selectedCake.images.map((img, i) => (
                       <button
                         key={i}
-                        onClick={() => setSelections(prev => ({ ...prev, shagDesignPreference: i }))}
+                        onClick={() => setSelections(prev => ({ ...prev, shagDesignPreference: i, ...(selectedCake.styleId === "heart-bomb" && i !== 1 ? { borderColor: "" } : {}) }))}
                         className={cn(
                           "rounded-none overflow-hidden border-2 transition-all aspect-square",
                           selections.shagDesignPreference === i
@@ -2105,6 +2132,37 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                       </button>
                     ))}
                   </div>
+                  {/* Heart Bomb : photo 2 = avec bordures → couleur de la bordure */}
+                  {selectedCake.styleId === "heart-bomb" && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3 text-xs text-center text-muted-foreground">
+                        <span>{t("Without border", "Sans bordure")}</span>
+                        <span>{t("With borders", "Avec bordures")}</span>
+                      </div>
+                      {selections.shagDesignPreference === 1 && (
+                        <div className="space-y-2 pt-2">
+                          <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
+                            {t("Border colour", "Couleur de la bordure")} <span className="text-destructive">*</span>
+                          </label>
+                        <Select value={selections.borderColor ?? ""} onValueChange={(v) => setSelections({ ...selections, borderColor: v })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("Select a colour", "Choisir une couleur")} />
+                          </SelectTrigger>
+                          <SelectContent className="w-[min(90vw,280px)]">
+                            {baseColors.map(color => (
+                              <SelectItem key={color.id} value={color.id} itemText={t(color.name, colourFr[color.name] ?? color.name)}>
+                                <span className="flex items-center gap-2.5">
+                                  <span className="w-4 h-4 rounded-full flex-shrink-0 border" style={{ backgroundColor: color.color, borderColor: (color.id === "white" || color.id === "cream") ? "#bbb" : "transparent" }} />
+                                  <span>{t(color.name, colourFr[color.name] ?? color.name)}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 
@@ -2724,10 +2782,21 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <TooltipContent><p className="text-xs max-w-[240px]">{t("Add any details (optional). Decorations that were not selected may change the price.", "Ajoutez vos précisions (optionnel). Des décorations non sélectionnées peuvent modifier le prix.")}</p></TooltipContent>
                   </Tooltip>
                 </label>
+                {selections.commentImages.length > 0 && (
+                  <p className="text-sm text-foreground">
+                    {t("What would you like us to take from your reference images? Please be as precise as possible 😊", "Quels éléments souhaitez-vous que nous reprenions de vos images de référence ? Soyez le plus précis possible 😊")}
+                    <span className="text-destructive"> *</span>
+                  </p>
+                )}
                 <Textarea
+                  ref={commentRef}
                   value={selections.comment}
                   onChange={(e) => setSelections({ ...selections, comment: e.target.value })}
-                  placeholder={t("Any special requests or details about your cake...", "Toute demande particulière ou tout détail concernant votre gâteau...")}
+                  required={selections.commentImages.length > 0}
+                  aria-required={selections.commentImages.length > 0}
+                  placeholder={selections.commentImages.length > 0
+                    ? t("Example: the colours, the decorations and the overall style of the cake.", "Exemple : « Les couleurs, les décorations et le style général du gâteau. »")
+                    : t("Any special requests or details about your cake...", "Toute demande particulière ou tout détail concernant votre gâteau...")}
                   className="min-h-[80px] text-sm"
                 />
                 {selectedCake?.styleId !== "printed-picture" && (

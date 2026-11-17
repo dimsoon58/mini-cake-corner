@@ -161,6 +161,7 @@ const WorkshopCarousel = ({
   workshops: cards,
   privateWorkshop: priv,
   setPrivateOpen,
+  giftCards = false,
 }: {
   t: (en: string, fr: string) => string;
   workshops: {
@@ -176,6 +177,8 @@ const WorkshopCarousel = ({
     ctaLabel: string; ctaLabelFr: string;
   };
   setPrivateOpen: (v: boolean) => void;
+  /** F40 — « Offrir ce workshop » under each workshop (gift cards visible). */
+  giftCards?: boolean;
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -268,6 +271,13 @@ const WorkshopCarousel = ({
               >
                 <Link to={w.ctaTo}>{t(w.ctaLabel, w.ctaLabelFr)}</Link>
               </Button>
+              {giftCards && (
+                <Button asChild variant="outline" className="w-full mt-2 text-[13px] font-medium uppercase tracking-[0.105em] rounded-none">
+                  <Link to={`/bon-cadeau?workshop=${new URLSearchParams(w.ctaTo.split("?")[1] ?? "").get("type") ?? ""}`}>
+                    {t("Give this workshop", "Offrir ce workshop")}
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         ))}
@@ -383,7 +393,7 @@ const Workshop = () => {
         </div>
 
         {/* Carousel wrapper — full width so cards bleed to edges on desktop */}
-        <WorkshopCarousel t={t} workshops={workshops} privateWorkshop={privateWorkshop} setPrivateOpen={setPrivateOpen} />
+        <WorkshopCarousel t={t} workshops={workshops} privateWorkshop={privateWorkshop} setPrivateOpen={setPrivateOpen} giftCards={giftCardsVisible} />
       </section>
 
       <PrivateWorkshopDialog open={privateOpen} onOpenChange={setPrivateOpen} />

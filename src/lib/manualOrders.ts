@@ -33,6 +33,7 @@ export interface EditorItem {
   workshop_session_id: string | null;
   workshop_participants: number | null;
   workshop_sponge_choices: string[];
+  workshop_base_colors: string[];  // F45 — Pochage : couleur de base (id du catalogue) par participant
   workshop_has_minor: boolean;
   workshop_minor_consent_confirmed: boolean;
   item_comment: string;
@@ -115,6 +116,7 @@ export const emptyItem = (product: ProductId = "bento_cake"): EditorItem => ({
   workshop_session_id: null,
   workshop_participants: product === "workshop" ? 1 : null,
   workshop_sponge_choices: product === "workshop" ? ["vanilla"] : [],
+  workshop_base_colors: [],
   workshop_has_minor: false,
   workshop_minor_consent_confirmed: false,
   item_comment: "",
@@ -358,6 +360,9 @@ const MESSAGE_RULES: { re: RegExp; en: string | ((m: RegExpMatchArray) => string
   { re: /amount of the fruit supplement/i, en: "Enter the amount of the fruit supplement", fr: "Indiquez le montant du supplément fruits" },
   { re: /fruit supplement can't exceed/i, en: "The fruit supplement can't exceed CHF 500", fr: "Le supplément fruits ne peut pas dépasser CHF 500" },
   { re: /Add at least one product/i, en: "Add at least one product", fr: "Ajoutez au moins un produit" },
+  { re: /removed product already has a Production history/i,
+    en: "A product you removed is already started in Production (done, stock used or label) — keep it, or cancel it from the order page (« Cancel this cake »)",
+    fr: "Un produit retiré est déjà commencé en Production (fait, stock utilisé ou étiquette) — gardez-le, ou annulez-le depuis la fiche commande (« Annuler ce gâteau »)" },
 ];
 
 export function friendlyMessage(msg: string, lang: "en" | "fr"): string {

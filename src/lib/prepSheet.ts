@@ -1,6 +1,7 @@
 import { sizeLabel } from "@/lib/orderLabels";
 import { BASE_LABELS, CATEGORY_LABELS, CATEGORY_ORDER, INGREDIENT_LABELS, type Category, type SpongeBase } from "@/lib/production";
 import type { CakeLabel, LabelSourceItem } from "@/lib/productionLabels";
+import { computeColourPrep, formatSpoons, type ColourItem, type ColourLine, type ColourPrep } from "@/lib/colourPrep";
 
 // Admin > Étiquettes — fiche de mise en place, sans DOM. Résume les gâteaux
 // cochés (une étiquette = un gâteau, ou un pack de Dot Cakes) et les
@@ -50,6 +51,9 @@ export interface PrepSheet {
   flavours: PrepCount[];
   ingredients: PrepCount[];
   toCheck: PrepCheck[];
+  // Couleurs des gâteaux cochés (14.11.2026) : crème enchantée (bases +
+  // décorations), crème au beurre (écritures) en cuillères, rubans en sets.
+  colours: ColourPrep;
 }
 
 const BOX_ORDER = ["Bento", "Retro Box", "Medium", "Large", "Rectangle", "Kit Bento", "Dot"];
@@ -83,12 +87,19 @@ export function buildPrepSheet(
   const chMissing = new Map<string, number>();
   let toAccept = 0;
   let workshopCakes = 0;
+  const colourItems: ColourItem[] = [];
 
   for (const c of chosen) {
     const it = itemsById.get(c.itemId);
     if (!it) continue;
     const who = `${c.orderNumber ?? "N° ?"} · ${c.customer || "Client ?"}${c.marker ? ` · ${c.marker}` : ""}`;
     if (c.badge === "to_accept") toAccept += 1;
+    // Une étiquette = un gâteau → quantité 1 (mêmes règles que Production).
+    colourItems.push({
+      itemId: c.itemId, orderId: it.order_id, product: it.product ?? "", size: it.size, design: it.design, quantity: 1,
+      baseColor: it.base_color, decorationColor: it.decoration_color, textColor: it.text_color,
+      hasText: !!String(it.cake_text ?? "").trim(), ribbonColor: it.ribbon_color, extras: [], extra: it.extra, decorated: false,
+    });
 
     const pack = it.size?.match(DOT_PACK);
     if (pack) add(boxes, "Dot", Number(pack[1]));
@@ -153,10 +164,33 @@ export function buildPrepSheet(
     flavours: sorted(flavours),
     ingredients: sorted(ingredients),
     toCheck,
+    colours: computeColourPrep(colourItems, "fr"),
   };
 }
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const dot = (hex: string | null) =>
+  `<span class="dot"${hex ? ` style="background:${esc(hex)}"` : ` style="border-style:dashed"`}></span>`;
+const creamRows = (lines: ColourLine[], enchanted: boolean) => lines.length
+  ? `<table>${lines.map((l) => {
+    const d = [enchanted && l.baseCakes ? `base ${l.baseCakes}` : "", enchanted && l.decoCakes ? `déco ${l.decoCakes}` : "",
+      l.roses ? `dont ${l.roses} roses` : "", l.border ? `dont ${l.border} bordure${l.border > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ");
+    return `<tr><td>${dot(l.hex)}${esc(l.label)} <span class="muted">(${l.cakes} gâteau${l.cakes > 1 ? "x" : ""}${d ? ` · ${esc(d)}` : ""})</span></td><td class="n">${formatSpoons(l.spoons, "fr")}</td></tr>`;
+  }).join("")}</table>`
+  : `<p class="muted">—</p>`;
+
+/** Couleurs de la fiche imprimée (crèmes en cuillères, rubans en sets). */
+function coloursHtml(c: ColourPrep): string {
+  const sets = c.ribbons.reduce((n, r) => n + r.sets, 0);
+  return `<h2>Crème enchantée (bases + décorations) — ${formatSpoons(c.enchantedSpoons, "fr")}</h2>
+<p class="muted">Cuillères à soupe par gâteau : Bento 1, Retro 1,5, Medium 2, Large 3, Rectangle 3.</p>
+${creamRows(c.enchanted, true)}
+<div class="cols">
+<div><h2>Crème au beurre (écritures) — ${formatSpoons(c.butterSpoons, "fr")}</h2>${creamRows(c.butter, false)}</div>
+<div><h2>Rubans — ${sets} set${sets > 1 ? "s" : ""}</h2>${c.ribbons.length ? `<table>${c.ribbons.map((r) => `<tr><td>${dot(r.hex)}${esc(r.label)}</td><td class="n">${r.sets} set${r.sets > 1 ? "s" : ""}</td></tr>`).join("")}</table>` : `<p class="muted">—</p>`}</div>
+</div>`;
+}
 
 /** Page A4 imprimable (ouverte dans un nouvel onglet). */
 export function prepSheetHtml(sheet: PrepSheet, period: string): string {
@@ -175,6 +209,7 @@ td { padding: 1.2mm 0; border-bottom: .5px solid #bbb; vertical-align: top; }
 td.n { text-align: right; font-weight: 700; width: 25mm; white-space: nowrap; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10mm; }
 .warn td { color: #000; }
+.dot { display: inline-block; width: 4mm; height: 4mm; border-radius: 50%; border: .5px solid #888; vertical-align: -0.7mm; margin-right: 2mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 </style></head><body>
 <h1>Mise en place</h1>
 <p class="muted">${esc(period)} · ${sheet.cakes} gâteau${sheet.cakes > 1 ? "x" : ""} coché${sheet.cakes > 1 ? "s" : ""}${sheet.workshopCakes ? ` + ${sheet.workshopCakes} gâteau${sheet.workshopCakes > 1 ? "x" : ""} de workshop` : ""}${sheet.toAccept ? ` · dont ${sheet.toAccept} « À accepter »` : ""}</p>
@@ -189,6 +224,7 @@ ${sheet.chantilly.missing.length ? `<p class="muted">Sans grammage connu (non co
 <div><h2>Goûts</h2>${list(sheet.flavours)}</div>
 <div><h2>Garnitures (nombre de gâteaux)</h2>${list(sheet.ingredients)}</div>
 </div>
+${coloursHtml(sheet.colours)}
 ${sheet.toCheck.length ? `<h2>À vérifier</h2><table class="warn">${sheet.toCheck.map((c) => `<tr><td>${esc(c.who)}<br><span class="muted">${esc(c.what)}</span></td><td class="n">${c.units}</td></tr>`).join("")}</table>` : ""}
 <script>window.onload = () => window.print();</script>
 </body></html>`;

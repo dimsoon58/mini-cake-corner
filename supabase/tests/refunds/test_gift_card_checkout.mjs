@@ -130,8 +130,12 @@ function reset(balance = 25, failWith = null) {
       if (!p || p.welcome_discount_used_at || p.welcome_discount_reserved_order_id) return { data: false, error: null };
       p.welcome_discount_reserved_order_id = p_order_id; return { data: true, error: null };
     },
-    reserve_gift_card: async ({ p_code, p_order_id, p_max_amount }) => {
+    reserve_gift_card: async ({ p_code, p_order_id, p_max_amount, p_workshop_max }) => {
       if (failWith) return { data: null, error: { code: "P0001", message: failWith } };
+      if (p_code === "BCS-WKSP-PNTT") {
+        if (!(p_workshop_max > 0)) return { data: null, error: { code: "P0001", message: "gift_card_workshop_only" } };
+        return { data: { amount: Math.min(130, p_workshop_max), code: p_code, kind: "workshop" }, error: null };
+      }
       if (p_code !== voucher.code) return { data: null, error: { code: "P0001", message: "gift_card_unknown" } };
       const amount = Math.round(Math.min(voucher.balance, p_max_amount) * 100) / 100;
       voucher.balance -= amount; voucher.reservations[p_order_id] = amount;
@@ -209,6 +213,11 @@ check("Sans bon : prix plein 40, aucun appel au bon", near(r.payload?.order?.tot
 // 7. Guest (no account) can use a voucher
 r = await pay({ balance: 25, user: null });
 check("Invité sans compte : le bon marche aussi (carte 15)", near(r.payload?.order?.total_amount, 15) && near(r.payload?.order?.gift_card_amount, 25), r.payload?.order);
+
+// 8. Workshop voucher on a cake-only cart (F40)
+r = await pay({ code: "BCS-WKSP-PNTT" });
+check("Bon workshop sur un gâteau : refusé avec un message clair", r.status === 400 && r.out?.error?.startsWith("Ce bon cadeau est valable uniquement sur un workshop"), r.out);
+check("Le paiement envoie à la base ce que coûtent les workshops (0 ici)", db.rpcCalls.find((x) => x.fn === "reserve_gift_card")?.args?.p_workshop_max === 0);
 
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);

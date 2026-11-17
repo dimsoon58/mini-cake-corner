@@ -78,6 +78,79 @@ export interface CakeLabel {
   alerts: string[];       // « COMMENTAIRE CLIENT À LIRE », « PHOTO DE RÉFÉRENCE À VOIR »
   isTest: boolean;
   badge: LabelSourceItem["badge"];
+  // Gâteau de workshop (10.11.2026) : compté à part dans la fiche de mise en place.
+  workshop?: boolean;
+}
+
+// ── Workshops (get-orders-for-labels → workshops) ────────────────────────
+export interface WorkshopLabelSource {
+  itemId: string;
+  orderId: string;
+  orderNumber: string | null;
+  customerName: string;
+  type: string | null;
+  date: string;
+  time: string | null;
+  vanilla: number;        // places actives, génoise vanille
+  chocolate: number;      // places actives, génoise chocolat
+  unknown: number;        // places dont la génoise n'est pas connue
+  perParticipant: number; // gâteaux par participant (réglage de la page Production)
+  // F45 : génoise et couleur de base (Pochage) de chaque participant, dans l'ordre ; null si des places ont été annulées.
+  participants?: { sponge: string; colour: string | null }[] | null;
+  badge: LabelSourceItem["badge"];
+  isTest: boolean;
+}
+
+const WORKSHOP_NAMES: Record<string, string> = { paint: "Workshop Peinture", signature: "Workshop Signature", piping: "Workshop Pochage" };
+const WORKSHOP_BOXES: Record<string, string> = { paint: "Bento", signature: "Retro Box", piping: "Retro Box" };
+
+/** Gâteaux et workshops réunis par date (gâteaux d'abord, l'ordre de chacun est gardé). */
+export function mergeByDate(cakes: CakeLabel[], workshops: CakeLabel[]): CakeLabel[] {
+  return [...cakes, ...workshops].map((c, i) => ({ c, i })).sort((a, b) => (a.c.date ?? "").localeCompare(b.c.date ?? "") || a.i - b.i).map((x) => x.c);
+}
+
+/** Une étiquette par gâteau de workshop, au nom de la personne qui a réservé (Mel, 10.11.2026). */
+export function workshopCakeLabels(list: WorkshopLabelSource[]): CakeLabel[] {
+  return list.flatMap((w) => {
+    const per = Math.max(0, w.perParticipant);
+    const spongeName = (s: string) => (s === "chocolate" ? "Génoise chocolat" : "Génoise vanille");
+    const cakes: { sponge: string | null; colour: string | null }[] = w.participants?.length
+      ? w.participants.flatMap((p) => Array.from({ length: per }, () => ({ sponge: spongeName(p.sponge), colour: p.colour ? colourLabel(p.colour) : null })))
+      : [
+        ...Array.from({ length: w.vanilla * per }, () => ({ sponge: "Génoise vanille", colour: null })),
+        ...Array.from({ length: w.chocolate * per }, () => ({ sponge: "Génoise chocolat", colour: null })),
+        ...Array.from({ length: w.unknown * per }, () => ({ sponge: null, colour: null })),
+      ];
+    const sponges = cakes.map((c) => c.sponge);
+    const n = sponges.length;
+    const type = w.type ?? "";
+    const productLine = [WORKSHOP_NAMES[type] ?? "Workshop", WORKSHOP_BOXES[type]].filter(Boolean).join(" · ");
+    const dateText = `${formatDateCH(w.date)}${w.time ? ` · ${w.time.slice(0, 5)}` : ""}`;
+    return sponges.map((sponge, i) => ({
+      key: `ws-${w.itemId}-${i}`,
+      itemId: w.itemId,
+      orderId: w.orderId,
+      date: w.date,
+      dateText,
+      customer: w.customerName,
+      orderNumber: w.orderNumber,
+      marker: n > 1 ? `${i + 1}/${n}` : null,
+      productLine,
+      flavour: sponge ?? "Génoise à confirmer",
+      base: cakes[i].colour,
+      design: null, decoType: null, colours: null,
+      cakeText: null, textColour: null, textStyle: null,
+      missing: [
+        ...(sponge ? [] : ["génoise (pas choisie ou place annulée)"]),
+        ...(type === "piping" && sponge && !cakes[i].colour ? ["couleur de base"] : []),
+        ...(w.customerName ? [] : ["nom du client"]),
+      ],
+      alerts: [],
+      isTest: w.isTest,
+      badge: w.badge,
+      workshop: true,
+    }));
+  });
 }
 
 export const ALERT_COMMENT = "COMMENTAIRE CLIENT À LIRE";
@@ -116,7 +189,9 @@ function decorationColours(raw: string | null): string[] {
   const extra: string[] = [];
   for (const tok of tokens.map((s) => s.trim()).filter(Boolean)) {
     const roses = tok.match(/^roses-(.+)$/);
+    const border = tok.match(/^border-(.+)$/);
     if (roses) extra.push(`Roses : ${colourLabel(roses[1])}`);
+    else if (border) extra.push(`Bordure : ${colourLabel(border[1])}`);
     else plain.push(colourLabel(tok));
   }
   return [...(plain.length ? [plain.join(", ")] : []), ...extra];

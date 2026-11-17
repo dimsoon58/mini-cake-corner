@@ -65,6 +65,17 @@ export const PRODUCTION_FLAVOURS: FlavourDef[] = [
   { id: "tiramisu-gf",                  base: "vanilla_gf",    ingredients: ["coffee"],               names: ["Tiramisu Gluten-free"] },
   { id: "passion-fruit-gf",             base: "vanilla_gf",    ingredients: ["passion_fruit"],        names: ["Passion Fruit Gluten-free"] },
   { id: "praline-gf",                   base: "vanilla_gf",    ingredients: ["praline"],              names: ["Praline Gluten-free"] },
+  // Noël 2026 — Christmas Edition (génoise : Mel, 07.11.2026 = vanille, sauf
+  // Chocolate Lovers et Chocolat classique en chocolat). « Lemon curd » et
+  // « Chocolate Lovers » retombent sur les goûts habituels du même nom.
+  { id: "noel-vanille-classique",       base: "vanilla",       ingredients: [],                       names: ["Vanille classique", "Classic Vanilla"] },
+  { id: "noel-chocolat-classique",      base: "chocolate",     ingredients: [],                       names: ["Chocolat classique", "Classic Chocolate"] },
+  { id: "noel-vanille-framboise",       base: "vanilla",       ingredients: ["raspberry"],            names: ["Vanille framboise", "Vanilla Raspberry"] },
+  { id: "noel-caramel-cacahuetes",      base: "vanilla",       ingredients: [],                       names: ["Caramel cacahuètes", "Caramel Peanut"] },
+  { id: "noel-pomme-cannelle",          base: "vanilla",       ingredients: [],                       names: ["Pomme cannelle", "Apple Cinnamon"] },
+  { id: "noel-pate-a-tartiner",         base: "vanilla",       ingredients: [],                       names: ["Pâte à tartiner", "Chocolate Hazelnut Spread"] },
+  { id: "noel-marron",                  base: "vanilla",       ingredients: [],                       names: ["Marron", "Chestnut"] },
+  { id: "noel-mangue-passion",          base: "vanilla",       ingredients: ["passion_fruit"],        names: ["Mangue passion", "Mango Passion Fruit"] },
 ];
 
 export const FLAVOUR_BY_ID = new Map(PRODUCTION_FLAVOURS.map((f) => [f.id, f]));
@@ -115,6 +126,7 @@ export function productionCategory(
   switch (product) {
     case "edible_printing":
     case "candles":
+    case "christmas_log": // roulé, pas une génoise en boîte : hors stock et hors comptage des boîtes
       return "skip";
     case "rectangle_cake":
       return "rectangle";
