@@ -366,9 +366,6 @@ const Index = () => {
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-foreground/40" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="font-script text-cream text-[56px] md:text-[72px]">{t("Christmas", "Noël")}</span>
-              </div>
               <div className="absolute bottom-5 left-5 md:bottom-7 md:left-7">
                 <span className="block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-8 py-2.5 transition-colors">
                   {t("CHRISTMAS", "NOËL")}
