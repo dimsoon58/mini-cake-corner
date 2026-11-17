@@ -10,6 +10,7 @@ import homeCatDots from "@/assets/home-cat-dots.jpg";
 import homeCatDiy from "@/assets/home-cat-diy.jpg";
 import homeCatWorkshops from "@/assets/home-cat-workshops.jpg";
 import homeCatRectangle from "@/assets/home-cat-rectangle.jpg";
+import homeCatChristmas from "@/assets/home-cat-christmas.jpg";
 import heroPoster from "@/assets/hero-poster.jpg";
 // Vidéo d'accueil : le gâteau rose en cœur découpé — même fichier pour bureau et téléphone.
 import heroVideo from "@/assets/hero-video-coeur.mp4";
@@ -359,9 +360,12 @@ const Index = () => {
               to="/noel"
               className="relative snap-start flex-shrink-0 w-full sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)] aspect-square overflow-hidden group bg-foreground"
             >
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="font-script text-cream text-[56px] md:text-[72px]">{t("Christmas", "Noël")}</span>
-              </div>
+              <img
+                src={homeCatChristmas}
+                alt="Christmas collection"
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-foreground/40" />
               <div className="absolute bottom-5 left-5 md:bottom-7 md:left-7">
                 <span className="block bg-primary group-hover:bg-primary/90 text-primary-foreground text-center uppercase tracking-[0.105em] text-sm font-semibold px-8 py-2.5 transition-colors">
                   {t("CHRISTMAS", "NOËL")}
