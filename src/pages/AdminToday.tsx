@@ -325,6 +325,17 @@ const AdminToday = () => {
 
   // Production: une liste par jour ; les gâteaux déjà donnés (retirés /
   // livrés) en bas, grisés. « prêts » = Emballé (ou plus).
+  const allCollapsed = periodDates.length > 0 && periodDates.every(d => !!collapsedDays[d]);
+  const toggleCollapseAll = () => {
+    if (allCollapsed) {
+      setCollapsedDays({});
+    } else {
+      const all: Record<string, boolean> = {};
+      periodDates.forEach(d => { all[d] = true; });
+      setCollapsedDays(all);
+    }
+  };
+
   const renderCakeDay = (date: string) => {
     const cakes = data!.days[date].filter((i) => i.type === "cake");
     const ready = cakes.filter((i) => isProductionDone(i.productionStatus));
