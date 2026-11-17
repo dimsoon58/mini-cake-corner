@@ -9,13 +9,14 @@ export type Steps = Partial<Record<StepKey, StepMark>>;
 
 export const STEP_ORDER: StepKey[] = ["deco", "texte", "extra", "emballe", "donne"];
 
-// Couleurs : plein quand l'étape est faite, contour quand elle reste à faire.
+// Palette sobre : crème/beige pour les étapes à faire, vert doux pour « fait »,
+// bordeaux doux pour « Retiré/Livré » (distinction finale).
 export const STEP_STYLE: Record<StepKey, { on: string; off: string }> = {
-  deco: { on: "bg-pink-600 border-pink-600 text-white", off: "border-pink-400 text-pink-800" },
-  texte: { on: "bg-violet-600 border-violet-600 text-white", off: "border-violet-400 text-violet-800" },
-  extra: { on: "bg-orange-500 border-orange-500 text-white", off: "border-orange-400 text-orange-800" },
-  emballe: { on: "bg-sky-600 border-sky-600 text-white", off: "border-sky-400 text-sky-800" },
-  donne: { on: "bg-emerald-600 border-emerald-600 text-white", off: "border-emerald-500 text-emerald-800" },
+  deco:    { on: "bg-[#EDF5ED] border-[#7A9A7A] text-[#3A6B3A]", off: "border-[#C4B5A5] text-[#6B5A4C] hover:bg-[#F9F5F0]" },
+  texte:   { on: "bg-[#EDF5ED] border-[#7A9A7A] text-[#3A6B3A]", off: "border-[#C4B5A5] text-[#6B5A4C] hover:bg-[#F9F5F0]" },
+  extra:   { on: "bg-[#EDF5ED] border-[#7A9A7A] text-[#3A6B3A]", off: "border-[#C4B5A5] text-[#6B5A4C] hover:bg-[#F9F5F0]" },
+  emballe: { on: "bg-[#E8F2EA] border-[#5E8A6E] text-[#2A5B3A]", off: "border-[#C4B5A5] text-[#6B5A4C] hover:bg-[#F9F5F0]" },
+  donne:   { on: "bg-[#F4EEEE] border-[#9A7A7A] text-[#6B3A3A]", off: "border-[#C4B5A5] text-[#6B5A4C] hover:bg-[#F9F5F0]" },
 };
 
 export const stepLabel = (k: StepKey, lang: "en" | "fr", delivery = false) => {

@@ -166,14 +166,21 @@ export const ProductionSteps = ({ itemId, status, steps, item, delivery, disable
               aria-label={title}
               title={title}
               data-step={k}
-              onClick={() => tap(k)}
+              onClick={(e) => { e.stopPropagation(); tap(k); }}
               className={cn(
-                "inline-flex items-center gap-1 h-8 px-2.5 border-2 text-xs font-semibold transition-colors",
-                on ? STEP_STYLE[k].on : cn("bg-background hover:bg-black/[0.03]", STEP_STYLE[k].off),
+                "inline-flex items-center gap-1 h-6 px-2 border text-[11px] font-medium transition-colors select-none",
+                on ? STEP_STYLE[k].on : cn("bg-white", STEP_STYLE[k].off),
                 disabledReason && "opacity-40 cursor-not-allowed",
               )}
             >
-              {saving === k ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : on ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : null}
+              {saving === k
+                ? <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                : <span className={cn("inline-flex items-center justify-center w-3 h-3 border shrink-0 transition-colors",
+                    on ? "border-current bg-current/20" : "border-current/40 bg-transparent"
+                  )}>
+                    {on && <Check className="w-2 h-2" strokeWidth={3} />}
+                  </span>
+              }
               {label}
             </button>
           );
