@@ -184,8 +184,14 @@ function FlavourCarousel() {
           </button>
           <div ref={scrollRef} className="flex gap-3 overflow-x-auto scroll-smooth" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {FLAVOUR_PHOTOS.map((f, i) => (
-              <div key={i} className="flex-shrink-0 w-52 aspect-[4/5] overflow-hidden">
-                <img src={f.src} alt={t(f.labelEn, f.labelFr)} loading="lazy" className="w-full h-full object-cover" />
+              <div key={i} className="relative flex-shrink-0 w-52 aspect-[4/5] overflow-hidden group cursor-pointer">
+                <img src={f.src} alt={t(f.labelEn, f.labelFr)} loading="lazy"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center px-3">
+                  <span className="text-white font-sans text-sm font-semibold uppercase tracking-[0.12em] text-center leading-snug">
+                    {t(f.labelEn, f.labelFr)}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
