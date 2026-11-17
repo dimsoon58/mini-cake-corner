@@ -495,6 +495,18 @@ export async function generateInvoicePdf(
       });
     }
 
+    // F47 — difference kept after a late change (not refunded): part of
+    // total_amount, so the lines still add up.
+    const keptInvoice = Number(order.edit_kept_amount) || 0;
+    if (keptInvoice > 0) {
+      itemRows.push({
+        description: tr("Difference kept (change after the deadline)", "Différence non remboursée (modification après le délai)"),
+        quantity: "",
+        unitPrice: "",
+        total: formatInvoicePrice(keptInvoice),
+      });
+    }
+
     // F38 — part paid with a gift voucher (a means of payment): the TOTAL
     // below is what the card paid, so the lines still add up.
     const giftCardInvoice = Number(order.gift_card_amount) || 0;

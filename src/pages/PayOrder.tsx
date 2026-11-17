@@ -12,7 +12,7 @@ import { useLang } from "@/context/LanguageContext";
 // (status) quelques secondes, le temps que le paiement soit confirmé.
 // Textes dans la langue de la commande.
 
-type View = { orderNumber: string | null; firstName: string | null; lang: "fr" | "en"; total: number; paid: number; balance: number; state: "open" | "paid" | "cancelled" | "disabled" };
+type View = { orderNumber: string | null; firstName: string | null; lang: "fr" | "en"; kind?: "balance" | "supplement"; total: number; paid: number; balance: number; state: "open" | "paid" | "cancelled" | "disabled" };
 type Phase = "loading" | "ready" | "redirecting" | "confirming" | "slow" | "notfound" | "error";
 
 const POLL_MS = 2500;
@@ -132,13 +132,15 @@ const PayOrder = () => {
               <h1 className="font-sans text-xl md:text-2xl tracking-[0.105em] uppercase font-semibold mb-2">{t("Payment of your order", "Paiement de votre commande")}</h1>
               <p className="text-muted-foreground mb-8">
                 {view.firstName ? t(`Hello ${view.firstName}, `, `Bonjour ${view.firstName}, `) : ""}
-                {t(`here is the balance of order ${view.orderNumber ?? ""}.`, `voici le solde de la commande ${view.orderNumber ?? ""}.`)}
+                {view.kind === "supplement"
+                  ? t(`here is the supplement for the change to order ${view.orderNumber ?? ""}.`, `voici le supplément pour la modification de la commande ${view.orderNumber ?? ""}.`)
+                  : t(`here is the balance of order ${view.orderNumber ?? ""}.`, `voici le solde de la commande ${view.orderNumber ?? ""}.`)}
               </p>
               <div className="border-[3px] border-primary p-1.5 mb-8 text-left">
                 <div className="border border-primary px-5 py-4 space-y-1.5 text-sm">
-                  <div className="flex justify-between"><span>{t("Order total", "Total de la commande")}</span><span>{chf(view.total)}</span></div>
+                  {view.kind !== "supplement" && <div className="flex justify-between"><span>{t("Order total", "Total de la commande")}</span><span>{chf(view.total)}</span></div>}
                   {view.paid > 0 && <div className="flex justify-between text-muted-foreground"><span>{t("Already paid", "Déjà payé")}</span><span>− {chf(view.paid)}</span></div>}
-                  <div className="flex justify-between font-semibold text-base border-t border-primary/30 pt-2 mt-2"><span>{t("Remaining balance", "Solde restant")}</span><span>{chf(view.balance)}</span></div>
+                  <div className="flex justify-between font-semibold text-base border-t border-primary/30 pt-2 mt-2"><span>{view.kind === "supplement" ? t("Supplement to pay", "Supplément à payer") : t("Remaining balance", "Solde restant")}</span><span>{chf(view.balance)}</span></div>
                 </div>
               </div>
               <Button onClick={pay} disabled={phase === "redirecting"} className="rounded-none w-full h-12 uppercase tracking-[0.105em] bg-primary hover:bg-primary/90 text-primary-foreground">

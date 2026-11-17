@@ -30,7 +30,7 @@ const REFUSALS: Record<string, string> = {
   P0010: "Commande non créée depuis l'admin",
   P0011: "Commande en brouillon",
   P0012: "Commande annulée",
-  P0013: "Commande déjà payée",
+  P0013: "Commande déjà payée (ou supplément plus à payer)",
   P0014: "Montant supérieur au solde restant",
   P0003: "Session de workshop fermée",
   P0004: "Session de workshop complète",
@@ -101,16 +101,24 @@ export async function finalizePaymentAttempt(supabase: Supa, attemptId: string):
   const state = String(await getTransactionState(credentials, txId) ?? "").toUpperCase();
   if (!state) return { status: "pending", orderId: att.order_id };
 
-  const record = async () => await supabase.rpc("record_manual_order_payment", {
-    p_order_id: att.order_id, p_amount: Number(att.amount), p_method: "postfinance", p_paid_at: new Date().toISOString(),
-    p_note: "Lien de paiement", p_by: "lien de paiement", p_source: "payment_link", p_attempt_id: att.id, p_tx: txId,
-  });
+  // F47 — lien d'un supplément (modification d'une commande déjà payée).
+  const { data: linkRow } = await supabase.from("order_payment_links").select("edit_id").eq("id", att.link_id).maybeSingle();
+  const editId: string | null = linkRow?.edit_id ?? null;
+  const record = async () => editId
+    ? await supabase.rpc("record_order_supplement_payment", {
+      p_edit_id: editId, p_method: "postfinance", p_paid_at: new Date().toISOString(),
+      p_note: "Lien de paiement (supplément)", p_by: "lien de paiement", p_attempt_id: att.id, p_tx: txId,
+    })
+    : await supabase.rpc("record_manual_order_payment", {
+      p_order_id: att.order_id, p_amount: Number(att.amount), p_method: "postfinance", p_paid_at: new Date().toISOString(),
+      p_note: "Lien de paiement", p_by: "lien de paiement", p_source: "payment_link", p_attempt_id: att.id, p_tx: txId,
+    });
 
   if (state === "AUTHORIZED") {
     const { error: recErr } = await record();
     if (recErr) {
       const code = (recErr as { code?: string }).code ?? "";
-      if (!REFUSALS[code]) throw new Error(`record_manual_order_payment failed (${code}): ${recErr.message}`);
+      if (!REFUSALS[code]) throw new Error(`payment record failed (${code}): ${recErr.message}`);
       // Refus : on libère l'autorisation, rien n'est débité.
       const before = String(await getTransactionState(credentials, txId) ?? "").toUpperCase();
       if (before === "AUTHORIZED") {
@@ -139,7 +147,7 @@ export async function finalizePaymentAttempt(supabase: Supa, attemptId: string):
     const { error: recErr } = await record();
     if (recErr) {
       const code = (recErr as { code?: string }).code ?? "";
-      if (!REFUSALS[code]) throw new Error(`record_manual_order_payment failed (${code}): ${recErr.message}`);
+      if (!REFUSALS[code]) throw new Error(`payment record failed (${code}): ${recErr.message}`);
       // Débité mais refusé en base (ex. déjà payé entre-temps) : à rembourser.
       await supabase.rpc("payment_attempt_update", { p_attempt_id: att.id, p_status: "to_refund", p_detail: REFUSALS[code] });
       await alertOnce(supabase, att.id, `Paiement en trop à rembourser — ${orderLabel}`, [
@@ -154,7 +162,9 @@ export async function finalizePaymentAttempt(supabase: Supa, attemptId: string):
 
   if (state === "FAILED" || state === "DECLINE" || state === "VOIDED") {
     // Cas très rare : enregistré en base puis débit impossible.
-    const { data: pay } = await supabase.from("manual_order_payments").select("id").eq("postfinance_transaction_id", txId).eq("status", "recorded").maybeSingle();
+    const { data: pay } = editId
+      ? await supabase.from("order_edits").select("id").eq("supplement_tx", txId).maybeSingle()
+      : await supabase.from("manual_order_payments").select("id").eq("postfinance_transaction_id", txId).eq("status", "recorded").maybeSingle();
     await supabase.rpc("payment_attempt_update", { p_attempt_id: att.id, p_status: "failed", p_detail: pay ? `Enregistré mais PostFinance ${state} : à vérifier` : state });
     if (pay) {
       await alertOnce(supabase, att.id, `Lien de paiement à vérifier — ${orderLabel}`, [

@@ -55,10 +55,17 @@ export interface EditorItem {
   glitter_color: string;          // gardée dans order_items.extra (« Glitter: Gold »), comme le site
   glitter_cherries_color: string; // idem (« Glitter Cherries: Pink »)
   inside_color: string;
+  // F47 — commande déjà payée : ligne enregistrée (order_items.id), produit
+  // gardé tel quel (workshop, Noël…), prix enregistré, statut Production.
+  rowId?: string | null;
+  locked?: "workshop" | "christmas" | "unsupported" | null;
+  rowTotal?: number | null;
+  productionStatus?: string | null;
 }
 
 export interface DateGroup {
   key: string;
+  fulfillmentId?: string | null; // F47 — ligne de date enregistrée (modifiée sur place)
   date: string;
   deliveryMethod: "pickup" | "delivery";
   slot: string;
@@ -411,3 +418,42 @@ export const PAYMENT_METHODS: { id: string; en: string; fr: string }[] = [
   { id: "card", en: "Card", fr: "Carte" },
   { id: "other", en: "Other", fr: "Autre" },
 ];
+
+// ── F47 — modifier une commande déjà payée (site ou manuelle) ──────────────
+export interface PlacedSummary {
+  site: boolean;
+  awaiting: boolean;
+  total: number;
+  kept: number;
+  paid: number;
+  supplementDue: number;
+  refundRoom: number;
+  today: string;
+  refundDeadlineDays: number;
+  hasEmail: boolean;
+  discounts: boolean;
+  giftCard: number;
+}
+
+export interface PlacedPreview {
+  problems: string[];
+  warnings: string[];
+  lines: { index: number; rowId: string | null; label: string; oldPrice: number | null; newPrice: number | null; repriced: boolean; locked: string | null }[];
+  removed: { rowId: string; label: string; oldPrice: number }[];
+  totals: {
+    oldItems: number; newItems: number; oldDelivery: number; newDelivery: number; oldExpress: number; newExpress: number;
+    oldAdjustment: number; newAdjustment: number; priceChange: number;
+  };
+  settle: { newTotal: number; keptNew: number; absorbed: number; dueNew: number; supplementAdded: number; refund: number; keptAdded: number; needsChoice: boolean };
+  choice: "refund" | "kept" | null;
+  daysBefore: number | null;
+  refundSuggested: boolean;
+  summary: string[];
+  quote: { items: QuoteResult["items"]; fulfillments: QuoteResult["fulfillments"] };
+}
+
+export const LOCK_LABELS: Record<string, { en: string; fr: string }> = {
+  workshop: { en: "Workshop seats: change them with « Cancel seats ».", fr: "Places de workshop : à changer avec « Annuler des places »." },
+  christmas: { en: "Christmas product: flavour, colours and text with « Edit this cake ».", fr: "Produit de Noël : goût, couleurs et texte avec « Modifier ce gâteau »." },
+  unsupported: { en: "This product can't be changed in this editor.", fr: "Ce produit ne se modifie pas dans cet éditeur." },
+};
