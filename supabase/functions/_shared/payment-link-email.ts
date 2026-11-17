@@ -8,6 +8,7 @@ import { getLogoEmailUrl } from "./site-config.ts";
 import { FORCE_LIGHT_META_TAGS, brandDarkModeStyle } from "./email-darkmode.ts";
 import { EMAIL_ACCENT_COLOR, EMAIL_BODY_COLOR, EMAIL_BODY_SIZE, EMAIL_FONT_STACK, EMAIL_LABEL_COLOR, EMAIL_SMALL_SIZE } from "./email-styles.ts";
 import { itemSummaryLine } from "./order-received-email.ts";
+import { buildPaymentRecap } from "./payment-recap.ts";
 
 const STORE_ADDRESS = "Rue Prévost-Martin 8, 1205 Genève";
 
@@ -41,7 +42,8 @@ export function renderPaymentLinkEmail(order: any, items: any[], fulfillments: a
   const line = (it: any) => {
     const parts = [esc(itemSummaryLine(it, lang)) + qty(it)];
     if (String(it.cake_text ?? "").trim()) parts.push(`${tr("Text", "Texte")} : « ${esc(it.cake_text)} »`);
-    return parts.join(" · ");
+    // Prix de l'article, comme dans le panier (17.11.2026).
+    return `${parts.join(" · ")} · <strong>${chf(it.total)}</strong>`;
   };
   const fById = new Map<string, any>(fulfillments.map((f: any) => [f.id, f]));
   type Group = { date: string | null; slot: string | null; method: string | null; address: string | null; items: any[] };
@@ -74,8 +76,11 @@ export function renderPaymentLinkEmail(order: any, items: any[], fulfillments: a
       : w.workshop_type === "piping" ? tr("Piping Workshop", "Atelier Pochage") : tr("Signature Workshop", "Atelier Signature");
     const bits = [dateCH(w.workshop_date), w.workshop_time ? esc(w.workshop_time) : "",
       w.workshop_participants ? `${w.workshop_participants} ${tr(w.workshop_participants > 1 ? "participants" : "participant", w.workshop_participants > 1 ? "participants" : "participant")}` : ""].filter(Boolean);
-    return row(name, bits.join(" · "));
+    return row(name, `${bits.join(" · ")} · ${chf(w.total)}`);
   }).join("");
+  // Lignes de la commande (livraison, express, rabais, ajustement…), mêmes montants que la facture.
+  const extrasHtml = buildPaymentRecap(order, items, fulfillments).extras
+    .map((l) => row(esc(l.label), l.amount < 0 ? `- ${chf(-l.amount)}` : chf(l.amount))).join("");
 
   const paidRow = a.paid > 0 ? row(tr("Already paid", "Déjà payé"), `- ${chf(a.paid)}`) : "";
   const logoUrl = getLogoEmailUrl();
@@ -139,6 +144,7 @@ ${brandDarkModeStyle()}
           ${row(tr("Order number", "Numéro de commande"), orderNumber)}
           ${groupHtml}
           ${workshopHtml}
+          ${extrasHtml}
           ${row(tr("Order total", "Total de la commande"), chf(a.total))}
           ${paidRow}
           <tr bgcolor="#78020C" class="bcs-accent-bg" style="background-color:#78020C!important;background-image:linear-gradient(#78020C,#78020C)!important;">

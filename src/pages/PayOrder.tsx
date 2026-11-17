@@ -12,7 +12,10 @@ import { useLang } from "@/context/LanguageContext";
 // (status) quelques secondes, le temps que le paiement soit confirmé.
 // Textes dans la langue de la commande.
 
-type View = { orderNumber: string | null; firstName: string | null; lang: "fr" | "en"; kind?: "balance" | "supplement"; total: number; paid: number; balance: number; state: "open" | "paid" | "cancelled" | "disabled" };
+type RecapLine = { label: string; amount: number };
+// Récapitulatif du prix (comme le panier), calculé par le serveur à partir de la commande.
+type Recap = { groups: { title: string | null; lines: RecapLine[] }[]; extras: RecapLine[]; total: number };
+type View = { orderNumber: string | null; firstName: string | null; lang: "fr" | "en"; kind?: "balance" | "supplement"; recap?: Recap | null; total: number; paid: number; balance: number; state: "open" | "paid" | "cancelled" | "disabled" };
 type Phase = "loading" | "ready" | "redirecting" | "confirming" | "slow" | "notfound" | "error";
 
 const POLL_MS = 2500;
@@ -138,8 +141,30 @@ const PayOrder = () => {
               </p>
               <div className="border-[3px] border-primary p-1.5 mb-8 text-left">
                 <div className="border border-primary px-5 py-4 space-y-1.5 text-sm">
-                  {view.kind !== "supplement" && <div className="flex justify-between"><span>{t("Order total", "Total de la commande")}</span><span>{chf(view.total)}</span></div>}
-                  {view.paid > 0 && <div className="flex justify-between text-muted-foreground"><span>{t("Already paid", "Déjà payé")}</span><span>− {chf(view.paid)}</span></div>}
+                  {view.recap && (
+                    <div className="space-y-3 pb-2 mb-1 border-b border-primary/30" data-testid="pay-recap">
+                      {view.recap.groups.map((g, gi) => (
+                        <div key={gi} className="space-y-1">
+                          {g.title && <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">{g.title}</p>}
+                          {g.lines.map((l, li) => (
+                            <div key={li} className="flex justify-between gap-3"><span>{l.label}</span><span className="whitespace-nowrap">{chf(l.amount)}</span></div>
+                          ))}
+                        </div>
+                      ))}
+                      {view.recap.extras.length > 0 && (
+                        <div className="space-y-1">
+                          {view.recap.extras.map((l, li) => (
+                            <div key={li} className="flex justify-between gap-3"><span>{l.label}</span><span className="whitespace-nowrap">{l.amount < 0 ? `− ${chf(-l.amount)}` : chf(l.amount)}</span></div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {(view.kind !== "supplement" || view.recap) && <div className="flex justify-between font-semibold"><span>{t("Order total", "Total de la commande")}</span><span>{chf(view.recap ? view.recap.total : view.total)}</span></div>}
+                  {view.kind === "supplement" && view.recap && view.balance > 0 && view.recap.total - view.balance > 0 && (
+                    <div className="flex justify-between text-muted-foreground"><span>{t("Already paid", "Déjà payé")}</span><span>− {chf(view.recap.total - view.balance)}</span></div>
+                  )}
+                  {view.kind !== "supplement" && view.paid > 0 && <div className="flex justify-between text-muted-foreground"><span>{t("Already paid", "Déjà payé")}</span><span>− {chf(view.paid)}</span></div>}
                   <div className="flex justify-between font-semibold text-base border-t border-primary/30 pt-2 mt-2"><span>{view.kind === "supplement" ? t("Supplement to pay", "Supplément à payer") : t("Remaining balance", "Solde restant")}</span><span>{chf(view.balance)}</span></div>
                 </div>
               </div>
