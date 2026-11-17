@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, Lock, Plus, Search, UserRound } from "lucide-react";
+import {
+  AlertTriangle, ChevronLeft, ChevronRight, Loader2, Lock, Plus, Search, UserRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +11,7 @@ import { useLang } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { chf, formatDay } from "@/lib/refunds";
-import { customersApi, CustomersError, fullName, type CustomerList } from "@/lib/customers";
+import { customersApi, CustomersError, fullName, type CustomerList, type CustomerRow } from "@/lib/customers";
 import { cn } from "@/lib/utils";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -18,6 +20,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 // account). Search by name, email or phone; sort; pages of 25. Figures come
 // from the lot 1–3 registers (net paid after refunds), test orders excluded.
 
+const VIP_THRESHOLD = 5; // orders to be considered VIP
+
 const SORTS = [
   { key: "last_order", en: "Last order", fr: "Dernière commande" },
   { key: "name", en: "Name", fr: "Nom" },
@@ -25,6 +29,33 @@ const SORTS = [
   { key: "net", en: "Net paid", fr: "Net payé" },
   { key: "created", en: "Created", fr: "Création" },
 ] as const;
+
+type Segment = "all" | "new" | "returning" | "vip" | "account" | "guest";
+const SEGMENTS: { key: Segment; en: string; fr: string }[] = [
+  { key: "all", en: "All", fr: "Tous" },
+  { key: "new", en: "New", fr: "Nouveaux" },
+  { key: "returning", en: "Returning", fr: "Fidèles" },
+  { key: "vip", en: `VIP (${VIP_THRESHOLD}+ orders)`, fr: `VIP (${VIP_THRESHOLD}+ cmd.)` },
+  { key: "account", en: "With account", fr: "Avec compte" },
+  { key: "guest", en: "Guest", fr: "Invités" },
+];
+
+const getStatus = (c: CustomerRow): { key: string; en: string; fr: string } => {
+  if (c.ordersCount >= VIP_THRESHOLD) return { key: "vip", en: "VIP", fr: "VIP" };
+  if (c.ordersCount >= 2) return { key: "returning", en: "Returning", fr: "Fidèle" };
+  if (c.ordersCount === 1) return { key: "new", en: "New", fr: "Nouveau" };
+  return { key: "none", en: "—", fr: "—" };
+};
+
+const matchesSegment = (c: CustomerRow, seg: Segment): boolean => {
+  if (seg === "all") return true;
+  if (seg === "vip") return c.ordersCount >= VIP_THRESHOLD;
+  if (seg === "returning") return c.ordersCount >= 2 && c.ordersCount < VIP_THRESHOLD;
+  if (seg === "new") return c.ordersCount === 1;
+  if (seg === "account") return c.hasAccount;
+  if (seg === "guest") return !c.hasAccount;
+  return true;
+};
 
 const AdminCustomers = () => {
   const { t, lang } = useLang();
@@ -37,7 +68,7 @@ const AdminCustomers = () => {
   const sort = (SORTS.some((s) => s.key === params.get("sort")) ? params.get("sort") : "last_order") as string;
   const desc = params.get("dir") !== "asc";
   const page = Math.max(1, Number(params.get("page")) || 1);
-  // « Afficher les tests » retiré (06.10.2026) : les tests restent toujours masqués.
+  const segment = (SEGMENTS.some((s) => s.key === params.get("seg")) ? params.get("seg") : "all") as Segment;
   const includeTests = false;
   const setParam = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams(params);
@@ -59,7 +90,6 @@ const AdminCustomers = () => {
     return () => { document.title = "Bento Cake Studio Geneva"; };
   }, []);
 
-  // Search as you type (light debounce).
   useEffect(() => {
     const id = setTimeout(() => { if (draft !== search) setParam({ q: draft || null, page: null }); }, 300);
     return () => clearTimeout(id);
@@ -95,75 +125,160 @@ const AdminCustomers = () => {
     );
   }
 
+  // Client-side segment filter (applies to the current page of 25)
+  const rows = (data?.rows ?? []).filter((c) => matchesSegment(c, segment));
   const pages = data ? Math.max(1, Math.ceil(Number(data.total) / data.size)) : 1;
 
   return (
     <AdminLayout>
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-5">
+
+        {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground font-semibold">{t("Customers", "Clients")}</h1>
-          <Button className="rounded-none" onClick={() => setAdding((v) => !v)}><Plus className="w-4 h-4 mr-1" /> {t("Add a customer", "Ajouter un client")}</Button>
+          <h1 className="font-sans uppercase tracking-[0.105em] text-2xl md:text-3xl text-foreground font-semibold">
+            {t("Customers", "Clients")}
+            {data && <span className="ml-2 text-sm font-normal text-muted-foreground normal-case tracking-normal">({data.total})</span>}
+          </h1>
+          <Button className="rounded-none" onClick={() => setAdding((v) => !v)}>
+            <Plus className="w-4 h-4 mr-1" /> {t("Add a customer", "Ajouter un client")}
+          </Button>
         </div>
 
         {adding && <NewCustomerForm onCancel={() => setAdding(false)} onCreated={(id) => navigate(`/admin/customers/${id}`)} />}
 
+        {/* Search + sort */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("Name, email or phone", "Nom, email ou téléphone")} className="pl-9 rounded-none" aria-label={t("Search", "Rechercher")} />
+            <Input value={draft} onChange={(e) => setDraft(e.target.value)}
+              placeholder={t("Name, email or phone…", "Nom, email ou téléphone…")}
+              className="pl-9 rounded-none" aria-label={t("Search", "Rechercher")} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">{t("Sort by", "Trier par")}</Label>
             <div className="flex">
-              <select value={sort} onChange={(e) => setParam({ sort: e.target.value, page: null })} className="h-10 border border-input bg-background px-2 text-sm">
+              <select value={sort} onChange={(e) => setParam({ sort: e.target.value, page: null })}
+                className="h-10 border border-input bg-background px-2 text-sm">
                 {SORTS.map((s) => <option key={s.key} value={s.key}>{s[l]}</option>)}
               </select>
-              <Button variant="outline" className="rounded-none h-10 px-3" onClick={() => setParam({ dir: desc ? "asc" : null, page: null })} aria-label={t("Sort direction", "Sens du tri")}>
+              <Button variant="outline" className="rounded-none h-10 px-3"
+                onClick={() => setParam({ dir: desc ? "asc" : null, page: null })}
+                aria-label={t("Sort direction", "Sens du tri")}>
                 {desc ? "↓" : "↑"}
               </Button>
             </div>
           </div>
         </div>
 
-        {error && <p className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error}</p>}
-
-        <div className="border border-border/60" data-testid="customer-list">
-          <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.3fr)_70px_110px_110px] gap-3 px-4 py-2 bg-secondary/30 border-b border-border/60 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-            <span>{t("Name", "Nom")}</span><span>Email</span><span>{t("Phone", "Téléphone")}</span>
-            <span className="text-right">{t("Orders", "Cmdes")}</span><span className="text-right">{t("Net paid", "Net payé")}</span><span className="text-right">{t("Last order", "Dernière")}</span>
-          </div>
-          {loading && !data ? <div className="py-10 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>
-            : data && data.rows.length === 0 ? <p className="px-4 py-6 text-sm text-muted-foreground">{search ? t("No customer found.", "Aucun client trouvé.") : t("No customer yet.", "Aucun client pour l'instant.")}</p>
-            : (
-              <ul className="divide-y divide-border/60">
-                {data?.rows.map((c) => (
-                  <li key={c.id}>
-                    <Link to={`/admin/customers/${c.id}`} data-row={c.id}
-                      className="grid grid-cols-2 md:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.3fr)_70px_110px_110px] gap-x-3 gap-y-0.5 px-4 py-3 text-sm hover:bg-secondary/40">
-                      <span className="col-span-2 md:col-span-1 font-medium flex items-center gap-1.5 min-w-0">
-                        <UserRound className={cn("w-3.5 h-3.5 shrink-0", c.hasAccount ? "text-primary" : "text-muted-foreground/50")} aria-label={c.hasAccount ? t("Has an account", "A un compte") : undefined} />
-                        <span className="truncate">{fullName(c)}</span>
-                        {c.openAlerts > 0 && <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" aria-label={t("Alert to check", "Alerte à vérifier")} />}
-                      </span>
-                      <span className="truncate text-muted-foreground md:text-foreground">{c.email ?? "—"}</span>
-                      <span className="truncate text-muted-foreground">{c.phone ?? "—"}</span>
-                      <span className="md:text-right tabular-nums text-muted-foreground md:text-foreground">{c.ordersCount}<span className="md:hidden"> {t("order(s)", "cmde(s)")}</span></span>
-                      <span className="md:text-right tabular-nums">{chf(c.net)}</span>
-                      <span className="md:text-right tabular-nums text-muted-foreground">{c.lastOrderAt ? formatDay(c.lastOrderAt, l) : "—"}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+        {/* Segment filter tabs */}
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("Filter by segment", "Filtrer par segment")}>
+          {SEGMENTS.map((seg) => (
+            <button key={seg.key} role="tab" aria-selected={segment === seg.key}
+              onClick={() => setParam({ seg: seg.key === "all" ? null : seg.key, page: null })}
+              className={cn(
+                "px-3 py-1 text-xs uppercase tracking-[0.08em] border transition-colors",
+                segment === seg.key
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border/60 hover:border-primary/50 hover:text-foreground"
+              )}>
+              {seg[l]}
+            </button>
+          ))}
+          {segment !== "all" && data && (
+            <span className="self-center text-xs text-muted-foreground ml-1">
+              {rows.length} / {data.rows.length} {t("on this page", "sur cette page")}
+            </span>
+          )}
         </div>
 
+        {error && <p className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error}</p>}
+
+        {/* Table */}
+        <div className="border border-border/60" data-testid="customer-list">
+          <div className="hidden md:grid grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_60px_100px_100px_80px] gap-3 px-4 py-2 bg-secondary/30 border-b border-border/60 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+            <span>{t("Customer", "Client")}</span>
+            <span>{t("Phone", "Téléphone")}</span>
+            <span className="text-right">{t("Orders", "Cmdes")}</span>
+            <span className="text-right">{t("Net paid", "Net payé")}</span>
+            <span className="text-right">{t("Last order", "Dernière")}</span>
+            <span className="text-center">{t("Status", "Statut")}</span>
+          </div>
+
+          {loading && !data
+            ? <div className="py-10 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>
+            : rows.length === 0
+              ? <p className="px-4 py-8 text-sm text-muted-foreground">
+                  {search || segment !== "all"
+                    ? t("No customer found.", "Aucun client trouvé.")
+                    : t("No customer yet.", "Aucun client pour l'instant.")}
+                </p>
+              : (
+                <ul className="divide-y divide-border/60">
+                  {rows.map((c) => {
+                    const status = getStatus(c);
+                    return (
+                      <li key={c.id}>
+                        <Link to={`/admin/customers/${c.id}`} data-row={c.id}
+                          className="grid grid-cols-2 md:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_60px_100px_100px_80px] gap-x-3 gap-y-0.5 px-4 py-3 text-sm hover:bg-secondary/30 transition-colors">
+                          {/* Customer name + email */}
+                          <span className="col-span-2 md:col-span-1 min-w-0">
+                            <span className="flex items-center gap-1.5">
+                              <UserRound className={cn("w-3.5 h-3.5 shrink-0", c.hasAccount ? "text-primary" : "text-muted-foreground/40")}
+                                aria-label={c.hasAccount ? t("Has an account", "A un compte") : undefined} />
+                              <span className="font-semibold truncate text-foreground">{fullName(c)}</span>
+                              {c.openAlerts > 0 && <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+                            </span>
+                            <span className="block text-xs text-muted-foreground truncate pl-5">{c.email ?? "—"}</span>
+                          </span>
+                          {/* Phone */}
+                          <span className="text-muted-foreground text-xs self-center truncate">{c.phone ?? "—"}</span>
+                          {/* Orders */}
+                          <span className="md:text-right tabular-nums text-muted-foreground md:text-foreground self-center">
+                            {c.ordersCount}<span className="md:hidden text-xs"> {t("order(s)", "cmd.")}</span>
+                          </span>
+                          {/* Net paid */}
+                          <span className="md:text-right tabular-nums font-medium self-center">{chf(c.net)}</span>
+                          {/* Last order */}
+                          <span className="md:text-right tabular-nums text-muted-foreground text-xs self-center">
+                            {c.lastOrderAt ? formatDay(c.lastOrderAt, l) : "—"}
+                          </span>
+                          {/* Status */}
+                          <span className="md:flex md:justify-center self-center hidden">
+                            {status.key !== "none" && (
+                              <span className={cn(
+                                "text-[10px] px-1.5 py-0.5 tracking-[0.05em] uppercase font-medium",
+                                status.key === "vip" && "bg-primary/10 text-primary",
+                                status.key === "returning" && "bg-secondary text-foreground/70",
+                                status.key === "new" && "bg-secondary/50 text-muted-foreground",
+                              )}>
+                                {status[l]}
+                              </span>
+                            )}
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )
+          }
+        </div>
+
+        {/* Pagination */}
         {data && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{data.total} {t("customer(s)", "client(s)")}</span>
+            <span className="text-muted-foreground">
+              {data.total} {t("customer(s)", "client(s)")}
+              {segment !== "all" && ` · ${t("filtered by segment on current page", "filtré par segment sur la page")} `}
+            </span>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="rounded-none h-8 w-8" disabled={page <= 1} onClick={() => setParam({ page: String(page - 1) })} aria-label={t("Previous page", "Page précédente")}><ChevronLeft className="w-4 h-4" /></Button>
+              <Button variant="outline" size="icon" className="rounded-none h-8 w-8"
+                disabled={page <= 1} onClick={() => setParam({ page: String(page - 1) })}
+                aria-label={t("Previous page", "Page précédente")}><ChevronLeft className="w-4 h-4" /></Button>
               <span className="tabular-nums">{page} / {pages}</span>
-              <Button variant="outline" size="icon" className="rounded-none h-8 w-8" disabled={page >= pages} onClick={() => setParam({ page: String(page + 1) })} aria-label={t("Next page", "Page suivante")}><ChevronRight className="w-4 h-4" /></Button>
+              <Button variant="outline" size="icon" className="rounded-none h-8 w-8"
+                disabled={page >= pages} onClick={() => setParam({ page: String(page + 1) })}
+                aria-label={t("Next page", "Page suivante")}><ChevronRight className="w-4 h-4" /></Button>
             </div>
           </div>
         )}

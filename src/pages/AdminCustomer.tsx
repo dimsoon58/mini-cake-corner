@@ -154,21 +154,23 @@ const AdminCustomer = () => {
                 {msg && <p role="status" className={cn("text-sm px-3 py-2 border", msg.ok ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-red-50 border-red-200 text-red-800")}>{msg.text}</p>}
               </div>
 
-              {/* Summary */}
-              <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2" data-testid="customer-stats">
-                {[
-                  { k: "orders", label: t("Orders", "Commandes"), v: String(s.orders_count) },
-                  { k: "paid", label: t("Paid orders", "Commandes payées"), v: String(s.paid_count) },
-                  { k: "collected", label: t("Collected", "Encaissé"), v: chf(s.collected) },
-                  { k: "refunded", label: t("Refunded", "Remboursé"), v: chf(s.refunded) },
-                  { k: "net", label: t("Net paid", "Net payé"), v: chf(s.net), strong: true },
-                  { k: "dates", label: t("First · last order", "Première · dernière"), v: s.first_order_at ? `${formatDay(s.first_order_at, l)} · ${formatDay(s.last_order_at, l)}` : "—" },
-                ].map((x) => (
-                  <div key={x.k} data-k={x.k} className={cn("px-3 py-2 border", x.strong ? "border-primary/40 bg-primary/5" : "border-border/60")}>
-                    <span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{x.label}</span>
-                    <span className="block font-semibold tabular-nums text-sm sm:text-base">{x.v}</span>
-                  </div>
-                ))}
+                            {/* Summary — 4 primary stats */}
+              <section data-testid="customer-stats" className="space-y-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { k: "orders", label: t("Orders", "Commandes"), v: String(s.orders_count), sub: `${s.paid_count} ${t("paid", "payées")}` },
+                    { k: "net", label: t("Net paid", "Net payé"), v: chf(s.net), strong: true, sub: s.refunded && Number(s.refunded) > 0 ? `${t("refunded", "remb.")} ${chf(s.refunded)}` : undefined },
+                    { k: "last", label: t("Last order", "Dernière commande"), v: s.last_order_at ? formatDay(s.last_order_at, l) : "—", sub: s.first_order_at ? `${t("since", "depuis le")} ${formatDay(s.first_order_at, l)}` : undefined },
+                    { k: "reward", label: t("Reward balance", "Cagnotte"), v: data.account ? chf(data.account.rewardBalance) : "—", sub: data.account?.welcomeAvailable ? t("Welcome offer available", "Offre bienvenue dispo.") : undefined },
+                  ].map((x) => (
+                    <div key={x.k} data-k={x.k} className={cn("px-3 py-2.5 border", x.strong ? "border-primary/40 bg-primary/5" : "border-border/60")}>
+                      <span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{x.label}</span>
+                      <span className="block font-semibold tabular-nums text-base">{x.v}</span>
+                      {x.sub && <span className="block text-[11px] text-muted-foreground mt-0.5">{x.sub}</span>}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">{t("Collected", "Encaissé")} {chf(s.collected)}{Number(s.refunded) > 0 ? ` · ${t("Refunded", "Remboursé")} ${chf(s.refunded)}` : ""}</p>
               </section>
               {s.test_orders > 0 && <p className="text-xs text-muted-foreground">{t(`${s.test_orders} test order(s) not counted.`, `${s.test_orders} commande(s) de test non comptée(s).`)}</p>}
 
@@ -308,10 +310,54 @@ const ContactForm = ({ detail, disabled, onSave, onChangeEmail }: { detail: Cust
   const initial = { firstName: c.firstName ?? "", lastName: c.lastName ?? "", email: c.email ?? "", phone: c.phone ?? "", company: c.company ?? "", address: c.address ?? "", notes: c.notes ?? "" };
   const [f, setF] = useState(initial);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setF(initial); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [c.updatedAt]);
+  const [isEditing, setIsEditing] = useState(false);
+  useEffect(() => { setF(initial); setIsEditing(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [c.updatedAt]);
   const dirty = JSON.stringify(f) !== JSON.stringify(initial);
   // F21 : une adresse existante (ou un compte) ne se change que par « Modifier l'adresse email ».
   const emailLocked = !!c.email || !!detail.account;
+
+  // Read mode
+  if (!isEditing && !disabled) {
+    return (
+      <div className={cn(box, "space-y-3")} data-testid="customer-contact">
+        <div className="flex items-center justify-between">
+          <h2 className={h2}>{t("Contact details", "Coordonnées")}</h2>
+          <Button size="sm" variant="outline" className="rounded-none h-7 text-xs" onClick={() => setIsEditing(true)}>
+            {t("Edit", "Modifier")}
+          </Button>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-x-4 gap-y-3">
+          {([
+            [t("First name", "Prénom"), c.firstName],
+            [t("Last name", "Nom"), c.lastName],
+            ["Email", c.email],
+            [t("Phone", "Téléphone"), c.phone],
+            [t("Company", "Société"), c.company],
+            [t("Address", "Adresse"), c.address],
+          ] as [string, string | null | undefined][]).map(([label, value]) => value ? (
+            <div key={label}>
+              <span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+              <span className="block text-sm text-foreground">{value}</span>
+            </div>
+          ) : null)}
+        </div>
+        {emailLocked && (
+          <button type="button" className="text-[11px] underline text-muted-foreground" onClick={onChangeEmail} data-testid="contact-email-change">
+            {t("Change email address…", "Modifier l'adresse email…")}
+          </button>
+        )}
+        {c.notes && (
+          <div>
+            <span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{t("Internal notes", "Notes internes")}</span>
+            <p className="text-sm text-foreground whitespace-pre-wrap">{c.notes}</p>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">{t("Past orders and invoices keep the details they were issued with.", "Les commandes et factures déjà émises gardent les coordonnées de l'époque.")}</p>
+      </div>
+    );
+  }
+
+  // Edit mode
   const field = (k: keyof typeof f, label: string, type = "text") => (
     <div className="space-y-1">
       <Label htmlFor={`cf-${k}`} className="text-xs text-muted-foreground">{label}</Label>
@@ -319,14 +365,21 @@ const ContactForm = ({ detail, disabled, onSave, onChangeEmail }: { detail: Cust
         onChange={(e) => setF({ ...f, [k]: e.target.value })} className="rounded-none" />
       {k === "email" && emailLocked && !disabled && (
         <button type="button" className="text-[11px] underline text-muted-foreground" onClick={onChangeEmail} data-testid="contact-email-change">
-          {t("To change it: « Change the email address » (record, account and Brevo together)", "Pour la changer : « Modifier l'adresse email » (fiche, compte et Brevo ensemble)")}
+          {t("To change it: use « Change email address »", "Pour la changer : utiliser « Modifier l'adresse email »")}
         </button>
       )}
     </div>
   );
   return (
     <form className={cn(box, "space-y-3")} data-testid="customer-contact"
-      onSubmit={async (e) => { e.preventDefault(); if (!dirty || busy) return; setBusy(true); await onSave(f); setBusy(false); }}>
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!dirty || busy) return;
+        setBusy(true);
+        const ok = await onSave(f);
+        if (ok) setIsEditing(false);
+        setBusy(false);
+      }}>
       <h2 className={h2}>{t("Contact details", "Coordonnées")}</h2>
       <div className="grid sm:grid-cols-2 gap-3">
         {field("firstName", t("First name", "Prénom"))}
@@ -341,13 +394,17 @@ const ContactForm = ({ detail, disabled, onSave, onChangeEmail }: { detail: Cust
         <Textarea id="cf-notes" value={f.notes} disabled={disabled} onChange={(e) => setF({ ...f, notes: e.target.value })} className="rounded-none min-h-[90px]" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" className="rounded-none" disabled={disabled || !dirty || busy}>{busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}{t("Save", "Enregistrer")}</Button>
-        {dirty && <Button type="button" variant="ghost" className="rounded-none" onClick={() => setF(initial)}>{t("Undo changes", "Annuler les modifications")}</Button>}
+        <Button type="submit" className="rounded-none" disabled={disabled || !dirty || busy}>
+          {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}{t("Save", "Enregistrer")}
+        </Button>
+        {dirty && <Button type="button" variant="ghost" className="rounded-none" onClick={() => setF(initial)}>{t("Undo", "Annuler les modifications")}</Button>}
+        <Button type="button" variant="ghost" className="rounded-none" onClick={() => { setF(initial); setIsEditing(false); }}>{t("Cancel", "Annuler")}</Button>
       </div>
       <p className="text-xs text-muted-foreground">{t("Past orders and invoices keep the details they were issued with.", "Les commandes et factures déjà émises gardent les coordonnées de l'époque.")}</p>
     </form>
   );
 };
+
 
 // ── Manual merge with preview ────────────────────────────────────────────
 const MergePanel = ({ current, otherId, pin, onClose, onMerged }: {
