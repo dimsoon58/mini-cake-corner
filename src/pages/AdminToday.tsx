@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
-import { AlertTriangle, Cherry, Flame, Loader2, Lock, Plus, RefreshCw, Truck } from "lucide-react";
+import { AlertTriangle, Cherry, ChevronDown, Flame, Loader2, Lock, Plus, RefreshCw, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,6 +91,8 @@ const AdminToday = () => {
   const [upcoming, setUpcoming] = useState<Record<string, DayItem[]> | null>(null);
   // Commandes de test masquées sauf avec « Afficher les tests » (get-today).
   const [includeTests, setIncludeTests] = useShowTests();
+  const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
+  const [showUnfinishedOnly, setShowUnfinishedOnly] = useState(false);
   const [ws, setWs] = useState<{ sessions: WorkshopSession[]; stockRows: { sponge_base: string; product_category: string; quantity: number }[] } | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -258,9 +260,9 @@ const AdminToday = () => {
   const workshopDates = periodDates.filter((d) => data!.days[d].some((i) => i.type === "workshop"));
 
   // Badges that must never be missed: delivery (courier to book) and candles.
-  const deliveryBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide bg-sky-700 text-white";
-  const candleBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-yellow-300 text-yellow-950 border border-yellow-500";
-  const fruitBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-rose-200 text-rose-950 border border-rose-400";
+  const deliveryBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-[#EDE8DF] text-[#5A4E3A]";
+  const candleBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-50 text-amber-800 border border-amber-200";
+  const fruitBadge = "inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-rose-50 text-rose-700 border border-rose-200";
   const candleText = (it: DayItem) => {
     if (it.product === "candles") return t("Candles", "Bougies");
     if (!it.candleName) return null;
@@ -298,7 +300,7 @@ const AdminToday = () => {
           <span className={candleBadge}><Flame className="w-3.5 h-3.5" /> {candleText(it)}</span>
         )}
         {it.fruits && <span className={fruitBadge}><Cherry className="w-3.5 h-3.5" /> Fruits</span>}
-        {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-blue-600 text-white">{t("To accept", "À accepter")}</span>}
+        {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-primary text-primary-foreground">{t("To accept", "À accepter")}</span>}
         {it.badge === "awaiting_payment" && <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To collect", "À encaisser")}</span>}
         {done && <span className="px-2 py-0.5 text-[11px] bg-emerald-100 text-emerald-800">{t("Done", "Fait")}</span>}
       </span>
@@ -330,24 +332,32 @@ const AdminToday = () => {
       ...cakes.filter((i) => !isHandedOver(i.productionStatus)).sort(bySlot),
       ...cakes.filter((i) => isHandedOver(i.productionStatus)).sort(bySlot),
     ];
+    const isCollapsed = !!collapsedDays[date];
+    const displayCakes = showUnfinishedOnly
+      ? allCakes.filter((i) => !isHandedOver(i.productionStatus))
+      : allCakes;
     return (
       <div key={date} data-day={date} className={box}>
-        <div className={cn("flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-2.5", cakes.length > 0 && "border-b border-[#E3D7BE]")}>
-          <span className="text-sm font-bold first-letter:uppercase">
+        <div
+          className={cn("flex flex-wrap items-center justify-between gap-x-3 px-4 py-2.5 cursor-pointer select-none", cakes.length > 0 && !isCollapsed && "border-b border-[#E3D7BE]")}
+          onClick={() => setCollapsedDays(prev => ({ ...prev, [date]: !prev[date] }))}
+        >
+          <span className="text-sm font-bold first-letter:uppercase flex items-center gap-1.5">
+            <ChevronDown className={cn("w-3.5 h-3.5 text-[#8A7A6A] transition-transform duration-150", isCollapsed && "-rotate-90")} />
             {dayLabel(date)}
             {date === today && (
-              <span className="ml-2 px-1.5 py-0.5 text-[11px] font-semibold bg-primary/10 text-primary rounded-full">{t("Today", "Aujourd'hui")}</span>
+              <span className="ml-1 px-1.5 py-0.5 text-[11px] font-semibold bg-primary/10 text-primary rounded-full">{t("Today", "Aujourd'hui")}</span>
             )}
           </span>
           <span className="text-xs text-[#6B5A4C] tabular-nums">
             {cakes.length === 0 ? t("nothing scheduled", "rien de prévu") : `${ready.length} / ${cakes.length} ${t("ready", "prêts")}`}
           </span>
         </div>
-        {cakes.length === 0 ? (
+        {!isCollapsed && (cakes.length === 0 ? (
           <p className="px-4 py-4 text-sm text-[#6B5A4C]">{t("Nothing scheduled.", "Rien de prévu.")}</p>
         ) : (
           <ul className="divide-y divide-[#F0E8D8]">
-            {allCakes.map((it) => {
+            {displayCakes.map((it) => {
               const done = isHandedOver(it.productionStatus);
               const nameParts = it.customerName.split(" ");
               const shortName = nameParts[1] ? `${nameParts[0]} ${nameParts[1][0]}.` : nameParts[0];
@@ -368,7 +378,7 @@ const AdminToday = () => {
                     </span>
                     <span className="flex items-center gap-1.5">
                       {it.badge === "to_accept" && (
-                        <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-blue-600 text-white">{t("To accept", "À accepter")}</span>
+                        <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-primary text-primary-foreground">{t("To accept", "À accepter")}</span>
                       )}
                       {it.badge === "awaiting_payment" && (
                         <span className="px-2 py-0.5 text-[11px] bg-amber-100 text-amber-900">{t("To collect", "À encaisser")}</span>
@@ -388,7 +398,7 @@ const AdminToday = () => {
               );
             })}
           </ul>
-        )}
+        ))}
       </div>
     );
   };
@@ -467,22 +477,24 @@ const AdminToday = () => {
             {upcomingDeliveries && (
               <section id="livraisons">
                 <h2 className={cn(sectionTitle, "flex items-center gap-2")}>
-                  <Truck className="w-4 h-4 text-sky-700" /> {t(`Upcoming deliveries (${DELIVERY_LOOKAHEAD_DAYS} days)`, `Livraisons à venir (${DELIVERY_LOOKAHEAD_DAYS} jours)`)} ({upcomingDeliveries.length})
+                  <Truck className="w-4 h-4 text-[#6B5A4C]" /> {t(`Upcoming deliveries (${DELIVERY_LOOKAHEAD_DAYS} days)`, `Livraisons à venir (${DELIVERY_LOOKAHEAD_DAYS} jours)`)} ({upcomingDeliveries.length})
                 </h2>
                 {upcomingDeliveries.length === 0 ? (
                   <div className={box}><p className="px-4 py-5 text-sm text-muted-foreground">{t("No delivery in the next 14 days.", "Aucune livraison dans les 14 prochains jours.")}</p></div>
                 ) : (
-                  <ul className="border-2 border-sky-700 bg-sky-50 divide-y divide-sky-200">
+                  <ul className={cn(box, "divide-y divide-[#F0E8D8]")}>
                     {upcomingDeliveries.map(({ date, it, cakes }) => (
-                      <li key={`${it.orderId}-${date}`}>
-                        <Link to={`/admin/order/${it.orderId}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm text-sky-950 hover:bg-sky-100">
-                          <span className="w-36 shrink-0 font-semibold first-letter:uppercase">{shortDate(date)}{date === today && <span className="ml-1 text-xs text-primary">{t("today", "aujourd'hui")}</span>}</span>
-                          <span className="w-28 shrink-0 tabular-nums">{it.slot || t("No time slot", "Sans créneau")}</span>
-                          <span className="flex-1 min-w-[180px]">
-                            <span className="font-medium">{it.deliveryCity || t("Address on the order", "Adresse dans la commande")}</span>
-                            <span className="block text-xs text-sky-900/80">{it.orderNumber} · {it.customerName} · {cakes} {t(cakes > 1 ? "cakes" : "cake", cakes > 1 ? "gâteaux" : "gâteau")}</span>
+                      <li key={`${it.orderId}-${date}`} className={cn(date === today && "bg-[#FBF7F2]")}>
+                        <Link to={`/admin/order/${it.orderId}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm hover:bg-[#F5EEE8]">
+                          <span className={cn("w-36 shrink-0 font-semibold first-letter:uppercase", date === today ? "text-primary" : "text-foreground")}>
+                            {shortDate(date)}{date === today && <span className="ml-1 text-xs font-normal">{t("today", "aujourd'hui")}</span>}
                           </span>
-                          {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-blue-600 text-white">{t("To accept", "À accepter")}</span>}
+                          <span className="w-28 shrink-0 tabular-nums text-[#6B5A4C]">{it.slot || t("No time slot", "Sans créneau")}</span>
+                          <span className="flex-1 min-w-[180px]">
+                            <span className="font-medium text-foreground">{it.deliveryCity || t("Address on the order", "Adresse dans la commande")}</span>
+                            <span className="block text-xs text-[#6B5A4C]">{it.orderNumber} · {it.customerName} · {cakes} {t(cakes > 1 ? "cakes" : "cake", cakes > 1 ? "gâteaux" : "gâteau")}</span>
+                          </span>
+                          {it.badge === "to_accept" && <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-primary text-primary-foreground">{t("To accept", "À accepter")}</span>}
                         </Link>
                       </li>
                     ))}
@@ -511,7 +523,7 @@ const AdminToday = () => {
                     ))}
                     {data.toCollect.map((o) => (
                       <li key={`c-${o.orderId}`} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
-                        <span className="px-2 py-0.5 text-[11px] bg-secondary text-foreground/80">{t("To collect", "À encaisser")}</span>
+                        <span className="px-2 py-0.5 text-[11px] bg-amber-50 text-amber-900 font-medium">{t("To collect", "À encaisser")}</span>
                         <span className="flex-1 min-w-[180px] text-sm">
                           <span className="font-medium">{o.orderNumber}</span> · {o.customerName} · {shortDate(o.date)} · {formatChf(o.total)}
                         </span>
@@ -527,14 +539,36 @@ const AdminToday = () => {
 
             {/* Production */}
             <section id="production" className="space-y-3">
-              <h2 className={cn(sectionTitle, "mb-0 flex flex-wrap items-baseline gap-2")}>
-                {t("Production", "Production")}
-                {totalCakes > 0 && (
-                  <span className="text-xs font-normal normal-case tracking-normal text-[#6B5A4C]">
-                    — {totalCakes} {t(totalCakes > 1 ? "cakes in the period" : "cake in the period", totalCakes > 1 ? "gâteaux sur la période" : "gâteau sur la période")}
-                  </span>
-                )}
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className={cn(sectionTitle, "mb-0 flex flex-wrap items-baseline gap-2")}>
+                  {t("Production", "Production")}
+                  {totalCakes > 0 && (
+                    <span className="text-xs font-normal normal-case tracking-normal text-[#6B5A4C]">
+                      — {totalCakes} {t(totalCakes > 1 ? "cakes in the period" : "cake in the period", totalCakes > 1 ? "gâteaux sur la période" : "gâteau sur la période")}
+                    </span>
+                  )}
+                </h2>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-xs text-[#6B5A4C] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showUnfinishedOnly}
+                      onChange={(e) => setShowUnfinishedOnly(e.target.checked)}
+                      className="w-3.5 h-3.5 accent-primary"
+                    />
+                    {t("Unfinished only", "Non terminés seulement")}
+                  </label>
+                  {periodDates.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={toggleCollapseAll}
+                      className="text-xs text-[#6B5A4C] underline underline-offset-2 hover:text-foreground"
+                    >
+                      {allCollapsed ? t("Expand all", "Tout développer") : t("Collapse all", "Tout replier")}
+                    </button>
+                  )}
+                </div>
+              </div>
               {!periodSupported && (
                 <p className="border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900">
                   {t("Only today and tomorrow are shown until the new get-today version is deployed.",
@@ -588,13 +622,16 @@ const AdminToday = () => {
               <section id="alertes">
                 <h2 className={sectionTitle}>{t("Alerts", "Alertes")}</h2>
                 {data.alerts.length === 0 ? (
-                  <div className={box}><p className="px-4 py-5 text-sm text-[#6B5A4C]">{t("No alerts.", "Aucune alerte.")}</p></div>
+                  <div className="flex items-center gap-2 px-4 py-3 border border-[#C4D9C4] bg-[#F4F9F4] rounded-[10px] text-sm text-[#3D6B3D]">
+                    <span className="shrink-0">✓</span>
+                    {t("No alerts.", "Aucune alerte.")}
+                  </div>
                 ) : (
-                  <ul className="border border-red-200 bg-red-50 divide-y divide-red-200 rounded-[10px] overflow-hidden">
+                  <ul className={cn(box, "divide-y divide-[#F0E8D8]")}>
                     {data.alerts.map((a, i) => (
                       <li key={`${a.orderId}-${a.issueType}-${i}`}>
-                        <Link to={`/admin/order/${a.orderId}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm text-red-900 hover:bg-red-100/60">
-                          <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <Link to={`/admin/order/${a.orderId}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm text-foreground hover:bg-[#F9F3F3]">
+                          <AlertTriangle className="w-4 h-4 shrink-0 text-primary" />
                           <span className="flex-1 min-w-[180px]">
                             <span className="font-medium">{a.orderNumber}</span> · {t(ALERT_LABELS[a.issueType]?.en ?? a.issueType, ALERT_LABELS[a.issueType]?.fr ?? a.issueType)}
                             {a.detail && <span className="block text-xs opacity-80">{a.detail}</span>}
