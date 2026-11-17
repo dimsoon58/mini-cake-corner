@@ -104,17 +104,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
         <nav aria-label={t("Admin menu", "Menu Admin")} className="hidden lg:block pt-8">
           <div className="sticky top-28 space-y-1">
             <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{admin ? "Admin" : t("Team", "Équipe")}</p>
-            {main.map((it) => sideLink(it, true))}
-            {more.length > 0 && (
-              <details open={moreActive || undefined} className="group pt-3">
-                <summary className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground cursor-pointer list-none hover:bg-secondary/60 [&::-webkit-details-marker]:hidden">
-                  <MoreHorizontal className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-                  {t("Others", "Autres")}
-                  <ChevronDown className="w-4 h-4 ml-auto transition-transform group-open:rotate-180" />
-                </summary>
-                <div className="space-y-0.5 pt-1">{more.map((it) => sideLink(it, false))}</div>
-              </details>
-            )}
+            {items.map((it) => sideLink(it, true))}
           </div>
         </nav>
 
