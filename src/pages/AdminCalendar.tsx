@@ -142,9 +142,15 @@ const AdminCalendar = () => {
           if (!pErr && !prod?.error) for (const ws of (prod?.workshopSessions ?? []) as WorkshopSession[]) (map[ws.date] ??= []).push(ws);
           if (!cancelled) setWsByDate(map);
         } catch { if (!cancelled) setWsByDate({}); }
-        // A newly selected date from a previous month wouldn't exist in
-        // this month's data — clear it rather than showing a stale list.
-        setSelectedDate(null);
+        // Keep the URL date if it belongs to the loaded month; clear otherwise.
+        setSelectedDateState((prev) => {
+          const urlDate = searchParams.get("date");
+          const keep = urlDate ?? prev;
+          if (!keep) return null;
+          const first = format(startOfMonth(monthCursor), "yyyy-MM-dd");
+          const last  = format(endOfMonth(monthCursor),  "yyyy-MM-dd");
+          return keep >= first && keep <= last ? keep : null;
+        });
       }
       setLoading(false);
     };
