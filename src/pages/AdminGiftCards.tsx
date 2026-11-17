@@ -181,7 +181,7 @@ const AdminGiftCards = () => {
           {!create && <Button className="rounded-none" onClick={() => { setError(null); setCreate(emptyCreate()); }}><Plus className="w-4 h-4 mr-1" /> Créer un bon</Button>}
         </div>
         <p className="text-sm text-muted-foreground">
-          Valables 12 mois, sur tout le site, à taper dans le champ « Code promo » du panier. Un bon n'est jamais remboursé en argent.
+          Valables 12 mois par défaut (durée modifiable à la création), sur tout le site, à taper dans le champ « Code promo » du panier. Un bon n'est jamais remboursé en argent.
           Quand une commande payée avec un bon est annulée en entier ou refusée, le montant revient tout seul sur le bon. Pour une annulation partielle,
           remettez le montant depuis la page de la commande.
         </p>
