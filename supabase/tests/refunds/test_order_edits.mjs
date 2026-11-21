@@ -409,23 +409,24 @@ g = await get(AW);
 r = await saveEdit(bodyOf(g, (x) => { x.items[0].size = "medium"; }));
 check("« À accepter » : changer la taille → refusé (accepter d'abord), rien changé", r.status === 422 && r.body.problems.some((p) => /acceptez-la d'abord/.test(p)) && (await items(AW))[0].size === "bento", r.body);
 
-// ═══ 5. Produits gardés tels quels ═══════════════════════════════════════
+// ═══ 5. Produits de Noël : modifiables (21.11.2026) ══════════════════════
 const LOG = "00000000-0000-0000-0000-0000000001c9";
 await q(`insert into public.orders (id, order_source, payment_status, order_validation, physical_validation, fulfillment_type, total_amount, first_name, last_name, phone, email, lang, pickup_delivery_date, delivery_method, paid_at)
-  values ($1,'website','paid','approved','approved','cake_only',105,'Noel','Cliente','+41790000003',$2,'fr',$3,'pickup',now())`, [LOG, EMAIL, D1]);
+  values ($1,'website','paid','approved','approved','cake_only',109,'Noel','Cliente','+41790000003',$2,'fr',$3,'pickup',now())`, [LOG, EMAIL, D1]);
 const LF = (await one(`insert into public.order_fulfillments (order_id, pickup_delivery_date, delivery_method) values ($1,$2,'pickup') returning id`, [LOG, D1])).id;
 await q(`insert into public.order_items (order_id, product, size, shape, flavors, design, extras, candles, total, fulfillment_id) values
-  ($1,'christmas_log','buche',null,'{}','buche-grinch','{}','[]',65,$2), ($1,'bento_cake','bento','round','{"Vanilla"}','normal-without-border','{}','[]',40,$2)`, [LOG, LF]);
+  ($1,'christmas_log','buche',null,'{"Lemon curd"}','buche-grinch','{}','[]',69,$2), ($1,'bento_cake','bento','round','{"Vanilla"}','normal-without-border','{}','[]',40,$2)`, [LOG, LF]);
 g = await get(LOG);
 const iLog = g.items.findIndex((i) => i.product === "christmas_log"), iBento = 1 - iLog;
-check("Bûche de Noël : marquée « christmas » (gardée telle quelle)", g.items[iLog].locked === "christmas" && g.items[iBento].locked === null, g.items.map((i) => i.locked));
-r = await saveEdit(bodyOf(g, (x) => { x.items[iLog].design = "buche-jardin-hiver"; x.items[iLog].size = "medium"; x.items[iBento].size = "medium"; }));
+check("Bûche de Noël : plus bloquée, goût relu en Christmas Edition", g.items[iLog].locked === null && g.items[iBento].locked === null && g.items[iLog].flavors[0] === "noel-lemon-curd", g.items.map((i) => [i.locked, i.flavors]));
+r = await saveEdit(bodyOf(g, (x) => { x.items[iLog].design = "buche-jardin-hiver"; x.items[iLog].flavors = ["noel-mangue-passion"]; x.items[iBento].size = "medium"; }));
 const logNow = await items(LOG);
+const logDesign = (await one(`select design from public.order_items where order_id = $1 and product = 'christmas_log'`, [LOG])).design;
 const logRow = logNow.find((i) => i.product === "christmas_log"), bentoRow = logNow.find((i) => i.product === "bento_cake");
-check("Bûche envoyée modifiée : ignorée (contenu de la base), le bento est bien agrandi", r.status === 200 && logRow.total === 65 && logRow.size === "buche" && bentoRow.size === "medium" && r.body.data.supplement_due === 45, { r: r.body, logNow });
+check("Bûche modifiée (Jardin d'Hiver, Mangue passion 71) + bento agrandi → supplément 47", r.status === 200 && Number(logRow.total) === 71 && logDesign === "buche-jardin-hiver" && logRow.flavors[0] === "Mangue passion" && logRow.size === "buche" && bentoRow.size === "medium" && r.body.data.supplement_due === 47, { r: r.body, logNow });
 g = await get(LOG);
-r = await preview(bodyOf(g, (x) => { x.items.splice(iLog, 1); x.fulfillments[0].itemIndexes = [0]; }));
-check("Retirer la bûche ici → refusé (« Annuler ce gâteau »)", r.body.data.problems.some((p) => /ne se retire pas ici/.test(p)), r.body.data.problems);
+r = await preview(bodyOf(g, (x) => { x.items[iLog].size = "medium"; }));
+check("Bûche : taille autre que « buche » → refusée", r.body.data.problems.some((p) => /invalid size medium for christmas_log/.test(p)), r.body.data.problems);
 
 // ═══ 6. Ajouter un gâteau à une commande payée ═══════════════════════════
 g = await get(SITE);

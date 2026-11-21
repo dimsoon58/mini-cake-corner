@@ -23,6 +23,18 @@ import {
   NUMBER_CANDLE_ID,
 } from "./pricing.ts";
 import { FLAVOUR_BY_ID } from "./production-catalog.ts";
+import {
+  CHRISTMAS_CAKE_PRICES,
+  CHRISTMAS_CLASSIC_FLAVOURS,
+  CHRISTMAS_FLAVOUR_NAMES,
+  CHRISTMAS_LAST_DATE,
+  CHRISTMAS_LOG_IDS,
+  CHRISTMAS_LOG_PRICE,
+  CHRISTMAS_LOG_SIZE,
+  christmasEditionCakeSurcharge,
+  LOG_FLAVOUR_SURCHARGES,
+  type ChristmasSize,
+} from "./christmas.ts";
 
 const flavourName = (id: string) => FLAVOUR_BY_ID.get(id)?.names[0] ?? id;
 
@@ -56,6 +68,23 @@ export async function buildManualOrderCatalog(supabase: any) {
     dotCakes: {
       packs: Object.entries(DOT_CAKES_PACKS).map(([id, p]) => ({ id, size: p.size, flavours: p.flavours, price: p.price })),
       flavours: Object.keys(DOT_CAKES_FLAVOR_TIER).map((id) => ({ id, name: flavourName(id) })),
+    },
+    // Noël (21.11.2026) : mêmes modèles, tailles, goûts et suppléments que la
+    // page Noël (prix finaux calculés par le devis).
+    christmas: {
+      lastDate: CHRISTMAS_LAST_DATE,
+      cakes: Object.entries(CHRISTMAS_CAKE_PRICES).map(([id, prices]) => ({ id, prices })),
+      logs: CHRISTMAS_LOG_IDS.map((id) => ({ id, price: CHRISTMAS_LOG_PRICE })),
+      logSize: CHRISTMAS_LOG_SIZE,
+      classicFlavours: CHRISTMAS_CLASSIC_FLAVOURS.map((id) => ({
+        id, name: flavourName(id),
+        surcharge: Object.fromEntries((["bento", "retro", "medium", "large"] as ChristmasSize[]).map((sz) => [sz, CAKE_FLAVORS[id]?.[sz] ?? null])),
+      })),
+      editionFlavours: Object.keys(LOG_FLAVOUR_SURCHARGES).map((id) => ({
+        id, name: CHRISTMAS_FLAVOUR_NAMES[id] ?? id,
+        logSurcharge: LOG_FLAVOUR_SURCHARGES[id],
+        surcharge: Object.fromEntries((["bento", "retro", "medium", "large"] as ChristmasSize[]).map((sz) => [sz, christmasEditionCakeSurcharge(id, sz) ?? null])),
+      })),
     },
     printing: { size: "printing" },
     candles: {

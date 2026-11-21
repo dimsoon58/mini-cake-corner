@@ -4,6 +4,7 @@ import { fruitSupplementOf, type QuoteItemInput, type QuoteItemResult } from "..
 import { FLAVOUR_BY_ID } from "../_shared/production-catalog.ts";
 import { CAKE_EXTRAS, DIY_KIT_PIPING, roundToCents } from "../_shared/pricing.ts";
 import { isCatalogColourId } from "../_shared/catalog-colours.ts";
+import { christmasFlavourName, isChristmasItem } from "../_shared/christmas.ts";
 
 export interface EditorItem extends QuoteItemInput {
   // F47 — ligne déjà enregistrée (order_items.id) : modifiée sur place.
@@ -107,12 +108,16 @@ export function buildItemRow(
 ) {
   const ws = q?.workshop;
   const isWorkshop = it.product === "workshop";
+  const classicName = (id: string) => FLAVOUR_BY_ID.get(id)?.names[0] ?? id;
+  // Article de Noël : mêmes valeurs que la page Noël (forme ronde pour un
+  // gâteau, aucune pour une bûche ; nom du goût Christmas Edition).
+  const christmas = isChristmasItem(it);
   return {
     order_id: orderId,
     product: it.product,
     size: isWorkshop ? null : (it.size ?? null),
-    shape: isWorkshop ? null : (it.shape ?? null),
-    flavors: isWorkshop ? [] : (it.flavors ?? []).map((id) => FLAVOUR_BY_ID.get(id)?.names[0] ?? id),
+    shape: isWorkshop || it.product === "christmas_log" ? null : christmas ? "round" : (it.shape ?? null),
+    flavors: isWorkshop ? [] : (it.flavors ?? []).map((id) => (christmas ? christmasFlavourName(id, classicName) : classicName(id))),
     design: isWorkshop ? null : (it.design ?? null),
     extras: isWorkshop ? [] : (it.extras ?? []),
     candles: isWorkshop ? [] : (it.candles ?? []),

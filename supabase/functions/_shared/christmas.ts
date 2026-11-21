@@ -103,3 +103,39 @@ export function christmasEditionCakeSurcharge(flavourId: string, size: Christmas
   if (size === "medium") return log;
   return small + log;
 }
+
+// ── Commandes manuelles (21.11.2026) ─────────────────────────────────────
+// Nom enregistré dans order_items.flavors pour un goût d'un article de Noël,
+// exactement comme la page Noël : Christmas Edition = CHRISTMAS_FLAVOUR_NAMES,
+// « Nos classiques » = nom habituel du site (classicName).
+export function christmasFlavourName(id: string, classicName: (id: string) => string): string {
+  return CHRISTMAS_FLAVOUR_NAMES[id] ?? classicName(id);
+}
+
+/**
+ * Goût enregistré (nom) d'un article de Noël → id du goût. Christmas Edition
+ * d'abord (nom exact : « Lemon curd » ≠ « Lemon Curd » classique). Seul
+ * « Chocolate Lovers » existe dans les deux listes d'un gâteau de Noël :
+ * on garde celui dont le prix retombe sur le prix enregistré (priceOf), sinon
+ * Christmas Edition. Bûche : Christmas Edition seulement.
+ */
+export function christmasFlavourIdOf(
+  name: string,
+  item: { product?: string | null; design?: string | null },
+  classicIdOf: (name: string) => string | null,
+  priceOf?: (flavourId: string) => number | null,
+  storedPrice?: number | null,
+): string {
+  const edition = Object.keys(CHRISTMAS_FLAVOUR_NAMES).find((id) => CHRISTMAS_FLAVOUR_NAMES[id] === name) ?? null;
+  if (item.product === "christmas_log") return edition ?? classicIdOf(name) ?? name;
+  const classic = classicIdOf(name);
+  const classicOk = classic && CHRISTMAS_CLASSIC_FLAVOURS.includes(classic) ? classic : null;
+  if (edition && classicOk) {
+    if (priceOf && storedPrice != null) {
+      const p = priceOf(classicOk);
+      if (p != null && Math.abs(p - storedPrice) < 0.01 && priceOf(edition) !== p) return classicOk;
+    }
+    return edition;
+  }
+  return edition ?? classicOk ?? classic ?? name;
+}
