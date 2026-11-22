@@ -321,5 +321,34 @@ const failing = await FX.buildFiduciaryZip(ExcelJS, data, async () => { throw ne
 check("Justificatif non récupéré : signalé comme pièce manquante, jamais silencieux", failing.missing.length === 3 && failing.files.every((f) => !f.ok));
 check("Export : aucun effet sur le partage", (await snapshot()) !== "" && JSON.parse(await snapshot()).moves === JSON.parse(before).moves);
 
+// ═══ F48 — « Interne uniquement » : comptée chez nous, jamais au fiduciaire ══
+const F48 = path.join(MIG, fs.readdirSync(MIG).find((f) => f.includes("_f48_")));
+await db.exec(fs.readFileSync(F48, "utf8"));
+await db.exec(fs.readFileSync(F48, "utf8"));
+r = await call({ action: "save", idempotencyKey: "dep-int", purchaseDate: "2026-11-06", supplier: "Coop interne", categoryId: cat("Matériel"), currency: "CHF", originalAmount: "40", status: "paid", paidAt: "2026-11-06", payerId: BENTO, internalOnly: true });
+const INT = r.body.data;
+r = await call({ action: "upload_url", expenseId: INT.id, mimeType: "image/jpeg", size: 500, fileName: "ticket interne.jpg" });
+await call({ action: "attach", expenseId: INT.id, path: r.body.data.path, fileName: "ticket interne.jpg", mimeType: "image/jpeg", size: 500 });
+const intRow = (await call({ action: "get", id: INT.id })).body.data;
+check("F48 : relance sans erreur, case enregistrée par la fonction", intRow?.internal_only === true, intRow);
+const per2 = (await call({ action: "period", from: "2026-10-01", to: "2026-11-30" })).body.data;
+check("F48 : la dépense interne compte chez nous (liste + total engagé)", per2.expenses.some((e) => e.id === INT.id && e.counted !== false)
+  && num(per2.totals.engaged.known) === num(Number(data.expenses.totals.engaged.known) + 40), per2.totals.engaged);
+const data2 = { ...data, expenses: per2, receipts: (await call({ action: "receipts_period", from: "2026-10-01", to: "2026-11-30", includeFiduciary: true })).body.data };
+check("F48 : son justificatif est bien dans la liste brute (avant filtre)", data2.receipts.some((x) => x.expenseId === INT.id));
+const fetched2 = [];
+const out2 = await FX.buildFiduciaryZip(ExcelJS, data2, async (url) => { fetched2.push(url); return new Blob(["x"]); });
+const zip2 = await JSZip.loadAsync(Buffer.from(await out2.blob.arrayBuffer()));
+const wb2 = new ExcelJS.Workbook();
+await wb2.xlsx.load(await zip2.file(Object.keys(zip2.files).find((n) => n.endsWith(".xlsx"))).async("nodebuffer"));
+const deps2 = []; wb2.getWorksheet("Dépenses communes").eachRow((row, i) => { if (i > 1) deps2.push(String(row.getCell(1).value)); });
+const syn2 = {}; wb2.getWorksheet("Synthèse").eachRow((row) => { syn2[String(row.getCell(1).value)] = row.getCell(2).value; });
+check("F48 : absente de l'Excel fiduciaire (ligne et total inchangé à 163)", !deps2.includes(INT.code) && deps2.length === rows("Dépenses communes").length
+  && Number(syn2["Dépenses communes (date d'achat dans la période)"]) === 163, { deps2, syn2 });
+check("F48 : son justificatif n'est ni lu ni mis dans le ZIP", fetched2.length === 2 && !Object.keys(zip2.files).some((n) => n.includes(INT.code)) && !out2.files.some((f) => f.code === INT.code));
+check("F48 : periodTotals (page) exclut aussi la dépense interne", FX.periodTotals(data2).common === 163);
+await call({ action: "save", id: INT.id, purchaseDate: "2026-11-06", supplier: "Coop interne", categoryId: cat("Matériel"), currency: "CHF", originalAmount: "40", status: "paid", paidAt: "2026-11-06", payerId: BENTO, internalOnly: false });
+check("F48 : décocher la remet dans le dossier fiduciaire", (await call({ action: "get", id: INT.id })).body.data.internal_only === false);
+
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);

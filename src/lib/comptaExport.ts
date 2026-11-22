@@ -80,6 +80,7 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, sales: SalesMonth, f
     { header: "À compléter", key: "missing", width: 30 },
     { header: "Comptée dans les dépenses", key: "counted", width: 18 },
     { header: "Investissement (info fiduciaire, sans amortissement)", key: "investment", width: 16 },
+    { header: "Interne uniquement (pas au fiduciaire)", key: "internalOnly", width: 14 },
   ];
   const head = ws.getRow(1);
   head.font = { bold: true };
@@ -110,6 +111,7 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, sales: SalesMonth, f
       missing: [...e.missing.map((m) => MISSING_LABELS[m] ?? m), ...(e.salary_to_reconcile ? ["à rapprocher d'un versement de salaire"] : [])].join(", "),
       counted: isCounted(e) ? "Oui" : `Non — rapprochée de ${e.salary_payment?.code ?? "un versement de salaire"}`,
       investment: e.is_investment ? "Oui" : "",
+      internalOnly: e.internal_only ? "Oui" : "",
     });
     if (e.missing.length) row.getCell("missing").font = { color: { argb: "FF8A5A00" } };
     if (e.chf_amount == null) row.getCell("chf").value = null;

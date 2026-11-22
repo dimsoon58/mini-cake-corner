@@ -45,8 +45,23 @@ export const periodLabel = (p: { from: string; to: string }) => (p.from.slice(0,
 export const fiduciaryFileName = (p: { from: string; to: string }) => `Bento-Cake-Studio_dossier-fiduciaire_${periodLabel(p)}.xlsx`;
 export const fiduciaryZipName = (p: { from: string; to: string }) => `Bento-Cake-Studio_dossier-fiduciaire_${periodLabel(p)}.zip`;
 
+/**
+ * Dépenses « Interne uniquement » : comptées chez nous (résultat, partage)
+ * mais jamais transmises au fiduciaire — ni ligne, ni total, ni justificatif.
+ */
+export function withoutInternal(d: PeriodData): PeriodData {
+  const internal = new Set(d.expenses.expenses.filter((e) => e.internal_only).map((e) => e.id));
+  if (!internal.size) return d;
+  return {
+    ...d,
+    expenses: { ...d.expenses, expenses: d.expenses.expenses.filter((e) => !internal.has(e.id)) },
+    receipts: d.receipts.filter((r) => !r.expenseId || !internal.has(r.expenseId)),
+  };
+}
+
 /** Totaux de la période (mêmes chiffres que la page). */
-export function periodTotals(d: PeriodData) {
+export function periodTotals(input: PeriodData) {
+  const d = withoutInternal(input);
   const sum = (xs: number[]) => r2(xs.reduce((s, x) => s + (Number(x) || 0), 0));
   const commonKnown = r2(d.expenses.expenses.filter((e) => e.counted !== false && inRange(e.purchase_date, d.from, d.to)).reduce((s, e) => s + (Number(e.chf_amount) || 0), 0));
   const salary = sum(d.salary.map((s) => salaryMonthTotal(s).total));
@@ -57,7 +72,8 @@ export function periodTotals(d: PeriodData) {
   };
 }
 
-export function buildFiduciaryWorkbook(ExcelJS: ExcelJSModule, d: PeriodData, files: NamedReceipt[]) {
+export function buildFiduciaryWorkbook(ExcelJS: ExcelJSModule, input: PeriodData, files: NamedReceipt[]) {
+  const d = withoutInternal(input);
   const wb = new ExcelJS.Workbook();
   wb.creator = "Bento Cake Studio — Admin";
   wb.created = new Date();
@@ -190,7 +206,8 @@ export function buildFiduciaryWorkbook(ExcelJS: ExcelJSModule, d: PeriodData, fi
   return { wb, missing };
 }
 
-export async function buildFiduciaryZip(ExcelJS: ExcelJSModule, d: PeriodData, fetcher: (url: string) => Promise<Blob>) {
+export async function buildFiduciaryZip(ExcelJS: ExcelJSModule, input: PeriodData, fetcher: (url: string) => Promise<Blob>) {
+  const d = withoutInternal(input);
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   const named = nameReceipts(d.receipts);

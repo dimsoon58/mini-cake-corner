@@ -29,6 +29,8 @@ export interface Expense {
   advance?: { repaid: number; remaining: number | null } | null;
   // Lot K4 : information pour la fiduciaire (aucun amortissement)
   is_investment?: boolean;
+  /** Interne uniquement : compte chez nous, jamais transmise au fiduciaire. */
+  internal_only?: boolean;
   duplicates: { id: string; code: string; purchase_date: string | null; supplier: string | null; chf_amount: number | null }[];
 }
 export interface Sum { known: number; count: number; unknownCount: number }
@@ -63,8 +65,29 @@ export async function comptaApi<T = unknown>(body: Record<string, unknown>): Pro
   return (data?.data ?? null) as T;
 }
 
+/**
+ * Photos iPhone (HEIC/HEIF) : Chrome, Firefox et Edge ne savent pas les
+ * afficher (seul Safari y arrive), le fiduciaire non plus. On les convertit
+ * en JPEG avant l'envoi. Si la conversion échoue, le fichier part tel quel.
+ */
+export function isHeic(file: { name: string; type?: string }): boolean {
+  return /^image\/hei[cf]$/i.test(file.type ?? "") || /\.hei[cf]$/i.test(file.name);
+}
+export async function toUploadable(file: File): Promise<File> {
+  if (!isHeic(file)) return file;
+  try {
+    const { default: heic2any } = await import("heic2any");
+    const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
+    const blob = Array.isArray(out) ? out[0] : out;
+    return new File([blob], file.name.replace(/\.hei[cf]$/i, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 /** Envoie un justificatif (URL d'envoi signée) puis l'enregistre sur la dépense. */
-export async function uploadReceipt(expenseId: string, file: File): Promise<string> {
+export async function uploadReceipt(expenseId: string, original: File): Promise<string> {
+  const file = await toUploadable(original);
   const mimeType = file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "");
   const up = await comptaApi<{ path: string; token: string; bucket: string }>({ action: "upload_url", expenseId, fileName: file.name, mimeType, size: file.size });
   const { error } = await supabase.storage.from(up.bucket).uploadToSignedUrl(up.path, up.token, file, { contentType: mimeType });
@@ -74,7 +97,8 @@ export async function uploadReceipt(expenseId: string, file: File): Promise<stri
 }
 
 /** Lot K2 : envoie le décompte de salaire (facultatif) et l'enregistre sur le mois. */
-export async function uploadSalaryDocument(salaryMonthId: string, file: File): Promise<string> {
+export async function uploadSalaryDocument(salaryMonthId: string, original: File): Promise<string> {
+  const file = await toUploadable(original);
   const mimeType = file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "");
   const up = await comptaApi<{ path: string; token: string; bucket: string }>({ action: "upload_url", salaryMonthId, fileName: file.name, mimeType, size: file.size });
   const { error } = await supabase.storage.from(up.bucket).uploadToSignedUrl(up.path, up.token, file, { contentType: mimeType });
@@ -416,7 +440,8 @@ export interface FiduciaryItem {
 }
 export interface FiduciaryPeriod { from: string; to: string; items: FiduciaryItem[]; total: number; count: number; missingReceiptCount: number }
 /** Envoie un justificatif d'ajout fiduciaire (même bucket privé, dossier fiduciary/). */
-export async function uploadFiduciaryReceipt(id: string, file: File): Promise<string> {
+export async function uploadFiduciaryReceipt(id: string, original: File): Promise<string> {
+  const file = await toUploadable(original);
   const mimeType = file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "");
   const up = await comptaApi<{ path: string; token: string; bucket: string }>({ action: "fiduciary_upload_url", id, fileName: file.name, mimeType, size: file.size });
   const { error } = await supabase.storage.from(up.bucket).uploadToSignedUrl(up.path, up.token, file, { contentType: mimeType });
