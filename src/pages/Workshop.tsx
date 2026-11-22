@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Clock, Users, MapPin, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, Users, MapPin, Baby, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/context/LanguageContext";
@@ -45,6 +45,7 @@ const workshops = [
       { icon: Clock, label: "1h30", labelFr: "1h30" },
       { icon: Users, label: "10 people", labelFr: "10 personnes" },
       { icon: MapPin, label: "Geneva", labelFr: "Genève" },
+      { icon: Baby, label: "Children from age 2, with a parent", labelFr: "Enfants dès 2 ans, accompagnés d'un parent" },
     ],
     price: "CHF 65",
     ctaLabel: "Book Now",
@@ -79,6 +80,7 @@ const workshops = [
       { icon: Clock, label: "1h30", labelFr: "1h30" },
       { icon: Users, label: "8 people", labelFr: "8 personnes" },
       { icon: MapPin, label: "Geneva", labelFr: "Genève" },
+      { icon: Baby, label: "Children from age 5, with a parent", labelFr: "Enfants dès 5 ans, accompagnés d'un parent" },
     ],
     price: "CHF 85",
     ctaLabel: "Book Now",
@@ -113,6 +115,7 @@ const workshops = [
       { icon: Clock, label: "3 hours", labelFr: "3 heures" },
       { icon: Users, label: "8 people", labelFr: "8 personnes" },
       { icon: MapPin, label: "Geneva", labelFr: "Genève" },
+      { icon: Baby, label: "Children from age 5, with a parent", labelFr: "Enfants dès 5 ans, accompagnés d'un parent" },
     ],
     price: "CHF 120",
     objectPosition: "70% center",

@@ -265,6 +265,18 @@ const FAQ = () => {
       ]
     },
     {
+      title: "Workshops",
+      titleFr: "Workshops",
+      questions: [
+        {
+          question: "Can children join the workshops?",
+          questionFr: "Les enfants peuvent-ils participer aux workshops ?",
+          answer: "Yes, of course! Children are welcome when accompanied by a parent.\n\n– Paint Workshop: from age 2.\n– Signature Workshop and Piping Workshop: from age 5.",
+          answerFr: "Oui, bien sûr ! Les enfants sont les bienvenus, accompagnés d'un parent.\n\n– Workshop Peinture : dès 2 ans.\n– Workshop Signature et Workshop Pochage : dès 5 ans."
+        }
+      ]
+    },
+    {
       title: "Contact",
       titleFr: "Contact",
       questions: [
