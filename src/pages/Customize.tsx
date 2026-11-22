@@ -240,6 +240,7 @@ const ribbonColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
   { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
   { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
+  { id: "brown", name: "Brown", color: "#7B4A2D" },
   { id: "black", name: "Black", color: "#000000" },
 ];
 
