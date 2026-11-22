@@ -225,6 +225,30 @@ export interface AdvancesOverview {
   month: string; people: AdvancePerson[]; repayments: AdvanceRepayment[];
   totals: { repaidInMonth: number; repaidInMonthCount: number; openEnd: number; unknownCount: number };
 }
+/**
+ * « Enregistrer un virement » : répartit un montant viré sur les avances
+ * remboursables, de la plus ancienne à la plus récente (date de paiement,
+ * sinon d'achat, puis référence). La dernière peut n'être remboursée qu'en
+ * partie. `leftover` > 0 : le virement dépasse ce qui est dû sur ces avances.
+ */
+export function allocateTransfer(advances: AdvanceItem[], amount: number) {
+  const cents = (n: number) => Math.round(n * 100);
+  let left = cents(amount);
+  const sorted = advances
+    .filter((a) => a.remaining_now != null && a.remaining_now > 0 && a.state !== "supplier_unpaid")
+    .sort((a, b) => (a.paid_at ?? a.purchase_date ?? "9999").localeCompare(b.paid_at ?? b.purchase_date ?? "9999") || a.code.localeCompare(b.code));
+  const lines: { id: string; code: string; supplier: string | null; date: string | null; remaining: number; amount: number; full: boolean }[] = [];
+  for (const a of sorted) {
+    if (left <= 0) break;
+    const rem = cents(a.remaining_now as number);
+    const take = Math.min(rem, left);
+    left -= take;
+    lines.push({ id: a.id, code: a.code, supplier: a.supplier, date: a.paid_at ?? a.purchase_date, remaining: rem / 100, amount: take / 100, full: take === rem });
+  }
+  const due = sorted.reduce((s, a) => s + cents(a.remaining_now as number), 0) / 100;
+  return { lines, allocated: (cents(amount) - left) / 100, leftover: left / 100, due };
+}
+
 export const ADVANCE_STATE_LABELS: Record<AdvanceState, string> = {
   unknown_amount: "Montant CHF à saisir — non remboursable",
   supplier_unpaid: "Fournisseur pas encore payé — non remboursable",
