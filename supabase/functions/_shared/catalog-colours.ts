@@ -35,6 +35,7 @@ const COLOURS: Record<string, { en: string; fr: string }> = {
   "sky-blue": { en: "Sky Blue", fr: "Bleu Ciel" },
   "blue": { en: "Blue", fr: "Bleu" },
   "midnight-blue": { en: "Midnight Blue", fr: "Bleu Nuit" },
+  "brown": { en: "Brown", fr: "Marron" },
   "lavender": { en: "Lavender", fr: "Lavande" },
   "plum": { en: "Plum", fr: "Prune" },
   "light-brown": { en: "Light Brown", fr: "Brun Clair" },
