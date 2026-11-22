@@ -350,5 +350,17 @@ check("F48 : periodTotals (page) exclut aussi la dépense interne", FX.periodTot
 await call({ action: "save", id: INT.id, purchaseDate: "2026-11-06", supplier: "Coop interne", categoryId: cat("Matériel"), currency: "CHF", originalAmount: "40", status: "paid", paidAt: "2026-11-06", payerId: BENTO, internalOnly: false });
 check("F48 : décocher la remet dans le dossier fiduciaire", (await call({ action: "get", id: INT.id })).body.data.internal_only === false);
 
+// ═══ Sans salaire (pas d'employé salarié) : pas de feuille ni de ligne « Salaire » ══
+const noSal = { ...data2, salary: data2.salary.map(() => ({ month: "x", members: [{ id: "m", name: "N", rates: [], proposedMonths: ["2026-11-01"], months: [] }], current: [], paymentsInMonth: [],
+  totals: { plannedForMonth: null, plannedMissingCount: 0, confirmedForMonth: null, toConfirmCount: 0, paidInMonth: 0, paidInMonthCount: 0 }, balances: { remaining: 0, toConfirmCount: 0, documentMissingCount: 0 }, expensesToReconcile: [] })) };
+const out3 = await FX.buildFiduciaryZip(ExcelJS, noSal, async () => new Blob(["x"]));
+const zip3 = await JSZip.loadAsync(Buffer.from(await out3.blob.arrayBuffer()));
+const wb3 = new ExcelJS.Workbook();
+await wb3.xlsx.load(await zip3.file(Object.keys(zip3.files).find((n) => n.endsWith(".xlsx"))).async("nodebuffer"));
+const syn3 = []; wb3.getWorksheet("Synthèse").eachRow((row) => syn3.push(String(row.getCell(1).value)));
+check("Sans salaire : ni feuille « Salaire », ni ligne salaire dans la synthèse, ni mention dans le LISEZMOI",
+  !wb3.getWorksheet("Salaire") && !syn3.some((k) => k.startsWith("Salaire")) && !(await zip3.file("LISEZMOI.txt").async("string")).includes("salaire"), { sheets: wb3.worksheets.map((w) => w.name), syn3 });
+check("Avec salaire : la feuille « Salaire » reste", !!wb2.getWorksheet("Salaire"));
+
 console.log(`\n${passes} PASS, ${fails} FAIL`);
 process.exit(fails ? 1 : 0);

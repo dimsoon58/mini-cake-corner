@@ -153,7 +153,8 @@ export function buildComptaWorkbook(ExcelJS: ExcelJSModule, sales: SalesMonth, f
   s.getRow(sNet).font = { bold: true };
   m("Dépenses du mois (date d'achat, CHF connus)", { formula: `'Dépenses'!I${rEngaged}`, result: round(engagedKnown) }, expenses.totals.engaged.count);
   const sal = salary?.totals;
-  add(["Salaire net confirmé du mois (jamais ajouté aux dépenses)", sal && sal.confirmedForMonth != null && !sal.toConfirmCount ? sal.confirmedForMonth : "montant à saisir"]).getCell(2).numFmt = MONEY;
+  // Sans salaire (pas d'employé salarié), la ligne n'est pas affichée.
+  if (sal) add(["Salaire net confirmé du mois (jamais ajouté aux dépenses)", sal.confirmedForMonth != null && !sal.toConfirmCount ? sal.confirmedForMonth : "montant à saisir"]).getCell(2).numFmt = MONEY;
   m("Restant à payer par les clients (ventes du mois non payées)", { formula: `'Ventes du mois'!M${sv.toCollectRow}`, result: round(c.toCollect) }, c.toCollectOrders);
   add([]);
   add(["Ventes du mois — détail", "Montant (CHF)", "Nombre"], true);

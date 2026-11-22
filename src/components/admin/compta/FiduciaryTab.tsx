@@ -100,7 +100,7 @@ export default function FiduciaryTab({ month, settings, onNotice }: { month: str
   return (
     <div className="space-y-6" data-testid="fiduciary">
       <section className="space-y-2">
-        <p className="text-sm text-muted-foreground">Le dossier reprend automatiquement les commandes, paiements, remboursements, dépenses, salaire et justificatifs de la compta — sans copie ni nouvelle saisie. Il est téléchargé ; rien n'est envoyé au fiduciaire.</p>
+        <p className="text-sm text-muted-foreground">Le dossier reprend automatiquement les commandes, paiements, remboursements, dépenses et justificatifs de la compta — sans copie ni nouvelle saisie. Il est téléchargé ; rien n'est envoyé au fiduciaire.</p>
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1"><Label htmlFor="fid-from" className="text-xs">Du mois</Label>
             <Input id="fid-from" type="month" value={fromM} onChange={(e) => e.target.value && setFromM(e.target.value)} className="rounded-none h-9 w-40" /></div>
@@ -116,13 +116,13 @@ export default function FiduciaryTab({ month, settings, onNotice }: { month: str
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-2" data-testid="fid-totals">
         <div className="border border-border/60 px-3 py-2"><span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Dépenses communes (transmises)</span>
           <span className="block font-semibold tabular-nums" data-testid="fid-common">{commonKnown == null ? "—" : money(commonKnown)}</span>
-          <span className="block text-xs text-muted-foreground">par date d'achat, salaire non compris{internalCount > 0 ? ` · ${internalCount} dépense(s) « Interne uniquement » non transmise(s)` : ""}</span></div>
+          <span className="block text-xs text-muted-foreground">par date d'achat{internalCount > 0 ? ` · ${internalCount} dépense(s) « Interne uniquement » non transmise(s)` : ""}</span></div>
         <div className="border border-primary/40 bg-primary/5 px-3 py-2"><span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Ajouts fiduciaire uniquement</span>
           <span className="block font-semibold tabular-nums" data-testid="fid-total">{fidTotal == null ? "—" : money(fidTotal)}</span>
           <span className="block text-xs text-muted-foreground">{fid?.count ?? 0} ajout(s) · {fid?.missingReceiptCount ?? 0} sans justificatif</span></div>
         <div className="border border-border/60 px-3 py-2"><span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Communes + ajouts fiduciaires</span>
           <span className="block font-semibold tabular-nums">{commonKnown == null || fidTotal == null ? "—" : money(commonKnown + fidTotal)}</span>
-          <span className="block text-xs text-muted-foreground">salaire à part (dans l'export) · l'écart avec notre suivi = les ajouts fiduciaires</span></div>
+          <span className="block text-xs text-muted-foreground">l'écart avec notre suivi = les ajouts fiduciaires</span></div>
       </section>
       <p className="text-xs text-muted-foreground">Les ajouts fiduciaires ne changent pas notre résultat interne, la réserve ni les parts proposées ; ils ne sont jamais à rembourser à Mel ou Eli et ne créent aucun mouvement bancaire.</p>
 

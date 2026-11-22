@@ -179,6 +179,18 @@ export const fmtHours = (min: number) => { const h = Math.floor(min / 60), m = M
 /** Montant du mois : net du mois s'il est saisi, sinon le montant mensuel. */
 export const salaryAmount = (m: Pick<SalaryMonth, "confirmed_net" | "planned">) => (m.confirmed_net ?? m.planned ?? null);
 
+/**
+ * Salaire réellement utilisé ? (montant prévu, mois de salaire, versement ou
+ * solde). Sans aucun salaire (pas d'employé salarié), tout ce qui concerne le
+ * salaire est caché dans la compta et les exports. Les mois « proposés » ne
+ * comptent pas : ce ne sont que des suggestions.
+ */
+export function salaryInUse(o: SalaryOverview | null | undefined): boolean {
+  if (!o) return false;
+  return o.members.some((m) => m.rates.length > 0 || m.months.length > 0)
+    || o.current.length > 0 || o.paymentsInMonth.length > 0 || Number(o.balances?.remaining ?? 0) !== 0;
+}
+
 /** Total des salaires du mois (pour « Dépenses du mois, salaire compris »). */
 const r2 = (n: number) => Math.round(n * 100) / 100;
 export function salaryMonthTotal(o: SalaryOverview | null) {

@@ -16,7 +16,7 @@ import {
   type ComptaSettings, type Expense, type ExpenseCategory, type ExpensePayer, type ExpensePeriod, type ExpenseStatus,
   type HistoryEntry, type PayerKind,
 } from "@/lib/compta";
-import { isHeic, salaryMonthTotal } from "@/lib/compta";
+import { isHeic, salaryInUse, salaryMonthTotal } from "@/lib/compta";
 import {
   comptaDossierIssues, settlementValues,
   type AdvancesOverview, type SalaryOverview, type SalesMonth, type SalesOrdersMonth, type SettlementView,
@@ -145,7 +145,8 @@ const AdminCompta = () => {
     setSettlement(st.status === "fulfilled" ? st.value : null);
     if (ad.status === "fulfilled") { setAdvances(ad.value); setAdvancesError(null); }
     else { setAdvances(null); setAdvancesError(errText(ad.reason)); }
-    if (sa.status === "fulfilled") { setSalary(sa.value); setSalaryError(null); }
+    // Pas de salaire du tout (pas d'employé salarié) : rien n'est affiché.
+    if (sa.status === "fulfilled") { setSalary(salaryInUse(sa.value) ? sa.value : null); setSalaryError(null); }
     else { setSalary(null); setSalaryError(errText(sa.reason)); }
     if (f.status === "fulfilled") setFinance(f.value); else { setFinance(null); setFinanceError(errText(f.reason)); }
     if (p.status === "fulfilled") setPeriod(p.value); else { setPeriod(null); setError(errText(p.reason)); }
@@ -235,14 +236,14 @@ const AdminCompta = () => {
                 ? <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)}
                     salaryRows={salary ? <SalaryExpenseRows overview={salary} month={month} onChanged={load} onNotice={setNotice} /> : null} />
                 : <p className="text-sm text-amber-800">{error ?? "Chargement…"}</p>}
-              <details className="border border-border/60" id="salaire" data-testid="salary-details">
+              {(salary || salaryError) && <details className="border border-border/60" id="salaire" data-testid="salary-details">
                 <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Gérer le salaire (montant mensuel, décompte, historique)</summary>
                 <div className="px-3 pb-4 pt-2">
                   {salary
                     ? <SalaryTab overview={salary} month={month} onChanged={load} onNotice={setNotice} onEditExpense={setEditing} />
                     : <p className="text-sm text-amber-800">{salaryError ?? "Chargement…"}</p>}
                 </div>
-              </details>
+              </details>}
             </section>
           </div>
         )}
@@ -405,12 +406,12 @@ function ChargesSummary({ period, salary }: { period: ExpensePeriod | null; sala
       {tt && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           <Stat label="Dépenses du mois" value={money(tt.engaged.known + sal.total)} strong tone={tt.engaged.unknownCount || sal.missing ? "warn" : undefined}
-            hint={`dont salaire ${money(sal.total)}${sal.missing ? " (montant à saisir)" : ""} · ${tt.engaged.count} autre(s) dépense(s)${tt.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""}`} />
-          <Stat label="Payé ce mois (date de paiement)" value={money(tt.paid.known + Number(salary?.totals.paidInMonth ?? 0))} hint={`salaire versé compris (${money(salary?.totals.paidInMonth ?? 0)})`} />
+            hint={`${salary ? `dont salaire ${money(sal.total)}${sal.missing ? " (montant à saisir)" : ""} · ` : ""}${tt.engaged.count}${salary ? " autre(s)" : ""} dépense(s)${tt.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""}`} />
+          <Stat label="Payé ce mois (date de paiement)" value={money(tt.paid.known + Number(salary?.totals.paidInMonth ?? 0))} hint={salary ? `salaire versé compris (${money(salary.totals.paidInMonth ?? 0)})` : "par date de paiement"} />
           <Stat label="Factures encore à payer" value={money(tt.toPayBalance.known)} hint={`tous mois, à ce jour · ${tt.toPayBalance.count} dépense(s)`} />
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Dépenses par date d'achat. Le salaire est une dépense mensuelle : une ligne par mois ci-dessous ; le détail est dans « Gérer le salaire ».</p>
+      <p className="text-xs text-muted-foreground">Dépenses par date d'achat.{salary ? " Le salaire est une dépense mensuelle : une ligne par mois ci-dessous ; le détail est dans « Gérer le salaire »." : ""}</p>
     </section>
   );
 }
