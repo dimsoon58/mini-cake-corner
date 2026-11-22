@@ -9,9 +9,6 @@ import {
 import { designLabel, shapeLabel, sizeLabel } from "@/lib/orderLabels";
 
 export type ProductId = "bento_cake" | "rectangle_cake" | "diy_kit" | "dot_cakes" | "edible_printing" | "candles" | "workshop" | "christmas_log";
-// Choix du menu « Type de produit » : un gâteau de Noël est un bento_cake
-// (design « noel-… »), comme sur le site.
-export type ProductChoice = ProductId | "christmas_cake";
 
 export interface CandleEntry {
   id: string;
@@ -164,17 +161,10 @@ export const emptyItem = (product: ProductId = "bento_cake"): EditorItem => ({
 });
 
 // ── Noël ────────────────────────────────────────────────────────────────
+// Gâteau de Noël = gâteau Bento/Retro/Medium/Large avec un design « noel-… »
+// (choisi dans le menu Design, comme sur le site). Bûche = produit à part.
 export const isChristmasCake = (item: Pick<EditorItem, "product" | "design">) =>
   item.product === "bento_cake" && (item.design ?? "").startsWith("noel-");
-export const productChoiceOf = (item: Pick<EditorItem, "product" | "design">): ProductChoice =>
-  (isChristmasCake(item) ? "christmas_cake" : item.product);
-
-/** Nouveau gâteau de Noël : 1er modèle, sa 1re taille (forme ronde, rien d'autre). */
-export function emptyChristmasCake(catalog: ManualOrderCatalog | null): EditorItem {
-  const first = catalog?.christmas?.cakes[0];
-  const size = first ? (["bento", "retro", "medium", "large"] as const).find((s) => first.prices[s] !== undefined) ?? null : "retro";
-  return { ...emptyItem("bento_cake"), design: first?.id ?? "noel-sapin", size, shape: "round" };
-}
 
 // ── Couleurs par option / design : mêmes règles et mêmes listes que le site (Catalog.tsx) ──
 export type ColourOption = { id: string; name: string; color: string };
@@ -220,9 +210,8 @@ export function coloursFromExtra(extra: string | null | undefined): { glitter_co
   return { glitter_color: pick("Glitter: "), glitter_cherries_color: pick("Glitter Cherries: ") };
 }
 
-export const PRODUCT_OPTIONS: { id: ProductChoice; en: string; fr: string }[] = [
+export const PRODUCT_OPTIONS: { id: ProductId; en: string; fr: string }[] = [
   { id: "bento_cake", en: "Bento / Retro / Medium / Large cake", fr: "Gâteau Bento / Retro / Medium / Large" },
-  { id: "christmas_cake", en: "Christmas cake", fr: "Gâteau de Noël" },
   { id: "christmas_log", en: "Christmas log", fr: "Bûche de Noël" },
   { id: "rectangle_cake", en: "Rectangle cake", fr: "Gâteau Rectangle" },
   { id: "diy_kit", en: "Bento Kit", fr: "Bento Kit" },

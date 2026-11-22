@@ -16,7 +16,6 @@ import {
   RIBBON_COLOURS,
   type DateGroup,
   type EditorItem,
-  emptyChristmasCake,
   emptyItem,
   friendlyMessage,
   isChristmasCake,
@@ -31,8 +30,7 @@ import {
   MAX_EXTRA_QUANTITY,
   parseColours,
   PRODUCT_OPTIONS,
-  type ProductChoice,
-  productChoiceOf,
+  type ProductId,
   QUANTITY_EXTRAS,
   type QuoteResult,
 } from "@/lib/manualOrders";
@@ -63,14 +61,15 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const changeProduct = (choice: ProductChoice) => {
-    const fresh = choice === "christmas_cake" ? emptyChristmasCake(catalog) : emptyItem(choice);
-    onChange({ ...fresh, key: item.key, dateKey: choice === "workshop" ? null : item.dateKey, item_comment: item.item_comment, internal_notes: item.internal_notes, reference_images: item.reference_images });
+  const changeProduct = (product: ProductId) => {
+    const fresh = emptyItem(product);
+    onChange({ ...fresh, key: item.key, dateKey: product === "workshop" ? null : item.dateKey, item_comment: item.item_comment, internal_notes: item.internal_notes, reference_images: item.reference_images });
   };
 
-  // Noël : modèle, taille (gâteau), un goût « Nos classiques » OU « Christmas
-  // Edition » (bûche : Christmas Edition seulement) — comme la page Noël.
-  // Ni forme, ni extras, ni bougies, ni couleurs, ni texte.
+  // Noël : gâteau Bento/Retro/Medium/Large dont le design est un gâteau de
+  // Noël (menu Design, groupe « Noël ») → tailles du modèle, un goût « Nos
+  // classiques » OU « Christmas Edition ». Bûche = produit à part (Christmas
+  // Edition seulement). Ni forme, ni extras, ni bougies, ni couleurs, ni texte.
   const noelCake = isChristmasCake(item);
   const noelLog = item.product === "christmas_log";
   const noel = catalog.christmas;
@@ -81,13 +80,45 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
   const noelPrices = noelCake ? noel?.cakes.find((c) => c.id === item.design)?.prices ?? {} : {};
   const noelSizes = (["bento", "retro", "medium", "large"] as const).filter((s) => noelPrices[s] !== undefined);
   const plus = (n: number | null | undefined) => (n ? ` (+${n} CHF)` : "");
-  const changeNoelModel = (design: string) => {
-    if (noelLog) { set({ design }); return; }
+  const noelFlavourIds = new Set([...(noel?.classicFlavours ?? []), ...(noel?.editionFlavours ?? [])].map((f) => f.id));
+  // Menu Design : passer d'un design normal à un gâteau de Noël (ou l'inverse)
+  // remet la taille et le goût sur des choix possibles et retire ce que le
+  // gâteau de Noël ne prend pas.
+  const changeDesign = (design: string) => {
+    if (!design.startsWith("noel-")) {
+      if (!noelCake) { set({ design }); return; }
+      const s = item.size ?? "bento";
+      const okFlavours = (catalog.cake.flavours[s] ?? []).map((f) => f.id);
+      set({ design, shape: "round", flavors: item.flavors.filter((f) => okFlavours.includes(f)) });
+      return;
+    }
     const prices = noel?.cakes.find((c) => c.id === design)?.prices ?? {};
     const okSize = item.size && prices[item.size as keyof typeof prices] !== undefined;
     const firstSize = (["bento", "retro", "medium", "large"] as const).find((s) => prices[s] !== undefined) ?? null;
-    set({ design, size: okSize ? item.size : firstSize, shape: "round" });
+    set({
+      design, size: okSize ? item.size : firstSize, shape: "round",
+      flavors: item.flavors.filter((f) => noelFlavourIds.has(f)),
+      extras: [], candles: [], fruit_supplement: null,
+      base_color: "", decoration_color: "", cake_text: "", text_color: "", text_style: "normal",
+      ribbon_color: "", butterfly_color: "", glitter_color: "", glitter_cherries_color: "", inside_color: "",
+    });
   };
+  const renderDesignSelect = () => (
+    <div>
+      <label className={label}>{t("Design", "Design")}</label>
+      <select value={item.design ?? ""} onChange={(e) => changeDesign(e.target.value)} className={field} data-testid="design-select">
+        {noelCake && !designs.includes(item.design ?? "") && <option value={item.design ?? ""} hidden>{noelName(item.design ?? "")}</option>}
+        <optgroup label={t("Designs", "Designs")}>
+          {(noelCake ? [...(catalog.cake.designs[size] ?? []), ...(catalog.cake.inspirationDesigns[size] ?? [])] : designs).map((d) => <option key={d} value={d}>{labelDesign(d)}</option>)}
+        </optgroup>
+        {item.product === "bento_cake" && noel && (
+          <optgroup label={t("Christmas", "Noël")}>
+            {noel.cakes.map((c) => <option key={c.id} value={c.id}>{noelName(c.id)}</option>)}
+          </optgroup>
+        )}
+      </select>
+    </div>
+  );
 
   const isCake = (item.product === "bento_cake" || item.product === "rectangle_cake") && !noelCake;
   const size = item.size ?? "";
@@ -275,7 +306,7 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
       <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="md:col-span-2">
           <label className={label}>{t("Product type", "Type de produit")}</label>
-          <select value={productChoiceOf(item)} onChange={(e) => changeProduct(e.target.value as ProductChoice)} className={field}>
+          <select value={item.product} onChange={(e) => changeProduct(e.target.value as ProductId)} className={field}>
             {PRODUCT_OPTIONS.map((p) => <option key={p.id} value={p.id}>{t(p.en, p.fr)}</option>)}
           </select>
         </div>
@@ -286,12 +317,14 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
         )}
         {(noelCake || noelLog) && noel && (
           <>
-            <div>
-              <label className={label}>{noelLog ? t("Log", "Bûche") : t("Christmas cake", "Gâteau de Noël")}</label>
-              <select value={item.design ?? ""} onChange={(e) => changeNoelModel(e.target.value)} className={field} data-testid="noel-model">
-                {(noelLog ? noel.logs.map((b) => b.id) : noel.cakes.map((c) => c.id)).map((id) => <option key={id} value={id}>{noelName(id)}</option>)}
-              </select>
-            </div>
+            {noelCake ? renderDesignSelect() : (
+              <div>
+                <label className={label}>{t("Log", "Bûche")}</label>
+                <select value={item.design ?? ""} onChange={(e) => set({ design: e.target.value })} className={field} data-testid="noel-model">
+                  {noel.logs.map((b) => <option key={b.id} value={b.id}>{noelName(b.id)}</option>)}
+                </select>
+              </div>
+            )}
             {noelCake ? (
               <div>
                 <label className={label}>{t("Size", "Taille")}</label>
@@ -360,14 +393,7 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
             </select>
           </div>
         )}
-        {isCake && (
-          <div>
-            <label className={label}>{t("Design", "Design")}</label>
-            <select value={item.design ?? ""} onChange={(e) => set({ design: e.target.value })} className={field}>
-              {designs.map((d) => <option key={d} value={d}>{labelDesign(d)}</option>)}
-            </select>
-          </div>
-        )}
+        {isCake && renderDesignSelect()}
         {item.product === "diy_kit" && (
           <div>
             <label className={label}>{t("Piping bags", "Poches à douille")}</label>
