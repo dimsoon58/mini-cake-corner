@@ -258,6 +258,8 @@ export const extras = [
   { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6, rectangle: 10 } as Record<string, number>, image: designPearlNumber },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 } as Record<string, number>, image: extraPrintedPicture },
   { id: "sprinkles", name: "Sprinkles", price: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 } as Record<string, number>, image: extraSprinkles },
+  // Commandes manuelles de l'admin seulement (aucune page publique ne lit cette liste pour proposer les extras).
+  { id: "gems", name: "Gems", price: { retro: 8, medium: 15, large: 25 } as Record<string, number> },
 ];
 
 export const candles = [
@@ -287,7 +289,7 @@ export const candles = [
 export const extraGroups = [
   {
     label: "Decorations",
-    ids: ["cherries", "glitter-cherries", "butterfly", "ribbons"],
+    ids: ["cherries", "glitter-cherries", "butterfly", "ribbons", "gems"],
   },
   {
     label: "Pearls",
