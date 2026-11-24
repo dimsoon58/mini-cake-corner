@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
-import { AlertTriangle, Loader2, Undo2 } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Loader2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  ADVANCE_STATE_LABELS, METHOD_LABELS, comptaApi, frDate, money, monthTitle,
+  ADVANCE_STATE_LABELS, METHOD_LABELS, allocateTransfer, comptaApi, frDate, money, monthTitle,
   type AdvancePerson, type AdvancesOverview, type AdvanceState,
 } from "@/lib/compta";
 import { cn } from "@/lib/utils";
@@ -92,6 +92,7 @@ function PersonBox({ p, month, onChanged, onNotice, onError }: {
   const [f, setF] = useState({ paidAt: today, method: "transfer", reference: "", note: "" });
   const [key, setKey] = useState(newKey);
   const [busy, setBusy] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const inFlight = useRef(false); // double clic : l'état React n'est pas encore à jour au 2e clic
   const total = selected.reduce((s, id) => s + (num(amounts[id] ?? "") ?? 0), 0);
   const toggle = (id: string, remaining: number, on: boolean) => {
@@ -117,7 +118,13 @@ function PersonBox({ p, month, onChanged, onNotice, onError }: {
       <div className="flex flex-wrap items-baseline gap-2">
         <h2 className="font-semibold flex-1">{p.name}{p.kind === "employee" ? <span className="text-xs text-muted-foreground font-normal"> · salariée, hors répartition entre associées</span> : null}</h2>
         <span className="text-sm">Reste à rembourser aujourd'hui : <strong className="tabular-nums">{money(p.openNow)}</strong></span>
+        {repayable.length > 0 && !transferOpen && (
+          <Button size="sm" variant="outline" className="rounded-none h-8" onClick={() => setTransferOpen(true)} data-testid={`transfer-open-${p.name}`}>
+            <ArrowRightLeft className="w-3.5 h-3.5 mr-1" /> Enregistrer un virement
+          </Button>
+        )}
       </div>
+      {transferOpen && <TransferBox p={p} repayable={repayable} month={month} onClose={() => setTransferOpen(false)} onChanged={onChanged} onNotice={onNotice} onError={onError} />}
       <p className="text-xs text-muted-foreground">{monthTitle(month)} : début {money(p.openStart)} + nouvelles {money(p.newInMonth)} − remboursé {money(p.repaidInMonth)} = fin {money(p.openEnd)}
         {p.unknownCount ? ` · ${p.unknownCount} montant(s) inconnu(s)` : ""}</p>
       {p.overpaid > 0 && <p className={cn("border px-3 py-2 text-sm flex gap-2", "border-red-300 bg-red-50 text-red-900")}><AlertTriangle className="w-4 h-4 mt-0.5" />Trop remboursé de {money(p.overpaid)} (montant d'une avance corrigé à la baisse) : à régler avec {p.name}, aucune correction automatique.</p>}
@@ -159,5 +166,78 @@ function PersonBox({ p, month, onChanged, onNotice, onError }: {
         </div>
       )}
     </section>
+  );
+}
+
+// « Enregistrer un virement » : date + montant viré → réparti automatiquement
+// de la plus ancienne avance à la plus récente, avec aperçu avant confirmation.
+function TransferBox({ p, repayable, month, onClose, onChanged, onNotice, onError }: {
+  p: AdvancePerson; repayable: AdvancePerson["advances"]; month: string; onClose: () => void;
+  onChanged: () => Promise<void> | void; onNotice: (m: string) => void; onError: (m: string | null) => void;
+}) {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(new Date());
+  const [f, setF] = useState({ paidAt: today, amount: "", method: "transfer", reference: "", note: "" });
+  const [key] = useState(newKey);
+  const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+  const amount = num(f.amount);
+  const plan = amount != null && amount > 0 ? allocateTransfer(repayable, amount) : null;
+  // Des avances plus récentes (mois suivants) ne sont pas dans cette liste.
+  const laterAdvances = Math.round((p.openNow - (plan?.due ?? repayable.reduce((s, a) => s + (a.remaining_now ?? 0), 0))) * 100) / 100 > 0;
+  const tooMuch = !!plan && plan.leftover > 0;
+  const save = async () => {
+    if (!plan || plan.allocated <= 0 || inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true); onError(null);
+    try {
+      const r = await comptaApi<{ code: string; total: number }>({
+        action: "advance_repay", idempotencyKey: key, payerId: p.payerId,
+        paidAt: f.paidAt, method: f.method, reference: f.reference, note: f.note,
+        allocations: plan.lines.map((l) => ({ expenseId: l.id, amount: l.amount.toFixed(2) })),
+      });
+      onNotice(`Virement ${r.code} de ${money(r.total)} à ${p.name} enregistré : ${plan.lines.length} avance(s), de la plus ancienne à la plus récente.`);
+      onClose();
+      await onChanged();
+    } catch (e) { onError(errText(e)); } finally { inFlight.current = false; setBusy(false); }
+  };
+  return (
+    <div className="border border-primary/40 bg-primary/5 p-3 space-y-3" data-testid={`transfer-${p.name}`}>
+      <p className="text-sm font-medium">Virement à {p.name} — réparti automatiquement, de la plus ancienne avance à la plus récente</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+        <div className="space-y-1"><Label className="text-xs">Date du virement</Label><Input type="date" value={f.paidAt} onChange={(e) => setF({ ...f, paidAt: e.target.value })} className="rounded-none h-9" /></div>
+        <div className="space-y-1"><Label className="text-xs">Montant viré (CHF)</Label><Input inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} className="rounded-none h-9" data-testid={`transfer-amount-${p.name}`} /></div>
+        <div className="space-y-1"><Label className="text-xs">Moyen</Label>
+          <select className="h-9 w-full border border-input bg-background px-2 text-sm" value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}>
+            {Object.entries(METHOD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1"><Label className="text-xs">Référence</Label><Input value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} className="rounded-none h-9" /></div>
+      </div>
+      {plan && plan.lines.length > 0 && (
+        <ul className="text-sm border border-border/60 divide-y divide-border/60 bg-background" data-testid={`transfer-plan-${p.name}`}>
+          {plan.lines.map((l) => (
+            <li key={l.id} className="px-3 py-1.5 flex flex-wrap gap-x-3 justify-between">
+              <span className="min-w-0">{l.code} · {frDate(l.date)} · {l.supplier ?? "—"}</span>
+              <span className="tabular-nums">{money(l.amount)} {l.full ? "✓ soldée" : `sur ${money(l.remaining)} (reste ${money(Math.round((l.remaining - l.amount) * 100) / 100)})`}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {tooMuch && (
+        <p className="border px-3 py-2 text-sm flex gap-2 border-amber-400 bg-amber-50 text-amber-900">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>Le virement dépasse de {money(plan!.leftover)} les avances listées ici.{" "}
+            {laterAdvances
+              ? `Des avances plus récentes que ${monthTitle(month)} existent : passe au mois suivant avec les flèches en haut de la page, puis réenregistre ce virement (elles seront incluses).`
+              : `Tout ce qui est dû à ${p.name} (${money(plan!.due)}) sera remboursé ; les ${money(plan!.leftover)} restants ne sont pas des avances.`}</span>
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2 justify-end">
+        <Button variant="outline" className="rounded-none h-9" disabled={busy} onClick={onClose}>Annuler</Button>
+        <Button className="rounded-none h-9" disabled={busy || !plan || plan.allocated <= 0 || (tooMuch && laterAdvances)} onClick={save} data-testid={`transfer-save-${p.name}`}>
+          {busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}Enregistrer {plan ? money(plan.allocated) : ""}
+        </Button>
+      </div>
+    </div>
   );
 }

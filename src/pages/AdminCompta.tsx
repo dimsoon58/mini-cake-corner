@@ -16,7 +16,7 @@ import {
   type ComptaSettings, type Expense, type ExpenseCategory, type ExpensePayer, type ExpensePeriod, type ExpenseStatus,
   type HistoryEntry, type PayerKind,
 } from "@/lib/compta";
-import { salaryMonthTotal } from "@/lib/compta";
+import { isHeic, salaryInUse, salaryMonthTotal } from "@/lib/compta";
 import {
   comptaDossierIssues, settlementValues,
   type AdvancesOverview, type SalaryOverview, type SalesMonth, type SalesOrdersMonth, type SettlementView,
@@ -145,7 +145,8 @@ const AdminCompta = () => {
     setSettlement(st.status === "fulfilled" ? st.value : null);
     if (ad.status === "fulfilled") { setAdvances(ad.value); setAdvancesError(null); }
     else { setAdvances(null); setAdvancesError(errText(ad.reason)); }
-    if (sa.status === "fulfilled") { setSalary(sa.value); setSalaryError(null); }
+    // Pas de salaire du tout (pas d'employé salarié) : rien n'est affiché.
+    if (sa.status === "fulfilled") { setSalary(salaryInUse(sa.value) ? sa.value : null); setSalaryError(null); }
     else { setSalary(null); setSalaryError(errText(sa.reason)); }
     if (f.status === "fulfilled") setFinance(f.value); else { setFinance(null); setFinanceError(errText(f.reason)); }
     if (p.status === "fulfilled") setPeriod(p.value); else { setPeriod(null); setError(errText(p.reason)); }
@@ -235,14 +236,14 @@ const AdminCompta = () => {
                 ? <ExpensesTab period={period} settings={settings} from={from} to={to} onEdit={setEditing} onSettings={() => setSettingsOpen(true)}
                     salaryRows={salary ? <SalaryExpenseRows overview={salary} month={month} onChanged={load} onNotice={setNotice} /> : null} />
                 : <p className="text-sm text-amber-800">{error ?? "Chargement…"}</p>}
-              <details className="border border-border/60" id="salaire" data-testid="salary-details">
+              {(salary || salaryError) && <details className="border border-border/60" id="salaire" data-testid="salary-details">
                 <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Gérer le salaire (montant mensuel, décompte, historique)</summary>
                 <div className="px-3 pb-4 pt-2">
                   {salary
                     ? <SalaryTab overview={salary} month={month} onChanged={load} onNotice={setNotice} onEditExpense={setEditing} />
                     : <p className="text-sm text-amber-800">{salaryError ?? "Chargement…"}</p>}
                 </div>
-              </details>
+              </details>}
             </section>
           </div>
         )}
@@ -405,12 +406,12 @@ function ChargesSummary({ period, salary }: { period: ExpensePeriod | null; sala
       {tt && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           <Stat label="Dépenses du mois" value={money(tt.engaged.known + sal.total)} strong tone={tt.engaged.unknownCount || sal.missing ? "warn" : undefined}
-            hint={`dont salaire ${money(sal.total)}${sal.missing ? " (montant à saisir)" : ""} · ${tt.engaged.count} autre(s) dépense(s)${tt.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""}`} />
-          <Stat label="Payé ce mois (date de paiement)" value={money(tt.paid.known + Number(salary?.totals.paidInMonth ?? 0))} hint={`salaire versé compris (${money(salary?.totals.paidInMonth ?? 0)})`} />
+            hint={`${salary ? `dont salaire ${money(sal.total)}${sal.missing ? " (montant à saisir)" : ""} · ` : ""}${tt.engaged.count}${salary ? " autre(s)" : ""} dépense(s)${tt.engaged.unknownCount ? ` · ${tt.engaged.unknownCount} montant(s) inconnu(s) non compté(s)` : ""}`} />
+          <Stat label="Payé ce mois (date de paiement)" value={money(tt.paid.known + Number(salary?.totals.paidInMonth ?? 0))} hint={salary ? `salaire versé compris (${money(salary.totals.paidInMonth ?? 0)})` : "par date de paiement"} />
           <Stat label="Factures encore à payer" value={money(tt.toPayBalance.known)} hint={`tous mois, à ce jour · ${tt.toPayBalance.count} dépense(s)`} />
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Dépenses par date d'achat. Le salaire est une dépense mensuelle : une ligne par mois ci-dessous ; le détail est dans « Gérer le salaire ».</p>
+      <p className="text-xs text-muted-foreground">Dépenses par date d'achat.{salary ? " Le salaire est une dépense mensuelle : une ligne par mois ci-dessous ; le détail est dans « Gérer le salaire »." : ""}</p>
     </section>
   );
 }
@@ -518,6 +519,7 @@ function ExpensesTab({ period, settings, from, to, onEdit, onSettings, salaryRow
                 {e.missing.length > 0 && <Badge className={WARN} title={e.missing.map((m) => MISSING_LABELS[m]).join(", ")}>À compléter : {e.missing.map((m) => MISSING_LABELS[m]).join(", ")}</Badge>}
                 {e.duplicates.length > 0 && <Badge className="border-red-300 bg-red-50 text-red-900">Doublon possible ({e.duplicates.map((d) => d.code).join(", ")})</Badge>}
                 {e.is_investment && <Badge className="border-indigo-300 bg-indigo-50 text-indigo-900">Investissement</Badge>}
+                {e.internal_only && <Badge className="border-stone-400 bg-stone-100 text-stone-800">Interne</Badge>}
                 {e.salary_payment && <Badge className="border-slate-300 bg-slate-50 text-slate-700">Rapprochée de {e.salary_payment.code} — comptée dans le salaire, hors dépenses</Badge>}
                 {e.salary_to_reconcile && <Badge className={WARN}>Salaires — à rapprocher d'un versement</Badge>}
                 {e.attachments.length > 0 && <Badge className="border-border text-muted-foreground"><Paperclip className="inline w-3 h-3 mr-0.5" />{e.attachments.length}</Badge>}
@@ -534,7 +536,7 @@ function ExpensesTab({ period, settings, from, to, onEdit, onSettings, salaryRow
 interface Form {
   purchaseDate: string; supplier: string; description: string; categoryId: string; currency: string; customCurrency: string;
   originalAmount: string; chfAmount: string; status: ExpenseStatus; paidAt: string; payerId: string; personalAdvance: boolean;
-  noReceipt: boolean; receiptMissingReason: string; notes: string; investment: boolean;
+  noReceipt: boolean; receiptMissingReason: string; notes: string; investment: boolean; internalOnly: boolean;
 }
 const amountStr = (v: number | null | undefined) => (v == null ? "" : String(v));
 
@@ -561,6 +563,7 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
     receiptMissingReason: expense?.receipt_missing_reason ?? "",
     notes: expense?.notes ?? "",
     investment: expense?.is_investment ?? false,
+    internalOnly: expense?.internal_only ?? false,
   }));
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -571,7 +574,11 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
   const [savedId, setSavedId] = useState<string | null>(expense?.id ?? null);
   const [err, setErr] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[] | null>(null);
-  const [preview, setPreview] = useState<{ id: string; url: string; mime: string } | null>(null);
+  // url = lien signé (5 min) ; display = ce qu'on affiche (JPEG converti pour un ancien HEIC).
+  const [preview, setPreview] = useState<{ id: string; url: string; mime: string; name: string; display: string | null; failed: boolean } | null>(null);
+  const previewBlob = useRef<string | null>(null);
+  const setPreviewBlob = (url: string | null) => { if (previewBlob.current) URL.revokeObjectURL(previewBlob.current); previewBlob.current = url; };
+  useEffect(() => () => setPreviewBlob(null), []);
   const [attachments, setAttachments] = useState(expense?.attachments ?? []);
   const [acked, setAcked] = useState<string[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -584,7 +591,7 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
   // « Charges sociales » reste une dépense normale, saisie à la main.
   const categories = settings.categories.filter((c) => (c.active && !(c.kind === "payroll" && c.name === "Salaires")) || c.id === f.categoryId);
   const payers = settings.payers.filter((p) => p.active || p.id === f.payerId);
-  const pendingPreviews = useMemo(() => files.map((file) => ({ file, url: file.type.startsWith("image/") ? URL.createObjectURL(file) : null })), [files]);
+  const pendingPreviews = useMemo(() => files.map((file) => ({ file, url: file.type.startsWith("image/") && !isHeic(file) ? URL.createObjectURL(file) : null })), [files]);
   useEffect(() => () => pendingPreviews.forEach((p) => p.url && URL.revokeObjectURL(p.url)), [pendingPreviews]);
 
   const choosePayer = (id: string) => {
@@ -604,7 +611,7 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
         currency, originalAmount: f.originalAmount, chfAmount: isChf ? f.originalAmount : f.chfAmount,
         status: f.status, paidAt: f.status === "paid" ? f.paidAt || null : null, payerId: f.payerId || null,
         personalAdvance: f.personalAdvance, receiptMissingReason: f.noReceipt ? f.receiptMissingReason || "Pas de justificatif" : null, notes: f.notes,
-        investment: f.investment,
+        investment: f.investment, internalOnly: f.internalOnly,
       });
       setSavedId(r.id);
       const failed: string[] = [];
@@ -633,9 +640,25 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
   };
-  const view = async (id: string, mime: string) => {
+  const view = async (id: string, mime: string, name: string) => {
     if (!expense) return;
-    try { const r = await comptaApi<{ url: string }>({ action: "view_attachment", expenseId: expense.id, id }); setPreview({ id, url: r.url, mime }); }
+    try {
+      const r = await comptaApi<{ url: string }>({ action: "view_attachment", expenseId: expense.id, id });
+      if (!isHeic({ name, type: mime })) { setPreview({ id, url: r.url, mime, name, display: r.url, failed: false }); return; }
+      // Ancienne photo iPhone : convertie ici pour l'afficher (le fichier stocké ne change pas).
+      setPreview({ id, url: r.url, mime, name, display: null, failed: false });
+      try {
+        const blob = await (await fetch(r.url)).blob();
+        const { default: heic2any } = await import("heic2any");
+        const out = await heic2any({ blob, toType: "image/jpeg", quality: 0.85 });
+        const jpg = Array.isArray(out) ? out[0] : out;
+        const blobUrl = URL.createObjectURL(jpg);
+        setPreviewBlob(blobUrl);
+        setPreview((p) => (p?.id === id ? { ...p, display: blobUrl } : p));
+      } catch {
+        setPreview((p) => (p?.id === id ? { ...p, failed: true } : p));
+      }
+    }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
   };
   const removeAttachment = async (id: string) => {
@@ -686,7 +709,7 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
                   {attachments.map((a, i) => (
                     <li key={a.id} className="flex items-center gap-2">
                       <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
-                      <button type="button" className="flex-1 min-w-0 break-all text-left underline-offset-2 hover:underline" onClick={() => view(a.id, a.mime_type)}>{expense?.code}_{i + 1} · {a.file_name}</button>
+                      <button type="button" className="flex-1 min-w-0 break-all text-left underline-offset-2 hover:underline" onClick={() => view(a.id, a.mime_type, a.file_name)}>{expense?.code}_{i + 1} · {a.file_name}</button>
                       <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => removeAttachment(a.id)} aria-label="Retirer"><Trash2 className="w-3.5 h-3.5" /></Button>
                     </li>
                   ))}
@@ -701,9 +724,17 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
               )}
               {preview && (
                 <div className="border border-border/60 p-2 space-y-1 min-w-0">
-                  {preview.mime.startsWith("image/")
-                    ? <img src={preview.url} alt="Justificatif" className="max-h-[60vh] max-w-full mx-auto object-contain" />
-                    : <a href={preview.url} target="_blank" rel="noreferrer" className="text-sm underline">Ouvrir le PDF (lien valable 5 minutes)</a>}
+                  {!preview.mime.startsWith("image/")
+                    ? <a href={preview.url} target="_blank" rel="noreferrer" className="text-sm underline">Ouvrir le PDF (lien valable 5 minutes)</a>
+                    : preview.failed
+                      ? <p className="text-sm text-muted-foreground">Cette photo ne peut pas s'afficher dans ce navigateur.</p>
+                      : preview.display
+                        ? <img src={preview.display} alt="Justificatif" className="max-h-[60vh] max-w-full mx-auto object-contain"
+                            onError={() => setPreview((p) => (p ? { ...p, failed: true } : p))} />
+                        : <p className="text-sm text-muted-foreground flex items-center gap-1"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Préparation de la photo…</p>}
+                  <a href={preview.url} download={preview.name} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs underline text-muted-foreground">
+                    <Download className="w-3.5 h-3.5" /> Télécharger le fichier
+                  </a>
                 </div>
               )}
               <label className="flex items-start gap-2 text-sm">
@@ -780,6 +811,10 @@ function ExpenseDialog({ expense, settings, defaultDate, onClose, onSaved }: {
               <label className="col-span-2 flex items-start gap-2 text-sm">
                 <input type="checkbox" className="w-4 h-4 mt-0.5" checked={f.investment} onChange={(e) => set("investment", e.target.checked)} data-testid="investment" />
                 <span>Investissement (à signaler à la fiduciaire)<span className="block text-[11px] text-muted-foreground">Information seulement : la dépense compte normalement dans le mois d'achat, aucun amortissement n'est calculé.</span></span>
+              </label>
+              <label className="col-span-2 flex items-start gap-2 text-sm">
+                <input type="checkbox" className="w-4 h-4 mt-0.5" checked={f.internalOnly} onChange={(e) => set("internalOnly", e.target.checked)} data-testid="internal-only" />
+                <span>Interne uniquement — ne pas envoyer au fiduciaire<span className="block text-[11px] text-muted-foreground">Compte normalement chez nous (résultat du mois, partage Mel / Eli), mais n'apparaît jamais dans le dossier fiduciaire, ni ses justificatifs.</span></span>
               </label>
               <div className="space-y-1 col-span-2">
                 <Label className="text-xs">Notes (facultatif)</Label>

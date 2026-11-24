@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLang } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { colourFr } from "@/data/catalogLabelsFr";
+import { CHRISTMAS_CAKES, CHRISTMAS_LOGS } from "@/data/christmas";
 import {
   BUTTERFLY_COLOURS,
   COLOURS,
@@ -17,6 +18,7 @@ import {
   type EditorItem,
   emptyItem,
   friendlyMessage,
+  isChristmasCake,
   joinColours,
   labelCandle,
   labelDesign,
@@ -64,7 +66,61 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
     onChange({ ...fresh, key: item.key, dateKey: product === "workshop" ? null : item.dateKey, item_comment: item.item_comment, internal_notes: item.internal_notes, reference_images: item.reference_images });
   };
 
-  const isCake = item.product === "bento_cake" || item.product === "rectangle_cake";
+  // Noël : gâteau Bento/Retro/Medium/Large dont le design est un gâteau de
+  // Noël (menu Design, groupe « Noël ») → tailles du modèle, un goût « Nos
+  // classiques » OU « Christmas Edition ». Bûche = produit à part (Christmas
+  // Edition seulement). Ni forme, ni extras, ni bougies, ni couleurs, ni texte.
+  const noelCake = isChristmasCake(item);
+  const noelLog = item.product === "christmas_log";
+  const noel = catalog.christmas;
+  const noelName = (id: string) => {
+    const m = CHRISTMAS_CAKES.find((c) => c.id === id) ?? CHRISTMAS_LOGS.find((b) => b.id === id);
+    return m ? (l === "fr" ? m.nameFr : m.nameEn) : id;
+  };
+  const noelPrices = noelCake ? noel?.cakes.find((c) => c.id === item.design)?.prices ?? {} : {};
+  const noelSizes = (["bento", "retro", "medium", "large"] as const).filter((s) => noelPrices[s] !== undefined);
+  const plus = (n: number | null | undefined) => (n ? ` (+${n} CHF)` : "");
+  const noelFlavourIds = new Set([...(noel?.classicFlavours ?? []), ...(noel?.editionFlavours ?? [])].map((f) => f.id));
+  // Menu Design : passer d'un design normal à un gâteau de Noël (ou l'inverse)
+  // remet la taille et le goût sur des choix possibles et retire ce que le
+  // gâteau de Noël ne prend pas.
+  const changeDesign = (design: string) => {
+    if (!design.startsWith("noel-")) {
+      if (!noelCake) { set({ design }); return; }
+      const s = item.size ?? "bento";
+      const okFlavours = (catalog.cake.flavours[s] ?? []).map((f) => f.id);
+      set({ design, shape: "round", flavors: item.flavors.filter((f) => okFlavours.includes(f)) });
+      return;
+    }
+    const prices = noel?.cakes.find((c) => c.id === design)?.prices ?? {};
+    const okSize = item.size && prices[item.size as keyof typeof prices] !== undefined;
+    const firstSize = (["bento", "retro", "medium", "large"] as const).find((s) => prices[s] !== undefined) ?? null;
+    set({
+      design, size: okSize ? item.size : firstSize, shape: "round",
+      flavors: item.flavors.filter((f) => noelFlavourIds.has(f)),
+      extras: [], candles: [], fruit_supplement: null,
+      base_color: "", decoration_color: "", cake_text: "", text_color: "", text_style: "normal",
+      ribbon_color: "", butterfly_color: "", glitter_color: "", glitter_cherries_color: "", inside_color: "",
+    });
+  };
+  const renderDesignSelect = () => (
+    <div>
+      <label className={label}>{t("Design", "Design")}</label>
+      <select value={item.design ?? ""} onChange={(e) => changeDesign(e.target.value)} className={field} data-testid="design-select">
+        {noelCake && !designs.includes(item.design ?? "") && <option value={item.design ?? ""} hidden>{noelName(item.design ?? "")}</option>}
+        <optgroup label={t("Designs", "Designs")}>
+          {(noelCake ? [...(catalog.cake.designs[size] ?? []), ...(catalog.cake.inspirationDesigns[size] ?? [])] : designs).map((d) => <option key={d} value={d}>{labelDesign(d)}</option>)}
+        </optgroup>
+        {item.product === "bento_cake" && noel && (
+          <optgroup label={t("Christmas", "Noël")}>
+            {noel.cakes.map((c) => <option key={c.id} value={c.id}>{noelName(c.id)}</option>)}
+          </optgroup>
+        )}
+      </select>
+    </div>
+  );
+
+  const isCake = (item.product === "bento_cake" || item.product === "rectangle_cake") && !noelCake;
   const size = item.size ?? "";
   const shapes = isCake ? catalog.cake.shapes[size] ?? [] : item.product === "diy_kit" ? catalog.kit.shapes : [];
   const flavours = isCake ? catalog.cake.flavours[size] ?? [] : item.product === "diy_kit" ? catalog.kit.flavours : catalog.dotCakes.flavours;
@@ -255,8 +311,58 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
           </select>
         </div>
 
+        {/* Noël */}
+        {(noelCake || noelLog) && !noel && (
+          <p className="md:col-span-2 text-xs text-amber-800">{t("Christmas products need the latest version of the server function.", "Les produits de Noël demandent la dernière version de la fonction serveur.")}</p>
+        )}
+        {(noelCake || noelLog) && noel && (
+          <>
+            {noelCake ? renderDesignSelect() : (
+              <div>
+                <label className={label}>{t("Log", "Bûche")}</label>
+                <select value={item.design ?? ""} onChange={(e) => set({ design: e.target.value })} className={field} data-testid="noel-model">
+                  {noel.logs.map((b) => <option key={b.id} value={b.id}>{noelName(b.id)}</option>)}
+                </select>
+              </div>
+            )}
+            {noelCake ? (
+              <div>
+                <label className={label}>{t("Size", "Taille")}</label>
+                <select value={item.size ?? ""} onChange={(e) => set({ size: e.target.value, shape: "round" })} className={field} data-testid="noel-size">
+                  {noelSizes.map((s) => <option key={s} value={s}>{labelSize(s, l)} — CHF {noelPrices[s]}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className={label}>{t("Price", "Prix")}</label>
+                <div className={cn(field, "flex items-center text-muted-foreground")}>CHF {noel.logs[0]?.price ?? 65} + {t("flavour", "goût")}</div>
+              </div>
+            )}
+            {noelCake && (
+              <div>
+                <label className={label}>{t("Our classics", "Nos classiques")}</label>
+                <select value={noel.classicFlavours.some((f) => f.id === item.flavors[0]) ? item.flavors[0] : ""} onChange={(e) => set({ flavors: e.target.value ? [e.target.value] : [] })} className={field} data-testid="noel-classic">
+                  <option value="">{t("Choose…", "Choisir…")}</option>
+                  {noel.classicFlavours.filter((f) => f.surcharge[item.size ?? ""] != null).map((f) => <option key={f.id} value={f.id}>{f.name}{plus(f.surcharge[item.size ?? ""])}</option>)}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className={label}>{noelCake ? `${t("or", "ou")} Christmas Edition` : "Christmas Edition"}</label>
+              <select value={noel.editionFlavours.some((f) => f.id === item.flavors[0]) ? item.flavors[0] : ""} onChange={(e) => set({ flavors: e.target.value ? [e.target.value] : [] })} className={field} data-testid="noel-edition">
+                <option value="">{t("Choose…", "Choisir…")}</option>
+                {noel.editionFlavours.map((f) => <option key={f.id} value={f.id}>{f.name}{plus(noelLog ? f.logSurcharge : f.surcharge[item.size ?? ""])}</option>)}
+              </select>
+            </div>
+            <p className="md:col-span-2 text-[11px] text-muted-foreground">
+              {t(`Like the Christmas page: no shape, extras, candles or text; last date ${noel.lastDate.split("-").reverse().join(".")}.`,
+                `Comme la page Noël : ni forme, ni extras, ni bougies, ni texte ; dernière date le ${noel.lastDate.split("-").reverse().join(".")}.`)}
+            </p>
+          </>
+        )}
+
         {/* Cakes */}
-        {item.product === "bento_cake" && (
+        {item.product === "bento_cake" && !noelCake && (
           <div>
             <label className={label}>{t("Size", "Taille")}</label>
             <select value={size} onChange={(e) => changeCakeSize(e.target.value)} className={field}>
@@ -287,14 +393,7 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
             </select>
           </div>
         )}
-        {isCake && (
-          <div>
-            <label className={label}>{t("Design", "Design")}</label>
-            <select value={item.design ?? ""} onChange={(e) => set({ design: e.target.value })} className={field}>
-              {designs.map((d) => <option key={d} value={d}>{labelDesign(d)}</option>)}
-            </select>
-          </div>
-        )}
+        {isCake && renderDesignSelect()}
         {item.product === "diy_kit" && (
           <div>
             <label className={label}>{t("Piping bags", "Poches à douille")}</label>

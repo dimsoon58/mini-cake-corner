@@ -233,6 +233,8 @@ serve(async (req) => {
         }) as { id: string };
         // Lot K4 : case « Investissement » (information pour la fiduciaire).
         if (typeof body.investment === "boolean") await rpc("compta_set_investment", { p_id: saved.id, p_flag: body.investment, p_by: by });
+        // F48 : case « Interne uniquement » (jamais transmise au fiduciaire).
+        if (typeof body.internalOnly === "boolean") await rpc("compta_set_internal_only", { p_id: saved.id, p_flag: body.internalOnly, p_by: by });
         data = saved;
         break;
       }

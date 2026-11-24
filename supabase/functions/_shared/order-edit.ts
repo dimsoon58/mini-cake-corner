@@ -3,24 +3,25 @@
 // les tests. Le calcul du règlement est le même que celui de la fonction SQL
 // order_edit_commit (qui fait foi à l'enregistrement).
 
-import { roundToCents } from "./pricing.ts";
-import { isChristmasCakeDesign } from "./christmas.ts";
+import { priceOrderItem, roundToCents } from "./pricing.ts";
+import { CHRISTMAS_DESIGN_NAMES, christmasFlavourIdOf, isChristmasItem } from "./christmas.ts";
 import { resolveFlavour } from "./production-catalog.ts";
 
 /** Remboursement proposé seulement si la date est au moins à 5 jours (FAQ du site). */
 export const REFUND_DEADLINE_DAYS = 5;
 
 /** Produits que l'éditeur de l'admin sait modifier. */
-const EDITABLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake", "diy_kit", "dot_cakes", "edible_printing", "candles"]);
+// 21.11.2026 : les articles de Noël (gâteau « noel-… », bûche) se modifient
+// aussi dans l'éditeur (le formulaire manuel sait les choisir).
+const EDITABLE_PRODUCTS = new Set(["bento_cake", "rectangle_cake", "diy_kit", "dot_cakes", "edible_printing", "candles", "christmas_log"]);
 
-export type LockReason = "workshop" | "christmas" | "unsupported";
+export type LockReason = "workshop" | "unsupported";
 
 /** Article gardé tel quel dans l'éditeur (son contenu ne change pas ici). */
 // deno-lint-ignore no-explicit-any
 export function lockReasonOf(row: any): LockReason | null {
   const product = String(row?.product ?? "");
   if (product === "workshop") return "workshop";
-  if (product === "christmas_log" || (product === "bento_cake" && isChristmasCakeDesign(row?.design))) return "christmas";
   if (!EDITABLE_PRODUCTS.has(product)) return "unsupported";
   return null;
 }
@@ -36,9 +37,23 @@ function canonical(v: unknown): string {
   return JSON.stringify(v ?? null);
 }
 
-/** Goûts enregistrés (noms du site) → ids, comme l'action get. */
-export const flavourIdsOf = (names: unknown): string[] =>
-  (Array.isArray(names) ? names : []).map((n) => resolveFlavour(String(n))?.id ?? String(n));
+/**
+ * Goûts enregistrés (noms du site) → ids, comme l'action get. Article de Noël
+ * (row donné) : ids Christmas Edition / classiques, comme la page Noël.
+ */
+// deno-lint-ignore no-explicit-any
+export function flavourIdsOf(names: unknown, row?: any): string[] {
+  const list = (Array.isArray(names) ? names : []).map(String);
+  if (!row || !isChristmasItem(row)) return list.map((n) => resolveFlavour(n)?.id ?? n);
+  const stored = row.total != null
+    ? roundToCents(Number(row.total) - (Number(row.fruit_supplement) || 0) + (Number(row.free_amount) || 0))
+    : null;
+  const priceOf = (flavourId: string) => {
+    const r = priceOrderItem({ product: row.product, size: row.size ?? null, shape: row.shape ?? null, flavors: [flavourId], design: row.design ?? null, extras: [], candles: [] });
+    return r.ok ? r.total : null;
+  };
+  return list.map((n) => christmasFlavourIdOf(n, row, (x) => resolveFlavour(x)?.id ?? null, priceOf, stored));
+}
 
 /**
  * Ce qui fait le prix d'un article. Deux articles avec la même signature ont
@@ -51,7 +66,7 @@ export function priceSignature(it: any, fromRow: boolean): string {
   const free = Array.isArray(it?.free_options) ? [...it.free_options].map(String).sort() : [];
   return canonical([
     it?.product ?? null, it?.size ?? null, it?.shape ?? null, it?.design ?? null,
-    fromRow ? flavourIdsOf(it?.flavors) : (Array.isArray(it?.flavors) ? it.flavors.map(String) : []),
+    fromRow ? flavourIdsOf(it?.flavors, it) : (Array.isArray(it?.flavors) ? it.flavors.map(String) : []),
     Array.isArray(it?.extras) ? it.extras.map(String) : [],
     Array.isArray(it?.candles) ? it.candles : [],
     roundToCents(fruit), free,
@@ -133,6 +148,7 @@ const normaliseExtra = (v: unknown) =>
 
 // deno-lint-ignore no-explicit-any
 export function itemLabel(r: any): string {
+  if (r && isChristmasItem(r)) return [CHRISTMAS_DESIGN_NAMES[r.design] ?? r.design, r.product === "christmas_log" ? null : r.size].filter(Boolean).join(" ");
   return [r?.product, r?.size, r?.shape].filter(Boolean).join(" ");
 }
 
@@ -141,7 +157,7 @@ export function itemLabel(r: any): string {
 export function describeItemChanges(index: number, before: any, after: any): string | null {
   const parts: string[] = [];
   for (const f of SUMMARY_FIELDS) {
-    let a = f === "flavors" ? flavourIdsOf(before?.[f]) : before?.[f];
+    let a = f === "flavors" ? flavourIdsOf(before?.[f], before) : before?.[f];
     let b = after?.[f];
     // Texte des extras : même contenu, ordre ou ponctuation différents = inchangé.
     if (f === "extra") { a = normaliseExtra(a); b = normaliseExtra(b); }

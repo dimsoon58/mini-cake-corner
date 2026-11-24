@@ -344,6 +344,14 @@ const AdminManualOrderEditor = () => {
   }, [customer, items, groups, quote, lang, t]);
 
   // ── F46 — options offertes ────────────────────────────────────────────
+  // Les boutons « Offrir » restent cachés tant qu'on ne clique pas sur « 🎁 Offrir… »
+  // (ou qu'une option est déjà offerte, pour pouvoir la voir et l'annuler).
+  const [offerOpen, setOfferOpen] = useState<Set<string>>(() => new Set());
+  const toggleOfferOpen = (key: string) => setOfferOpen((cur) => {
+    const next = new Set(cur);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
   const toggleFree = (index: number, key: string) => {
     setItems((prev) => prev.map((it, j) => {
       if (j !== index) return it;
@@ -809,6 +817,7 @@ const AdminManualOrderEditor = () => {
               <ul className="space-y-1">
                 {items.map((it, i) => {
                   const qi = q?.items[i];
+                  const showOffer = !readOnly && (offerOpen.has(it.key) || it.free_options.length > 0);
                   return (
                     <li key={it.key}>
                       <div className="flex justify-between gap-2 font-semibold">
@@ -822,7 +831,7 @@ const AdminManualOrderEditor = () => {
                               <span className="text-muted-foreground">{labelBreakdownLine(line, catalog, lang === "en" ? "en" : "fr", it.size)}</span>
                               <span className="flex items-center gap-1.5 shrink-0">
                                 {/* F46 — rendre une option gratuite (le serveur recalcule le prix). */}
-                                {line.amount > 0 && !readOnly && !it.free_options.includes(FREE_ALL) && (
+                                {line.amount > 0 && showOffer && !it.free_options.includes(FREE_ALL) && (
                                   <button
                                     type="button"
                                     onClick={() => toggleFree(i, freeKeyOf(line))}
@@ -845,7 +854,8 @@ const AdminManualOrderEditor = () => {
                       )}
                       {qi?.total != null && (qi.total > 0 || it.free_options.includes(FREE_ALL)) && (
                         <div className="flex justify-between items-center gap-2 text-xs mb-1.5">
-                          {!readOnly ? (
+                          {showOffer ? (
+                            <span className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => toggleFree(i, FREE_ALL)}
@@ -855,6 +865,16 @@ const AdminManualOrderEditor = () => {
                               )}
                             >
                               {it.free_options.includes(FREE_ALL) ? t("Whole product free ✓", "Article entier offert ✓") : t("Offer the whole product", "Offrir l'article entier")}
+                            </button>
+                            {it.free_options.length === 0 && (
+                              <button type="button" onClick={() => toggleOfferOpen(it.key)} className="text-[11px] text-muted-foreground underline-offset-2 hover:underline">
+                                {t("Close", "Fermer")}
+                              </button>
+                            )}
+                            </span>
+                          ) : !readOnly ? (
+                            <button type="button" onClick={() => toggleOfferOpen(it.key)} className="text-[11px] text-muted-foreground underline-offset-2 hover:underline hover:text-foreground">
+                              🎁 {t("Offer…", "Offrir…")}
                             </button>
                           ) : <span />}
                           {(qi.freeAmount ?? 0) > 0 && (

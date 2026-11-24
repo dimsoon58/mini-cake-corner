@@ -319,6 +319,7 @@ const ribbonColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
   { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
   { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
+  { id: "brown", name: "Brown", color: "#7B4A2D" },
   { id: "black", name: "Black", color: "#000000" },
 ];
 
@@ -724,8 +725,12 @@ const colorSectionOverrides: Record<string, Partial<ColorSectionConfig>> = {
     secondaryOptional: true,
   },
   "gender-reveal": { showBase: false, secondaryLabel: null, hideExtras: true },
+<<<<<<< HEAD
   "heart-bomb": { secondaryLabel: "Heart colour", secondaryMax: 1, hideExtras: true },
   "gems": { hideExtras: true },
+=======
+  "heart-bomb": { secondaryLabel: "Heart colour", secondaryMax: 1 },
+>>>>>>> bc980a7aceb3941723536867d2ca3ad8018b3f64
   "shag-cake": { showBase: false, secondaryLabel: "Choose your colours", secondaryMax: 6 },
   "rainbow-cake": { secondaryLabel: null },
   "printed-picture": { secondaryLabel: "Border colour", secondaryMax: 1 },
@@ -1292,6 +1297,14 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       : [];
   const extrasHiddenForDesign =
     colorCfg.hideExtras || (allowedExtras !== undefined && allowedExtras.length === 0);
+  // Aucun extra proposé pour cette taille (ex. Heart Bomb en Bento : rubans
+  // seulement dès la Retro) : pas de titre « Extras » vide.
+  const hasVisibleExtra = extraGroups.some((g) => g.ids.some((id) => {
+    const extra = catalogExtras.find((e) => e.id === id);
+    if (!extra || excludedExtras.includes(id) || (allowedExtras && !allowedExtras.includes(id))) return false;
+    const price = extra.price[selections.size as keyof typeof extra.price];
+    return price !== undefined && price > 0;
+  }));
 
   const handleToggleExtra = (extraId: string) => {
     const newExtras = selections.extras.includes(extraId)
@@ -2476,7 +2489,7 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
 
               {/* Extras Section */}
               <div className="space-y-3">
-                {!extrasHiddenForDesign && (
+                {!extrasHiddenForDesign && hasVisibleExtra && (
                 <label className="text-[14px] font-semibold text-foreground flex items-center gap-1">
                   {t("Extras", "Extras")}
                   <Tooltip>

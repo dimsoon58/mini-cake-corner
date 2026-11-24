@@ -56,7 +56,8 @@ export default function FiduciaryTab({ month, settings, onNotice }: { month: str
   }, [from, to]);
   useEffect(() => { load(); }, [load]);
 
-  const commonKnown = common ? Math.round(common.expenses.filter((e) => e.counted !== false && inRange(e.purchase_date, from, to)).reduce((s, e) => s + (Number(e.chf_amount) || 0), 0) * 100) / 100 : null;
+  const internalCount = common ? common.expenses.filter((e) => e.internal_only && inRange(e.purchase_date, from, to)).length : 0;
+  const commonKnown = common ? Math.round(common.expenses.filter((e) => !e.internal_only && e.counted !== false && inRange(e.purchase_date, from, to)).reduce((s, e) => s + (Number(e.chf_amount) || 0), 0) * 100) / 100 : null;
   const fidTotal = fid ? Number(fid.total) : null;
 
   const exportDossier = async () => {
@@ -99,7 +100,7 @@ export default function FiduciaryTab({ month, settings, onNotice }: { month: str
   return (
     <div className="space-y-6" data-testid="fiduciary">
       <section className="space-y-2">
-        <p className="text-sm text-muted-foreground">Le dossier reprend automatiquement les commandes, paiements, remboursements, dépenses, salaire et justificatifs de la compta — sans copie ni nouvelle saisie. Il est téléchargé ; rien n'est envoyé au fiduciaire.</p>
+        <p className="text-sm text-muted-foreground">Le dossier reprend automatiquement les commandes, paiements, remboursements, dépenses et justificatifs de la compta — sans copie ni nouvelle saisie. Il est téléchargé ; rien n'est envoyé au fiduciaire.</p>
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1"><Label htmlFor="fid-from" className="text-xs">Du mois</Label>
             <Input id="fid-from" type="month" value={fromM} onChange={(e) => e.target.value && setFromM(e.target.value)} className="rounded-none h-9 w-40" /></div>
@@ -113,15 +114,15 @@ export default function FiduciaryTab({ month, settings, onNotice }: { month: str
       </section>
 
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-2" data-testid="fid-totals">
-        <div className="border border-border/60 px-3 py-2"><span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Dépenses communes (suivi interne)</span>
+        <div className="border border-border/60 px-3 py-2"><span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Dépenses communes (transmises)</span>
           <span className="block font-semibold tabular-nums" data-testid="fid-common">{commonKnown == null ? "—" : money(commonKnown)}</span>
-          <span className="block text-xs text-muted-foreground">par date d'achat, salaire non compris</span></div>
+          <span className="block text-xs text-muted-foreground">par date d'achat{internalCount > 0 ? ` · ${internalCount} dépense(s) « Interne uniquement » non transmise(s)` : ""}</span></div>
         <div className="border border-primary/40 bg-primary/5 px-3 py-2"><span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Ajouts fiduciaire uniquement</span>
           <span className="block font-semibold tabular-nums" data-testid="fid-total">{fidTotal == null ? "—" : money(fidTotal)}</span>
           <span className="block text-xs text-muted-foreground">{fid?.count ?? 0} ajout(s) · {fid?.missingReceiptCount ?? 0} sans justificatif</span></div>
         <div className="border border-border/60 px-3 py-2"><span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Communes + ajouts fiduciaires</span>
           <span className="block font-semibold tabular-nums">{commonKnown == null || fidTotal == null ? "—" : money(commonKnown + fidTotal)}</span>
-          <span className="block text-xs text-muted-foreground">salaire à part (dans l'export) · l'écart avec notre suivi = les ajouts fiduciaires</span></div>
+          <span className="block text-xs text-muted-foreground">l'écart avec notre suivi = les ajouts fiduciaires</span></div>
       </section>
       <p className="text-xs text-muted-foreground">Les ajouts fiduciaires ne changent pas notre résultat interne, la réserve ni les parts proposées ; ils ne sont jamais à rembourser à Mel ou Eli et ne créent aucun mouvement bancaire.</p>
 
@@ -142,7 +143,7 @@ export default function FiduciaryTab({ month, settings, onNotice }: { month: str
 
       {editing && settings && (
         <FidDialog item={editing === "new" ? null : editing} settings={settings} defaultDate={from}
-          onClose={() => setEditing(null)} onSaved={(msg) => { setEditing(null); onNotice(msg); load(); }} />
+          onClose={() => { setEditing(null); load(); }} onSaved={(msg) => { setEditing(null); onNotice(msg); load(); }} />
       )}
     </div>
   );
@@ -159,6 +160,13 @@ function FidRow({ item: x, onEdit, onChanged, onNotice }: { item: FiduciaryItem;
     if (!files?.length) return;
     setBusy(true);
     try { for (const f of Array.from(files)) await uploadFiduciaryReceipt(x.id, f); onNotice(`Justificatif ajouté à ${x.code}.`); onChanged(); }
+    catch (e) { onNotice(errText(e)); }
+    setBusy(false);
+  };
+  const removeAttachment = async (a: { id: string; file_name: string }) => {
+    if (!window.confirm(`Retirer le justificatif « ${a.file_name} » de ${x.code} ? Il reste conservé dans l'historique.`)) return;
+    setBusy(true);
+    try { await comptaApi({ action: "fiduciary_delete_attachment", attachmentId: a.id }); onNotice(`Justificatif retiré de ${x.code}.`); onChanged(); }
     catch (e) { onNotice(errText(e)); }
     setBusy(false);
   };
@@ -181,7 +189,11 @@ function FidRow({ item: x, onEdit, onChanged, onNotice }: { item: FiduciaryItem;
       <span className="tabular-nums font-semibold text-right">{money(x.chf_amount)}</span>
       <span className="col-start-2 col-span-2 flex flex-wrap items-center gap-2 text-xs">
         {x.attachments.map((a) => (
-          <button key={a.id} type="button" className="inline-flex items-center gap-1 underline" onClick={() => view(a.id)}><FileText className="w-3.5 h-3.5" />{a.file_name}</button>
+          <span key={a.id} className="inline-flex items-center gap-0.5">
+            <button type="button" className="inline-flex items-center gap-1 underline" onClick={() => view(a.id)}><FileText className="w-3.5 h-3.5" />{a.file_name}</button>
+            <button type="button" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50" disabled={busy} onClick={() => removeAttachment(a)}
+              aria-label={`Retirer ${a.file_name}`} title="Retirer ce justificatif"><Trash2 className="w-3 h-3" /></button>
+          </span>
         ))}
         {x.receipt_missing && <span className={cn("px-1.5 py-0.5 border", WARN)}>justificatif manquant</span>}
         {x.receipt_missing_reason && !x.attachments.length && <span className="text-muted-foreground">sans justificatif : {x.receipt_missing_reason}</span>}
@@ -205,6 +217,8 @@ function FidDialog({ item, settings, defaultDate, onClose, onSaved }: {
     amount: item ? String(item.chf_amount) : "", payerId: item?.payer_id ?? "", receiptMissingReason: item?.receipt_missing_reason ?? "", comment: item?.comment ?? "",
   });
   const [files, setFiles] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState(item?.attachments ?? []);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [matches, setMatches] = useState<FiduciaryMatch[] | null>(null);
   const [confirmDup, setConfirmDup] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -215,6 +229,13 @@ function FidDialog({ item, settings, defaultDate, onClose, onSaved }: {
   const payers = settings.payers.filter((p) => p.active || p.id === f.payerId);
   const valid = !!f.date && f.supplier.trim().length > 0 && Number(f.amount.replace(",", ".")) > 0;
 
+  const removeSaved = async (a: { id: string; file_name: string }) => {
+    if (!window.confirm(`Retirer le justificatif « ${a.file_name} » ? Il reste conservé dans l'historique.`)) return;
+    setBusy(true); setErr(null);
+    try { await comptaApi({ action: "fiduciary_delete_attachment", attachmentId: a.id }); setAttachments((x) => x.filter((y) => y.id !== a.id)); }
+    catch (e) { setErr(errText(e)); }
+    setBusy(false);
+  };
   const save = async () => {
     if (busy || !valid || (matches && !confirmDup)) return;
     setBusy(true); setErr(null);
@@ -253,8 +274,30 @@ function FidDialog({ item, settings, defaultDate, onClose, onSaved }: {
             </select></div>
           <div className="space-y-1 sm:col-span-2"><Label htmlFor="fd-desc" className="text-xs">Description</Label><Input id="fd-desc" value={f.description} onChange={(e) => set({ description: e.target.value })} className="rounded-none" /></div>
           <div className="space-y-1 sm:col-span-2"><Label htmlFor="fd-file" className="text-xs">Justificatif (photo ou PDF)</Label>
-            <Input id="fd-file" type="file" accept="image/*,application/pdf" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []))} className="rounded-none" />
-            {!files.length && !(item?.attachments.length) && (
+            <input ref={fileInput} id="fd-file" type="file" accept="image/*,application/pdf" multiple className="hidden"
+              onChange={(e) => { const list = Array.from(e.target.files ?? []); setFiles((x) => [...x, ...list]); e.target.value = ""; }} />
+            <Button type="button" variant="outline" className="rounded-none w-full" onClick={() => fileInput.current?.click()}>
+              <Paperclip className="w-4 h-4 mr-1" /> Ajouter une photo ou un PDF
+            </Button>
+            {(attachments.length > 0 || files.length > 0) && (
+              <ul className="space-y-1 text-sm pt-1" data-testid="fd-files">
+                {attachments.map((a) => (
+                  <li key={a.id} className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
+                    <span className="flex-1 min-w-0 break-all">{a.file_name}</span>
+                    <Button type="button" size="sm" variant="ghost" className="h-7 px-2" disabled={busy} onClick={() => removeSaved(a)} aria-label={`Retirer ${a.file_name}`}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  </li>
+                ))}
+                {files.map((file, i) => (
+                  <li key={`${file.name}-${i}`} className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
+                    <span className="flex-1 min-w-0 break-all">{file.name} <span className="text-muted-foreground">(envoyé à l'enregistrement)</span></span>
+                    <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => setFiles((x) => x.filter((_, j) => j !== i))} aria-label={`Retirer ${file.name}`}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!files.length && !attachments.length && (
               <Input placeholder="Sinon : pourquoi il n'y a pas de justificatif" value={f.receiptMissingReason} onChange={(e) => set({ receiptMissingReason: e.target.value })} className="rounded-none mt-1" />
             )}</div>
           <div className="space-y-1 sm:col-span-2"><Label htmlFor="fd-comment" className="text-xs">Commentaire pour le fiduciaire</Label><Input id="fd-comment" value={f.comment} onChange={(e) => set({ comment: e.target.value })} className="rounded-none" /></div>

@@ -39,13 +39,13 @@ export function TreasuryOverview({ view, advances }: { view: SettlementView | nu
       </div>
       <div className="border border-border/60 divide-y divide-border/60 text-sm">
         <Line testId="tr-result" strong label="1. Résultat du mois" value={money(v.resultAdjusted ?? v.result)}
-          hint={`ventes nettes ${money(v.revenueNet)} − dépenses ${money(v.expenses)} − salaire ${money(v.salary)}${Number(v.adjustmentsTotal) ? ` ± corrections ${money(v.adjustmentsTotal)}` : ""}`} />
+          hint={`ventes nettes ${money(v.revenueNet)} − dépenses ${money(v.expenses)}${Number(v.salary) ? ` − salaire ${money(v.salary)}` : ""}${Number(v.adjustmentsTotal) ? ` ± corrections ${money(v.adjustmentsTotal)}` : ""}`} />
         <Line testId="tr-kept" label="2. Gardé dans Bento" value={money(v.retainedCum)}
           hint={`base ${money(Number(view.rules?.base_target ?? 4000))} ${v.baseConstituted ? "constituée" : "en cours"} · réserve prévue +${money(Number(view.rules?.monthly_extra ?? 300))}/mois (cumul ${money(v.extraCum)})`} />
         <Line testId="tr-bank" label="3. Solde bancaire réel" value={t ? money(t.balance) : "à saisir"} tone={t ? undefined : "warn"}
           hint={t ? `saisi au ${frDate(t.date)} — pas un calcul` : "aucun solde daté : pas de partage possible"} />
         <Line testId="tr-owed" label="4. Encore à payer ou à rembourser" value={t ? money(Number(t.invoicesToPay) + Number(t.salaryRemaining) + Number(t.customerRefundsOwed ?? 0) + Number(t.customerPrepayments ?? 0)) : "—"}
-          hint={t ? `factures ${money(t.invoicesToPay)} · salaire ${money(t.salaryRemaining)} · remboursements clients ${money(t.customerRefundsOwed ?? 0)} · paiements reçus pour des commandes futures ${money(t.customerPrepayments ?? 0)}` : undefined} />
+          hint={t ? `factures ${money(t.invoicesToPay)}${Number(t.salaryRemaining) ? ` · salaire ${money(t.salaryRemaining)}` : ""} · remboursements clients ${money(t.customerRefundsOwed ?? 0)} · paiements reçus pour des commandes futures ${money(t.customerPrepayments ?? 0)}` : undefined} />
         <Line testId="tr-advances" label="5. Avances à rembourser (hors partage)" value={advancesLeft != null ? money(advancesLeft) : t ? money(t.advancesToRepay) : "—"}
           hint="remboursement de nos avances : jamais une 2e dépense, jamais une part du bénéfice" />
         <Line testId="tr-available" strong label="6. Disponible pour le partage" value={t ? money(t.available) : "—"} tone={t && Number(t.available) < Number(v.toShare) ? "warn" : undefined}

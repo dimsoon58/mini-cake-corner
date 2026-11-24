@@ -259,6 +259,8 @@ export const extras = [
   { id: "pearl-number", name: "Pearl Number", price: { bento: 6, retro: 6, medium: 6, large: 6, rectangle: 10 } as Record<string, number>, image: designPearlNumber },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 } as Record<string, number>, image: extraPrintedPicture },
   { id: "sprinkles", name: "Sprinkles", price: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 } as Record<string, number>, image: extraSprinkles },
+  // Commandes manuelles de l'admin seulement (aucune page publique ne lit cette liste pour proposer les extras).
+  { id: "gems", name: "Gems", price: { retro: 8, medium: 15, large: 25 } as Record<string, number> },
 ];
 
 export const candles = [
@@ -288,7 +290,7 @@ export const candles = [
 export const extraGroups = [
   {
     label: "Decorations",
-    ids: ["cherries", "glitter-cherries", "butterfly", "ribbons"],
+    ids: ["cherries", "glitter-cherries", "butterfly", "ribbons", "gems"],
   },
   {
     label: "Pearls",
@@ -317,6 +319,7 @@ export const ribbonColors = [
   { id: "white", name: "White", color: "#FFFFFF" },
   { id: "sky-blue", name: "Sky Blue", color: "#87CEEB" },
   { id: "midnight-blue", name: "Midnight Blue", color: "#191970" },
+  { id: "brown", name: "Brown", color: "#7B4A2D" }, // 21.11.2026 (Mel)
   { id: "black", name: "Black", color: "#000000" },
 ];
 
@@ -446,11 +449,17 @@ export const designAllowedExtras: Record<string, string[]> = {
   "printed-picture": [],
   "shag-cake": ["cherries", "glitter-cherries"],
   "custom-drawing": ["gold-leaves", "printed-picture"],
+  // 21.11.2026 (Mel) : Heart Bomb peut avoir des rubans (prix de l'extra Rubans).
+  "heart-bomb": ["ribbons"],
 };
 
 // Designs whose catalogue sheet hides the extras section entirely (same as
 // hideExtras in Catalog.tsx's colour config, plus every Inspiration photo).
+<<<<<<< HEAD
 const EXTRAS_HIDDEN_DESIGNS = new Set(["gender-reveal", "heart-bomb", "gems"]);
+=======
+const EXTRAS_HIDDEN_DESIGNS = new Set(["gender-reveal"]);
+>>>>>>> bc980a7aceb3941723536867d2ca3ad8018b3f64
 
 /**
  * Extras excluded when a cake already in the cart is edited — the same rule
@@ -462,5 +471,7 @@ export const getCartExcludedExtras = (styleId: string): string[] | null => {
   if (styleId.startsWith("inspiration") || EXTRAS_HIDDEN_DESIGNS.has(styleId) || (allowed && allowed.length === 0)) {
     return null;
   }
-  return getExcludedExtras(styleId).filter((id) => !allowed || !allowed.includes(id));
+  // Liste blanche du design : tout le reste est exclu, comme sur la fiche.
+  if (allowed) return extras.map((e) => e.id).filter((id) => !allowed.includes(id));
+  return getExcludedExtras(styleId);
 };

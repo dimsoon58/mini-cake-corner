@@ -39,6 +39,18 @@ import {
   type CandleInput,
 } from "./pricing.ts";
 import { expressSurchargeRate, resolveOneFulfillment } from "./order-pricing.ts";
+import {
+  CHRISTMAS_CAKE_PRICES,
+  CHRISTMAS_CLASSIC_FLAVOURS,
+  CHRISTMAS_LAST_DATE,
+  CHRISTMAS_LOG_PRICE,
+  CHRISTMAS_LOG_SIZE,
+  christmasEditionCakeSurcharge,
+  isChristmasCakeDesign,
+  isChristmasItem,
+  LOG_FLAVOUR_SURCHARGES,
+  type ChristmasSize,
+} from "./christmas.ts";
 
 export interface QuoteItemInput {
   product: string;
@@ -110,6 +122,8 @@ export function fruitSupplementOf(it: QuoteItemInput): { amount: number; error: 
   const v = it.fruit_supplement;
   if (v === null || v === undefined) return { amount: 0, error: null };
   if (it.product !== "bento_cake" && it.product !== "rectangle_cake") return { amount: 0, error: null };
+  // Gâteau de Noël : décor fixe, ni extras ni fruits (comme le site).
+  if (isChristmasCakeDesign(it.design)) return { amount: 0, error: "Christmas cakes take no fruit supplement" };
   const n = Number(v);
   if (!Number.isFinite(n) || n <= 0) return { amount: 0, error: "Enter the amount of the fruit supplement" };
   if (n > MAX_FRUIT_SUPPLEMENT) return { amount: 0, error: `The fruit supplement can't exceed CHF ${MAX_FRUIT_SUPPLEMENT}` };
@@ -247,7 +261,16 @@ function breakdownItem(it: QuoteItemInput, product: string, total: number): Quot
   const extras = Array.isArray(it.extras) ? it.extras : [];
   const candles = Array.isArray(it.candles) ? it.candles : [];
 
-  if (product === "bento_cake" || product === "rectangle_cake") {
+  if (product === "bento_cake" && isChristmasCakeDesign(it.design)) {
+    // Gâteau de Noël : prix de Noël de la taille + supplément du goût.
+    const size = String(it.size) as ChristmasSize;
+    const f = flavors[0];
+    lines.push({ kind: "size", id: size, amount: CHRISTMAS_CAKE_PRICES[String(it.design)]?.[size] ?? NaN });
+    lines.push({ kind: "flavour", id: f, amount: (CHRISTMAS_CLASSIC_FLAVOURS.includes(f) ? CAKE_FLAVORS[f]?.[size] : christmasEditionCakeSurcharge(f, size)) ?? NaN });
+  } else if (product === "christmas_log") {
+    lines.push({ kind: "size", id: CHRISTMAS_LOG_SIZE, amount: CHRISTMAS_LOG_PRICE });
+    lines.push({ kind: "flavour", id: flavors[0], amount: LOG_FLAVOUR_SURCHARGES[flavors[0]] ?? NaN });
+  } else if (product === "bento_cake" || product === "rectangle_cake") {
     const size = String(it.size) as keyof typeof CAKE_SIZES;
     const shape = it.shape || "round";
     const design = String(it.design ?? "");
@@ -416,6 +439,17 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
     const d = String(f?.date ?? "").slice(0, 10);
     if (seenDates.has(d)) errors.push(`The date ${d} is used twice — put those items in the same date group`);
     seenDates.add(d);
+  }
+  // Noël : dernier jour de retrait / livraison = 24.12, comme sur le site
+  // (pas pour une commande historique, déjà réalisée).
+  if (!input.historical) {
+    fulfillmentsIn.forEach((f) => {
+      const d = String(f?.date ?? "").slice(0, 10);
+      const idxs = Array.isArray(f?.itemIndexes) ? f.itemIndexes : [];
+      if (d > CHRISTMAS_LAST_DATE && idxs.some((i) => items[i] && isChristmasItem(items[i]))) {
+        errors.push(`Christmas cakes and logs: last pickup or delivery date is ${CHRISTMAS_LAST_DATE}`);
+      }
+    });
   }
 
   // ── Delivery + express per date (shared checkout engine) ──────────────

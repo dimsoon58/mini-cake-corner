@@ -64,7 +64,6 @@ const REASONS = ["goodwill", "loyal_customer", "agreed_price", "b2b", "partner",
 const NOT_STARTED = new Set(["to_assign", "pending"]);
 const LOCK_TEXT: Record<string, string> = {
   workshop: "les places de workshop se changent avec « Annuler des places »",
-  christmas: "produit de Noël : goût, couleurs et texte avec « Modifier ce gâteau »",
   unsupported: "ce produit ne se modifie pas dans cet éditeur",
 };
 
@@ -206,7 +205,7 @@ async function computePlan(supabase: Supa, o: Row, rows: Row[], fuls: Row[], due
     if (!row || seen.has(rowId)) { problems.push(`Article ${i + 1} : article inconnu, rechargez la page.`); return { ...it, rowId: null }; }
     seen.add(rowId);
     // Produit gardé tel quel : son contenu vient de la base, jamais de l'écran.
-    if (lockReasonOf(row)) return { ...editorItemOfRow(row, flavourIdsOf(row.flavors)), rowId } as EditorItem;
+    if (lockReasonOf(row)) return { ...editorItemOfRow(row, flavourIdsOf(row.flavors, row)), rowId } as EditorItem;
     return { ...it, rowId };
   });
   const removedRows = active.filter((r) => !seen.has(r.id));

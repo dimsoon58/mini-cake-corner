@@ -28,6 +28,7 @@ export const colourFr: Record<string, string> = {
   "Sky Blue": "Bleu Ciel",
   "Blue": "Bleu",
   "Midnight Blue": "Bleu Nuit",
+  "Brown": "Marron",
   "Lavender": "Lavande",
   "Plum": "Prune",
   "Light Brown": "Brun Clair",
@@ -50,4 +51,5 @@ export const extraNameFr: Record<string, string> = {
   "butterfly": "Papillon",
   "sprinkles": "Vermicelles",
   "printed-picture": "Printed Picture",
+  "gems": "Gems",
 };

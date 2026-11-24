@@ -179,8 +179,12 @@ check("Gâteau annulé exclu, l'autre gâteau de la commande gardé", !ids.has(i
 check("Commande annulée, non payée (site), brouillon, gâteau refusé, workshop : exclus", !got.some((i) => [oCancelledOrder, oUnpaid, oDraft, oRefused, oWorkshop].includes(i.order_id)));
 check("Hors période exclu", !got.some((i) => i.order_id === oLater));
 const keys = new Set(got.flatMap((i) => Object.keys(i)).concat(got.flatMap((i) => Object.keys(i.order))));
-check("Données client limitées (ni e-mail, ni téléphone, ni adresse, ni prix, ni créneau, ni note de commande)",
-  !["email", "phone", "delivery_address", "total", "total_amount", "pickup_delivery_slot", "order_comment", "candles"].some((k) => keys.has(k)), [...keys]);
+check("Données client limitées (ni e-mail, ni téléphone, ni adresse, ni prix, ni note de commande)",
+  !["email", "phone", "delivery_address", "total", "total_amount", "order_comment"].some((k) => keys.has(k)), [...keys]);
+// 24.11.2026 : heure (créneau + retrait/livraison) et bougies du gâteau.
+check("Fonction : créneau et bougies du gâteau renvoyés", got.find((i) => i.id === iSimple)?.slot === "14:00 – 15:00"
+  && JSON.stringify(got.find((i) => i.id === iSimple)?.candles) === JSON.stringify([{ id: "gold-spiral", quantity: 2 }]), got.find((i) => i.id === iSimple));
+check("Fonction : créneau et mode du fulfillment (retrait)", got.find((i) => i.id === iDateA)?.delivery_method === "pickup", got.find((i) => i.id === iDateA));
 
 r = await call({ orderId: oDates });
 check("Fiche commande : les deux gâteaux, chacun avec sa propre date", r.body.items?.length === 2 && r.body.items.find((i) => i.id === iDateB)?.date === D3 && r.body.items.find((i) => i.id === iDateA)?.date === D1);
@@ -212,7 +216,9 @@ check("« Paillettes : Or » jamais coupé avant les deux-points", !L.layoutCake
 check("Simple : texte exact (accents, majuscules, ponctuation), couleur et écriture", s.cakeText === "Joyeux anniversaire Zoé !" && s.textColour === "Rouge" && s.textStyle === "Cursive");
 const st = textOf(s).join(" | ");
 check("Simple : commentaire de la cliente → alerte, sans en imprimer le texte", s.alerts.join() === L.ALERT_COMMENT);
-check("Simple : rien d'interdit (créneau, bougies, notes, prix, retrait)", !/14:00|bougie|spiral|Merci beaucoup|Note client|CHF|Retrait|Livraison|45/i.test(st), st);
+check("Simple : rien d'interdit (notes, prix)", !/Merci beaucoup|Note client|CHF|45/i.test(st), st);
+check("Simple : heure sous la date, bougie sur une ligne (modèle et quantité)", st.includes("14:00 – 15:00") && st.includes("Bougie : ") && s.candle === "Gold Spiral ×2"
+  && st.indexOf("12.10.2026") < st.indexOf("14:00 – 15:00") && st.indexOf("14:00 – 15:00") < st.indexOf("Élodie Müller"), st);
 check("Simple : type de déco (Cerises) et lignes « Déco », « Couleur déco », « Style texte »", s.decoType === "Cerises" && st.includes("Déco : ") && st.includes("Couleur déco : ") && st.includes("Style texte : "), st);
 check("Simple : ordre date → client → commande en tête", st.indexOf("12.10.2026") < st.indexOf("Élodie Müller") && st.indexOf("Élodie Müller") < st.indexOf("ORD-261012-0001"));
 
@@ -232,10 +238,9 @@ check("Tri : ORD avant ORDM le même jour (ordre du numéro)", cakes.findIndex((
 
 const lg = cake(iLong);
 const lp = L.layoutCake(lg, measure);
-check("Texte long : plusieurs étiquettes (« Suite »), jamais coupé", lp.length >= 2, lp.length);
-check("Suite : reprend date, client, commande et « SUITE 2/n »", lp.slice(1).every((p) => { const t = L.pageText(p).join(" "); return t.includes("12.10.2026") && t.includes("Anne-Sophie") && t.includes("ORD-261012-0004") && t.includes(`SUITE ${p.index}/${p.count}`); }));
-check("Suite : un bloc coupé reprend son intitulé « … (suite) »", lp.slice(1).every((p) => { const t = L.pageText(p); return t.some((x) => /\(SUITE\)$/.test(x)) || t.includes("TEXTE À ÉCRIRE"); }), lp.slice(1).map(L.pageText));
-check("1ʳᵉ étiquette : renvoi « → Suite sur l'étiquette 2/n »", L.pageText(lp[0]).some((t) => t.startsWith("→ Suite sur l'étiquette 2/")));
+check("Texte long : UNE seule étiquette, texte réduit pour tout faire tenir (jamais de « Suite »)", lp.length === 1 && lp[0].scale < 1 && !L.pageText(lp[0]).some((t) => /suite/i.test(t)), lp.map((p) => p.scale));
+check("Texte long : date, client et commande toujours en tête", (() => { const t = L.pageText(lp[0]).join(" "); return t.includes("12.10.2026") && t.includes("Anne-Sophie") && t.includes("ORD-261012-0004"); })());
+check("Toutes les étiquettes : exactement 1 par gâteau", pages.length === cakes.length && pages.every((p) => p.count === 1));
 const words = (t) => t.split(/\s+/).filter(Boolean);
 const printed = words(lp.flatMap((p) => L.pageText(p)).join(" "));
 check("Texte long : chaque mot du texte imprimé, dans l'ordre, sans perte", (() => { let k = 0; for (const w of words(longText)) { k = printed.indexOf(w, k); if (k < 0) return false; k++; } return true; })());
@@ -247,7 +252,9 @@ check("Toutes les étiquettes : texte dans les marges (2 mm), rien hors format",
 const minFont = Math.min(...pages.flatMap((p) => p.ops.filter((o) => o.type === "text").map((o) => o.font.size)));
 const nameLines = L.wrap("Anne-Sophie de La Tour-Montgomery-Vallée", { size: 32, bold: true }, 352, measure);
 check("Nom long : coupé après un trait d'union, jamais au milieu d'un mot", nameLines.every((l) => /(^|[\s-])[A-Za-zÀ-ÿ]+-?$/.test(l)) && nameLines.join(" ").replace(/- /g, "-") === "Anne-Sophie de La Tour-Montgomery-Vallée", nameLines);
-check("Police jamais réduite : 20 points minimum (≈ 2,5 mm) même pour un texte long", minFont >= 20, minFont);
+check("Gâteau peu rempli : taille normale (pas réduit, 20 points minimum)", (() => { const p = L.layoutCake(m, measure)[0]; return p.scale === 1 && Math.min(...p.ops.filter((o) => o.type === "text").map((o) => o.font.size)) >= 20; })());
+check("Gâteau bien rempli (texte, couleurs, bougie, alerte) : à peine réduit, au-dessus du seuil d'alerte", L.layoutCake(s, measure)[0].scale >= L.SMALL_SCALE, L.layoutCake(s, measure)[0].scale);
+check("Seuls les gâteaux trop remplis sont réduits", pages.filter((p) => p.scale < 1).every((p) => [iLong, iSimple].includes(p.cake.itemId)) && minFont > 8, pages.map((p) => [p.cake.orderNumber, p.scale]));
 
 const e = cake(iEmpty);
 const et = textOf(e).join(" | ");
@@ -279,10 +286,32 @@ check("Commentaire de commande : alerte sur chaque gâteau de la commande, et le
   && L.cakeLabelsFor({ ...itQ, order: { ...itQ.order, has_comment: true } }).every((c) => c.alerts.includes(L.ALERT_COMMENT)));
 const longBoth = L.cakeLabelsFor({ ...items.find((i) => i.id === iLong), reference_photos: 2, order: { ...items.find((i) => i.id === iLong).order, has_comment: true } })[0];
 const lpA = L.layoutCake(longBoth, measure);
-check("Alertes sur CHAQUE étiquette (suites comprises), triangle dessiné devant chaque alerte", lpA.length >= 2 && lpA.every((p) => { const t = L.pageText(p).join(" "); return t.includes(L.ALERT_COMMENT) && t.includes(L.ALERT_PHOTO) && p.ops.filter((o) => o.type === "warn").length === 2; }), lpA.map(L.pageText));
+check("Texte long + 2 alertes : une seule étiquette, triangle dessiné devant chaque alerte", lpA.length === 1 && lpA.every((p) => { const t = L.pageText(p).join(" "); return t.includes(L.ALERT_COMMENT) && t.includes(L.ALERT_PHOTO) && p.ops.filter((o) => o.type === "warn").length === 2; }), lpA.map(L.pageText));
 check("Alertes jamais coupées : bandeau dans la zone imprimable, triangle dessiné", lpA.every((p) => p.ops.filter((o) => o.type === "fill").every((o) => o.y + o.h <= L.LABEL_H - 18 + 0.5) && p.ops.some((o) => o.type === "warn")));
 check("Texte long + alertes : aucun mot perdu", (() => { const printed = lpA.flatMap(L.pageText).join(" ").split(/\s+/); let k = 0; for (const w of longText.split(/\s+/)) { k = printed.indexOf(w, k); if (k < 0) return false; k++; } return true; })());
 check("Excel : colonne Alertes et lignes « ATTENTION : … » dans Détails", L.niimbotRow(both[0]).Alertes === `ATTENTION : ${L.ALERT_COMMENT}\nATTENTION : ${L.ALERT_PHOTO}` && L.niimbotRow(both[0]).Détails.includes("ATTENTION : PHOTO"));
+
+// ═══ Heure et bougies (24.11.2026) ══════════════════════════════════════
+check("Heure : « Retrait 14:00 – 15:00 » / « Livraison 10:00 – 11:00 », rien si inconnu", L.timeLineOf("14:00 – 15:00", "pickup") === "Retrait 14:00 – 15:00"
+  && L.timeLineOf("10:00 – 11:00", "delivery") === "Livraison 10:00 – 11:00" && L.timeLineOf(null, null) === null && L.timeLineOf(null, "pickup") === "Retrait");
+check("Bougies : chiffres, couleurs comptées en français, quantité, plusieurs modèles sur une ligne",
+  L.candleLineOf({ candles: [{ id: "number-candle", quantity: 2, digits: ["2", "5"] }, { id: "shiny-spiral", quantity: 3, colors: ["pink", "pink", "gold"] }] }) === "Bougie chiffre – 2, 5 ×2, Shiny Spiral (Rose ×2, Or) ×3",
+  L.candleLineOf({ candles: [{ id: "number-candle", quantity: 2, digits: ["2", "5"] }, { id: "shiny-spiral", quantity: 3, colors: ["pink", "pink", "gold"] }] }));
+check("Bougies : ancienne commande (texte à plat) et aucune bougie", L.candleLineOf({ candles: [], candle_name: "Gold Spiral", candle_quantity: 6 }) === "Gold Spiral ×6"
+  && L.candleLineOf({ candles: [], candle_name: "Gold Spiral ×6", candle_quantity: 6 }) === "Gold Spiral ×6" && L.candleLineOf({ candles: [] }) === null && L.candleLineOf({}) === null);
+check("Excel : colonnes Heure et Bougie, et dans Détails", L.niimbotRow(s).Heure.includes("14:00 – 15:00") && L.niimbotRow(s).Bougie === "Gold Spiral ×2" && L.niimbotRow(s).Détails.includes("Bougie : Gold Spiral ×2"));
+// Cas extrême : tout à la fois (À accepter, nom long, heure, plusieurs bougies, texte très long, 2 alertes).
+const extreme = { ...L.cakeLabelsFor({ ...items.find((i) => i.id === iLong), slot: "17:00 – 18:00", delivery_method: "delivery", reference_photos: 1,
+  candles: [{ id: "number-candle", quantity: 2, digits: ["1", "8"] }, { id: "shiny-spiral", quantity: 6, colors: ["pink", "gold", "blue", "red", "green", "purple"] }, { id: "gold-spiral", quantity: 6 }],
+  cake_text: `${longText} ${longText}`, order: { ...items.find((i) => i.id === iLong).order, has_comment: true } })[0], badge: "to_accept" };
+const xp = L.layoutCake(extreme, measure);
+const xt = xp.flatMap(L.pageText).join(" ");
+check("Cas extrême : une seule étiquette, rien hors format", xp.length === 1 && xp[0].ops.every((o) => o.type !== "text" || (o.y + o.font.size * 1.2 <= L.LABEL_H - 18 + 0.5 && o.x + (o.align === "right" ? 0 : measure(o.text, o.font)) <= L.LABEL_W - 16 + 0.5))
+  && xp[0].ops.filter((o) => o.type === "fill").every((o) => o.y + o.h <= L.LABEL_H - 18 + 0.5), xp.map((p) => p.scale));
+check("Cas extrême : heure, bougies, alertes, « À accepter » et tout le texte présents", xt.includes("Livraison 17:00 – 18:00") && xt.includes("Bougie chiffre – 1, 8 ×2") && xt.includes("Gold Spiral ×6")
+  && xt.includes(L.ALERT_COMMENT) && xt.includes(L.ALERT_PHOTO) && xt.includes("ACCEPTER")
+  && (() => { const printed = xt.split(/\s+/); let k = 0; for (const w of `${longText} ${longText}`.split(/\s+/)) { k = printed.indexOf(w, k); if (k < 0) return false; k++; } return true; })());
+check("Cas extrême : réduit fortement → signalé dans l'aperçu", xp[0].scale < L.SMALL_SCALE, xp[0].scale);
 
 // ═══ Inspirations : caractéristiques de référence ═══════════════════════
 const inspSrc = fs.readFileSync(path.join(REPO, "src/data/inspirations.ts"), "utf8");
@@ -319,7 +348,7 @@ check("Gâteau hors inspiration : aucune valeur de référence", !Object.values(
 const rows = cakes.map(L.niimbotRow);
 check("Excel NIIMBOT : une ligne par gâteau (quantité comprise), colonnes fixes", rows.length === cakes.length && Object.keys(rows[0]).join() === L.NIIMBOT_COLUMNS.join());
 const rl = L.niimbotRow(lg);
-check("Excel NIIMBOT : texte exact et « Détails » sans ligne vide", rl.Texte === longText && !rl.Détails.split("\n").some((x) => !x.trim()) && L.niimbotRow(e).Détails === "Bento Cake · Bento · Rond\nGoût : Vanilla\nATTENTION : COMMENTAIRE CLIENT À LIRE");
+check("Excel NIIMBOT : texte exact et « Détails » sans ligne vide", rl.Texte === longText && !rl.Détails.split("\n").some((x) => !x.trim()) && L.niimbotRow(e).Détails === "Heure 14:00 – 15:00\nBento Cake · Bento · Rond\nGoût : Vanilla\nATTENTION : COMMENTAIRE CLIENT À LIRE", L.niimbotRow(e).Détails);
 
 // ═══ Site ═══════════════════════════════════════════════════════════════
 const src = (f) => fs.readFileSync(path.join(REPO, f), "utf8");

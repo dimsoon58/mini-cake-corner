@@ -8,7 +8,7 @@ import {
 } from "@/data/customization";
 import { designLabel, shapeLabel, sizeLabel } from "@/lib/orderLabels";
 
-export type ProductId = "bento_cake" | "rectangle_cake" | "diy_kit" | "dot_cakes" | "edible_printing" | "candles" | "workshop";
+export type ProductId = "bento_cake" | "rectangle_cake" | "diy_kit" | "dot_cakes" | "edible_printing" | "candles" | "workshop" | "christmas_log";
 
 export interface CandleEntry {
   id: string;
@@ -58,7 +58,7 @@ export interface EditorItem {
   // F47 — commande déjà payée : ligne enregistrée (order_items.id), produit
   // gardé tel quel (workshop, Noël…), prix enregistré, statut Production.
   rowId?: string | null;
-  locked?: "workshop" | "christmas" | "unsupported" | null;
+  locked?: "workshop" | "unsupported" | null;
   rowTotal?: number | null;
   productionStatus?: string | null;
 }
@@ -86,6 +86,15 @@ export interface ManualOrderCatalog {
   };
   kit: { size: string; shapes: string[]; flavours: { id: string; name: string }[]; piping: string[] };
   dotCakes: { packs: { id: string; size: number; flavours: number; price: number }[]; flavours: { id: string; name: string }[] };
+  // Absent tant que la fonction n'est pas redéployée.
+  christmas?: {
+    lastDate: string;
+    cakes: { id: string; prices: Partial<Record<"bento" | "retro" | "medium" | "large", number>> }[];
+    logs: { id: string; price: number }[];
+    logSize: string;
+    classicFlavours: { id: string; name: string; surcharge: Record<string, number | null> }[];
+    editionFlavours: { id: string; name: string; logSurcharge: number; surcharge: Record<string, number | null> }[];
+  };
   printing: { size: string };
   candles: { numberCandleId: string; catalogue: { id: string; hasPack: boolean; packSize: number | null }[]; colourFamilies: Record<string, string[]> };
   workshops: { id: string; type: string; date: string; time: string | null; unitPrice: number; maxCapacity: number; isOpen: boolean; remainingSeats: number }[];
@@ -121,10 +130,10 @@ export const newKey = () =>
 export const emptyItem = (product: ProductId = "bento_cake"): EditorItem => ({
   key: newKey(),
   product,
-  size: product === "rectangle_cake" ? "rectangle" : product === "diy_kit" ? "kit-bento" : product === "edible_printing" ? "printing" : product === "bento_cake" ? "bento" : null,
+  size: product === "rectangle_cake" ? "rectangle" : product === "diy_kit" ? "kit-bento" : product === "edible_printing" ? "printing" : product === "bento_cake" ? "bento" : product === "christmas_log" ? "buche" : null,
   shape: product === "bento_cake" || product === "rectangle_cake" || product === "diy_kit" ? "round" : null,
   flavors: [],
-  design: product === "bento_cake" || product === "rectangle_cake" ? "normal-without-border" : null,
+  design: product === "bento_cake" || product === "rectangle_cake" ? "normal-without-border" : product === "christmas_log" ? "buche-grinch" : null,
   extras: product === "diy_kit" ? ["piping-2-bags"] : [],
   candles: [],
   fruit_supplement: null,
@@ -150,6 +159,12 @@ export const emptyItem = (product: ProductId = "bento_cake"): EditorItem => ({
   glitter_cherries_color: "",
   inside_color: "",
 });
+
+// ── Noël ────────────────────────────────────────────────────────────────
+// Gâteau de Noël = gâteau Bento/Retro/Medium/Large avec un design « noel-… »
+// (choisi dans le menu Design, comme sur le site). Bûche = produit à part.
+export const isChristmasCake = (item: Pick<EditorItem, "product" | "design">) =>
+  item.product === "bento_cake" && (item.design ?? "").startsWith("noel-");
 
 // ── Couleurs par option / design : mêmes règles et mêmes listes que le site (Catalog.tsx) ──
 export type ColourOption = { id: string; name: string; color: string };
@@ -197,6 +212,7 @@ export function coloursFromExtra(extra: string | null | undefined): { glitter_co
 
 export const PRODUCT_OPTIONS: { id: ProductId; en: string; fr: string }[] = [
   { id: "bento_cake", en: "Bento / Retro / Medium / Large cake", fr: "Gâteau Bento / Retro / Medium / Large" },
+  { id: "christmas_log", en: "Christmas log", fr: "Bûche de Noël" },
   { id: "rectangle_cake", en: "Rectangle cake", fr: "Gâteau Rectangle" },
   { id: "diy_kit", en: "Bento Kit", fr: "Bento Kit" },
   { id: "dot_cakes", en: "Dot Cakes", fr: "Dot Cakes" },
@@ -298,7 +314,7 @@ export function labelBreakdownLine(line: QuoteBreakdownLine, catalog: ManualOrde
     case "size": return `${fr ? "Taille" : "Size"} ${labelSize(line.id, lang)}`;
     case "shape": return `${fr ? "Forme" : "Shape"} ${labelShape(line.id, lang, size)}`;
     case "flavour": {
-      const all = catalog ? [...Object.values(catalog.cake.flavours).flat(), ...catalog.kit.flavours, ...catalog.dotCakes.flavours] : [];
+      const all = catalog ? [...(catalog.christmas?.editionFlavours ?? []), ...Object.values(catalog.cake.flavours).flat(), ...catalog.kit.flavours, ...catalog.dotCakes.flavours] : [];
       const name = all.find((f) => f.id === line.id)?.name ?? line.id;
       return `${fr ? "Parfum" : "Flavour"} ${name}${qty ? ` (${line.quantity} dots)` : ""}`;
     }
@@ -341,6 +357,10 @@ export const formatChf = (n: number | null | undefined) =>
 // same messages the checkout logs). Known ones are reworded for the admin;
 // anything unknown is shown as-is rather than hidden.
 const MESSAGE_RULES: { re: RegExp; en: string | ((m: RegExpMatchArray) => string); fr: string | ((m: RegExpMatchArray) => string) }[] = [
+  { re: /Christmas cakes and logs: last pickup or delivery date is (\S+)/i, en: (m) => `Christmas cakes and logs: last date ${m[1].split("-").reverse().join(".")}`, fr: (m) => `Gâteaux et bûches de Noël : dernière date le ${m[1].split("-").reverse().join(".")}` },
+  { re: /christmas design (\S+) unavailable for size/i, en: "This size doesn't exist for this Christmas cake", fr: "Cette taille n'existe pas pour ce gâteau de Noël" },
+  { re: /unavailable for christmas/i, en: "Choose a flavour from the Christmas lists", fr: "Choisissez un goût des listes de Noël" },
+  { re: /Christmas cakes take no fruit/i, en: "No fruit supplement on a Christmas cake", fr: "Pas de supplément fruits sur un gâteau de Noël" },
   { re: /exactly one flavou?r expected/i, en: "Choose a flavour", fr: "Choisissez un parfum" },
   { re: /^invalid size/i, en: "Choose a size", fr: "Choisissez une taille" },
   { re: /design is required/i, en: "Choose a design", fr: "Choisissez un design" },
@@ -454,6 +474,5 @@ export interface PlacedPreview {
 
 export const LOCK_LABELS: Record<string, { en: string; fr: string }> = {
   workshop: { en: "Workshop seats: change them with « Cancel seats ».", fr: "Places de workshop : à changer avec « Annuler des places »." },
-  christmas: { en: "Christmas product: flavour, colours and text with « Edit this cake ».", fr: "Produit de Noël : goût, couleurs et texte avec « Modifier ce gâteau »." },
   unsupported: { en: "This product can't be changed in this editor.", fr: "Ce produit ne se modifie pas dans cet éditeur." },
 };

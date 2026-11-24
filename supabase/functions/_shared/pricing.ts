@@ -272,6 +272,9 @@ export const CAKE_EXTRAS: Record<string, SizePriceMap> = {
   butterfly: { retro: 6, medium: 8, large: 10, rectangle: 20 },
   sprinkles: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 },
   "printed-picture": { bento: 15, retro: 15, medium: 15, large: 15 },
+  // Commandes manuelles de l'admin seulement (23.11.2026) : pas sur le site
+  // public, ni en Bento ni en Rectangle.
+  gems: { retro: 8, medium: 15, large: 25 },
 };
 
 // ── Candles (shared by embedded and standalone purchases) ─────────────────

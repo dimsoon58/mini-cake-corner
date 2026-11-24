@@ -182,7 +182,7 @@ serve(async (req) => {
         const fid = it.fulfillment_id ?? (fIndex.has("order") && it.product !== "workshop" ? "order" : null);
         if (fid && fIndex.has(fid)) fulfillments[fIndex.get(fid)!].itemIndexes.push(idx);
         return {
-          ...editorItemOfRow(it, flavourIdsOf(it.flavors)),
+          ...editorItemOfRow(it, flavourIdsOf(it.flavors, it)),
           // F47 — affichage seulement (le serveur relit tout).
           locked: placed.placed ? lockReasonOf(it) : null,
           rowTotal: it.total != null ? Number(it.total) : null,

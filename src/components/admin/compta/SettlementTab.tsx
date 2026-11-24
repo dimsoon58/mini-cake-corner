@@ -149,7 +149,7 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
           <Line label="Ventes maintenues du mois" value={money(x.revenueNet)}
             hint={`mois de réalisation, après annulations et gestes${x.toCollectInResult ? ` · dont ${money(x.toCollectInResult)} encore dû par les clients` : ""}`} />
           <Line label="− Dépenses du mois" value={money(x.expenses)} hint="date d'achat, payées par Bento ou avancées, chacune une fois" />
-          <Line label="− Salaire net confirmé" value={money(x.salary)} />
+          {Number(x.salary) !== 0 && <Line label="− Salaire net confirmé" value={money(x.salary)} />}
           <Line label="= Résultat du mois" value={money(x.result)} strong />
           {x.adjustmentsTotal !== 0 && <Line label="+ Ajustements de mois validés" value={money(x.adjustmentsTotal)} />}
           {view.adjustments.length > 0 && !x.validated && <p className="text-xs text-muted-foreground">{view.adjustments.map((a) => `${a.sourceMonth.slice(0, 7)} : ${money(a.amount)} (${a.reason})`).join(" · ")}</p>}
@@ -183,7 +183,7 @@ export default function SettlementTab({ month, onNotice }: { month: string; onNo
             {tr ? <>
               <Line label="Solde bancaire" value={money(tr.balance)} />
               <Line label="− factures encore à payer" value={money(tr.invoicesToPay)} />
-              <Line label="− salaire restant à verser" value={money(tr.salaryRemaining)} />
+              {Number(tr.salaryRemaining) !== 0 && <Line label="− salaire restant à verser" value={money(tr.salaryRemaining)} />}
               <Line label="− avances restant à rembourser" value={money(tr.advancesToRepay)} />
               <Line label="− parts validées non versées" value={money(tr.sharesUnpaid)} />
               <Line label="− paiements reçus pour des commandes futures" value={money(tr.customerPrepayments ?? 0)}

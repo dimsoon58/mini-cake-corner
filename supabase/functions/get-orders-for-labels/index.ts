@@ -33,6 +33,11 @@ import { productionCategory } from "../_shared/production-catalog.ts";
 // (un pack pour les Dot Cakes), calculés avec les règles de la page
 // Production (itemStockNeeds / itemPrepFlavours) ; la page multiplie par le
 // nombre d'étiquettes cochées.
+//
+// 2026-11-24 (Mel) — l'étiquette montre aussi l'heure (créneau + retrait /
+// livraison, `slot` / `delivery_method`) et les bougies choisies avec le
+// gâteau (`candles`, et `candle_name` / `candle_quantity` pour les anciennes
+// commandes). Toujours ni adresse, ni prix, ni note.
 
 const MAX_DAYS = 31;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -41,7 +46,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ITEM_FIELDS =
   "id, order_id, fulfillment_id, product, size, shape, flavors, design, base_color, decoration_color, inside_color, " +
   "ribbon_color, butterfly_color, extra, cake_text, text_color, text_style, item_comment, quantity, created_at, " +
-  "reference_images, design_image_url, production_status";
+  "reference_images, design_image_url, production_status, candles, candle_name, candle_quantity";
 
 // Photos de référence envoyées par la cliente : reference_images sans la photo
 // du design choisi sur le site (design_image_url, ou la photo d'inspiration
@@ -158,7 +163,7 @@ serve(async (req) => {
     if (single && orderById.size === 0) return json(cors, { error: "Commande introuvable" }, 404);
 
     const { data: fulfillments, error: afErr } = await supabase
-      .from("order_fulfillments").select("id, pickup_delivery_date").in("order_id", orderIds);
+      .from("order_fulfillments").select("id, pickup_delivery_date, pickup_delivery_slot, delivery_method").in("order_id", orderIds);
     if (afErr) throw new Error(`Failed to load order fulfillments: ${afErr.message}`);
     const fById = new Map((fulfillments ?? []).map((f) => [f.id, f]));
 
@@ -202,6 +207,8 @@ serve(async (req) => {
           return { genoises: needs, unknownUnits, flavours: itemPrepFlavours(unit) };
         })(),
         date,
+        slot: (f ? f.pickup_delivery_slot : (o as { pickup_delivery_slot?: string | null }).pickup_delivery_slot) ?? null,
+        delivery_method: (f ? f.delivery_method : (o as { delivery_method?: string | null }).delivery_method) ?? null,
         excluded,
         badge: status.include ? status.badge : null,
         order: {

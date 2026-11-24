@@ -1,7 +1,7 @@
 import type { FinanceMonth } from "@/lib/finance";
 import {
   FIDUCIARY_LABEL, SALES_REASON_LABELS, SALES_STATE_LABELS, STATUS_LABELS, inRange, monthTitle, orderComponentRows, receiptFileName,
-  salaryMonthTotal, salesLineLabel, salesLineNet, salesLinePaid,
+  salaryInUse, salaryMonthTotal, salesLineLabel, salesLineNet, salesLinePaid,
   type ExpensePeriod, type FiduciaryPeriod, type ReceiptFile, type SalaryOverview, type SalesMonth, type SalesOrdersMonth,
 } from "@/lib/compta";
 import { PAYMENT_LABELS, VALIDATION_LABELS } from "@/lib/customers";
@@ -45,8 +45,23 @@ export const periodLabel = (p: { from: string; to: string }) => (p.from.slice(0,
 export const fiduciaryFileName = (p: { from: string; to: string }) => `Bento-Cake-Studio_dossier-fiduciaire_${periodLabel(p)}.xlsx`;
 export const fiduciaryZipName = (p: { from: string; to: string }) => `Bento-Cake-Studio_dossier-fiduciaire_${periodLabel(p)}.zip`;
 
+/**
+ * Dépenses « Interne uniquement » : comptées chez nous (résultat, partage)
+ * mais jamais transmises au fiduciaire — ni ligne, ni total, ni justificatif.
+ */
+export function withoutInternal(d: PeriodData): PeriodData {
+  const internal = new Set(d.expenses.expenses.filter((e) => e.internal_only).map((e) => e.id));
+  if (!internal.size) return d;
+  return {
+    ...d,
+    expenses: { ...d.expenses, expenses: d.expenses.expenses.filter((e) => !internal.has(e.id)) },
+    receipts: d.receipts.filter((r) => !r.expenseId || !internal.has(r.expenseId)),
+  };
+}
+
 /** Totaux de la période (mêmes chiffres que la page). */
-export function periodTotals(d: PeriodData) {
+export function periodTotals(input: PeriodData) {
+  const d = withoutInternal(input);
   const sum = (xs: number[]) => r2(xs.reduce((s, x) => s + (Number(x) || 0), 0));
   const commonKnown = r2(d.expenses.expenses.filter((e) => e.counted !== false && inRange(e.purchase_date, d.from, d.to)).reduce((s, e) => s + (Number(e.chf_amount) || 0), 0));
   const salary = sum(d.salary.map((s) => salaryMonthTotal(s).total));
@@ -57,7 +72,8 @@ export function periodTotals(d: PeriodData) {
   };
 }
 
-export function buildFiduciaryWorkbook(ExcelJS: ExcelJSModule, d: PeriodData, files: NamedReceipt[]) {
+export function buildFiduciaryWorkbook(ExcelJS: ExcelJSModule, input: PeriodData, files: NamedReceipt[]) {
+  const d = withoutInternal(input);
   const wb = new ExcelJS.Workbook();
   wb.creator = "Bento Cake Studio — Admin";
   wb.created = new Date();
@@ -144,6 +160,9 @@ export function buildFiduciaryWorkbook(ExcelJS: ExcelJSModule, d: PeriodData, fi
     row.getCell("f").value = filesCell(e.code, "Dépenses communes", row.number, e.receipt_missing_reason);
   });
 
+  // Feuille « Salaire » seulement s'il existe un salaire (sinon : pas d'employé salarié).
+  const hasSalary = d.salary.some((s) => salaryInUse(s));
+  if (hasSalary) {
   const sal = sheet("Salaire", [{ header: "Référence", key: "code", width: 15 }, { header: "Mois", key: "m", width: 12 }, { header: "Personne", key: "p", width: 16 },
     { header: "Net confirmé", key: "net", width: 12, style: { numFmt: MONEY } }, { header: "Versé", key: "paid", width: 12, style: { numFmt: MONEY } }, { header: "Décompte (fichier du ZIP)", key: "f", width: 46 }]);
   d.salary.forEach((s) => s?.current.forEach((x) => {
@@ -151,6 +170,7 @@ export function buildFiduciaryWorkbook(ExcelJS: ExcelJSModule, d: PeriodData, fi
     // Même règle que la page : un décompte n'est attendu qu'une fois le salaire confirmé ou versé.
     row.getCell("f").value = filesCell(x.code, "Salaire", row.number, x.confirmed_net == null && !(Number(x.paid) > 0) ? "salaire pas encore confirmé ni versé" : null);
   }));
+  }
 
   const fid = sheet("Ajouts fiduciaires", [
     { header: "Référence", key: "code", width: 15 }, { header: "Date", key: "d", width: 12, style: { numFmt: DATE } }, { header: "Fournisseur", key: "s", width: 22 },
@@ -181,7 +201,7 @@ export function buildFiduciaryWorkbook(ExcelJS: ExcelJSModule, d: PeriodData, fi
     { k: "Reste à encaisser (ventes de la période non payées)", v: t.toCollect, e: "Déjà compté dans les ventes." },
     { k: "Remboursements restant à effectuer (annulés payés)", v: t.toRefund, e: "Articles annulés de la période, payés, pas encore remboursés." },
     { k: "Dépenses communes (date d'achat dans la période)", v: t.common, e: "Notre suivi interne (feuille Dépenses communes). Montants CHF inconnus non comptés." },
-    { k: "Salaire (net confirmé ou prévu)", v: t.salary, e: "Feuille Salaire." },
+    ...(hasSalary ? [{ k: "Salaire (net confirmé ou prévu)", v: t.salary, e: "Feuille Salaire." }] : []),
     { k: "Ajouts « fiduciaire uniquement »", v: t.fiduciary, e: `${FIDUCIARY_LABEL}. Pas dans notre résultat interne, ni la réserve, ni le partage ; aucun mouvement bancaire ; rien à rembourser.` },
     { k: "Écart avec notre suivi interne", v: t.fiduciary, e: "= total des ajouts fiduciaires : c'est la seule différence entre ce dossier et nos dépenses internes." },
     { k: `Pièces manquantes : ${missing.length}`, v: null, e: missing.length ? "Voir la feuille « Pièces manquantes »." : "Aucune." },
@@ -190,7 +210,8 @@ export function buildFiduciaryWorkbook(ExcelJS: ExcelJSModule, d: PeriodData, fi
   return { wb, missing };
 }
 
-export async function buildFiduciaryZip(ExcelJS: ExcelJSModule, d: PeriodData, fetcher: (url: string) => Promise<Blob>) {
+export async function buildFiduciaryZip(ExcelJS: ExcelJSModule, input: PeriodData, fetcher: (url: string) => Promise<Blob>) {
+  const d = withoutInternal(input);
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   const named = nameReceipts(d.receipts);
@@ -210,8 +231,8 @@ export async function buildFiduciaryZip(ExcelJS: ExcelJSModule, d: PeriodData, f
   zip.file("LISEZMOI.txt", [
     `Bento Cake Studio — dossier fiduciaire ${periodLabel(d)}`, "",
     missing.length ? `ÉTAT : INCOMPLET — ${missing.length} pièce(s) manquante(s), voir la feuille « Pièces manquantes ».` : "ÉTAT : toutes les pièces attendues sont présentes.", "",
-    `${fiduciaryFileName(d)} : synthèse, commandes (une ligne par gâteau), montants des commandes, paiements, remboursements, dépenses communes, salaire, ajouts fiduciaires, justificatifs, pièces manquantes.`,
-    "justificatifs/ : chaque fichier commence par la référence de sa ligne (DEP-… dépenses communes, SAL-… salaire, FID-… ajouts fiduciaires) ; la feuille « Justificatifs » donne la feuille et la ligne Excel.",
+    `${fiduciaryFileName(d)} : synthèse, commandes (une ligne par gâteau), montants des commandes, paiements, remboursements, dépenses communes, ${d.salary.some((s) => salaryInUse(s)) ? "salaire, " : ""}ajouts fiduciaires, justificatifs, pièces manquantes.`,
+    `justificatifs/ : chaque fichier commence par la référence de sa ligne (DEP-… dépenses communes, ${d.salary.some((s) => salaryInUse(s)) ? "SAL-… salaire, " : ""}FID-… ajouts fiduciaires) ; la feuille « Justificatifs » donne la feuille et la ligne Excel.`,
     `Ajouts « ${FIDUCIARY_LABEL} » : soumis pour examen, jamais déclarés déductibles d'office ; ils ne font pas partie de notre suivi interne.`,
     "Les parts versées aux associées et les remboursements d'avances ne sont jamais des dépenses.",
   ].join("\n"));

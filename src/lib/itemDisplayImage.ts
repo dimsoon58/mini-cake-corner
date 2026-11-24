@@ -16,6 +16,7 @@ import diyKitFallback from "@/assets/diy-kit-box.jpg";
 // commandé (catalogue / inspiration), sinon rien (case « Pas de photo »).
 import { styles } from "@/data/customization";
 import { INSPIRATIONS } from "@/data/inspirations";
+import { CHRISTMAS_CAKES, CHRISTMAS_LOGS } from "@/data/christmas";
 import heartBombBorderPhoto from "@/assets/design-heart-bomb-border.jpg";
 import workshopSignatureFallback from "@/assets/workshop-signature.jpg";
 import workshopPaintFallback from "@/assets/workshop-paint.png";
@@ -125,6 +126,9 @@ export function designCatalogueImage(design: string | null | undefined, comment?
   if (!d) return null;
   const insp = INSPIRATIONS.find((i) => i.id === d);
   if (insp) return insp.src;
+  // Noël : photo du modèle (une commande manuelle n'enregistre pas de photo).
+  const noel = CHRISTMAS_CAKES.find((c) => c.id === d) ?? CHRISTMAS_LOGS.find((b) => b.id === d);
+  if (noel) return noel.image;
   if (d === "heart-bomb" && /\[Preferred design: Option 2\]/.test(comment ?? "")) return heartBombBorderPhoto;
   return styles.find((s) => s.id === d)?.image ?? null;
 }
@@ -150,6 +154,7 @@ export function itemDisplayImage(item: DisplayImageItem): string | null {
     case "candles": return candleImageFromName(item.candleName) ?? candlesFallback;
     case "bento_cake":
     case "rectangle_cake": return designCatalogueImage(item.design, item.comment);
+    case "christmas_log": return designCatalogueImage(item.design, item.comment);
     case "edible_printing": return printingFallback;
     case "workshop": return item.workshopType === "paint" ? workshopPaintFallback : workshopSignatureFallback;
     default: return null;
