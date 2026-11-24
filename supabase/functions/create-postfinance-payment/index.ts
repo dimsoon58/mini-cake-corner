@@ -1255,7 +1255,7 @@ serve(async (req) => {
           (sum, idx) => (orderItems[idx].product === "candles" ? sum : sum + (orderItems[idx].total ?? 0)),
           0,
         );
-        // Articles de Noël : retrait / livraison au plus tard le 28.12.
+        // Articles de Noël : retrait / livraison au plus tard le 24.12.
         if (f.date > CHRISTMAS_LAST_DATE && f.itemIndexes.some((idx) => isChristmasItem(orderItems[idx]))) {
           throw new Error(`CHRISTMAS_DATE: fulfillment ${f.date} — Christmas cakes and logs are available until ${CHRISTMAS_LAST_DATE}.`);
         }

@@ -1,5 +1,5 @@
 // Lundi : aucun créneau avant 12:00 (retrait et livraison) ; 13 et 14
-// novembre 2026 et du 29 décembre 2026 au 7 janvier 2027 fermés (dates grisées) — sur le site uniquement, l'Admin
+// novembre 2026 et du 25 décembre 2026 au 7 janvier 2027 fermés (dates grisées) — sur le site uniquement, l'Admin
 // (commandes manuelles) garde tout. Vrai code serveur
 // (_shared/order-pricing.ts resolveOneFulfillment) et vrai code du site
 // (src/lib/orderDates.ts). Sans base, sans réseau.
@@ -60,7 +60,7 @@ check("Serveur : mardi 10:00 – 11:00 accepté (seul le lundi change)", (await 
 check("Serveur : samedi toujours limité à 11:00 – 12:00", (await resolve(SAT, "15:00 – 16:00")).startsWith("SATURDAY_SLOT:") && (await resolve(SAT, "11:00 – 12:00")) === "ok");
 check("Admin (commande manuelle) : lundi 10:00 – 11:00 accepté", (await resolve(MON, "10:00 – 11:00", "pickup", ADMIN)) === "ok");
 
-const HOLIDAYS = ["2026-12-29", "2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03", "2027-01-04", "2027-01-05", "2027-01-06", "2027-01-07"];
+const HOLIDAYS = ["2026-12-25", "2026-12-26", "2026-12-27", "2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03", "2027-01-04", "2027-01-05", "2027-01-06", "2027-01-07"];
 
 // ═══ 12, 13 et 14 novembre (12.11 ajouté le 09.11.2026) ═══════════════════════════════════════════════════
 check("Même liste de dates fermées sur le site et le serveur", JSON.stringify(site.CLOSED_DATES) === JSON.stringify(server.CLOSED_DATES) && site.CLOSED_DATES.join() === ["2026-11-12", "2026-11-13", "2026-11-14", ...HOLIDAYS].join());
@@ -77,8 +77,8 @@ if (zToday <= "2026-11-10") {
 } else {
   console.log("(12–14 novembre déjà trop proches ou passés : contrôles de date sautés)");
 }
-// ═══ Fêtes : 29 décembre 2026 → 7 janvier 2027 ═══════════════════════════
-if (zToday <= "2026-12-27") {
+// ═══ Fêtes : 25 décembre 2026 → 7 janvier 2027 (25–28.12 ajoutés le 24.11.2026) ═══
+if (zToday <= "2026-12-22") {
   for (const d of HOLIDAYS) {
     const day = new Date(`${d}T12:00:00Z`).getUTCDay();
     const slot = day === 6 ? "11:00 – 12:00" : "14:00 – 15:00";
@@ -88,10 +88,14 @@ if (zToday <= "2026-12-27") {
     check(`Serveur : ${d} refusé en retrait et en livraison`, refused(r1) && refused(r2), [r1, r2]);
     check(`Admin (commande manuelle) : ${d} accepté`, (await resolve(d, slot, "pickup", ADMIN)) === "ok");
   }
-  check("Site : 28 décembre (lundi) et 8 janvier (vendredi) restent ouverts",
-    !site.isOrderDateDisabled(new Date("2026-12-28T00:00:00")) && !site.isOrderDateDisabled(new Date("2027-01-08T00:00:00")));
-  check("Serveur : 28 décembre 14:00 et 8 janvier 10:00 acceptés",
-    (await resolve("2026-12-28", "14:00 – 15:00")) === "ok" && (await resolve("2027-01-08", "10:00 – 11:00")) === "ok");
+  check("Site : 24 décembre (jeudi) et 8 janvier (vendredi) restent ouverts",
+    !site.isOrderDateDisabled(new Date("2026-12-24T00:00:00")) && !site.isOrderDateDisabled(new Date("2027-01-08T00:00:00")));
+  check("Serveur : 24 décembre 14:00 et 8 janvier 10:00 acceptés",
+    (await resolve("2026-12-24", "14:00 – 15:00")) === "ok" && (await resolve("2027-01-08", "10:00 – 11:00")) === "ok");
+  check("Message des fêtes sur 25.12 et 28.12 : « du 25 décembre au 7 janvier »",
+    site.isHolidayClosure(new Date("2026-12-25T00:00:00")) && site.isHolidayClosure(new Date("2026-12-28T00:00:00")) && !site.isHolidayClosure(new Date("2026-12-24T00:00:00"))
+    && site.HOLIDAY_CLOSURE_COPY.fr === "Nous sommes fermés pour les fêtes, du 25 décembre au 7 janvier."
+    && site.HOLIDAY_CLOSURE_COPY.en === "We are closed for the holidays, from 25 December to 7 January.");
 } else {
   console.log("(fêtes déjà trop proches ou passées : contrôles de date sautés)");
 }

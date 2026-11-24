@@ -82,8 +82,8 @@ export const CHRISTMAS_CLASSIC_FLAVOURS = [
 ];
 
 // Dernière date de retrait / livraison possible pour un article de Noël
-// (Mel, 07.11.2026 : jusqu'au 28.12 ; la fermeture commence le 29.12).
-export const CHRISTMAS_LAST_DATE = "2026-12-28";
+// (Mel, 24.11.2026 : jusqu'au 24.12 ; la fermeture commence le 25.12).
+export const CHRISTMAS_LAST_DATE = "2026-12-24";
 
 export function isChristmasCakeDesign(design: string | null | undefined): boolean {
   return !!design && Object.prototype.hasOwnProperty.call(CHRISTMAS_CAKE_PRICES, design);

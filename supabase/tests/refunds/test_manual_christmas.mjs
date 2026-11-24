@@ -1,5 +1,5 @@
 // Commandes manuelles — gâteaux et bûches de Noël (21.11.2026) : catalogue,
-// prix (mêmes que la page Noël), limite du 28.12, lignes enregistrées comme le
+// prix (mêmes que la page Noël), limite du 24.12, lignes enregistrées comme le
 // site, relecture des goûts, articles de Noël modifiables (F47).
 //   node test_manual_christmas.mjs   (esbuild installé, voir README)
 import { build } from "esbuild";
@@ -29,7 +29,7 @@ const q = (items, date = "2026-12-22", historical = false) => m.quoteManualOrder
 const cat = await m.buildManualOrderCatalog(sb);
 ok(cat.christmas.cakes.length === 8 && cat.christmas.logs.length === 4, "catalogue 8 cakes 4 logs");
 ok(cat.christmas.editionFlavours.length === 10 && cat.christmas.classicFlavours.length === 15, "catalogue flavours");
-ok(cat.christmas.lastDate === "2026-12-28", "last date");
+ok(cat.christmas.lastDate === "2026-12-24", "last date");
 
 // Sapin medium Marron = 140 + 4 = 144 (as site test)
 let r = await q([{ product: "bento_cake", size: "medium", shape: "round", design: "noel-sapin", flavors: ["noel-marron"], extras: [], candles: [] }]);
@@ -52,7 +52,11 @@ r = await q([{ product: "bento_cake", size: "medium", shape: "round", design: "n
 ok(r.items[0].error && /fruit/.test(r.items[0].error), "fruit refused", r.items[0]);
 // date limit
 r = await q([{ product: "christmas_log", size: "buche", design: "buche-grinch", flavors: ["noel-marron"], extras: [], candles: [] }], "2027-01-12");
-ok(r.errors.some((e) => /last pickup or delivery date is 2026-12-28/.test(e)), "date after 28.12 refused", r.errors);
+ok(r.errors.some((e) => /last pickup or delivery date is 2026-12-24/.test(e)), "date after 24.12 refused", r.errors);
+r = await q([{ product: "christmas_log", size: "buche", design: "buche-grinch", flavors: ["noel-marron"], extras: [], candles: [] }], "2026-12-25");
+ok(r.errors.some((e) => /2026-12-24/.test(e)), "Christmas log on 25.12 refused (closure from 25.12)", r.errors);
+r = await q([{ product: "christmas_log", size: "buche", design: "buche-grinch", flavors: ["noel-marron"], extras: [], candles: [] }], "2026-12-24");
+ok(!r.errors.some((e) => /Christmas/.test(e)), "Christmas log on 24.12 accepted", r.errors);
 r = await q([{ product: "bento_cake", size: "bento", shape: "round", design: "normal-without-border", flavors: ["vanilla"], extras: [], candles: [] }], "2027-01-12");
 ok(!r.errors.some((e) => /Christmas/.test(e)), "normal cake not limited", r.errors);
 

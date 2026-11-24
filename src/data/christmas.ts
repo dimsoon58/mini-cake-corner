@@ -207,10 +207,10 @@ export function cakePhotos(cake: { image: string | null; moreImages?: string[] }
 }
 
 // Dernière date de retrait / livraison pour un article de Noël (Mel,
-// 07.11.2026) : le 28.12, la fermeture des fêtes commence le 29.12. Même
+// 24.11.2026) : le 24.12, la fermeture des fêtes commence le 25.12. Même
 // valeur que CHRISTMAS_LAST_DATE dans supabase/functions/_shared/christmas.ts.
-export const CHRISTMAS_LAST_DATE = "2026-12-28";
-const LAST_DATE_END = new Date(2026, 11, 28, 23, 59, 59);
+export const CHRISTMAS_LAST_DATE = "2026-12-24";
+const LAST_DATE_END = new Date(2026, 11, 24, 23, 59, 59);
 export function isAfterChristmasLastDate(date: Date): boolean {
   return date.getTime() > LAST_DATE_END.getTime();
 }

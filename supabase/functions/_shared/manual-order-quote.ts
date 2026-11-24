@@ -440,7 +440,7 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
     if (seenDates.has(d)) errors.push(`The date ${d} is used twice — put those items in the same date group`);
     seenDates.add(d);
   }
-  // Noël : dernier jour de retrait / livraison = 28.12, comme sur le site
+  // Noël : dernier jour de retrait / livraison = 24.12, comme sur le site
   // (pas pour une commande historique, déjà réalisée).
   if (!input.historical) {
     fulfillmentsIn.forEach((f) => {

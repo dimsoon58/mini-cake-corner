@@ -95,7 +95,8 @@ export function isMondayISO(dateISO: string): boolean {
 // The Admin manual-order flow may still use them (allowClosedDays).
 export const CLOSED_DATES: readonly string[] = [
   "2026-11-12", "2026-11-13", "2026-11-14", // 12.11 ajouté le 09.11.2026 (Mel) : plus de nouvelles commandes en ligne
-  // Fêtes : du 29 décembre 2026 au 7 janvier 2027 inclus
+  // Fêtes : du 25 décembre 2026 au 7 janvier 2027 inclus (25–28.12 ajoutés le 24.11.2026, Mel)
+  "2026-12-25", "2026-12-26", "2026-12-27", "2026-12-28",
   "2026-12-29", "2026-12-30", "2026-12-31",
   "2027-01-01", "2027-01-02", "2027-01-03", "2027-01-04", "2027-01-05", "2027-01-06", "2027-01-07",
 ];
