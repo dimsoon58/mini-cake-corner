@@ -1,4 +1,5 @@
-import { allFlavors, baseColors, extras as catalogExtras, ribbonColors, butterflyColors, glitterColors, glitterCherriesColors } from "@/data/customization";
+import { allFlavors, baseColors, candles as catalogCandles, extras as catalogExtras, ribbonColors, butterflyColors, glitterColors, glitterCherriesColors } from "@/data/customization";
+import { FAMILY_CANDLE_COLORS } from "@/components/ColorFamilyCandleCard";
 import { colourFr, extraNameFr, textStyleFr } from "@/data/catalogLabelsFr";
 import { inspirationReference } from "@/data/inspirationReference";
 import { PRODUCT_LABELS, designLabel, flavorLabel, formatDateCH, shapeLabel, sizeLabel, splitComment } from "@/lib/orderLabels";
@@ -9,15 +10,19 @@ import type { Category, SpongeBase } from "@/lib/production";
 // Une étiquette par gâteau physique (une ligne de quantité 2 → 2 étiquettes
 // « 1/2 » et « 2/2 »). Contenu limité à : date, client, n° de commande,
 // produit · taille · forme, goût, couleur de base, design, couleurs du design
-// et des décorations, texte exact, couleur et style du texte. Jamais le
-// créneau, les extras, les bougies, les notes, les prix ni retrait/livraison.
+// et des décorations, texte exact, couleur et style du texte ; depuis le
+// 24.11.2026 (Mel) aussi l'heure (« Retrait 14:00 – 15:00 » / « Livraison … »)
+// et les bougies choisies avec le gâteau, sur une ligne. Jamais les notes,
+// les prix ni l'adresse.
 // Aucune valeur n'est inventée : un champ vide est masqué, un champ
 // essentiel manquant est signalé dans l'aperçu (pas sur l'étiquette).
 //
 // Format NIIMBOT B1 : 203 dpi, tête de 384 points (48 mm). L'étiquette de
 // 50 × 80 mm est dessinée en 384 × 640 points, marges intérieures comprises.
-// Un contenu trop long n'est jamais coupé ni rapetissé : il continue sur une
-// étiquette « Suite » qui reprend date, client, commande et repère.
+// TOUJOURS UNE SEULE ÉTIQUETTE par gâteau (Mel, 24.11.2026) : un contenu trop
+// long n'est jamais coupé, toute l'étiquette est réduite (même proportion pour
+// tous les textes) jusqu'à ce que tout tienne ; l'aperçu signale une
+// réduction forte (SMALL_SCALE).
 
 // ── Données reçues de get-orders-for-labels ──────────────────────────────
 export interface LabelSourceItem {
@@ -51,6 +56,12 @@ export interface LabelSourceItem {
   quantity: number | null;
   created_at: string | null;
   date: string | null;
+  // 24.11.2026 — heure et bougies (absents tant que la fonction n'est pas redéployée).
+  slot?: string | null;                          // « 14:00 – 15:00 »
+  delivery_method?: string | null;               // "pickup" | "delivery"
+  candles?: unknown;                             // order_items.candles (jsonb)
+  candle_name?: string | null;                   // anciennes commandes : texte à plat
+  candle_quantity?: number | null;
   excluded: "not_a_cake" | "order_not_eligible" | "item_cancelled" | "no_date" | null;
   badge: "to_accept" | "awaiting_payment" | null;
   order: { id: string; order_number: string | null; first_name: string | null; last_name: string | null; manual: boolean | null; is_test: boolean; has_comment?: boolean };
@@ -62,6 +73,7 @@ export interface CakeLabel {
   orderId: string;
   date: string | null;    // AAAA-MM-JJ
   dateText: string;       // JJ.MM.AAAA
+  timeLine?: string | null;  // « Retrait 14:00 – 15:00 » / « Livraison 14:00 – 15:00 »
   customer: string;
   orderNumber: string | null;
   marker: string | null;  // « 1/2 » pour une ligne de quantité 2
@@ -74,6 +86,7 @@ export interface CakeLabel {
   cakeText: string | null;
   textColour: string | null;
   textStyle: string | null;
+  candle?: string | null;    // « Shiny Spiral (Rose ×2, Or) ×3, Bougie chiffre – 2, 5 ×2 »
   missing: string[];      // informations essentielles absentes (aperçu seulement)
   alerts: string[];       // « COMMENTAIRE CLIENT À LIRE », « PHOTO DE RÉFÉRENCE À VOIR »
   isTest: boolean;
@@ -260,6 +273,44 @@ function productLine(item: LabelSourceItem): string {
   return [...head, shape].filter(Boolean).join(" · ");
 }
 
+// ── Heure et bougies (24.11.2026) ────────────────────────────────────────
+/** « Retrait 14:00 – 15:00 » / « Livraison … » ; sans créneau → « Retrait » / « Livraison » seul, rien si inconnu. */
+export function timeLineOf(slot: string | null | undefined, method: string | null | undefined): string | null {
+  const kind = method === "delivery" ? "Livraison" : method === "pickup" ? "Retrait" : null;
+  const sl = clean(slot);
+  if (!kind && !sl) return null;
+  return [kind ?? "Heure", sl].filter(Boolean).join(" ");
+}
+
+const prettyId = (id: string) => id.split("-").filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+function candleColour(candleId: string, colourId: string): string {
+  const fam = FAMILY_CANDLE_COLORS[candleId]?.find((c) => c.id === colourId);
+  return fam ? fam.fr : colourLabel(colourId) === colourId ? prettyId(colourId) : colourLabel(colourId);
+}
+
+/** Bougies choisies avec le gâteau, sur une ligne : modèle (chiffres, couleurs) ×quantité, séparés par des virgules. */
+export function candleLineOf(item: Pick<LabelSourceItem, "candles" | "candle_name" | "candle_quantity">): string | null {
+  const list = Array.isArray(item.candles) ? (item.candles as Record<string, unknown>[]) : [];
+  const parts = list
+    .map((c) => {
+      const id = String(c?.id ?? "");
+      const qty = Number(c?.quantity) || 0;
+      if (!id || qty <= 0) return null;
+      const name = id === "number-candle" ? "Bougie chiffre" : (catalogCandles.find((x) => x.id === id)?.name ?? prettyId(id));
+      const digits = Array.isArray(c.digits) && c.digits.length ? (c.digits as unknown[]).map(String) : c.digit ? [String(c.digit)] : [];
+      const counts = new Map<string, number>();
+      for (const col of Array.isArray(c.colors) ? (c.colors as unknown[]).map(String) : []) counts.set(col, (counts.get(col) ?? 0) + 1);
+      const colours = [...counts].map(([col, n]) => `${candleColour(id, col)}${n > 1 ? ` ×${n}` : ""}`);
+      return `${name}${digits.length ? ` – ${digits.join(", ")}` : ""}${colours.length ? ` (${colours.join(", ")})` : ""} ×${qty}`;
+    })
+    .filter((x): x is string => !!x);
+  if (parts.length) return parts.join(", ");
+  const flat = clean(item.candle_name);
+  if (!flat) return null;
+  const q = Number(item.candle_quantity) || 0;
+  return q > 0 && !/×\s*\d/.test(flat) ? `${flat} ×${q}` : flat;
+}
+
 const NEEDS_SIZE = new Set(["bento_cake", "rectangle_cake", "dot_cakes"]);
 const NEEDS_FLAVOUR = new Set(["bento_cake", "rectangle_cake", "dot_cakes", "diy_kit"]);
 
@@ -314,6 +365,7 @@ export function cakeLabelsFor(item: LabelSourceItem): CakeLabel[] {
     orderId: item.order_id,
     date: item.date,
     dateText: item.date ? formatDateCH(item.date) : "",
+    timeLine: timeLineOf(item.slot, item.delivery_method),
     customer,
     orderNumber: clean(o.order_number) || null,
     marker: qty > 1 ? `${i + 1}/${qty}` : null,
@@ -327,6 +379,7 @@ export function cakeLabelsFor(item: LabelSourceItem): CakeLabel[] {
     cakeText,
     textColour: clean(item.text_color) ? colourLabel(clean(item.text_color)) : refOnly(ref?.writingColour),
     textStyle: !chosenStyle && ref?.writingStyle ? refOnly(ref.writingStyle) : styleName ? (textStyleFr[styleName] ?? styleName) : null,
+    candle: candleLineOf(item),
     missing,
     alerts,
     isTest: o.is_test,
@@ -372,9 +425,11 @@ export type DrawOp =
   | { type: "rule"; y: number; thick: boolean }
   | { type: "box"; x: number; y: number; w: number; h: number };
 
-export interface LabelPage { key: string; cake: CakeLabel; index: number; count: number; ops: DrawOp[] }
+// Toujours 1 étiquette par gâteau (index = count = 1) ; `scale` = réduction
+// appliquée pour que tout tienne (1 = taille normale).
+export interface LabelPage { key: string; cake: CakeLabel; index: number; count: number; ops: DrawOp[]; scale: number }
 
-const F = {
+const F0 = {
   date: { size: 40, bold: true },
   marker: { size: 30, bold: true },
   customer: { size: 32, bold: true },
@@ -389,7 +444,18 @@ const F = {
   textKey: { size: 20, bold: true },
   cakeText: { size: 28, bold: true },
   footer: { size: 20, bold: true },
+  time: { size: 28, bold: true },
+  alert: { size: 20, bold: true },
 } satisfies Record<string, FontSpec>;
+// Polices et espacements de la mise en page EN COURS, à l'échelle `SC`
+// (layoutCake essaie 1, puis réduit jusqu'à ce que tout tienne sur 1 étiquette).
+let SC = 1;
+let F: typeof F0 = F0;
+function setScale(s: number) {
+  SC = s;
+  F = Object.fromEntries(Object.entries(F0).map(([k, f]) => [k, { ...f, size: Math.round(f.size * s * 10) / 10 }])) as typeof F0;
+}
+const sp = (n: number) => Math.round(n * SC);
 const lh = (f: FontSpec) => Math.round(f.size * 1.2);
 
 /** Découpe en lignes : retours à la ligne et espaces du texte conservés,
@@ -420,9 +486,7 @@ export function wrap(text: string, font: FontSpec, width: number, measure: Measu
   return out;
 }
 
-// `cont` : intitulé à répéter si l'unité ouvre une étiquette « Suite » au
-// milieu de son bloc (« TEXTE À ÉCRIRE (suite) », « Couleurs (suite) »).
-interface Unit { h: number; ops: (y: number) => DrawOp[]; rule?: boolean; keep?: boolean; cont?: string }
+interface Unit { h: number; ops: (y: number) => DrawOp[]; rule?: boolean }
 
 function kvUnits(key: string, value: string, measure: Measure): Unit[] {
   const k = `${key} : `;
@@ -431,7 +495,6 @@ function kvUnits(key: string, value: string, measure: Measure): Unit[] {
   const h = lh(F.value);
   return lines.map((ln, i) => ({
     h,
-    cont: i > 0 ? `${key} (suite)` : undefined,
     ops: (y: number) => [
       ...(i === 0 ? [{ type: "text" as const, x: PAD_X, y, text: k, font: F.key }] : []),
       { type: "text" as const, x: PAD_X + (i === 0 ? kw : 0), y, text: ln, font: F.value },
@@ -445,13 +508,14 @@ function paraUnits(text: string, font: FontSpec, measure: Measure): Unit[] {
   }));
 }
 
-const ruleUnit = (): Unit => ({ h: 14, rule: true, ops: (y: number) => [{ type: "rule", y: y + 6, thick: false }] });
+const ruleUnit = (): Unit => ({ h: sp(14), rule: true, ops: (y: number) => [{ type: "rule", y: y + sp(6), thick: false }] });
 
 function bodyUnits(c: CakeLabel, measure: Measure): Unit[] {
   const blocks: Unit[][] = [];
   const a: Unit[] = [];
   if (c.productLine) a.push(...paraUnits(c.productLine, F.title, measure));
   if (c.flavour) a.push(...kvUnits("Goût", c.flavour, measure));
+  if (c.candle) a.push(...kvUnits("Bougie", c.candle, measure));
   if (a.length) blocks.push(a);
   const b: Unit[] = [];
   if (c.base) b.push(...kvUnits("Base", c.base, measure));
@@ -461,8 +525,8 @@ function bodyUnits(c: CakeLabel, measure: Measure): Unit[] {
   if (b.length) blocks.push(b);
   const t: Unit[] = [];
   if (c.cakeText) {
-    t.push({ h: lh(F.textKey), keep: true, ops: (y) => [{ type: "text", x: PAD_X, y, text: "TEXTE À ÉCRIRE", font: F.textKey }] });
-    t.push(...paraUnits(c.cakeText, F.cakeText, measure).map((u, k) => (k > 0 ? { ...u, cont: "TEXTE À ÉCRIRE (suite)" } : u)));
+    t.push({ h: lh(F.textKey), ops: (y) => [{ type: "text", x: PAD_X, y, text: "TEXTE À ÉCRIRE", font: F.textKey }] });
+    t.push(...paraUnits(c.cakeText, F.cakeText, measure));
   }
   if (c.textColour) t.push(...kvUnits("Couleur texte", c.textColour, measure));
   if (c.textStyle) t.push(...kvUnits("Style texte", c.textStyle, measure));
@@ -470,119 +534,99 @@ function bodyUnits(c: CakeLabel, measure: Measure): Unit[] {
   return blocks.flatMap((bl, i) => (i === 0 ? bl : [ruleUnit(), ...bl]));
 }
 
-function header(c: CakeLabel, measure: Measure, suite: { index: number; count: number } | null): { ops: DrawOp[]; h: number } {
+function header(c: CakeLabel, measure: Measure): { ops: DrawOp[]; h: number } {
   const ops: DrawOp[] = [];
   let y = PAD_TOP;
-  const fd = suite ? F.sDate : F.date;
-  const right = [c.marker, suite ? `SUITE ${suite.index}/${suite.count}` : null].filter(Boolean).join(" · ");
+  const fd = F.date;
+  const right = c.marker ?? "";
   let rightW = 0;
   if (right) {
-    const rf = suite ? F.tag : F.marker;
-    rightW = measure(right, rf) + 12;
+    const rf = F.marker;
+    rightW = measure(right, rf) + sp(12);
     ops.push({ type: "box", x: LABEL_W - PAD_X - rightW, y: y - 2, w: rightW, h: lh(rf) + 4 });
-    ops.push({ type: "text", x: LABEL_W - PAD_X - 6, y: y + Math.max(0, (lh(fd) - lh(rf)) / 2), text: right, font: rf, align: "right" });
+    ops.push({ type: "text", x: LABEL_W - PAD_X - sp(6), y: y + Math.max(0, (lh(fd) - lh(rf)) / 2), text: right, font: rf, align: "right" });
   }
-  for (const ln of wrap(c.dateText || "Date ?", fd, CONTENT_W - rightW - 8, measure)) { ops.push({ type: "text", x: PAD_X, y, text: ln, font: fd }); y += lh(fd); }
-  const fc = suite ? F.sCustomer : F.customer;
+  for (const ln of wrap(c.dateText || "Date ?", fd, CONTENT_W - rightW - sp(8), measure)) { ops.push({ type: "text", x: PAD_X, y, text: ln, font: fd }); y += lh(fd); }
+  // Heure de retrait / livraison, juste sous la date (24.11.2026).
+  if (c.timeLine) for (const ln of wrap(c.timeLine, F.time, CONTENT_W, measure)) { ops.push({ type: "text", x: PAD_X, y, text: ln, font: F.time }); y += lh(F.time); }
+  const fc = F.customer;
   for (const ln of wrap(c.customer || "Client ?", fc, CONTENT_W, measure)) { ops.push({ type: "text", x: PAD_X, y, text: ln, font: fc }); y += lh(fc); }
-  const fo = suite ? F.sOrder : F.order;
+  const fo = F.order;
   for (const ln of wrap(c.orderNumber || "N° ?", fo, CONTENT_W, measure)) { ops.push({ type: "text", x: PAD_X, y, text: ln, font: fo }); y += lh(fo); }
   if (c.badge === "to_accept") {
-    // Commande pas encore acceptée : mention encadrée sur chaque étiquette
+    // Commande pas encore acceptée : mention encadrée
     // (retour à la ligne si besoin, marge haute pour l'accent du « À »).
-    y += 4;
-    const lines = wrap(TO_ACCEPT, F.tag, CONTENT_W - 16, measure);
-    const w = Math.min(CONTENT_W, Math.max(...lines.map((ln) => measure(ln, F.tag))) + 16);
-    const h = lines.length * lh(F.tag) + 12;
+    y += sp(4);
+    const lines = wrap(TO_ACCEPT, F.tag, CONTENT_W - sp(16), measure);
+    const w = Math.min(CONTENT_W, Math.max(...lines.map((ln) => measure(ln, F.tag))) + sp(16));
+    const h = lines.length * lh(F.tag) + sp(12);
     ops.push({ type: "box", x: PAD_X, y, w, h });
-    lines.forEach((ln, k) => ops.push({ type: "text", x: PAD_X + 8, y: y + 7 + k * lh(F.tag), text: ln, font: F.tag }));
+    lines.forEach((ln, k) => ops.push({ type: "text", x: PAD_X + sp(8), y: y + sp(7) + k * lh(F.tag), text: ln, font: F.tag }));
     y += h + 2;
   }
-  y += 6;
+  y += sp(6);
   ops.push({ type: "rule", y, thick: true });
-  y += 12;
+  y += sp(12);
   return { ops, h: y };
 }
 
-const FOOTER_H = 30;
 export const TO_ACCEPT = "À ACCEPTER — commande non validée";
 
-/** Pages (étiquettes physiques) d'un gâteau : 1, ou plus avec des « Suite ». */
-// Alertes en bas de CHAQUE étiquette (suites comprises) : bandeau noir,
-// texte blanc, triangle « attention » DESSINÉ (pas le caractère ⚠, qu'une
-// police ou l'imprimante peut ne pas rendre). Place réservée : jamais
-// coupées. L'Excel, lui, écrit « ATTENTION : … » en toutes lettres.
-const ALERT_FONT: FontSpec = { size: 20, bold: true };
+// Alertes en bas de l'étiquette : bandeau noir, texte blanc, triangle
+// « attention » DESSINÉ (pas le caractère ⚠, qu'une police ou l'imprimante
+// peut ne pas rendre). L'Excel, lui, écrit « ATTENTION : … » en toutes lettres.
 function alertBlock(alerts: string[], measure: Measure): { h: number; ops: (top: number) => DrawOp[] } {
   if (alerts.length === 0) return { h: 0, ops: () => [] };
-  const icon = 22, gap = 6, pad = 5;
-  const lines = alerts.map((a) => wrap(a, ALERT_FONT, CONTENT_W - icon - 2 * pad - gap, measure));
-  const rowH = (n: number) => n * lh(ALERT_FONT) + 2 * pad;
-  const h = lines.reduce((s, l) => s + rowH(l.length) + 4, 6);
+  const icon = sp(22), gap = sp(6), pad = sp(5);
+  const lines = alerts.map((a) => wrap(a, F.alert, CONTENT_W - icon - 2 * pad - gap, measure));
+  const rowH = (n: number) => n * lh(F.alert) + 2 * pad;
+  const h = lines.reduce((s, l) => s + rowH(l.length) + sp(4), sp(6));
   return {
     h,
     ops: (top) => {
       const ops: DrawOp[] = [];
-      let y = top + 6;
+      let y = top + sp(6);
       for (const l of lines) {
         const hh = rowH(l.length);
         ops.push({ type: "fill", x: PAD_X, y, w: CONTENT_W, h: hh });
         ops.push({ type: "warn", x: PAD_X + pad, y: y + (hh - icon) / 2, size: icon });
-        l.forEach((ln, k) => ops.push({ type: "text", x: PAD_X + pad + icon + gap, y: y + pad + k * lh(ALERT_FONT), text: ln, font: ALERT_FONT, white: true }));
-        y += hh + 4;
+        l.forEach((ln, k) => ops.push({ type: "text", x: PAD_X + pad + icon + gap, y: y + pad + k * lh(F.alert), text: ln, font: F.alert, white: true }));
+        y += hh + sp(4);
       }
       return ops;
     },
   };
 }
 
-export function layoutCake(c: CakeLabel, measure: Measure): LabelPage[] {
+/** Réduction en dessous de laquelle l'aperçu prévient (texte petit, à vérifier). */
+export const SMALL_SCALE = 0.75;
+const MIN_SCALE = 0.3;
+const SCALE_STEP = 0.04;
+
+function layoutAt(c: CakeLabel, measure: Measure, scale: number): { ops: DrawOp[]; fits: boolean } {
+  setScale(scale);
+  const hd = header(c, measure);
   const units = bodyUnits(c, measure);
   const alertsBox = alertBlock(c.alerts ?? [], measure);
   const bottom = LABEL_H - PAD_BOTTOM - alertsBox.h;
-  const pages: DrawOp[][] = [];
-  let i = 0;
-  // 1ʳᵉ passe : répartition des unités ; le nombre total de pages n'est
-  // connu qu'à la fin, l'en-tête des suites est donc posé ensuite.
-  const chunks: Unit[][] = [];
-  let first = true;
-  while (first || i < units.length) {
-    const top = first ? header(c, measure, null).h : header(c, measure, { index: 2, count: 2 }).h;
-    const chunk: Unit[] = [];
-    let y = top;
-    const rest = units.slice(i).reduce((s, u) => s + u.h, 0);
-    const limit = y + rest <= bottom ? bottom : bottom - FOOTER_H;
-    while (i < units.length) {
-      const u = units[i];
-      if (chunk.length === 0 && u.rule) { i++; continue; }
-      if (chunk.length === 0 && u.cont) {
-        const label = u.cont;
-        chunk.push({ h: lh(F.textKey), ops: (yy) => [{ type: "text", x: PAD_X, y: yy, text: label.toUpperCase(), font: F.textKey }] });
-        y += lh(F.textKey);
-      }
-      // un intitulé (« TEXTE À ÉCRIRE ») ne reste jamais seul en bas
-      const need = u.keep && i + 1 < units.length ? u.h + units[i + 1].h : u.h;
-      if (y + need > limit && chunk.length > 0) break;
-      chunk.push(u); y += u.h; i++;
-      if (y > limit) break;
-    }
-    while (chunk.length && chunk[chunk.length - 1].rule) chunk.pop();
-    chunks.push(chunk);
-    first = false;
+  const ops = [...hd.ops];
+  let y = hd.h;
+  for (const u of units) { ops.push(...u.ops(y)); y += u.h; }
+  ops.push(...alertsBox.ops(bottom));
+  return { ops, fits: y <= bottom };
+}
+
+/** UNE étiquette par gâteau : taille normale si tout tient, sinon tout est
+ *  réduit dans la même proportion, par petits pas, jusqu'à ce que tout tienne. */
+export function layoutCake(c: CakeLabel, measure: Measure): LabelPage[] {
+  let scale = 1;
+  let res = layoutAt(c, measure, scale);
+  while (!res.fits && scale > MIN_SCALE) {
+    scale = Math.max(MIN_SCALE, Math.round((scale - SCALE_STEP) * 100) / 100);
+    res = layoutAt(c, measure, scale);
   }
-  chunks.forEach((chunk, p) => {
-    const hd = header(c, measure, p === 0 ? null : { index: p + 1, count: chunks.length });
-    const ops = [...hd.ops];
-    let y = hd.h;
-    for (const u of chunk) { ops.push(...u.ops(y)); y += u.h; }
-    ops.push(...alertsBox.ops(bottom));
-    if (p < chunks.length - 1) {
-      ops.push({ type: "rule", y: bottom - FOOTER_H + 2, thick: false });
-      ops.push({ type: "text", x: PAD_X, y: bottom - lh(F.footer), text: `→ Suite sur l'étiquette ${p + 2}/${chunks.length}`, font: F.footer });
-    }
-    pages.push(ops);
-  });
-  return pages.map((ops, p) => ({ key: `${c.key}-p${p + 1}`, cake: c, index: p + 1, count: pages.length, ops }));
+  setScale(1);
+  return [{ key: `${c.key}-p1`, cake: c, index: 1, count: 1, ops: res.ops, scale }];
 }
 
 export const layoutAll = (cakes: CakeLabel[], measure: Measure) => cakes.flatMap((c) => layoutCake(c, measure));
@@ -592,7 +636,7 @@ export const pageText = (p: LabelPage) => p.ops.filter((o): o is Extract<DrawOp,
 
 // ── Lignes pour l'app NIIMBOT (source de données Excel) ──────────────────
 export const NIIMBOT_COLUMNS = [
-  "Date", "Client", "Commande", "Repère", "Statut", "Produit", "Goût", "Base", "Design", "Déco", "Couleur déco",
+  "Date", "Heure", "Client", "Commande", "Repère", "Statut", "Produit", "Goût", "Bougie", "Base", "Design", "Déco", "Couleur déco",
   "Texte", "Couleur texte", "Style texte", "Alertes", "Détails",
 ] as const;
 
@@ -602,8 +646,10 @@ export function niimbotRow(c: CakeLabel): Record<(typeof NIIMBOT_COLUMNS)[number
   const alertText = (c.alerts ?? []).map((a) => `ATTENTION : ${a}`).join("\n");
   const details = [
     c.badge === "to_accept" ? TO_ACCEPT : "",
+    c.timeLine ?? "",
     c.productLine,
     c.flavour ? `Goût : ${c.flavour}` : "",
+    c.candle ? `Bougie : ${c.candle}` : "",
     c.base ? `Base : ${c.base}` : "",
     c.design ? `Design : ${c.design}` : "",
     c.decoType ? `Déco : ${c.decoType}` : "",
@@ -614,8 +660,8 @@ export function niimbotRow(c: CakeLabel): Record<(typeof NIIMBOT_COLUMNS)[number
     alertText,
   ].filter(Boolean).join("\n");
   return {
-    Date: c.dateText, Client: c.customer, Commande: c.orderNumber ?? "", Repère: c.marker ?? "", Statut: c.badge === "to_accept" ? "À ACCEPTER" : "",
-    Produit: c.productLine, Goût: c.flavour ?? "", Base: c.base ?? "", Design: c.design ?? "", Déco: c.decoType ?? "", "Couleur déco": c.colours ?? "",
+    Date: c.dateText, Heure: c.timeLine ?? "", Client: c.customer, Commande: c.orderNumber ?? "", Repère: c.marker ?? "", Statut: c.badge === "to_accept" ? "À ACCEPTER" : "",
+    Produit: c.productLine, Goût: c.flavour ?? "", Bougie: c.candle ?? "", Base: c.base ?? "", Design: c.design ?? "", Déco: c.decoType ?? "", "Couleur déco": c.colours ?? "",
     Texte: c.cakeText ?? "", "Couleur texte": c.textColour ?? "", "Style texte": c.textStyle ?? "", Alertes: alertText, Détails: details,
   };
 }

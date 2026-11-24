@@ -11,7 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { PRODUCT_LABELS, formatDateCH } from "@/lib/orderLabels";
 import {
-  EXCLUDED_LABELS, buildCakeLabels, workshopCakeLabels, mergeByDate, defaultSelectedKeys, layoutAll,
+  EXCLUDED_LABELS, SMALL_SCALE, buildCakeLabels, workshopCakeLabels, mergeByDate, defaultSelectedKeys, layoutAll,
   type CakeLabel, type LabelPage, type LabelSourceItem, type WorkshopLabelSource,
 } from "@/lib/productionLabels";
 import { canvasMeasure, exportNiimbotXlsx, exportOnePng, exportPdf, exportPngZip, renderPage } from "@/lib/productionLabelsExport";
@@ -150,7 +150,10 @@ export default function AdminLabels() {
     w.document.close();
   };
   const toggle = (key: string) => setSelected((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
-  const suites = pages.filter((p) => p.index > 1).length;
+  // Toujours 1 étiquette par gâteau : signale celles dont le texte a dû être fortement réduit.
+  const small = pages.filter((p) => p.scale < SMALL_SCALE).length;
+  // Heure et bougies : absentes tant que get-orders-for-labels n'est pas redéployée (champ `slot` absent).
+  const timeMissing = chosen.some((c) => !c.workshop && itemsById.get(c.itemId) && !("slot" in (itemsById.get(c.itemId) as object)));
   const stamp = orderId ? (cakes[0]?.orderNumber ?? "commande") : from === to ? from : `${from}_${to}`;
   const run = async (what: string, fn: () => Promise<void>) => {
     setBusy(what); setError(null);
@@ -189,7 +192,7 @@ export default function AdminLabels() {
             <section className="space-y-3 min-w-0" data-testid="labels-list">
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-semibold">{chosen.length} gâteau{chosen.length > 1 ? "x" : ""} sélectionné{chosen.length > 1 ? "s" : ""} sur {cakes.length}</span>
-                <span className="text-muted-foreground">· {pages.length} étiquette{pages.length > 1 ? "s" : ""}{suites ? ` (dont ${suites} « Suite »)` : ""}</span>
+                <span className="text-muted-foreground">· {pages.length} étiquette{pages.length > 1 ? "s" : ""} (1 par gâteau)</span>
                 <span className="flex-1" />
                 <Button size="sm" variant="outline" className="rounded-none h-8" onClick={() => setSelected(new Set(defaultSelectedKeys(cakes)))}>Tous les confirmés</Button>
                 {toAccept.length > 0 && (
@@ -339,13 +342,15 @@ export default function AdminLabels() {
                   <p>Le site n'imprime pas directement en Bluetooth : l'impression passe par l'app NIIMBOT.</p>
                 </div>
               </details>
+              {timeMissing && <p className="text-xs text-amber-900" role="status">Heure et bougies indisponibles : la fonction get-orders-for-labels doit être redéployée.</p>}
+              {small > 0 && <p className="text-xs text-amber-900" role="status">{small} étiquette{small > 1 ? "s" : ""} avec un texte fortement réduit pour tout faire tenir : vérifiez que c'est lisible.</p>}
               {pages.length === 0 && chosen.length > 0 && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
               <div className="flex flex-wrap gap-3">
                 {pages.map((p) => (
                   <figure key={p.key} className="space-y-1">
                     <PageImage page={p} />
                     <figcaption className="flex items-center justify-between gap-1 text-[11px] text-muted-foreground w-[192px]">
-                      <span className="truncate">{p.cake.orderNumber}{p.cake.marker ? ` · ${p.cake.marker}` : ""}{p.count > 1 ? ` · ${p.index}/${p.count}` : ""}</span>
+                      <span className={cn("truncate", p.scale < SMALL_SCALE && "text-amber-900 font-semibold")}>{p.cake.orderNumber}{p.cake.marker ? ` · ${p.cake.marker}` : ""}{p.scale < 1 ? ` · texte ${Math.round(p.scale * 100)} %` : ""}</span>
                       <button type="button" className="inline-flex items-center gap-0.5 hover:text-foreground" onClick={() => run("one", () => exportOnePng(p))} aria-label="Télécharger cette étiquette">
                         <Download className="w-3.5 h-3.5" />PNG
                       </button>
