@@ -204,6 +204,7 @@ export const styles = [
   { id: "roses-please", name: "Roses Please", price: { bento: 3, retro: 8, medium: 15, large: 20, rectangle: 40 } as Record<string, number>, image: designRosesPlease },
   { id: "retro-glitter-cake", name: "Retro Glitter Cake", price: { retro: 11, medium: 20, large: 27, rectangle: 55 } as Record<string, number>, image: designRetroGlitter },
   { id: "printed-picture", name: "Printed Picture", price: { bento: 15, retro: 15, medium: 15, large: 15 } as Record<string, number>, image: designPrintedPicture },
+  { id: "gems", name: "Gems", price: { bento: 5, retro: 8, medium: 15, large: 25 } as Record<string, number>, image: designShagCake },
   { id: "shag-cake", name: "Shag Cake", price: { retro: 12, medium: 20, large: 30, rectangle: 50 } as Record<string, number>, image: designShagCake, secondImage: designShagCake2 },
   { id: "rainbow-cake", name: "Rainbow Cake", price: { retro: 15, medium: 20, large: 30, rectangle: 50 } as Record<string, number>, image: designRainbowCake },
   { id: "custom-drawing", name: "Custom Drawing", price: { bento: 8, retro: 10, medium: 10, large: 15 } as Record<string, number>, image: designDrawing },
@@ -449,7 +450,7 @@ export const designAllowedExtras: Record<string, string[]> = {
 
 // Designs whose catalogue sheet hides the extras section entirely (same as
 // hideExtras in Catalog.tsx's colour config, plus every Inspiration photo).
-const EXTRAS_HIDDEN_DESIGNS = new Set(["gender-reveal", "heart-bomb"]);
+const EXTRAS_HIDDEN_DESIGNS = new Set(["gender-reveal", "heart-bomb", "gems"]);
 
 /**
  * Extras excluded when a cake already in the cart is edited — the same rule

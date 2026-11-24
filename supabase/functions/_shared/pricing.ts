@@ -145,6 +145,7 @@ export const CAKE_DESIGNS: Record<string, SizePriceMap> = {
   "butterfly-garden": { retro: 10, medium: 15, large: 20, rectangle: 35 },
   "glitter-base": { bento: 8, retro: 8, medium: 10, large: 12, rectangle: 25 },
   "gender-reveal": { bento: 5, retro: 7, medium: 10, large: 15, rectangle: 40 },
+  "gems": { bento: 5, retro: 8, medium: 15, large: 25 },
   "sprinkles-with-border": { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 },
   "rectangle-signature": { rectangle: 30 },
   "rectangle-raspberries": { rectangle: 60 },

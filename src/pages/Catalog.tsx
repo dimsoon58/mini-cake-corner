@@ -521,6 +521,17 @@ const catalog = [
     disableText: false,
   },
   {
+    id: "gems",
+    name: "Gems",
+    description: "A delicate cake adorned with shimmering gem decorations",
+    image: designShagCake, // TODO: replace with real Gems photo
+    styleId: "gems",
+    styleName: "Gems",
+    priceRange: "CHF 45 – 195",
+    stylePrice: { bento: 5, retro: 8, medium: 15, large: 25 },
+    disableText: false,
+  },
+  {
     id: "rainbow-cake",
     name: "Rainbow Cake",
     description: "A fun retro-style cake with pastel rainbows, sprinkles, and piped borders",
@@ -714,6 +725,7 @@ const colorSectionOverrides: Record<string, Partial<ColorSectionConfig>> = {
   },
   "gender-reveal": { showBase: false, secondaryLabel: null, hideExtras: true },
   "heart-bomb": { secondaryLabel: "Heart colour", secondaryMax: 1, hideExtras: true },
+  "gems": { hideExtras: true },
   "shag-cake": { showBase: false, secondaryLabel: "Choose your colours", secondaryMax: 6 },
   "rainbow-cake": { secondaryLabel: null },
   "printed-picture": { secondaryLabel: "Border colour", secondaryMax: 1 },
@@ -735,7 +747,7 @@ const getColorConfig = (styleId?: string): ColorSectionConfig => ({
 // Collections: curated groupings shown as separate catalog sections
 const collections = [
   { title: "The Best Sellers Collection", anchor: "best-sellers", ids: ["retro-cake", "roses-please", "pearl-border-retro"] },
-  { title: "The Iconic Collection", anchor: "iconic", ids: ["shag-cake", "butterfly-garden", "heart-bomb"] },
+  { title: "The Iconic Collection", anchor: "iconic", ids: ["shag-cake", "gems", "butterfly-garden", "heart-bomb"] },
   { title: "The Minimal Collection", anchor: "minimal", ids: ["normal-with-border", "normal-without-border"] },
   { title: "The Original Collection", anchor: "original", ids: ["golden-cake", "rainbow-cake", "retro-ribbons-glitter"] },
   { title: "The Personalised Collection", anchor: "personalised", ids: ["printed-picture", "gender-reveal", "drawing"] },
@@ -875,6 +887,7 @@ const cakeDescFr: Record<string, string> = {
   "retro-glitter-cake": "Une finition pailletée et scintillante sur un gâteau rétro",
   "printed-picture": "Ajoutez une touche personnelle avec une photo ou un logo imprimé sur le gâteau",
   "shag-cake": "Un shag cake d'inspiration rétro, à la texture riche et aux détails colorés",
+  "gems": "Un gâteau délicat orné de décorations scintillantes façon gemmes.",
   "rainbow-cake": "Un gâteau amusant de style rétro, avec des arcs-en-ciel pastel, des vermicelles et des bordures pochées",
   "drawing": "Un dessin simple, personnalisé et réalisé à la main. Les illustrations complexes sont disponibles sur devis.",
   "cherries-retro": "Un gâteau rétro couronné de cerises",
@@ -900,6 +913,7 @@ const styleNameFr: Record<string, string> = {
   "retro-glitter-cake": "Retro Glitter Cake",
   "printed-picture": "Printed Picture",
   "shag-cake": "Shag Cake",
+  "gems": "Gems",
   "rainbow-cake": "Rainbow Cake",
   "custom-drawing": "Custom Drawing",
   "cherries-retro": "Cherries on a Retro Cake",
