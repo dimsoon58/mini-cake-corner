@@ -39,6 +39,8 @@ export interface LabelSourceItem {
   ribbon_color: string | null;
   butterfly_color: string | null;
   extra: string | null;
+  // F49 — extras libres tapés par l'admin (absent tant que la fonction n'est pas redéployée).
+  custom_extras?: { label?: string; amount?: number }[] | null;
   cake_text: string | null;
   text_color: string | null;
   text_style: string | null;
@@ -247,6 +249,13 @@ function decoTypes(extra: string | null): string | null {
   return counts.size ? [...counts.values()].map((c) => (c.n > 1 ? `${c.name} ×${c.n}` : c.name)).join(", ") : null;
 }
 
+// F49 — extras libres : leur texte, tel que l'admin l'a tapé (jamais le prix).
+function customExtraLabels(v: LabelSourceItem["custom_extras"]): string | null {
+  const labels = (Array.isArray(v) ? v : []).map((e) => clean(e?.label ?? null)).filter(Boolean);
+  return labels.length ? labels.join(", ") : null;
+}
+const joinDeco = (a: string | null, b: string | null) => [a, b].filter(Boolean).join(", ") || null;
+
 function flavourLine(flavors: string[] | null): string | null {
   const names = (flavors ?? []).map((f) => clean(f)).filter(Boolean).map((f) => {
     const byId = allFlavors.find((x) => x.id === f);
@@ -373,7 +382,7 @@ export function cakeLabelsFor(item: LabelSourceItem): CakeLabel[] {
     flavour,
     base: clean(item.base_color) ? colourLabel(clean(item.base_color)) : refOnly(ref?.base),
     design,
-    decoType: decoTypes(item.extra) ?? refOnly(ref?.extras.length ? ref.extras.join(", ") : null),
+    decoType: joinDeco(decoTypes(item.extra), customExtraLabels(item.custom_extras)) ?? refOnly(ref?.extras.length ? ref.extras.join(", ") : null),
     // espace insécable avant « : » : « Paillettes : Or » ne se coupe jamais avant les deux-points
     colours: colours.length ? colours.join(" · ").replace(/ : /g, "\u00a0: ") : refOnly(ref?.decoration),
     cakeText,

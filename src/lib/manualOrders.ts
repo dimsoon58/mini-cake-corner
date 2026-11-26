@@ -17,6 +17,9 @@ export interface CandleEntry {
   digits?: string[];
 }
 
+export interface CustomExtraEntry { label: string; amount: string }
+export const MAX_CUSTOM_EXTRAS = 10;
+
 export interface EditorItem {
   key: string;                 // client-side identity only
   product: ProductId;
@@ -29,6 +32,9 @@ export interface EditorItem {
   // Supplément fruits (gâteaux) : null = pas de fruits ; sinon le montant en
   // CHF tapé par l'admin (texte du champ, « 12.50 »).
   fruit_supplement: string | null;
+  // F49 — extras libres : texte et prix (CHF, texte du champ) tapés par
+  // l'admin. Le prix est recalculé par le serveur.
+  custom_extras: CustomExtraEntry[];
   // F46 — options offertes : clés des lignes du détail de prix
   // (« design:mini-heart ») ou « all » = l'article entier. Le montant est
   // toujours calculé par le serveur.
@@ -101,7 +107,7 @@ export interface ManualOrderCatalog {
 }
 
 export interface QuoteBreakdownLine {
-  kind: "size" | "shape" | "flavour" | "design" | "extra" | "fruit" | "piping" | "pack" | "candle" | "printing" | "workshop";
+  kind: "size" | "shape" | "flavour" | "design" | "extra" | "fruit" | "custom" | "piping" | "pack" | "candle" | "printing" | "workshop";
   id: string;
   amount: number;
   quantity?: number;
@@ -137,6 +143,7 @@ export const emptyItem = (product: ProductId = "bento_cake"): EditorItem => ({
   extras: product === "diy_kit" ? ["piping-2-bags"] : [],
   candles: [],
   fruit_supplement: null,
+  custom_extras: [],
   free_options: [],
   dateKey: null,
   workshop_session_id: null,
@@ -256,7 +263,19 @@ type ExtraFields = {
   extra: string | null; extra_type: string | null; extra_color: string | null;
   ribbon_color: string | null; butterfly_color: string | null; inside_color: string | null;
 };
+// F49 — texte des extras libres remplis (nom seul), ajouté à order_items.extra
+// pour les e-mails, Production et l'admin.
+export const customExtraLabels = (item: Pick<EditorItem, "custom_extras">): string[] =>
+  (item.custom_extras ?? []).map((e) => e.label.trim().replace(/\s+/g, " ")).filter(Boolean);
+
 export function extraFields(item: EditorItem): ExtraFields {
+  const base = catalogueExtraFields(item);
+  const custom = item.product === "workshop" ? [] : customExtraLabels(item);
+  if (custom.length === 0) return base;
+  return { ...base, extra: [base.extra, ...custom].filter(Boolean).join(", ") };
+}
+
+function catalogueExtraFields(item: EditorItem): ExtraFields {
   const none = { extra_color: null, ribbon_color: null, butterfly_color: null, inside_color: null };
   if (item.product === "diy_kit") {
     return { extra: item.extras[0] ? labelPiping(item.extras[0], "en") : null, extra_type: null, ...none };
@@ -307,7 +326,7 @@ export const DELIVERY_TIME_SLOTS = [
 export const slotsFor = (method: "pickup" | "delivery") => (method === "delivery" ? DELIVERY_TIME_SLOTS : PICKUP_TIME_SLOTS);
 
 // Display name of one line of the server's price detail.
-export function labelBreakdownLine(line: QuoteBreakdownLine, catalog: ManualOrderCatalog | null, lang: "en" | "fr", size?: string | null): string {
+export function labelBreakdownLine(line: QuoteBreakdownLine, catalog: ManualOrderCatalog | null, lang: "en" | "fr", size?: string | null, customExtras?: CustomExtraEntry[]): string {
   const fr = lang === "fr";
   const qty = line.quantity && line.quantity > 1 ? ` × ${line.quantity}` : "";
   switch (line.kind) {
@@ -321,6 +340,7 @@ export function labelBreakdownLine(line: QuoteBreakdownLine, catalog: ManualOrde
     case "design": return `Design ${labelDesign(line.id)}`;
     case "extra": return `${labelExtra(line.id)}${qty}`;
     case "fruit": return fr ? "Supplément fruits" : "Fruit supplement";
+    case "custom": return `Extra : ${customExtras?.[Number(line.id)]?.label.trim() || "?"}`;
     case "piping": return labelPiping(line.id, lang);
     case "pack": return `Pack ${labelSize(line.id, lang)}`;
     case "candle": return `${labelCandle(line.id, lang)}${qty}`;
@@ -396,6 +416,11 @@ const MESSAGE_RULES: { re: RegExp; en: string | ((m: RegExpMatchArray) => string
   { re: /confirm the legal representative/i, en: "Confirm the legal representative's consent", fr: "Confirmez l'accord du représentant légal" },
   { re: /amount of the fruit supplement/i, en: "Enter the amount of the fruit supplement", fr: "Indiquez le montant du supplément fruits" },
   { re: /fruit supplement can't exceed/i, en: "The fruit supplement can't exceed CHF 500", fr: "Le supplément fruits ne peut pas dépasser CHF 500" },
+  { re: /Type what the custom extra is/i, en: "Type what each custom extra is", fr: "Écrivez ce qu'est chaque extra libre" },
+  { re: /Enter the price of « (.+) »/i, en: "Enter the price of each custom extra", fr: "Indiquez le prix de chaque extra libre" },
+  { re: /custom extra can't exceed CHF/i, en: "A custom extra can't exceed CHF 500", fr: "Un extra libre ne peut pas dépasser CHF 500" },
+  { re: /custom extra name can't exceed/i, en: "A custom extra name can't exceed 80 characters", fr: "Le nom d'un extra libre ne peut pas dépasser 80 caractères" },
+  { re: /custom extras per product/i, en: "At most 10 custom extras per product", fr: "10 extras libres au maximum par produit" },
   { re: /Add at least one product/i, en: "Add at least one product", fr: "Ajoutez au moins un produit" },
   { re: /removed product already has a Production history/i,
     en: "A product you removed is already started in Production (done, stock used or label) — keep it, or cancel it from the order page (« Cancel this cake »)",

@@ -727,6 +727,15 @@ const AdminOrder = () => {
                         {item.extra && (
                           <DetailRow label={t("Extras", "Extras")} value={item.extra} />
                         )}
+                        {/* F49 — extras libres (compris dans le prix) ; l'employée voit le nom seul. */}
+                        {Array.isArray(item.custom_extras) && item.custom_extras.length > 0 && (
+                          <DetailRow
+                            label={t("Custom extras", "Extras libres")}
+                            value={item.custom_extras
+                              .map((e: { label?: string; amount?: number }) => (employee ? String(e?.label ?? "") : `${e?.label ?? ""} — CHF ${Number(e?.amount ?? 0).toFixed(2)}`))
+                              .join("\n") + (employee ? "" : ` (${t("included in the price", "compris dans le prix")})`)}
+                          />
+                        )}
                         {Number(item.fruit_supplement) > 0 && (
                           <DetailRow
                             label={t("Fruit supplement", "Supplément fruits")}

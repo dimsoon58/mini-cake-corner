@@ -1,6 +1,6 @@
 // manage-manual-order — lignes d'articles communes à l'enregistrement d'une
 // commande manuelle (save) et à la modification d'une commande payée (F47).
-import { fruitSupplementOf, type QuoteItemInput, type QuoteItemResult } from "../_shared/manual-order-quote.ts";
+import { customExtrasOf, fruitSupplementOf, type QuoteItemInput, type QuoteItemResult } from "../_shared/manual-order-quote.ts";
 import { FLAVOUR_BY_ID } from "../_shared/production-catalog.ts";
 import { CAKE_EXTRAS, DIY_KIT_PIPING, roundToCents } from "../_shared/pricing.ts";
 import { isCatalogColourId } from "../_shared/catalog-colours.ts";
@@ -143,6 +143,9 @@ export function buildItemRow(
     // Supplément fruits : déjà compris dans `total` (quote) ; gardé à
     // part pour la ligne de la facture et l'Admin.
     fruit_supplement: fruitSupplementOf(it).amount || null,
+    // F49 — extras libres : déjà compris dans `total` (quote) ; gardés à
+    // part pour les lignes de la facture et l'Admin.
+    custom_extras: (() => { const c = customExtrasOf(it).extras; return c.length ? c : null; })(),
     // F46 — options offertes : déjà déduites de `total` (quote) ;
     // gardées à part pour la ligne « Offert » de la facture et l'Admin.
     free_options: q?.freeOptions?.length ? q.freeOptions : null,
@@ -181,6 +184,7 @@ export function editorItemOfRow(it: any, flavourIds: string[]) {
     extras: it.extras ?? [],
     candles: it.candles ?? [],
     fruit_supplement: it.fruit_supplement != null ? Number(it.fruit_supplement) : null,
+    custom_extras: Array.isArray(it.custom_extras) ? it.custom_extras : [],
     free_options: it.free_options ?? [],
     workshop_session_id: it.workshop_session_id,
     workshop_participants: it.workshop_participants,

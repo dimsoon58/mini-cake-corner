@@ -221,12 +221,15 @@ const AdminManualOrderEditor = () => {
         const groupOfItem = new Map<number, string>();
         (o.fulfillments ?? []).forEach((f: { itemIndexes: number[] }, gi: number) => f.itemIndexes.forEach((ii) => groupOfItem.set(ii, loadedGroups[gi].key)));
         setGroups(loadedGroups.length > 0 ? loadedGroups : [emptyGroup()]);
-        setItems((o.items ?? []).map((it: Omit<Partial<EditorItem>, "fruit_supplement"> & { product: EditorItem["product"]; extra?: string | null; fruit_supplement?: number | null }, ii: number) => ({
+        setItems((o.items ?? []).map((it: Omit<Partial<EditorItem>, "fruit_supplement" | "custom_extras"> & { product: EditorItem["product"]; extra?: string | null; fruit_supplement?: number | null; custom_extras?: { label?: string; amount?: number | string }[] | null }, ii: number) => ({
           ...emptyItem(it.product),
           ...coloursFromExtra(it.extra),
-          ...Object.fromEntries(Object.entries(it).filter(([k, v]) => v !== null && v !== undefined && k !== "extra" && k !== "fruit_supplement")),
+          ...Object.fromEntries(Object.entries(it).filter(([k, v]) => v !== null && v !== undefined && k !== "extra" && k !== "fruit_supplement" && k !== "custom_extras")),
           fruit_supplement: it.fruit_supplement != null && Number(it.fruit_supplement) > 0 ? String(it.fruit_supplement) : null,
           free_options: Array.isArray(it.free_options) ? it.free_options : [],
+          custom_extras: Array.isArray(it.custom_extras)
+            ? it.custom_extras.map((e) => ({ label: String(e?.label ?? ""), amount: e?.amount != null ? String(e.amount) : "" }))
+            : [],
           key: newKey(),
           dateKey: groupOfItem.get(ii) ?? null,
           workshop_sponge_choices: it.workshop_sponge_choices ?? (it.product === "workshop" ? Array.from({ length: it.workshop_participants ?? 1 }, () => "vanilla") : []),
@@ -272,6 +275,10 @@ const AdminManualOrderEditor = () => {
       product: it.product, size: it.size, shape: it.shape, flavors: it.flavors, design: it.design, extras: it.extras, candles: it.candles,
       // Ticked but empty / not a number → 0, which the server refuses with a clear message.
       fruit_supplement: it.fruit_supplement === null ? null : (Number(it.fruit_supplement.replace(",", ".")) || 0),
+      // F49 — prix vide / pas un nombre → 0, refusé par le serveur avec un message clair.
+      custom_extras: it.product === "workshop" || it.custom_extras.length === 0
+        ? null
+        : it.custom_extras.map((e) => ({ label: e.label, amount: Number(e.amount.replace(",", ".")) || 0 })),
       free_options: it.free_options,
       workshop_session_id: it.workshop_session_id, workshop_participants: it.workshop_participants,
       workshop_sponge_choices: it.workshop_sponge_choices, workshop_has_minor: it.workshop_has_minor,
@@ -369,7 +376,7 @@ const AdminManualOrderEditor = () => {
     const lines = quote?.items[index]?.breakdown ?? [];
     const names = keys.map((k) => {
       const line = lines.find((l) => freeKeyOf(l) === k);
-      return line ? labelBreakdownLine(line, catalog, customer.lang, items[index].size) : null;
+      return line ? labelBreakdownLine(line, catalog, customer.lang, items[index].size, items[index].custom_extras) : null;
     }).filter((n): n is string => !!n);
     return names.length > 0 ? names.join(", ") : null;
   };
@@ -828,7 +835,7 @@ const AdminManualOrderEditor = () => {
                         <ul className="mt-0.5 mb-1.5 pl-3 border-l border-border space-y-0.5 text-xs">
                           {qi.breakdown.map((line, li) => (
                             <li key={li} className="flex justify-between items-center gap-2">
-                              <span className="text-muted-foreground">{labelBreakdownLine(line, catalog, lang === "en" ? "en" : "fr", it.size)}</span>
+                              <span className="text-muted-foreground">{labelBreakdownLine(line, catalog, lang === "en" ? "en" : "fr", it.size, it.custom_extras)}</span>
                               <span className="flex items-center gap-1.5 shrink-0">
                                 {/* F46 — rendre une option gratuite (le serveur recalcule le prix). */}
                                 {line.amount > 0 && showOffer && !it.free_options.includes(FREE_ALL) && (

@@ -37,6 +37,11 @@ export function buildPaymentRecap(order: any, items: any[], fulfillments: any[])
     const qty = Number.isInteger(it.quantity) && it.quantity > 1 ? ` × ${it.quantity}` : "";
     const bits = [itemSummaryLine(it, lang) + qty];
     if (Number(it.fruit_supplement) > 0) bits.push(tr(`fruits CHF ${r2(it.fruit_supplement).toFixed(2)} incl.`, `fruits CHF ${r2(it.fruit_supplement).toFixed(2)} compris`));
+    // F49 — extras libres (compris dans le prix de l'article).
+    for (const e of Array.isArray(it.custom_extras) ? it.custom_extras : []) {
+      const label = typeof e?.label === "string" ? e.label.trim() : "";
+      if (label && Number(e?.amount) > 0) bits.push(tr(`${label} CHF ${r2(e.amount).toFixed(2)} incl.`, `${label} CHF ${r2(e.amount).toFixed(2)} compris`));
+    }
     if (Number(it.free_amount) > 0) bits.push(tr(`free CHF ${r2(it.free_amount).toFixed(2)} deducted`, `offert CHF ${r2(it.free_amount).toFixed(2)} déduit`));
     return { label: bits.join(" · "), amount: r2(it.total) };
   };

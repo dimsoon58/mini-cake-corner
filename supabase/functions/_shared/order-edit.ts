@@ -7,6 +7,12 @@ import { priceOrderItem, roundToCents } from "./pricing.ts";
 import { CHRISTMAS_DESIGN_NAMES, christmasFlavourIdOf, isChristmasItem } from "./christmas.ts";
 import { resolveFlavour } from "./production-catalog.ts";
 
+/** F49 — somme des extras libres enregistrés (order_items.custom_extras). */
+export function customExtrasTotal(v: unknown): number {
+  if (!Array.isArray(v)) return 0;
+  return roundToCents(v.reduce((s, e) => s + (Number((e as { amount?: unknown })?.amount) || 0), 0));
+}
+
 /** Remboursement proposé seulement si la date est au moins à 5 jours (FAQ du site). */
 export const REFUND_DEADLINE_DAYS = 5;
 
@@ -46,7 +52,7 @@ export function flavourIdsOf(names: unknown, row?: any): string[] {
   const list = (Array.isArray(names) ? names : []).map(String);
   if (!row || !isChristmasItem(row)) return list.map((n) => resolveFlavour(n)?.id ?? n);
   const stored = row.total != null
-    ? roundToCents(Number(row.total) - (Number(row.fruit_supplement) || 0) + (Number(row.free_amount) || 0))
+    ? roundToCents(Number(row.total) - (Number(row.fruit_supplement) || 0) - customExtrasTotal(row.custom_extras) + (Number(row.free_amount) || 0))
     : null;
   const priceOf = (flavourId: string) => {
     const r = priceOrderItem({ product: row.product, size: row.size ?? null, shape: row.shape ?? null, flavors: [flavourId], design: row.design ?? null, extras: [], candles: [] });
@@ -64,12 +70,15 @@ export function flavourIdsOf(names: unknown, row?: any): string[] {
 export function priceSignature(it: any, fromRow: boolean): string {
   const fruit = Number(it?.fruit_supplement) || 0;
   const free = Array.isArray(it?.free_options) ? [...it.free_options].map(String).sort() : [];
+  const custom = Array.isArray(it?.custom_extras)
+    ? it.custom_extras.map((e: { label?: unknown; amount?: unknown }) => [String(e?.label ?? "").trim(), roundToCents(Number(e?.amount) || 0)])
+    : [];
   return canonical([
     it?.product ?? null, it?.size ?? null, it?.shape ?? null, it?.design ?? null,
     fromRow ? flavourIdsOf(it?.flavors, it) : (Array.isArray(it?.flavors) ? it.flavors.map(String) : []),
     Array.isArray(it?.extras) ? it.extras.map(String) : [],
     Array.isArray(it?.candles) ? it.candles : [],
-    roundToCents(fruit), free,
+    roundToCents(fruit), free, custom,
   ]);
 }
 
@@ -130,7 +139,7 @@ export const zurichToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "E
 // ── Résumé lisible (historique de l'admin, en français) ─────────────────
 const FIELD_LABELS: Record<string, string> = {
   product: "produit", size: "taille", shape: "forme", design: "design", flavors: "goût", extras: "extras", candles: "bougies",
-  fruit_supplement: "supplément fruits", free_options: "offert", base_color: "couleur de base", decoration_color: "couleurs de décoration",
+  fruit_supplement: "supplément fruits", custom_extras: "extras libres", free_options: "offert", base_color: "couleur de base", decoration_color: "couleurs de décoration",
   text_color: "couleur du texte", cake_text: "texte", text_style: "style du texte", ribbon_color: "ruban", butterfly_color: "papillon",
   inside_color: "couleur intérieure", item_comment: "instructions", internal_notes: "note interne", reference_images: "images de référence",
   extra: "extras (détail)",
@@ -142,6 +151,11 @@ const show = (v: unknown): string => {
   if (Array.isArray(v)) return v.length ? v.map((x) => (typeof x === "object" ? canonical(x) : String(x))).join(", ") : "—";
   return String(v);
 };
+
+const customExtrasText = (v: unknown): string[] =>
+  Array.isArray(v)
+    ? v.map((e) => `${String((e as { label?: unknown })?.label ?? "").trim()} CHF ${roundToCents(Number((e as { amount?: unknown })?.amount) || 0).toFixed(2)}`)
+    : [];
 
 const normaliseExtra = (v: unknown) =>
   typeof v === "string" && v.trim() ? v.split(",").map((x) => x.trim().toLowerCase().replace(/\s+/g, " ")).filter(Boolean).sort().join(", ") : null;
@@ -161,6 +175,8 @@ export function describeItemChanges(index: number, before: any, after: any): str
     let b = after?.[f];
     // Texte des extras : même contenu, ordre ou ponctuation différents = inchangé.
     if (f === "extra") { a = normaliseExtra(a); b = normaliseExtra(b); }
+    // F49 — extras libres : « Topper doré CHF 12.00 » des deux côtés.
+    if (f === "custom_extras") { a = customExtrasText(a); b = customExtrasText(b); }
     if (canonical(a ?? null) === canonical(b ?? null)) continue;
     if ((a === null || a === undefined || (Array.isArray(a) && a.length === 0) || a === "") &&
         (b === null || b === undefined || (Array.isArray(b) && b.length === 0) || b === "")) continue;

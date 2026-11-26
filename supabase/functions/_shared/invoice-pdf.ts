@@ -359,20 +359,36 @@ export async function generateInvoicePdf(
       total: `- ${formatInvoicePrice(free)}`,
     }];
   };
+  // F49 — extras libres (commandes de l'admin) : compris dans item.total,
+  // une ligne chacun sous l'article, avec le texte tapé par l'admin.
+  const customExtrasOfItem = (item: any): { label: string; amount: number }[] =>
+    item.product === "workshop" || !Array.isArray(item.custom_extras)
+      ? []
+      : item.custom_extras
+        .map((e: any) => ({ label: typeof e?.label === "string" ? e.label.trim() : "", amount: Number(e?.amount) || 0 }))
+        .filter((e: { label: string; amount: number }) => e.label && e.amount > 0);
   const rowsForItem = (item: any): InvoiceRow[] => {
-    const fruit = Number(item.fruit_supplement) || 0;
+    const fruit = item.product === "workshop" ? 0 : Number(item.fruit_supplement) || 0;
+    const custom = customExtrasOfItem(item);
+    const customSum = custom.reduce((s, e) => s + e.amount, 0);
     const free = Number(item.free_amount) || 0;
     const full = Math.round(((Number(item.total) || 0) + free) * 100) / 100;
-    if (item.product === "workshop" || fruit <= 0) return [rowForItem({ ...item, total: full }), ...freeRow(item)];
-    const cake = Math.round((full - fruit) * 100) / 100;
+    if (fruit <= 0 && custom.length === 0) return [rowForItem({ ...item, total: full }), ...freeRow(item)];
+    const cake = Math.round((full - fruit - customSum) * 100) / 100;
     return [
       rowForItem({ ...item, total: cake }),
-      {
+      ...(fruit > 0 ? [{
         description: tr("Fruit supplement", "Supplément fruits"),
         quantity: "1",
         unitPrice: formatInvoicePrice(fruit),
         total: formatInvoicePrice(fruit),
-      },
+      }] : []),
+      ...custom.map((e) => ({
+        description: `${tr("Extra", "Extra")} : ${e.label}`,
+        quantity: "1",
+        unitPrice: formatInvoicePrice(e.amount),
+        total: formatInvoicePrice(e.amount),
+      })),
       ...freeRow(item),
     ];
   };
