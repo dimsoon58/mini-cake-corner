@@ -25,7 +25,7 @@ import { EditOrderItemDialog } from "@/components/admin/EditOrderItemDialog";
 import { OrderEditsPanel } from "@/components/admin/OrderEditsPanel";
 import { OrderItemChanges, type ItemChange } from "@/components/admin/OrderItemChanges";
 import { GiftCardOrderPanel } from "@/components/admin/GiftCardOrderPanel";
-import { CHANNEL_LABELS, MANUAL_STATUS_LABELS, manualStatusOf } from "@/lib/manualOrders";
+import { CHANNEL_LABELS, MANUAL_STATUS_LABELS, manualStatusOf, INSIDE_COLOURS } from "@/lib/manualOrders";
 import { useSessionPin } from "@/lib/adminSession";
 import { PasswordInput } from "@/components/ui/password-input";
 
@@ -715,6 +715,16 @@ const AdminOrder = () => {
                         )}
                         <ColourRow label={t("Base Colour", "Couleur de base")} items={colourSwatches(item.base_color, lang)} />
                         <ColourRow label={t("Decoration Colour", "Couleur de décoration")} items={colourSwatches(item.decoration_color, lang)} />
+                        {/* Gender Reveal: inside colour (stored "Rose" / "Bleu", site checkout and manual orders alike). */}
+                        {item.inside_color && (() => {
+                          const opt = INSIDE_COLOURS.find((c) => c.id === item.inside_color);
+                          return (
+                            <ColourRow
+                              label={t("Inside Colour", "Couleur intérieure")}
+                              items={[{ label: opt ? t(opt.name, opt.id) : item.inside_color, hex: opt?.color ?? null }]}
+                            />
+                          );
+                        })()}
                         {item.cake_text && (
                           <div className="flex flex-col sm:flex-row sm:gap-2 text-sm">
                             <span className="text-muted-foreground sm:min-w-[140px] sm:shrink-0">{t("Text on Cake", "Texte sur le gâteau")}:</span>
