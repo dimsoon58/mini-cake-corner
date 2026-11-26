@@ -1509,9 +1509,8 @@ const CartItemEditor = ({
             <p className="text-xs font-medium text-foreground">{t("Glitter Colour", "Couleur des paillettes")} <span className="text-destructive">*</span></p>
             <div className="flex flex-wrap gap-2">
               {(() => {
-                const isGlitterInTheAir = (item.extras || []).includes("glitter-in-the-air") || item.style === "retro-ribbons-glitter";
-                const availableColors = isGlitterInTheAir ? glitterColors.filter(c => c.id === "pink") : glitterColors;
-                return availableColors.map((color) => (
+                // Glitter in the Air : mêmes couleurs que les paillettes (26.11.2026).
+                return glitterColors.map((color) => (
                   <button
                     key={color.id}
                     onClick={() => onGlitterColorChange(color.id)}

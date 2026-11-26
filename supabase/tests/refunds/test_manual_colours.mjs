@@ -45,18 +45,19 @@ check("Aucune option : aucune couleur demandée", Object.values(n({})).every((v)
 check("Rubans (extra) → couleur des rubans", n({ extras: ["ribbons"] }).ribbon && !n({ extras: ["ribbons"] }).glitter);
 check("Papillon (extra) → couleur du papillon", n({ extras: ["butterfly"] }).butterfly);
 for (const g of ["glitter", "glitter-base", "glitter-in-the-air"]) check(`${g} → couleur des paillettes`, n({ extras: [g] }).glitter);
-check("Paillettes « in the air » : rose uniquement (comme le site)", JSON.stringify(M.glitterChoices(n({ extras: ["glitter-in-the-air"] })).map((c) => c.id)) === '["pink"]'
-  && M.glitterChoices(n({ extras: ["glitter"] })).length === 5);
+check("Paillettes « in the air » : mêmes couleurs que les paillettes (26.11.2026)", M.glitterChoices(n({ extras: ["glitter-in-the-air"] })).length === 5
+  && JSON.stringify(M.glitterChoices(n({ extras: ["glitter-in-the-air"] }))) === JSON.stringify(M.glitterChoices(n({ extras: ["glitter"] }))));
 check("Cerises pailletées → couleur proposée, facultative", n({ extras: ["glitter-cherries"] }).glitterCherries && M.missingColours(item({ extras: ["glitter-cherries"] }), "fr").length === 0);
 check("Design Retro × Ribbons → rubans ; Retro Glitter → paillettes ; Butterfly Garden → papillon",
   n({ design: "retro-ribbons" }).ribbon && n({ design: "retro-glitter-cake" }).glitter && n({ design: "butterfly-garden" }).butterfly);
-check("Design Retro × Ribbons Glitter in the Air → rubans + paillettes roses", n({ design: "retro-ribbons-glitter" }).ribbon && n({ design: "retro-ribbons-glitter" }).glitterPinkOnly);
+check("Design Retro × Ribbons Glitter in the Air → rubans + paillettes (toutes les couleurs)", n({ design: "retro-ribbons-glitter" }).ribbon && n({ design: "retro-ribbons-glitter" }).glitter && M.glitterChoices(n({ design: "retro-ribbons-glitter" })).length === 5);
 check("Design Glitter Cherries × Retro → cerises ; Gender Reveal → intérieur", n({ design: "glitter-cherries-retro" }).glitterCherries && n({ design: "gender-reveal" }).inside);
 check("Dot cakes / kit : jamais de couleur d'option", Object.values(M.colourNeeds({ ...M.emptyItem("diy_kit"), extras: ["ribbons"] })).every((v) => !v));
 
 // ── 3. Obligatoire pour confirmer (comme le « * » du site) ──────────────
 check("Rubans + papillon + paillettes sans couleur : 3 manques", JSON.stringify(M.missingColours(item({ extras: ["ribbons", "butterfly", "glitter"] }), "fr")) === JSON.stringify(["couleur des rubans", "couleur du papillon", "couleur des paillettes"]));
-check("Paillettes « in the air » avec « Gold » : refusé (rose seulement)", M.missingColours(item({ extras: ["glitter-in-the-air"], glitter_color: "Gold" }), "fr").includes("couleur des paillettes"));
+check("Paillettes « in the air » avec « Gold » : accepté (toutes les couleurs)", !M.missingColours(item({ extras: ["glitter-in-the-air"], glitter_color: "Gold" }), "fr").includes("couleur des paillettes"));
+check("Paillettes « in the air » sans couleur : manque", M.missingColours(item({ extras: ["glitter-in-the-air"] }), "fr").includes("couleur des paillettes"));
 check("Gender Reveal sans intérieur : manque", M.missingColours(item({ design: "gender-reveal" }), "fr").includes("couleur intérieure"));
 check("Tout choisi : rien ne manque", M.missingColours(item({ extras: ["ribbons", "butterfly", "glitter"], ribbon_color: "Baby Pink", butterfly_color: "Gold", glitter_color: "White" }), "fr").length === 0);
 
