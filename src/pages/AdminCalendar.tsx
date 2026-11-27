@@ -23,6 +23,8 @@ import { BASE_LABELS, CATEGORY_LABELS } from "@/lib/production";
 import type { WorkshopSession } from "@/components/admin/WorkshopSessionsPanel";
 import { MarketingEventDialog } from "@/components/admin/MarketingEventDialog";
 import { MarketingDaySection, MarketingMonthPanel } from "@/components/admin/MarketingPanels";
+import { PlanningPeriodTotals } from "@/components/admin/PlanningPeriodTotals";
+import { formatPeriodChf, periodTotals, type TotalsEntry } from "@/lib/planningTotals";
 import { eventsByDay, marketingApi, tasksByDay, useShowEvents, type MarketingPlanning, type MarketingTask } from "@/lib/marketingEvents";
 
 type OrderState = "approved" | "pending" | "refused" | "cancelled";
@@ -252,6 +254,10 @@ const AdminCalendar = () => {
     : ["S", "M", "T", "W", "T", "F", "S"];
 
   const selectedEntries = selectedDate ? (days[selectedDate] ?? []) : [];
+  // Totaux du mois chargé (frais d'une commande comptés une fois, à son premier jour) → résumé du jour.
+  // (Pas de useMemo : on est après les retours anticipés ; le calcul est léger.)
+  const monthTotals = periodTotals(days as unknown as Record<string, TotalsEntry[]>, format(monthStart, "yyyy-MM-dd"), format(monthEnd, "yyyy-MM-dd"));
+  const dayTotals = selectedDate ? monthTotals.days.find((d) => d.date === selectedDate) : undefined;
 
   const itemTitle = (e: DayEntry): string => {
     if (e.type === "workshop") {
@@ -314,6 +320,8 @@ const AdminCalendar = () => {
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
+
+        <PlanningPeriodTotals includeTests={includeTests} />
 
         {loadError ? (
           <p className="text-center text-muted-foreground py-16">{loadError}</p>
@@ -423,6 +431,16 @@ const AdminCalendar = () => {
                       ({selectedEntries.length})
                     </span>
                   </h2>
+                  {dayTotals && (
+                    <p className="text-sm text-foreground -mt-1 mb-3" data-testid="calendar-day-totals">
+                      {t(`${dayTotals.cakes} cake${dayTotals.cakes === 1 ? "" : "s"}`, `${dayTotals.cakes} gâteau${dayTotals.cakes === 1 ? "" : "x"}`)}
+                      {dayTotals.workshops > 0 && ` · ${t(`${dayTotals.workshops} workshop(s) (${dayTotals.seats} seat(s))`, `${dayTotals.workshops} workshop${dayTotals.workshops === 1 ? "" : "s"} (${dayTotals.seats} place${dayTotals.seats === 1 ? "" : "s"})`)}`}
+                      {monthTotals.hasAmounts && <> · <b>{formatPeriodChf(dayTotals.amount)}</b></>}
+                      {monthTotals.hasAmounts && dayTotals.pendingAmount > 0 && (
+                        <span className="text-blue-700"> {t(`+ ${formatPeriodChf(dayTotals.pendingAmount)} to accept`, `+ ${formatPeriodChf(dayTotals.pendingAmount)} à accepter`)}</span>
+                      )}
+                    </p>
+                  )}
                   {withEvents && mkt && (
                     <MarketingDaySection
                       events={mktEventsByDay[selectedDate] ?? []}
