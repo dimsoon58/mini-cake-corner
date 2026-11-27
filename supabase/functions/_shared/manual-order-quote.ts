@@ -13,7 +13,8 @@
 //
 // Totals, as validated with the owner (2026-09-28):
 //   calculated_amount = Σ items + Σ delivery fees + Σ express surcharges
-//                       (an item = engine price + its fruit supplement, if any,
+//                       (an item = engine price + its fruit supplement and
+//                        custom extras (F49), if any,
 //                        − the options ticked « Offert », F46)
 //   adjustment        = amount (CHF, signed) | percent (signed, of
 //                       calculated_amount) | final (price typed by hand)
@@ -64,6 +65,9 @@ export interface QuoteItemInput {
   // frais en décoration sur un gâteau, montant en CHF choisi par l'admin
   // (pas de tarif fixe). null = pas de fruits.
   fruit_supplement?: number | null;
+  // F49 (26.11.2026) — extras libres : l'admin tape ce que c'est et le prix
+  // (CHF). Ajoutés au prix de l'article, comme le supplément fruits.
+  custom_extras?: { label?: unknown; amount?: unknown }[] | null;
   // F46 (16.11.2026) — options offertes (commandes manuelles) : clés des
   // lignes du détail de prix (« design:mini-heart », « extra:gold-leaves »…)
   // ou « all » = l'article entier. Le montant se calcule ici, jamais côté
@@ -74,6 +78,31 @@ export interface QuoteItemInput {
 }
 
 export const MAX_FRUIT_SUPPLEMENT = 500;
+export const MAX_CUSTOM_EXTRA = 500;
+export const MAX_CUSTOM_EXTRAS = 10;
+export const MAX_CUSTOM_EXTRA_LABEL = 80;
+
+export interface CustomExtra { label: string; amount: number }
+
+// F49 — extras libres (tout article sauf un workshop). Rend la liste
+// nettoyée, leur somme, ou une erreur à montrer dans l'éditeur.
+export function customExtrasOf(it: QuoteItemInput): { extras: CustomExtra[]; amount: number; error: string | null } {
+  const raw = it.custom_extras;
+  if (raw === null || raw === undefined || it.product === "workshop") return { extras: [], amount: 0, error: null };
+  if (!Array.isArray(raw)) return { extras: [], amount: 0, error: "Invalid custom extras" };
+  if (raw.length > MAX_CUSTOM_EXTRAS) return { extras: [], amount: 0, error: `At most ${MAX_CUSTOM_EXTRAS} custom extras per product` };
+  const extras: CustomExtra[] = [];
+  for (const e of raw) {
+    const label = typeof e?.label === "string" ? e.label.trim().replace(/\s+/g, " ") : "";
+    if (!label) return { extras: [], amount: 0, error: "Type what the custom extra is" };
+    if (label.length > MAX_CUSTOM_EXTRA_LABEL) return { extras: [], amount: 0, error: `A custom extra name can't exceed ${MAX_CUSTOM_EXTRA_LABEL} characters` };
+    const n = Number(e?.amount);
+    if (!Number.isFinite(n) || n <= 0) return { extras: [], amount: 0, error: `Enter the price of « ${label} »` };
+    if (n > MAX_CUSTOM_EXTRA) return { extras: [], amount: 0, error: `A custom extra can't exceed CHF ${MAX_CUSTOM_EXTRA}` };
+    extras.push({ label, amount: roundToCents(n) });
+  }
+  return { extras, amount: roundToCents(extras.reduce((s, e) => s + e.amount, 0)), error: null };
+}
 
 export const FREE_ALL = "all";
 export const freeKeyOf = (line: { kind: string; id: string }) => `${line.kind}:${line.id}`;
@@ -154,7 +183,7 @@ export interface QuoteInput {
 // One line of an item's price detail. `id` is the option id (size, flavour,
 // extra, candle…); the Admin screen turns it into a display name.
 export interface QuoteBreakdownLine {
-  kind: "size" | "shape" | "flavour" | "design" | "extra" | "fruit" | "piping" | "pack" | "candle" | "printing" | "workshop";
+  kind: "size" | "shape" | "flavour" | "design" | "extra" | "fruit" | "custom" | "piping" | "pack" | "candle" | "printing" | "workshop";
   id: string;
   amount: number;
   quantity?: number;
@@ -403,9 +432,18 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
     // Fruit supplement: on top of the engine's price, never inside it.
     const fruit = fruitSupplementOf(it);
     if (fruit.error) return { index, product, total: null, error: fruit.error };
+    // F49 — extras libres : eux aussi en plus du prix du moteur.
+    const custom = customExtrasOf(it);
+    if (custom.error) return { index, product, total: null, error: custom.error };
     const breakdown = breakdownItem(it, product, priced.total);
-    const full = roundToCents(priced.total + fruit.amount);
-    const lines = breakdown && fruit.amount > 0 ? [...breakdown, { kind: "fruit" as const, id: "fruit", amount: fruit.amount }] : breakdown;
+    const full = roundToCents(priced.total + fruit.amount + custom.amount);
+    const lines = breakdown
+      ? [
+        ...breakdown,
+        ...(fruit.amount > 0 ? [{ kind: "fruit" as const, id: "fruit", amount: fruit.amount }] : []),
+        ...custom.extras.map((e, ci) => ({ kind: "custom" as const, id: String(ci), amount: e.amount })),
+      ]
+      : breakdown;
     // F46 — options offertes : déduites du prix de l'article, après le moteur.
     const free = applyFreeOptions(it.free_options, lines, full);
     if (free.error) return { index, product, total: null, error: free.error };

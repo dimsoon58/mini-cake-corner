@@ -13,6 +13,8 @@ import {
   GLITTER_CHERRIES_COLOURS,
   glitterChoices,
   INSIDE_COLOURS,
+  MAX_CUSTOM_EXTRAS,
+  type CustomExtraEntry,
   RIBBON_COLOURS,
   type DateGroup,
   type EditorItem,
@@ -57,6 +59,16 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
   const { t, lang } = useLang();
   const l = lang === "en" ? "en" : "fr";
   const set = (patch: Partial<EditorItem>) => onChange({ ...item, ...patch });
+  // F49 — extras libres.
+  const setCustomExtra = (ci: number, patch: Partial<CustomExtraEntry>) =>
+    set({ custom_extras: item.custom_extras.map((e, i) => (i === ci ? { ...e, ...patch } : e)) });
+  // Les clés « Offert » d'un extra libre suivent sa position : on les retire
+  // toutes quand un extra est supprimé (à recocher si besoin).
+  const removeCustomExtra = (ci: number) =>
+    set({
+      custom_extras: item.custom_extras.filter((_, i) => i !== ci),
+      free_options: item.free_options.filter((k) => !k.startsWith("custom:")),
+    });
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -465,6 +477,57 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
                     aria-label={t("Fruit supplement amount (CHF)", "Montant du supplément fruits (CHF)")}
                   />
                 </span>
+              )}
+            </div>
+          </div>
+        )}
+        {/* F49 — extras libres : l'admin écrit ce que c'est et le prix ; ajoutés au
+            prix de l'article (calculé par le serveur) et à la facture, une ligne chacun. */}
+        {item.product !== "workshop" && (
+          <div className="md:col-span-2">
+            <label className={label}>{t("Custom extras", "Extras libres")}</label>
+            <div className="space-y-2 text-sm">
+              {item.custom_extras.map((e, ci) => (
+                <div key={ci} className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={e.label}
+                    maxLength={80}
+                    onChange={(ev) => setCustomExtra(ci, { label: ev.target.value })}
+                    placeholder={t("What it is (e.g. Gold topper)", "Ce que c'est (ex. Topper doré)")}
+                    className={cn(field, "flex-1 min-w-[12rem] py-0.5")}
+                    aria-label={t(`Custom extra ${ci + 1} — name`, `Extra libre ${ci + 1} — nom`)}
+                  />
+                  <span className="inline-flex items-center gap-1.5">
+                    CHF
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={e.amount}
+                      onChange={(ev) => setCustomExtra(ci, { amount: ev.target.value })}
+                      placeholder="0.00"
+                      className={cn(field, "w-24 py-0.5")}
+                      aria-label={t(`Custom extra ${ci + 1} — price (CHF)`, `Extra libre ${ci + 1} — prix (CHF)`)}
+                    />
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeCustomExtra(ci)}
+                    className="text-muted-foreground hover:text-destructive"
+                    aria-label={t(`Remove custom extra ${ci + 1}`, `Retirer l'extra libre ${ci + 1}`)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              {item.custom_extras.length < MAX_CUSTOM_EXTRAS && (
+                <button
+                  type="button"
+                  onClick={() => set({ custom_extras: [...item.custom_extras, { label: "", amount: "" }] })}
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <Plus className="w-3.5 h-3.5" /> {t("Add an extra", "Ajouter un extra")}
+                </button>
               )}
             </div>
           </div>

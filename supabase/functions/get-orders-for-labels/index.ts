@@ -46,7 +46,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ITEM_FIELDS =
   "id, order_id, fulfillment_id, product, size, shape, flavors, design, base_color, decoration_color, inside_color, " +
   "ribbon_color, butterfly_color, extra, cake_text, text_color, text_style, item_comment, quantity, created_at, " +
-  "reference_images, design_image_url, production_status, candles, candle_name, candle_quantity";
+  "reference_images, design_image_url, production_status, candles, candle_name, candle_quantity, custom_extras";
 
 // Photos de référence envoyées par la cliente : reference_images sans la photo
 // du design choisi sur le site (design_image_url, ou la photo d'inspiration
@@ -200,6 +200,11 @@ serve(async (req) => {
       const { reference_images, design_image_url, production_status: _ps, ...fields } = it as typeof it & { reference_images?: unknown; design_image_url?: unknown; production_status?: unknown };
       out.push({
         ...fields,
+        // F49 — extras libres : seulement leur texte (jamais le prix sur une étiquette).
+        custom_extras: Array.isArray((it as { custom_extras?: unknown }).custom_extras)
+          ? ((it as { custom_extras: { label?: unknown }[] }).custom_extras)
+            .map((e) => ({ label: typeof e?.label === "string" ? e.label : "" })).filter((e) => e.label)
+          : null,
         reference_photos: customerPhotoCount(reference_images, design_image_url),
         prep: (() => {
           const unit = { product: it.product, size: it.size, shape: it.shape, flavors: it.flavors, quantity: 1 };
