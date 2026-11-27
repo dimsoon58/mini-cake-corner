@@ -455,11 +455,7 @@ export const designAllowedExtras: Record<string, string[]> = {
 
 // Designs whose catalogue sheet hides the extras section entirely (same as
 // hideExtras in Catalog.tsx's colour config, plus every Inspiration photo).
-<<<<<<< HEAD
-const EXTRAS_HIDDEN_DESIGNS = new Set(["gender-reveal", "heart-bomb", "gems"]);
-=======
-const EXTRAS_HIDDEN_DESIGNS = new Set(["gender-reveal"]);
->>>>>>> bc980a7aceb3941723536867d2ca3ad8018b3f64
+const EXTRAS_HIDDEN_DESIGNS = new Set(["gender-reveal", "gems"]);
 
 /**
  * Extras excluded when a cake already in the cart is edited — the same rule

@@ -725,12 +725,8 @@ const colorSectionOverrides: Record<string, Partial<ColorSectionConfig>> = {
     secondaryOptional: true,
   },
   "gender-reveal": { showBase: false, secondaryLabel: null, hideExtras: true },
-<<<<<<< HEAD
-  "heart-bomb": { secondaryLabel: "Heart colour", secondaryMax: 1, hideExtras: true },
-  "gems": { hideExtras: true },
-=======
   "heart-bomb": { secondaryLabel: "Heart colour", secondaryMax: 1 },
->>>>>>> bc980a7aceb3941723536867d2ca3ad8018b3f64
+  "gems": { hideExtras: true },
   "shag-cake": { showBase: false, secondaryLabel: "Choose your colours", secondaryMax: 6 },
   "rainbow-cake": { secondaryLabel: null },
   "printed-picture": { secondaryLabel: "Border colour", secondaryMax: 1 },
