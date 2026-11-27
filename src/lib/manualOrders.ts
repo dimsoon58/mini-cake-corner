@@ -176,7 +176,7 @@ export const isChristmasCake = (item: Pick<EditorItem, "product" | "design">) =>
 // ── Couleurs par option / design : mêmes règles et mêmes listes que le site (Catalog.tsx) ──
 export type ColourOption = { id: string; name: string; color: string };
 export interface ColourNeeds {
-  ribbon: boolean; butterfly: boolean; glitter: boolean; glitterPinkOnly: boolean; glitterCherries: boolean; inside: boolean;
+  ribbon: boolean; butterfly: boolean; glitter: boolean; glitterCherries: boolean; inside: boolean;
 }
 export function colourNeeds(item: Pick<EditorItem, "product" | "extras" | "design">): ColourNeeds {
   const cake = item.product === "bento_cake" || item.product === "rectangle_cake";
@@ -186,7 +186,6 @@ export function colourNeeds(item: Pick<EditorItem, "product" | "extras" | "desig
     ribbon: has("ribbons") || d === "retro-ribbons" || d === "retro-ribbons-glitter",
     butterfly: has("butterfly") || d === "butterfly-garden",
     glitter: has("glitter") || has("glitter-base") || has("glitter-in-the-air") || d === "retro-glitter-cake" || d === "retro-ribbons-glitter",
-    glitterPinkOnly: has("glitter-in-the-air") || d === "retro-ribbons-glitter",
     glitterCherries: has("glitter-cherries") || d === "glitter-cherries-retro",
     inside: d === "gender-reveal",
   };
@@ -196,7 +195,8 @@ export const BUTTERFLY_COLOURS: ColourOption[] = butterflyColors;
 export const GLITTER_COLOURS: ColourOption[] = glitterColors;
 export const GLITTER_CHERRIES_COLOURS: ColourOption[] = glitterCherriesColors;
 export const INSIDE_COLOURS: ColourOption[] = [{ id: "Rose", name: "Pink", color: "#F9A8D4" }, { id: "Bleu", name: "Blue", color: "#93C5FD" }];
-export const glitterChoices = (needs: ColourNeeds) => (needs.glitterPinkOnly ? GLITTER_COLOURS.filter((c) => c.id === "pink") : GLITTER_COLOURS);
+// Glitter in the Air : mêmes couleurs que les paillettes (26.11.2026, avant : rose seulement).
+export const glitterChoices = (_needs?: ColourNeeds) => GLITTER_COLOURS;
 
 /** Couleurs obligatoires encore à choisir (le site les exige avec « * » ; cerises pailletées facultatives). */
 export function missingColours(item: EditorItem, lang: "en" | "fr"): string[] {

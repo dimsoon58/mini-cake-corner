@@ -1307,10 +1307,6 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       ? selections.extras.filter((e) => e !== extraId)
       : [...selections.extras, extraId];
     const updates: Partial<typeof selections> = { extras: newExtras };
-    // Auto-select pink glitter for "Glitter in the Air"
-    if (extraId === "glitter-in-the-air" && newExtras.includes("glitter-in-the-air")) {
-      updates.glitterColor = "pink";
-    }
     setSelections({ ...selections, ...updates });
   };
 
@@ -2570,9 +2566,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                           <p className="text-xs font-medium text-foreground">{t("Glitter Colour", "Couleur des paillettes")} <span className="text-destructive">*</span></p>
                           <div className="flex flex-wrap gap-2">
                             {(() => {
-                              const isGlitterInTheAir = selections.extras.includes("glitter-in-the-air");
-                              const availableColors = isGlitterInTheAir ? glitterColors.filter(c => c.id === "pink") : glitterColors;
-                              return availableColors.map((color) => (
+                              // Glitter in the Air : mêmes couleurs que les paillettes (26.11.2026).
+                              return glitterColors.map((color) => (
                                 <button
                                   key={color.id}
                                   onClick={() => setSelections({ ...selections, glitterColor: color.id })}
@@ -2642,9 +2637,8 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
                     <p className="text-xs font-medium text-foreground">{t("Glitter Colour", "Couleur des paillettes")} <span className="text-destructive">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {(() => {
-                        const isGlitterInTheAir = selections.extras.includes("glitter-in-the-air") || selectedCake?.styleId === "retro-ribbons-glitter";
-                        const availableColors = isGlitterInTheAir ? glitterColors.filter(c => c.id === "pink") : glitterColors;
-                        return availableColors.map((color) => (
+                        // Glitter in the Air : mêmes couleurs que les paillettes (26.11.2026).
+                        return glitterColors.map((color) => (
                           <button
                             key={color.id}
                             onClick={() => setSelections({ ...selections, glitterColor: color.id })}
