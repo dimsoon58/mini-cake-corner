@@ -1589,10 +1589,9 @@ const Catalog = ({ embedded = false, inspirationIndex = null, onEmbeddedClose }:
       const borderName = baseColors.find(c => c.id === heartBombBorder)?.name;
       if (borderName) decoColorNames.push(`Border: ${borderName}`);
     }
-    if (selectedCake.styleId === "gender-reveal") {
-      const genderName = genderColors.find(c => c.id === selections.genderColor)?.name;
-      if (genderName) decoColorNames.push(`Inside: ${genderName}`);
-    }
+    // Gender Reveal : la couleur intérieure n'apparaît JAMAIS dans le
+    // récapitulatif de la cliente (27.11.2026) — seulement dans
+    // order_items.inside_color ci-dessous (admin, étiquettes).
     // Dedicated field for order_items.inside_color — deliberately NOT the
     // same value as decoColorNames above (that's cart-display-only text and
     // is never sent to the server; see order-whitelist.ts). Always French:

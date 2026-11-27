@@ -98,10 +98,12 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
   // gâteau de Noël ne prend pas.
   const changeDesign = (design: string) => {
     if (!design.startsWith("noel-")) {
-      if (!noelCake) { set({ design }); return; }
+      // Design Gender Reveal : l'extra « Gender Reveal » est retiré (déjà compris).
+      const keepExtras = design === "gender-reveal" ? { extras: item.extras.filter((e) => e !== "gender-reveal") } : {};
+      if (!noelCake) { set({ design, ...keepExtras }); return; }
       const s = item.size ?? "bento";
       const okFlavours = (catalog.cake.flavours[s] ?? []).map((f) => f.id);
-      set({ design, shape: "round", flavors: item.flavors.filter((f) => okFlavours.includes(f)) });
+      set({ design, shape: "round", flavors: item.flavors.filter((f) => okFlavours.includes(f)), ...keepExtras });
       return;
     }
     const prices = noel?.cakes.find((c) => c.id === design)?.prices ?? {};
@@ -137,7 +139,8 @@ export const ItemEditor = ({ index, item, catalog, dateGroups, quote, onChange, 
   const shapes = isCake ? catalog.cake.shapes[size] ?? [] : item.product === "diy_kit" ? catalog.kit.shapes : [];
   const flavours = isCake ? catalog.cake.flavours[size] ?? [] : item.product === "diy_kit" ? catalog.kit.flavours : catalog.dotCakes.flavours;
   const designs = isCake ? [...(catalog.cake.designs[size] ?? []), ...(catalog.cake.inspirationDesigns[size] ?? [])] : [];
-  const extras = isCake ? catalog.cake.extras[size] ?? [] : [];
+  // L'extra « Gender Reveal » n'a pas de sens sur le design Gender Reveal (déjà compris).
+  const extras = isCake ? (catalog.cake.extras[size] ?? []).filter((e) => !(e === "gender-reveal" && item.design === "gender-reveal")) : [];
   const pack = item.product === "dot_cakes" ? catalog.dotCakes.packs.find((p) => p.id === item.size) : undefined;
   const session = item.product === "workshop" ? catalog.workshops.find((s) => s.id === item.workshop_session_id) : undefined;
 

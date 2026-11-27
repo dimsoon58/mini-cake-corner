@@ -261,7 +261,18 @@ export const extras = [
   { id: "sprinkles", name: "Sprinkles", price: { bento: 3, retro: 4, medium: 5, large: 6, rectangle: 10 } as Record<string, number>, image: extraSprinkles },
   // Commandes manuelles de l'admin seulement (aucune page publique ne lit cette liste pour proposer les extras).
   { id: "gems", name: "Gems", price: { retro: 8, medium: 15, large: 25 } as Record<string, number> },
+  // Commandes manuelles seulement (27.11.2026) : intérieur Gender Reveal sur n'importe quel design.
+  { id: "gender-reveal", name: "Gender Reveal", price: { bento: 5, retro: 7, medium: 10, large: 15, rectangle: 40 } as Record<string, number> },
 ];
+
+// Extras réservés aux commandes manuelles de l'admin : jamais proposés au
+// panier public (le catalogue public a sa propre liste).
+export const ADMIN_ONLY_EXTRAS = ["gems", "gender-reveal"];
+
+// Gender Reveal : retire « Inside: … » des couleurs affichées à la cliente
+// (paniers enregistrés avant le 27.11.2026). "" si rien d'autre.
+export const withoutInsideColour = (names: string | null | undefined): string =>
+  String(names ?? "").split(",").map((s) => s.trim()).filter((s) => s && !/^Inside\s*:/i.test(s)).join(", ");
 
 export const candles = [
   { id: "silver-spiral", name: "Silver Spiral", image: candleSilverSpiral, unitPrice: 1, hasPack: true, packSize: 6, packPrice: 5 },
@@ -290,7 +301,7 @@ export const candles = [
 export const extraGroups = [
   {
     label: "Decorations",
-    ids: ["cherries", "glitter-cherries", "butterfly", "ribbons", "gems"],
+    ids: ["cherries", "glitter-cherries", "butterfly", "ribbons", "gems", "gender-reveal"],
   },
   {
     label: "Pearls",

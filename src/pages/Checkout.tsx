@@ -5,7 +5,7 @@ import { CalendarIcon, ArrowLeft } from "lucide-react";
 import {
   sizes, shapes, styles, extras as catalogExtrasData,
   getFlavorCategoryExtra, getExtraPrice, getCandleTotalPrice, candles as customisationCandles,
-  flavorCategories, extraGroups,
+  flavorCategories, extraGroups, withoutInsideColour,
 } from "@/data/customization";
 import { INSPIRATIONS } from "@/data/inspirations";
 import { candles as kitBentoCandles } from "@/pages/KitBentoCake";
@@ -2281,7 +2281,7 @@ const Checkout = () => {
                             </div>
                           ))}
                           {item.baseColorName && <p>{t("Base Colour:", "Couleur de base :")} {item.baseColorName}</p>}
-                          {item.decorationColorName && <p>{t("Decoration Colour:", "Couleur de décoration :")} {item.decorationColorName}</p>}
+                          {withoutInsideColour(item.decorationColorName) && <p>{t("Decoration Colour:", "Couleur de décoration :")} {withoutInsideColour(item.decorationColorName)}</p>}
                           {item.cakeText && (
                             <p>{t("Text:", "Texte :")} "{item.cakeText}"{item.textColorName ? ` (${item.textColorName})` : ""}</p>
                           )}

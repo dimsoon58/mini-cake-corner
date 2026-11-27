@@ -52,4 +52,5 @@ export const extraNameFr: Record<string, string> = {
   "sprinkles": "Vermicelles",
   "printed-picture": "Printed Picture",
   "gems": "Gems",
+  "gender-reveal": "Gender Reveal",
 };

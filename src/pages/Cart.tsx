@@ -53,6 +53,8 @@ import {
   calculateCartItemTotal,
   getCartExcludedExtras,
   extraGroups,
+  ADMIN_ONLY_EXTRAS,
+  withoutInsideColour,
   extraDescriptions,
   getAvailableSizesForStyle,
   getFlavorCategoryExtra,
@@ -1191,7 +1193,7 @@ const RegularItemSummary = ({ item }: { item: any }) => {
         // splitComment(...).comment is null/empty for a tag-only value, and
         // the plain customer text otherwise (or unchanged if there's no tag).
         const displayComment = splitComment(item.comment).comment;
-        return (item.baseColorName || item.decorationColorName || item.cakeText || displayComment) && (
+        return (item.baseColorName || withoutInsideColour(item.decorationColorName) || item.cakeText || displayComment) && (
           <div className="border-t border-border/30 mt-5 pt-5 space-y-3">
             {item.baseColorName && (
               <div className="flex gap-2 text-sm">
@@ -1199,10 +1201,10 @@ const RegularItemSummary = ({ item }: { item: any }) => {
                 <span className="text-foreground">{item.baseColorName}</span>
               </div>
             )}
-            {item.decorationColorName && (
+            {withoutInsideColour(item.decorationColorName) && (
               <div className="flex gap-2 text-sm">
                 <span className="text-muted-foreground/70 shrink-0 w-28">{t("Decoration", "Décoration")}</span>
-                <span className="text-foreground">{item.decorationColorName}</span>
+                <span className="text-foreground">{withoutInsideColour(item.decorationColorName)}</span>
               </div>
             )}
             {item.cakeText && (
@@ -1455,6 +1457,7 @@ const CartItemEditor = ({
             .map(id => extras.find(e => e.id === id))
             .filter((extra): extra is typeof extras[0] => !!extra && !excludedExtras.includes(extra.id))
             .filter(extra => extra.id !== "printed-picture" || (item.extras || []).includes(extra.id))
+            .filter(extra => !ADMIN_ONLY_EXTRAS.includes(extra.id) || (item.extras || []).includes(extra.id))
             .filter(extra => {
               const price = extra.price[item.size as keyof typeof extra.price];
               return price !== undefined && price > 0;

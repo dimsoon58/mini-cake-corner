@@ -275,6 +275,9 @@ export const CAKE_EXTRAS: Record<string, SizePriceMap> = {
   // Commandes manuelles de l'admin seulement (23.11.2026) : pas sur le site
   // public, ni en Bento ni en Rectangle.
   gems: { retro: 8, medium: 15, large: 25 },
+  // Commandes manuelles de l'admin seulement (27.11.2026) : intérieur Gender
+  // Reveal sur n'importe quel design, même prix que le design Gender Reveal.
+  "gender-reveal": { bento: 5, retro: 7, medium: 10, large: 15, rectangle: 40 },
 };
 
 // ── Candles (shared by embedded and standalone purchases) ─────────────────

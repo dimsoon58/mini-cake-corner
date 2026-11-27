@@ -187,7 +187,8 @@ export function colourNeeds(item: Pick<EditorItem, "product" | "extras" | "desig
     butterfly: has("butterfly") || d === "butterfly-garden",
     glitter: has("glitter") || has("glitter-base") || has("glitter-in-the-air") || d === "retro-glitter-cake" || d === "retro-ribbons-glitter",
     glitterCherries: has("glitter-cherries") || d === "glitter-cherries-retro",
-    inside: d === "gender-reveal",
+    // Design Gender Reveal, ou extra « Gender Reveal » (admin, 27.11.2026).
+    inside: d === "gender-reveal" || has("gender-reveal"),
   };
 }
 export const RIBBON_COLOURS: ColourOption[] = ribbonColors;

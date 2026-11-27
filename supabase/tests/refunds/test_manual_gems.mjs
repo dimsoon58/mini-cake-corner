@@ -72,7 +72,10 @@ ok(/Gems/.test(deco) && /Feuilles d'or/.test(deco), "Étiquette Production : « 
 // ── Site public : Gems n'est pas proposé ───────────────────────────────
 const catalogPage = fs.readFileSync(path.join(REPO, "src/pages/Catalog.tsx"), "utf8");
 const customizePage = fs.readFileSync(path.join(REPO, "src/pages/Customize.tsx"), "utf8");
-ok(!/id: "gems"/.test(catalogPage) && !/id: "gems"/.test(customizePage), "Site public : Gems absent des pages Catalogue et Personnaliser");
+// Depuis le 24.11 « gems » est aussi un DESIGN public (Eli) : seul l'EXTRA reste admin.
+const catalogExtrasList = catalogPage.split("const catalogExtras = [")[1]?.split("];")[0] ?? "";
+ok(!/id: "gems"/.test(catalogExtrasList) && !/id: "gems"/.test(customizePage), "Site public : extra Gems absent des pages Catalogue et Personnaliser");
+ok(/ADMIN_ONLY_EXTRAS\.includes/.test(fs.readFileSync(path.join(REPO, "src/pages/Cart.tsx"), "utf8")), "Panier public : extras admin filtrés");
 
 console.log(`\n${pass} PASS, ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

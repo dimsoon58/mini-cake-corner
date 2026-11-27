@@ -419,6 +419,13 @@ export async function quoteManualOrder(supabase: any, input: QuoteInput): Promis
       }
     }
 
+    // Extra « Gender Reveal » (admin) : une fois, et pas sur le design Gender Reveal.
+    const grCount = (Array.isArray(it.extras) ? it.extras : []).filter((e) => e === "gender-reveal").length;
+    if (grCount > 1) return { index, product, total: null, error: "Gender Reveal can only be added once" };
+    if (grCount === 1 && it.design === "gender-reveal") {
+      return { index, product, total: null, error: "The Gender Reveal design already includes the inside colour" };
+    }
+
     const priced = priceOrderItem({
       product,
       size: it.size ?? null,
